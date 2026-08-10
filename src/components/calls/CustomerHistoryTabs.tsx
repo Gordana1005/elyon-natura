@@ -161,8 +161,23 @@ function OrdersTable({ orders, onOpenOrder }: { orders: any[]; onOpenOrder?: (id
                     <div className="font-bold">{formatMoney(total)}</div>
                   </td>
                   <td className="py-1.5 pl-3">
+                    {/* The pill is a BUTTON, not decoration. An agent handed a
+                        client by the manager needs a way to record what happened
+                        on the order that already exists — without one they made a
+                        second order instead, which is the fork bug. The row is
+                        clickable too, but the status is what they reach for. */}
                     {o.status
-                      ? <StatusBadge status={o.status as OrderStatus} order={o} className="text-[10px]" />
+                      ? (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); onOpenOrder?.(o.id); }}
+                          disabled={!onOpenOrder}
+                          title={onOpenOrder ? t('customerHistory.editStatusHint') : undefined}
+                          className="rounded-full transition hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:hover:opacity-100"
+                        >
+                          <StatusBadge status={o.status as OrderStatus} order={o} className="text-[10px]" />
+                        </button>
+                      )
                       : <span className="text-muted-foreground/40 text-[10px]">—</span>}
                   </td>
                   <td className="py-1.5 pl-3 max-w-[200px]">

@@ -29,7 +29,7 @@ Inside the portal you'll find everything you need to integrate:
 
 - **Integration page** — your **API key** is here. Copy it, and you can **rotate** it anytime (rotating invalidates the old key immediately — update your sender right after). This is also where you set your **postback URL**, toggle which events fire, and **test-fire** a postback to your tracker. It also shows ready-made curl / PHP / Node snippets pre-filled with your real key and offer IDs.
 - **Offers page** — the offers you're approved to run, each with your payout and the **offer ID** to put in the `offer` field below.
-- **Dashboard** — live stats for your leads: sent, approved (hold), paid (buyout), and payout.
+- **Dashboard** — live stats for your leads: sent, approve rate, buyout rate, **approved** (= confirmed, which is what you are paid for) and **payout earned**. Filter by any date range you like.
 
 You can integrate straight from the portal snippets, or follow the reference below.
 
@@ -164,13 +164,18 @@ GET /cpa/leads?key=aff_YOUR_KEY&ids=lead-10001,lead-10002,ORD-37405
 | Stage | Meaning | Money |
 |---|---|---|
 | `wait` | In processing — the call center is working the lead | — |
-| `hold` | **Approved (hold)** — confirmed by the call center, awaiting delivery + cash | payout on hold |
-| `approve` | **Paid (buyout)** — COD cash collected. Payout earned | payout earned |
-| `cancel` | Cancelled during processing (+ `reason`) | no payout |
-| `trash` | Invalid lead — wrong/unreachable number (+ `reason`) | no payout |
-| `return` | Delivered but returned/refused — payout reversed (+ `reason`) | no payout |
+| `hold` | **Approved** — confirmed by the call center | **payout earned** (final) |
+| `approve` | **Paid (buyout)** — COD cash collected | payout was already earned at `hold` |
+| `cancel` | Cancelled during processing (+ `reason`) | no payout if it never reached `hold`; an earned payout is kept |
+| `trash` | Invalid lead — wrong/unreachable number (+ `reason`) | no payout if it never reached `hold`; an earned payout is kept |
+| `return` | Delivered but returned/refused (+ `reason`) | payout kept — **not** reversed |
 
-This is a **COD buyout model**: payout is finalized when the customer pays on delivery (`approve`), not at confirmation (`hold`).
+**Payout accrues when the call centre confirms the order (`hold`), and is never reversed.**
+Your job ends at confirmation: what happens afterwards — shipped, delivered, paid, returned,
+or even cancelled later — is logistics information for your panel, not a payment event. A
+delivery that fails is our loss, not yours. The **"Payout earned" figure in your portal is the
+billing truth**; the stage stream your tracker receives is unchanged (same events, same codes,
+same moments) and remains logistics truth.
 
 ---
 
@@ -195,7 +200,7 @@ GET https://<your-network>/api/comp/edit.json?id=<token>&oid=<your order id>&…
 
 Reason codes are configured **per network**, because AlterCPA installs differ — send us your table (Profile → API docs) if it isn't the vendor default.
 
-**Two things we need from you:** the offer's payout model (**CPS or CoD** — it decides whether `status=10` is what settles the conversion), and confirmation that no company working-hours or balance limit is set, since either one blocks the API in a way that looks nothing like a rate limit.
+**Billing settles at confirmation on our side** (`accept=1`), so the offer's payout model does not change what we owe you: `status=10` (paid) and `status=11` (returned) are pushed as logistics information only and neither creates nor removes a payout. **One thing we need from you:** confirmation that no company working-hours or balance limit is set, since either one blocks the API in a way that looks nothing like a rate limit.
 
 ---
 
@@ -216,12 +221,19 @@ Give us your postback URL template (or configure it yourself in your affiliate p
 | `{status}` | Keitaro-style: `lead` (wait/hold), `sale` (approve), `rejected` (cancel/trash/return) |
 | `{stage:w\|h\|a\|c\|t\|r}` | Custom mapping — your own six values, pipe-separated, in order: lead\|hold\|approve\|cancel\|trash\|return |
 | `{cash}` / `{payout}` | Payout amount in EUR — non-zero **only** on `approve` |
-| `{hold}` | Payout on hold — non-zero on `lead`/`hold` |
+| `{hold}` | Payout amount in EUR — non-zero on `lead`/`hold` |
 | `{reason}` | Cancellation/trash/return reason code, when applicable |
 | `{sub1}`…`{sub5}` | Your sub-IDs, verbatim |
 | `{currency}` | `EUR` |
 | `{date}` | ISO timestamp of the event |
 | `{rand}` | Random value (cache-buster) |
+
+> **These macros are logistics truth, not billing truth.** The postback stream is deliberately
+> unchanged by the 2026-08-10 payout rule: `{stage}`, `{status}`, `{cash}` and `{hold}` still
+> follow the order's *current* status exactly as before, so nothing in your tracker needs
+> touching. What you are actually owed is the **"Payout earned"** figure in your portal, which
+> counts every lead that was ever confirmed and never goes down. It is normal for your panel to
+> show `return` on an order the portal still counts as earned.
 
 ### Example — Keitaro
 

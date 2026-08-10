@@ -18,7 +18,13 @@ interface PendingLead {
   product_name: string | null;
   created_at: string;
   assigned_at: string | null;
+  status: string;
 }
+
+// A lead the agent has already engaged with. `take` = they are on the customer
+// right now; `call_again` = they rang and nobody picked up. Both are still the
+// agent's work — they are just not fresh.
+const isWorked = (status: string) => status === 'take' || status === 'call_again';
 
 interface Props {
   agentId: string;
@@ -40,12 +46,23 @@ export function AgentPendingLeadsRow({ agentId, count, busy, defaultOpen, onMuta
 
   useEffect(() => { if (defaultOpen) setExpanded(true); }, [defaultOpen]);
 
+  // The whole lead lifecycle, exactly what assigned_pending_counts() counts for
+  // the chip above. Asking for 'pending' alone made the row say "nothing to
+  // assign" while the chip said 2 — every one of that agent's leads had been
+  // called once and moved to call_again, so the row could never see them.
   const { data, isLoading } = useQuery<{ orders: PendingLead[] }>({
     queryKey: ['assigner-agent-pendings', agentId],
-    queryFn: () => apiGetOrders({ status: 'pending', agent_id: agentId, limit: 200 }),
+    queryFn: () => apiGetOrders({ status: 'pending,take,call_again', agent_id: agentId, lead_only: true, limit: 200 }),
     enabled: expanded,
   });
-  const leads = data?.orders ?? [];
+  // Untouched leads first — they are the ones actually worth reassigning.
+  const leads = [...(data?.orders ?? [])].sort((a, b) => {
+    const w = Number(isWorked(a.status)) - Number(isWorked(b.status));
+    if (w !== 0) return w;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
+  const toCall = leads.filter(l => !isWorked(l.status)).length;
+  const called = leads.length - toCall;
 
   const unassignOne = async (orderId: string) => {
     setRowBusy(orderId);
@@ -69,6 +86,20 @@ export function AgentPendingLeadsRow({ agentId, count, busy, defaultOpen, onMuta
       >
         <ChevronRight className={cn('h-3.5 w-3.5 text-muted-foreground transition-transform shrink-0', expanded && 'rotate-90')} />
         <div className="flex-1 min-w-0 text-sm truncate">{t('assigner.pendingLeadsRow')}</div>
+        {/* Same read as a prediction list row: how many are still untouched vs
+            already worked, so it is obvious at a glance what can be handed on. */}
+        {expanded && leads.length > 0 && (
+          <>
+            <span className="rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-[11px] font-medium shrink-0 dark:bg-amber-500/15 dark:text-amber-300">
+              {t('assigner.nToCall', { count: toCall })}
+            </span>
+            {called > 0 && (
+              <span className="rounded-full bg-muted text-muted-foreground px-2 py-0.5 text-[11px] font-medium shrink-0">
+                {t('assigner.nCalled', { count: called })}
+              </span>
+            )}
+          </>
+        )}
         <span className="text-xs text-muted-foreground shrink-0">
           {t('assigner.nPendings', { count: count.toLocaleString() })}
         </span>
@@ -86,6 +117,15 @@ export function AgentPendingLeadsRow({ agentId, count, busy, defaultOpen, onMuta
                 <span className="text-sm font-medium">{lead.customer_name || '—'}</span>
                 <span className="ml-2 font-mono text-xs text-muted-foreground">{lead.customer_phone}</span>
               </div>
+              {/* The lead's real status, in the same words as everywhere else —
+                  "Call Again" / "In progress". The twin of the "Done" badge on
+                  prediction members, but a lead is never "done" until it is
+                  confirmed, cancelled or trashed, so say what it actually is. */}
+              {isWorked(lead.status) && (
+                <Badge variant="secondary" className="text-[10px] shrink-0">
+                  {t(`status.${lead.status}`)}
+                </Badge>
+              )}
               {lead.product_name && (
                 <Badge variant="outline" className="text-[10px] shrink-0 hidden sm:inline-flex">{lead.product_name}</Badge>
               )}

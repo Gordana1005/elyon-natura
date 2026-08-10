@@ -22,7 +22,16 @@ import {
 } from 'lucide-react';
 import { Check } from 'lucide-react';
 import { MobileCard, MobileCardHeader, MobileCardField, MobileCardActions } from '@/components/ui/mobile-card';
-import { apiGetOrders, apiGetAgents, apiGetProducts, apiBulkStatusUpdate, apiDuplicateOrder } from '@/lib/api';
+import { apiGetOrders, apiGetAgents, apiGetProducts, apiBulkStatusUpdate, apiBulkDisposition, apiDuplicateOrder, type TrashReason, type CancellationReason } from '@/lib/api';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+// The SAME reason pickers the Calls page and both order modals use — a bulk
+// path must never grow its own reason list, or the two drift and the cancel
+// insights stop adding up.
+import { TrashReasonPicker } from '@/components/TrashReasonPicker';
+import { CancellationReasonPicker } from '@/components/CancellationReasonPicker';
+import { isTrashSelectionValid } from '@/lib/trashReasons';
+import { isCancelSelectionValid } from '@/lib/cancellationReasons';
+import { Trash2, Ban } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 // The price filter talks EUR to the API (orders are stored in EUR) but the
 // operator picks and types denari — convert at the boundary, show ден only.
@@ -452,6 +461,60 @@ export default function Orders() {
     return next;
   });
   const clearExportSelect = () => setSelectedExport(new Map());
+
+  // ── Bulk trash / cancel (rule 8: no order is junked without a reason) ──────
+  // Rides on the row selection that already exists for the fulfilment CSV, so
+  // there is one selection model on this page, not two.
+  const canDisposeOrders = !!(user?.isAdmin || user?.isManager);
+  // Mirrors DISPOSABLE in POST /orders/bulk-disposition. Anything shipped and
+  // beyond belongs to the warehouse Returned flow.
+  const DISPOSABLE_STATUSES = ['pending', 'take', 'call_again', 'confirmed'];
+  const [dispositionAction, setDispositionAction] = useState<'trashed' | 'cancelled' | null>(null);
+  const [dispTrashReason, setDispTrashReason] = useState<TrashReason | null>(null);
+  const [dispCancelReason, setDispCancelReason] = useState<CancellationReason | null>(null);
+  const [dispNotes, setDispNotes] = useState('');
+  const [dispBusy, setDispBusy] = useState(false);
+  // What the server will actually act on, so the dialog can say "3 of 5" rather
+  // than promising a number it won't deliver.
+  const disposableSelected = useMemo(
+    () => Array.from(selectedExport.values()).filter(
+      (o: any) => DISPOSABLE_STATUSES.includes(o.status) && o.status !== dispositionAction,
+    ),
+    [selectedExport, dispositionAction],
+  );
+  const openDisposition = (action: 'trashed' | 'cancelled') => {
+    setDispTrashReason(null);
+    setDispCancelReason(null);
+    setDispNotes('');
+    setDispositionAction(action);
+  };
+  const dispositionValid = dispositionAction === 'trashed'
+    ? isTrashSelectionValid(dispTrashReason, dispNotes)
+    : isCancelSelectionValid(dispCancelReason, dispNotes);
+  const runDisposition = async () => {
+    if (!dispositionAction || !dispositionValid || disposableSelected.length === 0) return;
+    const reason = dispositionAction === 'trashed' ? dispTrashReason! : dispCancelReason!;
+    setDispBusy(true);
+    try {
+      const res = await apiBulkDisposition(
+        disposableSelected.map((o: any) => o.id), dispositionAction, reason, dispNotes.trim() || undefined,
+      );
+      toast({
+        title: t('ordersPage.bulkDispositionDone', { count: res.updated }),
+        description: res.skipped > 0
+          ? t('ordersPage.bulkDispositionSkipped', { count: res.skipped, ids: res.skipped_ids.join(', ') })
+          : undefined,
+      });
+      setDispositionAction(null);
+      clearExportSelect();
+      fetchOrders();
+    } catch (err: any) {
+      toast({ title: t('common.error'), description: err?.message, variant: 'destructive' });
+    } finally {
+      setDispBusy(false);
+    }
+  };
+
   // Whether the current selection has anything that can flip → shipped.
   const selectedHasConfirmed = useMemo(
     () => Array.from(selectedExport.values()).some((o: any) => o.status === 'confirmed'),
@@ -1080,9 +1143,72 @@ export default function Orders() {
         <div className="flex flex-wrap items-center gap-2 px-1 text-xs">
           <span className="rounded-full bg-primary/10 text-primary px-2 py-0.5 font-medium">{t('ordersPage.nSelectedForExport', { count: selectedExport.size })}</span>
           <button type="button" onClick={clearExportSelect} className="text-muted-foreground hover:text-foreground underline">{t('common.clear')}</button>
+          {canDisposeOrders && disposableSelected.length > 0 && (
+            <>
+              <span className="text-muted-foreground/50">|</span>
+              <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={() => openDisposition('trashed')}>
+                <Trash2 className="h-3.5 w-3.5" />
+                {t('ordersPage.bulkTrash', { count: disposableSelected.length })}
+              </Button>
+              <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={() => openDisposition('cancelled')}>
+                <Ban className="h-3.5 w-3.5" />
+                {t('ordersPage.bulkCancel', { count: disposableSelected.length })}
+              </Button>
+            </>
+          )}
           <span className="text-muted-foreground">{t('ordersPage.openPrefix')} <span className="font-medium text-foreground">{t('ordersPage.fulfilSelectedPath')}</span> {t('ordersPage.openSuffix')}</span>
         </div>
       )}
+
+      {/* Bulk trash / cancel — one reason for the whole selection. */}
+      <Dialog open={!!dispositionAction} onOpenChange={(o) => { if (!o && !dispBusy) setDispositionAction(null); }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {dispositionAction === 'trashed'
+                ? t('ordersPage.bulkTrashTitle', { count: disposableSelected.length })
+                : t('ordersPage.bulkCancelTitle', { count: disposableSelected.length })}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedExport.size > disposableSelected.length
+                ? t('ordersPage.bulkDispositionPartial', {
+                    count: disposableSelected.length,
+                    total: selectedExport.size,
+                  })
+                : t('ordersPage.bulkDispositionHint')}
+            </DialogDescription>
+          </DialogHeader>
+          {dispositionAction === 'trashed' ? (
+            <TrashReasonPicker
+              value={dispTrashReason}
+              notes={dispNotes}
+              onChange={setDispTrashReason}
+              onNotesChange={setDispNotes}
+              disabled={dispBusy}
+              idPrefix="orders-bulk-trash"
+            />
+          ) : (
+            <CancellationReasonPicker
+              value={dispCancelReason}
+              notes={dispNotes}
+              onChange={setDispCancelReason}
+              onNotesChange={setDispNotes}
+              disabled={dispBusy}
+            />
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDispositionAction(null)} disabled={dispBusy}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={runDisposition} disabled={!dispositionValid || dispBusy || disposableSelected.length === 0}>
+              {dispBusy && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              {dispositionAction === 'trashed'
+                ? t('ordersPage.bulkTrash', { count: disposableSelected.length })
+                : t('ordersPage.bulkCancel', { count: disposableSelected.length })}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Table — desktop */}
       <div className="hidden md:block overflow-x-auto rounded-xl border bg-card shadow-sm">

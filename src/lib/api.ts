@@ -261,13 +261,17 @@ export const apiManageLeaderboardToken = (
   apiFetch('leaderboard/token', { method: 'POST', body: JSON.stringify(body) });
 
 // Orders
-export const apiGetOrders = (params?: { status?: string; search?: string; agent_id?: string; source?: string; ready_only?: boolean; from?: string; to?: string; price_min?: number; price_max?: number; page?: number; limit?: number }) => {
+export const apiGetOrders = (params?: { status?: string; search?: string; agent_id?: string; source?: string; ready_only?: boolean; lead_only?: boolean; from?: string; to?: string; price_min?: number; price_max?: number; page?: number; limit?: number }) => {
   const sp = new URLSearchParams();
   if (params?.status) sp.set('status', params.status);
   if (params?.search) sp.set('search', params.search);
   if (params?.agent_id) sp.set('agent_id', params.agent_id);
   if (params?.source) sp.set('source', params.source);
   if (params?.ready_only) sp.set('ready_only', '1');
+  // Inbound leads only (altercpa | inbound_lead | opencart | opencart_abandoned).
+  // Keeps agent-created `manual` work and the legacy `import` out of the
+  // Pendings surfaces — same definition as public.is_lead_source().
+  if (params?.lead_only) sp.set('lead_only', '1');
   if (params?.from) sp.set('from', params.from);
   if (params?.to) sp.set('to', params.to);
   if (params?.price_min != null) sp.set('price_min', String(params.price_min));
@@ -288,6 +292,78 @@ export interface MyPendingsSummary {
 }
 export const apiGetMyPendingsSummary = (): Promise<MyPendingsSummary> =>
   apiFetch('my-pendings-summary');
+
+// The customer's ONE open order, found with NO agent filter — this is what stops
+// a lead being forked. RLS hides a colleague's row and the agent's own queue is
+// scoped to them, so without this the Calls page could not find an existing lead
+// and Confirm created a second order beside it.
+export interface OpenLead {
+  id: string;
+  display_id: string;
+  status: string;
+  assigned_agent_id: string | null;
+  assigned_agent_name: string | null;
+  source_type: string | null;
+}
+export const apiGetOpenLead = (phone: string): Promise<{ lead: OpenLead | null }> =>
+  apiFetch(`orders/open-lead?phone=${encodeURIComponent(phone)}`);
+
+// Bulk trash / cancel WITH a reason (Orders page action bar). Deliberately
+// separate from apiBulkStatusUpdate, which drives fulfilment states and writes
+// no reason — rule 8: no order is junked without a reason, bulk paths included.
+export interface BulkDispositionResult {
+  success: boolean;
+  updated: number;
+  skipped: number;
+  skipped_ids: string[];   // display_ids that were past confirm and left alone
+}
+export const apiBulkDisposition = (
+  orderIds: string[],
+  action: 'trashed' | 'cancelled',
+  reason: string,
+  reasonNotes?: string,
+): Promise<BulkDispositionResult> =>
+  apiFetch('orders/bulk-disposition', {
+    method: 'POST',
+    body: JSON.stringify({ order_ids: orderIds, action, reason, reason_notes: reasonNotes || undefined }),
+  });
+
+// Prediction-list call agains as a redistributable pool (Assigner tab). Leads
+// are NOT here on purpose: a lead that didn't answer stays with its own agent.
+export interface CallAgainMember {
+  list_id: string;
+  customer_phone: string;
+  customer_name: string | null;
+  call_again_since: string | null;
+  last_call_at: string | null;
+  last_call_outcome: string | null;
+  in_call_again_until: string | null;
+  assigned_agent_id: string | null;
+  assigned_agent_name: string | null;
+  lifetime_value: number | null;
+  paid_count: number | null;
+  avg_package_price: number | null;
+  prediction_segment_lists?: { name: string; category: string } | null;
+}
+export const apiGetCallAgains = (params?: { page?: number; limit?: number; agent_id?: string }) => {
+  const sp = new URLSearchParams();
+  if (params?.page) sp.set('page', String(params.page));
+  if (params?.limit) sp.set('limit', String(params.limit));
+  if (params?.agent_id) sp.set('agent_id', params.agent_id);
+  return apiFetch(`call-agains?${sp.toString()}`) as Promise<{
+    members: CallAgainMember[]; total: number; page: number; limit: number;
+  }>;
+};
+// Members span many lists, so the selection is (list_id, customer_phone) pairs.
+// agent_id = null frees them back to the pool.
+export const apiAssignCallAgains = (
+  members: Array<{ list_id: string; customer_phone: string }>,
+  agentId: string | null,
+): Promise<{ success: boolean; assigned: number }> =>
+  apiFetch('call-agains/assign', {
+    method: 'POST',
+    body: JSON.stringify({ members, agent_id: agentId }),
+  });
 
 export interface CreateOrderBody {
   product_id?: string | null;
@@ -787,6 +863,9 @@ export interface CallAgainEntry {
   last_call_at: string | null;
   last_call_outcome: string | null;
   in_call_again_until: string | null;
+  // When this customer FIRST went unanswered — the operator's "waiting since",
+  // anchored and never reset while it keeps ringing. Returned for both sources.
+  call_again_since?: string | null;
   assigned_agent_id: string | null;
   assigned_agent_name: string | null;
   lifetime_value: number;
@@ -1594,10 +1673,15 @@ export const apiGetCooldownClients = (): Promise<{ clients: CooldownClient[]; to
 // ── Affiliates admin (2026-07) ──
 // View = admin/manager; all mutations are admin-only server-side. Managers
 // receive affiliate rows WITHOUT api_key.
+// Earned-at-confirmation (operator decision 2026-08-10): `approved` counts
+// every lead whose order was EVER confirmed — sticky, a later cancel/trash/
+// return keeps the payout. wait/cancelled/trashed are pre-confirm only;
+// `paid` ⊆ approved feeds the informational Buyout rate; payout_earned is
+// the € sum over approved.
 export interface AffiliateStats {
-  sent: number; wait: number; hold: number; paid: number;
-  cancelled: number; trashed: number; returned: number;
-  payout_hold: number; payout_earned: number;
+  sent: number; wait: number; approved: number; paid: number;
+  cancelled: number; trashed: number;
+  payout_earned: number;
 }
 export interface AffiliateAdmin {
   id: string;
@@ -1629,16 +1713,55 @@ export const apiUpdateAffiliate = (id: string, body: Partial<{
 export const apiRotateAffiliateKey = (id: string): Promise<{ api_key: string }> =>
   apiFetch(`affiliates/${id}/rotate-key`, { method: 'POST' });
 export interface AffiliateDayStat {
-  date: string; sent: number; wait: number; hold: number; paid: number;
-  cancelled: number; trashed: number; returned: number;
+  date: string; sent: number; wait: number; approved: number; paid: number;
+  cancelled: number; trashed: number;
+}
+/**
+ * Staff-only stats payload. `statuses`, `tests` and `revenue` exist ONLY here —
+ * the portal twin (apiGetAffiliatePortalStats) must never return them, because
+ * internal funnel detail and test hygiene are not for webmasters.
+ */
+export interface AffiliateAdminStats {
+  totals: AffiliateStats;
+  days: AffiliateDayStat[];
+  /** Raw CURRENT-status histogram over the affiliate's leads (staff-only). */
+  statuses: Record<string, number>;
+  tests: { test_leads: number; postback_tests: number };
+  /** Selling side over the CONFIRMED pool (staff-only — never on the portal). */
+  revenue: { confirmed_eur: number; avg_confirmed_eur: number };
+  from: string;
+  to: string;
 }
 export const apiGetAffiliateStats = (id: string, from?: string, to?: string):
-  Promise<{ totals: AffiliateStats; days: AffiliateDayStat[]; from: string; to: string }> => {
+  Promise<AffiliateAdminStats> => {
   const qs = new URLSearchParams();
   if (from) qs.set('from', from);
   if (to) qs.set('to', to);
   const s = qs.toString();
   return apiFetch(`affiliates/${id}/stats${s ? `?${s}` : ''}`);
+};
+/**
+ * Staff view of one affiliate's leads: the portal row plus role-privacy-governed
+ * customer PII and the CRM order linkage. `display_id` appears HERE ONLY — it is
+ * banned from every route a partner can reach (see the elyon-affiliates skill).
+ */
+export type AffiliateAdminLead = Omit<AffiliatePortalLead, 'phone_masked'> & {
+  customer_phone: string | null;
+  order_id: string | null;
+  display_id: string | null;
+  order_status: string | null;
+  confirmed_at: string | null;
+};
+export const apiGetAffiliateAdminLeads = (
+  id: string,
+  params: { page?: number; limit?: number; stage?: string; from?: string; to?: string },
+): Promise<{ rows: AffiliateAdminLead[]; total: number; page: number; limit: number }> => {
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== null && v !== '') qs.set(k, String(v));
+  }
+  const s = qs.toString();
+  return apiFetch(`affiliates/${id}/leads${s ? `?${s}` : ''}`);
 };
 export interface OfferAdmin {
   id: string;
@@ -1766,8 +1889,9 @@ export interface AffiliatePortalLead {
   customer_name: string | null;
   phone_masked: string | null;
 }
-export const apiGetAffiliatePortalLeads = (params: { page?: number; limit?: number; stage?: string }):
-  Promise<{ rows: AffiliatePortalLead[]; total: number; page: number; limit: number }> => {
+export const apiGetAffiliatePortalLeads = (
+  params: { page?: number; limit?: number; stage?: string; from?: string; to?: string },
+): Promise<{ rows: AffiliatePortalLead[]; total: number; page: number; limit: number }> => {
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
     if (v !== undefined && v !== null && v !== '') qs.set(k, String(v));

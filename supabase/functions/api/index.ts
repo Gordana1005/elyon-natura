@@ -144,11 +144,45 @@ const updateStatusSchema = z.object({
   return_reason_notes: z.string().max(1000).optional(),
 });
 
+// Bulk trash / cancel with a structured reason (Orders page action bar).
+// Deliberately NOT folded into bulk-status-update: that endpoint moves orders
+// through the fulfilment states (shipped/paid/returned) and writes no reason at
+// all, which is how reasonless rows used to appear. Dispositions always say why.
+const bulkDispositionSchema = z.object({
+  order_ids: z.array(z.string().uuid()).min(1).max(500),
+  action: z.enum(["trashed", "cancelled"]),
+  reason: z.string().min(1).max(64),
+  reason_notes: z.string().max(1000).optional(),
+});
+
 // A "real order" = a lead the customer confirmed (and anything downstream of
 // confirm). Pending leads, no-answer/call-again, trashed and cancelled rows
 // are NOT orders. This is the single source of truth reused by the order
 // write-paths (confirmed_by attribution) and the analytics endpoints.
 const REAL_ORDER_STATUSES = ["confirmed", "shipped", "delivered", "paid", "returned"];
+
+// A lead is work that ARRIVED from outside — the AlterCPA feed, a landing page
+// webhook, or the website. Everything else on `orders` is agent-created
+// (`manual`, including every record produced while working a prediction list),
+// the historical bulk import (`import`), or another company's legacy revenue
+// (`monadon_legacy`).
+//
+// This is what "Pendings" means: the agent's inbound queue. A prediction-list
+// customer who didn't answer belongs to the prediction queue's own cooldown and
+// the Call Again page — surfacing their `call_again` order under Pendings mixes
+// two different sales motions and buries the leads that pay the partner.
+//
+// ⚠ MACEDONIA: the lead value is `altercpa`, NOT Bulgaria's `affiliate`, and the
+// bulk import is `import`, NOT `monadon_legacy`. Verified against this database
+// 2026-08-10. `import` must never be listed here — it is 80k rows of legacy
+// history and would flood every agent's queue. Mirrored by public.is_lead_source()
+// in 20260917000000_pendings_are_leads_only.sql; change both together.
+const LEAD_SOURCE_TYPES = ["altercpa", "inbound_lead", "opencart", "opencart_abandoned"];
+
+// How many Call-Again rows /call-again-queue pulls per source. The page filters
+// by agent and by source in the browser, so this has to cover the whole working
+// set or a filtered view silently under-reports.
+const CALL_AGAIN_FETCH_CAP = 2000;
 
 // BigArena action-button labels that appear in every pending order's row and
 // contain отказ/върни — strip them before any keyword check so they aren't
@@ -458,11 +492,47 @@ const cpaLeadSchema = z.object({
 // CRM order_status → affiliate-visible stage. MUST stay in sync with the SQL
 // twin public.affiliate_stage() (migration 20260801000200) — the DB trigger
 // uses that one to decide when a postback fires; this one renders API replies.
+//
+// SCOPE (2026-08-10): this map is LOGISTICS truth and now renders ONLY the
+// postback payloads and the partner S2S GET /cpa/leads reply. Every PAYMENT
+// surface — the portal, both stats endpoints, the staff lead lists and the
+// admin Dashboard tab — goes through the helpers below instead. Changing one
+// must never change the other.
 const CPA_STAGE: Record<string, string> = {
   pending: "wait", take: "wait", call_again: "wait",
   confirmed: "hold", shipped: "hold", delivered: "hold",
   paid: "approve", cancelled: "cancel", trashed: "trash", returned: "return",
 };
+
+// PAYMENT truth (operator decision 2026-08-10): affiliate payout is earned the
+// moment an order is first CONFIRMED and is never reversed — later cancel/
+// trash/return is our loss, not the webmaster's. "Ever confirmed" is read off
+// orders.confirmed_at (stamped once on the first flip into a real status); the
+// REAL_ORDER_STATUSES check covers historical rows from before bulk flips
+// stamped it. Postbacks deliberately still follow CPA_STAGE — the network
+// panel keeps logistics statuses while the portal carries the money truth.
+const AFFILIATE_WAIT_STATUSES = ["pending", "take", "call_again"];
+type AffiliateOrderLite = { status?: string | null; confirmed_at?: string | null } | null | undefined;
+function affiliateEarned(o: AffiliateOrderLite): boolean {
+  return !!o && (o.confirmed_at != null || REAL_ORDER_STATUSES.includes(o.status || ""));
+}
+function affiliateDisplayStage(o: AffiliateOrderLite): "wait" | "hold" | "cancel" | "trash" {
+  if (affiliateEarned(o)) return "hold"; // rendered as "Approved" — sticky
+  if (o?.status === "cancelled") return "cancel";
+  if (o?.status === "trashed") return "trash";
+  return "wait"; // pending/take/call_again + duplicated/unknown fallback
+}
+// Stage filter for lead lists (portal + admin). Embedded-column filters work
+// because both routes join orders!inner(...). 'approve'/'return' are legacy
+// aliases from pre-2026-08 SPAs — drop them next release.
+function applyAffiliateStageFilter(q: any, stage: string) {
+  const s = stage === "approve" || stage === "return" ? "hold" : stage;
+  if (s === "hold") return q.or(`confirmed_at.not.is.null,status.in.(${REAL_ORDER_STATUSES.join(",")})`, { referencedTable: "orders" });
+  if (s === "wait") return q.is("orders.confirmed_at", null).in("orders.status", AFFILIATE_WAIT_STATUSES);
+  if (s === "cancel") return q.is("orders.confirmed_at", null).eq("orders.status", "cancelled");
+  if (s === "trash") return q.is("orders.confirmed_at", null).eq("orders.status", "trashed");
+  return q;
+}
 
 // Business errors are HTTP 200 with {status:"error", error:<code>} — the
 // AlterCPA convention affiliate trackers parse. HTTP errors stay for transport
@@ -958,6 +1028,67 @@ function salesOwnerName(o: any): string | null {
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function salesOwnerOrFilter(uid: string): string {
   return `confirmed_by_agent_id.eq.${uid},and(confirmed_by_agent_id.is.null,assigned_agent_id.eq.${uid})`;
+}
+
+// Release every order a take-lock view is holding, restoring what was there
+// BEFORE the take. The single shared implementation for both release paths (the
+// heartbeat's "one customer per agent" sweep and the explicit DELETE) — they
+// used to carry two copies of the same buggy update.
+//
+// `taken_from_agent` records the prior assignee per taken order, which may be
+// NULL (the order was unassigned) or a COLLEAGUE — an agent who lands on a
+// client takes their open lead too, and it must go back to its owner afterwards.
+// A view row written before this deploy has no array at all; those read as NULL
+// and revert to unassigned, matching the old behaviour for the ~2 min they can
+// still exist.
+//
+// The revert matches on (id, status='take') and NOT on the assignee: a taken
+// colleague's lead still carries THEIR id, so requiring the caller's would leave
+// it stuck in `take` forever. Only ids this very view recorded are touched, and
+// an order already in `take` is never a take candidate, so two agents can't
+// collide over one order.
+async function revertTakenOrders(
+  adminClient: any,
+  view: { taken_order_ids?: string[] | null; taken_from_status?: string[] | null; taken_from_agent?: (string | null)[] | null },
+  _agentId: string,
+): Promise<number> {
+  const ids = view.taken_order_ids || [];
+  const froms = view.taken_from_status || [];
+  const priors = view.taken_from_agent || [];
+  let reverted = 0;
+
+  // Resolve the owners' names once — the stamp must never be a different
+  // agent's name glued to this id ("phantom owner" in reverse).
+  const ownerIds = [...new Set(priors.filter((p): p is string => !!p))];
+  const nameById = new Map<string, string | null>();
+  if (ownerIds.length) {
+    const { data: profs } = await adminClient
+      .from("profiles").select("user_id, full_name").in("user_id", ownerIds);
+    for (const p of profs || []) nameById.set(p.user_id, p.full_name ?? null);
+  }
+
+  for (let i = 0; i < ids.length; i++) {
+    const priorAgent = priors[i] ?? null;
+    const update: Record<string, any> = { status: froms[i] };
+    if (priorAgent) {
+      // Give it back exactly as it was (assigned_at was never overwritten).
+      update.assigned_agent_id = priorAgent;
+      update.assigned_agent_name = nameById.get(priorAgent) ?? null;
+    } else {
+      // The take claimed an unassigned order. Release the whole triple —
+      // never leave a name behind without an id ("phantom owner").
+      update.assigned_agent_id = null;
+      update.assigned_agent_name = null;
+      update.assigned_at = null;
+    }
+    const { error, count } = await adminClient
+      .from("orders")
+      .update(update, { count: "exact" })
+      .eq("id", ids[i])
+      .eq("status", "take");
+    if (!error && (count ?? 0) > 0) reverted++;
+  }
+  return reverted;
 }
 
 // Resolve an optional custom [from,to] date range (both YYYY-MM-DD) into a UTC
@@ -2726,20 +2857,24 @@ async function handleRequest(req: Request): Promise<Response> {
 
       const { data: leadRows } = await adminClient
         .from("affiliate_leads")
-        .select("affiliate_id, payout_eur_snapshot, orders(status)");
+        .select("affiliate_id, payout_eur_snapshot, orders(status, confirmed_at)");
+      const blankStats = () =>
+        ({ sent: 0, wait: 0, approved: 0, paid: 0, cancelled: 0, trashed: 0, payout_earned: 0 });
       const agg = new Map<string, any>();
       for (const l of (leadRows || []) as any[]) {
-        const a = agg.get(l.affiliate_id) ||
-          { sent: 0, wait: 0, hold: 0, paid: 0, cancelled: 0, trashed: 0, returned: 0, payout_hold: 0, payout_earned: 0 };
+        const a = agg.get(l.affiliate_id) || blankStats();
         a.sent++;
-        const stage = l.orders?.status ? CPA_STAGE[l.orders.status] : undefined;
+        const o = l.orders;
         const p = Number(l.payout_eur_snapshot) || 0;
-        if (stage === "wait") a.wait++;
-        else if (stage === "hold") { a.hold++; a.payout_hold += p; }
-        else if (stage === "approve") { a.paid++; a.payout_earned += p; }
-        else if (stage === "cancel") a.cancelled++;
-        else if (stage === "trash") a.trashed++;
-        else if (stage === "return") a.returned++;
+        // Earned first and unconditionally: once confirmed, a later cancel or
+        // trash must not move the lead back into a pre-confirm bucket.
+        if (affiliateEarned(o)) {
+          a.approved++;
+          a.payout_earned += p;
+          if (o?.status === "paid") a.paid++;
+        } else if (o && AFFILIATE_WAIT_STATUSES.includes(o.status)) a.wait++;
+        else if (o?.status === "cancelled") a.cancelled++;
+        else if (o?.status === "trashed") a.trashed++;
         agg.set(l.affiliate_id, a);
       }
       const { data: pbRows } = await adminClient
@@ -2753,15 +2888,15 @@ async function handleRequest(req: Request): Promise<Response> {
       }
       const round2 = (n: number) => Math.round(n * 100) / 100;
       const out = (affs || []).map((a: any) => {
-        const s = agg.get(a.id) ||
-          { sent: 0, wait: 0, hold: 0, paid: 0, cancelled: 0, trashed: 0, returned: 0, payout_hold: 0, payout_earned: 0 };
-        s.payout_hold = round2(s.payout_hold);
+        const s = agg.get(a.id) || blankStats();
         s.payout_earned = round2(s.payout_earned);
         return {
           ...a,
           // Managers see the program, never the credentials.
           api_key: isAdmin ? a.api_key : undefined,
-          stats: s,
+          // hold/payout_hold are transitional zeros so an SPA bundle from
+          // before this deploy renders €0.00 instead of NaN. Drop next release.
+          stats: { ...s, hold: 0, payout_hold: 0 },
           postbacks: pbAgg.get(a.id) || { pending: 0, failed: 0 },
         };
       });
@@ -2869,30 +3004,114 @@ async function handleRequest(req: Request): Promise<Response> {
         new Date(Date.now() - 29 * 86_400_000).toISOString().slice(0, 10);
       const { data: rows, error } = await adminClient
         .from("affiliate_leads")
-        .select("created_at, payout_eur_snapshot, orders(status)")
+        .select("created_at, payout_eur_snapshot, orders(status, confirmed_at, customer_name, price)")
         .eq("affiliate_id", segments[1])
         .gte("created_at", `${from}T00:00:00Z`)
         .lte("created_at", `${to}T23:59:59Z`);
       if (error) return json({ error: sanitizeDbError(error) }, 400);
-      const totals = { sent: 0, wait: 0, hold: 0, paid: 0, cancelled: 0, trashed: 0, returned: 0, payout_hold: 0, payout_earned: 0 };
+      const totals = { sent: 0, wait: 0, approved: 0, paid: 0, cancelled: 0, trashed: 0, payout_earned: 0 };
       const days = new Map<string, any>();
+      // Staff-only super-metrics: raw CURRENT-status funnel + test counters.
+      // These never go on the portal twin (GET /affiliate/stats) — internal
+      // funnel detail (call_again load, test hygiene) is not for webmasters.
+      const statuses: Record<string, number> = {};
+      const TEST_NAME_RE = /test|тест/i; // heuristic: no test-lead flag exists in the schema
+      let testLeads = 0;
+      // Selling side (staff-only): what the CONFIRMED orders were sold for —
+      // orders.price is the order total the agent settled at confirm (incl.
+      // upsold quantities), so avg = confirmed revenue / confirmed count.
+      let approvedRevenue = 0;
       for (const l of (rows || []) as any[]) {
         const day = String(l.created_at).slice(0, 10);
-        const d = days.get(day) || { date: day, sent: 0, wait: 0, hold: 0, paid: 0, cancelled: 0, trashed: 0, returned: 0 };
+        const d = days.get(day) || { date: day, sent: 0, wait: 0, approved: 0, paid: 0, cancelled: 0, trashed: 0 };
         d.sent++; totals.sent++;
-        const stage = l.orders?.status ? CPA_STAGE[l.orders.status] : undefined;
+        const o = l.orders;
         const p = Number(l.payout_eur_snapshot) || 0;
-        if (stage === "wait") { d.wait++; totals.wait++; }
-        else if (stage === "hold") { d.hold++; totals.hold++; totals.payout_hold += p; }
-        else if (stage === "approve") { d.paid++; totals.paid++; totals.payout_earned += p; }
-        else if (stage === "cancel") { d.cancelled++; totals.cancelled++; }
-        else if (stage === "trash") { d.trashed++; totals.trashed++; }
-        else if (stage === "return") { d.returned++; totals.returned++; }
+        if (o?.status) statuses[o.status] = (statuses[o.status] || 0) + 1;
+        if (o?.customer_name && TEST_NAME_RE.test(String(o.customer_name))) testLeads++;
+        if (affiliateEarned(o)) {
+          d.approved++; totals.approved++; totals.payout_earned += p;
+          approvedRevenue += Number(o?.price) || 0;
+          if (o?.status === "paid") { d.paid++; totals.paid++; }
+        } else if (o && AFFILIATE_WAIT_STATUSES.includes(o.status)) { d.wait++; totals.wait++; }
+        else if (o?.status === "cancelled") { d.cancelled++; totals.cancelled++; }
+        else if (o?.status === "trashed") { d.trashed++; totals.trashed++; }
         days.set(day, d);
       }
-      totals.payout_hold = Math.round(totals.payout_hold * 100) / 100;
       totals.payout_earned = Math.round(totals.payout_earned * 100) / 100;
-      return json({ totals, days: [...days.values()].sort((a, b) => a.date.localeCompare(b.date)), from, to });
+      const { count: postbackTests } = await adminClient
+        .from("affiliate_postbacks")
+        .select("id", { count: "exact", head: true })
+        .eq("affiliate_id", segments[1])
+        .eq("event", "test")
+        .gte("created_at", `${from}T00:00:00Z`)
+        .lte("created_at", `${to}T23:59:59Z`);
+      return json({
+        // hold/payout_hold are transitional zeros for pre-deploy SPA bundles —
+        // drop next release.
+        totals: { ...totals, hold: 0, payout_hold: 0 },
+        days: [...days.values()].sort((a, b) => a.date.localeCompare(b.date)),
+        statuses,
+        tests: { test_leads: testLeads, postback_tests: postbackTests || 0 },
+        revenue: {
+          confirmed_eur: Math.round(approvedRevenue * 100) / 100,
+          avg_confirmed_eur: totals.approved > 0 ? Math.round((approvedRevenue / totals.approved) * 100) / 100 : 0,
+        },
+        from,
+        to,
+      });
+    }
+
+    // GET /affiliates/:id/leads?page&limit&stage&from&to — staff view of one
+    // affiliate's leads: same display-stage semantics as the portal, plus
+    // role-privacy-governed customer PII, the CRM order linkage (display_id +
+    // real status + confirmed_at) and an optional date range. STAFF-ONLY
+    // fields — never copy this select into affiliate/* or /cpa/* routes
+    // (orders.display_id is banned anywhere a partner can see it).
+    if (req.method === "GET" && segments[0] === "affiliates" && segments[2] === "leads" && segments.length === 3) {
+      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      if (!UUID_RE.test(segments[1])) return json({ error: "Invalid id" }, 400);
+      const page = Math.max(1, Number(url.searchParams.get("page")) || 1);
+      const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("limit")) || 30));
+      const stageFilter = url.searchParams.get("stage") || "";
+      const fromDay = url.searchParams.get("from");
+      const toDay = url.searchParams.get("to");
+      const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+      let q = adminClient
+        .from("affiliate_leads")
+        .select("id, ext_id, clickid, sub1, sub2, sub3, sub4, sub5, payout_eur_snapshot, created_at, order_id, offers(name), orders!inner(status, confirmed_at, display_id, customer_name, customer_phone, cancellation_reason, trash_reason)", { count: "exact" })
+        .eq("affiliate_id", segments[1])
+        .order("created_at", { ascending: false })
+        .range((page - 1) * limit, page * limit - 1);
+      if (fromDay && DAY_RE.test(fromDay)) q = q.gte("created_at", `${fromDay}T00:00:00Z`);
+      if (toDay && DAY_RE.test(toDay)) q = q.lte("created_at", `${toDay}T23:59:59Z`);
+      q = applyAffiliateStageFilter(q, stageFilter);
+      const { data, error, count } = await q;
+      if (error) return json({ error: sanitizeDbError(error) }, 400);
+      const rows = (data || []).map((l: any) => {
+        const stage = affiliateDisplayStage(l.orders);
+        const red = redactCustomer(l.orders, piiFlags);
+        return {
+          id: l.id,
+          ext_id: l.ext_id,
+          clickid: l.clickid,
+          sub1: l.sub1, sub2: l.sub2, sub3: l.sub3, sub4: l.sub4, sub5: l.sub5,
+          offer_name: l.offers?.name ?? null,
+          payout_eur: Number(l.payout_eur_snapshot) || 0,
+          created_at: l.created_at,
+          stage,
+          reason: ["cancel", "trash"].includes(stage)
+            ? (l.orders?.cancellation_reason || l.orders?.trash_reason || null)
+            : null,
+          customer_name: red?.customer_name ?? null,
+          customer_phone: red?.customer_phone ?? null,
+          order_id: l.order_id ?? null,
+          display_id: l.orders?.display_id ?? null,
+          order_status: l.orders?.status ?? null,
+          confirmed_at: l.orders?.confirmed_at ?? null,
+        };
+      });
+      return json({ rows, total: count || 0, page, limit });
     }
 
     // Approvals for one affiliate (offers embed for display).
@@ -3119,59 +3338,60 @@ async function handleRequest(req: Request): Promise<Response> {
           new Date(Date.now() - 29 * 86_400_000).toISOString().slice(0, 10);
         const { data: rows, error } = await adminClient
           .from("affiliate_leads")
-          .select("created_at, payout_eur_snapshot, orders(status)")
+          .select("created_at, payout_eur_snapshot, orders(status, confirmed_at)")
           .eq("affiliate_id", myAff.id)
           .gte("created_at", `${from}T00:00:00Z`)
           .lte("created_at", `${to}T23:59:59Z`);
         if (error) return json({ error: sanitizeDbError(error) }, 400);
-        const totals = { sent: 0, wait: 0, hold: 0, paid: 0, cancelled: 0, trashed: 0, returned: 0, payout_hold: 0, payout_earned: 0 };
+        const totals = { sent: 0, wait: 0, approved: 0, paid: 0, cancelled: 0, trashed: 0, payout_earned: 0 };
         const days = new Map<string, any>();
         for (const l of (rows || []) as any[]) {
           const day = String(l.created_at).slice(0, 10);
-          const d = days.get(day) || { date: day, sent: 0, wait: 0, hold: 0, paid: 0, cancelled: 0, trashed: 0, returned: 0 };
+          const d = days.get(day) || { date: day, sent: 0, wait: 0, approved: 0, paid: 0, cancelled: 0, trashed: 0 };
           d.sent++; totals.sent++;
-          const stage = l.orders?.status ? CPA_STAGE[l.orders.status] : undefined;
+          const o = l.orders;
           const p = Number(l.payout_eur_snapshot) || 0;
-          if (stage === "wait") { d.wait++; totals.wait++; }
-          else if (stage === "hold") { d.hold++; totals.hold++; totals.payout_hold += p; }
-          else if (stage === "approve") { d.paid++; totals.paid++; totals.payout_earned += p; }
-          else if (stage === "cancel") { d.cancelled++; totals.cancelled++; }
-          else if (stage === "trash") { d.trashed++; totals.trashed++; }
-          else if (stage === "return") { d.returned++; totals.returned++; }
+          if (affiliateEarned(o)) {
+            d.approved++; totals.approved++; totals.payout_earned += p;
+            if (o?.status === "paid") { d.paid++; totals.paid++; }
+          } else if (o && AFFILIATE_WAIT_STATUSES.includes(o.status)) { d.wait++; totals.wait++; }
+          else if (o?.status === "cancelled") { d.cancelled++; totals.cancelled++; }
+          else if (o?.status === "trashed") { d.trashed++; totals.trashed++; }
           days.set(day, d);
         }
-        totals.payout_hold = Math.round(totals.payout_hold * 100) / 100;
         totals.payout_earned = Math.round(totals.payout_earned * 100) / 100;
-        return json({ totals, days: [...days.values()].sort((a, b) => a.date.localeCompare(b.date)), from, to });
+        // No statuses/tests/revenue here — those are staff-only (see the admin
+        // twin). hold/payout_hold are transitional zeros; drop next release.
+        return json({
+          totals: { ...totals, hold: 0, payout_hold: 0 },
+          days: [...days.values()].sort((a, b) => a.date.localeCompare(b.date)),
+          from,
+          to,
+        });
       }
 
-      // GET /affiliate/leads?page&limit&stage — own leads, phone masked.
+      // GET /affiliate/leads?page&limit&stage&from&to — own leads, phone masked.
+      // Stage here is PAYMENT truth (hold = "Approved", sticky), not CPA_STAGE.
       if (req.method === "GET" && path === "affiliate/leads") {
         const page = Math.max(1, Number(url.searchParams.get("page")) || 1);
         const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("limit")) || 30));
         const stageFilter = url.searchParams.get("stage") || "";
-        const STAGE_STATUSES: Record<string, string[]> = {
-          wait: ["pending", "take", "call_again"],
-          hold: ["confirmed", "shipped", "delivered"],
-          approve: ["paid"],
-          cancel: ["cancelled"],
-          trash: ["trashed"],
-          return: ["returned"],
-        };
+        const fromDay = url.searchParams.get("from");
+        const toDay = url.searchParams.get("to");
+        const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
         let q = adminClient
           .from("affiliate_leads")
-          .select("id, ext_id, clickid, sub1, sub2, sub3, sub4, sub5, payout_eur_snapshot, created_at, offers(name), orders!inner(status, customer_name, customer_phone, cancellation_reason, return_reason, trash_reason)", { count: "exact" })
+          .select("id, ext_id, clickid, sub1, sub2, sub3, sub4, sub5, payout_eur_snapshot, created_at, offers(name), orders!inner(status, confirmed_at, customer_name, customer_phone, cancellation_reason, trash_reason)", { count: "exact" })
           .eq("affiliate_id", myAff.id)
           .order("created_at", { ascending: false })
           .range((page - 1) * limit, page * limit - 1);
-        if (STAGE_STATUSES[stageFilter]) {
-          q = q.in("orders.status", STAGE_STATUSES[stageFilter]);
-        }
+        if (fromDay && DAY_RE.test(fromDay)) q = q.gte("created_at", `${fromDay}T00:00:00Z`);
+        if (toDay && DAY_RE.test(toDay)) q = q.lte("created_at", `${toDay}T23:59:59Z`);
+        q = applyAffiliateStageFilter(q, stageFilter);
         const { data, error, count } = await q;
         if (error) return json({ error: sanitizeDbError(error) }, 400);
         const rows = (data || []).map((l: any) => {
-          const st = l.orders?.status as string | undefined;
-          const stage = st ? (CPA_STAGE[st] || "wait") : "wait";
+          const stage = affiliateDisplayStage(l.orders);
           const phone = String(l.orders?.customer_phone || "");
           return {
             id: l.id,
@@ -3182,8 +3402,11 @@ async function handleRequest(req: Request): Promise<Response> {
             payout_eur: Number(l.payout_eur_snapshot) || 0,
             created_at: l.created_at,
             stage,
-            reason: ["cancel", "trash", "return"].includes(stage)
-              ? (l.orders?.cancellation_reason || l.orders?.return_reason || l.orders?.trash_reason || null)
+            // Only pre-confirm kills carry a reason. A return no longer has
+            // one to show here: the payout was already earned, so from the
+            // partner's side nothing was lost and there is nothing to explain.
+            reason: ["cancel", "trash"].includes(stage)
+              ? (l.orders?.cancellation_reason || l.orders?.trash_reason || null)
               : null,
             customer_name: l.orders?.customer_name ?? null,
             phone_masked: phone ? `••••${phone.replace(/\D/g, "").slice(-4)}` : null,
@@ -4346,6 +4569,64 @@ async function handleRequest(req: Request): Promise<Response> {
       const assignedAgentId = assignToSelf ? user.id : null;
       const assignedAgentName = assignToSelf ? agentName : null;
 
+      // ── ANTI-FORK GUARD (2026-08-10) ────────────────────────────────────────
+      // A customer who already has a live lead must have THAT order completed —
+      // never a second one created beside it. Reaching a customer on the second
+      // call (their lead sitting in 'call_again') used to produce a brand-new
+      // source_type='manual' order: the AlterCPA lead stayed stuck in call_again
+      // forever and the sale was invisible on the lead it came from. BG saw 24
+      // such pairs in two days before this guard existed.
+      //
+      // The Calls page resolves the lead before opening the modal; this is the
+      // server-side backstop that makes forking impossible from ANY surface.
+      // Scope: leads nobody owns or the caller's own (admins/managers see all) —
+      // a colleague's lead must not block an unrelated record.
+      //
+      // NO EXEMPTION for cancelled/trashed, deliberately. /calls creates a
+      // synthetic closing row when a customer has no order at all — but if an
+      // open lead DOES exist and the agent cancels, letting the synthetic row
+      // through is precisely the orphaned-outcome bug: the cancel lands on a
+      // throwaway record while the real lead sits open forever. The frontend
+      // resolves the lead first (resolveOpenLeadId), so the synthetic path is
+      // only reached when there genuinely is nothing to complete.
+      if (body.customer_phone) {
+        const fdigits = String(body.customer_phone).replace(/\D/g, "");
+        const flast8 = fdigits.length >= 8 ? fdigits.slice(-8) : "";
+        if (flast8) {
+          let leadQ = adminClient
+            .from("orders")
+            .select("id, display_id, status, assigned_agent_name")
+            .ilike("customer_phone", `%${flast8}`)
+            .in("status", ["pending", "take", "call_again"])
+            .is("duplicated_from", null)
+            .order("created_at", { ascending: false })
+            .limit(1);
+          // Unassigned leads block too. BG's first version scoped agents to their
+          // OWN leads, reasoning that the take lock would have claimed anything
+          // they were working — but a lead left with assigned_agent_id NULL by
+          // the old take-lock bug slipped straight through and was forked within
+          // hours of the deploy. A lead nobody owns is still a lead. Opening the
+          // customer on /calls claims it, and the modal then completes it in
+          // place; this 409 is what sends them there.
+          if (!isAdminOrManager) {
+            leadQ = leadQ.or(`assigned_agent_id.is.null,assigned_agent_id.eq.${user.id}`);
+          }
+          const { data: openLead } = await leadQ.maybeSingle();
+          if (openLead) {
+            const owner = openLead.assigned_agent_name
+              ? ` It belongs to ${openLead.assigned_agent_name}.`
+              : "";
+            return json({
+              error: `This customer already has an open lead (${openLead.display_id}, ${openLead.status}).${owner} Open the customer on the Calls page and complete that order — do not create a second one.`,
+              code: "open_lead_exists",
+              existing_order_id: openLead.id,
+              existing_display_id: openLead.display_id,
+              existing_status: openLead.status,
+            }, 409);
+          }
+        }
+      }
+
       // Calculate total from items if provided
       const hasItems = body.items && body.items.length > 0;
       let totalPrice = body.price || 0;
@@ -4696,6 +4977,11 @@ async function handleRequest(req: Request): Promise<Response> {
       // (next_call_after still in the future). The admin Orders list never
       // sets this, so parked pendings still show there.
       const readyOnly = url.searchParams.get("ready_only") === "1";
+      // Inbound leads only — the /calls Pendings queue and the Assigner's
+      // per-agent lead rows. Keeps agent-created `manual` work (everything
+      // produced while working a prediction list) and the legacy `import` out of
+      // the lead surfaces. Same definition as public.is_lead_source().
+      const leadOnly = url.searchParams.get("lead_only") === "1";
       const from = url.searchParams.get("from");
       const to = url.searchParams.get("to");
       const priceMin = url.searchParams.get("price_min");
@@ -4717,7 +5003,7 @@ async function handleRequest(req: Request): Promise<Response> {
       const isFiltered = Boolean(
         (status && status !== "all") || (agentId && agentId !== "all") ||
         (source && source !== "all") || from || to || priceMin || priceMax ||
-        search || readyOnly,
+        search || readyOnly || leadOnly,
       );
       let query = client
         .from("orders")
@@ -4734,6 +5020,7 @@ async function handleRequest(req: Request): Promise<Response> {
       }
       if (agentId && agentId !== "all") query = query.eq("assigned_agent_id", agentId);
       if (source && source !== "all") query = query.eq("source_type", source);
+      if (leadOnly) query = query.in("source_type", LEAD_SOURCE_TYPES);
       if (from) query = query.gte("created_at", from);
       if (to) query = query.lte("created_at", to);
       if (priceMin) {
@@ -4789,10 +5076,17 @@ async function handleRequest(req: Request): Promise<Response> {
     // /calls. ALWAYS scoped to the caller (auth.uid()); there is deliberately no
     // agent_id parameter, so this can never be used to read someone else's book.
     //
-    //   ready        — assigned to me, status='pending', callable right now
+    //   ready        — assigned to me, still in the lead lifecycle, callable now
     //                  (same next_call_after predicate as ?ready_only=1 above)
-    //   open         — assigned to me, status='pending', including no-answer parks
+    //   open         — assigned to me, still in the lead lifecycle, incl. parks
     //   parked       — open - ready
+    //
+    // "Lead lifecycle" = pending | take | call_again, and the source must be an
+    // inbound one (LEAD_SOURCE_TYPES) — identical to the ?lead_only=1 query the
+    // /calls queue runs, so the badge can never disagree with the queue.
+    // Counting 'pending' alone made a lead vanish from the badge after its first
+    // no-answer even though the agent still had to call it back; counting every
+    // source dragged prediction-list work in.
     //   talked_today — leads assigned to me that I moved OUT of the pending
     //                  lifecycle today (Europe/Skopje), from order_history.
     //
@@ -4803,17 +5097,21 @@ async function handleRequest(req: Request): Promise<Response> {
     if (req.method === "GET" && path === "my-pendings-summary") {
       const nowIso = new Date().toISOString();
 
+      const LEAD_LIFECYCLE = ["pending", "take", "call_again"];
+
       const openQ = adminClient
         .from("orders")
         .select("id", { count: "exact", head: true })
         .eq("assigned_agent_id", user.id)
-        .eq("status", "pending");
+        .in("status", LEAD_LIFECYCLE)
+        .in("source_type", LEAD_SOURCE_TYPES);
 
       const readyQ = adminClient
         .from("orders")
         .select("id", { count: "exact", head: true })
         .eq("assigned_agent_id", user.id)
-        .eq("status", "pending")
+        .in("status", LEAD_LIFECYCLE)
+        .in("source_type", LEAD_SOURCE_TYPES)
         .or(`next_call_after.is.null,next_call_after.lte.${nowIso}`);
 
       const [{ count: openCount }, { count: readyCount }] = await Promise.all([openQ, readyQ]);
@@ -4838,6 +5136,37 @@ async function handleRequest(req: Request): Promise<Response> {
         parked: Math.max(0, open - ready),
         talked_today: new Set((touched || []).map((r: any) => r.order_id)).size,
       });
+    }
+
+    // GET /api/orders/open-lead?phone=... — the customer's ONE open order.
+    //
+    // Whoever is on the customer must be able to close out the order that
+    // already exists, whoever it was assigned to (operator rule, 2026-08-10).
+    // The agent's own queue is deliberately scoped to them, and RLS hides a
+    // colleague's row, so without this the Calls page could not find the lead
+    // and Confirm fell through to creating a second order — THE FORK BUG. This
+    // endpoint is the anti-fork lookup every disposition on /calls runs first.
+    //
+    // Narrow on purpose: keyed by phone (the agent is already looking at that
+    // customer), open states only, and it returns just enough to target the
+    // order — never the customer record. Affiliates are 403'd by the hard wall.
+    // Suffix match, never `%last8%`: a substring could return a DIFFERENT
+    // customer's order and the disposition would land on the wrong person.
+    if (req.method === "GET" && path === "orders/open-lead") {
+      const raw = (url.searchParams.get("phone") || "").trim();
+      const digits = raw.replace(/\D/g, "");
+      const last8 = digits.length >= 8 ? digits.slice(-8) : "";
+      if (!last8) return json({ lead: null });
+      const { data: lead } = await adminClient
+        .from("orders")
+        .select("id, display_id, status, assigned_agent_id, assigned_agent_name, source_type")
+        .ilike("customer_phone", `%${last8}`)
+        .in("status", ["pending", "take", "call_again"])
+        .is("duplicated_from", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return json({ lead: lead ?? null });
     }
 
     // GET /api/orders/unassigned-pending (admin only - for assigner)
@@ -5070,6 +5399,126 @@ async function handleRequest(req: Request): Promise<Response> {
 
       return json(result);
     }
+    // POST /api/orders/bulk-disposition — bulk trash / cancel WITH A REASON.
+    //
+    // Rule 8 (2026-08-10): no order is junked without a reason, bulk paths
+    // included. The Orders page previously offered no way to clear a batch of
+    // dead leads at all, so operators either left them rotting in the queue or
+    // reached for bulk-status-update, which writes no reason and leaves the
+    // cancel insights unusable.
+    //
+    // ⚠ MACEDONIA: BG's version ends by nudging the affiliate postback drain.
+    // That is deliberately ABSENT here. This project mirrors AlterCPA one-way —
+    // we poll them, nothing goes back (.grok/skills/elyon-altercpa-bridge,
+    // decision #3). `affiliates`, `affiliate_leads` and `affiliate_postbacks`
+    // are all empty and tg_enqueue_affiliate_postback reads affiliate_leads, so
+    // there is nothing to drain. Do not "restore" the nudge — it would open an
+    // outbound channel to the partner that this market does not have.
+    if (req.method === "POST" && path === "orders/bulk-disposition") {
+      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      if (!checkUserRateLimit(user.id, "orders.bulk", 20)) {
+        return json({ error: "Rate limit exceeded — try again in a minute" }, 429);
+      }
+      let body;
+      try { body = parseBody(bulkDispositionSchema, await req.json()); } catch (e: any) { return json({ error: e.message }, 400); }
+      const { order_ids, action, reason } = body;
+      const reasonNotes = (body.reason_notes || "").trim();
+
+      // Mirrors the CHECK constraints on orders.trash_reason (7 values, see
+      // 20260913000000_trash_reason_duplicate_order.sql) and
+      // orders.cancellation_reason. Keep in sync with src/lib/trashReasons.ts
+      // and src/lib/cancellationReasons.ts.
+      const VALID_TRASH = ["wrong_number", "wrong_person", "not_reachable", "rude", "uncooperative", "duplicate_order", "other"];
+      const VALID_CANCEL = [
+        "no_money", "changed_mind", "wrong_product", "bought_elsewhere",
+        "family_refused", "duplicate_order", "price_too_high", "not_satisfied",
+        "still_using_product", "not_interested", "will_call_back", "other",
+      ];
+      const allowed = action === "trashed" ? VALID_TRASH : VALID_CANCEL;
+      if (!allowed.includes(reason)) {
+        return json({ error: `reason must be one of: ${allowed.join(", ")}` }, 400);
+      }
+      if (reason === "other" && !reasonNotes) {
+        return json({ error: "A note is required when the reason is 'other'" }, 400);
+      }
+
+      // Anything already shipped is owned by the warehouse Returned flow; a
+      // disposition must not rewrite fulfilment history. Skipped rows are
+      // REPORTED back, never silently dropped.
+      const DISPOSABLE = ["pending", "take", "call_again", "confirmed"];
+      const { data: rows, error: fetchErr } = await adminClient
+        .from("orders")
+        .select("id, display_id, status, source_type, inbound_lead_id")
+        .in("id", order_ids);
+      if (fetchErr) return json({ error: sanitizeDbError(fetchErr) }, 400);
+
+      const targets = (rows || []).filter((o: any) => DISPOSABLE.includes(o.status) && o.status !== action);
+      const skipped = (rows || []).filter((o: any) => !targets.some((t: any) => t.id === o.id));
+      if (targets.length === 0) {
+        return json({ success: true, updated: 0, skipped: skipped.length, skipped_ids: skipped.map((o: any) => o.display_id) });
+      }
+
+      const nowIso = new Date().toISOString();
+      const update: Record<string, any> = { status: action, updated_at: nowIso };
+      if (action === "trashed") {
+        update.trash_reason = reason;
+        update.trash_reason_notes = reasonNotes || null;
+      } else {
+        update.cancellation_reason = reason;
+        update.cancellation_reason_notes = reasonNotes || null;
+        update.cancelled_at = nowIso;
+        update.cancelled_by_agent_id = user.id;
+      }
+      // trashed_at / cancelled_at are also guaranteed by BEFORE triggers; the
+      // explicit values above just keep the attribution columns beside them.
+      const { error: updErr } = await adminClient
+        .from("orders")
+        .update(update)
+        .in("id", targets.map((o: any) => o.id));
+      if (updErr) return json({ error: sanitizeDbError(updErr) }, 400);
+
+      const { data: actor } = await adminClient
+        .from("profiles").select("full_name").eq("user_id", user.id).maybeSingle();
+      const actorName = actor?.full_name || user.email;
+
+      await adminClient.from("order_history").insert(
+        targets.map((o: any) => ({
+          order_id: o.id,
+          from_status: o.status,
+          to_status: action,
+          changed_by: user.id,
+          changed_by_name: actorName,
+        })),
+      );
+
+      // Linked inbound leads follow the order (both dispositions are a rejection).
+      // Empty in this project today — the webhook intake has no live traffic —
+      // but the column exists and the day it does, the sidecar must not drift.
+      const inboundIds = targets.map((o: any) => o.inbound_lead_id).filter(Boolean);
+      if (inboundIds.length) {
+        await adminClient.from("inbound_leads").update({ status: "rejected" }).in("id", inboundIds);
+      }
+
+      await audit(adminClient, user.id, user.email, "order.bulk_disposition", {
+        target_type: "order",
+        target_name: `${targets.length} orders → ${action} (${reason})`,
+        payload: {
+          action, reason,
+          reason_notes: reasonNotes || null,
+          count: targets.length,
+          order_ids: targets.map((o: any) => o.id),
+          skipped_ids: skipped.map((o: any) => o.display_id),
+        },
+      });
+
+      return json({
+        success: true,
+        updated: targets.length,
+        skipped: skipped.length,
+        skipped_ids: skipped.map((o: any) => o.display_id),
+      });
+    }
+
     // POST /api/orders/bulk-status-update (admin/manager/warehouse)
     if (req.method === "POST" && path === "orders/bulk-status-update") {
       if (!(isAdmin || isWarehouse || canEditModule("orders"))) return json({ error: "Forbidden" }, 403);
@@ -5262,7 +5711,15 @@ async function handleRequest(req: Request): Promise<Response> {
           // leaves the original confirmer intact.
           // The *only* way to change confirmed_by after it is set is the
           // privileged POST /orders/:id/attribution endpoint (admin-only).
-          if (new_status === "confirmed") {
+          //
+          // The gate is REAL_ORDER_STATUSES, not === "confirmed": bulk only
+          // accepts shipped/paid/cancelled/returned, so the old equality check
+          // was dead code and an order bulk-shipped straight out of pending
+          // never got its confirmed_at stamp. Since 2026-08-10 that stamp is
+          // what earns the affiliate their payout, so the hole had to close.
+          // Already-stamped orders are untouched (the .is(null) guard) and
+          // postbacks are unaffected — this writes no status.
+          if (REAL_ORDER_STATUSES.includes(new_status)) {
             await adminClient
               .from("orders")
               .update({
@@ -5522,14 +5979,38 @@ async function handleRequest(req: Request): Promise<Response> {
     }
 
     // GET /api/orders/:id
-    const reservedOrderPaths = ["stats", "assigned", "unassigned-pending", "bulk-assign", "bulk-unassign", "bulk-status-update", "bigarena-sync"];
+    const reservedOrderPaths = ["stats", "assigned", "unassigned-pending", "open-lead", "bulk-assign", "bulk-unassign", "bulk-status-update", "bulk-disposition", "bigarena-sync"];
     if (req.method === "GET" && segments[0] === "orders" && segments.length === 2 && !reservedOrderPaths.includes(segments[1])) {
       const orderId = segments[1];
-      const { data: order, error } = await supabase
+      let { data: order, error } = await supabase
         .from("orders")
         .select("*")
         .eq("id", orderId)
         .single();
+
+      // RLS scopes an agent to their own orders. That is right for real orders,
+      // but it also hid a colleague's OPEN LEAD — so an agent handed a client by
+      // the manager could not open the call_again to resolve it, and created a
+      // second order instead (the fork bug, again). Fall back to the elevated
+      // client for OPEN LEADS ONLY, matching the PATCH exemption below.
+      // Anything past confirm stays invisible.
+      //
+      // `hasInternalRole` is belt-and-braces: the affiliate hard wall at the top
+      // of this handler already 403s a pure-affiliate login long before it can
+      // reach any order route. But affiliates hold REAL Supabase logins in this
+      // project, and this is the one place we deliberately step around RLS — so
+      // the staff check is stated HERE rather than inferred from a guard 3000
+      // lines away (elyon-security golden rule 3: when unsure, assume not).
+      if ((error || !order) && !isAdminOrManager && hasInternalRole) {
+        const { data: openLead } = await adminClient
+          .from("orders")
+          .select("*")
+          .eq("id", orderId)
+          .in("status", ["pending", "take", "call_again"])
+          .is("duplicated_from", null)
+          .maybeSingle();
+        if (openLead) { order = openLead; error = null; }
+      }
       if (error || !order) return json({ error: "Order not found" }, 404);
 
       // Get order items
@@ -5821,7 +6302,21 @@ async function handleRequest(req: Request): Promise<Response> {
       // colleague's lead to steal the per-package commission, or sabotaging it.
       // Admins/managers act on any order; warehouse drives fulfilment across
       // orders; a plain agent may only touch their own or an unassigned one.
+      //
+      // EXEMPTION for OPEN LEADS (operator rule, 2026-08-10): "if an agent gets
+      // to a client where there is only one call_again, it should let them edit
+      // it — it doesn't matter which agent it was assigned to before." Managers
+      // hand clients between agents all day; blocking this is exactly what
+      // pushed agents into creating a second order instead, which is the bug
+      // this whole change set exists to kill. Ownership governs DISTRIBUTION,
+      // not deliberate human action. Credit follows the work — confirmed_by_*
+      // records whoever closes it, and order_history records the hand-over.
+      //
+      // Everything past confirm stays locked: a real order's sales credit,
+      // fulfilment and money are not a colleague's to rewrite.
+      const OPEN_LEAD_STATES = ["pending", "take", "call_again"];
       if (!isAdminOrManager && !isWarehouse
+        && !OPEN_LEAD_STATES.includes(order.status)
         && order.assigned_agent_id && order.assigned_agent_id !== user.id) {
         return json({ error: "Forbidden — this order is assigned to another agent" }, 403);
       }
@@ -6180,14 +6675,13 @@ async function handleRequest(req: Request): Promise<Response> {
 
       const { data: order } = await adminClient
         .from("orders")
-        .select("id, confirmed_by_name")
+        .select("id, confirmed_by_name, confirmed_at")
         .eq("id", orderId)
         .single();
       if (!order) return json({ error: "Order not found" }, 404);
 
       let newConfirmedById: string | null = null;
       let newConfirmedByName: string | null = null;
-      let newConfirmedAt: string | null = null;
 
       if (targetAgentId) {
         const { data: profile } = await adminClient
@@ -6199,16 +6693,25 @@ async function handleRequest(req: Request): Promise<Response> {
 
         newConfirmedById = targetAgentId;
         newConfirmedByName = profile.full_name || "Admin";
-        newConfirmedAt = new Date().toISOString();
+      }
+
+      // confirmed_at is SACRED — it is what earns the affiliate their payout
+      // (2026-08-10), so this tool may re-point WHO confirmed but never
+      // WHETHER or WHEN. Re-attributing preserves the original date and only
+      // stamps now if it was somehow missing; CLEARING the attribution leaves
+      // the timestamp completely untouched. Sending it unconditionally, as
+      // this endpoint used to, NULLed the stamp on every clear.
+      const attributionUpdate: Record<string, any> = {
+        confirmed_by_agent_id: newConfirmedById,
+        confirmed_by_name: newConfirmedByName,
+      };
+      if (targetAgentId) {
+        attributionUpdate.confirmed_at = order.confirmed_at ?? new Date().toISOString();
       }
 
       const { error: updErr } = await adminClient
         .from("orders")
-        .update({
-          confirmed_by_agent_id: newConfirmedById,
-          confirmed_by_name: newConfirmedByName,
-          confirmed_at: newConfirmedAt,
-        })
+        .update(attributionUpdate)
         .eq("id", orderId);
       if (updErr) return json({ error: sanitizeDbError(updErr) }, 400);
 
@@ -8973,12 +9476,18 @@ async function handleRequest(req: Request): Promise<Response> {
         const digits = customer_phone.replace(/\D/g, "");
         const last8 = digits.length >= 8 ? digits.slice(-8) : digits;
         if (last8) {
+          // HARD LOCK (2026-08-10): a call outcome may only move an order that is
+          // unassigned or already the caller's. Before this, one agent's
+          // "didn't answer" parked — and on the 9th strike trashed — leads that
+          // belonged to a colleague, because every update below matched on phone
+          // alone. `user.id` is the JWT sub, so it is safe to interpolate.
+          const ownedByCaller = `assigned_agent_id.is.null,assigned_agent_id.eq.${user.id}`;
           // Fetch enough history to both count the trailing streak (up to 9) and
           // count today's no-answers — comfortably above the 9-streak window.
           const { data: recentLogs } = await adminClient
             .from("call_logs")
             .select("outcome, connection_state, created_at")
-            .ilike("customer_phone", `%${last8}%`)
+            .ilike("customer_phone", `%${last8}`)
             .order("created_at", { ascending: false })
             .limit(20);
           const logIsNoAnswer = (lg: any) => lg.outcome === "no_answer" || lg.connection_state === "no_answer";
@@ -8988,13 +9497,31 @@ async function handleRequest(req: Request): Promise<Response> {
             else break;
           }
 
-          if (streak >= UNREACHABLE_TRASH_STREAK) {
+          // Does this customer have a LIVE LEAD? If so the 9-strike auto-trash is
+          // off for them entirely (operator rule, 2026-08-10): a lead the customer
+          // asked for is chased until the AGENT decides it is dead — nine
+          // unanswered rings is not that decision. The rule stays on for
+          // prediction-list customers, who are cold outreach we initiated.
+          // This guard also stops a synthetic "Not reachable" order being
+          // invented alongside a real, open lead.
+          const { data: liveLead } = await adminClient
+            .from("orders")
+            .select("id")
+            .ilike("customer_phone", `%${last8}`)
+            .in("status", ["pending", "take", "call_again"])
+            .in("source_type", LEAD_SOURCE_TYPES)
+            .limit(1)
+            .maybeSingle();
+          const hasLiveLead = !!liveLead;
+
+          if (streak >= UNREACHABLE_TRASH_STREAK && !hasLiveLead) {
             const NOTE = `Auto-trash: unreachable — ${UNREACHABLE_TRASH_STREAK} consecutive no-answers (doesn't pick up the phone)`;
             const { data: workable } = await adminClient
               .from("orders")
               .select("id, notes")
-              .ilike("customer_phone", `%${last8}%`)
+              .ilike("customer_phone", `%${last8}`)
               .in("status", ["pending", "take", "call_again"])
+              .or(ownedByCaller)
               .order("created_at", { ascending: false })
               .limit(1)
               .maybeSingle();
@@ -9005,6 +9532,7 @@ async function handleRequest(req: Request): Promise<Response> {
                   status: "trashed",
                   trash_reason: "not_reachable",
                   assigned_agent_id: null,
+                  assigned_agent_name: null,
                   assigned_at: null,
                   next_call_after: null,
                   call_again_since: null,
@@ -9027,7 +9555,7 @@ async function handleRequest(req: Request): Promise<Response> {
             await adminClient
               .from("prediction_segment_members")
               .update({ is_completed: true, last_call_outcome: "trash", last_call_at: new Date().toISOString(), in_call_again_until: null, call_again_since: null })
-              .ilike("customer_phone", `%${last8}%`);
+              .ilike("customer_phone", `%${last8}`);
           } else {
             // Not unreachable yet — pace the retries. The current call is already
             // logged above, so recentLogs includes it: count today's no-answers
@@ -9050,32 +9578,77 @@ async function handleRequest(req: Request): Promise<Response> {
               cooldownUntil = new Date(Date.now() + INTRA_DAY_COOLDOWN_MS).toISOString();
             }
             const nowIso = new Date().toISOString();
-            // Prediction member: cooldown + mark as awaiting follow-up.
+            // Prediction member: cooldown + mark as awaiting follow-up. Scoped to
+            // the caller for the same reason as the orders below — a colleague's
+            // no-answer must not park someone else's member row.
             await adminClient
               .from("prediction_segment_members")
               .update({ in_call_again_until: cooldownUntil, last_call_at: nowIso, last_call_outcome: "no_answer" })
-              .ilike("customer_phone", `%${last8}%`)
+              .ilike("customer_phone", `%${last8}`)
+              .or(ownedByCaller)
               .eq("is_completed", false);
             // call_again_since = the FIRST no-answer that opened the window
             // (anchored, never reset while it keeps ringing).
             await adminClient
               .from("prediction_segment_members")
               .update({ call_again_since: nowIso })
-              .ilike("customer_phone", `%${last8}%`)
+              .ilike("customer_phone", `%${last8}`)
+              .or(ownedByCaller)
               .eq("is_completed", false)
               .is("call_again_since", null);
-            // Mark the EXISTING workable order as Call Again (never create a 2nd
-            // order) so the operator sees it was already called, + the cooldown.
+            // Mark the EXISTING workable LEAD as Call Again (never create a 2nd
+            // order) so the operator sees it was already called.
+            //
+            // LEADS ONLY (operator rule, 2026-08-10). Call Again is a state of an
+            // unsettled inbound order: the customer asked for something, we
+            // haven't closed it, so we keep ringing. A prediction-list customer
+            // who doesn't answer is simply a NO ANSWER — the member row above
+            // already carries the cooldown and `last_call_outcome='no_answer'`,
+            // and they return to their own list. Flipping their `manual` order to
+            // call_again put prediction work into the agent's Pendings queue and
+            // buried the partner's leads.
+            //
+            // The lead STAYS with the agent who worked it: claim it for the caller
+            // if nobody owned it, and never touch a colleague's row. Without the
+            // claim the order goes back to the free pool the moment the take lock
+            // releases, and starts circulating between agents again.
+            //
+            // NO COOLDOWN ON LEADS (operator rule, 2026-08-10): `next_call_after`
+            // is left NULL so the lead never leaves its agent's queue and they
+            // can ring back whenever they judge it right. The paced schedule was
+            // built for cold prediction outreach; on a lead the customer is
+            // waiting for US, and hiding it until 09:00 tomorrow made agents
+            // think their call agains had vanished. The record of when they
+            // called is in `call_logs` — the pacing was guidance, the log is fact.
+            const { data: caller } = await adminClient
+              .from("profiles").select("full_name").eq("user_id", user.id).maybeSingle();
             await adminClient
               .from("orders")
-              .update({ status: "call_again", next_call_after: cooldownUntil })
-              .ilike("customer_phone", `%${last8}%`)
-              .in("status", ["pending", "take", "call_again"]);
+              .update({
+                status: "call_again",
+                next_call_after: null,
+                assigned_agent_id: user.id,
+                assigned_agent_name: caller?.full_name || user.email || null,
+                assigned_at: nowIso,
+              })
+              .ilike("customer_phone", `%${last8}`)
+              .in("status", ["pending", "take", "call_again"])
+              .in("source_type", LEAD_SOURCE_TYPES)
+              .is("assigned_agent_id", null);
+            await adminClient
+              .from("orders")
+              .update({ status: "call_again", next_call_after: null })
+              .ilike("customer_phone", `%${last8}`)
+              .in("status", ["pending", "take", "call_again"])
+              .in("source_type", LEAD_SOURCE_TYPES)
+              .eq("assigned_agent_id", user.id);
             await adminClient
               .from("orders")
               .update({ call_again_since: nowIso })
-              .ilike("customer_phone", `%${last8}%`)
+              .ilike("customer_phone", `%${last8}`)
               .eq("status", "call_again")
+              .in("source_type", LEAD_SOURCE_TYPES)
+              .eq("assigned_agent_id", user.id)
               .is("call_again_since", null);
           }
         }
@@ -9883,23 +10456,18 @@ async function handleRequest(req: Request): Promise<Response> {
       // views they currently have (for different phones). This prevents the
       // situation where one agent appears on many customers in the Operations
       // widget and makes the "currently on" data truthful.
+      const { data: myProfile } = await adminClient
+        .from("profiles").select("full_name").eq("user_id", user.id).maybeSingle();
+      const myName = myProfile?.full_name || user.email || null;
+
       const { data: otherViews } = await adminClient
         .from("active_call_views")
-        .select("id, customer_phone, taken_order_ids, taken_from_status")
+        .select("id, customer_phone, taken_order_ids, taken_from_status, taken_from_agent")
         .eq("agent_id", user.id)
         .neq("customer_phone", phone);
 
       for (const view of otherViews || []) {
-        const ids = view.taken_order_ids || [];
-        const froms = view.taken_from_status || [];
-        for (let i = 0; i < ids.length; i++) {
-          await adminClient
-            .from("orders")
-            .update({ status: froms[i], assigned_agent_id: null, assigned_at: null })
-            .eq("id", ids[i])
-            .eq("status", "take")
-            .eq("assigned_agent_id", user.id);
-        }
+        await revertTakenOrders(adminClient, view, user.id);
         await adminClient.from("active_call_views").delete().eq("id", view.id);
       }
       // ============================================================
@@ -9937,39 +10505,55 @@ async function handleRequest(req: Request): Promise<Response> {
       const last8 = digitsOnly.length >= 8 ? digitsOnly.slice(-8) : "";
       let takenIds: string[] = [];
       let takenFrom: string[] = [];
+      let takenFromAgent: (string | null)[] = [];
       if (last8) {
         const { data: candidates } = await adminClient
           .from("orders")
+          // Suffix match, not `%last8%` — a substring match can hit a DIFFERENT
+          // customer whose number merely contains these 8 digits, and takes/
+          // parks/trashes would then land on the wrong person.
+          .ilike("customer_phone", `%${last8}`)
           .select("id, status, assigned_agent_id")
-          .ilike("customer_phone", `%${last8}%`)
           .in("status", ["pending", "call_again"]);
         for (const o of candidates || []) {
-          // Skip if another agent already has this order assigned.
-          if (o.assigned_agent_id && o.assigned_agent_id !== user.id) continue;
+          // A colleague's open lead is taken too (operator rule, 2026-08-10):
+          // whoever is on the client is working it, and the screen must say so.
+          // This is safe precisely because the release restores the prior
+          // assignee from taken_from_agent — the lead goes back to them the
+          // moment this agent moves on, unless an outcome resolved it first.
+          // Already assigned → flip the status only. Leaving assigned_at alone
+          // keeps the original assignment stamp intact through take/release.
+          const update: Record<string, any> = o.assigned_agent_id
+            ? { status: "take" }
+            : {
+                status: "take",
+                assigned_agent_id: user.id,
+                assigned_agent_name: myName,
+                assigned_at: new Date().toISOString(),
+              };
           const { error: upErr } = await adminClient
             .from("orders")
-            .update({ status: "take", assigned_agent_id: user.id, assigned_at: new Date().toISOString() })
+            .update(update)
             .eq("id", o.id)
             .eq("status", o.status); // optimistic concurrency — only flip if still in expected status
           if (!upErr) {
             takenIds.push(o.id);
             takenFrom.push(o.status);
+            takenFromAgent.push(o.assigned_agent_id ?? null);
           }
         }
       }
-
-      const { data: profile } = await adminClient
-        .from("profiles").select("full_name").eq("user_id", user.id).maybeSingle();
 
       const { data, error } = await adminClient
         .from("active_call_views")
         .insert({
           agent_id: user.id,
-          agent_name: profile?.full_name || user.email,
+          agent_name: myName,
           customer_phone: phone,
           expires_at: newExpiresAt,
           taken_order_ids: takenIds,
           taken_from_status: takenFrom,
+          taken_from_agent: takenFromAgent,
         })
         .select()
         .single();
@@ -9984,23 +10568,12 @@ async function handleRequest(req: Request): Promise<Response> {
       const phone = decodeURIComponent(segments[2]);
       const { data: existing } = await adminClient
         .from("active_call_views")
-        .select("id, taken_order_ids, taken_from_status, agent_id")
+        .select("id, taken_order_ids, taken_from_status, taken_from_agent, agent_id")
         .eq("agent_id", user.id)
         .eq("customer_phone", phone)
         .maybeSingle();
       if (!existing) return json({ ok: true, reverted: 0 });
-      let reverted = 0;
-      const ids = existing.taken_order_ids || [];
-      const froms = existing.taken_from_status || [];
-      for (let i = 0; i < ids.length; i++) {
-        const { error, count } = await adminClient
-          .from("orders")
-          .update({ status: froms[i], assigned_agent_id: null, assigned_at: null }, { count: "exact" })
-          .eq("id", ids[i])
-          .eq("status", "take")
-          .eq("assigned_agent_id", user.id);
-        if (!error && (count ?? 0) > 0) reverted++;
-      }
+      const reverted = await revertTakenOrders(adminClient, existing, user.id);
       await adminClient.from("active_call_views").delete().eq("id", existing.id);
       return json({ ok: true, reverted });
     }
@@ -10060,14 +10633,17 @@ async function handleRequest(req: Request): Promise<Response> {
         .from("prediction_segment_members")
         .select(`
           list_id, customer_phone, customer_name, last_call_at, last_call_outcome,
-          in_call_again_until, assigned_agent_id, assigned_agent_name, lifetime_value,
-          paid_count, avg_package_price, trigger_event_at,
+          in_call_again_until, call_again_since, assigned_agent_id, assigned_agent_name,
+          lifetime_value, paid_count, avg_package_price, trigger_event_at,
           prediction_segment_lists(name, category)
         `)
         .not("call_again_since", "is", null)
         .eq("is_completed", false)
         .order("in_call_again_until", { ascending: true, nullsFirst: false })
-        .limit(500);
+        // The page filters by agent and source CLIENT-side, so a truncated fetch
+        // would quietly under-report a filtered view. The Assigner's Call Agains
+        // tab is the paginated surface for bulk work.
+        .limit(CALL_AGAIN_FETCH_CAP);
       if (restrictToMe) qa = qa.eq("assigned_agent_id", user.id);
 
       // ── Source B: orders currently marked Call Again ──
@@ -10079,7 +10655,7 @@ async function handleRequest(req: Request): Promise<Response> {
         `)
         .eq("status", "call_again")
         .order("next_call_after", { ascending: true, nullsFirst: false })
-        .limit(500);
+        .limit(CALL_AGAIN_FETCH_CAP);
       if (restrictToMe) qb = qb.eq("assigned_agent_id", user.id);
 
       const [membersRes, ordersRes] = await Promise.all([qa, qb]);
@@ -10103,6 +10679,9 @@ async function handleRequest(req: Request): Promise<Response> {
           last_call_at: o.updated_at,
           last_call_outcome: "no_answer",
           in_call_again_until: o.next_call_after,
+          // How long this customer has been in the Call-Again window — the
+          // operator's "since when", and the reason the list is sortable by age.
+          call_again_since: o.call_again_since,
           assigned_agent_id: o.assigned_agent_id,
           assigned_agent_name: o.assigned_agent_name,
           lifetime_value: 0,
@@ -10124,6 +10703,121 @@ async function handleRequest(req: Request): Promise<Response> {
         return ta - tb;
       });
       return json(merged);
+    }
+
+    // ── Call Agains as an assignable pool (Assigner tab) ──────────────────
+    //
+    // PREDICTION-LIST call agains only. A lead (AlterCPA/webhook/site) that
+    // didn't answer stays in its agent's own Pendings queue until they reach the
+    // customer — it is never redistributed from here. Prediction call agains are
+    // the opposite: they belong to no single agent's day and the operator wants
+    // to hand them out repeatedly until somebody gets through.
+    //
+    // A member is "in Call Again" while `call_again_since` is set and the row is
+    // not completed; `expire_call_again_window()` clears it after 6 days.
+    // Sorted oldest-waiting-first — the ones going stale are the ones to hand out.
+    if (req.method === "GET" && path === "call-agains") {
+      if (!canViewModule("assigner")) return json({ error: "Forbidden" }, 403);
+      const page = Math.max(1, parseInt(url.searchParams.get("page") || "1"));
+      const limit = Math.min(200, Math.max(1, parseInt(url.searchParams.get("limit") || "50")));
+      const agentId = url.searchParams.get("agent_id");   // uuid | 'unassigned' | null
+
+      await adminClient.rpc("expire_call_again_window");
+
+      let q = adminClient
+        .from("prediction_segment_members")
+        .select(`
+          list_id, customer_phone, customer_name, call_again_since, last_call_at,
+          last_call_outcome, in_call_again_until, assigned_agent_id, assigned_agent_name,
+          lifetime_value, paid_count, avg_package_price,
+          prediction_segment_lists(name, category)
+        `, { count: "exact" })
+        .not("call_again_since", "is", null)
+        .eq("is_completed", false)
+        .order("call_again_since", { ascending: true })
+        .range((page - 1) * limit, page * limit - 1);
+      if (agentId === "unassigned") q = q.is("assigned_agent_id", null);
+      else if (agentId && agentId !== "all" && UUID_RE.test(agentId)) q = q.eq("assigned_agent_id", agentId);
+
+      const { data, count, error } = await q;
+      if (error) return json({ error: sanitizeDbError(error) }, 400);
+      return json({ members: data || [], total: count ?? 0, page, limit });
+    }
+
+    // POST /api/call-agains/assign — hand a selection to an agent (or free it).
+    // Members span MANY lists, so the per-list assign endpoint cannot express
+    // this: the body carries (list_id, customer_phone) pairs and we group them
+    // into one UPDATE per list.
+    if (req.method === "POST" && path === "call-agains/assign") {
+      if (!canViewModule("assigner")) return json({ error: "Forbidden" }, 403);
+      if (!checkUserRateLimit(user.id, "assigner.unassign", 20)) {
+        return json({ error: "Rate limit exceeded — try again in a minute" }, 429);
+      }
+      let body: any;
+      try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
+      const members: Array<{ list_id?: string; customer_phone?: string }> =
+        Array.isArray(body?.members) ? body.members.slice(0, 5000) : [];
+      const agentId: string | null = body?.agent_id || null;
+      if (members.length === 0) return json({ error: "No members specified" }, 400);
+      if (agentId && !UUID_RE.test(agentId)) return json({ error: "Invalid agent_id" }, 400);
+
+      let agentName: string | null = null;
+      if (agentId) {
+        const { data: profile } = await adminClient
+          .from("profiles").select("full_name").eq("user_id", agentId).maybeSingle();
+        if (!profile) return json({ error: "Agent not found" }, 404);
+        agentName = profile.full_name || null;
+      }
+
+      const byList = new Map<string, string[]>();
+      for (const m of members) {
+        if (!m?.list_id || !m?.customer_phone) continue;
+        if (!byList.has(m.list_id)) byList.set(m.list_id, []);
+        byList.get(m.list_id)!.push(m.customer_phone);
+      }
+
+      let assigned = 0;
+      for (const [listId, phones] of byList) {
+        // Only the three assignment columns move — never is_completed,
+        // last_call_* or the call-again window (elyon-assigner skill).
+        const { count, error } = await adminClient
+          .from("prediction_segment_members")
+          .update({
+            assigned_agent_id: agentId,
+            assigned_agent_name: agentName,
+            assigned_at: agentId ? new Date().toISOString() : null,
+          }, { count: "exact" })
+          .eq("list_id", listId)
+          .in("customer_phone", phones)
+          .not("call_again_since", "is", null)
+          .eq("is_completed", false);
+        if (error) return json({ error: sanitizeDbError(error) }, 400);
+        assigned += count ?? 0;
+      }
+
+      await audit(adminClient, user.id, user.email, "call_agains.assign", {
+        target_type: "prediction_segment_members",
+        target_name: agentId
+          ? `${assigned} call agains → ${agentName}`
+          : `${assigned} call agains freed`,
+        payload: { agent_id: agentId, agent_name: agentName, count: assigned, lists: [...byList.keys()] },
+      });
+
+      if (agentId && agentId !== user.id && assigned > 0) {
+        await notifyUsers(adminClient, [agentId], {
+          type: "assignment",
+          title: "Call Agains assigned to you",
+          message: `${assigned} customer${assigned === 1 ? "" : "s"} to call back — open Call Again.`,
+          link: "/call-again",
+          // English above is the fallback; the reader sees their own locale via
+          // notif.callAgainsAssigned.* (all four locales). The namespace is
+          // `notif`, matching notif.shippedUnpaid / notif.unpaidDigest — see
+          // 20260905000000_notifications_meta.sql.
+          meta: { i18n: "notif.callAgainsAssigned", count: assigned },
+        });
+      }
+
+      return json({ success: true, assigned });
     }
 
     // ============================================================
@@ -15234,11 +15928,18 @@ async function audit(
  * Fire in-app notifications to a set of users. Best-effort: a failure here must
  * NEVER fail the request that triggered it (the same guarantee the DB triggers
  * give for missed-call / returned / low-stock events). De-dupes + drops nulls.
+ *
+ * `meta` carries the translation contract: the DB cannot know which language the
+ * reader picked, so we store English title+message AND `meta.i18n` — a key whose
+ * `.title` / `.body` are resolved in the reader's locale by
+ * localizeNotification() in src/components/NotificationsDropdown.tsx. Any other
+ * meta keys become interpolation vars. Rows without meta render as plain
+ * English, which is why the older call sites still work unchanged.
  */
 async function notifyUsers(
   client: any,
   userIds: (string | null | undefined)[],
-  n: { type: string; title: string; message?: string; link?: string | null },
+  n: { type: string; title: string; message?: string; link?: string | null; meta?: Record<string, any> | null },
 ): Promise<void> {
   const uniq = [...new Set(userIds.filter(Boolean))] as string[];
   if (uniq.length === 0) return;
@@ -15250,6 +15951,7 @@ async function notifyUsers(
         title: n.title,
         message: n.message ?? "",
         link: n.link ?? null,
+        meta: n.meta ?? null,
       })),
     );
   } catch (err) {

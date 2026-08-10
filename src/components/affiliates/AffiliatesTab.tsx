@@ -10,7 +10,8 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { apiErrorText } from '@/i18n/apiErrors';
 import { useAuth } from '@/contexts/AuthContext';
-import { formatMoney, formatEurExact } from '@/lib/currency';
+import { formatEurExact } from '@/lib/currency';
+import { approveRatePct, buyoutRatePct } from './affiliateStage';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -189,16 +190,13 @@ export function AffiliatesTab() {
                   <td className="px-4 py-3">
                     <span className="font-semibold">{a.stats.sent}</span>
                     <span className="text-xs text-muted-foreground ml-1.5">
-                      {t('affiliatesAdmin.leadsBreakdown', { hold: a.stats.hold, paid: a.stats.paid })}
+                      {t('affiliatesAdmin.leadsBreakdown', { approved: a.stats.approved, paid: a.stats.paid })}
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="font-semibold">{formatMoney(a.stats.payout_earned)}</span>
-                    {a.stats.payout_hold > 0 && (
-                      <span className="text-xs text-muted-foreground ml-1.5">
-                        {t('affiliatesAdmin.payoutHoldShort', { amount: formatMoney(a.stats.payout_hold) })}
-                      </span>
-                    )}
+                    {/* EUR, not денари — affiliate payout is a euro obligation
+                        to the webmaster (see the note in AffiliateDashboardPage). */}
+                    <span className="font-semibold">{formatEurExact(a.stats.payout_earned)}</span>
                   </td>
                   <td className="px-4 py-3">
                     {a.postbacks.failed > 0 ? (
@@ -534,10 +532,8 @@ function StatsDialog({ affiliate, onClose }: { affiliate: AffiliateAdmin; onClos
   });
 
   const totals = data?.totals;
-  const approveRate = totals && totals.sent > 0
-    ? Math.round(((totals.hold + totals.paid) / totals.sent) * 100) : 0;
-  const buyoutRate = totals && (totals.hold + totals.paid + totals.returned) > 0
-    ? Math.round((totals.paid / (totals.hold + totals.paid + totals.returned)) * 100) : 0;
+  const approveRate = approveRatePct(totals);
+  const buyoutRate = buyoutRatePct(totals);
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
@@ -553,7 +549,7 @@ function StatsDialog({ affiliate, onClose }: { affiliate: AffiliateAdmin; onClos
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center">
               {[
                 { label: t('affiliatesAdmin.stSent'), value: totals.sent },
-                { label: t('affiliatesAdmin.stHold'), value: totals.hold },
+                { label: t('affiliatesAdmin.stHold'), value: totals.approved },
                 { label: t('affiliatesAdmin.stPaid'), value: totals.paid },
                 { label: t('affiliatesAdmin.stCancelled'), value: totals.cancelled + totals.trashed },
                 { label: t('affiliatesAdmin.stApproveRate'), value: `${approveRate}%` },
@@ -565,10 +561,8 @@ function StatsDialog({ affiliate, onClose }: { affiliate: AffiliateAdmin; onClos
                 </div>
               ))}
             </div>
-            <div className="flex items-center justify-between rounded-lg border p-3 text-sm">
-              <span className="text-muted-foreground">{t('affiliatesAdmin.payoutHold')}</span>
-              <span className="font-semibold">{formatEurExact(totals.payout_hold)}</span>
-            </div>
+            {/* "Payout on hold" is gone by design: earned-at-confirmation
+                leaves nothing on hold. */}
             <div className="flex items-center justify-between rounded-lg border p-3 text-sm">
               <span className="text-muted-foreground">{t('affiliatesAdmin.payoutEarned')}</span>
               <span className="font-semibold">{formatEurExact(totals.payout_earned)}</span>
@@ -590,7 +584,7 @@ function StatsDialog({ affiliate, onClose }: { affiliate: AffiliateAdmin; onClos
                       <tr key={d.date} className="border-b last:border-0">
                         <td className="px-3 py-1.5">{format(new Date(d.date), 'MMM d')}</td>
                         <td className="px-3 py-1.5 text-right font-medium">{d.sent}</td>
-                        <td className="px-3 py-1.5 text-right">{d.hold}</td>
+                        <td className="px-3 py-1.5 text-right">{d.approved}</td>
                         <td className="px-3 py-1.5 text-right">{d.paid}</td>
                         <td className="px-3 py-1.5 text-right">{d.cancelled + d.trashed}</td>
                       </tr>

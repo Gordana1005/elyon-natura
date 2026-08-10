@@ -1,6 +1,6 @@
 ---
 name: elyon-currency
-description: Use when touching any price, total, cost, payout, commission, COD amount, revenue figure or money input in the Macedonian Elyon CRM. Money is STORED in EUR and shown ONLY in Macedonian denari, derived from a frozen constant. There is no lev, no dual display, and no euro anywhere in the UI. Read before writing any money UI, any money input, or any export column.
+description: Use when touching any price, total, cost, payout, commission, COD amount, revenue figure or money input in the Macedonian Elyon CRM. Money is STORED in EUR and shown in Macedonian denari, derived from a frozen constant. There is no lev and no dual display; the single euro exception is affiliate (CPA) payout, which partners invoice in euro. Read before writing any money UI, any money input, or any export column.
 ---
 
 # Elyon Currency Skill — MACEDONIA
@@ -16,8 +16,24 @@ description: Use when touching any price, total, cost, payout, commission, COD a
 | | |
 |---|---|
 | **Database / API** | EUR, cent precision. This is an internal accounting unit. |
-| **Everything a human sees** | Macedonian denari only. |
+| **Everything a human sees** | Macedonian denari only — with ONE documented exception, below. |
 | **Conversion** | `MKD_PER_EUR = 61.5` in `src/lib/currency.ts`, applied at render time. |
+
+### The one exception: affiliate (CPA) payout is shown in EUR
+
+Operator decision, 2026-08-10. **Affiliate payout figures render in euro via `formatEurExact`**,
+on the partner portal *and* on the staff `/affiliates-admin` surfaces. This is not a leftover
+from the euro-native phase and must not be "corrected" to `formatMoney`:
+
+- `affiliate_leads.payout_eur_snapshot` **is** euro. It is a debt we owe a foreign webmaster who
+  invoices us in euro — not a Macedonian retail price, and never collected as COD in denari.
+- Converting it to denari at display time would show partners a number they cannot reconcile
+  against their own network panel, and would make the frozen peg part of a cross-border payable.
+
+Everything else on those pages stays denari. In particular the staff-only **"Avg order value
+(confirmed)"** tile is Macedonian selling-side revenue and uses `formatMoney`. The shared
+components (`src/components/affiliates/AffiliateKpiCards|AffiliateLeadsTable`) take money as an
+injected `fmtMoney` prop precisely so the two can differ per tile. See `elyon-affiliates`.
 
 ### The constant is FROZEN — never "update it to today's rate"
 

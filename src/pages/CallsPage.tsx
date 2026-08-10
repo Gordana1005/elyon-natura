@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { apiGetOrder, apiGetOrders, apiCreateOrder, apiUpdateOrderStatus, apiReleaseActiveView, apiLookupPersonalHold, apiReleasePersonalHold, apiLogCall, apiGetMyPendingsSummary, type CancellationReason, type TrashReason } from '@/lib/api';
+import { apiGetOrder, apiGetOrders, apiCreateOrder, apiUpdateOrderStatus, apiReleaseActiveView, apiLookupPersonalHold, apiReleasePersonalHold, apiLogCall, apiGetMyPendingsSummary, apiGetOpenLead, type CancellationReason, type TrashReason } from '@/lib/api';
 import { cancelReasonLabel } from '@/lib/cancellationReasons';
 import { useTranslation } from 'react-i18next';
 import { useVoip, type LinkedContext } from '@/contexts/VoipContext';
@@ -142,7 +142,19 @@ export default function CallsPage() {
 
   const { data: pendingData } = useQuery({
     queryKey: ['calls-page-pendings', user?.id],
-    queryFn: () => apiGetOrders({ status: 'pending', agent_id: user?.id, ready_only: true, limit: 50 }),
+    // The whole lead lifecycle, inbound sources only.
+    //
+    // `pending` alone dropped a lead out of the queue the moment it was called
+    // once (it becomes call_again), so the agent could not find their own
+    // call-backs and Confirm forked a second order instead of completing the
+    // first. `lead_only` keeps prediction-list work out — that belongs to the
+    // prediction queues and the Call Again page.
+    //
+    // NO `ready_only`: the paced retry is for cold prediction outreach. On a
+    // lead the customer is waiting for US, so hiding it until 09:00 tomorrow
+    // made agents think their call agains had vanished (one had 4 and could see
+    // 1). Parked leads stay visible — just sorted last, see pendingOrders below.
+    queryFn: () => apiGetOrders({ status: 'pending,take,call_again', agent_id: user?.id, lead_only: true, limit: 100 }),
     enabled: !!user?.id,
     refetchInterval: 15_000,
   });
@@ -155,9 +167,24 @@ export default function CallsPage() {
     refetchInterval: 30_000,
   });
 
+  // Queue order, and this is where the paced retry now lives:
+  //   1. fresh leads (pending / take) — warm, always first
+  //   2. call agains whose retry time has passed — due now
+  //   3. call agains still parked — visible, but last, so an agent only reaches
+  //      them once the real work is done rather than ringing a customer twice
+  //      in an hour. Within each band: parked by soonest due, others newest first.
+  const LEAD_ORDER: Record<string, number> = { pending: 0, take: 1, call_again: 2 };
+  const isParked = (o: any) => !!o.next_call_after && new Date(o.next_call_after).getTime() > Date.now();
   const pendingOrders = useMemo(() => {
     const raw = (pendingData as any)?.orders || [];
     return [...raw].sort((a, b) => {
+      const parked = Number(isParked(a)) - Number(isParked(b));
+      if (parked !== 0) return parked;
+      const rank = (LEAD_ORDER[a.status] ?? 9) - (LEAD_ORDER[b.status] ?? 9);
+      if (rank !== 0) return rank;
+      if (isParked(a) && isParked(b)) {
+        return new Date(a.next_call_after).getTime() - new Date(b.next_call_after).getTime();
+      }
       const aTime = new Date(a.assigned_at || a.created_at || 0).getTime();
       const bTime = new Date(b.assigned_at || b.created_at || 0).getTime();
       return bTime - aTime;
@@ -569,21 +596,43 @@ export default function CallsPage() {
     advanceQueue(phone);
   }, [pendingAdvance, advanceQueue]);
 
+  // Find this customer's live lead so a disposition COMPLETES it instead of
+  // forking a second order. The cached queue is capped and can be seconds stale,
+  // so a miss falls back to a direct server lookup before we ever create.
+  // (`POST /orders` refuses to fork anyway — this just keeps the UX seamless
+  // rather than showing the agent a 409.)
+  const resolveOpenLeadId = useCallback(async (phone: string): Promise<string | null> => {
+    const key = normalizePhoneKey(phone || '');
+    if (!key) return null;
+    const local = pendingOrders.find((o: any) => normalizePhoneKey(o.customer_phone || '') === key);
+    if (local) return local.id;
+    // Not in my queue — ask the server, which looks WITHOUT an agent filter.
+    // A manager handing a client to another agent is routine, and the receiving
+    // agent must close out the order that already exists; scoping this to the
+    // caller is what made Confirm fall through to creating a second order.
+    try {
+      const { lead } = await apiGetOpenLead(phone);
+      return lead?.id ?? null;
+    } catch {
+      return null;
+    }
+  }, [pendingOrders, normalizePhoneKey]);
+
   // Confirm-from-call → CreateOrderModal pre-filled with the call's phone.
-  // If that phone IS a pending lead, complete the existing order instead of
-  // creating a second one (which would orphan the lead + its affiliate sidecar).
+  // If that phone IS a live lead, complete the existing order instead of
+  // creating a second one (which would orphan the lead + its AlterCPA sidecar).
   useEffect(() => {
     if (!pendingConfirm) return;
-    const key = normalizePhoneKey(pendingConfirm.phone || '');
-    const matched = key
-      ? pendingOrders.find((o: any) => normalizePhoneKey(o.customer_phone || '') === key) || null
-      : null;
-    setCreateOrderProps({
-      open: true,
-      phone: pendingConfirm.phone,
-      ...(matched ? { existingOrderId: matched.id } : {}),
-    });
+    const phone = pendingConfirm.phone;
     clearPendingConfirm();
+    void (async () => {
+      const existingOrderId = await resolveOpenLeadId(phone || '');
+      setCreateOrderProps({
+        open: true,
+        phone,
+        ...(existingOrderId ? { existingOrderId } : {}),
+      });
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingConfirm]);
 
@@ -665,9 +714,12 @@ export default function CallsPage() {
   // sparse webhook row went straight to confirmed with no products/address.
   const handleAnswerConfirmed = useCallback(async () => {
     if (!phoneReady) return;
-    const pendingId = currentPendingOrderId || activePendingOrder?.id || null;
+    const pendingId =
+      currentPendingOrderId
+      || activePendingOrder?.id
+      || await resolveOpenLeadId(selectedPhone);
     if (pendingId && !currentPendingOrderId) {
-      // Phone-matched pending: remember it so advanceQueue's pickNextPending
+      // Phone-matched lead: remember it so advanceQueue's pickNextPending
       // exclusion works after the modal confirms it.
       setCurrentPendingOrderId(pendingId);
     }
@@ -676,7 +728,7 @@ export default function CallsPage() {
       phone: selectedPhone,
       ...(pendingId ? { existingOrderId: pendingId } : {}),
     });
-  }, [phoneReady, selectedPhone, currentPendingOrderId, activePendingOrder]);
+  }, [phoneReady, selectedPhone, currentPendingOrderId, activePendingOrder, resolveOpenLeadId]);
 
   // Fetch this customer's recent orders fresh so the recorded name + product
   // always match the customer on screen (not a lagging memo). Returns the
@@ -696,7 +748,12 @@ export default function CallsPage() {
   // product) so it shows in the customer's dossier, then advance.
   const handleAnswerCancelled = useCallback(async (reason: CancellationReason, notes: string) => {
     const phone = selectedPhone;
-    const pendingId = currentPendingOrderId || activePendingOrder?.id || null;
+    // Server-backed lookup, not just the local queue: a lead handed over by a
+    // manager is invisible to this agent's RLS view, and without this the cancel
+    // landed on a brand-new synthetic row while the real lead stayed open
+    // forever (the orphaned-outcome bug).
+    const pendingId =
+      currentPendingOrderId || activePendingOrder?.id || await resolveOpenLeadId(phone);
     if (pendingId) {
       try {
         await apiUpdateOrderStatus(pendingId, 'cancelled', {
@@ -740,7 +797,7 @@ export default function CallsPage() {
     } catch (err: any) {
       toast({ title: t('callsPage.cancellationFailed'), description: err?.message, variant: 'destructive' });
     }
-  }, [selectedPhone, currentPendingOrderId, activePendingOrder, resolveCustomerForRecord, toast, finishOutcome, qc, user?.id, advanceQueue]);
+  }, [selectedPhone, currentPendingOrderId, activePendingOrder, resolveOpenLeadId, resolveCustomerForRecord, toast, finishOutcome, qc, user?.id, advanceQueue]);
 
   // Trash → record a trashed order with a STRUCTURED reason (orders.trash_reason)
   // + optional free-text note. Works for both a live pending order and the
@@ -750,7 +807,10 @@ export default function CallsPage() {
     const phone = selectedPhone;
     const trashReason = reasonKey;
     const trashNotes = (notes || '').trim() || undefined;
-    const pendingId = currentPendingOrderId || activePendingOrder?.id || null;
+    // Same server-backed lookup as Cancel — trash the lead that exists, never a
+    // synthetic row beside it.
+    const pendingId =
+      currentPendingOrderId || activePendingOrder?.id || await resolveOpenLeadId(phone);
     if (pendingId) {
       try {
         await apiUpdateOrderStatus(pendingId, 'trashed', {
@@ -790,7 +850,7 @@ export default function CallsPage() {
     } catch (err: any) {
       toast({ title: t('callsPage.recordFailed'), description: err?.message, variant: 'destructive' });
     }
-  }, [selectedPhone, currentPendingOrderId, activePendingOrder, resolveCustomerForRecord, toast, finishOutcome, qc, user?.id, advanceQueue]);
+  }, [selectedPhone, currentPendingOrderId, activePendingOrder, resolveOpenLeadId, resolveCustomerForRecord, toast, finishOutcome, qc, user?.id, advanceQueue]);
 
   // Didn't Answer → log a no-answer call and let the server own the lifecycle:
   // it parks the customer ~1 day (prediction member hold + pending-order
@@ -1133,7 +1193,20 @@ export default function CallsPage() {
 
       <OrderModal
         open={!!orderModalData}
-        onClose={() => setOrderModalData(null)}
+        onClose={(saved?: boolean) => {
+          setOrderModalData(null);
+          // OrderModal has no queryClient of its own — it only reports `saved`.
+          // Dropping that flag here left the dossier, the queue and the badge
+          // showing pre-edit data after resolving an order from this page, which
+          // is exactly how an agent concludes "it didn't save" and does it
+          // again. Same pattern as Orders.tsx.
+          if (!saved) return;
+          qc.invalidateQueries({ queryKey: ['calls-page-orders', selectedPhone] });
+          qc.invalidateQueries({ queryKey: ['customer-history', selectedPhone] });
+          qc.invalidateQueries({ queryKey: ['customer-intelligence', selectedPhone] });
+          qc.invalidateQueries({ queryKey: ['calls-page-pendings', user?.id] });
+          qc.invalidateQueries({ queryKey: ['my-pendings-summary', user?.id] });
+        }}
         data={orderModalData}
         contextType="order"
       />

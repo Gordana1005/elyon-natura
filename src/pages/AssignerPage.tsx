@@ -8,6 +8,7 @@ import {
   apiGetSegments, apiAutoAssignSegment, apiBulkUnassignSegment,
   apiGetSegment, apiAssignSegmentMembers,
   apiGetAssignmentSummary, type AssignmentSummary,
+  apiGetCallAgains,
 } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import i18n from '@/i18n';
@@ -29,6 +30,7 @@ import { SegmentMemberTable, type SegmentMember } from '@/components/assigner/Se
 import { AgentPickerChips } from '@/components/assigner/AgentPickerChips';
 import { CrossListBasketBar, type BasketItem } from '@/components/assigner/CrossListBasketBar';
 import { BulkUnassignPanel } from '@/components/assigner/BulkUnassignPanel';
+import { CallAgainsPanel } from '@/components/assigner/CallAgainsPanel';
 
 interface UnassignedOrder {
   id: string;
@@ -133,6 +135,14 @@ export default function AssignerPage() {
     queryFn: apiGetAssignmentSummary,
     refetchInterval: 30000,
   });
+
+  // Just the count for the tab label — the panel owns its own paged query.
+  const { data: callAgainsHead } = useQuery({
+    queryKey: ['assigner-call-agains-count'],
+    queryFn: () => apiGetCallAgains({ page: 1, limit: 1 }),
+    refetchInterval: 60000,
+  });
+  const callAgainsCount = callAgainsHead?.total;
 
   const assignMutation = useMutation({
     mutationFn: () => apiBulkAssignOrders(selectedOrders, selectedAgent),
@@ -317,11 +327,23 @@ export default function AssignerPage() {
             <TabsList className="mb-3">
               <TabsTrigger value="prediction_lists">Prediction Lists ({segments.length})</TabsTrigger>
               <TabsTrigger value="pendings">Pendings ({orders.length})</TabsTrigger>
+              {/* Prediction-list call agains as a redistributable pool. Lead
+                  call agains are NOT here — they stay in their own agent's
+                  Pendings queue until that agent reaches the customer. */}
+              <TabsTrigger value="call_agains" className="gap-1.5">
+                <Clock className="h-3.5 w-3.5" />
+                {t('assigner.callAgainsTab')} ({(callAgainsCount ?? 0).toLocaleString()})
+              </TabsTrigger>
               <TabsTrigger value="unassign" className="gap-1.5">
                 <UserX className="h-3.5 w-3.5" />
                 {t('assigner.unassignTab')} ({((assignmentSummary?.totals.open_total ?? 0) + (assignmentSummary?.totals.pendings_total ?? 0)).toLocaleString()})
               </TabsTrigger>
             </TabsList>
+
+            {/* ── Tab: Call Agains ── */}
+            <TabsContent value="call_agains" className="space-y-4 mt-0">
+              <CallAgainsPanel agents={agents} />
+            </TabsContent>
 
             {/* ── Tab: Prediction Lists ── */}
             <TabsContent value="prediction_lists" className="space-y-4 mt-0">

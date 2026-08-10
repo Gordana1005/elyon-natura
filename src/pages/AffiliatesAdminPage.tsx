@@ -1,25 +1,41 @@
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 import { AppLayout } from '@/layouts/AppLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Handshake, Tag, Send, Globe } from 'lucide-react';
+import { Globe, Handshake, LayoutDashboard, Send, Tag } from 'lucide-react';
+import { AffiliateDashboardTab } from '@/components/affiliates/AffiliateDashboardTab';
 import { AffiliatesTab } from '@/components/affiliates/AffiliatesTab';
 import { OffersTab } from '@/components/affiliates/OffersTab';
 import { PostbackLogTab } from '@/components/affiliates/PostbackLogTab';
 import { MirrorTab } from '@/components/altercpa/MirrorTab';
 
+const TABS = ['dashboard', 'affiliates', 'offers', 'postbacks', 'countries'] as const;
+
 /**
- * Affiliates (Admin) — manage webmasters, their offers/payouts, and the
- * postback delivery log. View is admin/manager; every mutation is re-checked
- * admin-only server-side (managers see a read-only program overview without
- * API keys). The affiliate-facing portal is a separate page set (/affiliate).
+ * Affiliates (Admin) — per-affiliate dashboard + staff super-metrics, then
+ * webmaster management, offers/payouts, the postback delivery log and the
+ * AlterCPA country mirror. View is admin/manager; every mutation is
+ * re-checked admin-only server-side. Tabs are URL-synced (?tab=&affiliate=)
+ * so affiliate rows can deep-link into the dashboard.
  */
 export default function AffiliatesAdminPage() {
   const { t } = useTranslation();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const requested = searchParams.get('tab');
+  const activeTab = TABS.find((v) => v === requested) ?? 'dashboard';
 
   return (
     <AppLayout title={t('nav.affiliates')}>
-      <Tabs defaultValue="affiliates" className="space-y-6">
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => setSearchParams((prev) => ({ ...Object.fromEntries(prev), tab: v }))}
+        className="space-y-6"
+      >
         <TabsList>
+          <TabsTrigger value="dashboard" className="gap-2">
+            <LayoutDashboard className="h-4 w-4" /> {t('affiliatesAdmin.tabDashboard')}
+          </TabsTrigger>
           <TabsTrigger value="affiliates" className="gap-2">
             <Handshake className="h-4 w-4" /> {t('affiliatesAdmin.tabAffiliates')}
           </TabsTrigger>
@@ -37,6 +53,7 @@ export default function AffiliatesAdminPage() {
           </TabsTrigger>
         </TabsList>
 
+        <TabsContent value="dashboard"><AffiliateDashboardTab /></TabsContent>
         <TabsContent value="affiliates"><AffiliatesTab /></TabsContent>
         <TabsContent value="offers"><OffersTab /></TabsContent>
         <TabsContent value="postbacks"><PostbackLogTab /></TabsContent>

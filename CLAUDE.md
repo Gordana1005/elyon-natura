@@ -63,11 +63,16 @@ target **explicitly** and verify it before running:
 ## Per-market rules (Macedonia ≠ Bulgaria) — these OVERRIDE the copied BG docs/skills
 `.grok/skills/` and `docs/` were copied from Bulgaria and still describe BG specifics in places.
 **Where they conflict with the list below, THIS LIST WINS** (and update the skill/doc):
-- **Currency: MKD only in the UI.** Prices are STORED in EUR; the denar is derived at display
+- **Currency: MKD in the UI.** Prices are STORED in EUR; the denar is derived at display
   time from a **frozen** `MKD_PER_EUR` constant. The denar is a managed NBRM peg, not a legally
   fixed rate like the lev — **never "update" the constant**, because that silently re-prices every
   historical order, closed payout and already-collected COD. If the market moves, re-price the
   catalogue in EUR instead. No lev, no 1.95583, no dual display.
+  **One documented exception (operator, 2026-08-10): affiliate/CPA payout renders in EUR**
+  (`formatEurExact`) on both the partner portal and `/affiliates-admin` — `payout_eur_snapshot`
+  is a euro debt to a foreign webmaster who invoices in euro, not a Macedonian retail price.
+  The staff "Avg order value (confirmed)" tile stays денари. Do not "fix" this back — see
+  `.grok/skills/elyon-currency` and `elyon-affiliates`.
 - **Timezone:** `Europe/Skopje` (CET/CEST) — not Europe/Sofia (EET, one hour ahead).
 - **Phone:** country code **+389** — not +359. Last-8 matching is unchanged.
 - **Language:** default UI is Macedonian (`mk`); en/sq/bg also shipped.
