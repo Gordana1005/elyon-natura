@@ -432,6 +432,8 @@ export default function AssignerPage() {
                   <SelectTrigger className="w-40 h-9 text-sm rounded-lg ml-auto"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">{t('assigner.allSources')}</SelectItem>
+                    <SelectItem value="altercpa">{t('ordersPage.sourceAltercpa')}</SelectItem>
+                    <SelectItem value="import">{t('ordersPage.sourceImport')}</SelectItem>
                     <SelectItem value="affiliate">{t('ordersPage.sourceAffiliate')}</SelectItem>
                     <SelectItem value="opencart">{t('ordersPage.sourceSite')}</SelectItem>
                     <SelectItem value="inbound_lead">{t('ordersPage.sourceWebhook')}</SelectItem>
@@ -476,7 +478,9 @@ export default function AssignerPage() {
                           </td>
                           <td className="px-4 py-3">
                             <Badge variant="secondary" className="text-[10px]">
-                              {order.source_type === 'affiliate' ? t('ordersPage.sourceAffiliate')
+                              {order.source_type === 'altercpa' ? t('ordersPage.sourceAltercpa')
+                                : order.source_type === 'import' ? t('ordersPage.sourceImport')
+                                : order.source_type === 'affiliate' ? t('ordersPage.sourceAffiliate')
                                 : order.source_type === 'inbound_lead' ? t('ordersPage.sourceWebhook')
                                 : order.source_type === 'prediction_lead' ? t('ordersPage.sourceLead')
                                 : order.source_type === 'opencart' ? t('ordersPage.sourceSite')
@@ -521,7 +525,9 @@ export default function AssignerPage() {
                           subtitle={order.customer_phone}
                           badge={
                             <Badge variant="secondary" className="text-[10px]">
-                              {order.source_type === 'affiliate' ? t('ordersPage.sourceAffiliate')
+                              {order.source_type === 'altercpa' ? t('ordersPage.sourceAltercpa')
+                                : order.source_type === 'import' ? t('ordersPage.sourceImport')
+                                : order.source_type === 'affiliate' ? t('ordersPage.sourceAffiliate')
                                 : order.source_type === 'inbound_lead' ? t('ordersPage.sourceWebhook')
                                 : order.source_type === 'prediction_lead' ? t('ordersPage.sourceLead')
                                 : order.source_type === 'opencart' ? t('ordersPage.sourceSite')

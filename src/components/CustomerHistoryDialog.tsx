@@ -75,17 +75,22 @@ export function CustomerHistoryDialog({ open, onClose, customerPhone, customerNa
       return;
     }
 
+    // Suffix match, not `%last8%`: a substring can pull in a DIFFERENT customer
+    // whose number merely contains these 8 digits, and this dossier is what the
+    // agent reads before deciding how to handle the person on the line.
+    const last8 = normalizedPhone.slice(-8);
+
     Promise.all([
       supabase
         .from('orders')
         .select('id, display_id, customer_name, customer_phone, customer_city, product_name, source_type, price, status, created_at, assigned_agent_name')
-        .ilike('customer_phone', `%${normalizedPhone.slice(-8)}%`)
+        .ilike('customer_phone', `%${last8}`)
         .order('created_at', { ascending: false })
         .limit(50),
       supabase
         .from('prediction_leads')
         .select('id, name, telephone, product, status, created_at, assigned_agent_name')
-        .ilike('telephone', `%${normalizedPhone.slice(-8)}%`)
+        .ilike('telephone', `%${last8}`)
         .order('created_at', { ascending: false })
         .limit(50),
     ]).then(async ([ordersRes, leadsRes]) => {

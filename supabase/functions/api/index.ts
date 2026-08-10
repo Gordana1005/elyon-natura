@@ -9364,6 +9364,10 @@ async function handleRequest(req: Request): Promise<Response> {
       const isRealResult = outcome === "confirmed" || outcome === "cancelled" || outcome === "trash";
       const isMarker = !started_at && isRealResult;                                  // OrderModal, after a call
       const isAnsweredTelemetry = !!started_at && (outcome === "answered" || outcome === "interested"); // VoipContext finalize
+      // Suffix, never `%last8%` — the two candidate lookups below feed an UPDATE,
+      // and a substring match can select a DIFFERENT customer whose number merely
+      // contains these 8 digits, re-tagging their call log with this outcome.
+      // Rule 7: phone matching on any WRITE path is a suffix.
       const mergePhone8 = customer_phone ? String(customer_phone).replace(/\D/g, "").slice(-8) : "";
       let data: any = null;
       if (mergePhone8.length >= 7 && (isMarker || isAnsweredTelemetry)) {
@@ -9374,7 +9378,7 @@ async function handleRequest(req: Request): Promise<Response> {
             .from("call_logs")
             .select("id, notes")
             .eq("agent_id", user.id)
-            .ilike("customer_phone", `%${mergePhone8}%`)
+            .ilike("customer_phone", `%${mergePhone8}`)
             .not("started_at", "is", null)
             .in("outcome", ["answered", "interested"])
             .gte("ended_at", sinceIso)
@@ -9395,7 +9399,7 @@ async function handleRequest(req: Request): Promise<Response> {
             .from("call_logs")
             .select("id, notes")
             .eq("agent_id", user.id)
-            .ilike("customer_phone", `%${mergePhone8}%`)
+            .ilike("customer_phone", `%${mergePhone8}`)
             .is("started_at", null)
             .in("outcome", ["confirmed", "cancelled", "trash"])
             .gte("created_at", sinceIso)
@@ -11120,7 +11124,9 @@ async function handleRequest(req: Request): Promise<Response> {
         .from("personal_list_holds")
         .select("id, agent_id, agent_name, customer_phone, customer_name, reason, claimed_at, expires_at, follow_up_by")
         .eq("status", "active")
-        .ilike("customer_phone", `%${last8}%`)
+        // Suffix: `.maybeSingle()` THROWS when two rows match, so a substring
+        // that catches a second customer turns this lookup into a 400.
+        .ilike("customer_phone", `%${last8}`)
         .maybeSingle();
       if (error) return json({ error: sanitizeDbError(error) }, 400);
       return json(data);

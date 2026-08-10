@@ -790,6 +790,8 @@ export default function Orders() {
         'PRODUCT': items,
         'CONFIRMED BY': o.confirmed_by_name || o.last_action_by || o.assigned_agent_name || '',
         'SOURCE': o.source_type === 'monadon_legacy' ? 'MONADLIST'
+          : o.source_type === 'altercpa' ? 'AlterCPA'
+          : o.source_type === 'import' ? 'Import'
           : o.source_type === 'affiliate' ? 'Affiliate'
           : o.source_type === 'opencart' ? 'naturatherapy.mk'
           : o.source_type === 'opencart_abandoned' ? 'naturatherapy.mk (abandoned)'
@@ -870,6 +872,11 @@ export default function Orders() {
                 <div className="space-y-1">
                   {([
                     ['all', t('ordersPage.allSources')],
+                    // AlterCPA is THIS market's lead source and `import` is the
+                    // 80k-row history — both were missing, so the two biggest
+                    // populations in the table could not be filtered at all.
+                    ['altercpa', t('ordersPage.sourceAltercpa')],
+                    ['import', t('ordersPage.sourceImport')],
                     ['affiliate', t('ordersPage.sourceAffiliate')],
                     ['opencart', t('ordersPage.sourceSite')],
                     ['inbound_lead', t('ordersPage.sourceWebhook')],
@@ -1301,8 +1308,10 @@ export default function Orders() {
                     ) : <span className="text-muted-foreground">—</span>}
                   </td>
                   <td className="px-4 py-3">
-                    <Badge variant={order.source_type === 'monadon_legacy' ? 'destructive' : order.source_type === 'prediction_lead' || order.source_type === 'inbound_lead' || order.source_type === 'opencart' || order.source_type === 'opencart_abandoned' || order.source_type === 'affiliate' ? 'secondary' : 'outline'} className="text-[10px]">
+                    <Badge variant={order.source_type === 'monadon_legacy' ? 'destructive' : order.source_type === 'prediction_lead' || order.source_type === 'inbound_lead' || order.source_type === 'opencart' || order.source_type === 'opencart_abandoned' || order.source_type === 'affiliate' || order.source_type === 'altercpa' ? 'secondary' : 'outline'} className="text-[10px]">
                       {order.source_type === 'monadon_legacy' ? 'MONADLIST'
+                        : order.source_type === 'altercpa' ? t('ordersPage.sourceAltercpa')
+                        : order.source_type === 'import' ? t('ordersPage.sourceImport')
                         : order.source_type === 'affiliate' ? t('ordersPage.sourceAffiliate')
                         : order.source_type === 'prediction_lead' ? t('ordersPage.sourceLead')
                         : order.source_type === 'inbound_lead' ? t('ordersPage.sourceWebhook')
@@ -1500,6 +1509,8 @@ export default function Orders() {
         ) : filteredOrders.map(order => {
           const isExpanded = expandedIds.has(order.id);
           const sourceLabel = order.source_type === 'monadon_legacy' ? 'MONADLIST'
+            : order.source_type === 'altercpa' ? 'AlterCPA'
+            : order.source_type === 'import' ? 'Import'
             : order.source_type === 'affiliate' ? 'Affiliate'
             : order.source_type === 'prediction_lead' ? 'Lead'
             : order.source_type === 'inbound_lead' ? 'Webhook'
