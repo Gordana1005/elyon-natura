@@ -55,6 +55,51 @@ Now the strip carries a **virtual "Pendings" entry, always first**, fed by `GET 
   stays inside the edge function. Do not turn it into a view or RPC: affiliates hold real Supabase
   logins, so nothing new may become readable to `authenticated`.
 
+## Lead handling — the ten rules (2026-08-11, LAW)
+
+Ported from Elyon BG after thirteen compounding defects. Full write-up:
+`docs/LEADS_PORT_GUIDE_MK.md`. **Port the rules, not just the diffs.**
+
+1. **The assignment triple moves as one.** `assigned_agent_id`,
+   `assigned_agent_name` and `assigned_at` are written together. A NULL id must
+   never leave a name behind ("phantom owner" — the row displays an owner while
+   counting as unassigned, which is why the take-lock bug hid for weeks).
+2. **A lead is never forked.** One customer, one open order. Every disposition
+   updates the order that already exists.
+3. **Call Again is a LEAD state, not a call outcome.** A prediction client who
+   isn't reached is a *no answer* on their member row; their order is untouched.
+4. **Pendings = inbound leads only** — `is_lead_source()` /`LEAD_SOURCE_TYPES`.
+   Agent-created `manual` work never appears there.
+5. **Ownership governs distribution, not action.** Queues and automation are
+   per-agent; a deliberate disposition by whoever is on the client is always
+   allowed on an open lead. Credit follows the work (`confirmed_by_*`).
+6. **The queue, the badge and the manager's chip use ONE definition** —
+   `pending|take|call_again` + lead sources — or they disagree and nobody trusts
+   them.
+7. **Phone matching on any WRITE path is a suffix** (`%last8`), never `%last8%`.
+   A substring can hit a different customer entirely.
+8. **No order is junked without a reason.** Bulk paths included.
+9. **Leads are never auto-trashed and never throttled.** The 9-strike Unreachable
+   rule and the paced retry apply to prediction outreach only (`hasLiveLead`
+   guard). On a lead the customer is waiting for US.
+10. **Fresh leads are served before call-backs; call-backs stay visible** — no
+    `ready_only` on the lead queue, parked ones just sort last.
+
+⚠ **MACEDONIA:** the lead source is **`altercpa`**, not BG's `affiliate`, and the
+bulk import is **`import`** (80k legacy rows) which must NEVER be a lead source.
+The partner sidecar is `altercpa_leads`; `affiliate_leads` is empty and the
+bridge is **one-way** — nothing ever posts back (`elyon-altercpa-bridge` #3), so
+no disposition path may nudge a postback drain.
+
+⚠ **Never run the phantom-owner repair repo-wide here.** 67.069 rows have a name
+with no id; every one is a terminal-state legacy import holding historical
+attribution. Scope any such repair to `status IN ('pending','take','call_again')`
+or you erase who sold and who cancelled across the whole order history.
+
+**Call Agains tab** (`CallAgainsPanel.tsx`) redistributes **prediction** call
+agains only. A lead that didn't answer stays in its own agent's Pendings queue
+until they reach the customer — it is never handed out from there.
+
 ## Assignment Rules & Recent Changes (Important)
 
 - **Pending orders** can be unassigned more freely (even after some work).

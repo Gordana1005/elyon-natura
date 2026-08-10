@@ -1,5 +1,46 @@
 # Lead handling — full port guide, BG → elyon-natura (MK)
 
+> ## ✅ SHIPPED 2026-08-11 — and five things in here were wrong
+>
+> The port is live: migrations `20260917000000/000100/000200`, the `api` edge
+> function, and the SPA. Verified after deploy: **0 stuck takes, 0 frozen
+> call-agains, 0 open phantom owners, 0 non-lead rows in any queue, 924 open
+> leads all `altercpa`.**
+>
+> Corrections found while executing — believe these over the body below:
+>
+> 1. **§3 "phantom owners" is a trap at this scale.** `assigned_agent_id IS NULL
+>    AND assigned_agent_name IS NOT NULL` returns **67.069** rows here, and every
+>    one is a *terminal-state legacy `import`* row holding historical
+>    attribution (cancelled 29.328 · paid 24.134 · trashed 13.606). Exactly ONE
+>    open row was affected. **Scope that repair — and check #14 — to
+>    `status IN ('pending','take','call_again')`**, or you erase who sold and who
+>    cancelled across the entire order history.
+> 2. **`LEAD_SOURCE_TYPES` silently dropped 42 live leads.** They carried
+>    `external_source='altercpa'` but `source_type='import'` (the history-import
+>    path), and **41 were assigned to named agents**. Fixed by
+>    `20260917000200`, which relabels them; verified segment-neutral, since every
+>    engine predicate excludes `monadon_legacy` and never `import`.
+> 3. **Every postback step is inert here, and one is forbidden.** `affiliates`,
+>    `affiliate_leads`, `affiliate_postbacks` and `inbound_leads` are all empty
+>    and `tg_enqueue_affiliate_postback` reads `affiliate_leads`. The bridge is
+>    one-way by design. `bulk-disposition` must **not** nudge a postback drain —
+>    that would open a channel to the partner this market does not have.
+> 4. **The elevated fallback on `GET /orders/:id` needs a staff gate.**
+>    Affiliates hold real Supabase logins here, so `hasInternalRole` is asserted
+>    at the call site rather than inferred from the hard wall 3000 lines away.
+> 5. **"11 `%last8%` write paths" is wrong — it is 5.** Three of the eight write
+>    paths were already suffix-anchored. But three *reads that immediately drive
+>    writes* were missed (take-lock candidates, the streak count, the auto-trash
+>    target). **8 sites** needed fixing.
+>
+> §5's claim that the repair scripts "should find nothing, which is the point"
+> was also wrong: the fork bug **did** bite here. `ORD-81308` lost its assignment
+> to the take-lock, kept its owner's name, and its sale landed on a new
+> `ORD-81367` — merged back on 2026-08-11. One ambiguous candidate
+> (`ORD-81114` / `ORD-81328`) was deliberately left for a human: different price
+> and a fuller name, so a phone match alone is not enough to act on.
+
 Everything done in Elyon BG on **2026-08-10**, why it was done, and exactly how
 to apply it to the Macedonian CRM. Both databases were inspected on that date; the
 differences that will break a copy-paste port are in **§3 — read that first**.

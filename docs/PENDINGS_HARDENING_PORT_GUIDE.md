@@ -1,5 +1,20 @@
 # Pendings hardening — what broke, what we did, and how to port it
 
+> ## ⚠️ SUPERSEDED — read `LEADS_PORT_GUIDE_MK.md` instead
+>
+> This file covers only the first **9** defects. The same-day follow-up covers
+> all **13** (it adds the Call Again page filters, the redistributable Call
+> Agains tab, the paced-retry trap that hid leads from their own agent, and the
+> Assigner's empty "Pending leads" row) and was written with both databases
+> inspected.
+>
+> **The MK port shipped on 2026-08-11 against that guide, not this one.**
+> Section 4 below ("State of the MK fork") is now historical — every defect it
+> lists is fixed. Its two numbers that were wrong: the `%last8%` write paths were
+> **5**, not 11, and the phantom-owner count here is dominated by 67k legacy
+> import rows that must never be "repaired". See the corrections banner at the
+> top of `LEADS_PORT_GUIDE_MK.md`.
+
 **Origin:** Elyon BG (`elyoncrm`), 2026-08-10. Commits `5dbc15e` → `342e560`.
 **Purpose:** a complete record of the incident, and a ready handoff for any other
 market fork (`elyon-natura` / MK, and anything forked after it) so the same
