@@ -207,6 +207,17 @@ serve(async (req: Request) => {
       }
       stats.matched++;
 
+      // Passive telemetry: the courier's COD vs the order total (±3 ден, with
+      // or without the 150 ден delivery fee). A rising counter means sizes are
+      // drifting again — the AlterCPA resize sync should be catching them.
+      {
+        const cod = Math.round(Number(String(s.cod ?? "").replace(/[^\d.]/g, "")) || 0);
+        if (cod > 0 && order.price != null) {
+          const exp = Math.round(Number(order.price) * MKD_PER_EUR);
+          if (exp > 0 && Math.abs(cod - exp) > 3 && Math.abs(cod - exp - DELIVERY_MKD) > 3) bump("cod_mismatch");
+        }
+      }
+
       if (order.status === target) { bump("unchanged"); continue; }
       if (order.status === "duplicated") { bump("duplicated_conflict"); continue; }
       // `shipped` is a forward-only progress marker: it never overrides a
