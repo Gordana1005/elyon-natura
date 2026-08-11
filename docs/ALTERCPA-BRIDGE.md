@@ -166,6 +166,17 @@ Both secrets are recorded in `docs/VAULT.md` §2 (gitignored).
 | `altercpa-sync-nightly` | `15 1 * * *` | last 7 days |
 | `altercpa-sync-weekly` | `45 2 * * 0` | last 90 days |
 | `altercpa-sync-status` | `*/5 * * * *` | not a window — our open orders, by `oid` |
+| `mex-reconcile` | `7,37 * * * *` | MEX terminal shipments by `updated_from` (see below) |
+
+**`mex-reconcile`** (`20260918000100`, edge fn `supabase/functions/mex-reconcile`) is the courier
+ground-truth corrector: twice an hour (07:00–20:55 Skopje gate) it pulls MEX shipments whose
+status became Delivered/Returned since the cursor, matches them to orders (remembered
+`orders.mex_tracking_id` link first, else phone→E.164 + COD ×61.5 ±150 ±3 + nearest date, never
+guessing on ambiguity), and applies **Delivered → paid / Returned → returned** — overriding even
+terminal statuses (operator decision 2026-08-11; `duplicated` excluded), because the courier's
+record of collected COD outranks anything AlterCPA says. Run log: `mex_sync_runs` (admin/manager).
+Port of `scripts/reconcile-mex-shipments.mjs` — keep the two matchers in step. The CSV-export
+path remains only for ADDRESS backfill (the API withholds `receiver_address`).
 
 `altercpa-sync-status` (added 2026-08-11, `20260918000000`) fires around the clock but
 `invoke_altercpa_status_sync()` gates on `hour(Europe/Skopje) BETWEEN 7 AND 20` — i.e. it works

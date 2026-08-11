@@ -9,3 +9,7 @@ verify_jwt = false
 # unset.
 [functions.altercpa-sync]
 verify_jwt = false
+
+# Same pattern: pg_cron caller, x-mex-sync-secret header checked in code.
+[functions.mex-reconcile]
+verify_jwt = false
