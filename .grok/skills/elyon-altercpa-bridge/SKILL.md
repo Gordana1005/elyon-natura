@@ -22,9 +22,40 @@ into Elyon so the CRM is one place. **We poll them; nothing is configured on the
 4. **Pendings only** (`import_scope='pending_only'`). Only phase 1/2 become orders. Phase 3/4/5
    are already decided on their side; importing them would drop finished orders into the calling
    queue and book revenue our agents never earned. They stay in the ledger as `not_pending`.
-5. **`status_mirror = 'off'`** by default. Once we have taken a pending, the order is ours.
-   Their operator cancelling their copy must never cancel a lead our agent is about to call.
-   (`until_touched` and `always` exist per-account for a queue nobody works on their side.)
+5. **`status_mirror = 'until_touched'` is the transition-period operating mode** (revised
+   2026-08-11; the original default was `off`). During the migration off AlterCPA their operators
+   still resolve most pendings THERE, so the `status` sync kind (below) chases those outcomes —
+   but only while nobody here has taken or confirmed the order. **"Once we have taken a pending,
+   the order is ours" still holds**: an agent-owned order is never overwritten; the remote change
+   becomes one `order_notes` line per remote phase change. `off` disables the status kind for the
+   account entirely; `always` trusts AlterCPA even over our agents (post-cutover: switch back
+   to `off`).
+
+## The `status` kind — how outcomes arrive (added 2026-08-11)
+
+The windowed kinds filter on CREATION time and can never see an old pending resolve. The
+`status` kind inverts it: every 5 minutes (07:00–20:55 Skopje, gate inside
+`invoke_altercpa_status_sync()` because pg_cron is UTC and Skopje flips CET/CEST) it takes our
+still-open mirrored orders (`pending/take/call_again/confirmed/shipped/delivered`), re-reads
+exactly those ids with `comp/list.json?oid=…` (batches of 100, same non-array-is-failure
+contract), and resolves forward-only via `resolveRemoteOutcome` — **the B′ map, not
+`PHASE_TO_STATUS`**:
+
+| Their record | Our order |
+|---|---|
+| phase 1/2 | untouched |
+| phase 3, status 6–9 (Packing…Arrived) | `shipped` — **never `confirmed`** (that is our warehouse's to-ship queue → double shipment) |
+| phase 3, status 10 Completed or `o.paid > 0` | `paid`, `paid_at` from their clock |
+| phase 3, status 11 Return | `returned` |
+| phase 4 | `cancelled` + reason map — or `returned` if we already saw it ship |
+| phase 5 | `trashed` + reason map |
+| absent from response / deleted | untouched, counted `missing_remote` |
+
+Never backwards, never re-open, never rewrite a terminal status; reasons
+(`crmReasonFor`, ported from `scripts/backfill-altercpa-reasons.mjs`) are written only alongside
+`cancelled`/`trashed`; `last_synced_at` is never advanced. **Paid lands only on their Completed**
+— approval alone is not money, and a wrong `paid` is locked, moves commissions/sticky-trash/
+revenue, and cannot be corrected. Verify with `node scripts/verify-altercpa-status.mjs`.
 
 ## Why foreign leads must stay out of `orders`
 
@@ -91,8 +122,8 @@ date to get right**. Do not invent a new key.
 in August returns exactly the same id set, and nothing created outside the window comes back.
 
 So the 2-minute rolling poll sees **new leads only** — it can never observe a later phase change.
-That is fine under `pending_only` (we take the lead at birth and own it from there), and it means
-the nightly/weekly sweeps exist to fill gaps when the function was down, not to chase outcomes.
+Outcome-chasing is the `status` kind's job (by `oid`, above); the nightly/weekly sweeps exist to
+fill gaps when the function was down, not to chase outcomes.
 
 Same probe measured creation→settlement: **p50 0.5d, p90 44d, p99 59d, max 129d**. Relevant if
 `import_scope` is ever set to `all`, where the weekly window must exceed the p99.

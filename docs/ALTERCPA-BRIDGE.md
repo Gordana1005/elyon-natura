@@ -74,6 +74,8 @@ by giving these orders a sidecar.
 | Admin routes | `supabase/functions/api/index.ts` → `altercpa/*` |
 | Admin UI | `src/pages/AlterCpaPage.tsx`, `src/components/altercpa/` |
 | Reconciliation | `scripts/verify-altercpa-bridge.mjs` |
+| Status-sync reconciliation | `scripts/verify-altercpa-status.mjs` |
+| Status-sync scheduler | `supabase/migrations/20260918000000_altercpa_status_sync.sql` |
 | Window-semantics probe | `scripts/probe-altercpa-window.mjs` |
 
 ### Tables
@@ -93,13 +95,34 @@ by giving these orders a sidecar.
 `phase` is the reliable outcome field; `status` (1–12) is noisier. The documented `items` map is
 **empty on every real order** — the product lives in `goods[0].name`.
 
-| phase | meaning | → Elyon status |
+| phase | meaning | → Elyon status (at import) |
 |---|---|---|
 | 1 | processing | `pending` ✅ imported |
 | 2 | hold | `pending` ✅ imported |
 | 3 | approved | ledger only (`not_pending`) |
 | 4 | cancelled | ledger only (`not_pending`) |
 | 5 | trash | ledger only (`not_pending`) |
+
+Once imported, an order's RESOLUTION arrives through the `status` sync kind (below), which maps
+the remote record forward-only via `resolveRemoteOutcome` (the **B′ map**, 2026-08-11 decision —
+deliberately not `PHASE_TO_STATUS`, whose `3 → paid` was correct only for the settled history
+import):
+
+| Their record | → Elyon status |
+|---|---|
+| phase 1/2 | untouched (`still_open_remote`) |
+| phase 3, status 6–9 Packing…Arrived | `shipped` — never `confirmed` (our warehouse's to-ship queue → double shipment) |
+| phase 3, status 10 Completed, or `o.paid > 0` | `paid` (`paid_at` from their clock) |
+| phase 3, status 11 Return | `returned` |
+| phase 4 cancelled | `cancelled` + reason map — `returned` if we already saw it ship |
+| phase 5 trash | `trashed` + reason map |
+| id absent from response (deleted there) | untouched, counted `missing_remote` |
+
+Rules: never backwards (`CRM_STATUS_RANK`), never rewrite a terminal status, never re-open;
+reasons (`crmReasonFor`, the port of `scripts/backfill-altercpa-reasons.mjs`) only alongside
+`cancelled`/`trashed`; ownership guard per `status_mirror` — `until_touched` (the transition
+operating mode) applies only while `assigned_agent_id IS NULL AND confirmed_at IS NULL`, and a
+guarded remote change becomes one `order_notes` line per remote phase change.
 
 Cancel reasons 1–15 are documented; **16–19 are this account's own custom codes** and the API
 exposes no lookup for them. Their meanings were recovered from operator comments during the
@@ -141,12 +164,19 @@ Both secrets are recorded in `docs/VAULT.md` §2 (gitignored).
 | `altercpa-sync-rolling` | `*/2 * * * *` | `last_synced_at − 45 min → now` |
 | `altercpa-sync-nightly` | `15 1 * * *` | last 7 days |
 | `altercpa-sync-weekly` | `45 2 * * 0` | last 90 days |
+| `altercpa-sync-status` | `*/5 * * * *` | not a window — our open orders, by `oid` |
+
+`altercpa-sync-status` (added 2026-08-11, `20260918000000`) fires around the clock but
+`invoke_altercpa_status_sync()` gates on `hour(Europe/Skopje) BETWEEN 7 AND 20` — i.e. it works
+07:00–20:55 local, DST-proof, and pre-gates on any active account having
+`status_mirror <> 'off'`. Each run takes the ledger rows linked to still-open orders
+(`pending/take/call_again/confirmed/shipped/delivered`, oldest first, `limit` 500 default) and
+re-reads exactly those ids with `comp/list.json?oid=…` in batches of 100.
 
 **The window is CREATION time** — measured 2026-08-06 with `scripts/probe-altercpa-window.mjs`:
 re-fetching a month captured in August returns exactly the same id set. So the rolling poll sees
-**new leads only** and can never observe a later phase change. That is fine under `pending_only`
-(we take the lead at birth and own it), and it means the sweeps exist to fill gaps when the
-function was down, not to chase outcomes.
+**new leads only** and can never observe a later phase change. Outcome-chasing is the `status`
+kind's job; the sweeps exist to fill gaps when the function was down.
 
 The same probe measured creation→settlement: **p50 0.5d, p90 44d, p99 59d, max 129d** — relevant
 only if `import_scope` is ever set to `all`, where the weekly window must exceed the p99.
@@ -165,7 +195,8 @@ the cursor would skip everything between the backfill's end and now.
 ## Verifying
 
 ```bash
-node scripts/verify-altercpa-bridge.mjs --days 7
+node scripts/verify-altercpa-bridge.mjs --days 7   # import containment over a window
+node scripts/verify-altercpa-status.mjs            # outcome agreement + reason/timestamp invariants
 ```
 
 Re-fetches the window independently and compares three id sets: the API, the ledger, and

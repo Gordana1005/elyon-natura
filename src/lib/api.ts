@@ -2081,7 +2081,7 @@ export const apiGetAlterCpaRuns = (params: { account_id?: string; limit?: number
 
 /** Fire a sync by hand. `dry: true` writes nothing and returns a preview. */
 export const apiRunAlterCpaSync = (body: {
-  account?: string; kind?: 'rolling' | 'nightly' | 'weekly' | 'backfill' | 'manual';
-  from?: string; to?: string; dry?: boolean;
+  account?: string; kind?: 'rolling' | 'nightly' | 'weekly' | 'backfill' | 'manual' | 'status';
+  from?: string; to?: string; dry?: boolean; limit?: number;
 }): Promise<any> =>
   apiFetch('altercpa/sync', { method: 'POST', body: JSON.stringify(body) });

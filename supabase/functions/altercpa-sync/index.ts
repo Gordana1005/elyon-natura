@@ -3,11 +3,13 @@
  *
  *   POST /functions/v1/altercpa-sync
  *   header: x-altercpa-sync-secret: <ALTERCPA_SYNC_SECRET>
- *   body:   { account?: string, kind?: 'rolling'|'nightly'|'weekly'|'backfill'|'manual',
- *             from?: <ISO or epoch s>, to?: <ISO or epoch s>, dry?: boolean }
+ *   body:   { account?: string, kind?: 'rolling'|'nightly'|'weekly'|'backfill'|'manual'|'status',
+ *             from?: <ISO or epoch s>, to?: <ISO or epoch s>, dry?: boolean,
+ *             limit?: number }   // status only: cap on candidates per run
  *
- * Called by pg_cron every 2 minutes (rolling), nightly and weekly (sweeps), and
- * by an admin for backfills.
+ * Called by pg_cron every 2 minutes (rolling), nightly and weekly (sweeps),
+ * every 5 minutes 07:00–20:55 Skopje ('status' — resolves imported pendings
+ * whose AlterCPA copy has been decided), and by an admin for backfills.
  *
  * ── Why a separate function and not another route in api/index.ts ───────────
  * That file is ~15.500 lines and 784 KB and serves every interactive request in
@@ -28,8 +30,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
-  AlterCpaOrder, PHASE, PHASE_TO_STATUS, REASON,
-  fetchWindow, isTestOrder, normalizePhoneForGeo, productNameOf, quantityOf, toEur,
+  AlterCpaOrder, PHASE, PHASE_TO_STATUS, REASON, STATUS_LABEL,
+  CRM_STATUS_RANK, CRM_TERMINAL, crmReasonFor, resolveRemoteOutcome,
+  fetchByIds, fetchWindow, isTestOrder, normalizePhoneForGeo, productNameOf, quantityOf, toEur,
 } from "./altercpa.ts";
 
 const json = (body: unknown, status = 200) =>
@@ -75,10 +78,12 @@ serve(async (req: Request) => {
   try { body = await req.json(); } catch { /* empty body = rolling, all accounts */ }
 
   const kind = s(body.kind, 20) || "rolling";
-  if (!["rolling", "nightly", "weekly", "backfill", "manual"].includes(kind)) {
+  if (!["rolling", "nightly", "weekly", "backfill", "manual", "status"].includes(kind)) {
     return json({ error: `Unknown kind '${kind}'` }, 400);
   }
   const dry = body.dry === true;
+  const limitRaw = Number(body.limit);
+  const limit = Number.isFinite(limitRaw) && limitRaw >= 1 ? Math.min(Math.floor(limitRaw), 2000) : 500;
 
   const admin = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
@@ -96,7 +101,9 @@ serve(async (req: Request) => {
   const results = [];
   for (const account of accounts) {
     try {
-      results.push(await syncAccount(admin, account, kind, body, dry));
+      results.push(kind === "status"
+        ? await syncStatusAccount(admin, account, dry, limit)
+        : await syncAccount(admin, account, kind, body, dry));
     } catch (e) {
       console.error(`altercpa-sync: account ${account.name} failed:`, (e as Error).message);
       results.push({ account: account.name, status: "failed", error: (e as Error).message });
@@ -430,6 +437,10 @@ function outcomeTimestamps(o: AlterCpaOrder, status: string): Record<string, str
     if (done) out.cancelled_at = done;
   } else if (status === "trashed") {
     if (done) out.trashed_at = done;
+  } else if (status === "returned") {
+    // returned_at has no NULL-only trigger (20260514110000), so it must be set
+    // here explicitly or the return carries no date at all.
+    if (done) out.returned_at = done;
   }
   return out;
 }
@@ -558,6 +569,14 @@ async function upsertOrder(
   }
 
   // ── existing order: apply the status-mirror policy ───────────────────────
+  // NOTE: this branch still maps A-style via PHASE_TO_STATUS (phase 3 → paid).
+  // Under import_scope='pending_only' it is unreachable for RESOLUTIONS —
+  // a resolved lead gets skip_reason='not_pending' before upsertOrder is ever
+  // called, and phases 1/2 both map to 'pending' — so outcomes flow exclusively
+  // through syncStatusAccount's resolveRemoteOutcome (B′: paid only on their
+  // Completed). Do not flip an account to import_scope='all' without moving
+  // this branch onto resolveRemoteOutcome too, or approval→paid comes back
+  // through the side door.
   const mode = account.status_mirror as string;
   if (mode === "off" || !phaseChanged) return existing.id;
 
@@ -594,4 +613,218 @@ async function upsertOrder(
     });
   }
   return existing.id;
+}
+
+/** Orders the status kind considers still open — everything not yet terminal.
+ * `shipped`/`delivered` stay in so a parcel keeps being tracked to paid or
+ * returned; terminal statuses are excluded, so our own dedupe/cancel decisions
+ * permanently outrank a later remote change. */
+const STATUS_OPEN = ["pending", "take", "call_again", "confirmed", "shipped", "delivered"];
+
+/**
+ * kind='status' — chase outcomes for already-imported pendings.
+ *
+ * The windowed kinds filter on CREATION time, so they can never observe a lead
+ * that was created long ago and resolved yesterday. This kind inverts the
+ * question: take OUR still-open mirrored orders, re-read exactly those ids via
+ * comp/list.json?oid=…, and resolve forward-only per resolveRemoteOutcome (B′).
+ *
+ * Rules, in the order they are applied per lead:
+ *   1. Ledger is always refreshed (phase/status/reason/payload) — the mirror
+ *      stays truthful even when the order is guarded.
+ *   2. Remote still open → nothing. Same target as current → nothing.
+ *   3. Forward-only: never move down CRM_STATUS_RANK, never rewrite terminal.
+ *   4. Ownership: 'until_touched' applies only while nobody here has taken or
+ *      confirmed the order ("once we have taken a pending, the order is ours");
+ *      'always' trusts AlterCPA until cutover. Guarded changes become ONE note
+ *      per remote phase change, not one per 5-minute run.
+ *   5. Reasons are written only alongside cancelled/trashed; timestamps come
+ *      from their clock (outcomeTimestamps); never advances last_synced_at.
+ */
+async function syncStatusAccount(
+  admin: SupabaseClient,
+  account: Record<string, any>,
+  dry: boolean,
+  limit: number,
+) {
+  const startedMs = Date.now();
+  const mode = String(account.status_mirror || "off");
+  if (mode === "off") {
+    return { account: account.name, status: "skipped", reason: "status_mirror_off" };
+  }
+
+  const token = Deno.env.get(account.token_secret_name);
+  if (!token) {
+    throw new Error(`Secret ${account.token_secret_name} is not set on this function`);
+  }
+
+  // Ledger rows linked to a still-open order. `orders!inner` is load-bearing:
+  // without it the .in() filter on the embed does not restrict the parent rows
+  // and every linked lead would come back regardless of order status.
+  const { data: candidates, error: candErr } = await admin
+    .from("altercpa_leads")
+    .select("id, altercpa_id, phase, order_id, orders!inner(id, status, assigned_agent_id, confirmed_at)")
+    .eq("account_id", account.id)
+    .not("order_id", "is", null)
+    .in("orders.status", STATUS_OPEN)
+    .order("created_remote", { ascending: true })
+    .limit(limit);
+  if (candErr) throw new Error(`status candidates: ${candErr.message}`);
+
+  const stats = {
+    fetched: 0, ledger_new: 0, ledger_updated: 0,
+    orders_created: 0, orders_updated: 0,
+    skipped: {} as Record<string, number>,
+  };
+  const bump = (k: string) => { stats.skipped[k] = (stats.skipped[k] || 0) + 1; };
+  const preview: unknown[] = [];
+
+  if (!candidates?.length) {
+    return { account: account.name, status: "ok", dry, mode, candidates: 0, ...stats };
+  }
+
+  // Run log opened before the fetch, same as the windowed kinds. window_from =
+  // window_to = now(): this kind is an "as-of" snapshot, not a window.
+  let runId: string | null = null;
+  if (!dry) {
+    const nowIso = new Date().toISOString();
+    const { data: run } = await admin.from("altercpa_sync_runs").insert({
+      account_id: account.id, kind: "status",
+      window_from: nowIso, window_to: nowIso, status: "running",
+    }).select("id").single();
+    runId = run?.id ?? null;
+  }
+
+  const splits: string[] = [];
+  let byId: Map<string, AlterCpaOrder>;
+  try {
+    byId = await fetchByIds(account.api_base, token, candidates.map((c: any) => String(c.altercpa_id)), (m) => splits.push(m));
+  } catch (e) {
+    if (runId) {
+      await admin.from("altercpa_sync_runs").update({
+        status: "failed", error: (e as Error).message,
+        finished_at: new Date().toISOString(), duration_ms: Date.now() - startedMs,
+      }).eq("id", runId);
+    }
+    throw e;
+  }
+  stats.fetched = byId.size;
+
+  for (const c of candidates as any[]) {
+    const order = c.orders;
+    const o = byId.get(String(c.altercpa_id));
+    if (!o) { bump("missing_remote"); continue; }        // deleted on their side
+
+    const phase = Number(o.phase) || null;
+    const phaseChanged = c.phase !== phase;
+    const cur = String(order.status);
+    const target = resolveRemoteOutcome(o, cur);
+    const untouched = !order.assigned_agent_id && !order.confirmed_at;
+    const wouldApply = target !== null && target !== cur
+      && !CRM_TERMINAL.has(cur)
+      && (CRM_STATUS_RANK[target] ?? 0) > (CRM_STATUS_RANK[cur] ?? 0)
+      && (mode === "always" || untouched);
+
+    if (dry) {
+      if (wouldApply || preview.length < 25) {
+        preview.push({
+          altercpa_id: String(c.altercpa_id), order_id: order.id, crm_status: cur,
+          phase, phase_label: phase ? PHASE[phase] : null,
+          status_label: STATUS_LABEL[Number(o.status) || 0] ?? null,
+          reason_label: REASON[Number(o.reason) || 0] ?? null,
+          would_be_status: target, would_apply: wouldApply,
+          guarded: target !== null && target !== cur && !(mode === "always" || untouched),
+          no_remote_ts: wouldApply && CRM_TERMINAL.has(target!)
+            && !(Number(o.paid) > 0) && !(Number(o.done) > 0),
+        });
+      }
+    } else {
+      // 1. Ledger refresh — narrow patch; this kind never rewrites offer,
+      // price or phone, it only keeps the outcome truthful.
+      const patch: Record<string, unknown> = {
+        phase, status: Number(o.status) || null, reason: Number(o.reason) || 0,
+        payload: o as unknown as Record<string, unknown>,
+        last_seen_at: new Date().toISOString(),
+      };
+      if (phaseChanged) patch.phase_seen_at = new Date().toISOString();
+      const { error: ledErr } = await admin.from("altercpa_leads").update(patch).eq("id", c.id);
+      if (ledErr) console.error(`altercpa-sync status: ledger ${c.altercpa_id}:`, ledErr.message);
+      else stats.ledger_updated++;
+    }
+
+    if (target === null) { bump("still_open_remote"); continue; }
+    if (target === cur) { bump("unchanged"); continue; }
+    if (CRM_TERMINAL.has(cur)) { bump("would_downgrade"); continue; }
+    if ((CRM_STATUS_RANK[target] ?? 0) <= (CRM_STATUS_RANK[cur] ?? 0)) {
+      bump(phase != null && phase <= 2 ? "reopened_remote" : "would_downgrade");
+      continue;
+    }
+
+    if (!(mode === "always" || untouched)) {
+      bump("guarded");
+      if (!dry && phaseChanged) {
+        await admin.from("order_notes").insert({
+          order_id: order.id,
+          text: `AlterCPA moved this to "${phase ? PHASE[phase] : "?"}"`
+            + `${Number(o.reason) ? ` (${REASON[Number(o.reason)] ?? o.reason})` : ""}`
+            + ` — not applied, this order is already being worked here.`,
+          author_id: null,
+          author_name: "System",
+        });
+      }
+      continue;
+    }
+
+    if (dry) { bump("would_apply"); continue; }
+
+    const upd: Record<string, unknown> = { status: target, ...outcomeTimestamps(o, target) };
+    const reason = Number(o.reason) || 0;
+    if (target === "cancelled" && reason > 0) {
+      const r = crmReasonFor("cancel", reason, o.comment);
+      upd.cancellation_reason = r.value;
+      if (r.notes) upd.cancellation_reason_notes = r.notes;
+    } else if (target === "trashed" && reason > 0) {
+      const r = crmReasonFor("trash", reason, o.comment);
+      upd.trash_reason = r.value;
+      if (r.notes) upd.trash_reason_notes = r.notes;
+    }
+    if (CRM_TERMINAL.has(target) && !(Number(o.paid) > 0) && !(Number(o.done) > 0)) {
+      // Their record carries no settlement stamp; the NULL-only trigger will
+      // date this outcome today. Counted so the catch-up dry run surfaces it.
+      bump("no_remote_ts");
+    }
+
+    const { error: updErr } = await admin.from("orders").update(upd).eq("id", order.id);
+    if (updErr) throw new Error(`status update ${c.altercpa_id}: ${updErr.message}`);
+    await admin.from("order_history").insert({
+      order_id: order.id,
+      from_status: cur,
+      to_status: target,
+      changed_by: null,
+      changed_by_name: `System (altercpa:${account.name})`,
+    });
+    stats.orders_updated++;
+  }
+
+  if (runId) {
+    await admin.from("altercpa_sync_runs").update({
+      status: "ok",
+      fetched: stats.fetched,
+      ledger_new: 0,
+      ledger_updated: stats.ledger_updated,
+      orders_created: 0,
+      orders_updated: stats.orders_updated,
+      skipped: stats.skipped,
+      error: splits.length ? `oid batches split: ${splits.length}` : null,
+      finished_at: new Date().toISOString(),
+      duration_ms: Date.now() - startedMs,
+    }).eq("id", runId);
+  }
+
+  return {
+    account: account.name, status: "ok", dry, mode,
+    candidates: candidates.length, ...stats,
+    ...(dry ? { preview } : {}),
+    splits,
+  };
 }

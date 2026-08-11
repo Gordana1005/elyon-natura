@@ -607,10 +607,12 @@ const altercpaOfferMapPatchSchema = z.object({
 });
 const altercpaSyncSchema = z.object({
   account: z.string().trim().max(120).optional(),
-  kind: z.enum(["rolling", "nightly", "weekly", "backfill", "manual"]).optional(),
+  kind: z.enum(["rolling", "nightly", "weekly", "backfill", "manual", "status"]).optional(),
   from: z.string().trim().max(40).optional(),
   to: z.string().trim().max(40).optional(),
   dry: z.boolean().optional(),
+  // status only: cap on open-order candidates per run (catch-up uses slices).
+  limit: z.number().int().min(1).max(2000).optional(),
 });
 
 const offerCreateSchema = z.object({

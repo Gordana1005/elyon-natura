@@ -42,6 +42,103 @@ export const REASON: Record<number, string> = {
 };
 
 /**
+ * AlterCPA `status` (1-12) labels, docs order. `phase` remains the reliable
+ * outcome field; `status` refines phase 3 with the fulfilment lifecycle, which
+ * is the only thing the status-sync kind reads it for.
+ */
+export const STATUS_LABEL: Record<number, string> = {
+  1: "New", 2: "Processing", 3: "Callback", 4: "Hold", 5: "Cancelled",
+  6: "Packing", 7: "Sending", 8: "Transfer", 9: "Arrived", 10: "Completed",
+  11: "Return", 12: "Deleted",
+};
+
+/**
+ * AlterCPA cancel/trash reason → Elyon reason columns. PORT of the CANCEL/TRASH
+ * tables in scripts/backfill-altercpa-reasons.mjs — keep the two in step, the
+ * same way this whole file mirrors scripts/lib/altercpa.mjs. Values must stay
+ * inside orders_cancellation_reason_check / orders_trash_reason_check.
+ */
+export const CANCEL_REASON_TO_CRM: Record<number, string> = {
+  2: "changed_mind", 9: "price_too_high", 8: "bought_elsewhere",
+  10: "not_satisfied", 14: "wrong_product", 7: "duplicate_order",
+};
+export const TRASH_REASON_TO_CRM: Record<number, string> = {
+  1: "wrong_number", 3: "wrong_person", 11: "not_reachable",
+};
+
+/**
+ * Reason value + notes for the CRM columns, mirroring the backfill's notes
+ * logic exactly: the _notes column carries the OPERATOR'S OWN words; only when
+ * the reason flattens into 'other' is the original AlterCPA disposition label
+ * kept ahead of the comment (unless the operator typed the reason back at us).
+ * Sliced to 1000 — the api zod schema caps these columns there.
+ */
+export function crmReasonFor(
+  kind: "cancel" | "trash",
+  reason: number,
+  comment: unknown,
+): { value: string; notes: string | null } {
+  const table = kind === "cancel" ? CANCEL_REASON_TO_CRM : TRASH_REASON_TO_CRM;
+  const value = table[reason] || "other";
+  const label = REASON[reason] ?? `reason ${reason}`;
+  const c = String(comment ?? "").replace(/\s+/g, " ").trim();
+  let notes = c;
+  if (value === "other") {
+    const same = c.toLowerCase().startsWith(label.toLowerCase());
+    notes = c ? (same ? c : `${label} — ${c}`) : label;
+  }
+  notes = notes.slice(0, 1000);
+  return { value, notes: notes || null };
+}
+
+/**
+ * Rank for the status-sync forward-only rule: the bridge may only move an order
+ * UP this ladder, and a terminal status is never rewritten. take/call_again sit
+ * with pending — they are still "being decided", and the ownership guard (not
+ * this rank) is what protects an agent mid-call.
+ */
+export const CRM_STATUS_RANK: Record<string, number> = {
+  pending: 0, take: 0, call_again: 0,
+  confirmed: 1, shipped: 2, delivered: 3,
+  paid: 9, returned: 9, cancelled: 9, trashed: 9, duplicated: 9,
+};
+export const CRM_TERMINAL = new Set(["paid", "returned", "cancelled", "trashed", "duplicated"]);
+
+/**
+ * The B′ outcome map (2026-08-11 decision): what a remote record means for a
+ * mirrored order that is still open here. Returns null while the remote lead is
+ * itself still open.
+ *
+ * Deliberately NOT PHASE_TO_STATUS: that table books phase 3 as `paid`, which
+ * was correct for the settled history import and is wrong for a live mirror —
+ * approval happens while the COD parcel is merely Packing/Sending, and a wrong
+ * `paid` is locked, moves commissions/sticky-trash/revenue, and can never be
+ * corrected. Here money lands only on their Completed (or a real o.paid stamp).
+ *
+ * And deliberately never `confirmed`: that is our warehouse's to-ship queue,
+ * and a parcel already in THEIR fulfilment pipeline must not invite a second
+ * shipment from ours — `shipped` keeps it out of both the calling queue and
+ * the to-ship queue, and later runs keep tracking it to paid/returned.
+ */
+export function resolveRemoteOutcome(o: AlterCpaOrder, currentCrmStatus: string): string | null {
+  const phase = Number(o.phase) || 0;
+  const st = Number(o.status) || 0;
+  if (phase === 1 || phase === 2) return null;
+  if (phase === 3) {
+    if (st === 11) return "returned";
+    if (st === 10 || (Number(o.paid) || 0) > 0) return "paid";
+    return "shipped";                       // Packing…Arrived (6-9) or unknown
+  }
+  if (phase === 4) {
+    // Cancelled after we already saw it ship is physically a return.
+    return currentCrmStatus === "shipped" || currentCrmStatus === "delivered"
+      ? "returned" : "cancelled";
+  }
+  if (phase === 5) return "trashed";
+  return null;                              // unknown phase → touch nothing
+}
+
+/**
  * MKD_PER_EUR is FROZEN at 61.5 — see src/lib/currency.ts. Never "update" it:
  * the denar is a managed NBRM peg, and changing the constant silently re-prices
  * every historical order. Re-price the catalogue in EUR instead.
@@ -267,4 +364,65 @@ export async function fetchWindow(
     return a.concat(b);
   }
   throw new Error(`window ${from}..${to} failed after retries and ${depth} splits: ${lastErr?.message}`);
+}
+
+/**
+ * Fetch specific orders by their AlterCPA ids, regardless of creation date.
+ *
+ * `comp/list.json?oid=a,b,c` (documented; verified live 2026-08-11) is what the
+ * status-sync kind runs on: the windowed fetch filters on CREATION time only,
+ * so it can never observe a later phase change on an old lead — `oid` can.
+ *
+ * Same hard contract as fetchWindow: a non-array body is a FAILURE, never an
+ * empty result. Batches of 100 (~800-char URLs); a batch that still fails after
+ * retries is halved down to a single id before giving up. Ids absent from the
+ * response (deleted on their side) are simply not in the returned map — the
+ * caller counts them, nothing is fabricated.
+ */
+export async function fetchByIds(
+  apiBase: string,
+  token: string,
+  ids: string[],
+  onSplit?: (msg: string) => void,
+): Promise<Map<string, AlterCpaOrder>> {
+  const out = new Map<string, AlterCpaOrder>();
+  const BATCH = 100;
+  const base = apiBase.replace(/\/+$/, "");
+
+  const fetchBatch = async (batch: string[], depth: number): Promise<void> => {
+    const url = `${base}/comp/list.json?id=${encodeURIComponent(token)}&oid=${encodeURIComponent(batch.join(","))}`;
+    let lastErr: Error | null = null;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const res = await fetch(url, { headers: { "Accept-Encoding": "gzip" } });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const text = await res.text();
+        let body: unknown;
+        try { body = JSON.parse(text); } catch {
+          throw new Error(`unparseable body (${text.slice(0, 120)})`);
+        }
+        if (!Array.isArray(body)) {
+          throw new Error(`non-array body: ${JSON.stringify(body).slice(0, 200)}`);
+        }
+        for (const o of body as AlterCpaOrder[]) out.set(String(o.id), o);
+        return;
+      } catch (e) {
+        lastErr = e as Error;
+        if (attempt < 3) await sleep(2000 * attempt);
+      }
+    }
+    if (batch.length > 1 && depth < 8) {
+      onSplit?.(`oid batch of ${batch.length} failed (${lastErr?.message}) — halving`);
+      const mid = Math.ceil(batch.length / 2);
+      await fetchBatch(batch.slice(0, mid), depth + 1);
+      await fetchBatch(batch.slice(mid), depth + 1);
+      return;
+    }
+    throw new Error(`oid batch of ${batch.length} failed after retries: ${lastErr?.message}`);
+  };
+
+  for (let i = 0; i < ids.length; i += BATCH) {
+    await fetchBatch(ids.slice(i, i + BATCH), 0);
+  }
+  return out;
 }

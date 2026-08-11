@@ -7,7 +7,7 @@ import { formatDate } from '@/i18n/dates';
 import { LeadQualityBadge } from '@/components/CustomerIntelligencePanel';
 import { useCustomerIntelligence } from '@/hooks/useCustomerIntelligence';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiGetCustomerHistory, apiUpdateCustomerContact } from '@/lib/api';
+import { apiGetCustomerHistory, apiGetCustomerPrefill, apiUpdateCustomerContact } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/contexts/PermissionsContext';
 import { formatMoney } from '@/lib/currency';
@@ -80,16 +80,32 @@ export function ClientProfileCard({ phone, onOpenOrder, onCreateOrder, onClaimed
     staleTime: 15_000,
   });
 
+  // The saved profile is where the address backfill and every agent correction
+  // land, cross-agent (admin-resolved server-side). Same bundle the order modal
+  // prefills from, so what the agent reads here is what the form will offer.
+  const { data: prefill } = useQuery({
+    queryKey: ['customer-prefill', phone],
+    queryFn: () => apiGetCustomerPrefill(phone),
+    enabled: !!phone && phone.replace(/\D/g, '').length >= 6,
+    staleTime: 60_000,
+  });
+
   const orders = history?.orders ?? [];
   const customerName = intel?.customer_name
     || (orders[0] as any)?.customer_name
     || '';
 
-  // Surface birthday + a friendly address from the most recent order. Not all
-  // imports populated these, so they fall back to a faint "—".
+  // Surface birthday + a friendly address: the saved profile wins (agents and
+  // the backfill maintain it), the most recent order is the fallback for
+  // customers whose profile has no address yet.
   const latestOrder: any = orders[0];
+  const profile: any = prefill?.profile;
   const birthday = latestOrder?.birthday ? formatDate(new Date(latestOrder.birthday + 'T00:00:00'), 'dd MMM yyyy') : '';
   const addressLine = (() => {
+    const fromProfile = profile
+      ? [composeHomeAddress(profile), profile.city].filter(Boolean).join(', ')
+      : '';
+    if (fromProfile) return fromProfile;
     if (!latestOrder) return '';
     const parts = [composeHomeAddress(latestOrder), latestOrder.customer_city].filter(Boolean);
     if (parts.length === 0) return latestOrder.customer_address || '';

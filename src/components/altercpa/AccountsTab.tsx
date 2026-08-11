@@ -93,8 +93,12 @@ export function AccountsTab() {
   });
 
   const syncMutation = useMutation({
-    mutationFn: (v: { account: string; dry: boolean }) =>
-      apiRunAlterCpaSync({ account: v.account, kind: v.dry ? 'manual' : 'rolling', dry: v.dry }),
+    mutationFn: (v: { account: string; dry: boolean; status?: boolean }) =>
+      apiRunAlterCpaSync({
+        account: v.account,
+        kind: v.status ? 'status' : v.dry ? 'manual' : 'rolling',
+        dry: v.dry,
+      }),
     onSuccess: (r) => {
       queryClient.invalidateQueries({ queryKey: ['altercpa-runs'] });
       queryClient.invalidateQueries({ queryKey: ['altercpa-leads'] });
@@ -103,11 +107,16 @@ export function AccountsTab() {
       toast({
         title: r?.dry ? t('altercpa.dryRunDone') : t('altercpa.syncDone'),
         description: first
-          ? t('altercpa.syncSummary', {
-              fetched: first.fetched ?? 0,
-              created: first.orders_created ?? 0,
-              ledger: first.ledger_new ?? 0,
-            })
+          ? r?.kind === 'status'
+            ? t('altercpa.statusSyncSummary', {
+                fetched: first.fetched ?? 0,
+                updated: first.orders_updated ?? 0,
+              })
+            : t('altercpa.syncSummary', {
+                fetched: first.fetched ?? 0,
+                created: first.orders_created ?? 0,
+                ledger: first.ledger_new ?? 0,
+              })
           : undefined,
       });
     },
@@ -195,6 +204,15 @@ export function AccountsTab() {
                         : <RefreshCw className="h-3.5 w-3.5" />}
                       {t('altercpa.syncNow')}
                     </Button>
+                    {a.status_mirror !== 'off' && (
+                      <Button
+                        size="sm" variant="outline" className="gap-1.5"
+                        disabled={syncMutation.isPending || a.token_present === false}
+                        onClick={() => syncMutation.mutate({ account: a.name, dry: false, status: true })}
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" /> {t('altercpa.syncStatusesNow')}
+                      </Button>
+                    )}
                   </div>
                 )}
               </CardContent>
