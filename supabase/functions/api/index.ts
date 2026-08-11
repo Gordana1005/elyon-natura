@@ -939,6 +939,30 @@ function calcAgentBonus(ordersForAgent: any[]): number {
   return Math.round(total * 100) / 100;
 }
 
+// ── Skopje day boundaries ───────────────────────────────────────────────────
+// Date-range pickers send bare `YYYY-MM-DD` strings. Cast naked to timestamptz
+// they are read in the DATABASE's timezone (UTC), so "today" ran 02:00→01:59
+// Skopje and the after-midnight orders fell into yesterday (found 2026-08-11:
+// the Insights tile said 8 sold while the list showed 12). These pin the
+// operator's real day with an explicit, DST-correct offset.
+function skopjeOffset(dateStr: string): string {
+  const probe = new Date(`${dateStr}T12:00:00Z`);
+  if (isNaN(probe.getTime())) return "+00:00";
+  const part = new Intl.DateTimeFormat("en", { timeZone: "Europe/Skopje", timeZoneName: "longOffset" })
+    .formatToParts(probe).find((p) => p.type === "timeZoneName")?.value ?? "GMT+00:00";
+  return part.replace("GMT", "") || "+00:00";
+}
+/** '2026-08-11' → '2026-08-11T00:00:00+02:00' (already-timestamped input passes through). */
+function skopjeDayStart(d: string | null): string | null {
+  if (!d) return null;
+  return /^\d{4}-\d{2}-\d{2}$/.test(d) ? `${d}T00:00:00${skopjeOffset(d)}` : d;
+}
+/** '2026-08-11' → '2026-08-11T23:59:59+02:00' (already-timestamped input passes through). */
+function skopjeDayEnd(d: string | null): string | null {
+  if (!d) return null;
+  return /^\d{4}-\d{2}-\d{2}$/.test(d) ? `${d}T23:59:59${skopjeOffset(d)}` : d;
+}
+
 // ── Package unit helpers (single source of truth for "packages sold" etc.) ──
 // "Sold" = paid only (COD collected). Awaiting = pipeline not yet paid.
 // Returned packages are counted separately from returned order counts.
@@ -7578,8 +7602,8 @@ async function handleRequest(req: Request): Promise<Response> {
 
     // GET /api/orders/stats
     if (req.method === "GET" && path === "orders/stats") {
-      const from = url.searchParams.get("from");
-      const to = url.searchParams.get("to");
+      const from = skopjeDayStart(url.searchParams.get("from"));
+      const to = skopjeDayEnd(url.searchParams.get("to"));
 
       // Three GROUP BYs in one call. This used to stream every matching order in
       // 1000-row pages and tally in JS — and the Dashboard calls it with NO date
@@ -14500,9 +14524,12 @@ async function handleRequest(req: Request): Promise<Response> {
     if (req.method === "GET" && path === "management-insights") {
       if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
 
-      const from = url.searchParams.get("from") || "";
+      const fromRaw = url.searchParams.get("from") || "";
       const to = url.searchParams.get("to") || "";
-      const toEnd = to ? to + "T23:59:59" : "";
+      // Pin the operator's real (Skopje) day — a naked YYYY-MM-DD is read as
+      // UTC by ::timestamptz and the day boundary lands at 02:00 local.
+      const from = skopjeDayStart(fromRaw) || "";
+      const toEnd = skopjeDayEnd(to) || "";
       // Margin Lab: net-profit-per-package target the floor prices must clear (operator-tunable, €7 default).
       const marginTarget = Math.max(0, Number(url.searchParams.get("target")) || 7);
 
@@ -15245,7 +15272,7 @@ async function handleRequest(req: Request): Promise<Response> {
         || String(a.product).localeCompare(String(b.product))).slice(0, 20);
 
       return json({
-        meta: { from, to, granularity, generated_at: new Date().toISOString() },
+        meta: { from: fromRaw, to, granularity, generated_at: new Date().toISOString() },
         overview: {
           revenue: soldRevenue,        // value of orders sold (confirmed → paid), not yet-returned
           paid_revenue: paidRevenue,   // cash actually collected
