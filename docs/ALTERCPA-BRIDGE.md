@@ -108,15 +108,16 @@ the remote record forward-only via `resolveRemoteOutcome` (the **B′ map**, 202
 deliberately not `PHASE_TO_STATUS`, whose `3 → paid` was correct only for the settled history
 import):
 
+**Final doctrine (2026-08-11): AlterCPA decides confirmed-or-dead; MEX alone decides
+shipped/paid/returned** (an order shows `shipped` only with a real `mex_tracking_id`).
+
 | Their record | → Elyon status |
 |---|---|
 | phase 1/2 | untouched (`still_open_remote`) |
-| phase 3, status 6–9 Packing…Arrived | `shipped` — never `confirmed` (our warehouse's to-ship queue → double shipment) |
-| phase 3, status 10 Completed, or `o.paid > 0` | `paid` (`paid_at` from their clock) |
-| phase 3, status 11 Return | `returned` |
-| phase 4, reason with no CRM equivalent (→ 'other') | **`confirmed`** — manager rule 2026-08-11 (corrected): the disposition marks a confirmed sale awaiting fulfilment; `mex-reconcile` then walks it shipped → paid/returned from the courier record. reason 0 (none recorded) stays a cancel. Pre-Aug-2026 history: operator ruled those `paid` (settled outside MEX records). |
-| phase 4, mappable reason | `cancelled` + reason map — `returned` if we already saw it ship |
-| phase 5 trash | `trashed` + reason map |
+| phase 3 approved (any fulfilment status) | `confirmed` — `mex-reconcile` walks it shipped → paid/returned |
+| phase 4, reason with no CRM equivalent (→ 'other') | **`confirmed`** — manager rule (first version said `paid`; 1.194 walked back). reason 0 stays a cancel. Pre-Aug-2026 history: operator ruled those `paid`. |
+| phase 4, mappable reason | `cancelled` — unless the parcel is at the courier: then untouched, MEX settles it |
+| phase 5 trash | `trashed` — same courier exception |
 | id absent from response (deleted there) | untouched, counted `missing_remote` |
 
 Rules: never backwards (`CRM_STATUS_RANK`), never rewrite a terminal status, never re-open;

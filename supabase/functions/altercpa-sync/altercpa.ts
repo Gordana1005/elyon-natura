@@ -122,33 +122,28 @@ export const CRM_TERMINAL = new Set(["paid", "returned", "cancelled", "trashed",
  */
 export function resolveRemoteOutcome(o: AlterCpaOrder, currentCrmStatus: string): string | null {
   const phase = Number(o.phase) || 0;
-  const st = Number(o.status) || 0;
+  // 2026-08-11 final doctrine (operator): AlterCPA decides only whether a sale
+  // is CONFIRMED or dead. Everything physical — shipped, paid, returned — is
+  // MEX's alone (mex-reconcile): an order shows `shipped` only when the courier
+  // actually holds the parcel, and money lands only on a courier delivery.
+  // AlterCPA's own fulfilment statuses (Packing…Completed) are NOT trusted for
+  // any of that; the first design mapped them to shipped/paid and orders showed
+  // "shipped" that MEX had never seen.
+  const atCourier = currentCrmStatus === "shipped" || currentCrmStatus === "delivered";
   if (phase === 1 || phase === 2) return null;
-  if (phase === 3) {
-    if (st === 11) return "returned";
-    if (st === 10 || (Number(o.paid) || 0) > 0) return "paid";
-    return "shipped";                       // Packing…Arrived (6-9) or unknown
-  }
+  if (phase === 3) return atCourier ? null : "confirmed";   // approved = a sale; MEX does the rest
   if (phase === 4) {
-    // Manager rule (2026-08-11, corrected same day): a cancel whose reason has
-    // no CRM equivalent (custom codes, certificate, offer disabled — everything
-    // CANCEL_REASON_TO_CRM flattens into 'other') is how their ops mark a
-    // CONFIRMED sale awaiting fulfilment — not money. It becomes `confirmed`;
-    // the MEX tracker (mex-reconcile) then walks it shipped → paid/returned
-    // from the courier's record. reason 0 = "no reason recorded" stays a
-    // cancel. Never `paid` from here — the first version of this rule booked
-    // it as paid and 1.193 orders had to be walked back.
+    // Manager rule: a cancel whose reason has no CRM equivalent (custom codes,
+    // certificate, offer disabled — everything CANCEL_REASON_TO_CRM flattens
+    // into 'other') marks a CONFIRMED sale awaiting fulfilment, not money and
+    // not a cancel. reason 0 = "no reason recorded" stays a cancel.
     const r = Number(o.reason) || 0;
-    if (r > 0 && !CANCEL_REASON_TO_CRM[r]) {
-      // Forward-only rank still applies upstream; an order the courier already
-      // shipped must not fall back to confirmed.
-      return "confirmed";
-    }
-    // Cancelled after we already saw it ship is physically a return.
-    return currentCrmStatus === "shipped" || currentCrmStatus === "delivered"
-      ? "returned" : "cancelled";
+    if (r > 0 && !CANCEL_REASON_TO_CRM[r]) return "confirmed";
+    // A real cancel applies only while the parcel hasn't reached the courier;
+    // once it has, the physical outcome (delivered/returned) is MEX's to call.
+    return atCourier ? null : "cancelled";
   }
-  if (phase === 5) return "trashed";
+  if (phase === 5) return atCourier ? null : "trashed";
   return null;                              // unknown phase → touch nothing
 }
 

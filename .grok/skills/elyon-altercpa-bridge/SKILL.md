@@ -41,15 +41,20 @@ exactly those ids with `comp/list.json?oid=…` (batches of 100, same non-array-
 contract), and resolves forward-only via `resolveRemoteOutcome` — **the B′ map, not
 `PHASE_TO_STATUS`**:
 
+**Final doctrine (2026-08-11, after two same-day corrections): AlterCPA decides only whether a
+sale is CONFIRMED or dead; MEX alone decides shipped/paid/returned.** An order may show
+`shipped` only when the courier holds the parcel (`orders.mex_tracking_id` set by
+`mex-reconcile`), and money lands only on a courier delivery. AlterCPA's own fulfilment
+statuses (Packing…Completed) are never trusted for physical facts — the first design mapped
+them to shipped/paid, and 142 orders showed "shipped" that MEX had never seen.
+
 | Their record | Our order |
 |---|---|
 | phase 1/2 | untouched |
-| phase 3, status 6–9 (Packing…Arrived) | `shipped` — **never `confirmed`** (that is our warehouse's to-ship queue → double shipment) |
-| phase 3, status 10 Completed or `o.paid > 0` | `paid`, `paid_at` from their clock |
-| phase 3, status 11 Return | `returned` |
-| phase 4, reason maps to 'other' (custom 16-19, certificate, offer disabled…) | **`confirmed`** — manager rule 2026-08-11 (corrected same day; the first version said `paid` and 1.194 orders had to be walked back): the disposition means a confirmed sale awaiting fulfilment. MEX tracking (`mex-reconcile`) then walks it shipped → paid/returned. reason 0 = no reason recorded stays a cancel. Historical split (operator, 2026-08-11): cancel-other created BEFORE Aug 2026 = `paid` (settled outside MEX records); from Aug 2026 the courier decides. |
-| phase 4, mappable reason | `cancelled` + reason map — or `returned` if we already saw it ship |
-| phase 5 | `trashed` + reason map |
+| phase 3 approved (any fulfilment status) | `confirmed` — `mex-reconcile` walks it shipped → paid/returned |
+| phase 4, reason maps to 'other' (custom 16-19, certificate, offer disabled…) | **`confirmed`** — manager rule (the first version said `paid`; 1.194 orders walked back). reason 0 = no reason recorded stays a cancel. Historical split (operator): cancel-other created BEFORE Aug 2026 = `paid` (settled outside MEX records); from Aug 2026 the courier decides. |
+| phase 4, mappable reason | `cancelled` — unless the parcel is already at the courier (CRM shipped/delivered): then untouched, MEX settles it |
+| phase 5 | `trashed` — same courier exception |
 | absent from response / deleted | untouched, counted `missing_remote` |
 
 Never backwards, never re-open, never rewrite a terminal status; reasons

@@ -107,20 +107,15 @@ async function fetchByIds(ids) {
 const CANCEL_REASON_TO_CRM = { 2: 1, 9: 1, 8: 1, 10: 1, 14: 1, 7: 1 };
 function resolveRemoteOutcome(o, currentCrmStatus) {
   const phase = Number(o.phase) || 0;
-  const st = Number(o.status) || 0;
+  const atCourier = currentCrmStatus === 'shipped' || currentCrmStatus === 'delivered';
   if (phase === 1 || phase === 2) return null;
-  if (phase === 3) {
-    if (st === 11) return 'returned';
-    if (st === 10 || (Number(o.paid) || 0) > 0) return 'paid';
-    return 'shipped';
-  }
+  if (phase === 3) return atCourier ? null : 'confirmed';   // MEX alone decides shipped/paid/returned
   if (phase === 4) {
-    // cancel-other-is-confirmed (manager rule 2026-08-11, corrected) — see altercpa.ts
     const r = Number(o.reason) || 0;
     if (r > 0 && !CANCEL_REASON_TO_CRM[r]) return 'confirmed';
-    return currentCrmStatus === 'shipped' || currentCrmStatus === 'delivered' ? 'returned' : 'cancelled';
+    return atCourier ? null : 'cancelled';
   }
-  if (phase === 5) return 'trashed';
+  if (phase === 5) return atCourier ? null : 'trashed';
   return null;
 }
 const RANK = {
