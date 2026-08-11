@@ -3244,6 +3244,7 @@
     "skip_would_downgrade": "Do të kthehej mbrapa — mbetet statusi ynë",
     "skip_no_remote_ts": "Aplikuar pa datën e tyre",
     "skip_would_apply": "Do të aplikohej",
+    "skip_cancel_other_paid": "Anuluar (tjetër) → paguar",
     "syncStatusesNow": "Sinkronizo statuset tani",
     "importScope": "Çfarë të tërhiqet",
     "scope_pending_only": "Vetëm pending (rekomandohet)",

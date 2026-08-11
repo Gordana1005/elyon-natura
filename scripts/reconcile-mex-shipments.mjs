@@ -46,6 +46,11 @@ const datesIdx = args.indexOf('--dates');
 const DATES_PATH = datesIdx >= 0 ? args[datesIdx + 1] : null;
 const sinceIdx = args.indexOf('--since');
 const SINCE = sinceIdx >= 0 ? args[sinceIdx + 1] : '2026-03-01';
+// Operator decision 2026-08-11: a MEX return overrides even a terminal CRM
+// status — paid that returned was never collected, cancelled/trashed that
+// returned physically shipped. Off by default; the conflict report is the
+// default behaviour.
+const RETURN_OVERRIDE = args.includes('--apply-return-conflicts');
 const csvPaths = args.filter((a, i) => !a.startsWith('--') && i !== datesIdx + 1 && i !== sinceIdx + 1);
 if (!csvPaths.length || !DATES_PATH) {
   console.error('usage: node scripts/reconcile-mex-shipments.mjs <export.csv> [more.csv…] --dates <mex-dates.json> [--commit]');
@@ -213,7 +218,7 @@ for (const list of byPhone.values()) {
       toPaid.push({ o, s: delivered });
     } else if (returned) {
       if (o.status === 'returned') { alreadyRight++; continue; }
-      if (OPEN.has(o.status)) toReturned.push({ o, s: returned });
+      if (OPEN.has(o.status) || (RETURN_OVERRIDE && o.status !== 'duplicated')) toReturned.push({ o, s: returned });
       else conflicts.push({ kind: `${o.status}_but_mex_returned`, order: o.display_id, track: returned.id });
     }
   }
@@ -280,6 +285,11 @@ done = 0;
 for (const { o, s } of toReturned) {
   await withRetry(() => supabase.from('orders').update({
     status: 'returned', returned_at: s.updated.toISOString(),
+    // was paid → the COD was never actually collected; was cancelled/trashed →
+    // a returned order must not carry those reasons (kept in the note below).
+    paid_at: null,
+    cancellation_reason: null, cancellation_reason_notes: null, cancelled_at: null,
+    trash_reason: null, trash_reason_notes: null, trashed_at: null,
   }).eq('id', o.id), `returned ${o.display_id}`);
   await withRetry(() => supabase.from('order_history').insert({
     order_id: o.id, from_status: o.status, to_status: 'returned',

@@ -3244,6 +3244,7 @@
     "skip_would_downgrade": "Би одело наназад — останува нашиот статус",
     "skip_no_remote_ts": "Применето без нивен датум",
     "skip_would_apply": "Би се применило",
+    "skip_cancel_other_paid": "Откажана (друго) → платена",
     "syncStatusesNow": "Синхронизирај статуси сега",
     "importScope": "Што да се презема",
     "scope_pending_only": "Само pending (препорачано)",

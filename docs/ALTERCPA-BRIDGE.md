@@ -114,7 +114,8 @@ import):
 | phase 3, status 6–9 Packing…Arrived | `shipped` — never `confirmed` (our warehouse's to-ship queue → double shipment) |
 | phase 3, status 10 Completed, or `o.paid > 0` | `paid` (`paid_at` from their clock) |
 | phase 3, status 11 Return | `returned` |
-| phase 4 cancelled | `cancelled` + reason map — `returned` if we already saw it ship |
+| phase 4, reason with no CRM equivalent (→ 'other') | **`paid`** — manager rule 2026-08-11: that disposition means the COD was collected; reason 0 (none recorded) stays a cancel; MEX re-export reconciliation corrects any that later physically return |
+| phase 4, mappable reason | `cancelled` + reason map — `returned` if we already saw it ship |
 | phase 5 trash | `trashed` + reason map |
 | id absent from response (deleted there) | untouched, counted `missing_remote` |
 

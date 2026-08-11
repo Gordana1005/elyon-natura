@@ -104,6 +104,7 @@ async function fetchByIds(ids) {
 }
 
 /** B′ — must mirror resolveRemoteOutcome in supabase/functions/altercpa-sync/altercpa.ts. */
+const CANCEL_REASON_TO_CRM = { 2: 1, 9: 1, 8: 1, 10: 1, 14: 1, 7: 1 };
 function resolveRemoteOutcome(o, currentCrmStatus) {
   const phase = Number(o.phase) || 0;
   const st = Number(o.status) || 0;
@@ -114,6 +115,9 @@ function resolveRemoteOutcome(o, currentCrmStatus) {
     return 'shipped';
   }
   if (phase === 4) {
+    // cancel-other-is-paid (manager rule 2026-08-11) — see altercpa.ts
+    const r = Number(o.reason) || 0;
+    if (r > 0 && !CANCEL_REASON_TO_CRM[r]) return 'paid';
     return currentCrmStatus === 'shipped' || currentCrmStatus === 'delivered' ? 'returned' : 'cancelled';
   }
   if (phase === 5) return 'trashed';

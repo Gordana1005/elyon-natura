@@ -47,7 +47,8 @@ contract), and resolves forward-only via `resolveRemoteOutcome` — **the B′ m
 | phase 3, status 6–9 (Packing…Arrived) | `shipped` — **never `confirmed`** (that is our warehouse's to-ship queue → double shipment) |
 | phase 3, status 10 Completed or `o.paid > 0` | `paid`, `paid_at` from their clock |
 | phase 3, status 11 Return | `returned` |
-| phase 4 | `cancelled` + reason map — or `returned` if we already saw it ship |
+| phase 4, reason maps to 'other' (custom 16-19, certificate, offer disabled…) | **`paid`** — manager rule 2026-08-11: their ops mark COLLECTED orders this way; validated against MEX (of 967 courier-proven returns among cancels, 1 carried 'other'). reason 0 = no reason recorded stays a cancel. |
+| phase 4, mappable reason | `cancelled` + reason map — or `returned` if we already saw it ship |
 | phase 5 | `trashed` + reason map |
 | absent from response / deleted | untouched, counted `missing_remote` |
 

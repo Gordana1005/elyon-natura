@@ -803,6 +803,18 @@ async function syncStatusAccount(
       changed_by: null,
       changed_by_name: `System (altercpa:${account.name})`,
     });
+    if (target === "paid" && phase === 4) {
+      // The cancel-other-is-paid rule fired — say so on the order, keeping
+      // their original disposition wording, or the note reads as a mystery.
+      await admin.from("order_notes").insert({
+        order_id: order.id,
+        text: `AlterCPA cancelled (${REASON[reason] ?? reason}) — paid disposition per the 2026-08-11 manager rule; status set to paid.`
+          + (s(o.comment, 300) ? ` Their comment: ${s(o.comment, 300)}` : ""),
+        author_id: null,
+        author_name: "System",
+      });
+      bump("cancel_other_paid");
+    }
     stats.orders_updated++;
   }
 
