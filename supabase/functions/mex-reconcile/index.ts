@@ -135,7 +135,10 @@ serve(async (req: Request) => {
         throw new Error(`MEX error body: ${JSON.stringify(j).slice(0, 200)}`);
       }
       ships.push(...j.shipments);
-      if (page >= Number(j.total_pages || 1) || ships.length >= 4000) break;
+      // Rolling runs are incremental and small; a backfill sweep must see the
+      // whole window or "never lose an order" is a lie.
+      const cap = kind === "backfill" ? 30000 : 4000;
+      if (page >= Number(j.total_pages || 1) || ships.length >= cap) break;
     }
     stats.fetched = ships.length;
 
