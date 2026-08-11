@@ -3245,6 +3245,7 @@
     "skip_no_remote_ts": "Applied without their timestamp",
     "skip_would_apply": "Would be applied",
     "skip_cancel_other_confirmed": "Cancelled (other) → confirmed",
+    "skip_resized": "Package count/price synced",
     "syncStatusesNow": "Sync statuses now",
     "importScope": "What to import",
     "scope_pending_only": "Pendings only (recommended)",

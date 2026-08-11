@@ -466,7 +466,11 @@ async function upsertOrder(
 ): Promise<string | null> {
   const phase = row.phase as number | null;
   const remoteStatus = phase ? PHASE_TO_STATUS[phase] : "pending";
-  const priceTotal = Math.round(Number(row.price_eur) * row.quantity * 100) / 100;
+  // o.price is the ORDER TOTAL on their side (3 × 1000 arrives as price=3000,
+  // goods[0].price=1000) — multiplying by quantity would double-count. It never
+  // fired only because leads arrive as 1 pack; found 2026-08-11 via the upsell
+  // resize bug.
+  const priceTotal = Number(row.price_eur) || 0;
 
   const { data: product } = mapping?.product_id
     ? await admin.from("products").select("id, name").eq("id", mapping.product_id).maybeSingle()
@@ -513,7 +517,7 @@ async function upsertOrder(
       product_id: product?.id ?? null,
       product_name: product?.name ?? row.offer_name,
       quantity: row.quantity,
-      price_per_unit: Number(row.price_eur),
+      price_per_unit: Math.round((priceTotal / Math.max(1, row.quantity)) * 100) / 100,
       total_price: priceTotal,
     });
     await admin.from("order_notes").insert({
@@ -663,7 +667,7 @@ async function syncStatusAccount(
   // and every linked lead would come back regardless of order status.
   const { data: candidates, error: candErr } = await admin
     .from("altercpa_leads")
-    .select("id, altercpa_id, phase, order_id, orders!inner(id, status, assigned_agent_id, confirmed_at)")
+    .select("id, altercpa_id, phase, order_id, orders!inner(id, status, assigned_agent_id, confirmed_at, quantity, price)")
     .eq("account_id", account.id)
     .not("order_id", "is", null)
     .in("orders.status", STATUS_OPEN)
@@ -750,6 +754,34 @@ async function syncStatusAccount(
       const { error: ledErr } = await admin.from("altercpa_leads").update(patch).eq("id", c.id);
       if (ledErr) console.error(`altercpa-sync status: ledger ${c.altercpa_id}:`, ledErr.message);
       else stats.ledger_updated++;
+
+      // Their operator can RESIZE the order at confirmation (upsell: 1 pack
+      // arrives, 3 are sold) — carry the real package count and total onto
+      // orders nobody here owns. Found 2026-08-11: 322 confirmed orders showed
+      // 1 × 1.490 ден while AlterCPA had 3 × 3.000.
+      const newQty = quantityOf(o);
+      const newTotal = toEur(o.price, o.currency);
+      if (untouched && !CRM_TERMINAL.has(cur) && newTotal != null
+        && (order.quantity !== newQty || Math.abs(Number(order.price) - newTotal) > 0.02)) {
+        const { error: szErr } = await admin.from("orders")
+          .update({ quantity: newQty, price: newTotal }).eq("id", order.id);
+        if (szErr) console.error(`altercpa-sync status: resize ${c.altercpa_id}:`, szErr.message);
+        else {
+          await admin.from("order_items")
+            .update({
+              quantity: newQty,
+              price_per_unit: Math.round((newTotal / Math.max(1, newQty)) * 100) / 100,
+              total_price: newTotal,
+            }).eq("order_id", order.id);
+          await admin.from("order_notes").insert({
+            order_id: order.id,
+            text: `AlterCPA resized this order to ${newQty} × (total ${o.price} ${String(o.currency || "").toUpperCase()}) — was ${order.quantity} pack(s). Quantity and price synced.`,
+            author_id: null,
+            author_name: "System",
+          });
+          bump("resized");
+        }
+      }
     }
 
     if (target === null) { bump("still_open_remote"); continue; }

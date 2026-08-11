@@ -3245,6 +3245,7 @@
     "skip_no_remote_ts": "Aplikuar pa datën e tyre",
     "skip_would_apply": "Do të aplikohej",
     "skip_cancel_other_confirmed": "Anuluar (tjetër) → konfirmuar",
+    "skip_resized": "Numri i paketave/çmimi u sinkronizua",
     "syncStatusesNow": "Sinkronizo statuset tani",
     "importScope": "Çfarë të tërhiqet",
     "scope_pending_only": "Vetëm pending (rekomandohet)",

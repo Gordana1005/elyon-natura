@@ -3245,6 +3245,7 @@
     "skip_no_remote_ts": "Приложено без тяхна дата",
     "skip_would_apply": "Би се приложило",
     "skip_cancel_other_confirmed": "Отказана (друго) → потвърдена",
+    "skip_resized": "Синхронизиран брой пакети/цена",
     "syncStatusesNow": "Синхронизирай статусите сега",
     "importScope": "Какво да се тегли",
     "scope_pending_only": "Само pending (препоръчано)",
