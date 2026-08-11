@@ -249,8 +249,22 @@ async function main() {
 
   let done = 0;
   for (const { phone, patch } of patches) {
-    const { error } = await supabase.from('customer_profiles').update(patch).eq('phone', phone);
-    if (error) throw new Error(`${phone}: ${error.message}`);
+    // A 45k-row run WILL hit a transient network failure at some point; retry
+    // rather than dying mid-run (the run is idempotent either way — fill-only
+    // patches vanish on a re-run once applied).
+    let lastErr = null;
+    for (let attempt = 1; attempt <= 4; attempt++) {
+      try {
+        const { error } = await supabase.from('customer_profiles').update(patch).eq('phone', phone);
+        if (error) throw new Error(error.message);
+        lastErr = null;
+        break;
+      } catch (e) {
+        lastErr = e;
+        await new Promise((r) => setTimeout(r, 2000 * attempt));
+      }
+    }
+    if (lastErr) throw new Error(`${phone}: ${lastErr.message}`);
     done++;
     if (done % 200 === 0) process.stdout.write(`\r  updated ${done}/${patches.length}`);
   }
