@@ -115,9 +115,9 @@ function resolveRemoteOutcome(o, currentCrmStatus) {
     return 'shipped';
   }
   if (phase === 4) {
-    // cancel-other-is-paid (manager rule 2026-08-11) — see altercpa.ts
+    // cancel-other-is-confirmed (manager rule 2026-08-11, corrected) — see altercpa.ts
     const r = Number(o.reason) || 0;
-    if (r > 0 && !CANCEL_REASON_TO_CRM[r]) return 'paid';
+    if (r > 0 && !CANCEL_REASON_TO_CRM[r]) return 'confirmed';
     return currentCrmStatus === 'shipped' || currentCrmStatus === 'delivered' ? 'returned' : 'cancelled';
   }
   if (phase === 5) return 'trashed';

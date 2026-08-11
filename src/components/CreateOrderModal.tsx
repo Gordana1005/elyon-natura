@@ -93,7 +93,7 @@ export function CreateOrderModal({
   const [delivery, setDelivery] = useState<DeliveryValue>({
     delivery_type: 'home',
     street: '', street_number: '', quarter: '', apartment: '', floor: '', block: '', entry: '', city: '', postal_code: '',
-    home_courier: 'econt',
+    home_courier: 'mex',
     courier_office_code: '', courier_office_name: '', courier_office_city: '',
   });
 
@@ -139,7 +139,7 @@ export function CreateOrderModal({
     setDelivery({
       delivery_type: 'home',
       street: '', street_number: '', quarter: '', apartment: '', floor: '', block: '', entry: '', city: '', postal_code: '',
-      home_courier: 'econt',
+      home_courier: 'mex',
       courier_office_code: '', courier_office_name: '', courier_office_city: '',
     });
     setDeliveryInstructions(''); setGiftNote('');
@@ -255,7 +255,12 @@ export function CreateOrderModal({
           entry: pick(profile?.entry, homeSrc?.entry) || (parsed?.entry ?? ''),
           city: cityHint || (parsed?.city ?? ''),
           postal_code: pick(profile?.postal_code, homeSrc?.postal_code) || (parsed?.postal_code ?? ''),
-          home_courier: ((pick(profile?.home_courier, homeSrc?.home_courier) === 'speedy') ? 'speedy' : 'econt') as 'speedy' | 'econt',
+          // MEX is the Macedonian carrier and the default. A stored Bulgarian
+          // courier is preserved verbatim so a legacy customer still shows the
+          // one that really carried their order.
+          home_courier: ((c) => (c === 'speedy' || c === 'econt' ? c : 'mex'))(
+            pick(profile?.home_courier, homeSrc?.home_courier)
+          ) as 'speedy' | 'econt' | 'mex',
         };
 
         // Courier side — profile (if courier) first, else most recent courier order.
@@ -655,7 +660,7 @@ export function CreateOrderModal({
                     setDelivery({
                       delivery_type: 'home',
                       street: '', street_number: '', quarter: '', apartment: '', floor: '', block: '', entry: '', city: '', postal_code: '',
-                      home_courier: 'econt',
+                      home_courier: 'mex',
                       courier_office_code: '', courier_office_name: '', courier_office_city: '',
                     });
                     setDeliveryInstructions('');
@@ -678,7 +683,7 @@ export function CreateOrderModal({
                     setDelivery({
                       delivery_type: 'home',
                       street: '', street_number: '', quarter: '', apartment: '', floor: '', block: '', entry: '', city: '', postal_code: '',
-                      home_courier: 'econt',
+                      home_courier: 'mex',
                       courier_office_code: '', courier_office_name: '', courier_office_city: '',
                     });
                   }

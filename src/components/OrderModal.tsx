@@ -176,7 +176,7 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
   const [delivery, setDelivery] = useState<DeliveryValue>({
     delivery_type: 'home',
     street: '', street_number: '', quarter: '', apartment: '', floor: '', block: '', entry: '', city: '', postal_code: '',
-    home_courier: 'econt',
+    home_courier: 'mex',
     courier_office_code: '', courier_office_name: '', courier_office_city: '',
   });
   const [deliveryInstructions, setDeliveryInstructions] = useState('');
@@ -221,7 +221,7 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
       delivery_type: 'home',
       street: '', street_number: '', quarter: '', apartment: '', floor: '', block: '', entry: '',
       city: data.city || '', postal_code: data.postalCode || '',
-      home_courier: 'econt',
+      home_courier: 'mex',
       courier_office_code: '', courier_office_name: '', courier_office_city: '',
     });
     setDeliveryInstructions('');

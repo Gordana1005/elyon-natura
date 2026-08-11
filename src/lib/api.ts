@@ -383,7 +383,7 @@ export interface CreateOrderBody {
   delivery_instructions?: string;
   gift_note?: string;
   delivery_type?: 'home' | 'speedy_office' | 'econt_office' | 'mex_office';
-  home_courier?: 'speedy' | 'econt';
+  home_courier?: 'speedy' | 'econt' | 'mex';
   courier_office_code?: string;
   courier_office_name?: string;
   courier_office_city?: string;
@@ -491,7 +491,7 @@ export interface UpdateCustomerBody {
   delivery_instructions?: string;
   gift_note?: string;
   delivery_type?: 'home' | 'speedy_office' | 'econt_office' | 'mex_office';
-  home_courier?: 'speedy' | 'econt';
+  home_courier?: 'speedy' | 'econt' | 'mex';
   courier_office_code?: string;
   courier_office_name?: string;
   courier_office_city?: string;

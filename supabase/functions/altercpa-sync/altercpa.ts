@@ -130,16 +130,20 @@ export function resolveRemoteOutcome(o: AlterCpaOrder, currentCrmStatus: string)
     return "shipped";                       // Packing…Arrived (6-9) or unknown
   }
   if (phase === 4) {
-    // Manager rule (2026-08-11, validated against MEX ground truth — of 967
-    // courier-proven returns among cancels, only ONE carried an 'other'-class
-    // reason): a cancel whose reason has no CRM equivalent (custom codes,
-    // certificate, offer disabled — everything CANCEL_REASON_TO_CRM flattens
-    // into 'other') is how their ops mark a COLLECTED order. It becomes paid,
-    // dated by their clock. reason 0 = "no reason recorded" is NOT the rule —
-    // it stays a cancel. The periodic MEX re-export reconcile remains the
-    // corrector if one of these later physically returns.
+    // Manager rule (2026-08-11, corrected same day): a cancel whose reason has
+    // no CRM equivalent (custom codes, certificate, offer disabled — everything
+    // CANCEL_REASON_TO_CRM flattens into 'other') is how their ops mark a
+    // CONFIRMED sale awaiting fulfilment — not money. It becomes `confirmed`;
+    // the MEX tracker (mex-reconcile) then walks it shipped → paid/returned
+    // from the courier's record. reason 0 = "no reason recorded" stays a
+    // cancel. Never `paid` from here — the first version of this rule booked
+    // it as paid and 1.193 orders had to be walked back.
     const r = Number(o.reason) || 0;
-    if (r > 0 && !CANCEL_REASON_TO_CRM[r]) return "paid";
+    if (r > 0 && !CANCEL_REASON_TO_CRM[r]) {
+      // Forward-only rank still applies upstream; an order the courier already
+      // shipped must not fall back to confirmed.
+      return "confirmed";
+    }
     // Cancelled after we already saw it ship is physically a return.
     return currentCrmStatus === "shipped" || currentCrmStatus === "delivered"
       ? "returned" : "cancelled";

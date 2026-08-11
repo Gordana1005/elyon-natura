@@ -399,79 +399,52 @@ function StreetAutocomplete({ value, settlementId, onChange, onBlur, disabled }:
   );
 }
 
-// Quarter / complex field: a type selector (кв. / ж.к. / к.к.) plus a name
-// autocomplete drawn from the settlement's Econt quarters. The stored value is
-// "{type} {name}" — the type is parsed back out of the stored value on edit.
-// Macedonian address vocabulary. These are literal Cyrillic constants and are
-// deliberately NOT translated: they are address content printed on the parcel
-// and read by a driver, so they must not change when an agent switches the UI
-// to Albanian or English.
-const QUARTER_TYPES = ['нас.', 'кв.', 'н.м.'] as const;
-function splitQuarter(v: string): { type: string; name: string } {
-  const s = (v || '').trim();
-  for (const t of ['ж.к.', 'жк', 'к.к.', 'кк', 'кв.', 'кв']) {
-    if (s.toLowerCase().startsWith(t.toLowerCase())) {
-      const norm = t.startsWith('ж') ? 'ж.к.' : t.startsWith('к') && t.length <= 2 ? 'к.к.' : t.startsWith('к.к') ? 'к.к.' : 'кв.';
-      return { type: norm, name: s.slice(t.length).replace(/^[\s.]+/, '').trim() };
-    }
-  }
-  return { type: 'кв.', name: s };
-}
+// Населба field: a single free-text box with autocomplete over the settlement's
+// known quarters. There is no type selector — Macedonian addresses name the
+// населба plainly, and the Bulgarian кв./ж.к./к.к. prefixes have no place on a
+// MEX parcel. The stored value is exactly what the agent sees, so a historical
+// order that already carries a prefix keeps it verbatim instead of being
+// silently rewritten.
 function QuarterField({ value, settlementId, onChange, disabled }: {
   value: string; settlementId: string | null; onChange: (t: string) => void; disabled?: boolean;
 }) {
   const { t } = useTranslation();
-  const { type, name } = splitQuarter(value);
   const [open, setOpen] = useState(false);
-  const debounced = useDebounced(name, 200);
+  const debounced = useDebounced(value, 200);
   const { data: results = [] } = useQuery({
     queryKey: ['quarters', settlementId, debounced],
     queryFn: () => apiSearchStreets(settlementId!, debounced, 'quarter'),
     enabled: open && !!settlementId,
     staleTime: 60_000,
   });
-  const setType = (qtype: string) => onChange(name ? `${qtype} ${name}` : qtype);
-  const setName = (n: string) => onChange(n ? `${type} ${n}` : '');
-  // Picking a suggestion (already prefixed by Econt, e.g. "жк Люлин-3") replaces
-  // the whole value so we don't double-prefix.
   const pick = (s: string) => { onChange(s); setOpen(false); };
   return (
-    <div className="flex gap-2">
-      <select
-        value={type}
-        onChange={e => setType(e.target.value)}
+    <div className="relative">
+      <Input
+        value={value}
+        onChange={e => { onChange(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        placeholder={settlementId ? t('delivery.typeQuarterPlaceholder') : t('delivery.quarterOptionalPlaceholder')}
+        className="h-8 text-sm"
         disabled={disabled}
-        className="h-8 rounded-md border bg-background text-sm px-2 shrink-0"
-      >
-        {QUARTER_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-      </select>
-      <div className="relative flex-1">
-        <Input
-          value={name}
-          onChange={e => { setName(e.target.value); setOpen(true); }}
-          onFocus={() => setOpen(true)}
-          onBlur={() => setTimeout(() => setOpen(false), 150)}
-          placeholder={settlementId ? t('delivery.typeQuarterPlaceholder') : t('delivery.quarterOptionalPlaceholder')}
-          className="h-8 text-sm"
-          disabled={disabled}
-        />
-        {open && settlementId && results.length > 0 && (
-          <ul className="absolute z-30 mt-1 w-full max-h-60 overflow-y-auto rounded-md border bg-popover shadow-lg">
-            {results.map((s, i) => (
-              <li key={i}>
-                <button
-                  type="button"
-                  onMouseDown={e => e.preventDefault()}
-                  onClick={() => pick(s)}
-                  className="w-full text-left px-3 py-1.5 text-sm hover:bg-muted truncate"
-                >
-                  {s}
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      />
+      {open && settlementId && results.length > 0 && (
+        <ul className="absolute z-30 mt-1 w-full max-h-60 overflow-y-auto rounded-md border bg-popover shadow-lg">
+          {results.map((s, i) => (
+            <li key={i}>
+              <button
+                type="button"
+                onMouseDown={e => e.preventDefault()}
+                onClick={() => pick(s)}
+                className="w-full text-left px-3 py-1.5 text-sm hover:bg-muted truncate"
+              >
+                {s}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

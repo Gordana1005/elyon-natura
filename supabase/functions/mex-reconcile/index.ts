@@ -9,13 +9,16 @@
  * invoke_mex_reconcile). Port of scripts/reconcile-mex-shipments.mjs matching —
  * keep the two in step, the same way altercpa.ts mirrors scripts/lib.
  *
- * What it does: pulls MEX shipments whose status changed since the cursor and
- * is TERMINAL (2 Delivered / 7 Returned to sender), matches each to an order,
- * and applies the truth the 2026-08-11 reconciliation established:
- *   Delivered → paid  (paid_at = courier time; cancel/trash reasons cleared —
+ * What it does: pulls MEX shipments whose status changed since the cursor,
+ * matches each to an order, and applies the truth the 2026-08-11
+ * reconciliation established:
+ *   any non-terminal status → shipped  (the parcel EXISTS at the courier —
+ *                      that alone means the order left fulfilment; applied
+ *                      forward-only from pending/take/call_again/confirmed)
+ *   2 Delivered → paid  (paid_at = courier time; cancel/trash reasons cleared —
  *                      AlterCPA cancels on delivered parcels are wrong, proven
  *                      at 4.184-order scale)
- *   Returned  → returned (paid_at removed — the COD was never collected)
+ *   7 Returned  → returned (paid_at removed — the COD was never collected)
  *
  * Matching (never guessed):
  *   1. orders.mex_tracking_id — a link decided once is never re-derived
@@ -108,7 +111,7 @@ serve(async (req: Request) => {
     runId = run?.id ?? null;
   }
 
-  const stats = { fetched: 0, matched: 0, paid_applied: 0, returned_applied: 0, skipped: {} as Record<string, number> };
+  const stats = { fetched: 0, matched: 0, paid_applied: 0, returned_applied: 0, shipped_applied: 0, skipped: {} as Record<string, number> };
   const bump = (k: string) => { stats.skipped[k] = (stats.skipped[k] || 0) + 1; };
   const fail = async (msg: string) => {
     if (runId) {
@@ -124,7 +127,7 @@ serve(async (req: Request) => {
     // ── fetch terminal shipments updated in the window ──────────────────────
     const ships: MexShipment[] = [];
     for (let page = 1; ; page++) {
-      const url = `${MEX_BASE}/list_shipments.php?status_id=2,7&updated_from=${fromDate}&per_page=500&page=${page}&order=last_update_asc`;
+      const url = `${MEX_BASE}/list_shipments.php?updated_from=${fromDate}&per_page=500&page=${page}&order=last_update_asc`;
       const res = await fetch(url, { headers: { AuthKey: apiKey } });
       if (!res.ok) throw new Error(`MEX HTTP ${res.status}`);
       const j = await res.json();
@@ -168,8 +171,11 @@ serve(async (req: Request) => {
       return Math.abs(cod - exp) <= 3 || Math.abs(cod - exp - DELIVERY_MKD) <= 3;
     };
 
+    const OPEN_FOR_SHIP = new Set(["pending", "take", "call_again", "confirmed"]);
     for (const s of ships) {
-      const target = s.current_status_id === 2 ? "paid" : "returned";
+      const target = s.current_status_id === 2 ? "paid"
+        : s.current_status_id === 7 ? "returned"
+        : "shipped";                       // the parcel exists at the courier
       const when = mexDate(s.last_update_at) ?? new Date();
 
       // 1. remembered link
@@ -200,6 +206,10 @@ serve(async (req: Request) => {
 
       if (order.status === target) { bump("unchanged"); continue; }
       if (order.status === "duplicated") { bump("duplicated_conflict"); continue; }
+      // `shipped` is a forward-only progress marker: it never overrides a
+      // terminal status or `delivered` — those either already settled or the
+      // terminal branches above will settle them.
+      if (target === "shipped" && !OPEN_FOR_SHIP.has(order.status)) { bump("ship_no_op"); continue; }
       if (dry) { bump(`would_${target}`); continue; }
 
       const upd: Record<string, unknown> = target === "paid"
@@ -208,8 +218,16 @@ serve(async (req: Request) => {
           cancellation_reason: null, cancellation_reason_notes: null, cancelled_at: null,
           trash_reason: null, trash_reason_notes: null, trashed_at: null,
         }
-        : {
+        : target === "returned"
+        ? {
           status: "returned", returned_at: when.toISOString(), paid_at: null,
+          cancellation_reason: null, cancellation_reason_notes: null, cancelled_at: null,
+          trash_reason: null, trash_reason_notes: null, trashed_at: null,
+        }
+        : {
+          // shipped_at from the courier's own creation stamp, or the NULL-only
+          // trigger would date an April parcel today.
+          status: "shipped", shipped_at: (mexDate(s.created_at) ?? when).toISOString(),
           cancellation_reason: null, cancellation_reason_notes: null, cancelled_at: null,
           trash_reason: null, trash_reason_notes: null, trashed_at: null,
         };
@@ -223,11 +241,14 @@ serve(async (req: Request) => {
         order_id: order.id,
         text: target === "paid"
           ? `MEX ${s.tracking_id} delivered ${when.toISOString().slice(0, 10)} — status corrected to paid (was ${order.status}).`
-          : `MEX ${s.tracking_id} returned to sender ${when.toISOString().slice(0, 10)} — status set to returned (was ${order.status}).`,
+          : target === "returned"
+          ? `MEX ${s.tracking_id} returned to sender ${when.toISOString().slice(0, 10)} — status set to returned (was ${order.status}).`
+          : `MEX ${s.tracking_id} is with the courier (${s.current_status_id}) — status set to shipped (was ${order.status}).`,
         author_id: null, author_name: "System",
       });
       if (target === "paid") stats.paid_applied++;
-      else stats.returned_applied++;
+      else if (target === "returned") stats.returned_applied++;
+      else stats.shipped_applied++;
     }
   } catch (e) {
     return await fail((e as Error).message);
@@ -237,6 +258,7 @@ serve(async (req: Request) => {
     await admin.from("mex_sync_runs").update({
       status: "ok", fetched: stats.fetched, matched: stats.matched,
       paid_applied: stats.paid_applied, returned_applied: stats.returned_applied,
+      shipped_applied: stats.shipped_applied,
       skipped: stats.skipped,
       finished_at: new Date().toISOString(), duration_ms: Date.now() - startedMs,
     }).eq("id", runId);
