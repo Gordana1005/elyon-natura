@@ -3,7 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { FileText, ChevronDown, ChevronRight, ChevronUp, Loader2, Search, HelpCircle } from 'lucide-react';
 import { apiGetAllCallScripts, type CallScript } from '@/lib/api';
-import { resolveScript } from '@/lib/callScripts';
+import {
+  resolveScript, SCRIPT_LANGS, storedScriptLang, persistScriptLang, type ScriptLang,
+} from '@/lib/callScripts';
+import { FlagIcon } from '@/components/LanguageSwitcher';
 import { cn } from '@/lib/utils';
 import { hoverLift } from '@/lib/design-utils';
 import { normalizeForSearch } from '@/lib/transliterate';
@@ -12,6 +15,11 @@ export function CallScriptsPanel() {
   const { t } = useTranslation();
   const [isPanelOpen, setIsPanelOpen] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  // The script language is INDEPENDENT of the app language: an agent whose UI is
+  // Macedonian may still need to read the Albanian script to an Albanian-speaking
+  // customer. Macedonian until the agent presses the Albanian flag.
+  const [scriptLang, setScriptLang] = useState<ScriptLang>(storedScriptLang);
+  const pickScriptLang = (l: ScriptLang) => { setScriptLang(l); persistScriptLang(l); };
 
   const { data: allScripts, isLoading } = useQuery({
     queryKey: ['product-scripts'],
@@ -37,6 +45,31 @@ export function CallScriptsPanel() {
           {scripts.length > 0 && (
             <span className="font-normal normal-case">({scripts.length})</span>
           )}
+          {/* Script language: Macedonian / Albanian. stopPropagation keeps a flag
+              press from collapsing the whole panel, since the header toggles it. */}
+          <div
+            className="ml-1.5 inline-flex items-center gap-0.5 rounded-md border border-border/60 bg-muted/30 p-0.5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {SCRIPT_LANGS.map(l => (
+              <button
+                key={l}
+                type="button"
+                onClick={() => pickScriptLang(l)}
+                aria-pressed={l === scriptLang}
+                title={t('scriptsPanel.scriptLanguage', { lang: t(`languages.${l}`) })}
+                aria-label={t('scriptsPanel.scriptLanguage', { lang: t(`languages.${l}`) })}
+                className={cn(
+                  'rounded px-1 py-0.5 transition-opacity',
+                  l === scriptLang
+                    ? 'bg-background shadow-sm opacity-100 ring-1 ring-primary/30'
+                    : 'opacity-45 hover:opacity-80',
+                )}
+              >
+                <FlagIcon lang={l} className="h-2.5 w-5" />
+              </button>
+            ))}
+          </div>
         </div>
         {isPanelOpen
           ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground/60" />
@@ -59,6 +92,7 @@ export function CallScriptsPanel() {
                 <ScriptAccordionItem
                   key={script.id}
                   script={script}
+                  lang={scriptLang}
                   isExpanded={expandedId === script.id}
                   onToggle={() => toggle(script.id)}
                 />
@@ -73,17 +107,22 @@ export function CallScriptsPanel() {
 
 function ScriptAccordionItem({
   script,
+  lang,
   isExpanded,
   onToggle,
 }: {
   script: CallScript;
+  lang: ScriptLang;
   isExpanded: boolean;
   onToggle: () => void;
 }) {
-  const { t, i18n } = useTranslation();
-  // Resolve the script for the agent's active app language (per-field fallback to the
-  // Macedonian base). Re-runs on language switch — this component subscribes via useTranslation().
-  const r = resolveScript(script, i18n.language);
+  const { t } = useTranslation();
+  // Resolve for the SCRIPT language the agent picked with the flags — deliberately
+  // not the app language. What an agent reads aloud to a Macedonian customer is a
+  // property of the call, not of the language their own buttons are in. Per-field
+  // fallback to the Macedonian base still applies, so a half-translated Albanian
+  // script shows Macedonian for whatever is missing rather than a blank.
+  const r = resolveScript(script, lang);
   // Local state for the 30% helpers pane (clean, per-script, no global stuffing)
   const [helperSearch, setHelperSearch] = useState('');
   const [openHelper, setOpenHelper] = useState<string | null>(null); // single open for minimalist feel

@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Session, User } from '@supabase/supabase-js';
-import { SUPPORTED_LANGUAGES, type AppLanguage } from '@/i18n';
+import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE, type AppLanguage } from '@/i18n';
 
 export type AppRole = 'admin' | 'manager' | 'pending_agent' | 'prediction_agent' | 'warehouse' | 'ads_admin' | 'agent' | 'inbound_agent' | 'affiliate';
 
@@ -74,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .select('full_name, email')
           .eq('user_id', supabaseUser.id)
           .single();
-        profile = fallback ? { ...fallback, language: 'en' } : null;
+        profile = fallback ? { ...fallback, language: DEFAULT_LANGUAGE } : null;
       }
 
       const { data: roleRows } = await supabase
@@ -106,7 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // coerced Albanian users back to English on every fresh device.
         language: SUPPORTED_LANGUAGES.includes(profile?.language as AppLanguage)
           ? (profile!.language as AppLanguage)
-          : 'en',
+          : DEFAULT_LANGUAGE,
       });
     } catch {
       setUser(null);

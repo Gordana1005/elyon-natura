@@ -1577,7 +1577,8 @@
     "searchPlaceholder": "Kërko ndihmës (latinisht ose cirilik)...",
     "searchTooltip": "Shkruaj latinisht ose cirilik — të dyja përputhen (p.sh. 'diabetol' ose 'диабетол')",
     "noHelpers": "Ende pa ndihmës për këtë skript.",
-    "noMatches": "Pa përputhje."
+    "noMatches": "Pa përputhje.",
+    "scriptLanguage": "Shfaq skriptin në {{lang}}"
   },
   "voipHealth": {
     "title": "Shëndeti VOIP / i telefonisë",

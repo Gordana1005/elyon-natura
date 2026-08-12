@@ -1,14 +1,16 @@
 import { useTranslation } from 'react-i18next';
-import { SUPPORTED_LANGUAGES, type AppLanguage } from '@/i18n';
-import { BASE_SCRIPT_LANG } from '@/lib/callScripts';
+import { type AppLanguage } from '@/i18n';
+import { BASE_SCRIPT_LANG, SCRIPT_LANGS } from '@/lib/callScripts';
 import { FlagIcon } from '@/components/LanguageSwitcher';
 import { cn } from '@/lib/utils';
 
-/** Editor language order: Macedonian base first, then the rest (en, bg, sq). */
-export const EDITOR_LANGS: AppLanguage[] = [
-  BASE_SCRIPT_LANG,
-  ...SUPPORTED_LANGUAGES.filter(l => l !== BASE_SCRIPT_LANG),
-];
+/**
+ * Editor languages: Macedonian base first, then Albanian. Deliberately NOT
+ * SUPPORTED_LANGUAGES — Macedonia writes scripts in exactly these two (operator
+ * rule 2026-08-12), and offering en/bg tabs only invites half-written scripts in
+ * languages no customer here is ever read to.
+ */
+export const EDITOR_LANGS: AppLanguage[] = [...SCRIPT_LANGS];
 
 /**
  * Compact language switch used inside the Call Scripts editors (and the Promo

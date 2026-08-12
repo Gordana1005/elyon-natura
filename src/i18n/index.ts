@@ -27,6 +27,11 @@ export type AppLanguage = 'en' | 'bg' | 'sq' | 'mk';
 export const SUPPORTED_LANGUAGES: AppLanguage[] = ['en', 'bg', 'sq', 'mk'];
 export const LANG_STORAGE_KEY = 'elyon.lang';
 
+/** Macedonia's default UI language. Mirrors profiles.language's column DEFAULT
+ *  (migration 20260920000000) — keep the two in step, or a fresh login lands in
+ *  one language and the DB pushes it to another a moment later. */
+export const DEFAULT_LANGUAGE: AppLanguage = 'mk';
+
 function storedLanguage(): AppLanguage {
   try {
     const stored = localStorage.getItem(LANG_STORAGE_KEY) as AppLanguage | null;
@@ -37,7 +42,7 @@ function storedLanguage(): AppLanguage {
   // Macedonia default = Macedonian. Albanian ('sq') stays shipped for
   // Albanian-speaking agents — that is a language choice, not a market one.
   // fallbackLng stays 'en' below so a missing key still resolves.
-  return 'mk';
+  return DEFAULT_LANGUAGE;
 }
 
 i18n.use(initReactI18next).init({

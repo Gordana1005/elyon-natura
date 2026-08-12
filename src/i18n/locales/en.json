@@ -1577,7 +1577,8 @@
     "searchPlaceholder": "Search helpers (latin or cyrillic)...",
     "searchTooltip": "Type in Latin or Cyrillic — both will match (e.g. 'diabetol' or 'диабетол')",
     "noHelpers": "No helpers yet for this script.",
-    "noMatches": "No matches."
+    "noMatches": "No matches.",
+    "scriptLanguage": "Show the script in {{lang}}"
   },
   "voipHealth": {
     "title": "VOIP / Telephony Health",

@@ -6,6 +6,31 @@ import type { CallScript, CallScriptHelper, CallScriptTranslation } from '@/lib/
 // and falls back to these base columns per field.
 export const BASE_SCRIPT_LANG = 'mk';
 
+/**
+ * The ONLY languages call scripts are written in for Macedonia (operator rule
+ * 2026-08-12): Macedonian (the base columns) and Albanian (translations.sq).
+ * en/bg stay valid UI languages — an agent reading the app in English still
+ * reads the script in Macedonian, because what they say to a Macedonian
+ * customer has nothing to do with the language of their own buttons.
+ */
+export const SCRIPT_LANGS = [BASE_SCRIPT_LANG, 'sq'] as const;
+export type ScriptLang = typeof SCRIPT_LANGS[number];
+
+/** Per-device pick, so a switch survives a refresh mid-shift. */
+export const SCRIPT_LANG_STORAGE_KEY = 'elyon.scriptLang';
+
+export function storedScriptLang(): ScriptLang {
+  try {
+    const v = localStorage.getItem(SCRIPT_LANG_STORAGE_KEY);
+    if (v && (SCRIPT_LANGS as readonly string[]).includes(v)) return v as ScriptLang;
+  } catch { /* private mode */ }
+  return BASE_SCRIPT_LANG;
+}
+
+export function persistScriptLang(lang: ScriptLang) {
+  try { localStorage.setItem(SCRIPT_LANG_STORAGE_KEY, lang); } catch { /* private mode */ }
+}
+
 export interface ResolvedScript {
   title: string;
   description: string | null;
