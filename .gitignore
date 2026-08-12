@@ -87,3 +87,6 @@ LeadOut*.xls
 
 # OSM/GeoNames download cache for the MK address importers (3.7 MB, re-fetchable)
 scripts/data/osm-cache/
+
+# MEX register cache — regenerate with scripts/fetch-mex-shipments.mjs
+scripts/data/mex-shipments.json
