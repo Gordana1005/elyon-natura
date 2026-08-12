@@ -90,3 +90,7 @@ scripts/data/osm-cache/
 
 # MEX register cache — regenerate with scripts/fetch-mex-shipments.mjs
 scripts/data/mex-shipments.json
+scripts/data/collabbox-value-rollback-*.json
+scripts/data/orders-created-*.json
+scripts/data/products-created-*.json
+scripts/data/product-sku-rollback-*.json

@@ -407,6 +407,52 @@ for (const [reg, list] of Object.entries(byReg)) {
   }
 }
 
+/* ── what these files can actually fix ───────────────────────────────────── */
+// Split strictly by what the register is evidence OF. A dispatch note proves
+// the order existed and what went out in the parcel — so it can create a
+// missing order and correct a value or a package count. It says nothing about
+// whether the money came back, so it can never settle a status.
+H('WHAT THESE FILES CAN FIX');
+const matchedAll = results.filter((r) => r.verdict === 'matched');
+const DISPATCHED_OK = new Set(['paid', 'returned', 'shipped', 'delivered']);
+
+// 1. orders that exist at collabBox and nowhere in the CRM
+const absent = results.filter((r) => r.verdict !== 'matched');
+const absentByReg = {};
+for (const r of absent) (absentByReg[r.d.register] ??= []).push(r);
+console.log(`\n  1. MISSING ORDERS — create them (name, phone, address, product, date, operator, value all present)`);
+for (const [reg, rs] of Object.entries(absentByReg)) {
+  console.log(`       ${reg.padEnd(11)} ${String(rs.length).padStart(6)} orders   ${mkd(rs.reduce((s, r) => s + r.d.totalMkd, 0))}`);
+}
+console.log(`       ${'TOTAL'.padEnd(11)} ${String(absent.length).padStart(6)} orders   ${mkd(absent.reduce((s, r) => s + r.d.totalMkd, 0))}  (${eur(absent.reduce((s, r) => s + r.d.totalMkd, 0))})`);
+
+// 2. value + package count on orders we DO have. The dispatch value is the
+//    truth here whatever the outcome was, so this is not limited to paid ones.
+const valBad = matchedAll.filter((r) => r.diff !== null && Math.abs(r.diff) > 3);
+const qtyBad = matchedAll.filter((r) => r.d.units > 0 && r.o.quantity != null && Number(r.o.quantity) !== r.d.units);
+const either = new Set([...valBad, ...qtyBad]);
+const shortfall = valBad.filter((r) => r.diff > 0).reduce((s, r) => s + r.diff, 0);
+console.log(`\n  2. WRONG VALUE / PACKAGE COUNT — correct them from the document`);
+console.log(`       value disagrees            ${String(valBad.length).padStart(6)} orders`);
+console.log(`         └ CRM under-records      ${String(valBad.filter((r) => r.diff > 0).length).padStart(6)} orders   ${mkd(shortfall)} (${eur(shortfall)}) not recorded`);
+console.log(`         └ CRM over-records       ${String(valBad.filter((r) => r.diff < 0).length).padStart(6)} orders   ${mkd(-valBad.filter((r) => r.diff < 0).reduce((s, r) => s + r.diff, 0))}`);
+console.log(`       package count disagrees    ${String(qtyBad.length).padStart(6)} orders`);
+console.log(`       ── distinct orders affected ${String(either.size).padStart(5)}`);
+
+// 3. what the register cannot settle
+const odd = matchedAll.filter((r) => !DISPATCHED_OK.has(r.o.status));
+console.log(`\n  3. CANNOT BE FIXED FROM THESE FILES — status`);
+console.log(`       ${String(odd.length).padStart(6)} orders were dispatched but the CRM says they never shipped.`);
+console.log(`              That is a real contradiction worth chasing, but a Нарачка proves`);
+console.log(`              dispatch, not collection. Settle it against courier data (MEX),`);
+console.log(`              which is the only source that saw the money at the door.`);
+console.log(`\n       ${String(matchedAll.filter((r) => r.o.status === 'returned').length).padStart(6)} of the matched orders are ones MEX proved came BACK —`);
+console.log(`              they carry a collabBox document too, which is why the register`);
+console.log(`              cannot be read as a list of payments.`);
+
+console.log(`\n  ── FIXABLE FROM THESE FILES: ${(absent.length + either.size).toLocaleString('en-US')} orders`);
+console.log(`     (${absent.length.toLocaleString('en-US')} to create, ${either.size.toLocaleString('en-US')} to correct in place)`);
+
 /* ── row-by-row audit ────────────────────────────────────────────────────── */
 if (OUT_CSV) {
   const rows = ['sep=;', ['verdict', 'register', 'doc', 'doc_date', 'name', 'phone', 'address', 'author',
