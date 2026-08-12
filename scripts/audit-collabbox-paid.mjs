@@ -34,8 +34,35 @@
  * collabBox surcharge signature. This script keeps the two registers apart and
  * refuses to launder that gap into a match.
  *
- * Every row in both registers is a PAID order — collabBox only holds documents
- * the call centre actually raised.
+ * ── A collabBox document is NOT proof of payment ──
+ * scripts/match-collabbox.mjs asserts "every row in these two exports is a PAID
+ * order … where collabBox says paid and AlterCPA says cancelled, collabBox
+ * wins", and wrote 2.621 orders straight to `paid` on that basis. The full
+ * register refutes it. Comparing the status mix of matched orders against the
+ * population mix over the same period:
+ *
+ *     shipped ×1,96   returned ×1,83   paid ×1,58
+ *     cancelled ×0,76   trashed ×0,25   confirmed ×0,10   pending ×0,09
+ *
+ * `returned` and `shipped` are enriched MORE than `paid`. A return is money
+ * that was never collected, so if a document proved payment, returns would be
+ * depleted — instead they are the second most over-represented status. What
+ * every enriched status has in common is that the parcel physically left the
+ * warehouse, and what every depleted status has in common is that it never
+ * did. The counts agree too: 42.395 documents against 30.648 paid orders in
+ * the same window, but ~43.700 that reached dispatch.
+ *
+ * "Нарачка" means order. The document is raised when the call centre RAISES
+ * and dispatches an order — a dispatch note, not an invoice. It proves the
+ * parcel went out; the money is decided later, at the door.
+ *
+ * That is corroborated independently: 97 of the 2.621 flipped orders were
+ * afterwards proven RETURNED by MEX's own terminal status. Courier ground
+ * truth could only reach the 1.158 flips in the MEX era, and 8,4% of those
+ * were already wrong — a floor, not the rate, because a flip on an order that
+ * was never dispatched leaves no courier trace at all.
+ *
+ * So this script reports the DISPATCH OUTCOME, and never flips anything.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -54,13 +81,20 @@ const backIdx = args.indexOf('--back');
 const BACK = backIdx >= 0 ? Number(args[backIdx + 1]) : 10;
 const FWD = 2;
 
+// Both registers now arrive complete. The Pendinzi export is split into three
+// period files that tile without a gap (2025-06-12 → 2026-08-12); the register
+// genuinely starts on 2025-06-12 even though the first file is named from
+// 01.04.2025. Documents are keyed by document number, so an overlap between
+// exports would dedupe rather than double-count.
 const FILES = [
-  { path: 'D:/Predikcii Final.xls', kind: 'xls', register: 'Predikcii', complete: true,
+  { path: 'D:/Predikcii Final.xls', kind: 'xls', register: 'Predikcii',
     note: 'LEADS-OUT — full outbound register' },
-  { path: 'D:/Predikcii final.csv', kind: 'csv', register: 'Predikcii', complete: false,
-    note: 'LEADS-OUT — 500-line preview, subset of the xls' },
-  { path: 'D:/Pendinzi final.csv', kind: 'csv', register: 'Pendinzi', complete: false,
-    note: 'Нарачка LEADS — 500-line preview ONLY (5 days of a register that ran to ~41.700)' },
+  { path: join(ROOT, '01.04.2025 - 31.12.2025.xls'), kind: 'xls', register: 'Pendinzi',
+    note: 'Нарачка LEADS — 2025-06-12 … 2025-12-31' },
+  { path: join(ROOT, '01.01.2026 - 31.03.2026 Pendinzi.xls'), kind: 'xls', register: 'Pendinzi',
+    note: 'Нарачка LEADS — 2026 Q1' },
+  { path: join(ROOT, '01.04.2026 - 11.08.2026 Pendinzi.xls'), kind: 'xls', register: 'Pendinzi',
+    note: 'Нарачка LEADS — 2026 Q2 to date' },
 ];
 
 // Service lines, not products: delivery (100 or 150 ден) and the free-text
@@ -176,8 +210,22 @@ const eur = (n) => `€${Math.round(n / MKD_PER_EUR).toLocaleString('en-US')}`;
 H('WHAT IS IN THE FILES');
 for (const f of FILES) {
   const own = docList.filter((d) => d.source === f.path);
-  console.log(`  ${f.path}`);
-  console.log(`      ${String(own.length).padStart(6)} new documents   ${f.complete ? '' : '⚠ TRUNCATED — '}${f.note}`);
+  const ds = own.map((d) => d.date).sort();
+  console.log(`  ${f.path.split(/[\\/]/).pop()}`);
+  console.log(`      ${String(own.length).padStart(6)} new documents   ${ds[0] ?? '—'} … ${ds[ds.length - 1] ?? '—'}   ${f.note}`);
+}
+// A gap between the period exports would silently look like "orders missing
+// from collabBox", so prove the coverage is contiguous before reading anything
+// into the reachability numbers.
+for (const reg of ['Pendinzi', 'Predikcii']) {
+  const days = [...new Set(docList.filter((d) => d.register === reg).map((d) => d.date))].sort();
+  if (days.length < 2) continue;
+  const gaps = [];
+  for (let i = 1; i < days.length; i++) {
+    const n = (Date.parse(days[i]) - Date.parse(days[i - 1])) / 86400_000;
+    if (n > 4) gaps.push(`${days[i - 1]}→${days[i]} (${n}d)`);
+  }
+  console.log(`  ${reg} coverage: ${days.length} distinct days, ${gaps.length ? `gaps >4d: ${gaps.join(', ')}` : 'no gap over 4 days'}`);
 }
 const byReg = {};
 for (const d of docList) (byReg[d.register] ??= []).push(d);
@@ -282,7 +330,7 @@ for (const [reg, list] of Object.entries(byReg)) {
   const val = (f) => rs.filter(f).reduce((s, r) => s + r.d.totalMkd, 0);
 
   H(`REGISTER: ${reg}${reg === 'Predikcii' ? '  (LEADS-OUT — outbound repeat sales)' : '  (Нарачка LEADS — inbound affiliate leads)'}`);
-  console.log(`  documents (all PAID at collabBox)   ${String(list.length).padStart(6)}   ${mkd(val(() => true))}`);
+  console.log(`  documents raised at collabBox       ${String(list.length).padStart(6)}   ${mkd(val(() => true))}`);
   console.log(`  ── found in the CRM within ${String(BACK).padStart(2)}d       ${String(m.length).padStart(6)}   ${((100 * m.length) / list.length).toFixed(1)}%`);
   console.log(`     phone known, no order near date  ${String(rs.filter((r) => r.verdict === 'phone_only').length).padStart(6)}`);
   console.log(`     phone not in the CRM at all      ${String(rs.filter((r) => r.verdict === 'phone_absent').length).padStart(6)}`);
@@ -308,18 +356,34 @@ for (const [reg, list] of Object.entries(byReg)) {
     }
     console.log(`       actual  matched ${((100 * m.length) / list.length).toFixed(1).padStart(5)}%   exact-amount ${((100 * exact) / (priced.length || 1)).toFixed(1).padStart(5)}%`);
 
+    // Dispatch outcome. The enrichment column is the evidence for what a
+    // document means: it is computed against orders created in this register's
+    // own window, so it is not skewed by the CRM's overall age mix.
+    const lo = list[0].date, hi = list[list.length - 1].date;
+    const popOrders = orders.filter((o) => o.created_at >= lo && o.created_at <= `${hi}T23:59:59Z`);
+    const pop = {};
+    for (const o of popOrders) pop[o.status ?? 'null'] = (pop[o.status ?? 'null'] || 0) + 1;
     const st = {};
     for (const r of m) st[r.o.status ?? 'null'] = (st[r.o.status ?? 'null'] || 0) + 1;
-    console.log(`\n  collabBox says PAID — the CRM says:`);
+    console.log(`\n  dispatch outcome — what the CRM says happened to these orders:`);
+    console.log(`     ${'status'.padEnd(12)} ${'docs'.padStart(6)} ${'share'.padStart(7)} ${'population'.padStart(11)} ${'enrichment'.padStart(11)}`);
     for (const [s, n] of Object.entries(st).sort((a, b) => b[1] - a[1])) {
-      console.log(`     ${s === 'paid' ? '✓' : '✗'} ${s.padEnd(22)} ${String(n).padStart(6)}   ${((100 * n) / m.length).toFixed(1)}%`);
+      const ps = (pop[s] ?? 0) / (popOrders.length || 1);
+      console.log(`     ${s.padEnd(12)} ${String(n).padStart(6)} ${`${((100 * n) / m.length).toFixed(1)}%`.padStart(7)} ${`${(100 * ps).toFixed(1)}%`.padStart(11)} ${`×${((n / m.length) / (ps || 1e-9)).toFixed(2)}`.padStart(11)}`);
     }
-    const wrong = m.filter((r) => r.o.status !== 'paid');
-    if (wrong.length) {
+
+    // The genuine anomaly: a document says the parcel went out, and the CRM
+    // shows an outcome only reachable WITHOUT dispatching. paid / returned /
+    // shipped are all consistent with a dispatch; the rest are not.
+    const DISPATCHED_OK = new Set(['paid', 'returned', 'shipped', 'delivered']);
+    const odd = m.filter((r) => !DISPATCHED_OK.has(r.o.status));
+    if (odd.length) {
       const why = {};
-      for (const r of wrong) { const k = `${r.o.status} · ${r.o.cancellation_reason || r.o.trash_reason || '—'}`; why[k] = (why[k] || 0) + 1; }
-      console.log(`\n     ${wrong.length} proven-paid orders are not paid in the CRM  (${mkd(wrong.reduce((s, r) => s + r.d.totalMkd, 0))}):`);
+      for (const r of odd) { const k = `${r.o.status} · ${r.o.cancellation_reason || r.o.trash_reason || '—'}`; why[k] = (why[k] || 0) + 1; }
+      console.log(`\n     ${odd.length.toLocaleString('en-US')} documents were raised for orders the CRM says never shipped (${mkd(odd.reduce((s, r) => s + r.d.totalMkd, 0))}):`);
       for (const [k, n] of Object.entries(why).sort((a, b) => b[1] - a[1]).slice(0, 10)) console.log(`       ${String(n).padStart(5)}  ${k}`);
+      console.log(`     → either the cancel/trash is wrong, or a delivery outcome was never recorded.`);
+      console.log(`       NOT evidence of payment on its own — settle these against courier data.`);
     }
   }
   // Third defect class: the order is here, it is paid, and the amount is still
@@ -339,7 +403,7 @@ for (const [reg, list] of Object.entries(byReg)) {
 
   const missing = rs.filter((r) => r.verdict !== 'matched');
   if (missing.length) {
-    console.log(`\n  NOT REPRESENTED IN THE CRM: ${missing.length.toLocaleString('en-US')} paid documents, ${mkd(missing.reduce((s, r) => s + r.d.totalMkd, 0))} (${eur(missing.reduce((s, r) => s + r.d.totalMkd, 0))})`);
+    console.log(`\n  NOT REPRESENTED IN THE CRM: ${missing.length.toLocaleString('en-US')} documents, ${mkd(missing.reduce((s, r) => s + r.d.totalMkd, 0))} (${eur(missing.reduce((s, r) => s + r.d.totalMkd, 0))})`);
   }
 }
 

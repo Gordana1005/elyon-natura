@@ -1,5 +1,21 @@
 #!/usr/bin/env node
 /**
+ * ⚠️ SUPERSEDED — THE PREMISE BELOW IS WRONG. DO NOT RE-RUN WITH --apply.
+ *
+ * "every row in these two exports is a PAID order" is refuted by the full
+ * register (2026-08-12). A collabBox "Нарачка" is an ORDER/DISPATCH note, not
+ * an invoice: measured against the population, `returned` (×1,83) and `shipped`
+ * (×1,96) are enriched MORE than `paid` (×1,58), while never-dispatched
+ * statuses are depleted (trashed ×0,25, pending ×0,09). A return is money never
+ * collected, so a payment document could not over-represent returns.
+ *
+ * This script wrote 2.621 orders straight to `paid` on that premise; 2.512 are
+ * still live that way, and 97 have since been proven RETURNED by MEX's own
+ * terminal status. See scripts/audit-collabbox-paid.mjs, which uses the
+ * re-export (phone + product) and reports dispatch outcome without flipping
+ * anything.
+ *
+ * ── original header ──
  * collabBox is the fixer for AlterCPA.
  *
  * AlterCPA's own `paid` field is 0 on every one of the 81,657 MK orders, so the
