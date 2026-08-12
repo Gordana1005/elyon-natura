@@ -762,11 +762,11 @@ function resolveCatalogueProductId(
 // owns post-shipment refunds).
 type OutcomeRule = { to: string; from: string[] };
 const OUTCOME_TO_STATUS: Record<string, OutcomeRule | null> = {
-  confirmed:      { to: "confirmed", from: ["pending", "take", "call_again"] },
-  cancelled:      { to: "cancelled", from: ["pending", "take", "call_again", "confirmed"] },
-  trash:          { to: "trashed",   from: ["pending", "take", "call_again"] },
-  wrong_number:   { to: "trashed",   from: ["pending", "take", "call_again"] },
-  call_again:     { to: "call_again", from: ["pending", "take", "call_again", "confirmed"] },
+  confirmed:      { to: "confirmed", from: ["pending", "take", "call_again", "duplicated"] },
+  cancelled:      { to: "cancelled", from: ["pending", "take", "call_again", "duplicated", "confirmed"] },
+  trash:          { to: "trashed",   from: ["pending", "take", "call_again", "duplicated"] },
+  wrong_number:   { to: "trashed",   from: ["pending", "take", "call_again", "duplicated"] },
+  call_again:     { to: "call_again", from: ["pending", "take", "call_again", "duplicated", "confirmed"] },
   no_answer:      null,
   interested:     null,
   not_interested: null,
@@ -779,6 +779,9 @@ interface ApplyOutcomeArgs {
   cancellationReason?: string;
   cancellationReasonNotes?: string;
   trashReason?: string;
+  // Claim an unassigned order for the acting agent. The CALLER decides based on
+  // roles — an admin/manager settling someone's order should not become its owner.
+  claimIfUnassigned?: boolean;
 }
 
 interface ApplyOutcomeResult {
@@ -797,13 +800,13 @@ interface ApplyOutcomeResult {
  */
 async function applyOutcomeToOrder(
   client: any,
-  { orderId, outcome, agentId, cancellationReason, cancellationReasonNotes, trashReason }: ApplyOutcomeArgs,
+  { orderId, outcome, agentId, cancellationReason, cancellationReasonNotes, trashReason, claimIfUnassigned }: ApplyOutcomeArgs,
 ): Promise<ApplyOutcomeResult> {
   const rule = OUTCOME_TO_STATUS[outcome];
   if (rule === null || rule === undefined) return { ok: true };
 
   const { data: order, error: fetchErr } = await client
-    .from("orders").select("id, status, call_again_since").eq("id", orderId).single();
+    .from("orders").select("id, status, call_again_since, assigned_agent_id").eq("id", orderId).single();
   if (fetchErr || !order) {
     return { ok: false, status: 404, error: "Order not found" };
   }
@@ -860,10 +863,47 @@ async function applyOutcomeToOrder(
       : (trashReason ?? null);
   }
 
+  // Claim-on-action: settling an unassigned open order (including a duplicate an
+  // admin created for follow-up) makes the acting agent its owner, so workload
+  // counts and the "Handled By" columns stay coherent. The assignment triple
+  // (id / name / at) always moves as ONE — never set the id alone.
+  if (claimIfUnassigned && !order.assigned_agent_id && agentId) {
+    const { data: prof } = await client
+      .from("profiles").select("full_name").eq("user_id", agentId).maybeSingle();
+    update.assigned_agent_id = agentId;
+    update.assigned_agent_name = prof?.full_name ?? null;
+    update.assigned_at = new Date().toISOString();
+  }
+
   const { error: updErr } = await client.from("orders").update(update).eq("id", orderId);
   if (updErr) return { ok: false, status: 500, error: updErr.message };
 
   return { ok: true, oldStatus: order.status, newStatus: rule.to };
+}
+
+// Mandatory answer per opened client (operator rule 2026-08-13): opening a client
+// on /calls stores an obligation row; recording ANY outcome for that customer
+// releases it. Called from every path that counts as "leaving a mark": call logs
+// (including no_answer), order status changes, cancel/trash record creation, and
+// Personal List claims. Last-8 phone match, same convention as the rest of the file.
+//
+// Deliberately forgiving: a missing table or a failed read leaves `ob` undefined
+// and the helper no-ops. Never make this throw — it runs on four hot write paths,
+// and a broken obligation lookup must not break order creation.
+async function clearCallObligation(client: any, agentId: string, phone: string | null | undefined) {
+  const digits = String(phone || "").replace(/\D/g, "");
+  const last8 = digits.length >= 8 ? digits.slice(-8) : "";
+  if (!last8) return;
+  const { data: ob } = await client
+    .from("agent_call_obligations")
+    .select("customer_phone")
+    .eq("agent_id", agentId)
+    .maybeSingle();
+  if (!ob) return;
+  const obLast8 = String(ob.customer_phone || "").replace(/\D/g, "").slice(-8);
+  if (obLast8 === last8) {
+    await client.from("agent_call_obligations").delete().eq("agent_id", agentId);
+  }
 }
 
 // CORS headers — origin is set per-request in the serve wrapper below.
@@ -2628,6 +2668,19 @@ async function handleRequest(req: Request): Promise<Response> {
     // Operational roles keep their existing order-write access (RLS scopes them);
     // managers/ads_admin are read-only unless the orders.can_edit toggle is on.
     const canMutateOrders = isAdmin || isAgent || isWarehouse || canEditModule("orders");
+    // Ownership guard shared by the order-mutating routes that write via adminClient
+    // (RLS-bypassing). Open orders — including 'duplicated' since 2026-08-13 — are
+    // workable by any agent (operator rules 2026-08-10/13); anything past confirm
+    // stays locked to its assignee. Returns true when the caller must be blocked.
+    //
+    // This REPLACES the implicit gate those routes used to get from RLS: an agent's
+    // RLS only matches orders assigned to them, which silently hid every unassigned
+    // duplicate and made the modal save fail with "Operation failed".
+    const OPEN_ORDER_STATES = ["pending", "take", "call_again", "duplicated"];
+    const orderOwnershipBlocked = (order: { status: string; assigned_agent_id: string | null }) =>
+      !isAdminOrManager && !isWarehouse
+      && !OPEN_ORDER_STATES.includes(order.status)
+      && !!order.assigned_agent_id && order.assigned_agent_id !== user.id;
     const privCan = (flag: string) => isAdmin || privRows.some((r: any) => r[flag] === true);
     const piiFlags: PiiFlags = { name: privCan("show_customer_name"), phone: privCan("show_customer_phone"), addr: privCan("show_customer_address") };
     const showOrderHistory = privCan("show_order_history");
@@ -4610,8 +4663,7 @@ async function handleRequest(req: Request): Promise<Response> {
             .from("orders")
             .select("id, display_id, status, assigned_agent_name")
             .ilike("customer_phone", `%${flast8}`)
-            .in("status", ["pending", "take", "call_again"])
-            .is("duplicated_from", null)
+            .in("status", ["pending", "take", "call_again", "duplicated"])
             .order("created_at", { ascending: false })
             .limit(1);
           // Unassigned leads block too. BG's first version scoped agents to their
@@ -4789,6 +4841,10 @@ async function handleRequest(req: Request): Promise<Response> {
           author_name: "System",
         });
       }
+
+      // Creating any order for this customer — a real sale or a synthetic
+      // cancel/trash record — is "leaving a mark": release the obligation.
+      await clearCallObligation(adminClient, user.id, order.customer_phone);
 
       return json(order);
     }
@@ -5052,9 +5108,10 @@ async function handleRequest(req: Request): Promise<Response> {
         const nowIso = new Date().toISOString();
         query = query.or(`next_call_after.is.null,next_call_after.lte.${nowIso}`);
       }
-      // Duplicated orders are admin/manager-only, forever — regardless of
-      // their current status. (RLS also enforces this for agent clients.)
-      if (!isAdminOrManager) query = query.is("duplicated_from", null);
+      // Agents work duplicates since 2026-08-13 (operator decision): admins and
+      // managers create them, agents follow up and settle them, so agents must
+      // see them here too. `duplicated_from` is PERMANENT, so a filter here would
+      // hide an agent's own settled duplicates from their tabs forever.
 
       const { data: orders, count, error } = await query;
       if (error) return json({ error: sanitizeDbError(error) }, 400);
@@ -5151,7 +5208,7 @@ async function handleRequest(req: Request): Promise<Response> {
       });
     }
 
-    // GET /api/orders/open-lead?phone=... — the customer's ONE open order.
+    // GET /api/orders/open-lead?phone=... — the customer's open orders.
     //
     // Whoever is on the customer must be able to close out the order that
     // already exists, whoever it was assigned to (operator rule, 2026-08-10).
@@ -5169,17 +5226,20 @@ async function handleRequest(req: Request): Promise<Response> {
       const raw = (url.searchParams.get("phone") || "").trim();
       const digits = raw.replace(/\D/g, "");
       const last8 = digits.length >= 8 ? digits.slice(-8) : "";
-      if (!last8) return json({ lead: null });
-      const { data: lead } = await adminClient
+      if (!last8) return json({ lead: null, leads: [] });
+      // ALL open orders, newest first. Since duplicates became workable a customer
+      // can legitimately have several open orders at once (a pending lead AND a
+      // duplicate), so the caller must let the agent PICK when there is more than
+      // one — BG confirmed the WRONG order because the flow silently took the
+      // queue row (2026-08-12). `lead` stays for older bundles still in a browser.
+      const { data: leads } = await adminClient
         .from("orders")
-        .select("id, display_id, status, assigned_agent_id, assigned_agent_name, source_type")
+        .select("id, display_id, status, assigned_agent_id, assigned_agent_name, source_type, duplicated_from_display, created_at")
         .ilike("customer_phone", `%${last8}`)
-        .in("status", ["pending", "take", "call_again"])
-        .is("duplicated_from", null)
+        .in("status", ["pending", "take", "call_again", "duplicated"])
         .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      return json({ lead: lead ?? null });
+        .limit(5);
+      return json({ lead: leads?.[0] ?? null, leads: leads ?? [] });
     }
 
     // GET /api/orders/unassigned-pending (admin only - for assigner)
@@ -5458,7 +5518,7 @@ async function handleRequest(req: Request): Promise<Response> {
       // Anything already shipped is owned by the warehouse Returned flow; a
       // disposition must not rewrite fulfilment history. Skipped rows are
       // REPORTED back, never silently dropped.
-      const DISPOSABLE = ["pending", "take", "call_again", "confirmed"];
+      const DISPOSABLE = ["pending", "take", "call_again", "duplicated", "confirmed"];
       const { data: rows, error: fetchErr } = await adminClient
         .from("orders")
         .select("id, display_id, status, source_type, inbound_lead_id")
@@ -6019,8 +6079,7 @@ async function handleRequest(req: Request): Promise<Response> {
           .from("orders")
           .select("*")
           .eq("id", orderId)
-          .in("status", ["pending", "take", "call_again"])
-          .is("duplicated_from", null)
+          .in("status", ["pending", "take", "call_again", "duplicated"])
           .maybeSingle();
         if (openLead) { order = openLead; error = null; }
       }
@@ -6226,13 +6285,24 @@ async function handleRequest(req: Request): Promise<Response> {
 
       // Check if order is in a locked status for product/price edits
       const hasProductFields = body.price !== undefined || body.quantity !== undefined || body.product_id !== undefined || body.product_name !== undefined;
+      // Fetched via adminClient: an agent's RLS only matches orders assigned to
+      // them, which silently hid every unassigned open order (including each fresh
+      // duplicate) and made the modal save fail with "Operation failed". The
+      // explicit ownership guard below is the real gate now.
+      const { data: currentOrder } = await adminClient
+        .from("orders")
+        .select("status, assigned_agent_id, delivery_type, courier_office_code")
+        .eq("id", orderId)
+        .single();
+      if (!currentOrder) return json({ error: "Order not found" }, 404);
+      if (orderOwnershipBlocked(currentOrder)) {
+        return json({ error: "Forbidden — this order is assigned to another agent" }, 403);
+      }
+
       if (hasProductFields) {
-        const { data: currentOrder } = await supabase.from("orders").select("status").eq("id", orderId).single();
-        if (currentOrder) {
-          const lockedStatuses = ["shipped", "delivered", "paid"];
-          if (lockedStatuses.includes(currentOrder.status)) {
-            return json({ error: "Product and price locked because order is Shipped, Delivered, or Paid." }, 400);
-          }
+        const lockedStatuses = ["shipped", "delivered", "paid"];
+        if (lockedStatuses.includes(currentOrder.status)) {
+          return json({ error: "Product and price locked because order is Shipped, Delivered, or Paid." }, 400);
         }
       }
 
@@ -6266,10 +6336,8 @@ async function handleRequest(req: Request): Promise<Response> {
       // Office orders: keep postal_code equal to the courier office's own post
       // code. Re-resolve whenever the delivery method or the office changed.
       if (body.delivery_type !== undefined || body.courier_office_code !== undefined) {
-        const { data: cur } = await adminClient
-          .from("orders").select("delivery_type, courier_office_code").eq("id", orderId).single();
-        const dt = body.delivery_type ?? cur?.delivery_type;
-        const code = body.courier_office_code ?? cur?.courier_office_code;
+        const dt = body.delivery_type ?? currentOrder.delivery_type;
+        const code = body.courier_office_code ?? currentOrder.courier_office_code;
         const pc = await resolveOfficePostCode(dt, code);
         if (pc) updates.postal_code = pc;
       }
@@ -6282,7 +6350,10 @@ async function handleRequest(req: Request): Promise<Response> {
         updates.mex_city_name = mexZone.name;
       }
 
-      const { data, error } = await supabase
+      // adminClient, not the RLS client: on an unassigned duplicate the RLS update
+      // matched zero rows, .single() errored, and the route 400'd — that is exactly
+      // the "Operation failed" agents saw when saving the modal.
+      const { data, error } = await adminClient
         .from("orders")
         .update(updates)
         .eq("id", orderId)
@@ -6327,11 +6398,32 @@ async function handleRequest(req: Request): Promise<Response> {
       //
       // Everything past confirm stays locked: a real order's sales credit,
       // fulfilment and money are not a colleague's to rewrite.
-      const OPEN_LEAD_STATES = ["pending", "take", "call_again"];
+      //
+      // 'duplicated' counts as OPEN since 2026-08-13: admins/managers create the
+      // copies precisely so an agent can follow up and settle them.
+      const OPEN_LEAD_STATES = ["pending", "take", "call_again", "duplicated"];
       if (!isAdminOrManager && !isWarehouse
         && !OPEN_LEAD_STATES.includes(order.status)
         && order.assigned_agent_id && order.assigned_agent_id !== user.id) {
         return json({ error: "Forbidden — this order is assigned to another agent" }, 403);
+      }
+
+      // Settled orders are manager territory (operator rule 2026-08-13). An agent
+      // may only change the status of an order that is still OPEN — a lead or an
+      // unsettled duplicate. Once it reaches confirmed/shipped/delivered/paid/
+      // returned/cancelled/trashed only admins/managers (and warehouse, for
+      // fulfilment) may move it, EVEN the agent who owns it. Without this an agent
+      // could flip their own cancelled or paid order back to confirmed, because
+      // the allowlist below only checks the TARGET status.
+      //
+      // `!isWarehouse` is load-bearing here: every warehouse transition acts on an
+      // order whose CURRENT status is confirmed/shipped/delivered, so dropping the
+      // clause would 403 the entire fulfilment flow.
+      // Same-status saves stay allowed so reason corrections keep working.
+      if (!isAdminOrManager && !isWarehouse
+        && !OPEN_LEAD_STATES.includes(order.status)
+        && newStatus !== order.status) {
+        return json({ error: "Forbidden — only a manager can change a settled order" }, 403);
       }
 
       // Permission check for non-admins
@@ -6342,7 +6434,7 @@ async function handleRequest(req: Request): Promise<Response> {
       // flow. A confirmed or shipped order stays untouchable for agents — the
       // original point of the allowlist (no sabotaging recorded sales). The
       // ownership guard above already limits agents to their own orders.
-      const openStatuses = ["pending", "take", "call_again"];
+      const openStatuses = ["pending", "take", "call_again", "duplicated"];
       const isOpenDisposition =
         ["cancelled", "trashed"].includes(newStatus) && openStatuses.includes(order.status);
       if (!isAdminOrManager) {
@@ -6536,11 +6628,26 @@ async function handleRequest(req: Request): Promise<Response> {
         update.confirmed_by_name = profile?.full_name || user.email;
         update.confirmed_at = new Date().toISOString();
       }
+      // Claim-on-action: an agent settling an unassigned open order (including a
+      // duplicate an admin created for follow-up) becomes its owner, so workload
+      // counts and "Handled By" stay coherent. The triple moves as ONE.
+      if (!isAdminOrManager && !isWarehouse
+        && !order.assigned_agent_id
+        && OPEN_LEAD_STATES.includes(order.status)) {
+        update.assigned_agent_id = user.id;
+        update.assigned_agent_name = profile?.full_name || user.email;
+        update.assigned_at = new Date().toISOString();
+      }
       const { error: updateErr } = await adminClient
         .from("orders")
         .update(update)
         .eq("id", orderId);
       if (updateErr) return json({ error: sanitizeDbError(updateErr) }, 400);
+
+      // Settling an order counts as an answer — release the mandatory-answer
+      // obligation. Confirms skip the call-outcome click, so for that path this
+      // is the only clearing point.
+      await clearCallObligation(adminClient, user.id, order.customer_phone);
 
       // TV leaderboard: only nudge on a FRESH confirm (this is when confirmed_at
       // is set to today). Later flips (confirmed→shipped→paid) don't change
@@ -6584,8 +6691,15 @@ async function handleRequest(req: Request): Promise<Response> {
 
     // POST /api/orders/:id/duplicate — admin/manager only. Creates a copy of
     // the source order with the next sequential ORD number (display_id trigger),
-    // status 'duplicated', and a permanent link to the source. Duplicates are
-    // hidden from agents everywhere (RLS + listing filters).
+    // status 'duplicated', and a permanent link to the source. The SOURCE order is
+    // NEVER touched — its status, history and attribution stay exactly as they were.
+    // Since 2026-08-13 the copy is a normal open order: agents can find it, open it
+    // and settle it (confirm / cancel / trash) like any other lead.
+    //
+    // The insert below is an explicit allowlist that copies NO AlterCPA or inbound
+    // lead linkage and forces source_type 'manual'. That is what keeps a confirmed
+    // duplicate out of altercpa-sync (which selects by ledger linkage) and therefore
+    // out of MEX — no customer can ever receive two parcels from one duplication.
     if (req.method === "POST" && segments[0] === "orders" && segments.length === 3 && segments[2] === "duplicate") {
       if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
       if (!checkUserRateLimit(user.id, "orders.duplicate", 20)) return json({ error: "Too many requests" }, 429);
@@ -6814,9 +6928,13 @@ async function handleRequest(req: Request): Promise<Response> {
       const pricePerUnit = body.price_per_unit || 0;
       const totalPrice = quantity * pricePerUnit;
 
-      // Check order is editable
-      const { data: currentOrder } = await supabase.from("orders").select("status, display_id").eq("id", orderId).single();
+      // Check order is editable. adminClient, not the RLS client: agent RLS hid
+      // every unassigned open order (incl. duplicates) and broke the modal save.
+      const { data: currentOrder } = await adminClient.from("orders").select("status, display_id, assigned_agent_id").eq("id", orderId).single();
       if (!currentOrder) return json({ error: "Order not found" }, 404);
+      if (orderOwnershipBlocked(currentOrder)) {
+        return json({ error: "Forbidden — this order is assigned to another agent" }, 403);
+      }
       const lockedStatuses = ["shipped", "delivered", "paid"];
       if (lockedStatuses.includes(currentOrder.status)) {
         return json({ error: "Cannot modify products — order is locked." }, 400);
@@ -6854,8 +6972,14 @@ async function handleRequest(req: Request): Promise<Response> {
       const body = await req.json();
 
       // Get current item to find its order
-      const { data: currentItem } = await adminClient.from("order_items").select("*, orders(status, id, display_id)").eq("id", itemId).single();
+      // These routes reach the order ONLY through adminClient, so until 2026-08-13
+      // they had no ownership check at all — any agent could mutate any order's
+      // items by item id. orderOwnershipBlocked closes that.
+      const { data: currentItem } = await adminClient.from("order_items").select("*, orders(status, id, display_id, assigned_agent_id)").eq("id", itemId).single();
       if (!currentItem) return json({ error: "Item not found" }, 404);
+      if (currentItem.orders && orderOwnershipBlocked(currentItem.orders)) {
+        return json({ error: "Forbidden — this order is assigned to another agent" }, 403);
+      }
 
       const lockedStatuses = ["shipped", "delivered", "paid"];
       if (lockedStatuses.includes(currentItem.orders?.status)) {
@@ -6905,8 +7029,14 @@ async function handleRequest(req: Request): Promise<Response> {
       if (!canMutateOrders) return json({ error: "Forbidden" }, 403);
       const itemId = segments[1];
 
-      const { data: currentItem } = await adminClient.from("order_items").select("*, orders(status, id, display_id)").eq("id", itemId).single();
+      // These routes reach the order ONLY through adminClient, so until 2026-08-13
+      // they had no ownership check at all — any agent could mutate any order's
+      // items by item id. orderOwnershipBlocked closes that.
+      const { data: currentItem } = await adminClient.from("order_items").select("*, orders(status, id, display_id, assigned_agent_id)").eq("id", itemId).single();
       if (!currentItem) return json({ error: "Item not found" }, 404);
+      if (currentItem.orders && orderOwnershipBlocked(currentItem.orders)) {
+        return json({ error: "Forbidden — this order is assigned to another agent" }, 403);
+      }
 
       const lockedStatuses = ["shipped", "delivered", "paid"];
       if (lockedStatuses.includes(currentItem.orders?.status)) {
@@ -6944,9 +7074,13 @@ async function handleRequest(req: Request): Promise<Response> {
       const newItems: any[] = body.items;
       if (!Array.isArray(newItems)) return json({ error: "items array is required" }, 400);
 
-      // Check order exists and is editable
-      const { data: currentOrder } = await supabase.from("orders").select("status, display_id").eq("id", orderId).single();
+      // Check order exists and is editable. adminClient, not the RLS client: agent
+      // RLS hid every unassigned open order (incl. duplicates) and broke the save.
+      const { data: currentOrder } = await adminClient.from("orders").select("status, display_id, assigned_agent_id").eq("id", orderId).single();
       if (!currentOrder) return json({ error: "Order not found" }, 404);
+      if (orderOwnershipBlocked(currentOrder)) {
+        return json({ error: "Forbidden — this order is assigned to another agent" }, 403);
+      }
       const lockedStatuses = ["shipped", "delivered", "paid"];
       if (lockedStatuses.includes(currentOrder.status)) {
         return json({ error: "Cannot modify products — order is locked." }, 400);
@@ -7329,9 +7463,9 @@ async function handleRequest(req: Request): Promise<Response> {
         .eq("status", tab) // tab IS the status — see boundary note above
         .or(ownerOr)
         .or(legacyOr);
-      // Duplicates are admin/manager-only (they're never owner-attributed to
-      // agents anyway — belt-and-braces).
-      if (!isAdminOrManager) q = q.is("duplicated_from", null);
+      // Agents work duplicates since 2026-08-13, so a duplicate an agent settled
+      // must appear in their own Confirmed/Paid buckets. `duplicated_from` is
+      // permanent, so filtering on it here would hide their own closed work.
       if (tab === "shipped") {
         // Shipped = UNWINDOWED payment-chase list (every still-unpaid delivery),
         // most-overdue first.
@@ -7601,11 +7735,13 @@ async function handleRequest(req: Request): Promise<Response> {
       // orders table on every load: 80 sequential round-trips today, 200 at 200k,
       // to produce three counters. COUNT/GROUP BY is arithmetically identical, so
       // no displayed number moves. See 20260910000000_report_count_rpcs.sql.
-      // Agents never see duplicated orders — keep their status counts clean.
+      // Agents work duplicates since 2026-08-13 — count them for everyone. The
+      // RPC keeps its p_exclude_duplicated parameter: PostgREST resolves overloads
+      // by exact argument-name set, so dropping the key would 404 the function.
       const { data: stats, error: statsErr } = await adminClient.rpc("orders_status_stats", {
         p_from: from || null,
         p_to: to || null,
-        p_exclude_duplicated: !isAdminOrManager,
+        p_exclude_duplicated: false,
       });
       if (statsErr) return json({ error: sanitizeDbError(statsErr) }, 400);
 
@@ -9356,6 +9492,7 @@ async function handleRequest(req: Request): Promise<Response> {
             cancellationReason: cancellation_reason,
             cancellationReasonNotes: cancellation_reason_notes,
             trashReason: trash_reason,
+            claimIfUnassigned: !isAdminOrManager && !isWarehouse,
           });
           if (!result.ok) order_warning = result.error || "Order status was not changed.";
         }
@@ -9471,6 +9608,10 @@ async function handleRequest(req: Request): Promise<Response> {
         }
       }
 
+      // Any recorded outcome — including a plain no_answer — is "leaving a mark":
+      // release this agent's mandatory-answer obligation for the customer.
+      await clearCallObligation(adminClient, user.id, customer_phone);
+
       // ── No-answer → humane paced retries + 9-consecutive auto-trash ─────
       // Every real no-answer call lands here, so this is the single source of
       // truth for the "doesn't pick up" lifecycle (both the call strip and the
@@ -9540,7 +9681,7 @@ async function handleRequest(req: Request): Promise<Response> {
               .from("orders")
               .select("id, notes")
               .ilike("customer_phone", `%${last8}`)
-              .in("status", ["pending", "take", "call_again"])
+              .in("status", ["pending", "take", "call_again", "duplicated"])
               .or(ownedByCaller)
               .order("created_at", { ascending: false })
               .limit(1)
@@ -10529,11 +10670,16 @@ async function handleRequest(req: Request): Promise<Response> {
       if (last8) {
         const { data: candidates } = await adminClient
           .from("orders")
+          .select("id, status, assigned_agent_id")
           // Suffix match, not `%last8%` — a substring match can hit a DIFFERENT
           // customer whose number merely contains these 8 digits, and takes/
           // parks/trashes would then land on the wrong person.
+          //
+          // NOTE: .ilike MUST come after .select. On the bare query builder it
+          // does not exist, so putting it first throws a TypeError and 500s the
+          // whole route — that is exactly what killed the take-lock in prod from
+          // 2026-08-11 (no take flip, no assignment-on-open, no live-activity row).
           .ilike("customer_phone", `%${last8}`)
-          .select("id, status, assigned_agent_id")
           .in("status", ["pending", "call_again"]);
         for (const o of candidates || []) {
           // A colleague's open lead is taken too (operator rule, 2026-08-10):
@@ -10562,6 +10708,34 @@ async function handleRequest(req: Request): Promise<Response> {
             takenFromAgent.push(o.assigned_agent_id ?? null);
           }
         }
+
+        // Duplicates (operator rule 2026-08-13): opening the customer CLAIMS any
+        // unassigned duplicate for this agent — a sticky, REAL assignment (the
+        // full triple), NOT a take. The status stays 'duplicated' so the badge
+        // stays truthful, the id is never recorded in taken_order_ids, and the
+        // release therefore never reverts it. This is what lets the agent save
+        // the duplicate from the modal, exactly like an assigned lead.
+        // A duplicate already owned by a colleague is left alone — the open-state
+        // exemption still lets whoever is on the customer settle it.
+        //
+        // Select-then-update: the bundled supabase-js has no .ilike on UPDATE
+        // builders either, so this cannot be written as one filtered update.
+        const { data: dupsToClaim } = await adminClient
+          .from("orders")
+          .select("id")
+          .ilike("customer_phone", `%${last8}`)
+          .eq("status", "duplicated")
+          .is("assigned_agent_id", null);
+        if (dupsToClaim?.length) {
+          await adminClient
+            .from("orders")
+            .update({
+              assigned_agent_id: user.id,
+              assigned_agent_name: myName,
+              assigned_at: new Date().toISOString(),
+            })
+            .in("id", dupsToClaim.map((d: any) => d.id));
+        }
       }
 
       const { data, error } = await adminClient
@@ -10579,6 +10753,70 @@ async function handleRequest(req: Request): Promise<Response> {
         .single();
       if (error) return json({ error: sanitizeDbError(error) }, 400);
       return json(data);
+    }
+
+    // ── Mandatory answer per opened client (operator rule 2026-08-13) ──────────
+    // POST /api/call-obligations { customer_phone, customer_name?, source? }
+    // Registers "this agent owes an answer for this client". The FIRST unanswered
+    // client wins: if the agent already owes one, the STANDING obligation comes
+    // back unchanged and the frontend snaps back to it. Admins/managers/warehouse
+    // are exempt. Released automatically by every outcome path via
+    // clearCallObligation(); DELETE /:agentId is the admin release valve.
+    if (req.method === "POST" && path === "call-obligations") {
+      if (isAdminOrManager || isWarehouse) return json({ obligation: null, exempt: true });
+      let body: { customer_phone?: string; customer_name?: string; source?: string };
+      try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
+      const phone = (body.customer_phone || "").trim();
+      const digits = phone.replace(/\D/g, "");
+      if (digits.length < 8) return json({ obligation: null });
+      const { data: existingOb } = await adminClient
+        .from("agent_call_obligations")
+        .select("agent_id, customer_phone, customer_name, source, created_at")
+        .eq("agent_id", user.id)
+        .maybeSingle();
+      if (existingOb) return json({ obligation: existingOb });
+      const { data: created, error: obErr } = await adminClient
+        .from("agent_call_obligations")
+        .insert({
+          agent_id: user.id,
+          customer_phone: phone,
+          customer_name: (body.customer_name || "").trim() || null,
+          source: (body.source || "calls").slice(0, 40),
+        })
+        .select()
+        .single();
+      // A second tab may have inserted first (PK conflict) — return theirs.
+      if (obErr) {
+        const { data: raced } = await adminClient
+          .from("agent_call_obligations")
+          .select("agent_id, customer_phone, customer_name, source, created_at")
+          .eq("agent_id", user.id)
+          .maybeSingle();
+        return json({ obligation: raced ?? null });
+      }
+      return json({ obligation: created });
+    }
+
+    // GET /api/call-obligations/mine — the caller's standing obligation, if any.
+    if (req.method === "GET" && path === "call-obligations/mine") {
+      if (isAdminOrManager || isWarehouse) return json({ obligation: null, exempt: true });
+      const { data: ob } = await adminClient
+        .from("agent_call_obligations")
+        .select("agent_id, customer_phone, customer_name, source, created_at")
+        .eq("agent_id", user.id)
+        .maybeSingle();
+      return json({ obligation: ob ?? null });
+    }
+
+    // DELETE /api/call-obligations/:agentId — admin/manager release valve for a
+    // stuck agent (e.g. the customer record was merged away mid-call).
+    if (req.method === "DELETE" && segments[0] === "call-obligations" && segments.length === 2) {
+      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      await adminClient.from("agent_call_obligations").delete().eq("agent_id", segments[1]);
+      await audit(adminClient, user.id, user.email, "call_obligation.release", {
+        target_type: "agent", target_name: segments[1],
+      });
+      return json({ success: true });
     }
 
     // DELETE /api/active-call-views/by-phone/:phone — explicit release
@@ -11112,6 +11350,8 @@ async function handleRequest(req: Request): Promise<Response> {
         .select()
         .single();
       if (error) return json({ error: sanitizeDbError(error) }, 400);
+      // Claiming the customer to a Personal List is "leaving a mark" too.
+      await clearCallObligation(adminClient, user.id, body.customer_phone);
       return json(data);
     }
 
@@ -13033,8 +13273,8 @@ async function handleRequest(req: Request): Promise<Response> {
         orderQuery = orderQuery.or(`customer_name.ilike.%${q}%,display_id.ilike.%${q}%`);
         leadQuery = leadQuery.or(`name.ilike.%${q}%`);
       }
-      // adminClient bypasses RLS here — duplicated orders are admin/manager-only.
-      if (!isAdminOrManager) orderQuery = orderQuery.is("duplicated_from", null);
+      // Agents work duplicates since 2026-08-13 — they must be able to FIND the
+      // order they've been asked to settle, so there is no duplicated_from filter.
 
       const [ordersRes, leadsRes] = await Promise.all([orderQuery, leadQuery]);
       const orders = (ordersRes.data || []).map((o: any) => ({
@@ -14244,14 +14484,14 @@ async function handleRequest(req: Request): Promise<Response> {
       const candidateList = [...candidates];
 
       // Find all orders matching any canonical form of this phone (exact match).
-      // adminClient bypasses RLS — hide duplicated orders from non-admin/manager.
-      let ciOrderQuery = adminClient
+      // adminClient bypasses RLS. Duplicates are included for everyone since
+      // 2026-08-13 — the dossier must show the copy the agent is settling.
+      const ciOrderQuery = adminClient
         .from("orders")
         .select("id, display_id, status, price, product_name, customer_name, customer_phone, customer_city, customer_address, assigned_agent_name, created_at, source_type, order_items(id, product_name, quantity, price_per_unit, total_price)")
         .in("customer_phone", candidateList)
         .order("created_at", { ascending: false })
         .limit(100);
-      if (!isAdminOrManager) ciOrderQuery = ciOrderQuery.is("duplicated_from", null);
       const { data: orders } = await ciOrderQuery;
 
       // Find all prediction leads matching this phone

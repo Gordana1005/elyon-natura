@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { apiGetOrder, apiGetOrders, apiCreateOrder, apiUpdateOrderStatus, apiReleaseActiveView, apiLookupPersonalHold, apiReleasePersonalHold, apiLogCall, apiGetMyPendingsSummary, apiGetOpenLead, type CancellationReason, type TrashReason } from '@/lib/api';
+import { apiGetOrder, apiGetOrders, apiCreateOrder, apiUpdateOrderStatus, apiReleaseActiveView, apiLookupPersonalHold, apiReleasePersonalHold, apiLogCall, apiGetMyPendingsSummary, apiGetOpenLead, apiGetMyCallObligation, apiRegisterCallObligation, type CancellationReason, type TrashReason, type OpenLead } from '@/lib/api';
 import { cancelReasonLabel } from '@/lib/cancellationReasons';
 import { useTranslation } from 'react-i18next';
 import { useVoip, type LinkedContext } from '@/contexts/VoipContext';
@@ -109,6 +109,13 @@ export default function CallsPage() {
     existingOrderId?: string; // set = complete this pending order in place (lead confirm)
   }>({ open: false });
   const [currentSource, setCurrentSource] = useState<'pending' | 'prediction' | 'manual' | null>(() => restored?.currentSource ?? null);
+  // The client the agent opened BY HAND — search bar "Open in Calls", Personal
+  // List, Call Again. ONLY these owe a mandatory answer (operator rule
+  // 2026-08-13). The queues (prediction lists and Pendings) are exempt in BOTH
+  // directions: they never create a debt, and a standing debt never stops the
+  // queue serving the next customer. `currentSource === 'manual'` cannot be used
+  // for this — the manual dial input sets it too.
+  const [handOpenedPhone, setHandOpenedPhone] = useState<string | null>(null);
   const [currentPendingOrderId, setCurrentPendingOrderId] = useState<string | null>(() => restored?.currentPendingOrderId ?? null);
   const isMobile = useIsMobile();
 
@@ -281,6 +288,10 @@ export default function CallsPage() {
     setSelectedPhone(fromUrl);
     queueCurrentPhone.current = null; // detach from any queue
     autoPickedRef.current = true; // suppress auto-pick
+    // Opened BY HAND (search bar "Open in Calls", Personal List, Call Again) —
+    // this is the only entry point that owes a mandatory answer. The dial input
+    // and the queues deliberately do not set this.
+    setHandOpenedPhone(fromUrl);
     setCurrentSource('manual');
     setCurrentPendingOrderId(null);
     // Strip the param so a manual refresh doesn't reopen the same customer.
@@ -376,11 +387,12 @@ export default function CallsPage() {
     [ordersData]
   );
 
-  const handleDial = () => {
+  const handleDial = async () => {
     if (!phoneReady) {
       toast({ title: t('callsPage.enterPhone'), description: t('callsPage.enterPhoneDesc'), variant: 'destructive' });
       return;
     }
+    if (!(await guardDialObligation(selectedPhone))) return;
     startCall(selectedPhone, linkedContext);
   };
 
@@ -388,7 +400,7 @@ export default function CallsPage() {
   // the agent's secondary caller-ID (falls back to primary). Works for brand-new
   // numbers not tied to any order — those log as standalone calls. Also loads the
   // number as the active customer so any history shows alongside the call.
-  const submitManualPhone = () => {
+  const submitManualPhone = async () => {
     const next = manualPhoneDraft.trim();
     if (!next) return;
     if (next.replace(/\D/g, '').length < 6) {
@@ -396,6 +408,7 @@ export default function CallsPage() {
       return;
     }
     if (state !== 'idle') return;
+    if (!(await guardDialObligation(next))) return;
     setSelectedPhone(next);
     queueCurrentPhone.current = null; // detach from queue lock
     setCurrentSource('manual');
@@ -601,22 +614,110 @@ export default function CallsPage() {
   // so a miss falls back to a direct server lookup before we ever create.
   // (`POST /orders` refuses to fork anyway — this just keeps the UX seamless
   // rather than showing the agent a 409.)
-  const resolveOpenLeadId = useCallback(async (phone: string): Promise<string | null> => {
-    const key = normalizePhoneKey(phone || '');
-    if (!key) return null;
-    const local = pendingOrders.find((o: any) => normalizePhoneKey(o.customer_phone || '') === key);
-    if (local) return local.id;
-    // Not in my queue — ask the server, which looks WITHOUT an agent filter.
-    // A manager handing a client to another agent is routine, and the receiving
-    // agent must close out the order that already exists; scoping this to the
-    // caller is what made Confirm fall through to creating a second order.
+  // Every open order for this phone, newest first. Since duplicates became
+  // workable a customer can have a pending lead AND a duplicate at the same time,
+  // so the caller must let the agent pick rather than guess — BG confirmed the
+  // ORIGINAL because the queue row silently won (2026-08-12).
+  //
+  // Deliberately server-only: the local `pendingOrders` shortcut this replaced
+  // returned the queue row without ever learning about a second open order, which
+  // is exactly how the wrong order got confirmed.
+  const resolveOpenLeads = useCallback(async (phone: string): Promise<OpenLead[]> => {
+    if (!phone) return [];
     try {
-      const { lead } = await apiGetOpenLead(phone);
-      return lead?.id ?? null;
+      const { leads, lead } = await apiGetOpenLead(phone);
+      if (leads?.length) return leads;
+      return lead ? [lead] : [];
     } catch {
-      return null;
+      return [];
     }
-  }, [pendingOrders, normalizePhoneKey]);
+  }, []);
+
+  // ── Which open order does this outcome act on? ──
+  // 0 open orders → null (caller creates a record). Exactly 1 → that one.
+  // More than 1 → park the action and ask; the dialog resumes it with the
+  // agent's pick. `intent` is only used to word the dialog.
+  const [orderChoice, setOrderChoice] = useState<
+    { leads: OpenLead[]; intent: 'confirm' | 'cancel' | 'trash'; resolve: (id: string | null) => void } | null
+  >(null);
+  const chooseOpenOrder = useCallback(async (
+    phone: string,
+    intent: 'confirm' | 'cancel' | 'trash',
+  ): Promise<string | null> => {
+    const leads = await resolveOpenLeads(phone);
+    if (leads.length === 0) return null;
+    if (leads.length === 1) return leads[0].id;
+    return new Promise<string | null>((resolve) => setOrderChoice({ leads, intent, resolve }));
+  }, [resolveOpenLeads]);
+
+  // ── Mandatory answer per HAND-OPENED client (operator rule 2026-08-13) ──
+  // A client the agent opens themselves — search bar "Open in Calls", Personal
+  // List, Call Again — is registered server-side, and the agent owes an answer
+  // for it. The server keeps the FIRST unanswered one; trying to open ANOTHER
+  // hand-picked client snaps the screen back with "handle this one first".
+  // Survives refresh and re-login. Admins/managers browse freely.
+  //
+  // SCOPE IS THE WHOLE POINT (operator, 2026-08-13): the queues — prediction
+  // lists and Pendings — are exempt in BOTH directions. A queue customer never
+  // creates a debt, and an outstanding debt never blocks the queue from serving
+  // the next customer. Registering every client that merely lands on the screen
+  // is what would have stopped agents opening anyone from the search bar at all.
+  const obligationExempt = isAdminOrManager;
+  const { data: obligationData } = useQuery({
+    queryKey: ['call-obligation', user?.id],
+    queryFn: apiGetMyCallObligation,
+    enabled: !!user && !obligationExempt,
+    staleTime: 15_000,
+  });
+  const obligation = obligationData?.obligation ?? null;
+  const refreshObligation = useCallback(
+    () => qc.invalidateQueries({ queryKey: ['call-obligation'] }),
+    [qc],
+  );
+
+  // Gate + register at the moment the agent presses CALL — never on display.
+  // Returns false when the call must not start because an answer is owed for a
+  // DIFFERENT hand-picked client.
+  //
+  // Deliberately keyed on the dial, not on the screen: registering whatever was
+  // being displayed locked agents out of the search bar as soon as the queue
+  // auto-served the next customer ("finish this client first", with no way to
+  // call anybody). Browsing is free; committing to a call is the promise.
+  const guardDialObligation = useCallback(async (phone: string): Promise<boolean> => {
+    if (!user || obligationExempt) return true;
+    const key = normalizePhoneKey(phone || '');
+    if (!key || key.length < 8) return true;
+    // Queue customers (prediction lists + Pendings) never create a debt and are
+    // never blocked by one — operator rule 2026-08-13.
+    if (normalizePhoneKey(handOpenedPhone || '') !== key) return true;
+    try {
+      const { obligation: standing } = await apiRegisterCallObligation(phone, 'hand_opened');
+      qc.setQueryData(['call-obligation', user.id], { obligation: standing ?? null });
+      if (standing && normalizePhoneKey(standing.customer_phone) !== key) {
+        toast({
+          title: t('callsPage.finishCurrentFirst'),
+          description: t('callsPage.finishCurrentFirstDesc'),
+          variant: 'destructive',
+        });
+        return false;
+      }
+    } catch { /* never block a call on a network hiccup */ }
+    return true;
+  }, [user, obligationExempt, handOpenedPhone, normalizePhoneKey, qc, toast, t]);
+
+  // Refreshing or re-logging in must not shake off the debt: with nothing on
+  // screen yet, the owed client is restored before the queue picks anyone.
+  useEffect(() => {
+    if (obligationExempt || !obligation) return;
+    if (!selectedPhone) {
+      autoPickedRef.current = true;   // the debt outranks the queue's auto-pick
+      queueCurrentPhone.current = null;
+      setCurrentSource('manual');
+      setHandOpenedPhone(obligation.customer_phone);
+      setSelectedPhone(obligation.customer_phone);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [obligation, obligationExempt, selectedPhone]);
 
   // Confirm-from-call → CreateOrderModal pre-filled with the call's phone.
   // If that phone IS a live lead, complete the existing order instead of
@@ -626,7 +727,9 @@ export default function CallsPage() {
     const phone = pendingConfirm.phone;
     clearPendingConfirm();
     void (async () => {
-      const existingOrderId = await resolveOpenLeadId(phone || '');
+      // Same which-order rule as the Choose Answer buttons: with several open
+      // orders (pending lead + duplicate) the agent picks, never the code.
+      const existingOrderId = await chooseOpenOrder(phone || '', 'confirm');
       setCreateOrderProps({
         open: true,
         phone,
@@ -700,12 +803,13 @@ export default function CallsPage() {
     qc.invalidateQueries({ queryKey: ['calls-page-orders', phone] });
     qc.invalidateQueries({ queryKey: ['customer-history', phone] });
     qc.invalidateQueries({ queryKey: ['customer-intelligence', phone] });
+    refreshObligation();
     if (currentSource === 'prediction' && activeListId && phone === queueCurrentPhone.current) {
       void markAfterCall(activeListId, phone, queueOutcome, retryMs ? { retryMs } : undefined);
     }
     setPendingAdvance(null);
     advanceQueue(phone);
-  }, [qc, currentSource, activeListId, markAfterCall, advanceQueue]);
+  }, [qc, currentSource, activeListId, markAfterCall, advanceQueue, refreshObligation]);
 
   // Confirmed → open the order modal (status forced confirmed there).
   // A customer with an actionable pending order (a lead) gets the SAME modal,
@@ -714,10 +818,12 @@ export default function CallsPage() {
   // sparse webhook row went straight to confirmed with no products/address.
   const handleAnswerConfirmed = useCallback(async () => {
     if (!phoneReady) return;
-    const pendingId =
-      currentPendingOrderId
-      || activePendingOrder?.id
-      || await resolveOpenLeadId(selectedPhone);
+    // Ask the server first: the queue row is NOT authoritative once a customer can
+    // have several open orders (pending lead + duplicate). Only fall back to the
+    // remembered/queue id when there is exactly one — chooseOpenOrder returns null
+    // for none and prompts for more than one.
+    const chosen = await chooseOpenOrder(selectedPhone, 'confirm');
+    const pendingId = chosen ?? currentPendingOrderId ?? activePendingOrder?.id ?? null;
     if (pendingId && !currentPendingOrderId) {
       // Phone-matched lead: remember it so advanceQueue's pickNextPending
       // exclusion works after the modal confirms it.
@@ -728,7 +834,7 @@ export default function CallsPage() {
       phone: selectedPhone,
       ...(pendingId ? { existingOrderId: pendingId } : {}),
     });
-  }, [phoneReady, selectedPhone, currentPendingOrderId, activePendingOrder, resolveOpenLeadId]);
+  }, [phoneReady, selectedPhone, currentPendingOrderId, activePendingOrder, chooseOpenOrder]);
 
   // Fetch this customer's recent orders fresh so the recorded name + product
   // always match the customer on screen (not a lagging memo). Returns the
@@ -752,8 +858,8 @@ export default function CallsPage() {
     // manager is invisible to this agent's RLS view, and without this the cancel
     // landed on a brand-new synthetic row while the real lead stayed open
     // forever (the orphaned-outcome bug).
-    const pendingId =
-      currentPendingOrderId || activePendingOrder?.id || await resolveOpenLeadId(phone);
+    const chosen = await chooseOpenOrder(phone, 'cancel');
+    const pendingId = chosen ?? currentPendingOrderId ?? activePendingOrder?.id ?? null;
     if (pendingId) {
       try {
         await apiUpdateOrderStatus(pendingId, 'cancelled', {
@@ -766,6 +872,7 @@ export default function CallsPage() {
         qc.invalidateQueries({ queryKey: ['calls-page-orders', phone] });
         qc.invalidateQueries({ queryKey: ['customer-history', phone] });
         qc.invalidateQueries({ queryKey: ['customer-intelligence', phone] });
+        refreshObligation();
         try { await apiReleaseActiveView(phone); } catch { /* best effort */ }
         setPendingAdvance(null);
         advanceQueue(phone);
@@ -797,7 +904,7 @@ export default function CallsPage() {
     } catch (err: any) {
       toast({ title: t('callsPage.cancellationFailed'), description: err?.message, variant: 'destructive' });
     }
-  }, [selectedPhone, currentPendingOrderId, activePendingOrder, resolveOpenLeadId, resolveCustomerForRecord, toast, finishOutcome, qc, user?.id, advanceQueue]);
+  }, [selectedPhone, currentPendingOrderId, activePendingOrder, chooseOpenOrder, resolveCustomerForRecord, toast, finishOutcome, qc, user?.id, advanceQueue]);
 
   // Trash → record a trashed order with a STRUCTURED reason (orders.trash_reason)
   // + optional free-text note. Works for both a live pending order and the
@@ -809,8 +916,8 @@ export default function CallsPage() {
     const trashNotes = (notes || '').trim() || undefined;
     // Same server-backed lookup as Cancel — trash the lead that exists, never a
     // synthetic row beside it.
-    const pendingId =
-      currentPendingOrderId || activePendingOrder?.id || await resolveOpenLeadId(phone);
+    const chosen = await chooseOpenOrder(phone, 'trash');
+    const pendingId = chosen ?? currentPendingOrderId ?? activePendingOrder?.id ?? null;
     if (pendingId) {
       try {
         await apiUpdateOrderStatus(pendingId, 'trashed', {
@@ -823,6 +930,7 @@ export default function CallsPage() {
         qc.invalidateQueries({ queryKey: ['calls-page-orders', phone] });
         qc.invalidateQueries({ queryKey: ['customer-history', phone] });
         qc.invalidateQueries({ queryKey: ['customer-intelligence', phone] });
+        refreshObligation();
         setPendingAdvance(null);
         advanceQueue(phone);
         return;
@@ -850,7 +958,7 @@ export default function CallsPage() {
     } catch (err: any) {
       toast({ title: t('callsPage.recordFailed'), description: err?.message, variant: 'destructive' });
     }
-  }, [selectedPhone, currentPendingOrderId, activePendingOrder, resolveOpenLeadId, resolveCustomerForRecord, toast, finishOutcome, qc, user?.id, advanceQueue]);
+  }, [selectedPhone, currentPendingOrderId, activePendingOrder, chooseOpenOrder, resolveCustomerForRecord, toast, finishOutcome, qc, user?.id, advanceQueue]);
 
   // Didn't Answer → log a no-answer call and let the server own the lifecycle:
   // it parks the customer ~1 day (prediction member hold + pending-order
@@ -877,12 +985,13 @@ export default function CallsPage() {
       qc.invalidateQueries({ queryKey: ['customer-intelligence', phone] });
       qc.invalidateQueries({ queryKey: ['my-queue-summary'] });
       qc.invalidateQueries({ queryKey: ['my-queue-members'] });
+      refreshObligation();
       setPendingAdvance(null);
       advanceQueue(phone);
     } catch (err: any) {
       toast({ title: t('callsPage.noAnswerFailed'), description: err?.message, variant: 'destructive' });
     }
-  }, [selectedPhone, toast, qc, user?.id, advanceQueue]);
+  }, [selectedPhone, toast, qc, user?.id, advanceQueue, refreshObligation]);
 
   // When an order is created from the modal, immediately mark the current
   // queue member done (mapping the chosen status → queue outcome) and advance
@@ -934,6 +1043,7 @@ export default function CallsPage() {
     qc.invalidateQueries({ queryKey: ['calls-page-orders', phone] });
     qc.invalidateQueries({ queryKey: ['customer-history', phone] });
     qc.invalidateQueries({ queryKey: ['customer-intelligence', phone] });
+    refreshObligation();
 
     if (activeListId && phone === queueCurrentPhone.current) {
       void markAfterCall(activeListId, phone, queueOutcome);
@@ -941,7 +1051,7 @@ export default function CallsPage() {
     // Clear any pending "Next customer" banner from a prior call end and jump.
     setPendingAdvance(null);
     advanceQueue(phone);
-  }, [createOrderProps.phone, createOrderProps.isManual, createOrderProps.existingOrderId, selectedPhone, activeListId, markAfterCall, advanceQueue, qc, user?.id]);
+  }, [createOrderProps.phone, createOrderProps.isManual, createOrderProps.existingOrderId, selectedPhone, activeListId, markAfterCall, advanceQueue, qc, user?.id, refreshObligation]);
 
   // Topbar controls (next to the "Calls" title): the manual dial input and the
   // queue picker. The queue shows for ANYONE with assigned lists — agents
@@ -969,13 +1079,13 @@ export default function CallsPage() {
                 inputMode="tel"
                 value={manualPhoneDraft}
                 onChange={(e) => setManualPhoneDraft(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { submitManualPhone(); setDialOpen(false); } }}
+                onKeyDown={(e) => { if (e.key === 'Enter') { void submitManualPhone(); setDialOpen(false); } }}
                 placeholder={t('callsPage.phoneNumber')}
                 className="font-mono"
               />
               <DialogFooter>
                 <Button
-                  onClick={() => { submitManualPhone(); setDialOpen(false); }}
+                  onClick={() => { void submitManualPhone(); setDialOpen(false); }}
                   disabled={state !== 'idle' || !manualPhoneDraft.trim()}
                   className="w-full gap-1.5"
                 >
@@ -1043,13 +1153,13 @@ export default function CallsPage() {
           <Input
             value={manualPhoneDraft}
             onChange={(e) => setManualPhoneDraft(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') submitManualPhone(); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') void submitManualPhone(); }}
             placeholder={t('callsPage.dialNewNumber')}
             className="h-6 text-xs font-mono border-0 shadow-none focus-visible:ring-0 px-1 bg-transparent w-36"
           />
           <Button
             size="sm"
-            onClick={submitManualPhone}
+            onClick={() => { void submitManualPhone(); }}
             disabled={state !== 'idle' || !manualPhoneDraft.trim()}
             variant="outline"
             className="h-6 gap-1 text-[10px] px-1.5"
@@ -1101,7 +1211,7 @@ export default function CallsPage() {
   const dialButton = phoneReady && state === 'idle' ? (
     <Button
       size="sm"
-      onClick={handleDial}
+      onClick={() => { void handleDial(); }}
     >
       <Phone className="h-3.5 w-3.5" /> {t('callsPage.dialBtn', { phone: selectedPhone })}
     </Button>
@@ -1178,16 +1288,28 @@ export default function CallsPage() {
           // Scripts & Helpers are a coaching aid — shown to EVERYONE on Calls
           // (prediction agents, pending/inbound agents, managers, admins), so
           // showScripts is always on here.
-          <ClientProfileCard
-            phone={selectedPhone}
-            onOpenOrder={openOrderById}
-            onClaimedToPersonalList={handleClaimedToPersonalList}
-            onCustomerUpdated={handleCustomerUpdated}
-            callAction={dialButton}
-            toolbar={actionBar}
-            avgPackagePrice={currentAvgPackagePrice}
-            showScripts
-          />
+          <div className="space-y-2">
+            {/* Shown only while the client ON SCREEN is the one owed — on a queue
+                customer there is no debt to announce, and saying so there would be
+                a lie. Opened by hand = must be settled (no answer / cancel /
+                confirm / …). Server-backed, so a refresh brings them back. */}
+            {!obligationExempt && obligation
+              && normalizePhoneKey(obligation.customer_phone) === normalizePhoneKey(selectedPhone || '') && (
+              <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+                {t('callsPage.mustAnswerBanner')}
+              </div>
+            )}
+            <ClientProfileCard
+              phone={selectedPhone}
+              onOpenOrder={openOrderById}
+              onClaimedToPersonalList={handleClaimedToPersonalList}
+              onCustomerUpdated={handleCustomerUpdated}
+              callAction={dialButton}
+              toolbar={actionBar}
+              avgPackagePrice={currentAvgPackagePrice}
+              showScripts
+            />
+          </div>
         )}
       </div>
 
@@ -1206,6 +1328,7 @@ export default function CallsPage() {
           qc.invalidateQueries({ queryKey: ['customer-intelligence', selectedPhone] });
           qc.invalidateQueries({ queryKey: ['calls-page-pendings', user?.id] });
           qc.invalidateQueries({ queryKey: ['my-pendings-summary', user?.id] });
+          refreshObligation();
         }}
         data={orderModalData}
         contextType="order"
@@ -1223,6 +1346,55 @@ export default function CallsPage() {
           ? t('callsPage.completeOrderTitle', { phone: createOrderProps.phone || '' })
           : t('callsPage.confirmOrderTitle', { phone: createOrderProps.phone || '' })}
       />
+
+      {/* Which order? Only ever shown when the customer really has more than one
+          open order (a pending lead AND a duplicate). Before this the flow silently
+          took the queue row, so an agent editing "the duplicate" confirmed the
+          ORIGINAL without ever seeing it (BG, 2026-08-12). */}
+      <Dialog
+        open={!!orderChoice}
+        onOpenChange={(o) => { if (!o) { orderChoice?.resolve(null); setOrderChoice(null); } }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('callsPage.whichOrderTitle')}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{t('callsPage.whichOrderDesc')}</p>
+          <div className="flex flex-col gap-2 py-2">
+            {(orderChoice?.leads || []).map((l) => (
+              <button
+                key={l.id}
+                type="button"
+                onClick={() => { orderChoice?.resolve(l.id); setOrderChoice(null); }}
+                className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left hover:bg-accent"
+              >
+                <span className="min-w-0">
+                  <span className="font-mono text-sm font-semibold">{l.display_id}</span>
+                  {l.duplicated_from_display && (
+                    <span className="ml-2 rounded border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 text-[10px] text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/15 dark:text-indigo-300">
+                      {t('ordersPage.duplicateOf', { id: l.duplicated_from_display })}
+                    </span>
+                  )}
+                  <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                    {t(`status.${l.status}`)}
+                    {l.assigned_agent_name ? ` · ${l.assigned_agent_name}` : ''}
+                  </span>
+                </span>
+                <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+              </button>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { orderChoice?.resolve(null); setOrderChoice(null); }}
+            >
+              {t('common.cancel')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }

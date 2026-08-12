@@ -121,6 +121,11 @@ export function CreateOrderModal({
   const [deliveryHint, setDeliveryHint] = useState('');
   const [saving, setSaving] = useState(false);
   const [savingInfo, setSavingInfo] = useState(false);
+  // Which order is being completed, shown in the header. Without it the modal
+  // looked identical whether it was completing the pending lead, a duplicate, or
+  // creating a new order — which is how the wrong order got confirmed.
+  const [existingDisplayId, setExistingDisplayId] = useState<string | null>(null);
+  const [existingIsDuplicate, setExistingIsDuplicate] = useState(false);
 
   // Manual mode: when true, the agent is creating a completely free-form order
   // (phone, name, address etc. are fully editable). Only relevant when the modal
@@ -147,6 +152,8 @@ export function CreateOrderModal({
     setBirthday(undefined);
     setNotes('');
     setStatus(defaultStatus);
+    setExistingDisplayId(null);
+    setExistingIsDuplicate(false);
     setCancellationReason(null);
     setCancellationReasonNotes('');
     setDeliveryHint('');
@@ -161,9 +168,17 @@ export function CreateOrderModal({
     Promise.all([
       apiGetProducts().catch(() => []),
       phoneOk ? apiGetCustomerPrefill(prefillPhone!).catch(() => ({ profile: null, recent: [] })) : Promise.resolve({ profile: null, recent: [] }),
-      existingOrderId ? apiGetOrder(existingOrderId).catch(() => null) : Promise.resolve(null),
+      existingOrderId ? apiGetOrder(existingOrderId).catch(() => '__load_failed__') : Promise.resolve(null),
     ])
       .then(([prods, pre, existingOrder]: [any[], { profile: any; recent: any[] }, any]) => {
+        // A requested existing order that fails to load must NOT fall through to a
+        // blank create form — saving that would fork a second order beside the one
+        // we were asked to complete. Surface the failure and close instead.
+        if (existingOrderId && existingOrder === '__load_failed__') {
+          toast({ title: t('createOrder.loadExistingFailed'), variant: 'destructive' });
+          onClose();
+          return;
+        }
         const profile = pre?.profile || null;
         const recent = pre?.recent || [];
         setProducts(prods || []);
@@ -298,6 +313,8 @@ export function CreateOrderModal({
         // The lead's own data wins over the generic profile prefill, but a
         // sparse webhook lead keeps the smart prefill for whatever it lacks.
         if (existingOrder) {
+          setExistingDisplayId(existingOrder.display_id ?? null);
+          setExistingIsDuplicate(!!existingOrder.duplicated_from);
           const parseDay = (s?: string | null) => {
             if (!s) return undefined;
             const d = new Date(s.length === 10 ? `${s}T00:00:00` : s);
@@ -630,7 +647,21 @@ export function CreateOrderModal({
                   : (title || t('createOrder.createNewOrder'))}
               </h2>
               {prefillPhone && !isManualMode && (
-                <p className="text-xs font-mono text-primary">{prefillPhone}{prefilling && t('createOrder.loadingPrior')}</p>
+                <p className="text-xs font-mono text-primary">
+                  {prefillPhone}
+                  {existingDisplayId && (
+                    <>
+                      {' · '}
+                      <span className="font-semibold">{existingDisplayId}</span>
+                      {existingIsDuplicate && (
+                        <span className="ml-1 rounded border border-indigo-200 bg-indigo-50 px-1 py-0.5 text-[9px] font-sans text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/15 dark:text-indigo-300">
+                          {t('status.duplicated')}
+                        </span>
+                      )}
+                    </>
+                  )}
+                  {prefilling && t('createOrder.loadingPrior')}
+                </p>
               )}
               {isManualMode && (
                 <p className="text-xs text-amber-700">{t('createOrder.manualModeDesc')}</p>

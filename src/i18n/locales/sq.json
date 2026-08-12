@@ -1297,7 +1297,8 @@
     "internalNotes": "Shënime të brendshme...",
     "whatHappened": "Çfarë ndodhi? *",
     "saveInfo": "Ruaj të dhënat",
-    "saveInfoTitle": "Ruaj të dhënat e klientit (ditëlindja, adresa, shënimet) pa krijuar porosi"
+    "saveInfoTitle": "Ruaj të dhënat e klientit (ditëlindja, adresa, shënimet) pa krijuar porosi",
+    "loadExistingFailed": "Porosia nuk u ngarkua dot — provoni përsëri"
   },
   "ordersPage": {
     "orderLocked": "Porosia është e kyçur",
@@ -1561,7 +1562,12 @@
     "noAssignedDesc": "Nuk ke një klient të caktuar për momentin. Shkruaj një numër telefoni në shiritin e sipërm për të telefonuar një klient specifik, ose prit që të të caktohet një listë.",
     "activeCallInProgress": "Thirrje aktive në proces — shih widget-in më poshtë.",
     "confirmOrderTitle": "Konfirmo porosinë — {{phone}}",
-    "completeOrderTitle": "Plotëso porosinë — {{phone}}"
+    "completeOrderTitle": "Plotëso porosinë — {{phone}}",
+    "whichOrderTitle": "Cila porosi?",
+    "whichOrderDesc": "Ky klient ka më shumë se një porosi të hapur. Zgjidhni atë në të cilën po punoni.",
+    "finishCurrentFirst": "Përfundoni fillimisht këtë klient",
+    "finishCurrentFirstDesc": "E hapët këtë klient pa regjistruar një përgjigje. Zgjidhni një përgjigje (Pa përgjigje, Anulo, Konfirmo…) para se të kaloni te një klient tjetër.",
+    "mustAnswerBanner": "Duhet të regjistroni një përgjigje për këtë klient para se të hapni një tjetër — „Pa përgjigje“ gjithashtu llogaritet."
   },
   "scriptsPanel": {
     "title": "Skriptet & ndihmësit e thirrjeve",

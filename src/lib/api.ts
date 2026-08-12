@@ -304,8 +304,13 @@ export interface OpenLead {
   assigned_agent_id: string | null;
   assigned_agent_name: string | null;
   source_type: string | null;
+  duplicated_from_display?: string | null;
 }
-export const apiGetOpenLead = (phone: string): Promise<{ lead: OpenLead | null }> =>
+// `leads` lists EVERY open order for the phone — a customer can have a pending
+// lead AND a duplicate at once. `lead` is the newest, kept so older bundles still
+// in a browser keep working. When leads.length > 1 the caller MUST let the agent
+// choose, or the outcome lands on the wrong order.
+export const apiGetOpenLead = (phone: string): Promise<{ lead: OpenLead | null; leads?: OpenLead[] }> =>
   apiFetch(`orders/open-lead?phone=${encodeURIComponent(phone)}`);
 
 // Bulk trash / cancel WITH a reason (Orders page action bar). Deliberately
@@ -806,6 +811,22 @@ export interface LogCallBody {
 
 export const apiLogCall = (body: LogCallBody) =>
   apiFetch('call-logs', { method: 'POST', body: JSON.stringify(body) });
+
+// Mandatory answer per opened client: registering returns the STANDING obligation
+// when the agent already owes one (the first unanswered client wins) — a mismatch
+// is the signal to snap back to it. Released server-side by any outcome path.
+export interface CallObligation {
+  agent_id: string;
+  customer_phone: string;
+  customer_name: string | null;
+  source: string;
+  created_at: string;
+}
+export const apiRegisterCallObligation = (customer_phone: string, source?: string, customer_name?: string): Promise<{ obligation: CallObligation | null; exempt?: boolean }> =>
+  apiFetch('call-obligations', { method: 'POST', body: JSON.stringify({ customer_phone, source, customer_name }) });
+export const apiGetMyCallObligation = (): Promise<{ obligation: CallObligation | null; exempt?: boolean }> =>
+  apiFetch('call-obligations/mine');
+
 export const apiGetCallLogs = (contextType: string, contextId: string) =>
   apiFetch(`call-logs/${contextType}/${contextId}`);
 

@@ -1297,7 +1297,8 @@
     "internalNotes": "Internal notes...",
     "whatHappened": "What happened? *",
     "saveInfo": "Save Info",
-    "saveInfoTitle": "Save customer info (birthday, address, notes) without creating an order"
+    "saveInfoTitle": "Save customer info (birthday, address, notes) without creating an order",
+    "loadExistingFailed": "Could not load the order — please try again"
   },
   "ordersPage": {
     "orderLocked": "Order is locked",
@@ -1561,7 +1562,12 @@
     "noAssignedDesc": "You don't have an assigned customer at the moment. Type a phone number in the topbar to dial a specific customer, or wait for a list to be assigned to you.",
     "activeCallInProgress": "Active call in progress — see the widget below.",
     "confirmOrderTitle": "Confirm Order — {{phone}}",
-    "completeOrderTitle": "Complete Order — {{phone}}"
+    "completeOrderTitle": "Complete Order — {{phone}}",
+    "whichOrderTitle": "Which order?",
+    "whichOrderDesc": "This customer has more than one open order. Pick the one you are working on.",
+    "finishCurrentFirst": "Finish this client first",
+    "finishCurrentFirstDesc": "You opened this client without recording an answer. Choose an answer (No Answer, Cancel, Confirm…) before moving to another client.",
+    "mustAnswerBanner": "You must record an answer for this client before opening another one — No Answer counts too."
   },
   "scriptsPanel": {
     "title": "Call Scripts & Helpers",

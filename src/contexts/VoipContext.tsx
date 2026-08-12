@@ -325,9 +325,29 @@ export function VoipProvider({ children }: { children: ReactNode }) {
       // pressed End). Falls back to "now" only for paths that finalize without
       // a prior hangup (cancelCall during dialing).
       const endedMs = ending.ended_at ?? Date.now();
-      // Real WebRTC sets connected_at on SIP session establishment.
+      // Real WebRTC sets connected_at on SIP session establishment, so there it is
+      // genuine proof the customer picked up.
+      //
+      // The MOCK path (MK until the A1 trunk lands) stamps connected_at 800ms after
+      // the dial NO MATTER WHAT — nothing actually rang. Trusting it would mark
+      // every single call 'answered', so the answered-rate would read 100% forever
+      // and a real no-answer would be recorded as a conversation. While VOIP is off
+      // the agent's own outcome pick is the only honest signal, so it decides.
+      //
+      // We also don't pretend to know ring time: connected_at collapses to the dial
+      // instant, making ring_seconds 0 and talk_seconds == total_seconds. Those three
+      // columns are GENERATED ALWAYS in Postgres, so this is the only place to get
+      // it right. Interim numbers therefore mean "the agent was on this client for
+      // N seconds and says it was answered" — agent-reported handling time, not
+      // carrier-verified talk time.
+      const answeredForReal = PBX_CONFIG.useRealVoip
+        ? !!ending.connected_at
+        : outcome !== 'no_answer';
+      const connectedMs = PBX_CONFIG.useRealVoip
+        ? ending.connected_at
+        : (answeredForReal ? ending.dial_started_at : null);
       const connection_state: ConnectionState =
-        ending.connected_at ? 'answered' : (outcome === 'no_answer' ? 'no_answer' : 'failed');
+        answeredForReal ? 'answered' : (outcome === 'no_answer' ? 'no_answer' : 'failed');
       const composedNotes = [ending.notes.trim(), opts?.extraNote?.trim()]
         .filter(Boolean).join('\n');
       const linked = ending.linked_context;
@@ -341,7 +361,7 @@ export function VoipProvider({ children }: { children: ReactNode }) {
           outcome,
           notes: composedNotes || undefined,
           started_at: new Date(ending.dial_started_at).toISOString(),
-          connected_at: ending.connected_at ? new Date(ending.connected_at).toISOString() : null,
+          connected_at: connectedMs ? new Date(connectedMs).toISOString() : null,
           ended_at: new Date(endedMs).toISOString(),
           customer_phone: ending.phone,
           connection_state,

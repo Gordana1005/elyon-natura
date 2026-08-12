@@ -94,6 +94,16 @@ const ORDER_STATUS_OPTIONS = [
   { value: 'cancelled', labelKey: 'status.cancelled', color: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/30' },
 ];
 
+// Shown only while the order actually IS a duplicate, so the Select can render its
+// current value; the backend rejects setting any order TO 'duplicated', so it is
+// never offered on other orders. Without this the trigger rendered blank and a save
+// that didn't re-pick a status silently skipped the status PATCH.
+const DUPLICATED_STATUS_OPTION = {
+  value: 'duplicated',
+  labelKey: 'status.duplicated',
+  color: 'bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-500/15 dark:text-indigo-300 dark:border-indigo-500/30',
+};
+
 interface ItemLocal {
   id: string;
   product_id: string | null;
@@ -144,8 +154,19 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
   const { user } = useAuth();
   const isAdmin = user?.isAdmin || user?.isManager;
   const isLead = contextType === 'prediction_lead';
-  const statusOptions = isLead ? LEAD_STATUS_OPTIONS : ORDER_STATUS_OPTIONS;
-  const isEditable = !readOnly;
+  const statusOptions = isLead
+    ? LEAD_STATUS_OPTIONS
+    : (data?.status === 'duplicated' ? [DUPLICATED_STATUS_OPTION, ...ORDER_STATUS_OPTIONS] : ORDER_STATUS_OPTIONS);
+  // Agents work OPEN orders only — a pending lead or an unsettled duplicate.
+  // Anything already settled (confirmed / shipped / paid / cancelled / …) is
+  // read-only for them: tapping a Paid or Cancelled pill in the customer's history
+  // opens the order to LOOK at, never to rewrite (operator rule 2026-08-13). The
+  // server enforces the same rule; this keeps the UI honest instead of letting
+  // them fill in a form that will 403 on save.
+  const OPEN_ORDER_STATES = ['pending', 'take', 'call_again', 'duplicated'];
+  const settledForAgent = !isLead && !isAdmin
+    && !!data?.status && !OPEN_ORDER_STATES.includes(data.status);
+  const isEditable = !readOnly && !settledForAgent;
 
   // Script
   const [script, setScript] = useState('');
@@ -423,8 +444,11 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
     if (!data || saving) return; // prevent double-submit
     // Admins/managers manage orders without making the call — they only need
     // to pick an outcome if they actually did. For agents (or anyone editing a
-    // lead) an outcome is still required.
-    const outcomeRequired = isLead || !isAdmin;
+    // lead) an outcome is still required — EXCEPT when confirming an order
+    // (operator rule 2026-08-13): "confirmed" speaks for itself, no extra outcome
+    // click. Cancel/trash still demand an outcome + reason.
+    const isConfirmSave = !isLead && selectedStatus === 'confirmed';
+    const outcomeRequired = (isLead || !isAdmin) && !isConfirmSave;
     if (outcomeRequired && !selectedOutcome) {
       toast({ title: t('orderModal.selectOutcome'), description: t('orderModal.selectOutcomeDesc'), variant: 'destructive' });
       return;
@@ -1272,7 +1296,7 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
               <Button
                 size="sm"
                 onClick={handleSave}
-                disabled={saving || ((isLead || !isAdmin) && !selectedOutcome)}
+                disabled={saving || ((isLead || !isAdmin) && !selectedOutcome && !(!isLead && selectedStatus === 'confirmed'))}
                 className="gap-1.5"
               >
                 {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}

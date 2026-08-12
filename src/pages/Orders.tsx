@@ -212,7 +212,8 @@ export default function Orders() {
   };
 
   // Duplicate order (admin/manager only) — server creates a copy with the next
-  // ORD number and status 'duplicated'; agents never see it.
+  // ORD number and status 'duplicated'; the source order is never touched.
+  // Since 2026-08-13 the copy is a normal open order agents can settle.
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const handleDuplicateOrder = async (order: ApiOrder) => {
     if (duplicatingId) return;
@@ -468,7 +469,7 @@ export default function Orders() {
   const canDisposeOrders = !!(user?.isAdmin || user?.isManager);
   // Mirrors DISPOSABLE in POST /orders/bulk-disposition. Anything shipped and
   // beyond belongs to the warehouse Returned flow.
-  const DISPOSABLE_STATUSES = ['pending', 'take', 'call_again', 'confirmed'];
+  const DISPOSABLE_STATUSES = ['pending', 'take', 'call_again', 'duplicated', 'confirmed'];
   const [dispositionAction, setDispositionAction] = useState<'trashed' | 'cancelled' | null>(null);
   const [dispTrashReason, setDispTrashReason] = useState<TrashReason | null>(null);
   const [dispCancelReason, setDispCancelReason] = useState<CancellationReason | null>(null);
