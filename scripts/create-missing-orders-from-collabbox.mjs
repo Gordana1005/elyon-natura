@@ -237,7 +237,9 @@ for (let i = 0; i < todo.length; i += 100) {
       customer_name: d.name || '', customer_phone: d.phone,
       customer_address: d.address || '', customer_city: d.city || '',
       price: Math.round((d.goodsMkd / MKD_PER_EUR) * 100) / 100,
-      quantity: d.units > 0 ? d.units : 1,
+      // collabBox occasionally books a fractional quantity (3.1); the column is
+      // an integer, so round up — a dispatched part-unit is still a unit shipped.
+      quantity: d.units > 0 ? Math.max(1, Math.ceil(d.units)) : 1,
       status: returned ? 'returned' : 'paid',
       paid_at: returned ? null : at,
       returned_at: returned ? at : null,
@@ -265,7 +267,7 @@ for (let i = 0; i < todo.length; i += 100) {
       const p = skuMap.get(l.sku);
       if (!p) continue;
       items.push({ order_id: oid, product_id: p.id, product_name: p.name,
-        quantity: l.qty > 0 ? l.qty : 1,
+        quantity: l.qty > 0 ? Math.max(1, Math.ceil(l.qty)) : 1,
         price_per_unit: l.qty > 0 ? Math.round((l.val / l.qty / MKD_PER_EUR) * 100) / 100 : 0,
         total_price: Math.round((l.val / MKD_PER_EUR) * 100) / 100 });
     }
