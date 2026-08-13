@@ -20,12 +20,33 @@ into Elyon so the CRM is one place. **We poll them; nothing is configured on the
    structural, not a setting: mirrored orders get no `affiliate_leads` row, so
    `tg_enqueue_affiliate_postback` has nothing to fire on.
 
-   *Asked 2026-08-13: could we later push a CRM disposition back to them?* Nothing here forbids
-   it — the no-postback rule is about the **affiliate payout** drain, a different system. A
-   write-back would be new work, and the open question is on THEIR side: this bridge only ever
-   calls `comp/list.json` (read), and `docs/ALTERCPA-BRIDGE.md` records the merchant token as
-   "read-only use". **Confirm AlterCPA exposes an order-update endpoint and that the token has
-   write scope before promising this.** Do not build it speculatively.
+   *Asked 2026-08-13: could we later push a CRM disposition back to them (a "CPA" button on a
+   cancelled order)?* **Yes — their API supports it. Researched, not built. Do not build it until
+   the operator asks.** The no-postback rule above is about the **affiliate payout** drain, a
+   different system, and does not stand in the way.
+
+   Their merchant API (https://cpa.moe/en/api-comp.html) has two write endpoints on the host we
+   already read from, using the same `id={user}-{key}` credential shape as `comp/list.json`:
+   - **`comp/edit.json`** — the one we would want. Sets `status` **1-12** (the full ladder,
+     including 3 Callback and 5 Cancelled) plus **`reason`**, a cancel code **1-15** — the very
+     same numbering as our `REASON` map in `altercpa.ts`. So status + reason + note round-trips.
+   - **`comp/status.json`** — coarser: `status` is only approve / hold / cancel / trash (phase
+     level, no reason parameter), plus `comment`, `name`, `phone`, `email`, `count`, `base`.
+     Responds `{"status":"ok"}` or `{"status":"error","error":"access-denied"}`.
+
+   Three things to settle BEFORE writing any of it:
+   1. **Write scope is undocumented.** The docs say nothing about what permission a key needs for
+      writes; `access-denied` and `edit` are documented error codes. Prove it with ONE order.
+   2. **The reverse reason map is lossy and needs operator decisions.** `CANCEL_REASON_TO_CRM`
+      only ever had to go inbound. Outbound, several CRM reasons have no code on their side —
+      `no_money`, `family_refused`, `still_using_product`, `not_interested`, `will_call_back`,
+      `pending_cleanup`, `stale_pending_cleanup`. Someone must choose each mapping; do not invent
+      them. (Their 16-19 are this account's own custom codes.)
+   3. **Check the loop.** Pushing a cancel makes their phase 4, which the `status` kind reads back
+      5 minutes later. Today that converges safely — `cancelled` is in `CRM_TERMINAL` and the sync
+      never rewrites a terminal status — but note the sharp edge: the manager rule maps a phase-4
+      cancel whose reason has **no** CRM equivalent to `confirmed`. Push an unmappable reason onto
+      a non-terminal order and it would flip back. Re-verify this the day it is built.
 4. **Pendings only** (`import_scope='pending_only'`). Only phase 1/2 become orders. Phase 3/4/5
    are already decided on their side; importing them would drop finished orders into the calling
    queue and book revenue our agents never earned. They stay in the ledger as `not_pending`.
