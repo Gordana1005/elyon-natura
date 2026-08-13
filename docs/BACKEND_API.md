@@ -174,9 +174,25 @@ agent id; **no `is_completed` filter — clears done rows too**), `PATCH /segmen
 - **`include_pendings: true`** — additionally frees the agent's `status='pending'` orders (4 columns, same as `/orders/bulk-unassign`). Strictly `pending`: `take`/`call_again` mean the agent already engaged. Server‑ignored when `list_ids` is present, since pendings are not list‑scoped.
 
 ### Lead distribution
-`GET /lead-distribution-config`, `PATCH /lead-distribution-config` ⚠️, `POST /lead-distribution/auto-assign` ⚠️ — 🛡️.
-The PATCH and auto‑assign handlers reference an **undefined `userId`** (should be `user.id`) → throw → 500.
-See [AUDIT_FINDINGS.md](AUDIT_FINDINGS.md).
+`GET /lead-distribution-config`, `PATCH /lead-distribution-config`, `POST /lead-distribution/auto-assign`,
+`GET|PUT /lead-distribution/rules`, `GET|PUT /lead-distribution/participants` — 🛡️ admin/manager.
+
+The engine itself is **SQL, not TypeScript** (migration `20260921000000_lead_distribution_engine.sql`):
+`distribute_pending_leads(_limit, _dry_run, _source)` → `pick_agent_for_lead(_order_id, _extra_load)` →
+`assign_one_lead(_order_id, _by)`, with `lead_distribution_candidates()` supplying eligibility, load and
+presence. It was moved out of the edge function on 2026‑08‑13: the PostgREST 1000‑row cap silently
+truncated both the candidate pull and the load tally, the `round_robin` branch dropped the rest of a
+batch once one agent filled up, the candidate query had **no lead‑source filter**, and a per‑order
+UPDATE loop timed out before any real backlog drained.
+
+- `GET /lead-distribution-config` also returns `waiting_leads`, `assigned_today`, `last_meaningful_run`
+  and the live `candidates[]`, so the page can say *why* a run assigned nothing.
+- `POST /lead-distribution/auto-assign` body `{limit?, dry_run?}`. `dry_run: true` previews the split
+  (simulating load as it goes) and writes nothing.
+- Continuous operation is `lead_distribution_config.is_active` + the `trg_orders_auto_distribute`
+  AFTER INSERT trigger + the `lead-auto-distribute` pg_cron job (every minute).
+
+*(The old `undefined userId` → 500 defect was fixed 2026‑05‑23; the handlers now use `user.id`.)*
 
 ### Couriers & addresses
 `GET /courier-offices/cities?courier=&q=`, `GET /courier-offices?courier=&city=`,

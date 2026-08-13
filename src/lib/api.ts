@@ -1512,12 +1512,90 @@ export const apiGetCourierRates = (): Promise<CourierRate[]> => apiFetch('courie
 export const apiUpdateCourierRates = (rates: Pick<CourierRate, 'courier' | 'service' | 'deliver_cost' | 'return_cost'>[]) =>
   apiFetch('courier-rates', { method: 'PATCH', body: JSON.stringify({ rates }) });
 
-// Lead Distribution
-export const apiGetLeadDistributionConfig = () => apiFetch('lead-distribution-config');
-export const apiUpdateLeadDistributionConfig = (body: { strategy?: string; is_active?: boolean; max_leads_per_agent?: number; priority_threshold?: number }) =>
+// ── Lead Distribution ──────────────────────────────────────────────────────
+// The engine itself lives in Postgres (migration 20260921000000): the edge
+// function only starts/stops it, previews it, and runs one manual drain.
+export interface LeadDistCandidate {
+  agent_id: string;
+  full_name: string;
+  open_leads: number;
+  open_members: number;
+  effective_load: number;
+  is_online: boolean;
+  has_capacity: boolean;
+}
+export interface LeadDistRun {
+  ran_at: string;
+  source: 'cron' | 'trigger' | 'manual';
+  assigned: number;
+  considered: number;
+  skipped_reason: string | null;
+}
+export interface LeadDistConfig {
+  id: string;
+  strategy: 'round_robin' | 'load_balance' | 'priority';
+  is_active: boolean;
+  max_leads_per_agent: number;
+  /** EUR — orders.price is stored in euro, never denars. See elyon-currency. */
+  priority_threshold: number;
+  respect_online: boolean;
+  include_prediction_load: boolean;
+  participating_roles: string[];
+  working_hours_only: boolean;
+  order_direction: 'newest' | 'oldest';
+  last_run_at: string | null;
+  last_run_assigned: number;
+  waiting_leads: number;
+  assigned_today: number;
+  last_meaningful_run: LeadDistRun | null;
+  candidates: LeadDistCandidate[];
+}
+export interface LeadDistResult {
+  assigned: number;
+  considered: number;
+  skipped_reason: string | null;
+  per_agent: Record<string, number>;
+  agents: { agent_id: string; full_name: string; count: number }[];
+  dry_run: boolean;
+}
+export interface LeadDistProductRule {
+  product_id: string;
+  name: string;
+  is_active: boolean;
+  agent_ids: string[];
+}
+export interface LeadDistParticipant {
+  agent_id: string;
+  full_name: string;
+  roles: string[];
+  is_participating: boolean;
+}
+
+export const apiGetLeadDistributionConfig = (): Promise<LeadDistConfig> => apiFetch('lead-distribution-config');
+export const apiUpdateLeadDistributionConfig = (body: Partial<Pick<LeadDistConfig,
+  'strategy' | 'is_active' | 'max_leads_per_agent' | 'priority_threshold' | 'respect_online' |
+  'include_prediction_load' | 'participating_roles' | 'working_hours_only' | 'order_direction'>>) =>
   apiFetch('lead-distribution-config', { method: 'PATCH', body: JSON.stringify(body) });
-export const apiAutoAssignLeads = () =>
-  apiFetch('lead-distribution/auto-assign', { method: 'POST' });
+/** dryRun previews the split without writing anything — loads are simulated as it goes. */
+export const apiAutoAssignLeads = (opts?: { limit?: number; dryRun?: boolean }): Promise<LeadDistResult> =>
+  apiFetch('lead-distribution/auto-assign', {
+    method: 'POST',
+    body: JSON.stringify({ limit: opts?.limit, dry_run: opts?.dryRun === true }),
+  });
+export const apiGetLeadRoutingRules = (): Promise<{ products: LeadDistProductRule[] }> =>
+  apiFetch('lead-distribution/rules');
+export const apiSetLeadRoutingRule = (productId: string, agentIds: string[]) =>
+  apiFetch('lead-distribution/rules', {
+    method: 'PUT',
+    body: JSON.stringify({ product_id: productId, agent_ids: agentIds }),
+  });
+export const apiGetLeadDistParticipants = (): Promise<{ participating_roles: string[]; participants: LeadDistParticipant[] }> =>
+  apiFetch('lead-distribution/participants');
+export const apiSetLeadDistParticipant = (agentId: string, isParticipating: boolean) =>
+  apiFetch('lead-distribution/participants', {
+    method: 'PUT',
+    body: JSON.stringify({ agent_id: agentId, is_participating: isParticipating }),
+  });
 
 // Operations Center
 export const apiGetOperationsCenter = () => apiFetch('operations-center');

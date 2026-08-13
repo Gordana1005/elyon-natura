@@ -13,7 +13,12 @@ The Assigner is the control center for distributing work to agents. It combines 
 1. **Unassigned Pending Orders** — New leads that have not yet been assigned to an agent (classic flow, unaffected by segments redesign).
 2. **Prediction List Members** — Customers automatically classified by the rule engine into the **single best** list (priority + 21-day floor + winner selection). These are the high-signal "smart" follow-up leads. **Post-redesign**: exclusively one active rule-driven list per phone.
 
-### Key Screens (3 tabs on /assigner + the right-hand agents panel)
+### Key Screens (4 tabs on /assigner + the right-hand agents panel)
+
+> `/assigner` is the **manual** surface. Automatic, continuous lead distribution is a different
+> page and a different engine — see **The Lead Distribution Engine** below. The 4th tab is
+> **Call Agains** (`CallAgainsPanel.tsx`), added after this list was first written.
+
 - **Prediction Lists tab** — one expandable row per list: Distribute bar (whole/half/custom × N agents, round-robin) + inline member table feeding the cross-list basket.
 - **Pendings tab** — the UNASSIGNED pending pool with select + bulk-assign, a source filter, and a chip strip of who already holds pendings (chip → Unassign tab, focused on that agent with the pendings row open).
 - **Unassign tab** — the one-stop "who holds what, take it back" surface (see below). Replaced the old per-agent drawer.
@@ -100,6 +105,73 @@ or you erase who sold and who cancelled across the whole order history.
 agains only. A lead that didn't answer stays in its own agent's Pendings queue
 until they reach the customer — it is never handed out from there.
 
+## The Lead Distribution Engine (2026-08-13) — automatic, continuous
+
+`/lead-distribution` is the **automatic** counterpart to `/assigner`. It only ever touches
+**inbound leads on `orders`** — never prediction members.
+
+### Why it was rewritten
+It looked like a working system (three strategies, an "Enable Auto-Distribution" switch, an
+"Engine Active" badge) and had **never once run by itself**. Measured 2026-08-13: 87.311 orders,
+**80** with a real `assigned_agent_id`, all written in one manual burst on 2026-08-06 17:11 UTC.
+Nothing created on/after 08-07 had ever been assigned, while ~193 leads/day arrived and aged out
+into `cancelled`/`trashed`. Root causes, all now fixed: `is_active` was read by no code path;
+no scheduler existed; `round_robin` skipped the rest of the batch once the agent at the current
+index hit the cap (it neither assigned nor advanced `idx`); the candidate query had **no
+`LEAD_SOURCE_TYPES` filter** (breach of rules 4 and 6 — it would have dealt out `import` rows);
+and both the candidate pull and the load tally were silently capped at 1000 rows by PostgREST.
+
+### Where the logic lives — Postgres, not the edge function
+Migration `20260921000000_lead_distribution_engine.sql`. **Do not move this back into TypeScript**;
+that is exactly what caused the row caps, the timeout and the per-row UPDATE loop.
+
+| Function | Role |
+|---|---|
+| `lead_distribution_candidates()` | eligible agents + `open_leads`, `open_members`, `effective_load`, `is_online`, `has_capacity`, `last_assigned_at` |
+| `pick_agent_for_lead(_order_id, _extra_load)` | layer 1 + layer 2 for one lead; NULL when everyone is full |
+| `assign_one_lead(_order_id, _by)` | picks, then stamps the triple under `WHERE assigned_agent_id IS NULL` |
+| `distribute_pending_leads(_limit, _dry_run, _source)` | sweeper/backlog drainer; advisory-locked; writes `lead_distribution_runs` |
+| `trg_orders_auto_distribute()` | AFTER INSERT on `orders` |
+
+### The two layers — routing PREFERS, it never restricts
+1. **Routing** — `lead_routing_rules (product_id, agent_id)` is **opt-in**. A product with no rows
+   goes to everyone (the default, and what the operator wants for almost everything). A product
+   with rules prefers its specialists — but if they are all at capacity or offline the lead
+   **falls through to the whole floor**. Expressed as `ORDER BY` preference over the
+   capacity-filtered pool, which is what makes fall-through automatic. **A lead is never stranded
+   because its specialist was busy** — verified by test, do not "tighten" this into a hard filter.
+2. **Strategy** — `round_robin | load_balance | priority`, then presence, then `random()`.
+   Product routing is a **layer, not a fourth strategy**; the `strategy` CHECK constraint is
+   deliberately unchanged.
+
+`round_robin` is implemented as **"whoever has waited longest for a lead"** (`max(assigned_at)`),
+not a stored cursor: stateless, self-correcting, and structurally incapable of the old skip bug.
+
+### Continuous operation
+- **`is_active` is the Start/Stop switch** and is now law — read by both the sweeper and the trigger.
+- **Trigger** = immediacy: a new lead is owned inside its intake transaction. It **notifies nobody**
+  (193 pings/day would be noise; the agent's Pendings badge already pulses), and it swallows every
+  error — a distribution fault must never fail an AlterCPA/webhook intake.
+- **Cron** `lead-auto-distribute`, every minute, pure SQL (no `pg_net` — nothing external is called).
+  It is the safety net for anything the trigger could not place.
+- `working_hours_only` exists but **ships OFF** (operator decision): once started it runs until stopped.
+
+### Rules that must not drift
+- Load is counted with the **one canonical definition** — `pending|take|call_again` **and**
+  `is_lead_source(source_type)` — identical to `assigned_pending_counts()` and the agent's own
+  `/calls` badge (rule 6). The old engine counted every open order regardless of source.
+- `admin`/`manager` are **never** candidates. Participation is `participating_roles` (default
+  `pending_agent, agent, inbound_agent`) minus `lead_distribution_optout`. Because 39 of 40 staff
+  hold `pending_agent` and 28 also hold `prediction_agent`, **the per-agent opt-out is the control
+  that actually matters** — role filtering barely narrows anything here.
+- `priority_threshold` is **EUR** (`orders.price` is stored in euro). The old label said `($)`.
+  A typical MK order is 20-40 €, so the inherited default of 500 disables the strategy.
+- Product matching falls back to `orders.product_name` when `product_id` is NULL — AlterCPA history
+  has no `product_id` and `order_items.product_id` is nullable, so the **name** is the only key
+  that spans the whole corpus.
+- The lead-source list is now inlined in **four** places: `is_lead_source()`, the index in
+  `20260917000000`, `idx_orders_unassigned_leads`, and `LEAD_SOURCE_TYPES` in the edge function.
+
 ## Assignment Rules & Recent Changes (Important)
 
 - **Pending orders** can be unassigned more freely (even after some work).
@@ -141,7 +213,9 @@ Recent broader improvements:
 
 ## Important Files
 
-- `src/pages/AssignerPage.tsx` (3 controlled tabs, agent cards + status tiles, cross-list basket, `PredictionListRow`; the drawer is gone)
+- `src/pages/AssignerPage.tsx` (4 controlled tabs, agent cards + status tiles, cross-list basket, `PredictionListRow`; the drawer is gone)
+- `src/pages/LeadDistributionPage.tsx` — the automatic engine's Start/Stop, live status strip, settings, product-routing tab and per-agent participation toggles
+- `supabase/migrations/20260921000000_lead_distribution_engine.sql` — **the engine itself**
 - `src/components/assigner/` folder:
   - `BulkUnassignPanel.tsx` — the Unassign tab (summary query, agent rows, confirm dialog, `focus` prop for jump-to-agent, shared `invalidateAll()`)
   - `AgentListMembersRow.tsx` — expandable per-(agent, list) client rows + per-client unassign + 403 handling
@@ -149,7 +223,8 @@ Recent broader improvements:
   - `SegmentMemberTable.tsx` (Avg / pkg dual-currency column), `AgentPickerChips.tsx`, `CrossListBasketBar.tsx`
 - API layer (`src/lib/api.ts`): `apiGetUnassignedPending`, `apiBulkAssignOrders`, `apiBulkUnassignOrders`, `apiGetSegment`, `apiAssignSegmentMembers`, `apiBulkUnassignSegment`, `apiAutoAssignSegment`, `apiGetAssignmentSummary`, `apiUnassignAllForAgent(agentId, listIds?, {includePendings, includeDone})`
 - Backend: `supabase/functions/api/index.ts` — `GET /assigner/assignment-summary`, `POST /assigner/unassign-all`, `GET /agents/online`, segment member endpoints
-- RPCs: `assignment_matrix()`, `assigned_pending_counts()`, `agent_workloads()`, `bulk_last_calls()`
+- RPCs: `assignment_matrix()`, `assigned_pending_counts()`, `agent_workloads()`, `bulk_last_calls()`,
+  and the engine's `lead_distribution_candidates()` / `pick_agent_for_lead()` / `assign_one_lead()` / `distribute_pending_leads()`
 - Live agent status: `profiles.voip_state` / `voip_state_at` (migration `20260908000000`), `src/lib/voip/callStateBus.ts`, `POST /presence/heartbeat` — see **Live agent status** below
 - Related prediction data layer: `src/components/calls/useMyQueue.ts`
 
@@ -206,4 +281,12 @@ When making changes here, always think from the perspective of both the manager 
 
 ---
 
-*Last meaningful update: 2026-07-28 (commit `30f9830`) — Unassign tab became the one-stop unassign surface: full detach via `include_done`, expandable per-list/per-client rows, per-agent drawer deleted, live In call / Available / Offline status tile on the agent cards. Keep this skill, `elyon-segments-and-prediction`, `docs/PREDICTION_LISTS_PLAIN_GUIDE.md` and `docs/HOW_PREDICTION_SEGMENTS_WORK_NOW.md` in sync on any further unassign-rule change.*
+*Last meaningful update: 2026-08-13 — the Lead Distribution Engine became real: strategy logic moved
+out of the edge function into SQL (`20260921000000`), `is_active` became a genuine Start/Stop, an
+AFTER INSERT trigger plus a per-minute pg_cron sweeper made it continuous, opt-in per-product routing
+with guaranteed fall-through was added, and load counting was aligned to the one canonical lead
+definition. Previously: 2026-07-28 (commit `30f9830`) — Unassign tab became the one-stop unassign
+surface: full detach via `include_done`, expandable per-list/per-client rows, per-agent drawer
+deleted, live In call / Available / Offline status tile on the agent cards. Keep this skill,
+`elyon-segments-and-prediction`, `docs/PREDICTION_LISTS_PLAIN_GUIDE.md` and
+`docs/HOW_PREDICTION_SEGMENTS_WORK_NOW.md` in sync on any further unassign-rule change.*

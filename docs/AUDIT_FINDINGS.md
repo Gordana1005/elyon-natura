@@ -22,14 +22,18 @@ lint** so it doesn't block).
 
 ## A. Real bugs (fix these)
 
-### A1 — `lead-distribution-config` PATCH & `auto-assign` reference an undefined `userId` → 500  · **HIGH**
-`supabase/functions/api/index.ts:6852` (`updated_by: userId`) and `:6986` (`assigned_by: nameMap[userId] || userId`).
-The handler scope defines `user` (`{id,email}`), not `userId`. Referencing `userId` throws `ReferenceError`,
-caught by the top‑level try/catch → **500**. Both are wired to a live page
-([../src/pages/LeadDistributionPage.tsx](../src/pages/LeadDistributionPage.tsx)), so **saving the
-distribution config and running auto‑assign are currently broken**.
-**Fix:** replace `userId` with `user.id` in both handlers; redeploy the function. (Smoke‑test: change a
-strategy + run auto‑assign.)
+### A1 — `lead-distribution-config` PATCH & `auto-assign` reference an undefined `userId` → 500  · **HIGH** · ✅ FIXED 2026‑05‑23
+The handler scope defines `user` (`{id,email}`), not `userId`; referencing `userId` threw a
+`ReferenceError` → **500**. Both handlers now use `user.id`.
+
+**Superseded 2026‑08‑13.** Fixing the 500 only revealed that the engine had never actually worked:
+`is_active` was read by nothing, no scheduler existed, `round_robin` dropped the rest of a batch once
+one agent hit the cap, the candidate query had no lead‑source filter (it would have handed out the
+80.360 legacy `source_type='import'` rows), and both the candidate pull and the load tally were
+silently truncated at 1000 rows. In the whole 87k‑row `orders` table only **80** rows had ever been
+assigned, all in one manual burst on 2026‑08‑06. The engine was rewritten in SQL — migration
+`20260921000000_lead_distribution_engine.sql`; see [BACKEND_API.md](BACKEND_API.md#lead-distribution)
+and `.grok/skills/elyon-assigner`.
 
 ### A2 — `GET /orders/stats` is not paginated → 1000‑row truncation  · **MEDIUM**
 `index.ts:2475‑2483` does a single `from('orders').select(...)` with **no `.range()` loop**, unlike every

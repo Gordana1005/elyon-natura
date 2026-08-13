@@ -15622,10 +15622,180 @@ async function handleRequest(req: Request): Promise<Response> {
         if (seeded.error) return json({ error: sanitizeDbError(seeded.error) }, 400);
         data = seeded.data;
       }
-      return json(data);
+
+      // Everything the page needs to explain its own state. Before 2026-08-13
+      // this endpoint returned the config alone, so a screen that assigned
+      // nothing for a week still displayed "Engine Active" and gave the
+      // operator no way at all to find out why.
+      const { startISO } = skopjeDayStart();
+      const [waiting, assignedToday, candidatesRes, runsRes] = await Promise.all([
+        adminClient
+          .from("orders")
+          .select("id", { count: "exact", head: true })
+          .is("assigned_agent_id", null)
+          .eq("status", "pending")
+          .in("source_type", LEAD_SOURCE_TYPES),
+        // Counted from orders, not from run rows: the AFTER INSERT trigger
+        // assigns without writing a run row at all, so run rows would
+        // undercount exactly the continuous path this page is about.
+        adminClient
+          .from("orders")
+          .select("id", { count: "exact", head: true })
+          .gte("assigned_at", startISO)
+          .in("source_type", LEAD_SOURCE_TYPES),
+        adminClient.rpc("lead_distribution_candidates"),
+        adminClient
+          .from("lead_distribution_runs")
+          .select("ran_at, source, assigned, considered, skipped_reason")
+          .order("ran_at", { ascending: false })
+          .limit(20),
+      ]);
+
+      const runs = (runsRes.data || []) as any[];
+      const candidates = ((candidatesRes.data || []) as any[])
+        .map((c) => ({
+          agent_id: c.agent_id,
+          full_name: c.full_name,
+          open_leads: c.open_leads,
+          open_members: c.open_members,
+          effective_load: c.effective_load,
+          is_online: c.is_online,
+          has_capacity: c.has_capacity,
+        }))
+        .sort((a, b) => a.effective_load - b.effective_load || String(a.full_name).localeCompare(String(b.full_name)));
+
+      return json({
+        ...data,
+        waiting_leads: waiting.count ?? 0,
+        assigned_today: assignedToday.count ?? 0,
+        last_meaningful_run: runs[0] || null,
+        candidates,
+      });
     }
 
-    // PATCH /api/lead-distribution-config
+    // GET /api/lead-distribution/rules — the opt-in per-product specialists.
+    // A product absent from this list goes to every participating agent, which
+    // is the default and what the operator wants for almost everything.
+    if (req.method === "GET" && path === "lead-distribution/rules") {
+      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      const [prodRes, ruleRes] = await Promise.all([
+        adminClient.from("products").select("id, name, is_active").order("name", { ascending: true }),
+        adminClient.from("lead_routing_rules").select("product_id, agent_id"),
+      ]);
+      if (prodRes.error) return json({ error: sanitizeDbError(prodRes.error) }, 400);
+      if (ruleRes.error) return json({ error: sanitizeDbError(ruleRes.error) }, 400);
+      const byProduct: Record<string, string[]> = {};
+      for (const r of (ruleRes.data || []) as any[]) (byProduct[r.product_id] ||= []).push(r.agent_id);
+      return json({
+        products: (prodRes.data || []).map((p: any) => ({
+          product_id: p.id, name: p.name, is_active: p.is_active, agent_ids: byProduct[p.id] || [],
+        })),
+      });
+    }
+
+    // PUT /api/lead-distribution/rules — replace one product's specialists.
+    // Body: { product_id: uuid, agent_ids: uuid[] }  (empty array = everyone)
+    if (req.method === "PUT" && path === "lead-distribution/rules") {
+      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      let body: any;
+      try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
+      const productId = typeof body?.product_id === "string" ? body.product_id : null;
+      if (!productId) return json({ error: "product_id is required" }, 400);
+      const agentIds: string[] = Array.isArray(body?.agent_ids)
+        ? [...new Set(body.agent_ids.filter((x: any) => typeof x === "string"))] as string[]
+        : [];
+
+      const del = await adminClient.from("lead_routing_rules").delete().eq("product_id", productId);
+      if (del.error) return json({ error: sanitizeDbError(del.error) }, 400);
+      if (agentIds.length) {
+        const ins = await adminClient.from("lead_routing_rules")
+          .insert(agentIds.map((aid) => ({ product_id: productId, agent_id: aid, created_by: user.id })));
+        if (ins.error) return json({ error: sanitizeDbError(ins.error) }, 400);
+      }
+
+      await adminClient.from("audit_log").insert({
+        actor_id: user.id,
+        actor_email: user.email,
+        action: "lead_distribution.rules",
+        target_type: "lead_routing_rules",
+        target_id: productId,
+        target_name: agentIds.length ? `${agentIds.length} specialist${agentIds.length === 1 ? "" : "s"}` : "everyone",
+        payload: { product_id: productId, agent_ids: agentIds },
+      });
+      return json({ success: true, product_id: productId, agent_ids: agentIds });
+    }
+
+    // GET /api/lead-distribution/participants — every agent the engine could
+    // use, with their participation flag. Absence from lead_distribution_optout
+    // means participating, so a new hire is included without anyone acting.
+    if (req.method === "GET" && path === "lead-distribution/participants") {
+      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      const { data: cfg } = await adminClient
+        .from("lead_distribution_config").select("participating_roles").limit(1).maybeSingle();
+      const roles: string[] = cfg?.participating_roles || ["pending_agent", "agent", "inbound_agent"];
+
+      const [profRes, roleRes, outRes] = await Promise.all([
+        adminClient.from("profiles").select("user_id, full_name").eq("is_active", true),
+        adminClient.from("user_roles").select("user_id, role"),
+        adminClient.from("lead_distribution_optout").select("agent_id"),
+      ]);
+      if (profRes.error) return json({ error: sanitizeDbError(profRes.error) }, 400);
+
+      const rolesByUser: Record<string, Set<string>> = {};
+      for (const r of (roleRes.data || []) as any[]) (rolesByUser[r.user_id] ||= new Set()).add(r.role);
+      const optedOut = new Set(((outRes.data || []) as any[]).map((r) => r.agent_id));
+
+      const participants = ((profRes.data || []) as any[])
+        // Same eligibility test as lead_distribution_candidates(): a
+        // participating role, and never an admin or manager (they do not own
+        // leads — the commission rule credits the confirmer).
+        .filter((p) => {
+          const rs = rolesByUser[p.user_id];
+          if (!rs) return false;
+          if (rs.has("admin") || rs.has("manager")) return false;
+          return [...rs].some((r) => roles.includes(r));
+        })
+        .map((p) => ({
+          agent_id: p.user_id,
+          full_name: p.full_name,
+          roles: [...(rolesByUser[p.user_id] || [])],
+          is_participating: !optedOut.has(p.user_id),
+        }))
+        .sort((a, b) => String(a.full_name).localeCompare(String(b.full_name)));
+
+      return json({ participating_roles: roles, participants });
+    }
+
+    // PUT /api/lead-distribution/participants — toggle one agent on or off.
+    // Body: { agent_id: uuid, is_participating: boolean }
+    if (req.method === "PUT" && path === "lead-distribution/participants") {
+      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      let body: any;
+      try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
+      const agentId = typeof body?.agent_id === "string" ? body.agent_id : null;
+      if (!agentId) return json({ error: "agent_id is required" }, 400);
+      const participating = body?.is_participating !== false;
+
+      if (participating) {
+        const { error } = await adminClient.from("lead_distribution_optout").delete().eq("agent_id", agentId);
+        if (error) return json({ error: sanitizeDbError(error) }, 400);
+      } else {
+        const { error } = await adminClient.from("lead_distribution_optout")
+          .upsert({ agent_id: agentId, created_by: user.id }, { onConflict: "agent_id" });
+        if (error) return json({ error: sanitizeDbError(error) }, 400);
+      }
+
+      await adminClient.from("audit_log").insert({
+        actor_id: user.id,
+        actor_email: user.email,
+        action: participating ? "lead_distribution.participant_on" : "lead_distribution.participant_off",
+        target_type: "profiles",
+        target_id: agentId,
+        payload: { agent_id: agentId, is_participating: participating },
+      });
+      return json({ success: true, agent_id: agentId, is_participating: participating });
+    }
+
     // GET /api/courier-rates — the editable logistics rate card (admin/manager)
     if (req.method === "GET" && path === "courier-rates") {
       if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
@@ -15665,15 +15835,45 @@ async function handleRequest(req: Request): Promise<Response> {
       return json({ success: true });
     }
 
+    // PATCH /api/lead-distribution-config — strategy, Start/Stop, and the
+    // fairness knobs. Every field is optional; only what is sent changes.
     if (req.method === "PATCH" && path === "lead-distribution-config") {
       if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
       const body = await req.json();
-      const { strategy, is_active, max_leads_per_agent, priority_threshold } = body;
+      const {
+        strategy, is_active, max_leads_per_agent, priority_threshold,
+        respect_online, include_prediction_load, participating_roles,
+        working_hours_only, order_direction,
+      } = body;
       const updates: any = { updated_at: new Date().toISOString(), updated_by: user.id };
-      if (strategy !== undefined) updates.strategy = strategy;
-      if (is_active !== undefined) updates.is_active = is_active;
-      if (max_leads_per_agent !== undefined) updates.max_leads_per_agent = max_leads_per_agent;
-      if (priority_threshold !== undefined) updates.priority_threshold = priority_threshold;
+      if (strategy !== undefined) {
+        if (!["round_robin", "load_balance", "priority"].includes(strategy)) {
+          return json({ error: `Unknown strategy: ${strategy}` }, 400);
+        }
+        updates.strategy = strategy;
+      }
+      if (is_active !== undefined) updates.is_active = !!is_active;
+      if (max_leads_per_agent !== undefined) updates.max_leads_per_agent = Math.max(1, Math.floor(Number(max_leads_per_agent) || 50));
+      // EUR — orders.price is stored in euro. See elyon-currency.
+      if (priority_threshold !== undefined) updates.priority_threshold = Math.max(0, Number(priority_threshold) || 0);
+      if (respect_online !== undefined) updates.respect_online = !!respect_online;
+      if (include_prediction_load !== undefined) updates.include_prediction_load = !!include_prediction_load;
+      if (working_hours_only !== undefined) updates.working_hours_only = !!working_hours_only;
+      if (order_direction !== undefined) {
+        if (!["newest", "oldest"].includes(order_direction)) return json({ error: "order_direction must be newest|oldest" }, 400);
+        updates.order_direction = order_direction;
+      }
+      if (participating_roles !== undefined) {
+        const ALLOWED = ["pending_agent", "agent", "inbound_agent", "prediction_agent"];
+        const roles = Array.isArray(participating_roles)
+          ? [...new Set(participating_roles.filter((r: any) => ALLOWED.includes(r)))]
+          : [];
+        // Never let the floor be emptied by accident: an engine with no
+        // participating role can never assign anything and looks identical to
+        // one that is simply broken.
+        if (!roles.length) return json({ error: "At least one participating role is required" }, 400);
+        updates.participating_roles = roles;
+      }
 
       const { data: configs } = await adminClient.from("lead_distribution_config").select("id").limit(1);
       if (!configs?.length) return json({ error: "No config found" }, 404);
@@ -15683,146 +15883,99 @@ async function handleRequest(req: Request): Promise<Response> {
         .update(updates)
         .eq("id", configs[0].id);
       if (error) return json({ error: sanitizeDbError(error) }, 400);
+
+      // Start/Stop is the one setting worth an audit trail of its own — it is
+      // the difference between leads reaching the floor and dying unworked.
+      if (is_active !== undefined) {
+        await adminClient.from("audit_log").insert({
+          actor_id: user.id,
+          actor_email: user.email,
+          action: is_active ? "lead_distribution.start" : "lead_distribution.stop",
+          target_type: "lead_distribution_config",
+          target_id: configs[0].id,
+          payload: updates,
+        });
+      }
       return json({ success: true });
     }
 
-    // POST /api/lead-distribution/auto-assign
+    // POST /api/lead-distribution/auto-assign — drain the unassigned inbound-lead
+    // pool once, right now ("Run once now" on /lead-distribution).
+    //
+    // The strategy logic itself lives in Postgres — distribute_pending_leads()
+    // → pick_agent_for_lead() → assign_one_lead(), migration 20260921000000.
+    // It was moved out of this handler on 2026-08-13 because an edge function
+    // cannot do this job correctly: the PostgREST 1000-row cap silently
+    // truncated BOTH the candidate pull and the per-agent load tally (so
+    // max_leads_per_agent was enforced against undercounted load), the
+    // round_robin branch dropped every remaining order once one agent filled
+    // up, the candidate query had no lead-source filter (it would have handed
+    // out 80.360 legacy source_type='import' rows), and one UPDATE round-trip
+    // per order timed out long before a real backlog drained.
+    //
+    // Body: { limit?: number, dry_run?: boolean }
     if (req.method === "POST" && path === "lead-distribution/auto-assign") {
       if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
 
-      // Get config
-      const { data: config } = await adminClient
-        .from("lead_distribution_config")
-        .select("*")
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (!config) return json({ error: "No distribution config" }, 400);
+      let body: any = {};
+      try { body = await req.json(); } catch { /* body is optional */ }
+      const rawLimit = Number(body?.limit);
+      const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(Math.floor(rawLimit), 0), 5000) : 500;
+      const dryRun = body?.dry_run === true;
 
-      // Get unassigned pending orders
-      const { data: unassigned } = await adminClient
-        .from("orders")
-        .select("id, price, customer_phone")
-        .is("assigned_agent_id", null)
-        .eq("status", "pending")
-        .order("created_at", { ascending: true });
-      if (!unassigned?.length) return json({ assigned: 0, message: "No unassigned orders" });
+      const { data: runData, error: runErr } = await adminClient.rpc("distribute_pending_leads", {
+        _limit: limit,
+        _dry_run: dryRun,
+        _source: "manual",
+      });
+      if (runErr) return json({ error: sanitizeDbError(runErr) }, 400);
 
-      // Get online agents
-      const { data: allProfiles } = await adminClient
-        .from("profiles")
-        .select("user_id, full_name")
-        .eq("is_active", true);
-      const profileIds = (allProfiles || []).map((p: any) => p.user_id);
-      const { data: allAgentRoles } = await adminClient
-        .from("user_roles")
-        .select("user_id, role")
-        .in("user_id", profileIds.length > 0 ? profileIds : ["__none__"]);
-      // Assignable = holds any agent-family role AND is not a super-admin.
-      // Matches the manual Assigner's audience and the commission rule that
-      // admins/managers never own leads. (Previously this looked only at
-      // 'agent'|'prediction_agent', silently skipping every pending_agent —
-      // the bulk of the call floor — so distribution assigned nothing.)
-      const AGENT_ROLES = new Set(["agent", "pending_agent", "prediction_agent", "inbound_agent"]);
-      const rolesByUser: Record<string, Set<string>> = {};
-      for (const r of allAgentRoles || []) {
-        (rolesByUser[r.user_id] ||= new Set()).add(r.role);
-      }
-      const agentUserIds = Object.entries(rolesByUser)
-        .filter(([, rs]) => [...rs].some((x) => AGENT_ROLES.has(x)) && !rs.has("admin") && !rs.has("manager"))
-        .map(([uid]) => uid);
-      if (!agentUserIds.length) return json({ assigned: 0, message: "No agents available" });
+      const row: any = Array.isArray(runData) ? runData[0] : runData;
+      const perAgent: Record<string, number> = (row?.per_agent as Record<string, number>) || {};
+      const assigned = Number(row?.assigned || 0);
+      const considered = Number(row?.considered || 0);
+      const skippedReason: string | null = row?.skipped_reason ?? null;
 
-      // Get current load per agent
-      const { data: currentLoads } = await adminClient
-        .from("orders")
-        .select("assigned_agent_id")
-        .in("assigned_agent_id", agentUserIds)
-        .in("status", ["pending", "take", "call_again"]);
-      const loadMap: Record<string, number> = {};
-      for (const uid of agentUserIds) loadMap[uid] = 0;
-      for (const o of currentLoads || []) {
-        loadMap[o.assigned_agent_id] = (loadMap[o.assigned_agent_id] || 0) + 1;
+      // Resolve names once, for both the preview and the real run.
+      const agentIds = Object.keys(perAgent);
+      let agents: { agent_id: string; full_name: string; count: number }[] = [];
+      if (agentIds.length) {
+        const { data: profs } = await adminClient
+          .from("profiles").select("user_id, full_name").in("user_id", agentIds);
+        const nameById = new Map((profs || []).map((p: any) => [p.user_id, p.full_name as string]));
+        agents = agentIds
+          .map((id) => ({ agent_id: id, full_name: nameById.get(id) || "", count: Number(perAgent[id] || 0) }))
+          .sort((a, b) => b.count - a.count || a.full_name.localeCompare(b.full_name));
       }
 
-      // Name map
-      const nameMap: Record<string, string> = {};
-      for (const p of allProfiles || []) nameMap[p.user_id] = p.full_name;
+      if (!dryRun && assigned > 0) {
+        await adminClient.from("audit_log").insert({
+          actor_id: user.id,
+          actor_email: user.email,
+          action: "lead_distribution.run",
+          target_type: "orders",
+          target_name: `${assigned} lead${assigned === 1 ? "" : "s"} → ${agentIds.length} agent${agentIds.length === 1 ? "" : "s"}`,
+          payload: { assigned, considered, per_agent: perAgent, source: "manual", limit },
+        });
 
-      // Filter out agents at max capacity
-      const availableAgents = agentUserIds.filter(id => loadMap[id] < config.max_leads_per_agent);
-      if (!availableAgents.length) return json({ assigned: 0, message: "All agents at max capacity" });
-
-      let assignments: { orderId: string; agentId: string }[] = [];
-      const strategy = config.strategy;
-
-      if (strategy === "round_robin") {
-        let idx = 0;
-        for (const order of unassigned) {
-          if (idx >= availableAgents.length) idx = 0;
-          const agentId = availableAgents[idx];
-          if (loadMap[agentId] < config.max_leads_per_agent) {
-            assignments.push({ orderId: order.id, agentId });
-            loadMap[agentId]++;
-            idx++;
+        // One summary ping per agent who actually received leads (never
+        // one-per-lead). The continuous trigger path deliberately notifies
+        // NOBODY: ~193 leads a day would be pure noise, and the agent's
+        // Pendings badge on /calls already pulses when work arrives.
+        for (const [aid, cnt] of Object.entries(perAgent)) {
+          if (cnt > 0 && aid !== user.id) {
+            await notifyUsers(adminClient, [aid], {
+              type: "assignment",
+              title: "New leads assigned to you",
+              message: `${cnt} new lead${cnt === 1 ? "" : "s"} assigned to you — open Calls to work your Pendings queue.`,
+              link: "/calls",
+              meta: { i18n: "notif.leadsAssigned", count: cnt },
+            });
           }
         }
-      } else if (strategy === "load_balance") {
-        for (const order of unassigned) {
-          // Pick agent with lowest load
-          const sorted = availableAgents
-            .filter(id => loadMap[id] < config.max_leads_per_agent)
-            .sort((a, b) => loadMap[a] - loadMap[b]);
-          if (!sorted.length) break;
-          const agentId = sorted[0];
-          assignments.push({ orderId: order.id, agentId });
-          loadMap[agentId]++;
-        }
-      } else if (strategy === "priority") {
-        // High-value orders (above threshold) go to agents with lowest load
-        // Regular orders use round-robin
-        const highValue = unassigned.filter((o: any) => Number(o.price) >= config.priority_threshold);
-        const regular = unassigned.filter((o: any) => Number(o.price) < config.priority_threshold);
-
-        // High-value: lowest load agent
-        for (const order of highValue) {
-          const sorted = availableAgents
-            .filter(id => loadMap[id] < config.max_leads_per_agent)
-            .sort((a, b) => loadMap[a] - loadMap[b]);
-          if (!sorted.length) break;
-          assignments.push({ orderId: order.id, agentId: sorted[0] });
-          loadMap[sorted[0]]++;
-        }
-
-        // Regular: round-robin
-        let idx = 0;
-        for (const order of regular) {
-          const avail = availableAgents.filter(id => loadMap[id] < config.max_leads_per_agent);
-          if (!avail.length) break;
-          if (idx >= avail.length) idx = 0;
-          assignments.push({ orderId: order.id, agentId: avail[idx] });
-          loadMap[avail[idx]]++;
-          idx++;
-        }
       }
 
-      // Execute assignments
-      let assigned = 0;
-      for (const a of assignments) {
-        const { error } = await adminClient
-          .from("orders")
-          .update({
-            assigned_agent_id: a.agentId,
-            assigned_agent_name: nameMap[a.agentId] || "",
-            assigned_at: new Date().toISOString(),
-            assigned_by: nameMap[user.id] || user.id,
-          })
-          .eq("id", a.orderId)
-          .is("assigned_agent_id", null);
-        if (!error) assigned++;
-      }
-
-      return json({ assigned, total_unassigned: unassigned.length, strategy });
+      return json({ assigned, considered, skipped_reason: skippedReason, per_agent: perAgent, agents, dry_run: dryRun });
     }
 
     // ── Operations Command Center ────────────────────────────
