@@ -1192,6 +1192,22 @@
     "leadsAssigned": {
       "title": "Ju janë caktuar lide të reja",
       "body": "{{count}} lide të reja ju janë caktuar — hapni Thirrjet për të punuar radhën Pendings."
+    },
+    "altercpaRateLeads": {
+      "title": "Etapë e lideve të partnerit",
+      "body": "Partneri {{affiliate}} — {{date}}: {{sent}} lide, {{confirmed}} të konfirmuara, {{pct}}% / garanci {{target}}%"
+    },
+    "altercpaRateConfirms": {
+      "title": "Konfirmime të partnerit",
+      "body": "Partneri {{affiliate}} — kohorta {{date}}: {{confirmed}}/{{sent}} të konfirmuara, {{pct}}% / garanci {{target}}%"
+    },
+    "altercpaRateBelowDay": {
+      "title": "Partneri nën garanci sot",
+      "body": "Partneri {{affiliate}} e mbylli {{date}} me {{pct}}% ({{confirmed}}/{{sent}}) — nën garancinë {{target}}%. Konfirmimet e vona ende mund ta ngrenë."
+    },
+    "altercpaRateBelowFinal": {
+      "title": "Partneri përfundoi nën garanci",
+      "body": "Partneri {{affiliate}} e përfundoi {{date}} me {{pct}}% ({{confirmed}}/{{sent}}) — nën garancinë {{target}}%. Kjo kohortë ka përfunduar."
     }
   },
   "bigArena": {
@@ -3298,6 +3314,30 @@
     "scope_pending_only": "Vetëm pending (rekomandohet)",
     "scope_all": "Të gjitha statuset",
     "scopeHint_pending_only": "Vetëm porositë ende të hapura tek ata (në përpunim / në pritje) bëhen porosi këtu. Ato që i kanë miratuar, anuluar ose hedhur tashmë mbeten vetëm në pasqyrë.",
-    "scopeHint_all": "Çdo porosi bëhet porosi, përfshirë ato që AlterCPA i ka mbyllur tashmë. Përdoreni vetëm për një llogari që askush nuk e punon tek ata."
+    "scopeHint_all": "Çdo porosi bëhet porosi, përfshirë ato që AlterCPA i ka mbyllur tashmë. Përdoreni vetëm për një llogari që askush nuk e punon tek ata.",
+    "tabRates": "Normat"
+  },
+  "cpaRates": {
+    "title": "Garancia e partnerit",
+    "subtitle": "Lidet sipas ditës së mbërritjes kundrejt garancisë. Njoftim çdo {{step}} lide dhe çdo {{step}} konfirmime.",
+    "settledRate": "Norma e mbyllur (më të vjetra se {{days}}d)",
+    "ofLeads": "{{confirmed}} të konfirmuara nga {{leads}} lide",
+    "guarantee": "Garancia",
+    "geoNote": "Vetëm lidet {{geo}}",
+    "breaches": "Ditë nën garanci",
+    "breachesNote": "Ditë të mbyllura me {{min}}+ lide",
+    "day": "Dita",
+    "affiliate": "Partneri",
+    "leads": "Lide",
+    "confirmed": "Të konfirmuara",
+    "rate": "Norma",
+    "status": "Statusi",
+    "settling": "Ende po mblidhet",
+    "tooFew": "Shumë pak lide",
+    "below": "Nën",
+    "met": "E plotësuar",
+    "offerNote": "Ndarja sipas produktit — vetëm për diagnozë, kurrë nuk gjykohet më vete.",
+    "lastNDays": "{{n}} ditët e fundit",
+    "noData": "Asnjë lid në këtë periudhë"
   }
 }

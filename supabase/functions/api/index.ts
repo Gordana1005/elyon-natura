@@ -2737,6 +2737,58 @@ async function handleRequest(req: Request): Promise<Response> {
       return json(data);
     }
 
+    // GET /api/altercpa/daily-rates?from&to — the 30% guarantee tracker.
+    //
+    // Every Macedonian lead an affiliate sent, bucketed by ARRIVAL day
+    // (00:00-00:00 Europe/Skopje), against how many ever got confirmed. The
+    // denominator deliberately includes trashed, cancelled, unmapped and
+    // never-promoted leads: the affiliate sent them, so they count.
+    //
+    // Rows with offer_name = null are the AFFILIATE TOTAL for that day — the
+    // number the deal is judged on. Rows with an offer_name are the per-offer
+    // split, for diagnosis only: 20 of the 31 affiliate x offer pairs get under
+    // 12 leads a WEEK, so judging at that grain would alarm off two leads.
+    if (req.method === "GET" && segments[0] === "altercpa" && segments[1] === "daily-rates" && segments.length === 2) {
+      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      const qp = url.searchParams;
+      const today = new Date();
+      const iso = (d: Date) => d.toISOString().slice(0, 10);
+      const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+      const to = DATE_RE.test(qp.get("to") || "") ? qp.get("to")! : iso(today);
+      const defFrom = new Date(today); defFrom.setDate(defFrom.getDate() - 13);
+      let from = DATE_RE.test(qp.get("from") || "") ? qp.get("from")! : iso(defFrom);
+      // Cap the span: this scans the ledger and the sticky-confirm lookup is
+      // per lead. 92 days is the same ceiling the BG original uses.
+      if ((Date.parse(to) - Date.parse(from)) / 86400000 > 92) {
+        const capped = new Date(Date.parse(to) - 92 * 86400000);
+        from = iso(capped);
+      }
+
+      const [ratesRes, settingsRes] = await Promise.all([
+        adminClient.rpc("altercpa_daily_rates", { _from: from, _to: to }),
+        adminClient.from("app_settings").select("key, value")
+          .in("key", ["altercpa_rate_target_pct", "altercpa_rate_milestone_step",
+                      "altercpa_rate_min_cohort", "altercpa_rate_settle_days", "altercpa_rate_geo"]),
+      ]);
+      if (ratesRes.error) return json({ error: sanitizeDbError(ratesRes.error) }, 400);
+
+      const setting = (k: string, d: any) => {
+        const row = (settingsRes.data || []).find((s: any) => s.key === k);
+        return row?.value ?? d;
+      };
+      const rows = (ratesRes.data || []) as any[];
+      return json({
+        from, to,
+        target_pct: Number(setting("altercpa_rate_target_pct", 30)),
+        milestone_step: Number(setting("altercpa_rate_milestone_step", 10)),
+        min_cohort: Number(setting("altercpa_rate_min_cohort", 20)),
+        settle_days: Number(setting("altercpa_rate_settle_days", 3)),
+        geo: String(setting("altercpa_rate_geo", "MK")).replace(/"/g, ""),
+        totals: rows.filter((r) => r.offer_name === null),
+        by_offer: rows.filter((r) => r.offer_name !== null),
+      });
+    }
+
     if (req.method === "PATCH" && segments[0] === "altercpa" && segments[1] === "accounts" && segments.length === 3) {
       if (!isAdmin) return json({ error: "Forbidden — admin only" }, 403);
       let body: z.infer<typeof altercpaAccountPatchSchema>;

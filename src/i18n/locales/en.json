@@ -1192,6 +1192,22 @@
     "leadsAssigned": {
       "title": "New leads assigned to you",
       "body": "{{count}} new leads assigned to you — open Calls to work your Pendings queue."
+    },
+    "altercpaRateLeads": {
+      "title": "Affiliate leads milestone",
+      "body": "Affiliate {{affiliate}} — {{date}}: {{sent}} leads, {{confirmed}} confirmed, {{pct}}% / guarantee {{target}}%"
+    },
+    "altercpaRateConfirms": {
+      "title": "Affiliate confirmations",
+      "body": "Affiliate {{affiliate}} — cohort {{date}}: {{confirmed}}/{{sent}} confirmed, {{pct}}% / guarantee {{target}}%"
+    },
+    "altercpaRateBelowDay": {
+      "title": "Affiliate below guarantee today",
+      "body": "Affiliate {{affiliate}} closed {{date}} at {{pct}}% ({{confirmed}}/{{sent}}) — under the {{target}}% guarantee. Late confirmations may still lift it."
+    },
+    "altercpaRateBelowFinal": {
+      "title": "Affiliate finished below guarantee",
+      "body": "Affiliate {{affiliate}} finished {{date}} at {{pct}}% ({{confirmed}}/{{sent}}) — under the {{target}}% guarantee. This cohort has settled."
     }
   },
   "bigArena": {
@@ -3298,6 +3314,30 @@
     "scope_pending_only": "Pendings only (recommended)",
     "scope_all": "Every status",
     "scopeHint_pending_only": "Only leads still open on their side (processing / hold) become orders here. Ones they already approved, cancelled or trashed stay in the mirror.",
-    "scopeHint_all": "Every lead becomes an order, including ones AlterCPA has already finished. Use only for an account nobody works on their side."
+    "scopeHint_all": "Every lead becomes an order, including ones AlterCPA has already finished. Use only for an account nobody works on their side.",
+    "tabRates": "Rates"
+  },
+  "cpaRates": {
+    "title": "Affiliate guarantee",
+    "subtitle": "Leads by arrival day against the guarantee. A ping every {{step}} leads and every {{step}} confirmations.",
+    "settledRate": "Settled rate (older than {{days}}d)",
+    "ofLeads": "{{confirmed}} confirmed of {{leads}} leads",
+    "guarantee": "Guarantee",
+    "geoNote": "{{geo}} leads only",
+    "breaches": "Days below guarantee",
+    "breachesNote": "Settled days with {{min}}+ leads",
+    "day": "Day",
+    "affiliate": "Affiliate",
+    "leads": "Leads",
+    "confirmed": "Confirmed",
+    "rate": "Rate",
+    "status": "Status",
+    "settling": "Still settling",
+    "tooFew": "Too few leads",
+    "below": "Below",
+    "met": "Met",
+    "offerNote": "Per-offer split — for diagnosis only, never judged on its own.",
+    "lastNDays": "Last {{n}} days",
+    "noData": "No leads in this period"
   }
 }

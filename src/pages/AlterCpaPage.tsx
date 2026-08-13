@@ -1,11 +1,13 @@
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AppLayout } from '@/layouts/AppLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Globe, History, Radio, Tag } from 'lucide-react';
+import { Globe, History, Percent, Radio, Tag } from 'lucide-react';
 import { AccountsTab } from '@/components/altercpa/AccountsTab';
 import { MirrorTab } from '@/components/altercpa/MirrorTab';
 import { OfferQueueTab } from '@/components/altercpa/OfferQueueTab';
 import { SyncRunsTab } from '@/components/altercpa/SyncRunsTab';
+import { RatesTab } from '@/components/altercpa/RatesTab';
 
 /**
  * AlterCPA Bridge — a read-only mirror of an AlterCPA account.
@@ -16,13 +18,22 @@ import { SyncRunsTab } from '@/components/altercpa/SyncRunsTab';
  * never enters a calling queue. Nothing is ever sent back to AlterCPA.
  *
  * View is admin/manager; every mutation is re-checked admin-only server-side.
+ *
+ * The Rates tab is the 30% guarantee tracker; the rate-alert notifications
+ * deep-link into it with ?tab=rates&wm=&date=.
  */
 export default function AlterCpaPage() {
   const { t } = useTranslation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get('tab') || 'mirror';
 
   return (
     <AppLayout title={t('nav.altercpa')}>
-      <Tabs defaultValue="mirror" className="space-y-6">
+      <Tabs
+        value={tab}
+        onValueChange={(v) => setSearchParams((p) => { p.set('tab', v); return p; }, { replace: true })}
+        className="space-y-6"
+      >
         <TabsList>
           <TabsTrigger value="mirror" className="gap-2">
             <Globe className="h-4 w-4" /> {t('altercpa.tabMirror')}
@@ -33,6 +44,9 @@ export default function AlterCpaPage() {
           <TabsTrigger value="accounts" className="gap-2">
             <Radio className="h-4 w-4" /> {t('altercpa.tabAccounts')}
           </TabsTrigger>
+          <TabsTrigger value="rates" className="gap-2">
+            <Percent className="h-4 w-4" /> {t('altercpa.tabRates')}
+          </TabsTrigger>
           <TabsTrigger value="runs" className="gap-2">
             <History className="h-4 w-4" /> {t('altercpa.tabRuns')}
           </TabsTrigger>
@@ -41,6 +55,7 @@ export default function AlterCpaPage() {
         <TabsContent value="mirror"><MirrorTab /></TabsContent>
         <TabsContent value="offers"><OfferQueueTab /></TabsContent>
         <TabsContent value="accounts"><AccountsTab /></TabsContent>
+        <TabsContent value="rates"><RatesTab /></TabsContent>
         <TabsContent value="runs"><SyncRunsTab /></TabsContent>
       </Tabs>
     </AppLayout>

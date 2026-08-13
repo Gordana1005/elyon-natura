@@ -2117,6 +2117,39 @@ export const apiGetAlterCpaSummary = (params: { account_id?: string; from?: stri
   return apiFetch(`altercpa/summary${s ? `?${s}` : ''}`);
 };
 
+/**
+ * The 30% guarantee tracker. One row per (arrival day × affiliate), with
+ * `offer_name: null` meaning "all offers" — that total is the number the deal
+ * is judged on. Rows carrying an offer_name are the per-offer split, for
+ * diagnosis only: most affiliate×offer pairs see too few leads a day to judge.
+ */
+export interface AlterCpaRateRow {
+  day: string;
+  webmaster: string;
+  offer_name: string | null;
+  leads: number;
+  confirmed: number;
+  pct: number | null;
+}
+export interface AlterCpaRates {
+  from: string;
+  to: string;
+  target_pct: number;
+  milestone_step: number;
+  min_cohort: number;
+  settle_days: number;
+  geo: string;
+  totals: AlterCpaRateRow[];
+  by_offer: AlterCpaRateRow[];
+}
+export const apiGetAlterCpaDailyRates = (from?: string, to?: string): Promise<AlterCpaRates> => {
+  const qs = new URLSearchParams();
+  if (from) qs.set('from', from);
+  if (to) qs.set('to', to);
+  const s = qs.toString();
+  return apiFetch(`altercpa/daily-rates${s ? `?${s}` : ''}`);
+};
+
 export interface AlterCpaOfferMapRow {
   id: string;
   account_id: string;
