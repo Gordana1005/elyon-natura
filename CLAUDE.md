@@ -9,10 +9,12 @@ system, run as a completely separate operation. It has its OWN infrastructure an
 > on 2026-08-01, so the live URL is **https://elyon-natura.vercel.app**
 > (`elyon-macedonia.vercel.app` still resolves to the same deployment and is kept as a legacy
 > alias — both are in the edge function's CORS allowlist).
-> The **Supabase ref** (`bmfxhgznttcnnlqloqzp`) and the **GitHub repo** (`Gordana1005/elyon-macedonia`)
-> keep their original names on purpose — renaming the ref means rebuilding the project, and
-> renaming the repo breaks the Vercel git link for no benefit. Wherever you see "macedonia" in
-> those two identifiers, read it as "this project". **The market is Macedonia.**
+> The GitHub repo **was** renamed too and is now **`Gordana1005/elyon-natura`**
+> (verified against `git remote -v`, 2026-08-13 — the old `elyon-macedonia` URL 404s, so a push
+> to it fails with "Repository not found"). Only the **Supabase ref** (`bmfxhgznttcnnlqloqzp`)
+> keeps its original name, on purpose: renaming the ref means rebuilding the project. Wherever
+> you see "macedonia" in that one identifier, read it as "this project".
+> **The market is Macedonia.**
 
 ## 🛑 GOLDEN RULE — never touch the Bulgarian system
 This is the #1 rule. A mistake here already caused a live Bulgarian outage once (2026-06-30).
@@ -53,7 +55,7 @@ target **explicitly** and verify it before running:
 ## Infra (Macedonia only)
 - **Supabase:** ref `bmfxhgznttcnnlqloqzp` → https://bmfxhgznttcnnlqloqzp.supabase.co
 - **Vercel:** project `elyon-natura`, scope `gordanas-projects-a53c0208` → https://elyon-natura.vercel.app (GitHub-connected → auto-deploys on push to `main`)
-- **GitHub:** `Gordana1005/elyon-macedonia`
+- **GitHub:** `Gordana1005/elyon-natura` (renamed from `elyon-macedonia`; the old name 404s)
 - **Secrets:** `docs/VAULT.md` (gitignored) — keys, webhook secret, admin logins
 - **Status / done / TODO:** `MACEDONIA-STATUS.md` (repo root)
 - **Migrations:** the DB password was never recorded, so `supabase db push` cannot open a direct
