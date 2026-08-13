@@ -19,17 +19,53 @@ into Elyon so the CRM is one place. **We poll them; nothing is configured on the
 3. **Nothing flows back to AlterCPA.** Their operators own the outcome on their side. This is
    structural, not a setting: mirrored orders get no `affiliate_leads` row, so
    `tg_enqueue_affiliate_postback` has nothing to fire on.
+
+   *Asked 2026-08-13: could we later push a CRM disposition back to them?* Nothing here forbids
+   it — the no-postback rule is about the **affiliate payout** drain, a different system. A
+   write-back would be new work, and the open question is on THEIR side: this bridge only ever
+   calls `comp/list.json` (read), and `docs/ALTERCPA-BRIDGE.md` records the merchant token as
+   "read-only use". **Confirm AlterCPA exposes an order-update endpoint and that the token has
+   write scope before promising this.** Do not build it speculatively.
 4. **Pendings only** (`import_scope='pending_only'`). Only phase 1/2 become orders. Phase 3/4/5
    are already decided on their side; importing them would drop finished orders into the calling
    queue and book revenue our agents never earned. They stay in the ledger as `not_pending`.
+   ⚠️ **A skip means "do not CREATE an order", never "leave an existing one orphaned."**
+   `upsertLead()` used to set `order_id` only when it created the order, so a skipped lead whose
+   order already existed from an earlier path stayed unlinked — and the `status` kind's candidate
+   query requires `.not("order_id","is",null)`. 204 rows were in that state on 2026-08-13, 20 of
+   them orders still in the calling queue that AlterCPA had already closed. A skipped lead now
+   **adopts** an existing order on the same `(external_source='altercpa', external_order_id)` key.
+   Repair migration: `20260921000200_altercpa_adopt_orphaned_orders.sql`.
 5. **`status_mirror = 'until_touched'` is the transition-period operating mode** (revised
    2026-08-11; the original default was `off`). During the migration off AlterCPA their operators
    still resolve most pendings THERE, so the `status` sync kind (below) chases those outcomes —
-   but only while nobody here has taken or confirmed the order. **"Once we have taken a pending,
-   the order is ours" still holds**: an agent-owned order is never overwritten; the remote change
-   becomes one `order_notes` line per remote phase change. `off` disables the status kind for the
-   account entirely; `always` trusts AlterCPA even over our agents (post-cutover: switch back
+   but only while nobody here has actually WORKED the order. `off` disables the status kind for
+   the account entirely; `always` trusts AlterCPA even over our agents (post-cutover: switch back
    to `off`).
+
+   ⚠️ **"Touched" means worked, NOT merely assigned** (fixed 2026-08-13). `untouched` also tested
+   `assigned_agent_id` until then, and that froze orders solid: 70 pendings were assigned by hand
+   on 08-06, AlterCPA then closed 37 of them, and every 5-minute run for a week skipped the change
+   — `"guarded": 37`, over and over — because an agent nominally owned rows nobody had touched.
+   They sat `pending` in a queue while the partner had already cancelled them; only unassigning
+   released them. **With the automatic lead-distribution engine assigning every lead within a
+   minute of arrival, the old test would have frozen the entire queue permanently.** The guard is
+   now `!confirmed_at && status !== 'take'` — a recorded sale, or an agent with the customer open
+   at this second. Do not reintroduce `assigned_agent_id` here.
+
+6. **Their call-backs are mirrored (operator rule, 2026-08-13).** While AlterCPA is the system of
+   record, our status follows theirs. Their `status = 3` ("Callback") lives **inside phase 1**, so
+   `resolveRemoteOutcome()` correctly returns null and the outcome ladder never sees it — on
+   2026-08-13, 50 of the 58 live leads were call-backs invisible here. It also cannot travel that
+   ladder: `pending`, `take` and `call_again` all share `CRM_STATUS_RANK` 0 and the forward-only
+   rule deliberately refuses lateral moves. So it is mirrored as its own explicitly-lateral step:
+   - `pending` → `call_again` when they set status 3; `call_again` → `pending` when they clear it.
+   - `call_again_since` is anchored at the FIRST call-back and never reset (`20260622000000`).
+   - `next_call_after` stays NULL — **leads are never throttled** (lead rule 9).
+   - `take` is never touched: an agent has the customer open right now; the next run catches it.
+   - One `order_notes` line per real remote change (`statusChanged`), not one per run.
+
+   This reverses when the CRM becomes the system of record — the operator will say when.
 
 ## The `status` kind — how outcomes arrive (added 2026-08-11)
 
