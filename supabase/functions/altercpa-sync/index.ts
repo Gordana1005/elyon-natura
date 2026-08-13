@@ -386,6 +386,31 @@ async function upsertLead(
   let orderId: string | null = existing?.order_id ?? null;
   if (!row.skip_reason) {
     orderId = await upsertOrder(admin, account, row, o, mapping, stats, orderId, phaseChanged);
+  } else if (!orderId) {
+    // ADOPT, never create. A skip_reason means "do not invent an order for this
+    // lead" — it must never mean "leave an order that already exists orphaned".
+    //
+    // Found 2026-08-13: 33 pendings from 03-05 Aug were unresolvable. Their
+    // orders had been created by an earlier path, the ledger row was then
+    // written with skip_reason='not_pending' and a NULL order_id, and the
+    // status cron's candidate query requires `.not("order_id","is",null)`.
+    // So AlterCPA cancelled or trashed them and nothing here ever found out —
+    // they would have sat in the calling queue forever.
+    //
+    // Matched on the same (external_source, external_order_id) key upsertOrder
+    // uses. Scoping to external_source is load-bearing: opencart orders carry
+    // external_order_id too, and a bare id match could adopt a stranger's row.
+    const { data: adopted } = await admin
+      .from("orders")
+      .select("id")
+      .eq("external_source", "altercpa")
+      .eq("external_order_id", row.altercpa_id)
+      .limit(1)
+      .maybeSingle();
+    if (adopted?.id) {
+      orderId = adopted.id;
+      stats.skipped.adopted_existing_order = (stats.skipped.adopted_existing_order || 0) + 1;
+    }
   }
   row.order_id = orderId;
 
@@ -667,7 +692,7 @@ async function syncStatusAccount(
   // and every linked lead would come back regardless of order status.
   const { data: candidates, error: candErr } = await admin
     .from("altercpa_leads")
-    .select("id, altercpa_id, phase, order_id, orders!inner(id, status, assigned_agent_id, confirmed_at, quantity, price)")
+    .select("id, altercpa_id, phase, status, order_id, orders!inner(id, status, assigned_agent_id, confirmed_at, quantity, price, call_again_since)")
     .eq("account_id", account.id)
     .not("order_id", "is", null)
     .in("orders.status", STATUS_OPEN)
@@ -721,9 +746,26 @@ async function syncStatusAccount(
 
     const phase = Number(o.phase) || null;
     const phaseChanged = c.phase !== phase;
+    // `c` is the pre-update ledger snapshot from the candidates query, so this
+    // still compares against what we knew BEFORE this run refreshed the mirror.
+    // Used to note a call-back once per real remote change, not once per run.
+    const statusChanged = (Number(c.status) || null) !== (Number(o.status) || null);
     const cur = String(order.status);
     const target = resolveRemoteOutcome(o, cur);
-    const untouched = !order.assigned_agent_id && !order.confirmed_at;
+    // "Touched" means WORKED, not merely assigned.
+    //
+    // Until 2026-08-13 this also tested assigned_agent_id, and that froze 37
+    // orders for a week: Nina assigned them on 08-06, AlterCPA then cancelled
+    // or trashed them, and every 5-minute run since skipped the change
+    // ("guarded": 37, run after run) because an agent nominally owned rows that
+    // nobody had actually touched. They sat `pending` in a queue while the
+    // partner had already closed them, and only unassigning released them.
+    //
+    // With automatic distribution now assigning every lead within a minute of
+    // arrival, that guard would have frozen the ENTIRE queue permanently.
+    // What genuinely deserves protection is real work: `take` (an agent has the
+    // customer open at this second) and confirmed_at (a recorded sale).
+    const untouched = !order.confirmed_at && String(order.status) !== "take";
     const wouldApply = target !== null && target !== cur
       && !CRM_TERMINAL.has(cur)
       && (CRM_STATUS_RANK[target] ?? 0) > (CRM_STATUS_RANK[cur] ?? 0)
@@ -781,6 +823,58 @@ async function syncStatusAccount(
           });
           bump("resized");
         }
+      }
+    }
+
+    // ── Callback mirror (operator rule, 2026-08-13) ────────────────────────
+    // While AlterCPA is the system of record, our status follows theirs: a lead
+    // they marked for a call-back must read `call_again` here, and must return
+    // to `pending` when they clear it.
+    //
+    // This cannot go through the outcome ladder above. Their status 3
+    // "Callback" lives INSIDE phase 1/2 — the lead is still open, so
+    // resolveRemoteOutcome returns null — and pending/take/call_again all share
+    // CRM_STATUS_RANK 0, which the forward-only rule deliberately refuses to
+    // move between. It is an explicitly lateral mirror, handled on its own.
+    //
+    // `take` is never touched: an agent has the customer open at this second.
+    // The next run picks it up once they are done.
+    if ((phase === 1 || phase === 2) && cur !== "take") {
+      const remoteCallback = Number(o.status) === 3;
+      const wantCallAgain = remoteCallback && cur === "pending";
+      const wantPendingBack = !remoteCallback && cur === "call_again";
+      if (wantCallAgain || wantPendingBack) {
+        if (dry) { bump(wantCallAgain ? "would_callback_on" : "would_callback_off"); continue; }
+        const next = wantCallAgain ? "call_again" : "pending";
+        const upd: Record<string, unknown> = { status: next };
+        if (wantCallAgain) {
+          // Anchored at the FIRST callback and never reset (20260622000000).
+          // next_call_after stays NULL: leads are never throttled (lead rule 9)
+          // — on a lead the customer is waiting for US.
+          upd.call_again_since = order.call_again_since ?? new Date().toISOString();
+        }
+        const { error: cbErr } = await admin.from("orders").update(upd).eq("id", order.id);
+        if (cbErr) throw new Error(`callback mirror ${c.altercpa_id}: ${cbErr.message}`);
+        await admin.from("order_history").insert({
+          order_id: order.id,
+          from_status: cur,
+          to_status: next,
+          changed_by: null,
+          changed_by_name: `System (altercpa:${account.name})`,
+        });
+        if (statusChanged) {
+          await admin.from("order_notes").insert({
+            order_id: order.id,
+            text: wantCallAgain
+              ? `AlterCPA marked this a call-back${s(o.comment, 300) ? ` — their comment: ${s(o.comment, 300)}` : ""}. Set to Call Again here.`
+              : `AlterCPA cleared the call-back (now "${STATUS_LABEL[Number(o.status)] ?? o.status}"). Back to Pending here.`,
+            author_id: null,
+            author_name: "System",
+          });
+        }
+        stats.orders_updated++;
+        bump(wantCallAgain ? "callback_on" : "callback_off");
+        continue;
       }
     }
 
