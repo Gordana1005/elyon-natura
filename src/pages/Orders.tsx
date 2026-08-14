@@ -18,11 +18,11 @@ import { format, addDays } from 'date-fns'; // raw format: fulfilment CSV + mach
 import { formatDate } from '@/i18n/dates';
 import {
   Download, ChevronLeft, ChevronRight, ChevronDown, Filter, Search, Loader2,
-  CalendarIcon, X, User, Plus, MoreVertical, History, Lock, Copy, CopyPlus, Euro, Package,
+  CalendarIcon, X, User, Plus, MoreVertical, History, Lock, Copy, CopyPlus, Euro, Package, Send,
 } from 'lucide-react';
 import { Check } from 'lucide-react';
 import { MobileCard, MobileCardHeader, MobileCardField, MobileCardActions } from '@/components/ui/mobile-card';
-import { apiGetOrders, apiGetAgents, apiGetProducts, apiBulkStatusUpdate, apiBulkDisposition, apiDuplicateOrder, type TrashReason, type CancellationReason } from '@/lib/api';
+import { apiGetOrders, apiGetAgents, apiGetProducts, apiBulkStatusUpdate, apiBulkDisposition, apiDuplicateOrder, apiPushOrderAltercpa, apiGetAppSettings, type AltercpaPushPreview, type TrashReason, type CancellationReason } from '@/lib/api';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 // The SAME reason pickers the Calls page and both order modals use — a bulk
 // path must never grow its own reason list, or the two drift and the cancel
@@ -81,6 +81,16 @@ interface ApiOrder {
   created_at: string;
   source_type?: string;
   source_lead_id?: string | null;
+  // AlterCPA linkage (GET /orders selects *; these power the CPA push button)
+  external_source?: string | null;
+  external_order_id?: string | null;
+  // Reason pairs — orderReasonText() composes the CPA push comment from these
+  cancellation_reason?: string | null;
+  cancellation_reason_notes?: string | null;
+  trash_reason?: string | null;
+  trash_reason_notes?: string | null;
+  return_reason?: string | null;
+  return_reason_notes?: string | null;
   duplicated_from?: string | null;
   duplicated_from_display?: string | null;
   notes?: string | null;
@@ -226,6 +236,49 @@ export default function Orders() {
       toast({ title: e.message || 'Error', variant: 'destructive' });
     } finally {
       setDuplicatingId(null);
+    }
+  };
+
+  // Manual "CPA" push (admin/manager, feature-flagged). Strictly one order per
+  // press — no bulk variant exists, by operator decision 2026-08-14. The button
+  // first fetches a dry-run preview (the server-assembled payload, so the
+  // dialog cannot lie) and only the explicit Confirm fires the live call.
+  const { data: appSettings } = useQuery({
+    queryKey: ['app-settings'],
+    queryFn: apiGetAppSettings,
+    enabled: !!isAdmin,
+    staleTime: 60_000,
+  });
+  const cpaPushEnabled = !!isAdmin && appSettings?.altercpa_push_enabled === true;
+  const CPA_PUSHABLE = ['confirmed', 'shipped', 'delivered', 'paid', 'returned', 'cancelled', 'trashed'];
+  const canPushCpa = (order: ApiOrder) =>
+    cpaPushEnabled && order.source_type === 'altercpa' && !!order.external_order_id && CPA_PUSHABLE.includes(order.status);
+  const [cpaLoadingId, setCpaLoadingId] = useState<string | null>(null);
+  const [cpaPreview, setCpaPreview] = useState<{ order: ApiOrder; preview: AltercpaPushPreview } | null>(null);
+  const [cpaSending, setCpaSending] = useState(false);
+  const handleCpaPreview = async (order: ApiOrder) => {
+    if (cpaLoadingId) return;
+    setCpaLoadingId(order.id);
+    try {
+      const res = await apiPushOrderAltercpa(order.id, { dry_run: true, comment: sharedOrderReasonText(order) ?? undefined });
+      setCpaPreview({ order, preview: res as AltercpaPushPreview });
+    } catch (e: any) {
+      toast({ title: e.message || t('ordersPage.cpaPushError'), variant: 'destructive' });
+    } finally {
+      setCpaLoadingId(null);
+    }
+  };
+  const handleCpaConfirm = async () => {
+    if (!cpaPreview || cpaSending) return;
+    setCpaSending(true);
+    try {
+      const res: any = await apiPushOrderAltercpa(cpaPreview.order.id, { comment: sharedOrderReasonText(cpaPreview.order) ?? undefined });
+      toast({ title: res.noop ? t('ordersPage.cpaPushNoop') : t('ordersPage.cpaPushSuccess') });
+      setCpaPreview(null);
+    } catch (e: any) {
+      toast({ title: e.message || t('ordersPage.cpaPushError'), variant: 'destructive' });
+    } finally {
+      setCpaSending(false);
     }
   };
 
@@ -1349,6 +1402,11 @@ export default function Orders() {
                             <CopyPlus className="h-3.5 w-3.5 mr-2" /> {t('ordersPage.duplicateOrder')}
                           </DropdownMenuItem>
                         )}
+                        {canPushCpa(order) && (
+                          <DropdownMenuItem disabled={cpaLoadingId !== null} onClick={() => handleCpaPreview(order)}>
+                            <Send className="h-3.5 w-3.5 mr-2" /> {t('ordersPage.pushCpa')}
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </td>
@@ -1572,6 +1630,11 @@ export default function Orders() {
                 <Button size="sm" variant="ghost" title={t('ordersPage.seeHistory')} onClick={() => setHistoryOrder({ phone: order.customer_phone, name: order.customer_name })}>
                   <History className="h-3.5 w-3.5" />
                 </Button>
+                {canPushCpa(order) && (
+                  <Button size="sm" variant="ghost" title={t('ordersPage.pushCpa')} disabled={cpaLoadingId !== null} onClick={() => handleCpaPreview(order)}>
+                    <Send className="h-3.5 w-3.5" />
+                  </Button>
+                )}
               </MobileCardActions>
               <Button variant="ghost" size="sm" className="w-full justify-center text-xs text-muted-foreground" onClick={() => toggleRowExpansion(order.id)}>
                 <ChevronDown className={cn('h-3.5 w-3.5 mr-1 transition-transform', isExpanded && 'rotate-180')} />
@@ -1636,6 +1699,74 @@ export default function Orders() {
         customerPhone={historyOrder?.phone || ''}
         customerName={historyOrder?.name || ''}
       />
+
+      {/* CPA push confirm — renders the SERVER-assembled dry-run payload, so
+          what the operator approves is exactly what will be sent. */}
+      <Dialog open={!!cpaPreview} onOpenChange={(o) => { if (!o && !cpaSending) setCpaPreview(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('ordersPage.cpaDialogTitle')}</DialogTitle>
+            <DialogDescription>
+              {t('ordersPage.cpaDialogDesc', { account: cpaPreview?.preview.account ?? '' })}
+            </DialogDescription>
+          </DialogHeader>
+          {cpaPreview && (() => {
+            const p = cpaPreview.preview.params;
+            const rows: [string, string | undefined][] = [
+              [t('ordersPage.cpaFieldOid'), cpaPreview.preview.oid],
+              [t('ordersPage.cpaFieldStatus'), p.accept === '1'
+                ? t('ordersPage.cpaStatusAccept')
+                : `${t(`status.${cpaPreview.order.status}`)} → ${p.status}`],
+              [t('ordersPage.cpaFieldReason'), p.reason],
+              [t('ordersPage.cpaFieldName'), p.name],
+              [t('ordersPage.cpaFieldPhone'), p.phone],
+              [t('ordersPage.cpaFieldCity'), p.city],
+              [t('ordersPage.cpaFieldStreet'), p.street],
+              [t('ordersPage.cpaFieldArea'), p.area],
+              [t('ordersPage.cpaFieldAddress'), p.addr],
+              [t('ordersPage.cpaFieldPostal'), p.index],
+              [t('ordersPage.cpaFieldQty'), p.count],
+              [t('ordersPage.cpaFieldUnitPrice'), p.base],
+              [t('ordersPage.cpaFieldComment'), p.comment],
+            ];
+            const remote = cpaPreview.preview.remote;
+            return (
+              <div className="space-y-2">
+                <div className="space-y-1 text-sm max-h-72 overflow-y-auto">
+                  {rows.filter(([, v]) => v !== undefined && v !== '').map(([label, v]) => (
+                    <div key={label} className="flex justify-between gap-3">
+                      <span className="text-muted-foreground shrink-0">{label}</span>
+                      <span className="text-right break-all">{v}</span>
+                    </div>
+                  ))}
+                </div>
+                {cpaPreview.preview.warning && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">{cpaPreview.preview.warning}</p>
+                )}
+                {!cpaPreview.preview.token_present && (
+                  <p className="text-xs text-destructive">{t('ordersPage.cpaNoToken')}</p>
+                )}
+                {remote && (
+                  <p className="text-xs text-muted-foreground">
+                    {t('ordersPage.cpaRemoteState', {
+                      phase: remote.phase ?? '—', status: remote.status ?? '—', reason: remote.reason ?? '—',
+                    })}
+                  </p>
+                )}
+              </div>
+            );
+          })()}
+          <DialogFooter>
+            <Button variant="outline" disabled={cpaSending} onClick={() => setCpaPreview(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button disabled={cpaSending || !cpaPreview?.preview.token_present} onClick={handleCpaConfirm}>
+              {cpaSending && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+              {t('ordersPage.cpaConfirmSend')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Pre-export validation gate */}
       <FulfilmentValidationDialog

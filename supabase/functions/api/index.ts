@@ -5534,11 +5534,14 @@ async function handleRequest(req: Request): Promise<Response> {
     //
     // ⚠ MACEDONIA: BG's version ends by nudging the affiliate postback drain.
     // That is deliberately ABSENT here. This project mirrors AlterCPA one-way —
-    // we poll them, nothing goes back (.grok/skills/elyon-altercpa-bridge,
-    // decision #3). `affiliates`, `affiliate_leads` and `affiliate_postbacks`
-    // are all empty and tg_enqueue_affiliate_postback reads affiliate_leads, so
-    // there is nothing to drain. Do not "restore" the nudge — it would open an
-    // outbound channel to the partner that this market does not have.
+    // we poll them, nothing goes back automatically (.grok/skills/
+    // elyon-altercpa-bridge, decision #3). `affiliates`, `affiliate_leads` and
+    // `affiliate_postbacks` are all empty and tg_enqueue_affiliate_postback
+    // reads affiliate_leads, so there is nothing to drain. Do not "restore" the
+    // nudge — it would open an AUTOMATIC outbound channel this market does not
+    // have. The only outbound path is the manual, per-order
+    // POST /orders/:id/altercpa-push button (2026-08-14) — a separate,
+    // operator-triggered route that must never be called from bulk paths.
     if (req.method === "POST" && path === "orders/bulk-disposition") {
       if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
       if (!checkUserRateLimit(user.id, "orders.bulk", 20)) {
@@ -6837,6 +6840,253 @@ async function handleRequest(req: Request): Promise<Response> {
       });
 
       return json(dup);
+    }
+
+    // POST /api/orders/:id/altercpa-push — the manual "CPA" button (2026-08-14).
+    // Pushes THIS order's current state to AlterCPA via comp/edit.json: status
+    // (accept=1 for confirmed — never a status number, their commission timers),
+    // cancel/trash reason, customer fields, quantity, unit price and a comment.
+    //
+    // STRICTLY one order per press (operator decision 2026-08-14): there is no
+    // bulk variant and no automatic hook — bulk-status-update, bulk-disposition
+    // and bigarena-sync must never call this. Gated by
+    // app_settings.altercpa_push_enabled (default off), re-read on EVERY call so
+    // the Settings switch is an instant kill switch.
+    //
+    // Loop safety vs the */5 altercpa-sync status cron: terminal statuses
+    // (paid/returned/cancelled/trashed) sit outside STATUS_OPEN and are never
+    // re-read; confirmed (accept=1 → their phase 3) resolves back to
+    // 'confirmed' = unchanged; shipped/delivered hit the courier exception. The
+    // bridge-skill sharp edge (phase-4 unmappable reason flips a NON-terminal
+    // order to confirmed) cannot fire on our pushes, because status 5 is only
+    // ever sent for orders that are terminal here. Price: `base` derives from
+    // the lead's own implied rate (price_raw/price_eur), so the cron's resize
+    // block (|Δ| > 0.02 EUR) sees ~zero round-trip error on MKD leads; EUR
+    // leads with qty ≥ 5 can in theory exceed the tolerance — watched in the
+    // live test plan, see .grok/skills/elyon-altercpa-bridge.
+    if (req.method === "POST" && segments[0] === "orders" && segments.length === 3 && segments[2] === "altercpa-push") {
+      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      if (!checkUserRateLimit(user.id, "orders.altercpa_push", 10)) {
+        return json({ error: "Rate limit exceeded — try again in a minute" }, 429);
+      }
+      let pushBody: any = {};
+      try { pushBody = await req.json(); } catch { /* body is optional */ }
+      const dryRun = pushBody?.dry_run === true;
+
+      const { data: pushFlag } = await adminClient
+        .from("app_settings").select("value").eq("key", "altercpa_push_enabled").maybeSingle();
+      if (pushFlag?.value !== true) {
+        return json({ error: "AlterCPA push is disabled in Settings" }, 403);
+      }
+
+      const { data: order } = await adminClient.from("orders").select("*").eq("id", segments[1]).single();
+      if (!order) return json({ error: "Order not found" }, 404);
+      if (order.external_source !== "altercpa" || !order.external_order_id) {
+        return json({ error: "Not linked to an AlterCPA lead" }, 422);
+      }
+      const pushStatus = ALTERCPA_PUSH_STATUS[String(order.status)];
+      if (!pushStatus) {
+        return json({ error: `Status '${order.status}' cannot be pushed to AlterCPA` }, 422);
+      }
+      if (order.status === "cancelled" &&
+          ["pending_cleanup", "stale_pending_cleanup"].includes(String(order.cancellation_reason))) {
+        return json({ error: "This cancel is a server cleanup marker, not a real disposition — nothing truthful to send" }, 422);
+      }
+
+      // Account + token. The ledger row names the account; an order without one
+      // falls back to the single active account and refuses to guess between
+      // several. Only the secret NAME lives in the table — never the token.
+      const { data: pushLead } = await adminClient
+        .from("altercpa_leads")
+        .select("id, account_id, altercpa_id, phase, status, reason, price_raw, currency_raw, price_eur")
+        .eq("order_id", order.id)
+        .maybeSingle();
+      let pushAccount: any = null;
+      if (pushLead) {
+        const { data: acc } = await adminClient
+          .from("altercpa_accounts").select("id, name, api_base, token_secret_name, is_active")
+          .eq("id", pushLead.account_id).maybeSingle();
+        if (!acc || !acc.is_active) return json({ error: "The AlterCPA account for this lead is inactive" }, 422);
+        pushAccount = acc;
+      } else {
+        const { data: accts } = await adminClient
+          .from("altercpa_accounts").select("id, name, api_base, token_secret_name")
+          .eq("is_active", true);
+        if ((accts || []).length !== 1) {
+          return json({ error: "No ledger link for this order and the AlterCPA account is ambiguous" }, 422);
+        }
+        pushAccount = accts![0];
+      }
+      const pushToken = Deno.env.get(pushAccount.token_secret_name) ?? "";
+      if (!pushToken && !dryRun) {
+        return json({ error: `Secret ${pushAccount.token_secret_name} is not set on the api function` }, 500);
+      }
+
+      // Param assembly. Only non-empty values — on edit.json, sent = overwrite.
+      const p = new URLSearchParams({ oid: String(order.external_order_id) });
+      if (pushStatus === "accept") p.set("accept", "1");
+      else p.set("status", String(pushStatus));
+      if (order.status === "cancelled") {
+        p.set("reason", String(ALTERCPA_PUSH_CANCEL_REASON[String(order.cancellation_reason)] ?? 2));
+      } else if (order.status === "trashed") {
+        p.set("reason", String(ALTERCPA_PUSH_TRASH_REASON[String(order.trash_reason)] ?? 2));
+      }
+      // returned: no reason param — reason is only documented for status 5; the
+      // return_reason travels in the comment instead.
+
+      const setIf = (key: string, v: unknown) => {
+        const s = String(v ?? "").trim();
+        if (s) p.set(key, s);
+      };
+      setIf("name", order.customer_name);
+      setIf("phone", String(order.customer_phone ?? "").replace(/\D/g, "")); // their API: digits only
+      setIf("city", order.customer_city);
+      setIf("street", [order.street, order.street_number]
+        .map((x: unknown) => String(x ?? "").trim()).filter(Boolean).join(" "));
+      setIf("area", order.quarter);
+      setIf("addr", String(order.customer_address ?? "").trim().slice(0, 500));
+      setIf("index", order.postal_code);
+
+      const pushQty = Math.max(1, Math.floor(Number(order.quantity) || 1));
+      p.set("count", String(pushQty));
+
+      // base = UNIT price in THEIR currency, computed from the ORDER TOTAL
+      // (halves rounding drift vs a pre-rounded unit price). Rate resolution:
+      // eur → 1 exact; else the lead's own implied rate price_raw/price_eur
+      // (reproduces their figure bit-for-bit while the price is unchanged);
+      // else mkd/missing → the frozen 61.5 peg. Any other currency → OMIT base
+      // rather than invent an FX rate (bridge doctrine).
+      let pushWarning: string | undefined;
+      {
+        const cur = String(pushLead?.currency_raw ?? "mkd").toLowerCase();
+        const total = Number(order.price);
+        let rate: number | null = null;
+        if (cur === "eur") rate = 1;
+        else if (pushLead && Number(pushLead.price_raw) > 0 && Number(pushLead.price_eur) > 0) {
+          rate = Number(pushLead.price_raw) / Number(pushLead.price_eur);
+        } else if (cur === "mkd") rate = 61.5; // frozen — must match src/lib/currency.ts
+        if (rate !== null && Number.isFinite(total) && total > 0) {
+          p.set("base", String(Math.round(((total * rate) / pushQty) * 100) / 100));
+        } else if (Number.isFinite(total) && total > 0) {
+          pushWarning = `unit price omitted: no exchange rate for '${cur}'`;
+        }
+      }
+
+      // Comment: the client sends orderReasonText()'s localized string (i18n
+      // lives in the browser); the server fallback is the same shape in English.
+      const fallbackComment = (() => {
+        const [code, notes] =
+          order.status === "trashed" ? [order.trash_reason, order.trash_reason_notes]
+          : order.status === "returned" ? [order.return_reason, order.return_reason_notes]
+          : order.status === "cancelled" ? [order.cancellation_reason, order.cancellation_reason_notes]
+          : [null, null];
+        if (!code) return "";
+        const label = String(code).replace(/_/g, " ");
+        return notes ? `${label} — ${notes}` : label;
+      })();
+      const pushComment = String(pushBody?.comment ?? fallbackComment ?? "")
+        .replace(/\s+/g, " ").trim().slice(0, 500);
+      if (pushComment) p.set("comment", pushComment);
+
+      const pushBase = String(pushAccount.api_base ?? "https://api.cpa.moe").replace(/\/+$/, "");
+      if (dryRun) {
+        // The costless preview: exactly what WOULD be sent, token redacted.
+        // Powers the confirm dialog and Phase A of the test plan.
+        return json({
+          dry_run: true,
+          account: pushAccount.name,
+          oid: String(order.external_order_id),
+          token_present: !!pushToken,
+          params: Object.fromEntries(p),
+          url: `${pushBase}/comp/edit.json?id=<${pushAccount.token_secret_name}>&${p.toString()}`,
+          remote: pushLead ? { phase: pushLead.phase, status: pushLead.status, reason: pushLead.reason } : null,
+          ...(pushWarning ? { warning: pushWarning } : {}),
+        });
+      }
+
+      const { data: pushActorProfile } = await adminClient
+        .from("profiles").select("full_name").eq("user_id", user.id).single();
+      const pushActorName = pushActorProfile?.full_name || user.email;
+
+      let pushBodyText = "";
+      try {
+        const res = await fetch(`${pushBase}/comp/edit.json?id=${encodeURIComponent(pushToken)}&${p.toString()}`);
+        pushBodyText = await res.text();
+      } catch (e) {
+        return json({ error: `AlterCPA unreachable: ${(e as Error).message}` }, 502);
+      }
+      // HTTP 200 is meaningless here — the verdict is in the JSON body, and
+      // their "edit" (no fields changed) is a successful no-op.
+      const verdict = classifyPostbackBody(pushBodyText);
+      let pushNoop = false;
+      try { pushNoop = JSON.parse(pushBodyText)?.error === "edit"; } catch { /* non-JSON = delivered */ }
+
+      if (!verdict.ok) {
+        const msg = String(verdict.error ?? "").includes("access-denied")
+          ? "AlterCPA refused the write (access-denied) — the merchant token has no write scope. Turn the feature off in Settings until a write-capable key exists."
+          : `AlterCPA error: ${verdict.error}`;
+        await adminClient.from("order_notes").insert({
+          order_id: order.id, text: `CPA push FAILED: ${msg}`,
+          author_id: user.id, author_name: pushActorName,
+        });
+        await audit(adminClient, user.id, user.email, "order.altercpa_push_failed", {
+          target_type: "order", target_id: order.id,
+          payload: { oid: String(order.external_order_id), account: pushAccount.name, error: verdict.error },
+        });
+        return json({ error: msg }, 502);
+      }
+
+      // Ledger truth: re-read the ONE lead so altercpa_leads reflects what the
+      // push actually did on their side (edit.json may normalize status→phase).
+      // A failed re-read falls back to the pushed status/reason — never guess
+      // phase. No lead row → nothing to refresh.
+      if (pushLead) {
+        let refreshed = false;
+        try {
+          const res = await fetch(
+            `${pushBase}/comp/list.json?id=${encodeURIComponent(pushToken)}&oid=${encodeURIComponent(String(order.external_order_id))}`,
+          );
+          const arr = JSON.parse(await res.text());
+          if (Array.isArray(arr) && arr[0]) {
+            const r = arr[0];
+            await adminClient.from("altercpa_leads").update({
+              phase: Number(r.phase) || null,
+              status: Number(r.status) || null,
+              reason: Number(r.reason) || 0,
+              payload: r,
+              last_seen_at: new Date().toISOString(),
+              ...(Number(r.phase) !== pushLead.phase ? { phase_seen_at: new Date().toISOString() } : {}),
+            }).eq("id", pushLead.id);
+            refreshed = true;
+          }
+        } catch { /* fall through to the pushed-values fallback */ }
+        if (!refreshed) {
+          await adminClient.from("altercpa_leads").update({
+            ...(pushStatus === "accept" ? {} : { status: pushStatus }),
+            ...(p.has("reason") ? { reason: Number(p.get("reason")) } : {}),
+            last_seen_at: new Date().toISOString(),
+          }).eq("id", pushLead.id);
+        }
+      }
+
+      const statusLabel = pushStatus === "accept" ? "accepted (accept=1)" : `status ${pushStatus}`;
+      await adminClient.from("order_notes").insert({
+        order_id: order.id,
+        text: `Pushed to AlterCPA (${pushAccount.name}): ${statusLabel}`
+          + (p.has("reason") ? `, reason ${p.get("reason")}` : "")
+          + `, ${pushQty} × ${p.get("base") ?? "—"}`
+          + ` — ${pushNoop ? "no fields changed (already current)" : "accepted"}`,
+        author_id: user.id, author_name: pushActorName,
+      });
+      await audit(adminClient, user.id, user.email, "order.altercpa_push", {
+        target_type: "order", target_id: order.id,
+        payload: {
+          oid: String(order.external_order_id), account: pushAccount.name,
+          params: Object.fromEntries(p), noop: pushNoop,
+        },
+      });
+
+      return json({ success: true, noop: pushNoop, ...(pushWarning ? { warning: pushWarning } : {}) });
     }
 
     // POST /api/orders/:id/attribution — privileged admin-only manual correction
@@ -11146,6 +11396,7 @@ async function handleRequest(req: Request): Promise<Response> {
       if (out.unpaid_chase_days === undefined) out.unpaid_chase_days = UNPAID_CHASE_DAYS_DEFAULT;
       if (out.unpaid_chase_stop_days === undefined) out.unpaid_chase_stop_days = UNPAID_CHASE_STOP_DAYS_DEFAULT;
       if (out.promo_of_the_day === undefined) out.promo_of_the_day = PROMO_OF_THE_DAY_DEFAULT;
+      if (out.altercpa_push_enabled === undefined) out.altercpa_push_enabled = false;
       out.voip_minutes_bundle = { ...VOIP_MINUTES_BUNDLE_DEFAULT, ...(out.voip_minutes_bundle || {}) };
       return json(out);
     }
@@ -11240,6 +11491,23 @@ async function handleRequest(req: Request): Promise<Response> {
       // motivational: it is NEVER read by any payout/commission math (see
       // elyon-agent-commissions), so the only thing at stake is what the banner
       // says. Stored as one jsonb blob under `promo_of_the_day`.
+      // Manual CPA push button on /orders (2026-08-14). Boolean only. This is
+      // the feature's kill switch — the push route re-reads it on EVERY call,
+      // so flipping it off is effective within one request.
+      if (body.altercpa_push_enabled !== undefined) {
+        if (typeof body.altercpa_push_enabled !== "boolean") {
+          return json({ error: "altercpa_push_enabled must be a boolean" }, 400);
+        }
+        const { error } = await adminClient
+          .from("app_settings")
+          .upsert({ key: "altercpa_push_enabled", value: body.altercpa_push_enabled, updated_by: user.id, updated_at: new Date().toISOString() }, { onConflict: "key" });
+        if (error) return json({ error: sanitizeDbError(error) }, 400);
+        await audit(adminClient, user.id, user.email, "settings.altercpa_push_toggle", {
+          target_type: "app_settings", target_id: "altercpa_push_enabled",
+          payload: { enabled: body.altercpa_push_enabled },
+        });
+      }
+
       if (body.promo_of_the_day !== undefined) {
         const p = body.promo_of_the_day;
         if (!p || typeof p !== "object" || Array.isArray(p)) {
@@ -16644,6 +16912,40 @@ const ALTERCPA_REASON_DEFAULT: Record<string, number> = {
 
 // Their status codes. Approval is NOT a status change — see accept=1 below.
 const ALTERCPA_STATUS = { processing: 2, cancelled: 5, sending: 7, completed: 10, returned: 11 };
+
+// ── Manual CPA push (POST /orders/:id/altercpa-push, 2026-08-14) ────────────
+// Our order_status → their comp/edit.json expression. This is the BUTTON's map,
+// not the affiliate drain's event map above — the two speak different source
+// vocabularies (order statuses vs postback stages) and must not be merged.
+// pending/take/duplicated have nothing truthful to say; call_again (their 3
+// Callback) is deliberately excluded until the read-back loop is verified live.
+const ALTERCPA_PUSH_STATUS: Record<string, number | "accept"> = {
+  confirmed: "accept",   // accept=1 — never status 10 (their commission timers)
+  shipped: 7,            // Sending
+  delivered: 9,          // Arrived
+  paid: 10,              // Completed
+  returned: 11,          // Return — no reason param; reason is only for status 5
+  cancelled: 5,
+  trashed: 5,
+};
+
+// orders.cancellation_reason → their cancel code 1-15. Same decisions as
+// ALTERCPA_REASON_DEFAULT with ONE override: not_satisfied → 10 ("Not satisfied
+// with delivery" — their exact code, and CANCEL_REASON_TO_CRM maps 10 back to
+// not_satisfied, so it round-trips). pending_cleanup / stale_pending_cleanup
+// are deliberately absent: server cleanup markers, blocked with 422 upstream.
+const ALTERCPA_PUSH_CANCEL_REASON: Record<string, number> = {
+  no_money: 9, changed_mind: 2, wrong_product: 14, bought_elsewhere: 8,
+  family_refused: 2, duplicate_order: 7, price_too_high: 9, not_satisfied: 10,
+  still_using_product: 2, not_interested: 2, will_call_back: 2, other: 2,
+};
+
+// orders.trash_reason → their cancel code. rude/uncooperative stay 2 (Changed
+// his mind), never a trash-flagged code — operator decision 2026-07-22.
+const ALTERCPA_PUSH_TRASH_REASON: Record<string, number> = {
+  wrong_number: 1, wrong_person: 3, not_reachable: 11, duplicate_order: 7,
+  rude: 2, uncooperative: 2, other: 2,
+};
 
 // Build the AlterCPA query string for one event. Returns null when the event
 // cannot be expressed (no oid to key on).

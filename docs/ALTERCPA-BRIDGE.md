@@ -6,9 +6,14 @@ that changes. This bridge pulls a copy into Elyon so the CRM is one place.
 Built 2026-08-06, live the same day. Four operator decisions define its shape:
 
 1. **Foreign geos are mirror + report only.** Macedonian agents call only MK leads.
-2. **Read-only API access.** We poll; nothing has to be configured in AlterCPA's panel.
-3. **Nothing flows back.** AlterCPA's operators own the outcome on their side; we decide
-   independently on ours. **No postbacks, ever.**
+2. **Read-only API access for the sync.** We poll; nothing has to be configured in AlterCPA's
+   panel.
+3. **Nothing flows back automatically.** AlterCPA's operators own the outcome on their side; we
+   decide independently on ours. **No automatic postbacks, ever.** The ONE outbound path
+   (added 2026-08-14) is the **manual CPA push button** on /orders — admin/manager presses it on
+   a single order and its current state goes to `comp/edit.json`. Strictly one order per press,
+   no bulk, gated by `app_settings.altercpa_push_enabled` (default off). Full contract in
+   `.grok/skills/elyon-altercpa-bridge` decision #3.
 4. **Pendings only.** Only AlterCPA phase 1 (processing) and 2 (hold) become orders here. An
    order they already approved, cancelled or trashed has been decided — importing it would drop
    a finished order into the calling queue, and for phase 3 would book revenue and commission our
@@ -55,9 +60,11 @@ explicitly added.
 The live poller reuses it, so it continues from the 81.657 already-imported orders with no
 duplicates and no cutover date to get right.
 
-**No-postback is structural, not a setting.** Mirrored orders get no `affiliate_leads` row, so
-`tg_enqueue_affiliate_postback` (`20260904000200`) finds nothing and returns. Do not "fix" that
-by giving these orders a sidecar.
+**No AUTOMATIC postback is structural, not a setting.** Mirrored orders get no `affiliate_leads`
+row, so `tg_enqueue_affiliate_postback` (`20260904000200`) finds nothing and returns. Do not
+"fix" that by giving these orders a sidecar. The manual CPA button
+(`POST /orders/:id/altercpa-push`, 2026-08-14) is a separate operator-triggered route that never
+touches the affiliate drain.
 
 ---
 
@@ -73,6 +80,7 @@ by giving these orders a sidecar.
 | Report rollups | `supabase/migrations/20260914000300_altercpa_summary.sql` |
 | Admin routes | `supabase/functions/api/index.ts` → `altercpa/*` |
 | Admin UI | `src/pages/AlterCpaPage.tsx`, `src/components/altercpa/` |
+| Manual CPA push (2026-08-14) | `supabase/functions/api/index.ts` → `POST orders/:id/altercpa-push`; button + dialog in `src/pages/Orders.tsx`; toggle in Settings → System |
 | Reconciliation | `scripts/verify-altercpa-bridge.mjs` |
 | Status-sync reconciliation | `scripts/verify-altercpa-status.mjs` |
 | Status-sync scheduler | `supabase/migrations/20260918000000_altercpa_status_sync.sql` |

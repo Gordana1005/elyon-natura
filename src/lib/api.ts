@@ -412,6 +412,28 @@ export const apiCreateOrder = (body: CreateOrderBody) =>
 export const apiDuplicateOrder = (id: string) =>
   apiFetch(`orders/${id}/duplicate`, { method: 'POST' });
 
+// Manual "CPA" push (admin/manager only, gated by the altercpa_push_enabled
+// setting): sends THIS order's current state to AlterCPA via comp/edit.json.
+// Strictly one order per press — there is no bulk variant, by design.
+// dry_run returns the exact payload that WOULD be sent (token redacted) and is
+// what the confirm dialog renders, so the preview can never lie.
+export interface AltercpaPushBody { comment?: string; dry_run?: boolean }
+export interface AltercpaPushPreview {
+  dry_run: true;
+  account: string;
+  oid: string;
+  token_present: boolean;
+  params: Record<string, string>;
+  url: string;
+  remote: { phase: number | null; status: number | null; reason: number | null } | null;
+  warning?: string;
+}
+export interface AltercpaPushResult { success: true; noop: boolean; warning?: string }
+export const apiPushOrderAltercpa = (id: string, body: AltercpaPushBody = {}) =>
+  apiFetch<AltercpaPushPreview | AltercpaPushResult>(`orders/${id}/altercpa-push`, {
+    method: 'POST', body: JSON.stringify(body),
+  });
+
 // Customer profile — per-phone customer info (birthday, address, delivery
 // prefs, notes) saved independently of orders. Used to pre-fill the order
 // modal and to "Save Info" during a call without creating an order.
@@ -941,6 +963,8 @@ export interface AppSettings {
   promo_of_the_day: PromoConfig;
   /** A1 minutes bundle — commercial terms, so operator-tunable. */
   voip_minutes_bundle: VoipMinutesBundle;
+  /** Manual CPA push button on /orders (admin/manager). Default false — kill switch. */
+  altercpa_push_enabled: boolean;
   [key: string]: any;
 }
 /** Mirrors VOIP_MINUTES_BUNDLE_DEFAULT in the edge function. */
@@ -2012,8 +2036,9 @@ export const apiChangeAffiliatePassword = (newPassword: string): Promise<{ succe
   apiFetch('affiliate/change-password', { method: 'POST', body: JSON.stringify({ new_password: newPassword }) });
 
 // ── AlterCPA bridge (admin) ──────────────────────────────────────────────────
-// Read-only mirror of an AlterCPA account: leads keep arriving there, we pull
-// them in. Nothing is ever sent back — see supabase/migrations/20260914000000.
+// Mirror of an AlterCPA account: leads keep arriving there, we pull them in.
+// Nothing is sent back automatically (see supabase/migrations/20260914000000);
+// the one outbound path is the manual apiPushOrderAltercpa button on /orders.
 export interface AlterCpaAccount {
   id: string;
   name: string;

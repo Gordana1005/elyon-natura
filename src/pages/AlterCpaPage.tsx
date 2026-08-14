@@ -15,7 +15,9 @@ import { RatesTab } from '@/components/altercpa/RatesTab';
  * Leads keep arriving at AlterCPA exactly as before; this pulls them in so the
  * CRM is one place. Leads in a callable geo become normal pending orders and go
  * through the usual pipeline; every other geo is mirrored for reporting and
- * never enters a calling queue. Nothing is ever sent back to AlterCPA.
+ * never enters a calling queue. Nothing is sent back automatically — the one
+ * outbound path is the manual CPA push button on /orders (2026-08-14), gated
+ * by the altercpa_push_enabled setting.
  *
  * View is admin/manager; every mutation is re-checked admin-only server-side.
  *

@@ -592,15 +592,36 @@ function SystemRulesTab() {
   const [chaseSaved, setChaseSaved] = useState<{ days: number; stop: number } | null>(null);
   const [savingChase, setSavingChase] = useState(false);
 
+  // Manual CPA push button on /orders (admin/manager). Persisted in
+  // app_settings — the push route re-reads it on every call, so switching it
+  // off here kills the feature within one request. Saves on toggle.
+  const [cpaPushEnabled, setCpaPushEnabled] = useState(false);
+  const [savingCpaPush, setSavingCpaPush] = useState(false);
+
   useEffect(() => {
     apiGetAppSettings()
       .then((s) => {
         setMaxHolds(String(s.personal_list_max_holds)); setMaxHoldsSaved(s.personal_list_max_holds);
         setChaseDays(String(s.unpaid_chase_days)); setChaseStop(String(s.unpaid_chase_stop_days));
         setChaseSaved({ days: Number(s.unpaid_chase_days), stop: Number(s.unpaid_chase_stop_days) });
+        setCpaPushEnabled(s.altercpa_push_enabled === true);
       })
       .catch(() => {});
   }, []);
+
+  const saveCpaPush = async (enabled: boolean) => {
+    setSavingCpaPush(true);
+    setCpaPushEnabled(enabled); // optimistic — reverted on failure
+    try {
+      await apiUpdateAppSettings({ altercpa_push_enabled: enabled });
+      toast({ title: enabled ? t('settings.cpaPushEnabledToast') : t('settings.cpaPushDisabledToast') });
+    } catch (err: any) {
+      setCpaPushEnabled(!enabled);
+      toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' as any });
+    } finally {
+      setSavingCpaPush(false);
+    }
+  };
 
   const saveChase = async () => {
     const d = Math.floor(Number(chaseDays));
@@ -867,6 +888,16 @@ function SystemRulesTab() {
               </button>
             )}
           </div>
+          {!isAdmin && <p className="text-[11px] text-muted-foreground/70">{t('settings.personalListCapAdminOnly')}</p>}
+        </div>
+      </CollapsibleCard>
+
+      {/* Manual CPA push (AlterCPA write-back button on /orders) */}
+      <CollapsibleCard title={t('settings.cpaPush')} subtitle={t('settings.cpaPushSub')} expanded={expandedSection === 'cpaPush'} onToggle={() => toggleSection('cpaPush')}>
+        <div className="space-y-3">
+          <SettingRow label={t('altercpa.pushToggleLabel')} description={t('altercpa.pushToggleHint')}>
+            <Switch checked={cpaPushEnabled} disabled={!isAdmin || savingCpaPush} onCheckedChange={saveCpaPush} />
+          </SettingRow>
           {!isAdmin && <p className="text-[11px] text-muted-foreground/70">{t('settings.personalListCapAdminOnly')}</p>}
         </div>
       </CollapsibleCard>

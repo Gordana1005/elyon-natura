@@ -1,6 +1,6 @@
 ---
 name: elyon-altercpa-bridge
-description: The AlterCPA → Elyon lead mirror — ledger-first design, callable geos, offer mapping, status mirroring, and why nothing flows back. Read before touching altercpa_* tables, the altercpa-sync edge function, /altercpa admin routes, or anything that would put a foreign-geo lead into public.orders.
+description: The AlterCPA → Elyon lead mirror — ledger-first design, callable geos, offer mapping, status mirroring, why nothing flows back automatically, and the one manual exception (the CPA push button). Read before touching altercpa_* tables, the altercpa-sync edge function, /altercpa admin routes, the orders/:id/altercpa-push route, or anything that would put a foreign-geo lead into public.orders.
 ---
 
 # AlterCPA bridge — how the mirror works
@@ -16,37 +16,53 @@ into Elyon so the CRM is one place. **We poll them; nothing is configured on the
    raw payload. Only geos listed in `altercpa_accounts.callable_geos` are ALSO written to
    `public.orders`. Foreign traffic is mirrored and reported on, never called.
 2. **Foreign geos never enter `orders`.** Not "enter and get filtered" — never enter. See below.
-3. **Nothing flows back to AlterCPA.** Their operators own the outcome on their side. This is
-   structural, not a setting: mirrored orders get no `affiliate_leads` row, so
-   `tg_enqueue_affiliate_postback` has nothing to fire on.
+3. **Nothing flows back to AlterCPA automatically.** Their operators own the outcome on their
+   side. The automatic part is structural, not a setting: mirrored orders get no
+   `affiliate_leads` row, so `tg_enqueue_affiliate_postback` has nothing to fire on. Do not
+   "fix" that by giving these orders a sidecar.
 
-   *Asked 2026-08-13: could we later push a CRM disposition back to them (a "CPA" button on a
-   cancelled order)?* **Yes — their API supports it. Researched, not built. Do not build it until
-   the operator asks.** The no-postback rule above is about the **affiliate payout** drain, a
-   different system, and does not stand in the way.
-
-   Their merchant API (https://cpa.moe/en/api-comp.html) has two write endpoints on the host we
-   already read from, using the same `id={user}-{key}` credential shape as `comp/list.json`:
-   - **`comp/edit.json`** — the one we would want. Sets `status` **1-12** (the full ladder,
-     including 3 Callback and 5 Cancelled) plus **`reason`**, a cancel code **1-15** — the very
-     same numbering as our `REASON` map in `altercpa.ts`. So status + reason + note round-trips.
-   - **`comp/status.json`** — coarser: `status` is only approve / hold / cancel / trash (phase
-     level, no reason parameter), plus `comment`, `name`, `phone`, `email`, `count`, `base`.
-     Responds `{"status":"ok"}` or `{"status":"error","error":"access-denied"}`.
-
-   Three things to settle BEFORE writing any of it:
-   1. **Write scope is undocumented.** The docs say nothing about what permission a key needs for
-      writes; `access-denied` and `edit` are documented error codes. Prove it with ONE order.
-   2. **The reverse reason map is lossy and needs operator decisions.** `CANCEL_REASON_TO_CRM`
-      only ever had to go inbound. Outbound, several CRM reasons have no code on their side —
-      `no_money`, `family_refused`, `still_using_product`, `not_interested`, `will_call_back`,
-      `pending_cleanup`, `stale_pending_cleanup`. Someone must choose each mapping; do not invent
-      them. (Their 16-19 are this account's own custom codes.)
-   3. **Check the loop.** Pushing a cancel makes their phase 4, which the `status` kind reads back
-      5 minutes later. Today that converges safely — `cancelled` is in `CRM_TERMINAL` and the sync
-      never rewrites a terminal status — but note the sharp edge: the manager rule maps a phase-4
-      cancel whose reason has **no** CRM equivalent to `confirmed`. Push an unmappable reason onto
-      a non-terminal order and it would flip back. Re-verify this the day it is built.
+   **The ONE exception (operator asked 2026-08-13, built 2026-08-14): the manual CPA button.**
+   `POST /orders/:id/altercpa-push` in the `api` edge fn + a "Send to CPA" item on each
+   AlterCPA-sourced order row on /orders (admin/manager only). It pushes THAT order's current
+   state to `comp/edit.json` (https://cpa.moe/en/api-comp.html), same `id={user}-{key}`
+   credential as `comp/list.json`:
+   - **Strictly one order per press.** No bulk variant, no automatic hook on status change —
+     bulk-status-update / bulk-disposition / bigarena-sync must never call it. Rate-limited
+     10/min per user.
+   - **Kill switch:** `app_settings.altercpa_push_enabled` (default **false**), a switch in
+     Settings → System → "CPA Push". The route re-reads it on every call.
+   - **What it sends:** status (`accept=1` for confirmed — never status 10; shipped→7,
+     delivered→9, paid→10, returned→11, cancelled/trashed→5+reason), customer name /
+     digits-only phone / city / street+number / quarter (`area`) / address / postal (`index`),
+     `count`, `base` (unit price in THEIR currency — rate from the lead's own
+     `price_raw/price_eur`, eur→1, mkd→61.5, anything else omits base), and `comment` =
+     `orderReasonText()` from the client. `pending`/`take`/`duplicated` are not pushable;
+     `call_again` (their 3 Callback) is excluded until the loop is verified live;
+     `pending_cleanup`/`stale_pending_cleanup` cancels are blocked with 422 (server markers,
+     not dispositions).
+   - **Outbound reason maps** (in `api/index.ts`, `ALTERCPA_PUSH_CANCEL_REASON` /
+     `ALTERCPA_PUSH_TRASH_REASON`): same decisions as `ALTERCPA_REASON_DEFAULT` with one
+     override — `not_satisfied → 10` (their exact code; round-trips via
+     `CANCEL_REASON_TO_CRM[10]`). rude/uncooperative stay 2, never a trash-flagged code.
+   - **Loop analysis (2026-08-14):** pushed terminal statuses are outside `STATUS_OPEN`, so the
+     `status` kind never re-reads them; confirmed resolves back to `confirmed` (unchanged);
+     shipped/delivered hit the courier exception. The old sharp edge (phase-4 unmappable reason
+     flips a NON-terminal order to `confirmed`) cannot fire because status 5 is only sent for
+     orders already terminal here. NEW hazard: the cron's resize block rewrites our
+     quantity/price when untouched && non-terminal && |Δ|>0.02 EUR — mitigated by deriving
+     `base` from the lead's implied rate; EUR-denominated leads with qty ≥ 5 are the residual
+     case.
+   - **Result logging:** `order_notes` line + `audit` (`order.altercpa_push` /
+     `_push_failed`) + `altercpa_leads` refresh via a one-oid `comp/list.json` re-read (falls
+     back to the pushed status/reason; never guesses phase).
+   - **Write scope is still UNPROVEN** — the token may be read-only (`access-denied`). Test
+     plan lives in the 2026-08-14 implementation plan: Phase A dry-run only (`dry_run:true`
+     returns the exact payload, token redacted), Phase B one guaranteed-no-op push (an order
+     cancelled identically on both sides → expect `error:"edit"` = write scope proven, nothing
+     changed), Phase C one real change + a watch on the next status-cron run. **Record the
+     Phase B result here when it runs.**
+   - `comp/status.json` (coarser: approve/hold/cancel/trash + free-text fields) exists but is
+     not used by the button.
 4. **Pendings only** (`import_scope='pending_only'`). Only phase 1/2 become orders. Phase 3/4/5
    are already decided on their side; importing them would drop finished orders into the calling
    queue and book revenue our agents never earned. They stay in the ledger as `not_pending`.
