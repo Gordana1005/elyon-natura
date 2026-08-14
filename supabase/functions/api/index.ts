@@ -8908,6 +8908,21 @@ async function handleRequest(req: Request): Promise<Response> {
         // (search and agentFilter from query are ignored for personal view)
       }
 
+      // ── Engine switch (same pattern as management-insights) ──
+      // `legacy` streams every attributed order into this function 1000 rows a
+      // round-trip — the whole ~80k-row table for the "Start" preset — and at
+      // all-time blows the CPU budget, which KILLS the isolate mid-request.
+      // `sql` gets the identical arithmetic as one GROUP BY over
+      // (owner_id, owner_raw) via agent_performance_rollup(); the identity
+      // fold, the exact-name bonus gate and every rounding stay in the shared
+      // TS below, so the response cannot drift between engines.
+      //
+      // Default comes from the AGENT_PERF_ENGINE secret, so rollback is one
+      // `supabase secrets set AGENT_PERF_ENGINE=legacy` with no deploy, and
+      // ?engine=legacy is a per-request escape hatch that needs nothing at all.
+      const perfEngine = url.searchParams.get("engine") || Deno.env.get("AGENT_PERF_ENGINE") || "legacy";
+      const usePerfSql = perfEngine === "sql";
+
       // Paginate past PostgREST's 1000-row default so high-volume agents don't undercount.
       const paginateOrders = async (makeQuery: () => any, pageSize = 1000): Promise<any[]> => {
         const all: any[] = [];
@@ -8949,7 +8964,22 @@ async function handleRequest(req: Request): Promise<Response> {
       //   (2) paid_at in range → COD collected this period (may have been created earlier)
       // Without a range, fetch everything in the status set.
       let allOrders: any[] = [];
-      if (from || to) {
+      // The SQL engine gets both windows (created_at OR paid_at, deduped) as
+      // one WHERE inside agent_performance_rollup — it never streams rows.
+      let sqlGroups: any[] = [];
+      if (usePerfSql) {
+        const { data: rollup, error: rollupErr } = await adminClient.rpc("agent_performance_rollup", {
+          p_from: from || null,
+          p_to: to || null,
+          p_source: sourceFilter || null,
+          p_status: statusFilter || null,
+          // earnings window applies only on paid_at basis with a range set —
+          // mirrors the earningsOrders filter below.
+          p_earn_windowed: dateBasis === "paid_at" && !!(from || to),
+        });
+        if (rollupErr) return json({ error: `agent_performance_rollup: ${sanitizeDbError(rollupErr)}` }, 500);
+        sqlGroups = (rollup as any[]) || [];
+      } else if (from || to) {
         const byId = new Map<string, any>();
         const createdRows = await paginateOrders(() => {
           let q = baseOrdersFilter(adminClient.from("orders").select(ORDER_PERF_SELECT));
@@ -9031,6 +9061,65 @@ async function handleRequest(req: Request): Promise<Response> {
         (agentOrderMap[ownerKey] ??= []).push(o);
       }
 
+      // SQL engine: same fold, over (owner_id, owner_raw) GROUPS instead of
+      // rows. agentOwnerKey()'s resolution order is reproduced exactly: the
+      // account id when the group carries one, otherwise the script-folded
+      // name resolved through idByIdentity, otherwise a `name:` virtual key.
+      interface PerfAgg {
+        rows: number; trashed: number; cancelled: number; leadsNc: number;
+        confirmed: number; shipped: number; returned: number; paidEarn: number;
+        gross: number; paidRevRaw: number; outstanding: number; returnedValue: number;
+        paidCost: number; returnedCost: number; pkgsSold: number; pkgsAwaiting: number;
+        pkgsReturned: number; bonusQualifying: number;
+      }
+      const aggByOwner: Record<string, PerfAgg> = {};
+      for (const grow of sqlGroups) {
+        const ownerId = (grow.owner_id as string | null) ?? null;
+        let ownerKey: string | null = ownerId;
+        if (!ownerKey) {
+          const k = agentIdentityKey(grow.owner_raw);
+          if (!k) continue;
+          ownerKey = idByIdentity[k] ?? `name:${k}`;
+        }
+        allAttributedUserIds.add(ownerKey);
+        if (ownerKey.startsWith("name:")) {
+          const label = normAgentName(grow.owner_raw);
+          const v = (virtualVariants[ownerKey] ??= {});
+          v[label] = (v[label] || 0) + Number(grow.n_rows || 0);
+        }
+        const a = (aggByOwner[ownerKey] ??= {
+          rows: 0, trashed: 0, cancelled: 0, leadsNc: 0, confirmed: 0, shipped: 0,
+          returned: 0, paidEarn: 0, gross: 0, paidRevRaw: 0, outstanding: 0,
+          returnedValue: 0, paidCost: 0, returnedCost: 0, pkgsSold: 0,
+          pkgsAwaiting: 0, pkgsReturned: 0, bonusQualifying: 0,
+        });
+        a.rows += Number(grow.n_rows || 0);
+        a.trashed += Number(grow.n_trashed || 0);
+        a.cancelled += Number(grow.n_cancelled || 0);
+        a.leadsNc += Number(grow.n_leads_nc || 0);
+        a.confirmed += Number(grow.n_confirmed || 0);
+        a.shipped += Number(grow.n_shipped || 0);
+        a.returned += Number(grow.n_returned || 0);
+        a.paidEarn += Number(grow.n_paid_earn || 0);
+        a.gross += Number(grow.gross_revenue || 0);
+        a.paidRevRaw += Number(grow.paid_revenue_raw || 0);
+        a.outstanding += Number(grow.outstanding_revenue || 0);
+        a.returnedValue += Number(grow.returned_value || 0);
+        a.paidCost += Number(grow.paid_cost || 0);
+        a.returnedCost += Number(grow.returned_cost || 0);
+        a.pkgsSold += Number(grow.pkgs_sold || 0);
+        a.pkgsAwaiting += Number(grow.pkgs_awaiting || 0);
+        a.pkgsReturned += Number(grow.pkgs_returned || 0);
+        // The exact-name bonus gate, applied per GROUP: earnsBonus() is
+        // constant within one — a group with an owner id always earns for its
+        // account; a name-only group earns only when its exact normalised
+        // spelling maps to the very account it folded onto. This keeps the
+        // bonus on the pre-merge basis (see the commission note below).
+        const bonusQualifies = ownerId !== null ||
+          idByExactName[normAgentName(grow.owner_raw)] === ownerKey;
+        if (bonusQualifies) a.bonusQualifying += Number(grow.bonus_earn || 0);
+      }
+
       // Traditional call agents (for the base list)
       const { data: agentRoles } = await adminClient
         .from("user_roles")
@@ -9089,10 +9178,13 @@ async function handleRequest(req: Request): Promise<Response> {
         agentProfiles = agentProfiles.filter((a: any) => a.user_id === user.id);
       }
 
-      // Get cost prices for profit calculation
-      const { data: allProducts } = await adminClient.from("products").select("id, cost_price");
+      // Get cost prices for profit calculation (SQL engine joins products
+      // inside the rollup, so the cost is already in paid_cost/returned_cost).
       const costMap: Record<string, number> = {};
-      for (const p of allProducts || []) costMap[p.id] = Number(p.cost_price || 0);
+      if (!usePerfSql) {
+        const { data: allProducts } = await adminClient.from("products").select("id, cost_price");
+        for (const p of allProducts || []) costMap[p.id] = Number(p.cost_price || 0);
+      }
 
       // Load special agents for commission calc (pending + prediction)
       const { data: specialRoleRows } = await adminClient
@@ -9105,7 +9197,7 @@ async function handleRequest(req: Request): Promise<Response> {
       // a local units helper. packages_sold = PAID units only (COD collected).
 
       // Determine which agents to include: those with activity OR all if showZero
-      const activeAgentIds = new Set(Object.keys(agentOrderMap));
+      const activeAgentIds = new Set(Object.keys(usePerfSql ? aggByOwner : agentOrderMap));
       let filteredProfiles = showZero
         ? agentProfiles
         : agentProfiles.filter((a: any) => activeAgentIds.has(a.user_id));
@@ -9119,6 +9211,38 @@ async function handleRequest(req: Request): Promise<Response> {
       }
 
       const results = filteredProfiles.map((agent: any) => {
+        // Both engines fill the SAME intermediates; every derived formula and
+        // the response literal below are shared, so the shape cannot drift.
+        let leadsAssigned: number, confirmedCount: number, shippedCount: number,
+          paidCount: number, returnedCount: number, cancelledCount: number,
+          trashedCount: number, grossRevenue: number, paidRevenue: number,
+          outstandingRevenue: number, returnedValue: number, totalProfit: number,
+          returnedCost: number, packagesSold: number, packagesAwaiting: number,
+          packagesReturned: number, bonusRaw: number;
+
+        if (usePerfSql) {
+          const a = aggByOwner[agent.user_id];
+          // leadsAssigned: trash is never a lead; cancelled folds in only when
+          // the toggle is on (it sits outside every other status set, so
+          // nothing else needs it).
+          leadsAssigned = a ? a.leadsNc + (includeCancelled ? a.cancelled : 0) : 0;
+          confirmedCount = a?.confirmed ?? 0;
+          shippedCount = a?.shipped ?? 0;
+          paidCount = a?.paidEarn ?? 0;
+          returnedCount = a?.returned ?? 0;
+          cancelledCount = a?.cancelled ?? 0;
+          trashedCount = a?.trashed ?? 0;
+          grossRevenue = a?.gross ?? 0;
+          paidRevenue = Math.round((a?.paidRevRaw ?? 0) * 100) / 100; // = paidRevenueOf()
+          outstandingRevenue = a?.outstanding ?? 0;
+          returnedValue = a?.returnedValue ?? 0;
+          totalProfit = (a?.paidRevRaw ?? 0) - (a?.paidCost ?? 0); // Σ(price - cost), unrounded
+          returnedCost = a?.returnedCost ?? 0;
+          packagesSold = a?.pkgsSold ?? 0;
+          packagesAwaiting = a?.pkgsAwaiting ?? 0;
+          packagesReturned = a?.pkgsReturned ?? 0;
+          bonusRaw = a?.bonusQualifying ?? 0;
+        } else {
         const allAgentRows = agentOrderMap[agent.user_id] || [];
         // Trash (junk / wrong number) is tracked on its own so it never counts as
         // a lead, package, payout or feeds any rate denominator below.
@@ -9133,7 +9257,7 @@ async function handleRequest(req: Request): Promise<Response> {
           o.status !== "trashed" && (includeCancelled || o.status !== "cancelled")
         );
 
-        const leadsAssigned = agentOrders.length;
+        leadsAssigned = agentOrders.length;
         const confirmedOrders = agentOrders.filter((o: any) => ["confirmed", "shipped", "delivered", "returned", "paid"].includes(o.status));
         const shippedOrders = agentOrders.filter((o: any) => ["shipped", "delivered", "returned", "paid"].includes(o.status));
         // Earnings subset: when date_basis=paid_at, only paid orders whose payment
@@ -9145,20 +9269,20 @@ async function handleRequest(req: Request): Promise<Response> {
         const returnedOrders = agentOrders.filter((o: any) => o.status === "returned");
 
         // Financial: use locked order price
-        const grossRevenue = agentOrders
+        grossRevenue = agentOrders
           .filter((o: any) => ["shipped", "paid"].includes(o.status))
           .reduce((s: number, o: any) => s + Number(o.price || 0), 0);
 
-        const paidRevenue = paidRevenueOf(paidOrders);
+        paidRevenue = paidRevenueOf(paidOrders);
 
-        const outstandingRevenue = agentOrders
+        outstandingRevenue = agentOrders
           .filter((o: any) => o.status === "shipped")
           .reduce((s: number, o: any) => s + Number(o.price || 0), 0);
 
-        const returnedValue = returnedOrders.reduce((s: number, o: any) => s + Number(o.price || 0), 0);
+        returnedValue = returnedOrders.reduce((s: number, o: any) => s + Number(o.price || 0), 0);
 
         // Profit from paid orders: price - cost snapshot
-        let totalProfit = 0;
+        totalProfit = 0;
         for (const o of paidOrders) {
           const items = o.order_items || [];
           let orderCost = 0;
@@ -9173,7 +9297,7 @@ async function handleRequest(req: Request): Promise<Response> {
         }
 
         // Net Contribution: (Paid Revenue - Returned Value) - Total Cost for Paid + Returned orders
-        let returnedCost = 0;
+        returnedCost = 0;
         for (const o of returnedOrders) {
           const items = o.order_items || [];
           let orderCost = 0;
@@ -9186,13 +9310,30 @@ async function handleRequest(req: Request): Promise<Response> {
           }
           returnedCost += orderCost;
         }
+
+        paidCount = paidOrders.length;
+        confirmedCount = confirmedOrders.length;
+        shippedCount = shippedOrders.length;
+        returnedCount = returnedOrders.length;
+        cancelledCount = cancelledOrders.length;
+        trashedCount = trashedOrders.length;
+        packagesSold = packagesSoldOf(paidOrders);
+        packagesAwaiting = packagesAwaitingOf(agentOrders);
+        packagesReturned = packagesReturnedOf(agentOrders);
+        // Raw bonus over the exact-name-qualifying paid orders; the shared code
+        // below rounds once — reproducing calcAgentBonus() exactly.
+        const earnsBonus = (o: any) =>
+          salesOwnerId(o) !== null ||
+          idByExactName[normAgentName(salesOwnerName(o))] === agent.user_id;
+        bonusRaw = 0;
+        for (const o of paidOrders) if (earnsBonus(o)) bonusRaw += orderPackageBonus(o);
+        }
+
+        // ── Shared derived metrics (identical for both engines) ──
         // totalCost for paid orders is already: paidRevenue - totalProfit
         const paidCost = paidRevenue - totalProfit;
         const netContribution = (paidRevenue - returnedValue) - (paidCost + returnedCost);
 
-        const paidCount = paidOrders.length;
-        const confirmedCount = confirmedOrders.length;
-        const shippedCount = shippedOrders.length;
         const avgOrderValue = paidCount > 0 ? Math.round((paidRevenue / paidCount) * 100) / 100 : 0;
         const revenuePerLead = leadsAssigned > 0 ? Math.round((paidRevenue / leadsAssigned) * 100) / 100 : 0;
         const profitPerLead = leadsAssigned > 0 ? Math.round((totalProfit / leadsAssigned) * 100) / 100 : 0;
@@ -9201,7 +9342,7 @@ async function handleRequest(req: Request): Promise<Response> {
         const conversionRate = leadsAssigned > 0 ? Math.round((confirmedCount / leadsAssigned) * 10000) / 100 : 0;
         const shipmentRate = confirmedCount > 0 ? Math.round((shippedCount / confirmedCount) * 10000) / 100 : 0;
         const collectionRate = shippedCount > 0 ? Math.round((paidCount / shippedCount) * 10000) / 100 : 0;
-        const returnRate = shippedCount > 0 ? Math.round((returnedOrders.length / shippedCount) * 10000) / 100 : 0;
+        const returnRate = shippedCount > 0 ? Math.round((returnedCount / shippedCount) * 10000) / 100 : 0;
 
         // === Per-package payout (every paid order, credited to confirmer) ===
         // Super-admins (admin/manager, not agents) are never on commission.
@@ -9224,16 +9365,11 @@ async function handleRequest(req: Request): Promise<Response> {
         // a filter.
         //
         // So: attribution uses the folded index, the bonus uses the exact-name
-        // index it always used. Payout totals are unchanged by this commit.
-        // To pay on the merged history, widen this to idByIdentity — one line,
-        // and a deliberate one.
-        const earnsBonus = (o: any) =>
-          salesOwnerId(o) !== null ||
-          idByExactName[normAgentName(salesOwnerName(o))] === agent.user_id;
-        const payoutEarned = isAgentRole ? calcAgentBonus(paidOrders.filter(earnsBonus)) : 0;
-        const packagesSold = packagesSoldOf(paidOrders);
-        const packagesAwaiting = packagesAwaitingOf(agentOrders);
-        const packagesReturned = packagesReturnedOf(agentOrders);
+        // index it always used (per-order in the legacy branch, per-group in
+        // the SQL fold above — both feed bonusRaw). Payout totals are unchanged.
+        // To pay on the merged history, widen the gate to idByIdentity — one
+        // line in each engine, and a deliberate one.
+        const payoutEarned = isAgentRole ? Math.round(bonusRaw * 100) / 100 : 0; // = calcAgentBonus()
 
         // Avg/pkg on paid packages (aligns with payout basis — not pipeline SOLD).
         const avgPerPackage = packagesSold > 0
@@ -9252,10 +9388,10 @@ async function handleRequest(req: Request): Promise<Response> {
           total_confirmed: confirmedCount,
           total_shipped: shippedCount,
           total_paid: paidCount,
-          total_returned: returnedOrders.length,
+          total_returned: returnedCount,
           packages_returned: packagesReturned,
-          total_cancelled: cancelledOrders.length,
-          total_trashed: trashedOrders.length,
+          total_cancelled: cancelledCount,
+          total_trashed: trashedCount,
           conversion_rate: conversionRate,
           shipment_rate: shipmentRate,
           collection_rate: collectionRate,
