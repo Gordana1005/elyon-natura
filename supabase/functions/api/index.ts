@@ -9496,6 +9496,16 @@ async function handleRequest(req: Request): Promise<Response> {
         if (!isAdminOrManager) agentId = user.id;
         if (agentId && !UUID_RE.test(agentId)) return json({ error: "Invalid agent_id" }, 400);
 
+        // ── Engine switch (same pattern as agent-performance / insights) ──
+        // `legacy` runs a serial loop over every gated agent — three paginated
+        // scans EACH (a textbook N+1, minutes at ~50 agents). `sql` gets the
+        // identical arithmetic from one agent_payouts_summary_rollup() call;
+        // profile gating, calcAgentBonus rounding and the sort stay below.
+        // Rollback: `supabase secrets set PAYOUT_SUMMARY_ENGINE=legacy`
+        // (no deploy), or ?engine=legacy per request.
+        const payoutEngine = url.searchParams.get("engine") || Deno.env.get("PAYOUT_SUMMARY_ENGINE") || "legacy";
+        const usePayoutSql = payoutEngine === "sql";
+
         const { data: agentRoles } = await adminClient
           .from("user_roles")
           .select("user_id")
@@ -9513,6 +9523,40 @@ async function handleRequest(req: Request): Promise<Response> {
         const agentProfiles = (profiles || []).filter(
           (p: any) => agentIds.has(p.user_id) && !superIds.has(p.user_id),
         );
+
+        // SQL engine: one grouped call replaces the settled-set scan, the
+        // settlements scan, and the whole three-scans-per-agent loop below.
+        if (usePayoutSql) {
+          const { data: rollup, error: rollupErr } = await adminClient.rpc("agent_payouts_summary_rollup", {
+            p_from: from || null,
+            p_to: to || null,
+            p_agent_id: agentId || null,
+          });
+          if (rollupErr) return json({ error: `agent_payouts_summary_rollup: ${sanitizeDbError(rollupErr)}` }, 500);
+          const byAgent: Record<string, any> = {};
+          for (const r of (rollup as any[]) || []) byAgent[r.agent] = r;
+
+          const results = agentProfiles.map((p: any) => {
+            const r = byAgent[p.user_id];
+            return {
+              agent_user_id: p.user_id,
+              full_name: p.full_name,
+              email: p.email,
+              packages_sold: Number(r?.packages_sold || 0),
+              packages_awaiting: Number(r?.pkgs_awaiting || 0),
+              packages_returned: Number(r?.pkgs_returned || 0),
+              // calcAgentBonus() = round(Σ per-package bonus) — the Σ comes
+              // raw from SQL, the round happens here, once, like legacy.
+              payout_earned: Math.round(Number(r?.bonus_owned || 0) * 100) / 100,
+              payout_settled: Math.round(Number(r?.settled_sum_raw || 0) * 100) / 100,
+              payout_unpaid: Math.round(Number(r?.bonus_unsettled || 0) * 100) / 100,
+              last_paid_on: r?.last_paid_on ?? null,
+              unsettled_orders: Number(r?.unsettled_orders || 0),
+            };
+          });
+          results.sort((a: any, b: any) => b.payout_unpaid - a.payout_unpaid);
+          return json(results);
+        }
 
         const settledAll = await loadSettledOrderIds(agentId || null);
         // Settled amounts per agent

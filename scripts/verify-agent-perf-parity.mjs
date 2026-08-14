@@ -108,7 +108,10 @@ const CASES = [
   // real uuid and one `name:` virtual key, picked from the live response.
 ];
 let matrix = ONLY ? CASES.filter((c) => c.key === ONLY) : CASES;
-if (!matrix.length) fail(`--only=${ONLY} matched no case. Known: ${CASES.map((c) => c.key).join(', ')}`);
+// p-* keys live in the payout section below — an empty main matrix is fine then.
+if (!matrix.length && !(ONLY || '').startsWith('p-')) {
+  fail(`--only=${ONLY} matched no case. Known: ${CASES.map((c) => c.key).join(', ')} + payout p-all/p-month/p-12mo`);
+}
 
 const qs = (c, eng = 'legacy') => {
   const sp = new URLSearchParams();
@@ -284,6 +287,82 @@ for (const c of matrix) {
         );
         if (d.length) show(d);
         Object.assign(row, { sql_ms: Math.round(s.ms), sql_bytes: s.bytes, blockers: t.blocker, notes: t.note, speedup: +speed.toFixed(1) });
+      }
+    }
+  }
+  report.push(row);
+}
+
+// ── section 2: agent-payouts/summary (the N+1) ─────────────────────────────
+console.log(`\n\x1b[1mPayout summary\x1b[0m (rows re-keyed by agent_user_id; sort asserted on payout_unpaid)\n`);
+
+const pKeyed = (rows, out, side) => {
+  const m = {};
+  for (const r of rows || []) {
+    if (m[r.agent_user_id]) out.push({ path: `${side}.${r.agent_user_id}`, a: 'dup', b: 'dup', sev: 'BLOCKER', why: 'duplicate agent_user_id' });
+    m[r.agent_user_id] = r;
+  }
+  return m;
+};
+const pSortOk = (rows) => (rows || []).every((r, i) => i === 0 || rows[i - 1].payout_unpaid >= r.payout_unpaid);
+function diffPayout(a, b) {
+  const out = [];
+  if (!Array.isArray(a) || !Array.isArray(b)) { out.push({ path: '', a: typeof a, b: typeof b, sev: 'BLOCKER', why: 'not arrays' }); return out; }
+  if (!pSortOk(a)) out.push({ path: 'legacy', a: 'sort', b: '', sev: 'BLOCKER', why: 'payout_unpaid not non-increasing' });
+  if (!pSortOk(b)) out.push({ path: 'sql', a: '', b: 'sort', sev: 'BLOCKER', why: 'payout_unpaid not non-increasing' });
+  walk(pKeyed(a, out, 'legacy'), pKeyed(b, out, 'sql'), '', out);
+  return out;
+}
+const pQs = (p, eng) => {
+  const sp = new URLSearchParams();
+  for (const [k, v] of Object.entries(p)) sp.set(k, v);
+  sp.set('engine', eng);
+  return `agent-payouts/summary?${sp}`;
+};
+
+const PAYOUT_CASES = [
+  { key: 'p-all',   p: {},                                why: 'no range (the PayoutTab default state)' },
+  { key: 'p-month', p: { from: dback(30), to: dfwd(1) },  why: 'a month window' },
+  { key: 'p-12mo',  p: { from: dback(365), to: dfwd(1) }, why: 'a year window' },
+];
+if (!ONLY || ONLY === 'payout' || ONLY === 'p-agent') {
+  const probe = await call(pQs({}, 'legacy'));
+  const one = Array.isArray(probe.body) ? probe.body.find((r) => r.packages_sold > 0) : null;
+  if (one) PAYOUT_CASES.push({ key: 'p-agent', p: { agent_id: one.agent_user_id }, why: `single agent (${one.full_name})` });
+}
+// --only=payout runs the whole payout section; --only=p-<case> one case.
+for (const c of (ONLY && ONLY !== 'payout' ? PAYOUT_CASES.filter((x) => x.key === ONLY) : PAYOUT_CASES)) {
+  process.stdout.write(`${c.key.padEnd(11)} ${(c.p.from || '—')} → ${(c.p.to || '—')}  `);
+  const a = await call(pQs(c.p, 'legacy'));
+  if (a.status !== 200) {
+    console.log(`\x1b[31mlegacy HTTP ${a.status}\x1b[0m ${(a.raw ?? a.error ?? '').slice(0, 80)}`);
+    totalBlockers++;
+    report.push({ case: c.key, legacy_status: a.status });
+    continue;
+  }
+  console.log(`${ms(a.ms).padStart(7)} ${kb(a.bytes).padStart(8)}  ${c.why}`);
+  const row = { case: c.key, params: c.p, legacy_ms: Math.round(a.ms) };
+  if (DO_PARITY) {
+    const s = await call(pQs(c.p, 'sql'));
+    if (s.status !== 200) {
+      console.log(`      \x1b[31mengine=sql → HTTP ${s.status}\x1b[0m ${(s.raw ?? s.error ?? '').slice(0, 120)}`);
+      totalBlockers++;
+    } else {
+      const c2 = await call(pQs(c.p, 'legacy'));
+      if (tally(diffPayout(a.body, c2.body)).blocker > 0) {
+        console.log(`      \x1b[33mskipped: live data changed mid-test.\x1b[0m`);
+        row.parity = 'retry';
+      } else {
+        const d = diffPayout(a.body, s.body);
+        const t = tally(d);
+        totalBlockers += t.blocker;
+        console.log(
+          `      sql ${ms(s.ms)}  \x1b[1m${(a.ms / Math.max(1, s.ms)).toFixed(0)}× faster\x1b[0m  ` +
+          (t.blocker ? `\x1b[31m${t.blocker} BLOCKER\x1b[0m ` : '\x1b[32m0 blockers\x1b[0m ') +
+          (t.note ? `\x1b[33m${t.note} note\x1b[0m` : ''),
+        );
+        if (d.length) show(d);
+        Object.assign(row, { sql_ms: Math.round(s.ms), blockers: t.blocker, notes: t.note });
       }
     }
   }
