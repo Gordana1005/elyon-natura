@@ -11,15 +11,34 @@ async function getHeaders() {
   };
 }
 
+// Heavy aggregates can legitimately run long, but a killed edge function
+// (CPU limit → HTTP 546 with a non-JSON body, or a gateway 504) must surface
+// as an error instead of an eternal spinner. 90s covers the slowest legacy
+// endpoint today; tighten once the SQL engines land.
+const API_TIMEOUT_MS = 90_000;
+
 async function apiFetch<T = any>(path: string, options?: RequestInit): Promise<T> {
   const headers = await getHeaders();
+  const timeoutSignal = AbortSignal.timeout(API_TIMEOUT_MS);
+  const signal = options?.signal
+    ? AbortSignal.any([options.signal, timeoutSignal])
+    : timeoutSignal;
   const res = await fetch(`${API_BASE}/${path}`, {
     ...options,
+    signal,
     headers: { ...headers, ...options?.headers },
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'API error');
-  return data;
+  if (!res.ok) {
+    // The body may be HTML or empty (546/504) — never assume JSON on errors.
+    const text = await res.text().catch(() => '');
+    let message = `HTTP ${res.status}`;
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed?.error) message = parsed.error;
+    } catch { /* non-JSON error body */ }
+    throw new Error(message);
+  }
+  return res.json();
 }
 
 // Auth
@@ -1155,7 +1174,7 @@ export const apiGetAgentPerformance = (params?: {
   from?: string; to?: string; search?: string; source?: string;
   status?: string; agent_id?: string; include_cancelled?: boolean; show_zero?: boolean;
   date_basis?: 'paid_at' | 'created_at';
-}): Promise<AgentPerformanceRow[]> => {
+}, signal?: AbortSignal): Promise<AgentPerformanceRow[]> => {
   const sp = new URLSearchParams();
   if (params?.from) sp.set('from', params.from);
   if (params?.to) sp.set('to', params.to);
@@ -1167,7 +1186,7 @@ export const apiGetAgentPerformance = (params?: {
   if (params?.show_zero) sp.set('show_zero', 'true');
   if (params?.date_basis) sp.set('date_basis', params.date_basis);
   const qs = sp.toString();
-  return apiFetch<AgentPerformanceRow[]>(`agent-performance${qs ? `?${qs}` : ''}`);
+  return apiFetch<AgentPerformanceRow[]>(`agent-performance${qs ? `?${qs}` : ''}`, { signal });
 };
 
 // ── Agent payout settlements ──
@@ -1532,12 +1551,12 @@ export interface InsightsResponse {
     return_rate: number;
   }[];
 }
-export const apiGetManagementInsights = (params?: { from?: string; to?: string; target?: number }): Promise<InsightsResponse> => {
+export const apiGetManagementInsights = (params?: { from?: string; to?: string; target?: number }, signal?: AbortSignal): Promise<InsightsResponse> => {
   const sp = new URLSearchParams();
   if (params?.from) sp.set('from', params.from);
   if (params?.to) sp.set('to', params.to);
   if (params?.target != null) sp.set('target', String(params.target));
-  return apiFetch(`management-insights?${sp.toString()}`);
+  return apiFetch(`management-insights?${sp.toString()}`, { signal });
 };
 
 // Courier rate card (logistics cost per courier+service — editable in Settings)

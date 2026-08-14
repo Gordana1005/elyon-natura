@@ -2123,6 +2123,8 @@
   },
   "apiErrors": {
     "generic": "Something went wrong",
+    "timeout": "The request took too long and was cancelled — try a shorter date range",
+    "httpStatus": "Server error (HTTP {{status}}) — try a shorter date range",
     "operationFailed": "Operation failed",
     "duplicateEntry": "Duplicate entry",
     "refNotFound": "Referenced record not found",
@@ -2187,6 +2189,7 @@
   },
   "insights": {
     "tabOverview": "Overview",
+    "slowLoading": "Loading report… {{s}}s",
     "tabSales": "Sales",
     "tabAgents": "Agents",
     "tabPayout": "Payout",

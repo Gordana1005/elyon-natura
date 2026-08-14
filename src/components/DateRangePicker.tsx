@@ -75,6 +75,10 @@ export function DateRangePicker({ value, onChange, className, simple = false }: 
     setDraft(next);
     clearTimeout(timer.current);
     if (!plausible(next.from) || !plausible(next.to)) return;   // still mid-year
+    // Clearing ONE box must not commit a half-open range — that silently means
+    // "all time" with no visual hint. Keep it as a draft; a full range (or a
+    // deliberate clear of BOTH boxes) still commits.
+    if (!next.from !== !next.to) return;
     timer.current = setTimeout(() => onChange(next), COMMIT_DELAY_MS);
   };
 

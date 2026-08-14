@@ -2123,6 +2123,8 @@
   },
   "apiErrors": {
     "generic": "Diçka shkoi keq",
+    "timeout": "Kërkesa zgjati shumë dhe u anulua — provoni një periudhë më të shkurtër",
+    "httpStatus": "Gabim serveri (HTTP {{status}}) — provoni një periudhë më të shkurtër",
     "operationFailed": "Operacioni dështoi",
     "duplicateEntry": "Hyrje e dyfishtë",
     "refNotFound": "Regjistrimi i referuar nuk u gjet",
@@ -2187,6 +2189,7 @@
   },
   "insights": {
     "tabOverview": "Përmbledhje",
+    "slowLoading": "Raporti po ngarkohet… {{s}}s",
     "tabSales": "Shitjet",
     "tabAgents": "Agjentët",
     "tabPayout": "Pagesat",

@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { apiErrorText } from '@/i18n/apiErrors';
 import { useState, useEffect, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -55,8 +55,8 @@ export default function AgentsTab() {
   const canSeeFinance = user?.isAdmin || user?.isManager;
   const isAgentSelfView = !canSeeFinance; // regular agent (incl. pending/prediction) viewing their own stats
 
-  const [data, setData] = useState<AgentPerformanceRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Draft filter inputs — what the controls show. Nothing fetches until a
+  // preset click / Apply / Enter COMMITS the drafts into `applied` below.
   // Default to "this month" for everyone. Agents can change the range if they want historical view.
   const [filter, setFilter] = useState<FilterPreset>('month');
   const [customFrom, setCustomFrom] = useState('');
@@ -67,6 +67,27 @@ export default function AgentsTab() {
   const [agentFilter, setAgentFilter] = useState('all');
   const [includeCancelled, setIncludeCancelled] = useState(false);
   const [showZero, setShowZero] = useState(false);
+
+  // Committed filters = the react-query cache key. Keying the query on this
+  // object gives caching across tab remounts, dedupe, and last-write-wins when
+  // presets are clicked in quick succession (the key change abandons the stale
+  // in-flight request instead of letting whichever resolves last paint).
+  interface AppliedFilters {
+    preset: FilterPreset;
+    customFrom: string;
+    customTo: string;
+    search: string;
+    source: string;
+    status: string;
+    agent: string;
+    includeCancelled: boolean;
+    showZero: boolean;
+  }
+  const [applied, setApplied] = useState<AppliedFilters>({
+    preset: 'month', customFrom: '', customTo: '', search: '',
+    source: 'all', status: 'all', agent: 'all',
+    includeCancelled: false, showZero: false,
+  });
 
   // This filter must offer EVERY owner the table below can show — including the
   // historic name-only operators from the imported AlterCPA history, who have no
@@ -84,45 +105,48 @@ export default function AgentsTab() {
     agents.filter(a => a.is_virtual),
   ], [agents]);
 
-  const buildParams = (preset: FilterPreset, cFrom?: string, cTo?: string) => {
-    let range = getDateRange(preset);
-    if (preset === 'custom' && cFrom && cTo) range = { from: cFrom, to: cTo };
+  const buildParams = (a: AppliedFilters) => {
+    let range = getDateRange(a.preset);
+    if (a.preset === 'custom' && a.customFrom && a.customTo) range = { from: a.customFrom, to: a.customTo };
     return {
       from: range?.from,
       to: range?.to,
-      search: search || undefined,
-      source: sourceFilter !== 'all' ? sourceFilter : undefined,
-      status: statusFilter !== 'all' ? statusFilter : undefined,
-      agent_id: isAgentSelfView ? (user?.id || undefined) : (agentFilter !== 'all' ? agentFilter : undefined),
-      include_cancelled: includeCancelled,
-      show_zero: showZero,
+      search: a.search || undefined,
+      source: a.source !== 'all' ? a.source : undefined,
+      status: a.status !== 'all' ? a.status : undefined,
+      agent_id: isAgentSelfView ? (user?.id || undefined) : (a.agent !== 'all' ? a.agent : undefined),
+      include_cancelled: a.includeCancelled,
+      show_zero: a.showZero,
     };
   };
 
-  const loadData = (preset?: FilterPreset, cFrom?: string, cTo?: string) => {
-    setLoading(true);
-    const p = preset ?? filter;
-    apiGetAgentPerformance(buildParams(p, cFrom, cTo))
-      .then(setData)
-      .catch((err: any) => toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' }))
-      .finally(() => setLoading(false));
-  };
+  const { data = [], isLoading, isFetching, error } = useQuery<AgentPerformanceRow[]>({
+    queryKey: ['agent-performance', applied, isAgentSelfView ? user?.id : null],
+    queryFn: ({ signal }) => apiGetAgentPerformance(buildParams(applied), signal),
+    // Previous rows stay on screen while a new filter set loads; retry stays 0
+    // because retrying this aggregate doubles an already-long wait.
+    placeholderData: keepPreviousData,
+    staleTime: 2 * 60_000,
+    retry: 0,
+  });
 
   useEffect(() => {
-    // On first load, automatically scope to self for regular agents
-    if (isAgentSelfView) {
-      setAgentFilter(user?.id || 'all');
-    }
-    loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (error) toast({ title: t('common.error'), description: apiErrorText(error), variant: 'destructive' });
+  }, [error, toast, t]);
+
+  // Commit current drafts (optionally overriding the preset) into `applied`.
+  const commit = (preset: FilterPreset) => setApplied({
+    preset, customFrom, customTo, search,
+    source: sourceFilter, status: statusFilter, agent: agentFilter,
+    includeCancelled, showZero,
+  });
 
   const handleFilterChange = (preset: FilterPreset) => {
     setFilter(preset);
-    if (preset !== 'custom') loadData(preset);
+    if (preset !== 'custom') commit(preset);
   };
 
-  const applyFilters = () => loadData(filter, customFrom, customTo);
+  const applyFilters = () => commit(filter);
 
   const clearFilters = () => {
     setSourceFilter('all');
@@ -131,7 +155,13 @@ export default function AgentsTab() {
     setIncludeCancelled(false);
     setShowZero(false);
     setSearch('');
-    setTimeout(() => loadData(filter), 0);
+    // Commit the cleared values directly — going through the drafts here would
+    // re-fetch with the pre-clear state (the old setTimeout bug).
+    setApplied({
+      preset: filter, customFrom, customTo, search: '',
+      source: 'all', status: 'all', agent: 'all',
+      includeCancelled: false, showZero: false,
+    });
   };
 
   const hasActiveFilters = sourceFilter !== 'all' || statusFilter !== 'all' || agentFilter !== 'all' || includeCancelled || showZero || search;
@@ -339,7 +369,7 @@ export default function AgentsTab() {
       </Card>
 
       {/* Table */}
-      {loading ? (
+      {isLoading ? (
         <div className="flex items-center justify-center py-20">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
@@ -351,7 +381,14 @@ export default function AgentsTab() {
           size="md"
         />
       ) : (
-        <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+        <div className="relative rounded-xl border bg-card shadow-sm overflow-hidden">
+          {/* keepPreviousData holds the old rows while a new filter set loads;
+              the veil says "these numbers are being replaced". */}
+          {isFetching && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/50">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          )}
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>

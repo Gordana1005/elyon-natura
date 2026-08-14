@@ -1,13 +1,14 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/i18n';
-import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { AppLayout } from '@/layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DateRangePicker, defaultRange, type DateRange } from '@/components/DateRangePicker';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Loader2, TrendingUp, RotateCcw, BarChart3, MapPin, Package, Users, Phone,
   PackageX, Coins, Truck, AlertTriangle, Trash2, ListChecks,
@@ -79,12 +80,15 @@ export default function ManagementInsightsPage() {
   const activeTab = tabs.some(t => t.value === requested) ? requested! : (tabs[0]?.value ?? 'overview');
 
   // Heavy aggregate is only needed by the insights tabs + the Call Activity
-  // summary, so don't fetch (or block) for Performance/Activity-only users.
+  // summary, so don't fetch (or block) for Performance/Activity-only users —
+  // and not while the operator sits on Agents/Payout, which bring their own
+  // (also heavy) requests. It fires when they switch to a tab that needs it.
+  const queryClient = useQueryClient();
   const { data, isLoading, isFetching } = useQuery<InsightsResponse>({
     queryKey: ['insights', range.from, range.to],
-    queryFn: () => apiGetManagementInsights({ from: range.from || undefined, to: range.to || undefined }),
-    staleTime: 60_000,
-    enabled: canInsights,
+    queryFn: ({ signal }) => apiGetManagementInsights({ from: range.from || undefined, to: range.to || undefined }, signal),
+    staleTime: 5 * 60_000,
+    enabled: canInsights && activeTab !== 'agents' && activeTab !== 'payout',
     // Keep the previous range's numbers on screen while the new ones load, instead
     // of blanking every tab to a spinner. On a wide range that spinner is the whole
     // wait. `retry` is 0 rather than the global 1 because retrying a heavy aggregate
@@ -92,6 +96,15 @@ export default function ManagementInsightsPage() {
     placeholderData: keepPreviousData,
     retry: 0,
   });
+
+  // After ~3s of fetching, upgrade the silent spinner to elapsed-seconds + a
+  // Cancel button, so a wide range never looks like a hang.
+  const [slowSecs, setSlowSecs] = useState(0);
+  useEffect(() => {
+    if (!isFetching) { setSlowSecs(0); return; }
+    const id = setInterval(() => setSlowSecs(s => s + 1), 1000);
+    return () => clearInterval(id);
+  }, [isFetching]);
 
   // Date range drives the aggregate tabs; Agents/Payout bring their own filter bars.
   const showRangePicker = canInsights && activeTab !== 'agents' && activeTab !== 'payout';
@@ -106,10 +119,22 @@ export default function ManagementInsightsPage() {
             <DateRangePicker value={range} onChange={setRange} simple />
             {/* keepPreviousData leaves the OLD numbers on screen while a new range
                 loads. Without this the operator can't tell they're looking at the
-                previous range's figures. */}
-            {isFetching && !isLoading && (
+                previous range's figures. Past ~3s the spinner gains elapsed time
+                and a Cancel, so a wide range never reads as a hang. */}
+            {isFetching && slowSecs >= 3 ? (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
+                <span>{t('insights.slowLoading', { s: slowSecs })}</span>
+                <Button
+                  variant="ghost" size="sm" className="h-6 px-2 text-xs"
+                  onClick={() => queryClient.cancelQueries({ queryKey: ['insights'] })}
+                >
+                  {t('common.cancel')}
+                </Button>
+              </div>
+            ) : isFetching && !isLoading ? (
               <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" aria-hidden />
-            )}
+            ) : null}
           </div>
         )}
 

@@ -75,8 +75,17 @@ const PATTERNS: Array<[RegExp, string, Vars?]> = [
 ];
 
 export function apiErrorText(err: unknown): string {
+  // AbortSignal.timeout in apiFetch → TimeoutError; a user-initiated cancel →
+  // AbortError. Both mean "no response", not a backend message.
+  if (err instanceof DOMException && (err.name === 'TimeoutError' || err.name === 'AbortError')) {
+    return i18n.t('apiErrors.timeout');
+  }
   const msg = err instanceof Error ? err.message : String(err ?? '');
   if (!msg) return i18n.t('apiErrors.generic');
+  // apiFetch throws `HTTP <status>` when an error response has no JSON body
+  // (e.g. an edge function killed over its CPU budget returns 546 with HTML).
+  const http = msg.match(/^HTTP (\d{3})$/);
+  if (http) return i18n.t('apiErrors.httpStatus', { status: http[1] });
   const exact = EXACT[msg];
   if (exact) return i18n.t(exact);
   for (const [re, key, vars] of PATTERNS) {
