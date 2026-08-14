@@ -180,6 +180,20 @@ export const apiSearchPrediction = (q: string): Promise<SearchPredictionResult> 
 // Users
 export const apiGetUsers = () => apiFetch('users');
 export const apiGetAgents = () => apiFetch('users/agents');
+// Report filters only. Adds the historic name-only operators from the imported
+// AlterCPA history (`user_id: "name:<name>"`, `is_virtual: true`) so a report's
+// agent filter can select every row that report actually shows. These have no
+// account — NEVER use this list for assignment, payout or anything that writes
+// a user id. See `elyon-agent-commissions` / the Agents-tab filter.
+export interface AgentFilterOption {
+  user_id: string;
+  full_name: string;
+  email?: string;
+  is_virtual?: boolean;
+  order_count?: number;
+}
+export const apiGetAgentFilterOptions = (): Promise<AgentFilterOption[]> =>
+  apiFetch('users/agents?include_historic=1');
 export const apiCreateUser = (body: { email: string; password: string; full_name: string; role: string }) =>
   apiFetch('users/create', { method: 'POST', body: JSON.stringify(body) });
 export const apiToggleUserActive = (userId: string) =>
@@ -1100,9 +1114,12 @@ export const apiGetAgentActivity = (params?: { date?: string; agent_id?: string 
 
 // Agent performance — per-agent sales/financial table (Insights → Agents tab).
 export interface AgentPerformanceRow {
+  /** A real account's uuid, or `name:<operator>` for a historic name-only row. */
   user_id: string;
   full_name: string;
   email: string;
+  /** true = operator from the imported history; no CRM account, no login. */
+  is_virtual?: boolean;
   leads_assigned: number;
   total_confirmed: number;
   total_shipped: number;

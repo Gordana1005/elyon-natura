@@ -4638,7 +4638,10 @@ async function handleRequest(req: Request): Promise<Response> {
     }
 
     // GET /api/users/agents (list active assignable users - agents and admins)
+    // ?include_historic=1 additionally returns the name-only operators from the
+    // imported history (see below) — for REPORT filters only, never assignment.
     if (req.method === "GET" && path === "users/agents") {
+      const includeHistoric = url.searchParams.get("include_historic") === "1";
       const { data: allUsers } = await adminClient
         .from("profiles")
         .select("user_id, full_name, email")
@@ -4668,7 +4671,57 @@ async function handleRequest(req: Request): Promise<Response> {
           roles: roleMap[u.user_id] || [],
         }));
 
-      return json(assignableUsers);
+      if (!includeHistoric) return json(assignableUsers);
+
+      // ── Historic (name-only) operators ───────────────────────────────────
+      // The imported AlterCPA history records WHO sold each order as a name and
+      // never a user id — 26 operators who never had a CRM login. Reports that
+      // credit those orders (/api/agent-performance) therefore show "virtual"
+      // rows keyed `name:<normalised>`. Their filter dropdown read profiles
+      // alone, so 64 of the 70 owners in the Agents table could not be selected.
+      //
+      // Only report filters ask for these. They are NOT assignable — there is no
+      // account to assign to — so every assignment surface keeps the default
+      // (profiles-only) list. `is_virtual` lets the UI say so out loud.
+      //
+      // Normalisation MUST stay identical to ownerKeyOf() in agent-performance:
+      // same normAgentName(), same fold-onto-a-real-profile-when-the-name-matches
+      // step, same "Unknown operator" drop. A drifted key here yields a dropdown
+      // option that silently matches zero rows.
+      if (!isAdminOrManager) return json(assignableUsers);
+
+      const { data: operatorNames, error: opNameErr } = await adminClient.rpc("order_operator_names");
+      if (opNameErr) {
+        // A missing/failed RPC must not blank the dropdown — degrade to accounts.
+        console.error("order_operator_names failed:", opNameErr.message);
+        return json(assignableUsers);
+      }
+
+      // Name → account, so an imported order carrying only "Marija Markovska"
+      // folds onto her real profile instead of becoming a parallel ghost entry.
+      const profileIdByName: Record<string, string> = {};
+      for (const p of allUsers || []) profileIdByName[normAgentName(p.full_name)] = p.user_id;
+
+      const historicByKey: Record<string, number> = {};
+      for (const row of operatorNames || []) {
+        const key = normAgentName(row.operator_name);
+        if (key === "Unknown operator") continue;
+        if (profileIdByName[key]) continue;   // already listed as a real account
+        historicByKey[key] = (historicByKey[key] || 0) + Number(row.order_count || 0);
+      }
+
+      const historic = Object.entries(historicByKey)
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .map(([name, orders]) => ({
+          user_id: `name:${name}`,
+          full_name: name,
+          email: "",
+          roles: [] as string[],
+          is_virtual: true,
+          order_count: orders,
+        }));
+
+      return json([...assignableUsers, ...historic]);
     }
 
     // POST /api/orders (create order — admin/manager/agent)

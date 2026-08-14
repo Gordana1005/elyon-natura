@@ -5,13 +5,13 @@ import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Loader2, Download, Search, Users, Target, BarChart3, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { EmptyState } from '@/components/EmptyState';
-import { apiGetAgents, apiGetAgentPerformance, type AgentPerformanceRow } from '@/lib/api';
+import { apiGetAgentFilterOptions, apiGetAgentPerformance, type AgentFilterOption, type AgentPerformanceRow } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
 // ── Agents tab (formerly the standalone "Performance" page) ──
@@ -68,10 +68,21 @@ export default function AgentsTab() {
   const [includeCancelled, setIncludeCancelled] = useState(false);
   const [showZero, setShowZero] = useState(false);
 
-  const { data: agents = [] } = useQuery<{ user_id: string; full_name: string }[]>({
-    queryKey: ['agents'],
-    queryFn: apiGetAgents,
+  // This filter must offer EVERY owner the table below can show — including the
+  // historic name-only operators from the imported AlterCPA history, who have no
+  // profiles row. Using the plain agents list here left 64 of 70 owners in the
+  // table unselectable (Saska Simonovska, 5.279 orders, was one of them).
+  // Separate query key from ['agents'] on purpose: that cache is the assignable
+  // roster and must never grow accounts that cannot be assigned to.
+  const { data: agents = [] } = useQuery<AgentFilterOption[]>({
+    queryKey: ['agent-filter-options'],
+    queryFn: apiGetAgentFilterOptions,
   });
+
+  const [staffAgents, historicAgents] = useMemo(() => [
+    agents.filter(a => !a.is_virtual),
+    agents.filter(a => a.is_virtual),
+  ], [agents]);
 
   const buildParams = (preset: FilterPreset, cFrom?: string, cTo?: string) => {
     let range = getDateRange(preset);
@@ -176,12 +187,35 @@ export default function AgentsTab() {
         {/* Agent filter - hidden for regular agents (they only see themselves) */}
         {!isAgentSelfView && (
           <Select value={agentFilter} onValueChange={setAgentFilter}>
-            <SelectTrigger className="w-40 h-8 text-xs">
+            <SelectTrigger className="w-48 h-8 text-xs">
               <SelectValue placeholder={t('agentsTab.allAgents')} />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="max-h-80">
               <SelectItem value="all">{t('agentsTab.allAgents')}</SelectItem>
-              {agents.map(a => <SelectItem key={a.user_id} value={a.user_id}>{a.full_name}</SelectItem>)}
+              {staffAgents.length > 0 && (
+                <SelectGroup>
+                  <SelectLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                    {t('agentsTab.groupStaff')}
+                  </SelectLabel>
+                  {staffAgents.map(a => (
+                    <SelectItem key={a.user_id} value={a.user_id}>{a.full_name}</SelectItem>
+                  ))}
+                </SelectGroup>
+              )}
+              {/* Operators who exist only as a name on the imported history — no
+                  login, no account. They own the bulk of the orders in the table
+                  below, so the filter has to offer them; the group label is what
+                  keeps them from reading as current staff. */}
+              {historicAgents.length > 0 && (
+                <SelectGroup>
+                  <SelectLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                    {t('agentsTab.groupHistoric')}
+                  </SelectLabel>
+                  {historicAgents.map(a => (
+                    <SelectItem key={a.user_id} value={a.user_id}>{a.full_name}</SelectItem>
+                  ))}
+                </SelectGroup>
+              )}
             </SelectContent>
           </Select>
         )}
@@ -358,7 +392,17 @@ export default function AgentsTab() {
                         </div>
                         <div className="min-w-0">
                           <p className="font-medium text-card-foreground truncate">{a.full_name}</p>
-                          <p className="text-xs text-muted-foreground truncate">{a.email}</p>
+                          {/* A virtual row is an operator from the imported history
+                              with no CRM account — say so, instead of leaving a
+                              blank line that reads like a staff member missing an
+                              email address. */}
+                          {a.is_virtual ? (
+                            <span className="inline-block rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                              {t('agentsTab.historicOperator')}
+                            </span>
+                          ) : (
+                            <p className="text-xs text-muted-foreground truncate">{a.email}</p>
+                          )}
                         </div>
                       </div>
                     </td>
