@@ -1062,6 +1062,80 @@ function normAgentName(raw: any): string {
 function salesOwnerName(o: any): string | null {
   return o?.confirmed_by_name ?? o?.assigned_agent_name ?? null;
 }
+
+// ── Cross-script operator identity (2026-08-14) ─────────────────────────────
+// One human, three spellings. The imported AlterCPA history writes the operator
+// in Latin AND Cyrillic while the CRM profile uses a third transliteration, so
+// "Sashka Simonovska" (the account), "Saska Simonovska" (5.792 orders) and
+// "Сашка Симоновска" (523) were three separate owners in every name-attributed
+// report. 25 people were split this way, ~32.5k orders stranded on halves whose
+// account read zero.
+//
+// normAgentName() alone cannot fix this — it compares strings, and these strings
+// genuinely differ. So attribution keys on a SCRIPT-FOLDED identity instead:
+// Cyrillic → bare Latin, Latin digraphs → the same bare letters, diacritics
+// stripped. Both spellings converge on "saska simonovska" and merge.
+//
+// Operator ruling, 2026-08-14: merge the same name across scripts, and ONLY
+// that. Different surnames stay different people even when the given name
+// matches — `Teodora Kostovska` ≠ `Teodora Krstevska`, `Zhaklina Bogatinova`
+// ≠ `Zaklina Denik` (both confirmed by the operator). The fold honours this by
+// construction: it never merges names that differ by more than transliteration,
+// which is why it also leaves genuinely uncertain pairs alone (`Nina` vs
+// `Nina Nedelkovska`, `Verica Kostova` vs `Verica Kostovska`). Those need a
+// human decision — do NOT loosen the fold to sweep them in.
+//
+// Lossy on purpose (ц/ч→c, ж/з→z, ш/с→s) because that is the only way "Sashka"
+// and "Saska" meet. scripts/audit-agent-identity-merge.mjs prints every group
+// this produces; run it before touching the tables below.
+const AGENT_CYR_TO_LAT: Record<string, string> = {
+  "а":"a","б":"b","в":"v","г":"g","д":"d","ѓ":"g","е":"e","ж":"z","з":"z",
+  "ѕ":"d","и":"i","ј":"j","к":"k","л":"l","љ":"l","м":"m","н":"n","њ":"n",
+  "о":"o","п":"p","р":"r","с":"s","т":"t","ќ":"k","у":"u","ф":"f","х":"h",
+  "ц":"c","ч":"c","џ":"d","ш":"s",
+  // Bulgarian/Serbian strays inherited from the fork and from border spellings.
+  "й":"j","щ":"st","ъ":"a","ь":"j","ю":"u","я":"a","ы":"i","э":"e","ё":"e",
+  "ђ":"d","ћ":"c","ѐ":"e","ѝ":"i",
+};
+// Longest first — "dzh" would otherwise be eaten by "dz".
+const AGENT_LATIN_DIGRAPHS: Array<[string, string]> = [
+  ["dzh","d"], ["zh","z"], ["sh","s"], ["ch","c"], ["dz","d"],
+  ["gj","g"], ["kj","k"], ["lj","l"], ["nj","n"], ["ts","c"],
+];
+
+/** Folded identity for an operator name; "" when there is no usable name. */
+function agentIdentityKey(raw: any): string {
+  const n = normAgentName(raw);
+  if (n === "Unknown operator") return "";
+  let out = n.toLowerCase().split("").map((c) => AGENT_CYR_TO_LAT[c] ?? c).join("");
+  // Combining marks as escapes, never literals — they are invisible in an editor
+  // and this repo has a history of escape-mangling in checked-in files.
+  out = out.normalize("NFD").replace(/[̀-ͯ]/g, "");   // č→c, š→s, ž→z
+  out = out.replace(/ç/g, "c").replace(/đ/g, "d").replace(/ø/g, "o");
+  for (const [from, to] of AGENT_LATIN_DIGRAPHS) out = out.split(from).join(to);
+  return out.replace(/[^a-z]+/g, " ").trim();
+}
+
+/** identity key → user_id, for folding a name-only order onto a real account. */
+function buildAgentIdentityIndex(profiles: Array<{ user_id: string; full_name: string }> | null) {
+  const idByIdentity: Record<string, string> = {};
+  for (const p of profiles || []) {
+    const k = agentIdentityKey(p.full_name);
+    if (k) idByIdentity[k] = p.user_id;
+  }
+  return idByIdentity;
+}
+
+// ONE owner per order: the account id when the order carries one, otherwise the
+// operator's folded name. `name:<key>` is opaque and is what report filters pass
+// back as `agent_id` — it is never written to a row and never grants anything.
+function agentOwnerKey(o: any, idByIdentity: Record<string, string>): string | null {
+  const id = salesOwnerId(o);
+  if (id) return id;
+  const k = agentIdentityKey(salesOwnerName(o));
+  if (!k) return null;
+  return idByIdentity[k] ?? `name:${k}`;
+}
 // PostgREST translation of salesOwnerId(): a row is owned by `uid` when the
 // confirmer is uid, OR no confirmer was ever recorded and the assignee is uid.
 // The uid is interpolated into an .or() filter string, so callers MUST pass a
@@ -4684,10 +4758,9 @@ async function handleRequest(req: Request): Promise<Response> {
       // account to assign to — so every assignment surface keeps the default
       // (profiles-only) list. `is_virtual` lets the UI say so out loud.
       //
-      // Normalisation MUST stay identical to ownerKeyOf() in agent-performance:
-      // same normAgentName(), same fold-onto-a-real-profile-when-the-name-matches
-      // step, same "Unknown operator" drop. A drifted key here yields a dropdown
-      // option that silently matches zero rows.
+      // Keys come from the SAME agentIdentityKey()/buildAgentIdentityIndex() pair
+      // that agent-performance groups its rows with, so a dropdown option can
+      // never drift into matching zero rows.
       if (!isAdminOrManager) return json(assignableUsers);
 
       const { data: operatorNames, error: opNameErr } = await adminClient.rpc("order_operator_names");
@@ -4697,28 +4770,34 @@ async function handleRequest(req: Request): Promise<Response> {
         return json(assignableUsers);
       }
 
-      // Name → account, so an imported order carrying only "Marija Markovska"
-      // folds onto her real profile instead of becoming a parallel ghost entry.
-      const profileIdByName: Record<string, string> = {};
-      for (const p of allUsers || []) profileIdByName[normAgentName(p.full_name)] = p.user_id;
+      // Fold every spelling of a name onto one identity, and onto a real account
+      // when one exists — so "Сашка Симоновска" and "Saska Simonovska" are not
+      // two more options beside the "Sashka Simonovska" who already owns them.
+      const idByIdentity = buildAgentIdentityIndex(allUsers as any);
 
-      const historicByKey: Record<string, number> = {};
+      // key → { orders, variants }. The display name is the spelling the most
+      // orders actually use, so the operator recognises the option they pick.
+      const historicByKey: Record<string, { orders: number; variants: Record<string, number> }> = {};
       for (const row of operatorNames || []) {
-        const key = normAgentName(row.operator_name);
-        if (key === "Unknown operator") continue;
-        if (profileIdByName[key]) continue;   // already listed as a real account
-        historicByKey[key] = (historicByKey[key] || 0) + Number(row.order_count || 0);
+        const key = agentIdentityKey(row.operator_name);
+        if (!key) continue;
+        if (idByIdentity[key]) continue;   // already listed as a real account
+        const n = Number(row.order_count || 0);
+        const bucket = (historicByKey[key] ??= { orders: 0, variants: {} });
+        bucket.orders += n;
+        const label = normAgentName(row.operator_name);
+        bucket.variants[label] = (bucket.variants[label] || 0) + n;
       }
 
       const historic = Object.entries(historicByKey)
-        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-        .map(([name, orders]) => ({
-          user_id: `name:${name}`,
-          full_name: name,
+        .sort((a, b) => b[1].orders - a[1].orders)
+        .map(([key, v]) => ({
+          user_id: `name:${key}`,
+          full_name: Object.entries(v.variants).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0][0],
           email: "",
           roles: [] as string[],
           is_virtual: true,
-          order_count: orders,
+          order_count: v.orders,
         }));
 
       return json([...assignableUsers, ...historic]);
@@ -8910,13 +8989,23 @@ async function handleRequest(req: Request): Promise<Response> {
 
       // Name → account, so an imported order that carries only "Sanela Dzogovich"
       // still lands on Sanela's real profile rather than a parallel ghost row.
-      const profileIdByName: Record<string, string> = {};
-      for (const p of agents || []) profileIdByName[normAgentName(p.full_name)] = p.user_id;
+      // Keyed on the SCRIPT-FOLDED identity, so the Cyrillic spelling of the same
+      // name lands there too — see agentIdentityKey().
+      const idByIdentity = buildAgentIdentityIndex(agents as any);
+
+      // The PRE-MERGE attribution index: exact normalised name only. Kept
+      // deliberately, because it — not the folded index — defines the bonus
+      // basis. See the commission note further down.
+      const idByExactName: Record<string, string> = {};
+      for (const p of agents || []) idByExactName[normAgentName(p.full_name)] = p.user_id;
 
       const agentOrderMap: Record<string, any[]> = {};
       const allAttributedUserIds = new Set<string>();
       // Operators who exist only as a name on imported orders — no CRM account.
-      const virtualAgents: Record<string, string> = {};   // key → display name
+      // key → how many orders each raw spelling contributed, so the row can be
+      // labelled with the spelling most of the history actually uses rather than
+      // with the folded key ("saska simonovska").
+      const virtualVariants: Record<string, Record<string, number>> = {};
 
       // ONE owner per order = the first agent who confirmed it (the assignee is
       // only a legacy fallback). Crediting BOTH assignee and confirmer used to
@@ -8929,24 +9018,16 @@ async function handleRequest(req: Request): Promise<Response> {
       // never a user id, because those 26 operators never had CRM logins. Keying
       // this report on the id alone made every one of those orders invisible and
       // the whole tab read empty. So: id when present, otherwise the operator's
-      // normalised name — the same attribution management-insights already uses,
-      // which is why Pure Profit could always see these operators and this tab
-      // could not.
-      const ownerKeyOf = (o: any): string | null => {
-        const id = salesOwnerId(o);
-        if (id) return id;
-        const nm = salesOwnerName(o);
-        if (!nm) return null;
-        const k = normAgentName(nm);
-        if (k === "Unknown operator") return null;
-        return profileIdByName[k] ?? `name:${k}`;
-      };
-
+      // folded name — see agentOwnerKey()/agentIdentityKey().
       for (const o of allOrders || []) {
-        const ownerKey = ownerKeyOf(o);
+        const ownerKey = agentOwnerKey(o, idByIdentity);
         if (!ownerKey) continue;
         allAttributedUserIds.add(ownerKey);
-        if (ownerKey.startsWith("name:")) virtualAgents[ownerKey] = ownerKey.slice(5);
+        if (ownerKey.startsWith("name:")) {
+          const label = normAgentName(salesOwnerName(o));
+          const v = (virtualVariants[ownerKey] ??= {});
+          v[label] = (v[label] || 0) + 1;
+        }
         (agentOrderMap[ownerKey] ??= []).push(o);
       }
 
@@ -8988,9 +9069,11 @@ async function handleRequest(req: Request): Promise<Response> {
       // Operators who only ever existed as a name on the imported history. They
       // have no login and no email; is_virtual lets the UI mark them as historic
       // rather than pretending they are staff accounts.
-      for (const [key, name] of Object.entries(virtualAgents)) {
+      for (const [key, variants] of Object.entries(virtualVariants)) {
         if (existingIds.has(key)) continue;
-        agentProfiles.push({ user_id: key, full_name: name, email: "", is_virtual: true });
+        const label = Object.entries(variants)
+          .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0][0];
+        agentProfiles.push({ user_id: key, full_name: label, email: "", is_virtual: true });
       }
 
       // Apply search / single agent filter on the final list
@@ -9124,7 +9207,30 @@ async function handleRequest(req: Request): Promise<Response> {
         // Super-admins (admin/manager, not agents) are never on commission.
         const isSpecial = specialAgentIds.has(agent.user_id);
         const isAgentRole = traditionalAgentUserIds.has(agent.user_id) && !superAdminUserIds.has(agent.user_id);
-        const payoutEarned = isAgentRole ? calcAgentBonus(paidOrders) : 0;
+        // ── The merge must not move money by itself (2026-08-14) ─────────────
+        // Cross-script identity merging folds the imported history onto the live
+        // account that sold it — Sashka Simonovska's row went from 0 to 6.315
+        // orders. Counts, revenue, packages and rates SHOULD move: that is her
+        // real work, and seeing it was the whole point.
+        //
+        // The BONUS deliberately does not. This report already credited a
+        // name-only imported order to an account when the name matched EXACTLY
+        // (that is how Aleksandra Hristoska's 1.081 imported orders were already
+        // earning), so the bonus basis is an established, possibly already-paid
+        // number. Widening the match to cross-script variants would silently add
+        // thousands of euro to it — Sashka alone brings 6.315 orders that no
+        // exact match ever reached. Whether pre-CRM history earns commission at
+        // the new spellings is the operator's call, not a side effect of fixing
+        // a filter.
+        //
+        // So: attribution uses the folded index, the bonus uses the exact-name
+        // index it always used. Payout totals are unchanged by this commit.
+        // To pay on the merged history, widen this to idByIdentity — one line,
+        // and a deliberate one.
+        const earnsBonus = (o: any) =>
+          salesOwnerId(o) !== null ||
+          idByExactName[normAgentName(salesOwnerName(o))] === agent.user_id;
+        const payoutEarned = isAgentRole ? calcAgentBonus(paidOrders.filter(earnsBonus)) : 0;
         const packagesSold = packagesSoldOf(paidOrders);
         const packagesAwaiting = packagesAwaitingOf(agentOrders);
         const packagesReturned = packagesReturnedOf(agentOrders);
