@@ -19,15 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import {
   apiGetProducts,
   apiGetIncomingOrders,
-  apiGetUserWarehouseItems,
-  apiAssignWarehouseItem,
-  apiUpdateWarehouseItem,
-  apiDeleteWarehouseItem,
   apiGetAgents,
-  apiGetSuppliers,
-  apiCreateSupplier,
-  apiUpdateSupplier,
-  apiDeleteSupplier,
   apiRestock,
   apiGetStockMovements,
   apiUpdateWarehouseOrder,
@@ -38,12 +30,11 @@ import { BigArenaStatusSync } from '@/components/BigArenaStatusSync';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   Package,
+  PackageCheck,
   Loader2,
   Download,
-  Plus,
   Trash2,
   Edit,
-  UserPlus,
   ChevronRight,
   AlertTriangle,
   ArrowUpCircle,
@@ -53,31 +44,57 @@ import {
   Search,
   ClipboardList,
   History,
-  Users,
+  Archive,
   Boxes,
   TrendingDown,
   DollarSign,
   ShoppingCart,
-  CalendarDays,
-  Clock,
 } from 'lucide-react';
-import { format, isToday, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, subDays } from 'date-fns';
+import { format, isToday, parseISO, subDays } from 'date-fns';
 import { cn, formatProductWithQuantity } from '@/lib/utils';
 import { formatDate } from '@/i18n/dates';
 import { apiErrorText } from '@/i18n/apiErrors';
 
-// ─── Incoming Orders Tab ───────────────────────────────────────
-function IncomingOrdersTab() {
+// How many low-stock chips show before the banner collapses behind "+N more".
+const LOW_STOCK_PREVIEW = 8;
+
+// Shared by PackingTab and HistoryTab (plain mapper, no hooks).
+function orderToModalData(order: any): OrderModalData {
+  return {
+    id: order.id,
+    displayId: order.display_id,
+    name: order.customer_name,
+    telephone: order.customer_phone,
+    address: order.customer_address,
+    city: order.customer_city,
+    postalCode: order.postal_code || '',
+    product: order.product_name,
+    status: order.status,
+    notes: null,
+    quantity: order.quantity,
+    price: order.price,
+    assigned_agent_id: order.assigned_agent_id,
+    ship_after_date: order.ship_after_date || null,
+    items: (order.order_items || []).map((i: any) => ({
+      id: i.id, product_id: i.product_id, product_name: i.product_name,
+      quantity: i.quantity, price_per_unit: i.price_per_unit, total_price: i.total_price,
+    })),
+  };
+}
+
+// ─── Packing Tab (За пакување) ─────────────────────────────────
+// The warehouse worker's queue: confirmed orders arrive here, get marked packed
+// (a substate — status stays 'confirmed'), then shipped when the courier collects.
+function PackingTab() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const [agentFilter, setAgentFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [view, setView] = useState<'topack' | 'packed'>('topack');
   const [agents, setAgents] = useState<any[]>([]);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [, setProducts] = useState<any[]>([]);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Edit via OrderModal
@@ -92,26 +109,29 @@ function IncomingOrdersTab() {
 
   const queryClient = useQueryClient();
 
-  // React Query for the main warehouse incoming orders data.
-  // Filter changes automatically trigger the right fetch via queryKey.
-  // After mutations we invalidate instead of manual full refetch (avoids storms).
-  // staleTime gives breathing room on rapid filter tweaks while still fresh for ops work.
+  // React Query for the packing queue. The fetch is hard-fixed to confirmed orders —
+  // the to-pack/packed split is a client-side substate (packed_at), one query serves both.
+  // After mutations we invalidate the 'warehouse-incoming-orders' prefix, which also
+  // refreshes the History tab's query.
   const { data: orders = [], isLoading: loading } = useQuery<any[]>({
-    queryKey: ['warehouse-incoming-orders', agentFilter, dateFrom, dateTo, sourceFilter, statusFilter],
+    queryKey: ['warehouse-incoming-orders', 'packing', agentFilter, dateFrom, dateTo, sourceFilter],
     queryFn: () =>
       apiGetIncomingOrders({
         agent_id: agentFilter && agentFilter !== 'all' ? agentFilter : undefined,
         from: dateFrom ? dateFrom + 'T00:00:00Z' : undefined,
         to: dateTo ? dateTo + 'T23:59:59Z' : undefined,
         source: sourceFilter && sourceFilter !== 'all' ? sourceFilter : undefined,
-        status: statusFilter && statusFilter !== 'all' ? statusFilter : undefined,
+        status: 'confirmed',
       }),
     staleTime: 15_000,
   });
 
+  const toPackOrders = useMemo(() => orders.filter((o: any) => !o.packed_at), [orders]);
+  const packedOrders = useMemo(() => orders.filter((o: any) => o.packed_at), [orders]);
+  const visible = view === 'topack' ? toPackOrders : packedOrders;
+
   useEffect(() => {
     apiGetAgents().then(setAgents).catch(() => {});
-    apiGetProducts().then(setProducts).catch(() => {});
   }, []);
 
   // Default to a recent window on first mount so we never load the entire history.
@@ -125,13 +145,13 @@ function IncomingOrdersTab() {
 
   const groupedOrders = useMemo(() => {
     const groups: Record<string, any[]> = {};
-    for (const o of orders) {
+    for (const o of visible) {
       const dateKey = format(new Date(o.created_at), 'yyyy-MM-dd');
       if (!groups[dateKey]) groups[dateKey] = [];
       groups[dateKey].push(o);
     }
     return Object.entries(groups).sort(([a], [b]) => b.localeCompare(a));
-  }, [orders]);
+  }, [visible]);
 
   const [openDates, setOpenDates] = useState<Set<string>>(new Set());
 
@@ -168,6 +188,39 @@ function IncomingOrdersTab() {
     }
   };
 
+  // Pack / unpack — always targets the orders row (_source: 'order'), even for
+  // orders that originated from a prediction lead; unconverted leads can't be packed.
+  const handlePack = async (o: any, packed: boolean) => {
+    if (o.unconverted) {
+      toast({ title: t('wh.cannotChangeStatus'), description: t('wh.noLinkedOrder'), variant: 'destructive' });
+      return;
+    }
+    setUpdatingId(o.id);
+    try {
+      await apiUpdateWarehouseOrder(o.id, { packed, _source: 'order' });
+      if (packed) toast({ title: t('wh.markedPacked', { id: o.display_id }) });
+      queryClient.invalidateQueries({ queryKey: ['warehouse-incoming-orders'] });
+    } catch (err: any) {
+      toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' });
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  // Ship a packed order — only real orders reach the packed view, so _source is 'order'.
+  const handleShip = async (o: any) => {
+    setUpdatingId(o.id);
+    try {
+      await apiUpdateWarehouseOrder(o.id, { status: 'shipped', _source: 'order' });
+      toast({ title: t('wh.statusUpdatedTo', { status: t('status.shipped') }) });
+      queryClient.invalidateQueries({ queryKey: ['warehouse-incoming-orders'] });
+    } catch (err: any) {
+      toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' });
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   // Bulk selection helpers
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
@@ -195,7 +248,7 @@ function IncomingOrdersTab() {
   };
 
   const handleBulkUpdate = async () => {
-    const dateOrders = orders.filter(o => format(new Date(o.created_at), 'yyyy-MM-dd') === bulkModalDate);
+    const dateOrders = visible.filter((o: any) => format(new Date(o.created_at), 'yyyy-MM-dd') === bulkModalDate);
     // If checkboxes selected within that date, use those; otherwise all in date
     const idsInDate = dateOrders.map(o => o.id);
     const selectedInDate = idsInDate.filter(id => selectedIds.has(id));
@@ -217,31 +270,8 @@ function IncomingOrdersTab() {
     }
   };
 
-  function orderToModalData(order: any): OrderModalData {
-    return {
-      id: order.id,
-      displayId: order.display_id,
-      name: order.customer_name,
-      telephone: order.customer_phone,
-      address: order.customer_address,
-      city: order.customer_city,
-      postalCode: order.postal_code || '',
-      product: order.product_name,
-      status: order.status,
-      notes: null,
-      quantity: order.quantity,
-      price: order.price,
-      assigned_agent_id: order.assigned_agent_id,
-      ship_after_date: order.ship_after_date || null,
-      items: (order.order_items || []).map((i: any) => ({
-        id: i.id, product_id: i.product_id, product_name: i.product_name,
-        quantity: i.quantity, price_per_unit: i.price_per_unit, total_price: i.total_price,
-      })),
-    };
-  }
-
   const exportCSV = () => {
-    if (orders.length === 0) return;
+    if (visible.length === 0) return;
     const headers = [
       'Order_ID', 'Customer_Name', 'Phone', 'Product_List', 'Quantity_Total',
       // Denars, and the currency is named in the header. The column used to be a
@@ -250,7 +280,7 @@ function IncomingOrdersTab() {
       'Total_Price_MKD', 'Status', 'Agent', 'Source', 'Address', 'City', 'Postal_Code', 'Created_At',
     ];
     const esc = (v: string) => `"${(v || '').replace(/"/g, '""')}"`;
-    const rows = orders.map((o: any) => {
+    const rows = visible.map((o: any) => {
       // Build product list from order_items if available
       const items = o.order_items && o.order_items.length > 0 ? o.order_items : null;
       let productList = '';
@@ -319,17 +349,6 @@ function IncomingOrdersTab() {
             <SelectItem value="prediction_lead">{t('wh.predictionLeads')}</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-40"><SelectValue placeholder={t('wh.allStatuses')} /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t('wh.allStatuses')}</SelectItem>
-            <SelectItem value="confirmed">{t('status.confirmed')}</SelectItem>
-            <SelectItem value="shipped">{t('status.shipped')}</SelectItem>
-            <SelectItem value="delivered">{t('status.delivered')}</SelectItem>
-            <SelectItem value="paid">{t('status.paid')}</SelectItem>
-          </SelectContent>
-        </Select>
-
         {/* Quick date presets — the real "ultra-fast" control. Backend also protects. */}
         <div className="flex items-center gap-1 text-xs">
           <Button variant="outline" size="sm" className="h-7 px-2" onClick={() => { const d = subDays(new Date(), 7); setDateFrom(format(d, 'yyyy-MM-dd')); setDateTo(''); }}>7d</Button>
@@ -343,22 +362,42 @@ function IncomingOrdersTab() {
 
         <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-40" />
         <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-40" />
-        <Button variant="outline" size="sm" onClick={exportCSV} disabled={orders.length === 0}>
+        <Button variant="outline" size="sm" onClick={exportCSV} disabled={visible.length === 0}>
           <Download className="h-4 w-4 mr-1" /> {t('wh.exportCsv')}
         </Button>
         <BigArenaStatusSync
           onSuccess={() => queryClient.invalidateQueries({ queryKey: ['warehouse-incoming-orders'] })}
           compact
         />
-        <span className="text-sm text-muted-foreground ml-auto">{t('wh.ordersTotal', { count: orders.length })}</span>
+        <span className="text-sm text-muted-foreground ml-auto">{t('wh.ordersTotal', { count: visible.length })}</span>
+      </div>
+
+      {/* To-pack / packed sub-views: same confirmed queue, split on the packed_at substate */}
+      <div className="inline-flex rounded-lg border bg-muted/40 p-1 gap-1">
+        <button
+          onClick={() => { setView('topack'); setSelectedIds(new Set()); }}
+          className={cn('flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+            view === 'topack' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground')}
+        >
+          <ClipboardList className="h-4 w-4" /> {t('wh.queueToPack')}
+          <Badge variant={view === 'topack' ? 'default' : 'secondary'}>{toPackOrders.length}</Badge>
+        </button>
+        <button
+          onClick={() => { setView('packed'); setSelectedIds(new Set()); }}
+          className={cn('flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+            view === 'packed' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground')}
+        >
+          <PackageCheck className="h-4 w-4" /> {t('wh.queuePacked')}
+          <Badge variant={view === 'packed' ? 'default' : 'secondary'}>{packedOrders.length}</Badge>
+        </button>
       </div>
 
       {loading ? (
         <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
       ) : groupedOrders.length === 0 ? (
         <EmptyState
-          title={t('wh.noOrdersFound')}
-          description={t('wh.noOrdersDesc')}
+          title={view === 'topack' ? t('wh.noToPack') : t('wh.noPacked')}
+          description={view === 'topack' ? t('wh.noToPackDesc') : t('wh.noPackedDesc')}
           size="md"
         />
       ) : (
@@ -401,6 +440,9 @@ function IncomingOrdersTab() {
                           <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs">{t('wh.colAgent')}</th>
                           <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs">{t('wh.colSource')}</th>
                           <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs">{t('wh.colStatus')}</th>
+                          {view === 'packed' && (
+                            <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs">{t('wh.colPackedAt')}</th>
+                          )}
                           <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs">{t('wh.colTime')}</th>
                           <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs">{t('wh.colActions')}</th>
                         </tr>
@@ -453,8 +495,48 @@ function IncomingOrdersTab() {
                                   </SelectContent>
                                 </Select>
                               </td>
+                              {view === 'packed' && (
+                                <td className="px-4 py-2.5 text-xs">
+                                  <div className="text-emerald-700 font-medium">{format(new Date(o.packed_at), 'MMM d, HH:mm')}</div>
+                                  {o.packed_by_name && <div className="text-muted-foreground text-[10px]">{o.packed_by_name}</div>}
+                                </td>
+                              )}
                               <td className="px-4 py-2.5 text-muted-foreground text-xs">{format(new Date(o.created_at), 'HH:mm')}</td>
                               <td className="px-4 py-2.5 flex items-center gap-1">
+                                {view === 'topack' ? (
+                                  <Button
+                                    size="sm"
+                                    className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                                    disabled={updatingId === o.id || o.unconverted}
+                                    title={o.unconverted ? t('wh.noLinkedOrder') : undefined}
+                                    onClick={() => handlePack(o, true)}
+                                  >
+                                    {updatingId === o.id ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <PackageCheck className="h-3 w-3 mr-1" />}
+                                    {t('wh.markPacked')}
+                                  </Button>
+                                ) : (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      className="h-7 text-xs"
+                                      disabled={updatingId === o.id}
+                                      onClick={() => handleShip(o)}
+                                    >
+                                      {updatingId === o.id ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Truck className="h-3 w-3 mr-1" />}
+                                      {t('wh.markShipped')}
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 text-xs text-muted-foreground"
+                                      disabled={updatingId === o.id}
+                                      title={t('wh.unpack')}
+                                      onClick={() => handlePack(o, false)}
+                                    >
+                                      <RotateCcw className="h-3 w-3" />
+                                    </Button>
+                                  </>
+                                )}
                                 <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setModalOrder(o)}>
                                   <Edit className="h-3 w-3 mr-1" /> {t('common.edit')}
                                 </Button>
@@ -563,7 +645,8 @@ function IncomingOrdersTab() {
 function InventoryTab() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const isAdmin = user?.isAdmin || user?.isManager;
+  // The warehouse worker restocks too — the server guard matches (POST /restock).
+  const canRestock = user?.isAdmin || user?.isManager || user?.isWarehouse;
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -571,9 +654,7 @@ function InventoryTab() {
   const [showRestock, setShowRestock] = useState(false);
   const [restockProduct, setRestockProduct] = useState<any>(null);
   const [restockQty, setRestockQty] = useState('');
-  const [restockSupplier, setRestockSupplier] = useState('');
-  const [restockInvoice, setRestockInvoice] = useState('');
-  const [restockNotes, setRestockNotes] = useState('');
+  const [lowStockExpanded, setLowStockExpanded] = useState(false);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
@@ -603,17 +684,15 @@ function InventoryTab() {
     if (!restockProduct || !restockQty) return;
     setSaving(true);
     try {
+      // Quantity only — the movement date is recorded automatically (inventory_logs.created_at).
       await apiRestock({
         product_id: restockProduct.id,
         quantity: parseInt(restockQty),
-        supplier_name: restockSupplier,
-        invoice_number: restockInvoice,
-        notes: restockNotes,
       });
       toast({ title: t('wh.stockAdded'), description: t('wh.addedUnits', { count: restockQty, name: restockProduct.name }) });
       setShowRestock(false);
       setRestockProduct(null);
-      setRestockQty(''); setRestockSupplier(''); setRestockInvoice(''); setRestockNotes('');
+      setRestockQty('');
       fetchProducts();
     } catch (err: any) {
       toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' });
@@ -622,7 +701,7 @@ function InventoryTab() {
 
   const openRestock = (p: any) => {
     setRestockProduct(p);
-    setRestockQty(''); setRestockSupplier(p.suppliers?.name || ''); setRestockInvoice(''); setRestockNotes('');
+    setRestockQty('');
     setShowRestock(true);
   };
 
@@ -630,19 +709,31 @@ function InventoryTab() {
 
   return (
     <div className="space-y-4">
-      {/* Low stock alerts */}
+      {/* Low stock alerts — collapsed to a preview so 100+ warnings can't swallow the page */}
       {lowStockProducts.length > 0 && (
         <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
           <div className="flex items-center gap-2 mb-2">
             <AlertTriangle className="h-4 w-4 text-destructive" />
             <span className="font-semibold text-destructive text-sm">{t('wh.lowStockAlerts', { count: lowStockProducts.length })}</span>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {lowStockProducts.map(p => (
+          <div className="flex flex-wrap items-center gap-2">
+            {(lowStockExpanded ? lowStockProducts : lowStockProducts.slice(0, LOW_STOCK_PREVIEW)).map(p => (
               <Badge key={p.id} variant="destructive" className="text-xs">
                 {p.name} — {t('wh.leftMin', { count: p.stock_quantity, min: p.low_stock_threshold })}
               </Badge>
             ))}
+            {lowStockProducts.length > LOW_STOCK_PREVIEW && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs font-semibold text-destructive hover:bg-destructive/10"
+                onClick={() => setLowStockExpanded(v => !v)}
+              >
+                {lowStockExpanded
+                  ? t('wh.showLessLowStock')
+                  : t('wh.showMoreLowStock', { count: lowStockProducts.length - LOW_STOCK_PREVIEW })}
+              </Button>
+            )}
           </div>
         </div>
       )}
@@ -681,7 +772,7 @@ function InventoryTab() {
               <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('wh.colPrice')}</th>
               <th className="px-4 py-3 text-left font-medium text-muted-foreground min-w-[160px]">{t('wh.colStockLevel')}</th>
               <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('wh.colStatus')}</th>
-              {isAdmin && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('wh.colActions')}</th>}
+              {canRestock && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('wh.colActions')}</th>}
             </tr>
           </thead>
           <tbody>
@@ -723,7 +814,7 @@ function InventoryTab() {
                   <td className="px-4 py-3">
                     <Badge variant={p.is_active ? 'default' : 'secondary'}>{p.is_active ? t('wh.active') : t('wh.disabled')}</Badge>
                   </td>
-                  {isAdmin && (
+                  {canRestock && (
                     <td className="px-4 py-3 text-right">
                       <Button variant="outline" size="sm" onClick={() => openRestock(p)}>
                         <ArrowUpCircle className="h-3.5 w-3.5 mr-1" /> {t('wh.restock')}
@@ -735,7 +826,7 @@ function InventoryTab() {
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={isAdmin ? 9 : 8} className="p-0">
+                <td colSpan={canRestock ? 9 : 8} className="p-0">
                   <EmptyState
                     icon={<Package className="h-5 w-5" />}
                     title={search || categoryFilter ? t('wh.noProductsMatch') : t('wh.noProducts')}
@@ -760,19 +851,7 @@ function InventoryTab() {
             </div>
             <div>
               <label className="text-xs text-muted-foreground">{t('wh.qtyToAdd')}</label>
-              <Input type="number" value={restockQty} onChange={e => setRestockQty(e.target.value)} min="1" placeholder={t('wh.enterQty')} />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">{t('wh.supplierName')}</label>
-              <Input value={restockSupplier} onChange={e => setRestockSupplier(e.target.value)} placeholder={t('wh.supplierNamePh')} />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">{t('wh.invoiceNumber')}</label>
-              <Input value={restockInvoice} onChange={e => setRestockInvoice(e.target.value)} placeholder="INV-001" />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">{t('wh.notes')}</label>
-              <Input value={restockNotes} onChange={e => setRestockNotes(e.target.value)} placeholder={t('wh.optionalNotes')} />
+              <Input type="number" value={restockQty} onChange={e => setRestockQty(e.target.value)} min="1" placeholder={t('wh.enterQty')} autoFocus />
             </div>
           </div>
           <DialogFooter>
@@ -909,604 +988,116 @@ function StockMovementsTab() {
   );
 }
 
-// ─── Suppliers Tab ─────────────────────────────────────────────
-function SuppliersTab() {
+// ─── History Tab (Историја) ────────────────────────────────────
+// Recent real orders (confirmed/shipped/delivered/paid, last 14 days) so the
+// warehouse worker can find one and fix a packing/address mistake. Edits go
+// through OrderModal, whose save path re-resolves the MEX routing zone on a
+// city change and keeps product/price locked once shipped.
+function HistoryTab() {
   const { t } = useTranslation();
-  const { user } = useAuth();
-  const isAdmin = user?.isAdmin || user?.isManager;
-  const { toast } = useToast();
-  const [suppliers, setSuppliers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showAdd, setShowAdd] = useState(false);
-  const [editSupplier, setEditSupplier] = useState<any>(null);
-  const [formName, setFormName] = useState('');
-  const [formEmail, setFormEmail] = useState('');
-  const [formPhone, setFormPhone] = useState('');
-  const [formAddress, setFormAddress] = useState('');
-  const [formContact, setFormContact] = useState('');
-  const [saving, setSaving] = useState(false);
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState('');
+  const [modalOrder, setModalOrder] = useState<any>(null);
 
-  const fetchSuppliers = () => {
-    setLoading(true);
-    apiGetSuppliers().then(setSuppliers).catch(() => {}).finally(() => setLoading(false));
-  };
+  const { data: orders = [], isLoading: loading } = useQuery<any[]>({
+    queryKey: ['warehouse-incoming-orders', 'history'],
+    queryFn: () => apiGetIncomingOrders({ from: subDays(new Date(), 14).toISOString() }),
+    staleTime: 15_000,
+  });
 
-  useEffect(() => { fetchSuppliers(); }, []);
+  const filtered = useMemo(() => {
+    // Unconverted leads have no orders row — nothing to correct here.
+    const rows = orders.filter((o: any) => !o.unconverted);
+    const q = search.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((o: any) =>
+      (o.customer_name || '').toLowerCase().includes(q) ||
+      (o.customer_phone || '').includes(q) ||
+      (o.display_id || '').toLowerCase().includes(q));
+  }, [orders, search]);
 
-  const resetForm = () => { setFormName(''); setFormEmail(''); setFormPhone(''); setFormAddress(''); setFormContact(''); };
-
-  const handleCreate = async () => {
-    if (!formName.trim()) return;
-    setSaving(true);
-    try {
-      await apiCreateSupplier({ name: formName, email: formEmail, phone: formPhone, address: formAddress, contact_info: formContact });
-      toast({ title: t('wh.supplierCreated') });
-      setShowAdd(false); resetForm(); fetchSuppliers();
-    } catch (err: any) {
-      toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' });
-    } finally { setSaving(false); }
-  };
-
-  const openEdit = (s: any) => {
-    setEditSupplier(s);
-    setFormName(s.name); setFormEmail(s.email || ''); setFormPhone(s.phone || '');
-    setFormAddress(s.address || ''); setFormContact(s.contact_info || '');
-  };
-
-  const handleUpdate = async () => {
-    if (!editSupplier) return;
-    setSaving(true);
-    try {
-      await apiUpdateSupplier(editSupplier.id, { name: formName, email: formEmail, phone: formPhone, address: formAddress, contact_info: formContact });
-      toast({ title: t('wh.supplierUpdated') });
-      setEditSupplier(null); resetForm(); fetchSuppliers();
-    } catch (err: any) {
-      toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' });
-    } finally { setSaving(false); }
-  };
-
-  const handleDelete = async (id: string) => {
-    try {
-      await apiDeleteSupplier(id);
-      toast({ title: t('wh.supplierDeleted') });
-      fetchSuppliers();
-    } catch (err: any) {
-      toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' });
-    }
-  };
-
-  const inputClass = "w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring";
+  const statusVariant = (status: string) =>
+    status === 'paid' ? 'default' : status === 'returned' ? 'destructive' : 'secondary';
 
   return (
     <div className="space-y-4">
-      {isAdmin && (
-        <div className="flex justify-end">
-          <Button onClick={() => { resetForm(); setShowAdd(true); }}>
-            <Plus className="h-4 w-4 mr-1" /> {t('wh.addSupplier')}
-          </Button>
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[220px]">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input placeholder={t('wh.historySearchPh')} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
-      )}
+        <span className="text-sm text-muted-foreground ml-auto">{t('wh.ordersTotal', { count: filtered.length })}</span>
+      </div>
+      <p className="text-xs text-muted-foreground">{t('wh.historyDesc')}</p>
 
       {loading ? (
         <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+      ) : filtered.length === 0 ? (
+        <EmptyState title={t('wh.noOrdersFound')} description={t('wh.noOrdersDesc')} size="md" />
       ) : (
         <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/50">
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('wh.colName')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('wh.colEmail')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('wh.colPhone')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('wh.colAddress')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('wh.colContactInfo')}</th>
-                {isAdmin && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('wh.colActions')}</th>}
+                <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs">{t('wh.colId')}</th>
+                <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs">{t('wh.colCustomer')}</th>
+                <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs">{t('wh.colPhone')}</th>
+                <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs min-w-[220px]">{t('wh.colProduct')}</th>
+                <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs">{t('wh.colStatus')}</th>
+                <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs">{t('wh.colPackedAt')}</th>
+                <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs">{t('wh.colDate')}</th>
+                <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs">{t('wh.colActions')}</th>
               </tr>
             </thead>
             <tbody>
-              {suppliers.map((s: any) => (
-                <tr key={s.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3 font-medium">
-                    <div className="flex items-center gap-2">
-                      <Truck className="h-4 w-4 text-primary" />
-                      {s.name}
-                    </div>
+              {filtered.map((o: any) => (
+                <tr key={o.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                  <td className="px-4 py-2.5 font-medium text-xs">{o.display_id}</td>
+                  <td className="px-4 py-2.5 text-xs">{o.customer_name}</td>
+                  <td className="px-4 py-2.5 text-muted-foreground text-xs">{o.customer_phone || '—'}</td>
+                  <td className="px-4 py-2.5 text-xs min-w-[220px] whitespace-normal leading-relaxed">
+                    {o.order_items && o.order_items.length > 0
+                      ? o.order_items.map((i: any, idx: number) => (
+                        <span key={i.id || idx}>
+                          {idx > 0 && <span className="text-muted-foreground">, </span>}
+                          <span className="font-medium">{formatProductWithQuantity(i.product_name, i.quantity)}</span>
+                        </span>
+                      ))
+                      : <span className="font-medium">{formatProductWithQuantity(o.product_name, o.quantity)}</span>}
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">{s.email || '—'}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{s.phone || '—'}</td>
-                  <td className="px-4 py-3 text-muted-foreground max-w-[200px] truncate">{s.address || '—'}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{s.contact_info || '—'}</td>
-                  {isAdmin && (
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => openEdit(s)} className="rounded-md p-1.5 hover:bg-muted transition-colors" title={t('common.edit')}>
-                          <Edit className="h-4 w-4 text-muted-foreground" />
-                        </button>
-                        <button onClick={() => handleDelete(s.id)} className="rounded-md p-1.5 hover:bg-muted transition-colors" title={t('common.delete')}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </button>
-                      </div>
-                    </td>
-                  )}
+                  <td className="px-4 py-2.5">
+                    <Badge variant={statusVariant(o.status)} className="text-[10px]">{t('status.' + o.status)}</Badge>
+                  </td>
+                  <td className="px-4 py-2.5 text-xs">
+                    {o.packed_at ? (
+                      <>
+                        <div className="text-emerald-700 font-medium">{format(new Date(o.packed_at), 'MMM d, HH:mm')}</div>
+                        {o.packed_by_name && <div className="text-muted-foreground text-[10px]">{o.packed_by_name}</div>}
+                      </>
+                    ) : '—'}
+                  </td>
+                  <td className="px-4 py-2.5 text-muted-foreground text-xs">{format(new Date(o.created_at), 'MMM d, HH:mm')}</td>
+                  <td className="px-4 py-2.5">
+                    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setModalOrder(o)}>
+                      <Edit className="h-3 w-3 mr-1" /> {t('common.edit')}
+                    </Button>
+                  </td>
                 </tr>
               ))}
-              {suppliers.length === 0 && (
-                <tr>
-                  <td colSpan={isAdmin ? 6 : 5} className="p-0">
-                    <EmptyState
-                      icon={<Users className="h-5 w-5" />}
-                      title={t('wh.noSuppliers')}
-                      description={t('wh.noSuppliersDesc')}
-                      size="sm"
-                      className="border-0 bg-transparent hover:shadow-none"
-                    />
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
       )}
 
-      {/* Add Supplier Dialog */}
-      <Dialog open={showAdd} onOpenChange={setShowAdd}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>{t('wh.addSupplier')}</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <input value={formName} onChange={e => setFormName(e.target.value)} placeholder={t('wh.supplierNameReq')} className={inputClass} />
-            <input value={formEmail} onChange={e => setFormEmail(e.target.value)} placeholder={t('wh.email')} className={inputClass} />
-            <input value={formPhone} onChange={e => setFormPhone(e.target.value)} placeholder={t('wh.phone')} className={inputClass} />
-            <input value={formAddress} onChange={e => setFormAddress(e.target.value)} placeholder={t('wh.address')} className={inputClass} />
-            <input value={formContact} onChange={e => setFormContact(e.target.value)} placeholder={t('wh.contactInfo')} className={inputClass} />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAdd(false)}>{t('common.cancel')}</Button>
-            <Button onClick={handleCreate} disabled={saving || !formName.trim()}>{saving ? t('wh.creating') : t('common.confirm')}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Supplier Dialog */}
-      <Dialog open={!!editSupplier} onOpenChange={open => !open && setEditSupplier(null)}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>{t('wh.editSupplier')}</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <input value={formName} onChange={e => setFormName(e.target.value)} placeholder={t('wh.supplierNameReq')} className={inputClass} />
-            <input value={formEmail} onChange={e => setFormEmail(e.target.value)} placeholder={t('wh.email')} className={inputClass} />
-            <input value={formPhone} onChange={e => setFormPhone(e.target.value)} placeholder={t('wh.phone')} className={inputClass} />
-            <input value={formAddress} onChange={e => setFormAddress(e.target.value)} placeholder={t('wh.address')} className={inputClass} />
-            <input value={formContact} onChange={e => setFormContact(e.target.value)} placeholder={t('wh.contactInfo')} className={inputClass} />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditSupplier(null)}>{t('common.cancel')}</Button>
-            <Button onClick={handleUpdate} disabled={saving}>{saving ? t('wh.savingBtn') : t('common.save')}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
-// ─── User Warehouse Tab ────────────────────────────────────────
-function UserWarehouseTab() {
-  const { t } = useTranslation();
-  const { user } = useAuth();
-  const isAdmin = user?.isAdmin || user?.isManager;
-  const isWarehouse = user?.isWarehouse;
-  const canManage = isAdmin || isWarehouse;
-  const { toast } = useToast();
-  const [items, setItems] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showAssign, setShowAssign] = useState(false);
-  const [editItem, setEditItem] = useState<any>(null);
-  const [agents, setAgents] = useState<any[]>([]);
-  const [products, setProducts] = useState<any[]>([]);
-  const [formUserId, setFormUserId] = useState('');
-  const [formProductId, setFormProductId] = useState('');
-  const [formQty, setFormQty] = useState('1');
-  const [formNotes, setFormNotes] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  const fetchItems = () => {
-    setLoading(true);
-    apiGetUserWarehouseItems().then(setItems).catch(() => {}).finally(() => setLoading(false));
-  };
-
-  useEffect(() => {
-    fetchItems();
-    if (canManage) {
-      apiGetAgents().then(setAgents).catch(() => {});
-      apiGetProducts().then(setProducts).catch(() => {});
-    }
-  }, []);
-
-  const handleAssign = async () => {
-    if (!formUserId || !formProductId) return;
-    setSaving(true);
-    try {
-      await apiAssignWarehouseItem({ user_id: formUserId, product_id: formProductId, quantity: parseInt(formQty) || 1, notes: formNotes });
-      toast({ title: t('wh.itemAssigned') });
-      setShowAssign(false);
-      setFormUserId(''); setFormProductId(''); setFormQty('1'); setFormNotes('');
-      fetchItems();
-    } catch (err: any) {
-      toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' });
-    } finally { setSaving(false); }
-  };
-
-  const handleUpdate = async () => {
-    if (!editItem) return;
-    setSaving(true);
-    try {
-      await apiUpdateWarehouseItem(editItem.id, { quantity: parseInt(formQty) || 0, notes: formNotes });
-      toast({ title: t('wh.updated') });
-      setEditItem(null);
-      fetchItems();
-    } catch (err: any) {
-      toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' });
-    } finally { setSaving(false); }
-  };
-
-  const handleDelete = async (id: string) => {
-    try {
-      await apiDeleteWarehouseItem(id);
-      toast({ title: t('wh.itemRemoved') });
-      fetchItems();
-    } catch (err: any) {
-      toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' });
-    }
-  };
-
-  const openEdit = (item: any) => {
-    setEditItem(item);
-    setFormQty(String(item.quantity));
-    setFormNotes(item.notes || '');
-  };
-
-  return (
-    <div className="space-y-4">
-      {canManage && (
-        <div className="flex justify-end">
-          <Button onClick={() => { setFormUserId(''); setFormProductId(''); setFormQty('1'); setFormNotes(''); setShowAssign(true); }}>
-            <UserPlus className="h-4 w-4 mr-1" /> {t('wh.assignItem')}
-          </Button>
-        </div>
-      )}
-
-      {loading ? (
-        <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
-      ) : (
-        <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-muted/50">
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('wh.colUser')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('wh.colProduct')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('wh.colSku')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('wh.colQty')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('wh.colNotes')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('wh.colAssigned')}</th>
-                {canManage && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('wh.colActions')}</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item: any) => (
-                <tr key={item.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3 font-medium">{item.user_name}</td>
-                  <td className="px-4 py-3">{item.product_name}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{item.product_sku || '—'}</td>
-                  <td className="px-4 py-3"><Badge className="bg-primary text-primary-foreground">{item.quantity}</Badge></td>
-                  <td className="px-4 py-3 text-muted-foreground max-w-[200px] truncate">{item.notes || '—'}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{formatDate(new Date(item.assigned_at), 'MMM d, yyyy')}</td>
-                  {canManage && (
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => openEdit(item)} className="rounded-md p-1.5 hover:bg-muted transition-colors" title={t('common.edit')}>
-                          <Edit className="h-4 w-4 text-muted-foreground" />
-                        </button>
-                        <button onClick={() => handleDelete(item.id)} className="rounded-md p-1.5 hover:bg-muted transition-colors" title={t('wh.remove')}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </button>
-                      </div>
-                    </td>
-                  )}
-                </tr>
-              ))}
-              {items.length === 0 && (
-                <tr>
-                  <td colSpan={canManage ? 7 : 6} className="p-0">
-                    <EmptyState
-                      icon={<Package className="h-5 w-5" />}
-                      title={t('wh.noItems')}
-                      description={t('wh.noItemsDesc')}
-                      size="sm"
-                      className="border-0 bg-transparent hover:shadow-none"
-                    />
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Assign Dialog */}
-      <Dialog open={showAssign} onOpenChange={setShowAssign}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>{t('wh.assignProductToUser')}</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <Select value={formUserId} onValueChange={setFormUserId}>
-              <SelectTrigger><SelectValue placeholder={t('wh.selectUser')} /></SelectTrigger>
-              <SelectContent>
-                {agents.map((a: any) => <SelectItem key={a.user_id} value={a.user_id}>{a.full_name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={formProductId} onValueChange={setFormProductId}>
-              <SelectTrigger><SelectValue placeholder={t('wh.selectProduct')} /></SelectTrigger>
-              <SelectContent>
-                {products.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name} ({p.sku || t('settings.noSku')})</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Input type="number" value={formQty} onChange={e => setFormQty(e.target.value)} placeholder={t('wh.quantity')} min="1" />
-            <Input value={formNotes} onChange={e => setFormNotes(e.target.value)} placeholder={t('wh.notesOptional')} />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAssign(false)}>{t('common.cancel')}</Button>
-            <Button onClick={handleAssign} disabled={saving || !formUserId || !formProductId}>{saving ? t('wh.assigning') : t('wh.assign')}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Dialog */}
-      <Dialog open={!!editItem} onOpenChange={open => !open && setEditItem(null)}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>{t('wh.editAssignment')}</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <label className="text-xs text-muted-foreground">{t('wh.quantity')}</label>
-              <Input type="number" value={formQty} onChange={e => setFormQty(e.target.value)} min="0" />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">{t('wh.notes')}</label>
-              <Input value={formNotes} onChange={e => setFormNotes(e.target.value)} />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditItem(null)}>{t('common.cancel')}</Button>
-            <Button onClick={handleUpdate} disabled={saving}>{saving ? t('wh.savingBtn') : t('common.save')}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
-// ─── Delayed Orders Tab ────────────────────────────────────────
-function DelayedOrdersTab() {
-  const { t } = useTranslation();
-  const [orders, setOrders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    setLoading(true);
-    apiGetIncomingOrders({ status: 'confirmed' })
-      .then(data => {
-        const delayed = (data || []).filter((o: any) => o.ship_after_date && new Date(o.ship_after_date) > new Date());
-        setOrders(delayed);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Clock className="h-5 w-5 text-amber-600" />
-        <h3 className="font-semibold text-card-foreground">{t('wh.delayedTitle')}</h3>
-        <Badge variant="secondary">{orders.length}</Badge>
-      </div>
-      <p className="text-sm text-muted-foreground">
-        {t('wh.delayedDesc')}
-      </p>
-
-      {loading ? (
-        <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
-      ) : orders.length === 0 ? (
-        <EmptyState
-          icon={<Clock className="h-5 w-5" />}
-          title={t('wh.noDelayed')}
-          description={t('wh.noDelayedDesc')}
-          size="md"
-        />
-      ) : (
-        <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-muted/50">
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground text-xs">{t('wh.colOrderId')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground text-xs">{t('wh.colCustomer')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground text-xs">{t('wh.colPhone')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground text-xs">{t('wh.colProducts')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground text-xs">{t('wh.colAgent')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground text-xs">{t('wh.colShipAfterDate')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground text-xs">{t('wh.colDaysUntil')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {orders.map((o: any) => {
-                const shipDate = new Date(o.ship_after_date);
-                const daysUntil = Math.ceil((shipDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-                return (
-                  <tr key={o.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3 font-medium text-xs">
-                      {o.display_id}
-                      <Badge className="ml-1 bg-amber-500/15 text-amber-700 border-amber-500/30 text-[9px]">{t('wh.scheduled')}</Badge>
-                    </td>
-                    <td className="px-4 py-3 text-xs">{o.customer_name}</td>
-                    <td className="px-4 py-3 text-muted-foreground text-xs">{o.customer_phone}</td>
-                    <td className="px-4 py-3 text-xs">
-                      {o.order_items?.length > 0
-                        ? o.order_items.map((i: any, idx: number) => (
-                          <span key={idx}>{idx > 0 && ', '}<span className="font-medium">{formatProductWithQuantity(i.product_name, i.quantity)}</span></span>
-                        ))
-                        : o.product_name}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground text-xs">{o.assigned_agent_name || '—'}</td>
-                    <td className="px-4 py-3 text-xs font-medium">{formatDate(shipDate, 'MMM d, yyyy')}</td>
-                    <td className="px-4 py-3">
-                      <Badge variant="secondary" className="text-xs">{t('wh.daysCount', { count: daysUntil })}</Badge>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Shipment Calendar Tab ─────────────────────────────────────
-function ShipmentCalendarTab() {
-  const { t } = useTranslation();
-  const [orders, setOrders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-
-  useEffect(() => {
-    setLoading(true);
-    apiGetIncomingOrders({ status: 'confirmed' })
-      .then(data => {
-        const withDate = (data || []).filter((o: any) => o.ship_after_date);
-        setOrders(withDate);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
-
-  const monthStart = startOfMonth(currentMonth);
-  const monthEnd = endOfMonth(currentMonth);
-  const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
-
-  const ordersByDate = useMemo(() => {
-    const map: Record<string, any[]> = {};
-    for (const o of orders) {
-      const dateKey = o.ship_after_date;
-      if (!map[dateKey]) map[dateKey] = [];
-      map[dateKey].push(o);
-    }
-    return map;
-  }, [orders]);
-
-  const selectedOrders = selectedDate ? (ordersByDate[selectedDate] || []) : [];
-  const firstDayOffset = monthStart.getDay();
-
-  if (loading) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <CalendarDays className="h-5 w-5 text-primary" />
-        <h3 className="font-semibold text-card-foreground">{t('wh.calendarTitle')}</h3>
-      </div>
-      <p className="text-sm text-muted-foreground">{t('wh.calendarDesc')}</p>
-
-      <div className="flex items-center justify-between">
-        <Button variant="outline" size="sm" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>{t('wh.prevMonth')}</Button>
-        <h4 className="font-semibold text-lg">{formatDate(currentMonth, 'MMMM yyyy')}</h4>
-        <Button variant="outline" size="sm" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>{t('wh.nextMonth')}</Button>
-      </div>
-
-      <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-        <div className="grid grid-cols-7 border-b bg-muted/50">
-          {['daySun', 'dayMon', 'dayTue', 'dayWed', 'dayThu', 'dayFri', 'daySat'].map(d => (
-            <div key={d} className="px-2 py-2 text-center text-xs font-medium text-muted-foreground">{t('shifts.' + d)}</div>
-          ))}
-        </div>
-        <div className="grid grid-cols-7">
-          {Array.from({ length: firstDayOffset }).map((_, i) => (
-            <div key={`empty-${i}`} className="min-h-[80px] border-b border-r bg-muted/10" />
-          ))}
-          {days.map(day => {
-            const dateKey = format(day, 'yyyy-MM-dd');
-            const dayOrders = ordersByDate[dateKey] || [];
-            const isSelected = selectedDate === dateKey;
-            const isTodayDate = isToday(day);
-            const isPast = day < new Date() && !isTodayDate;
-            return (
-              <button
-                key={dateKey}
-                onClick={() => setSelectedDate(isSelected ? null : dateKey)}
-                className={cn(
-                  "min-h-[80px] border-b border-r p-2 text-left transition-colors hover:bg-muted/30",
-                  isSelected && "bg-primary/5 ring-2 ring-primary/30 ring-inset",
-                  isTodayDate && "bg-primary/5",
-                )}
-              >
-                <div className={cn("text-xs font-medium mb-1", isTodayDate ? "text-primary font-bold" : isPast ? "text-muted-foreground" : "text-foreground")}>
-                  {format(day, 'd')}
-                </div>
-                {dayOrders.length > 0 && (
-                  <Badge className={cn("text-[10px]", isPast ? "bg-muted text-muted-foreground" : "bg-amber-500/15 text-amber-700 border-amber-500/30")}>
-                    {t('wh.ordersCount', { count: dayOrders.length })}
-                  </Badge>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {selectedDate && (
-        <div className="rounded-xl border bg-card shadow-sm p-4 space-y-3">
-          <h4 className="font-semibold text-card-foreground">
-            {t('wh.scheduledFor', { date: formatDate(parseISO(selectedDate), 'MMMM d, yyyy') })}
-            <Badge variant="secondary" className="ml-2">{selectedOrders.length}</Badge>
-          </h4>
-          {selectedOrders.length === 0 ? (
-            <EmptyState
-              icon={<CalendarDays className="h-4 w-4" />}
-              title={t('wh.noScheduledForDate')}
-              size="sm"
-              className="border-0 bg-transparent py-4"
-            />
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/50">
-                    <th className="px-4 py-2 text-left font-medium text-muted-foreground text-xs">{t('wh.colOrderId')}</th>
-                    <th className="px-4 py-2 text-left font-medium text-muted-foreground text-xs">{t('wh.colCustomer')}</th>
-                    <th className="px-4 py-2 text-left font-medium text-muted-foreground text-xs">{t('wh.colProducts')}</th>
-                    <th className="px-4 py-2 text-left font-medium text-muted-foreground text-xs">{t('wh.colAgent')}</th>
-                    <th className="px-4 py-2 text-left font-medium text-muted-foreground text-xs">{t('wh.colStatus')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedOrders.map((o: any) => (
-                    <tr key={o.id} className="border-b last:border-0 hover:bg-muted/30">
-                      <td className="px-4 py-2 font-medium text-xs">{o.display_id}</td>
-                      <td className="px-4 py-2 text-xs">{o.customer_name}</td>
-                      <td className="px-4 py-2 text-xs">
-                        {o.order_items?.length > 0
-                          ? o.order_items.map((i: any, idx: number) => (
-                            <span key={idx}>{idx > 0 && ', '}{formatProductWithQuantity(i.product_name, i.quantity)}</span>
-                          ))
-                          : o.product_name}
-                      </td>
-                      <td className="px-4 py-2 text-muted-foreground text-xs">{o.assigned_agent_name || '—'}</td>
-                      <td className="px-4 py-2">
-                        <Badge className="bg-amber-500/15 text-amber-700 border-amber-500/30 text-[10px]">{t('wh.scheduled')}</Badge>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
+      <OrderModal
+        open={!!modalOrder}
+        onClose={(saved) => {
+          setModalOrder(null);
+          if (saved) queryClient.invalidateQueries({ queryKey: ['warehouse-incoming-orders'] });
+        }}
+        data={modalOrder ? orderToModalData(modalOrder) : null}
+        contextType="order"
+      />
     </div>
   );
 }
@@ -1514,13 +1105,9 @@ function ShipmentCalendarTab() {
 // ─── Main Warehouse Page ───────────────────────────────────────
 export default function WarehousePage() {
   const { t } = useTranslation();
-  const { user } = useAuth();
   const { canAccessModule } = usePermissions();
-  const isAdmin = user?.isAdmin || user?.isManager;
-  const isWarehouse = user?.isWarehouse;
-  const canManage = isAdmin || isWarehouse;
-  // Incoming Orders is its own module — hidden from managers by default, shown to
-  // warehouse + admin, and governable from Settings → Role Permissions.
+  // Packing/History are the warehouse_incoming module — hidden from managers by
+  // default, shown to warehouse + admin, governable from Settings → Role Permissions.
   const canIncoming = canAccessModule('warehouse_incoming');
 
   const [products, setProducts] = useState<any[]>([]);
@@ -1566,8 +1153,14 @@ export default function WarehousePage() {
           ))}
         </div>
 
-        <Tabs defaultValue="inventory" className="space-y-4">
+        {/* The worker's main job opens first when they hold the packing module */}
+        <Tabs defaultValue={canIncoming ? 'packing' : 'inventory'} className="space-y-4">
           <TabsList>
+            {canIncoming && (
+              <TabsTrigger value="packing" className="gap-1.5">
+                <ClipboardList className="h-3.5 w-3.5" /> {t('wh.tabPacking')}
+              </TabsTrigger>
+            )}
             <TabsTrigger value="inventory" className="gap-1.5">
               <Package className="h-3.5 w-3.5" /> {t('wh.tabInventory')}
             </TabsTrigger>
@@ -1575,27 +1168,17 @@ export default function WarehousePage() {
               <History className="h-3.5 w-3.5" /> {t('wh.tabMovements')}
             </TabsTrigger>
             {canIncoming && (
-              <TabsTrigger value="incoming" className="gap-1.5">
-                <ClipboardList className="h-3.5 w-3.5" /> {t('wh.tabIncoming')}
-              </TabsTrigger>
-            )}
-            <TabsTrigger value="suppliers" className="gap-1.5">
-              <Truck className="h-3.5 w-3.5" /> {t('wh.tabSuppliers')}
-            </TabsTrigger>
-            <TabsTrigger value="user-warehouse" className="gap-1.5">
-              <Users className="h-3.5 w-3.5" /> {t('wh.tabUserWarehouse')}
-            </TabsTrigger>
-            {canManage && (
-              <TabsTrigger value="delayed" className="gap-1.5">
-                <Clock className="h-3.5 w-3.5" /> {t('wh.tabDelayed')}
-              </TabsTrigger>
-            )}
-            {canManage && (
-              <TabsTrigger value="calendar" className="gap-1.5">
-                <CalendarDays className="h-3.5 w-3.5" /> {t('wh.tabCalendar')}
+              <TabsTrigger value="history" className="gap-1.5">
+                <Archive className="h-3.5 w-3.5" /> {t('wh.tabHistory')}
               </TabsTrigger>
             )}
           </TabsList>
+
+          {canIncoming && (
+            <TabsContent value="packing">
+              <PackingTab />
+            </TabsContent>
+          )}
 
           <TabsContent value="inventory">
             <InventoryTab />
@@ -1606,28 +1189,8 @@ export default function WarehousePage() {
           </TabsContent>
 
           {canIncoming && (
-            <TabsContent value="incoming">
-              <IncomingOrdersTab />
-            </TabsContent>
-          )}
-
-          <TabsContent value="suppliers">
-            <SuppliersTab />
-          </TabsContent>
-
-          <TabsContent value="user-warehouse">
-            <UserWarehouseTab />
-          </TabsContent>
-
-          {canManage && (
-            <TabsContent value="delayed">
-              <DelayedOrdersTab />
-            </TabsContent>
-          )}
-
-          {canManage && (
-            <TabsContent value="calendar">
-              <ShipmentCalendarTab />
+            <TabsContent value="history">
+              <HistoryTab />
             </TabsContent>
           )}
         </Tabs>

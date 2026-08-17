@@ -12965,6 +12965,9 @@ async function handleRequest(req: Request): Promise<Response> {
             source_lead_id: o.source_lead_id,
             order_items: o.order_items || [],
             ship_after_date: o.ship_after_date || null,
+            packed_at: o.packed_at || null,
+            packed_by_name: o.packed_by_name || null,
+            shipped_at: o.shipped_at || null,
           });
         }
       }
@@ -13028,6 +13031,11 @@ async function handleRequest(req: Request): Promise<Response> {
             list_name: l.prediction_lists?.name || "",
             notes: l.notes || "",
             order_items: items.length > 0 ? items : [],
+            // Unconverted lead — there is no orders row to pack/ship yet.
+            unconverted: true,
+            packed_at: null,
+            packed_by_name: null,
+            shipped_at: null,
           });
         }
       }
@@ -13045,6 +13053,10 @@ async function handleRequest(req: Request): Promise<Response> {
       const source = body._source; // "order" or "prediction_lead"
 
       if (source === "prediction_lead") {
+        // Packing applies to orders only — an unconverted lead has no orders row.
+        if (body.packed !== undefined) {
+          return json({ error: "This lead has no linked order yet" }, 400);
+        }
         // Update prediction lead fields
         const leadUpdates: Record<string, any> = {};
         if (body.customer_name !== undefined) leadUpdates.name = body.customer_name;
@@ -13174,6 +13186,26 @@ async function handleRequest(req: Request): Promise<Response> {
         if (body.product_id !== undefined) orderUpdates.product_id = body.product_id;
         if (body.quantity !== undefined) orderUpdates.quantity = body.quantity;
         if (body.price !== undefined) orderUpdates.price = body.price;
+
+        // Warehouse packing substate — not a status change (status stays 'confirmed');
+        // packed_at/packed_by/packed_by_name ARE the audit record, so no order_history row.
+        if (body.packed !== undefined) {
+          const { data: cur } = await adminClient.from("orders").select("status").eq("id", itemId).single();
+          if (!cur) return json({ error: "Order not found" }, 404);
+          if (body.packed && cur.status !== "confirmed") {
+            return json({ error: "Only confirmed orders can be packed" }, 400);
+          }
+          if (body.packed) {
+            const { data: packerProfile } = await adminClient.from("profiles").select("full_name").eq("user_id", user.id).single();
+            orderUpdates.packed_at = new Date().toISOString();
+            orderUpdates.packed_by = user.id;
+            orderUpdates.packed_by_name = packerProfile?.full_name || null;
+          } else {
+            orderUpdates.packed_at = null;
+            orderUpdates.packed_by = null;
+            orderUpdates.packed_by_name = null;
+          }
+        }
 
         // Handle status change
         if (body.status !== undefined) {
@@ -13829,7 +13861,7 @@ async function handleRequest(req: Request): Promise<Response> {
 
     // POST /api/restock
     if (req.method === "POST" && path === "restock") {
-      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      if (!isAdminOrManager && !isWarehouse) return json({ error: "Forbidden" }, 403);
       let body;
       try { body = parseBody(restockSchema, await req.json()); } catch (e: any) { return json({ error: e.message }, 400); }
 
