@@ -273,7 +273,11 @@ export default function Orders() {
     setCpaSending(true);
     try {
       const res: any = await apiPushOrderAltercpa(cpaPreview.order.id, { comment: sharedOrderReasonText(cpaPreview.order) ?? undefined });
-      toast({ title: res.noop ? t('ordersPage.cpaPushNoop') : t('ordersPage.cpaPushSuccess') });
+      if (res.warning) {
+        toast({ title: t('ordersPage.cpaPushPartial'), description: res.warning, variant: 'destructive' });
+      } else {
+        toast({ title: res.noop ? t('ordersPage.cpaPushNoop') : t('ordersPage.cpaPushSuccess') });
+      }
       setCpaPreview(null);
     } catch (e: any) {
       toast({ title: e.message || t('ordersPage.cpaPushError'), variant: 'destructive' });
@@ -574,6 +578,48 @@ export default function Orders() {
     () => Array.from(selectedExport.values()).some((o: any) => o.status === 'confirmed'),
     [selectedExport],
   );
+
+  // Bulk Send-to-CPA (operator decision 2026-08-18, reversing the 08-14
+  // one-per-press rule): the SELECTION drives a sequential client-side loop
+  // over the same single-order endpoint — one server call per order, so every
+  // order keeps its own payload, note, audit row and read-back verification.
+  // There is still NO automatic hook: only this explicit button loops.
+  const [cpaBulk, setCpaBulk] = useState<{ eligible: ApiOrder[]; skipped: number } | null>(null);
+  const [cpaBulkProgress, setCpaBulkProgress] = useState<{ done: number; total: number } | null>(null);
+  const cpaPushableSelected = useMemo(
+    () => Array.from(selectedExport.values()).filter((o: any) => canPushCpa(o)) as ApiOrder[],
+    [selectedExport, cpaPushEnabled],
+  );
+  const runCpaBulk = async () => {
+    if (!cpaBulk || cpaBulkProgress) return;
+    const { eligible } = cpaBulk;
+    setCpaBulkProgress({ done: 0, total: eligible.length });
+    let ok = 0, noop = 0;
+    const warned: string[] = [];
+    const failed: string[] = [];
+    for (let i = 0; i < eligible.length; i++) {
+      const o = eligible[i];
+      try {
+        const res: any = await apiPushOrderAltercpa(o.id, { comment: sharedOrderReasonText(o) ?? undefined });
+        if (res.warning) warned.push(`${o.display_id}: ${res.warning}`);
+        else if (res.noop) noop++;
+        else ok++;
+      } catch (e: any) {
+        failed.push(`${o.display_id}: ${e?.message || 'error'}`);
+      }
+      setCpaBulkProgress({ done: i + 1, total: eligible.length });
+    }
+    const detail = [...failed, ...warned].join('\n');
+    toast({
+      title: t('ordersPage.cpaBulkDone', { ok, noop, warned: warned.length, failed: failed.length }),
+      ...(detail ? { description: detail } : {}),
+      ...(failed.length || warned.length ? { variant: 'destructive' as const } : {}),
+    });
+    setCpaBulk(null);
+    setCpaBulkProgress(null);
+    clearExportSelect();
+    fetchOrders();
+  };
   // Build the CSV from the given orders, download it, and (for the confirmed
   // bucket) flip them → shipped. Shared by the direct export and the "Export
   // valid only" path of the validation dialog, so both behave identically.
@@ -1217,6 +1263,18 @@ export default function Orders() {
               </Button>
             </>
           )}
+          {cpaPushEnabled && cpaPushableSelected.length > 0 && (
+            <>
+              <span className="text-muted-foreground/50">|</span>
+              <Button
+                size="sm" variant="outline" className="h-7 gap-1.5 text-xs"
+                onClick={() => setCpaBulk({ eligible: cpaPushableSelected, skipped: selectedExport.size - cpaPushableSelected.length })}
+              >
+                <Send className="h-3.5 w-3.5" />
+                {t('ordersPage.cpaBulkSend', { count: cpaPushableSelected.length })}
+              </Button>
+            </>
+          )}
           <span className="text-muted-foreground">{t('ordersPage.openPrefix')} <span className="font-medium text-foreground">{t('ordersPage.fulfilSelectedPath')}</span> {t('ordersPage.openSuffix')}</span>
         </div>
       )}
@@ -1763,6 +1821,42 @@ export default function Orders() {
             <Button disabled={cpaSending || !cpaPreview?.preview.token_present} onClick={handleCpaConfirm}>
               {cpaSending && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
               {t('ordersPage.cpaConfirmSend')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk CPA push — sequential loop over the single-order endpoint, one
+          payload per order. Closing the dialog is blocked while sending. */}
+      <Dialog open={!!cpaBulk} onOpenChange={(o) => { if (!o && !cpaBulkProgress) setCpaBulk(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('ordersPage.cpaBulkTitle', { count: cpaBulk?.eligible.length ?? 0 })}</DialogTitle>
+            <DialogDescription>
+              {t('ordersPage.cpaBulkDesc')}
+              {(cpaBulk?.skipped ?? 0) > 0 && ` ${t('ordersPage.cpaBulkSkipped', { count: cpaBulk!.skipped })}`}
+            </DialogDescription>
+          </DialogHeader>
+          {cpaBulkProgress && (
+            <div className="space-y-1.5">
+              <div className="h-2 w-full rounded bg-muted overflow-hidden">
+                <div
+                  className="h-full bg-primary transition-all"
+                  style={{ width: `${Math.round((cpaBulkProgress.done / Math.max(1, cpaBulkProgress.total)) * 100)}%` }}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground text-center">
+                {t('ordersPage.cpaBulkProgress', { done: cpaBulkProgress.done, total: cpaBulkProgress.total })}
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" disabled={!!cpaBulkProgress} onClick={() => setCpaBulk(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button disabled={!!cpaBulkProgress} onClick={runCpaBulk}>
+              {cpaBulkProgress && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+              {t('ordersPage.cpaBulkConfirm', { count: cpaBulk?.eligible.length ?? 0 })}
             </Button>
           </DialogFooter>
         </DialogContent>

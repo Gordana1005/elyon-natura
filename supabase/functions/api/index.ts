@@ -6979,9 +6979,11 @@ async function handleRequest(req: Request): Promise<Response> {
     // (accept=1 for confirmed — never a status number, their commission timers),
     // cancel/trash reason, customer fields, quantity, unit price and a comment.
     //
-    // STRICTLY one order per press (operator decision 2026-08-14): there is no
-    // bulk variant and no automatic hook — bulk-status-update, bulk-disposition
-    // and bigarena-sync must never call this. Gated by
+    // One order per CALL. The Orders page's bulk Send-to-CPA (operator decision
+    // 2026-08-18, reversing the 08-14 one-per-press rule) loops this endpoint
+    // sequentially from the client — there is still no server-side bulk variant
+    // and NO automatic hook: bulk-status-update, bulk-disposition and
+    // bigarena-sync must never call this. Gated by
     // app_settings.altercpa_push_enabled (default off), re-read on EVERY call so
     // the Settings switch is an instant kill switch.
     //
@@ -6998,7 +7000,10 @@ async function handleRequest(req: Request): Promise<Response> {
     // live test plan, see .grok/skills/elyon-altercpa-bridge.
     if (req.method === "POST" && segments[0] === "orders" && segments.length === 3 && segments[2] === "altercpa-push") {
       if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
-      if (!checkUserRateLimit(user.id, "orders.altercpa_push", 10)) {
+      // 60/min: the bulk Send-to-CPA (2026-08-18) loops this endpoint one order
+      // at a time from the client; each push spends ~2s on two external fetches,
+      // so a full page fits under the limit while a runaway loop still trips it.
+      if (!checkUserRateLimit(user.id, "orders.altercpa_push", 60)) {
         return json({ error: "Rate limit exceeded — try again in a minute" }, 429);
       }
       let pushBody: any = {};
@@ -7036,22 +7041,30 @@ async function handleRequest(req: Request): Promise<Response> {
       let pushAccount: any = null;
       if (pushLead) {
         const { data: acc } = await adminClient
-          .from("altercpa_accounts").select("id, name, api_base, token_secret_name, is_active")
+          .from("altercpa_accounts").select("id, name, api_base, token_secret_name, push_token_secret_name, is_active")
           .eq("id", pushLead.account_id).maybeSingle();
         if (!acc || !acc.is_active) return json({ error: "The AlterCPA account for this lead is inactive" }, 422);
         pushAccount = acc;
       } else {
         const { data: accts } = await adminClient
-          .from("altercpa_accounts").select("id, name, api_base, token_secret_name")
+          .from("altercpa_accounts").select("id, name, api_base, token_secret_name, push_token_secret_name")
           .eq("is_active", true);
         if ((accts || []).length !== 1) {
           return json({ error: "No ledger link for this order and the AlterCPA account is ambiguous" }, 422);
         }
         pushAccount = accts![0];
       }
-      const pushToken = Deno.env.get(pushAccount.token_secret_name) ?? "";
+      // Write identity vs read identity (operator decision 2026-08-18): AlterCPA
+      // shows the API token's ACCOUNT as the order's operator, and there is no
+      // API param to set an operator name — so the edit write goes out with the
+      // dedicated push token (the colleague who works these orders on their
+      // panel), while the read-back stays on the main account token, whose read
+      // scope is proven. No push token configured → fall back to the main one.
+      const pushWriteSecret = String(pushAccount.push_token_secret_name || pushAccount.token_secret_name);
+      const pushToken = Deno.env.get(pushWriteSecret) ?? "";
+      const pushReadToken = Deno.env.get(pushAccount.token_secret_name) || pushToken;
       if (!pushToken && !dryRun) {
-        return json({ error: `Secret ${pushAccount.token_secret_name} is not set on the api function` }, 500);
+        return json({ error: `Secret ${pushWriteSecret} is not set on the api function` }, 500);
       }
 
       // Param assembly. Only non-empty values — on edit.json, sent = overwrite.
@@ -7079,7 +7092,13 @@ async function handleRequest(req: Request): Promise<Response> {
       setIf("addr", String(order.customer_address ?? "").trim().slice(0, 500));
       setIf("index", order.postal_code);
 
-      const pushQty = Math.max(1, Math.floor(Number(order.quantity) || 1));
+      // Quantity truth is SUM(order_items) — orders.quantity is only maintained
+      // by the atomic PUT items path, so it can lag single-item add/edit/delete.
+      const { data: pushItemRows } = await adminClient
+        .from("order_items").select("quantity").eq("order_id", order.id);
+      const pushItemsQty = (pushItemRows || [])
+        .reduce((s: number, r: any) => s + Math.max(0, Math.floor(Number(r.quantity) || 0)), 0);
+      const pushQty = Math.max(1, pushItemsQty || Math.floor(Number(order.quantity) || 1));
       p.set("count", String(pushQty));
 
       // base = UNIT price in THEIR currency, computed from the ORDER TOTAL
@@ -7098,7 +7117,10 @@ async function handleRequest(req: Request): Promise<Response> {
           rate = Number(pushLead.price_raw) / Number(pushLead.price_eur);
         } else if (cur === "mkd") rate = 61.5; // frozen — must match src/lib/currency.ts
         if (rate !== null && Number.isFinite(total) && total > 0) {
-          p.set("base", String(Math.round(((total * rate) / pushQty) * 100) / 100));
+          const rawBase = (total * rate) / pushQty;
+          // Denars have no subunit — a whole-number base is what their own
+          // operators' upsell edits produce (3 × 1000, never 3 × 999.89).
+          p.set("base", String(cur === "mkd" ? Math.round(rawBase) : Math.round(rawBase * 100) / 100));
         } else if (Number.isFinite(total) && total > 0) {
           pushWarning = `unit price omitted: no exchange rate for '${cur}'`;
         }
@@ -7116,8 +7138,15 @@ async function handleRequest(req: Request): Promise<Response> {
         const label = String(code).replace(/_/g, " ");
         return notes ? `${label} — ${notes}` : label;
       })();
-      const pushComment = String(pushBody?.comment ?? fallbackComment ?? "")
-        .replace(/\s+/g, " ").trim().slice(0, 500);
+      // Server-side policy: AlterCPA has no operator-name param, so the
+      // confirming agent travels as a comment prefix on EVERY push, regardless
+      // of what the client sent. The disposition tail absorbs the 500-char cap
+      // — the agent prefix is never truncated away.
+      const pushAgentName = String(order.confirmed_by_name ?? order.assigned_agent_name ?? "").trim();
+      const pushReasonText = String(pushBody?.comment ?? fallbackComment ?? "")
+        .replace(/\s+/g, " ").trim();
+      const pushComment = [pushAgentName ? `Agent: ${pushAgentName}` : "", pushReasonText]
+        .filter(Boolean).join(" — ").slice(0, 500);
       if (pushComment) p.set("comment", pushComment);
 
       const pushBase = String(pushAccount.api_base ?? "https://api.cpa.moe").replace(/\/+$/, "");
@@ -7129,8 +7158,9 @@ async function handleRequest(req: Request): Promise<Response> {
           account: pushAccount.name,
           oid: String(order.external_order_id),
           token_present: !!pushToken,
+          write_secret: pushWriteSecret,
           params: Object.fromEntries(p),
-          url: `${pushBase}/comp/edit.json?id=<${pushAccount.token_secret_name}>&${p.toString()}`,
+          url: `POST ${pushBase}/comp/edit.json?id=<${pushWriteSecret}> body: ${p.toString()}`,
           remote: pushLead ? { phase: pushLead.phase, status: pushLead.status, reason: pushLead.reason } : null,
           ...(pushWarning ? { warning: pushWarning } : {}),
         });
@@ -7140,9 +7170,20 @@ async function handleRequest(req: Request): Promise<Response> {
         .from("profiles").select("full_name").eq("user_id", user.id).single();
       const pushActorName = pushActorProfile?.full_name || user.email;
 
+      // POST, not GET — proven live on oid 1434157 (2026-08-18): their doc marks
+      // only oid/accept/status/reason/track as "Can be send via GET"; every
+      // customer/price/address field sent in the query string is SILENTLY
+      // dropped while the accept still lands. The token stays in the query (the
+      // documented endpoint shape); everything else goes in the form body.
+      // If data fields are ever ignored again: retry as multipart FormData,
+      // then as two calls (data-only edit, then accept/status) — in that order.
       let pushBodyText = "";
       try {
-        const res = await fetch(`${pushBase}/comp/edit.json?id=${encodeURIComponent(pushToken)}&${p.toString()}`);
+        const res = await fetch(`${pushBase}/comp/edit.json?id=${encodeURIComponent(pushToken)}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: p.toString(),
+        });
         pushBodyText = await res.text();
       } catch (e) {
         return json({ error: `AlterCPA unreachable: ${(e as Error).message}` }, 502);
@@ -7172,15 +7213,17 @@ async function handleRequest(req: Request): Promise<Response> {
       // push actually did on their side (edit.json may normalize status→phase).
       // A failed re-read falls back to the pushed status/reason — never guess
       // phase. No lead row → nothing to refresh.
+      let remoteAfter: any = null;
       if (pushLead) {
         let refreshed = false;
         try {
           const res = await fetch(
-            `${pushBase}/comp/list.json?id=${encodeURIComponent(pushToken)}&oid=${encodeURIComponent(String(order.external_order_id))}`,
+            `${pushBase}/comp/list.json?id=${encodeURIComponent(pushReadToken)}&oid=${encodeURIComponent(String(order.external_order_id))}`,
           );
           const arr = JSON.parse(await res.text());
           if (Array.isArray(arr) && arr[0]) {
             const r = arr[0];
+            remoteAfter = r;
             await adminClient.from("altercpa_leads").update({
               phase: Number(r.phase) || null,
               status: Number(r.status) || null,
@@ -7201,13 +7244,33 @@ async function handleRequest(req: Request): Promise<Response> {
         }
       }
 
+      // Verify the remote actually APPLIED what we sent — their API answers
+      // success and then silently drops fields it dislikes (that is exactly how
+      // the GET-transport bug stayed invisible). A mismatch is still a delivered
+      // push, so it succeeds with a warning rather than erroring.
+      const pushIgnored: string[] = [];
+      if (remoteAfter) {
+        if (Number(remoteAfter.count) !== pushQty) pushIgnored.push("count");
+        const sentBase = p.get("base");
+        if (sentBase && Math.abs(Number(remoteAfter.base) - Number(sentBase)) > 0.02) pushIgnored.push("base");
+        for (const k of ["addr", "street", "city", "index", "area"] as const) {
+          const sent = p.get(k);
+          if (sent && String(remoteAfter[k] ?? "").trim() !== sent.trim()) pushIgnored.push(k);
+        }
+      }
+      const verifyLabel = !remoteAfter
+        ? "remote state unverified (read-back unavailable)"
+        : pushIgnored.length
+          ? `remote did NOT apply: ${pushIgnored.join(", ")}`
+          : "remote verified";
+
       const statusLabel = pushStatus === "accept" ? "accepted (accept=1)" : `status ${pushStatus}`;
       await adminClient.from("order_notes").insert({
         order_id: order.id,
         text: `Pushed to AlterCPA (${pushAccount.name}): ${statusLabel}`
           + (p.has("reason") ? `, reason ${p.get("reason")}` : "")
           + `, ${pushQty} × ${p.get("base") ?? "—"}`
-          + ` — ${pushNoop ? "no fields changed (already current)" : "accepted"}`,
+          + ` — ${pushNoop ? "no fields changed (already current)" : verifyLabel}`,
         author_id: user.id, author_name: pushActorName,
       });
       await audit(adminClient, user.id, user.email, "order.altercpa_push", {
@@ -7215,10 +7278,20 @@ async function handleRequest(req: Request): Promise<Response> {
         payload: {
           oid: String(order.external_order_id), account: pushAccount.name,
           params: Object.fromEntries(p), noop: pushNoop,
+          ...(remoteAfter ? { ignored: pushIgnored } : { unverified: true }),
         },
       });
 
-      return json({ success: true, noop: pushNoop, ...(pushWarning ? { warning: pushWarning } : {}) });
+      const pushWarnings = [
+        pushWarning,
+        pushIgnored.length ? `AlterCPA accepted the call but did not apply: ${pushIgnored.join(", ")}` : "",
+      ].filter(Boolean);
+      return json({
+        success: true,
+        noop: pushNoop,
+        verified: remoteAfter ? pushIgnored.length === 0 : null,
+        ...(pushWarnings.length ? { warning: pushWarnings.join("; ") } : {}),
+      });
     }
 
     // POST /api/orders/:id/attribution — privileged admin-only manual correction

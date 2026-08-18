@@ -10,10 +10,13 @@ Built 2026-08-06, live the same day. Four operator decisions define its shape:
    panel.
 3. **Nothing flows back automatically.** AlterCPA's operators own the outcome on their side; we
    decide independently on ours. **No automatic postbacks, ever.** The ONE outbound path
-   (added 2026-08-14) is the **manual CPA push button** on /orders — admin/manager presses it on
-   a single order and its current state goes to `comp/edit.json`. Strictly one order per press,
-   no bulk, gated by `app_settings.altercpa_push_enabled` (default off). Full contract in
-   `.grok/skills/elyon-altercpa-bridge` decision #3.
+   (added 2026-08-14) is the **manual CPA push** on /orders — admin/manager sends a single order
+   (or, since 2026-08-18, a selection that loops the same endpoint one order at a time) and its
+   current state goes to `comp/edit.json` as a **POST** (data fields in the query string are
+   silently dropped — found live 2026-08-18). The write signs with the dedicated push token
+   (`push_token_secret_name`, Dragana) so their panel attributes it to her; the confirming agent
+   rides in the comment (`Agent: <name>`). Gated by `app_settings.altercpa_push_enabled`
+   (default off). Full contract in `.grok/skills/elyon-altercpa-bridge` decision #3.
 4. **Pendings only.** Only AlterCPA phase 1 (processing) and 2 (hold) become orders here. An
    order they already approved, cancelled or trashed has been decided — importing it would drop
    a finished order into the calling queue, and for phase 3 would book revenue and commission our

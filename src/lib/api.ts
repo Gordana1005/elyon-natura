@@ -456,12 +456,15 @@ export interface AltercpaPushPreview {
   account: string;
   oid: string;
   token_present: boolean;
+  write_secret?: string;
   params: Record<string, string>;
   url: string;
   remote: { phase: number | null; status: number | null; reason: number | null } | null;
   warning?: string;
 }
-export interface AltercpaPushResult { success: true; noop: boolean; warning?: string }
+// verified: true = read-back confirmed every sent field applied on their side;
+// false = delivered but some fields ignored (see warning); null = no read-back.
+export interface AltercpaPushResult { success: true; noop: boolean; verified?: boolean | null; warning?: string }
 export const apiPushOrderAltercpa = (id: string, body: AltercpaPushBody = {}) =>
   apiFetch<AltercpaPushPreview | AltercpaPushResult>(`orders/${id}/altercpa-push`, {
     method: 'POST', body: JSON.stringify(body),

@@ -24,22 +24,44 @@ into Elyon so the CRM is one place. **We poll them; nothing is configured on the
    **The ONE exception (operator asked 2026-08-13, built 2026-08-14): the manual CPA button.**
    `POST /orders/:id/altercpa-push` in the `api` edge fn + a "Send to CPA" item on each
    AlterCPA-sourced order row on /orders (admin/manager only). It pushes THAT order's current
-   state to `comp/edit.json` (https://cpa.moe/en/api-comp.html), same `id={user}-{key}`
-   credential as `comp/list.json`:
-   - **Strictly one order per press.** No bulk variant, no automatic hook on status change —
-     bulk-status-update / bulk-disposition / bigarena-sync must never call it. Rate-limited
-     10/min per user.
+   state to `comp/edit.json` (https://cpa.moe/en/api-comp.html):
+   - **⚠️ POST, not GET (found live 2026-08-18 on oid 1434157).** Their doc marks only
+     `oid`/`eid`, `accept`, `status`, `reason`, `track` as "Can be send via GET". Every other
+     field (name/phone/address/`base`/`count`/`comment`) sent in the query string is
+     **silently dropped** while the accept still lands — the API answers success either way.
+     The route sends the token in the query and everything else as an
+     `application/x-www-form-urlencoded` body. If fields are ever ignored again, the retry
+     ladder is: multipart FormData → two calls (data-only edit, then accept/status).
+   - **Write token = Dragana's, not the merchant token (operator decision 2026-08-18).**
+     AlterCPA shows the API token's ACCOUNT as the order's operator and has **no API param for
+     an operator name**, so the edit write signs with
+     `altercpa_accounts.push_token_secret_name` (secret `ALTERCPA_PUSH_TOKEN_DRAGANA`, value in
+     VAULT §2) → their panel attributes pushes to Dragana. Falls back to `token_secret_name`
+     when NULL. Reads (crons + the post-push read-back) stay on the main token. The confirming
+     agent additionally travels as a server-forced `comment` prefix `Agent: <name>`
+     (`confirmed_by_name ?? assigned_agent_name`) — the only per-order vehicle their API has.
+   - **One order per CALL; bulk = client loop (2026-08-18, reversing the 08-14 one-per-press
+     rule).** The /orders selection bar has "Send to CPA (N)" which loops the same endpoint
+     sequentially — one payload/note/audit/verification per order. There is still no
+     server-side bulk route and NO automatic hook — bulk-status-update / bulk-disposition /
+     bigarena-sync must never call it. Rate-limited 60/min per user.
    - **Kill switch:** `app_settings.altercpa_push_enabled` (default **false**), a switch in
      Settings → System → "CPA Push". The route re-reads it on every call.
    - **What it sends:** status (`accept=1` for confirmed — never status 10; shipped→7,
      delivered→9, paid→10, returned→11, cancelled/trashed→5+reason), customer name /
      digits-only phone / city / street+number / quarter (`area`) / address / postal (`index`),
-     `count`, `base` (unit price in THEIR currency — rate from the lead's own
-     `price_raw/price_eur`, eur→1, mkd→61.5, anything else omits base), and `comment` =
-     `orderReasonText()` from the client. `pending`/`take`/`duplicated` are not pushable;
+     `count` (= SUM(order_items.quantity), falling back to orders.quantity — the column can
+     lag single-item edits), `base` (unit price in THEIR currency — rate from the lead's own
+     `price_raw/price_eur`, eur→1, mkd→61.5, anything else omits base; **mkd rounds to whole
+     denars** — their own upsell edits produce 3 × 1000, never 3 × 999.89), and `comment` =
+     `Agent: <name>` + `orderReasonText()`. `pending`/`take`/`duplicated` are not pushable;
      `call_again` (their 3 Callback) is excluded until the loop is verified live;
      `pending_cleanup`/`stale_pending_cleanup` cancels are blocked with 422 (server markers,
      not dispositions).
+   - **Verified read-back:** after the write, the one-oid re-read compares `count`/`base` and
+     each sent address field against what their side now holds; mismatches come back as a
+     `warning` on the response and a "remote did NOT apply: …" order note instead of a silent
+     success. This is what caught the GET-transport bug.
    - **Outbound reason maps** (in `api/index.ts`, `ALTERCPA_PUSH_CANCEL_REASON` /
      `ALTERCPA_PUSH_TRASH_REASON`): same decisions as `ALTERCPA_REASON_DEFAULT` with one
      override — `not_satisfied → 10` (their exact code; round-trips via
@@ -55,12 +77,9 @@ into Elyon so the CRM is one place. **We poll them; nothing is configured on the
    - **Result logging:** `order_notes` line + `audit` (`order.altercpa_push` /
      `_push_failed`) + `altercpa_leads` refresh via a one-oid `comp/list.json` re-read (falls
      back to the pushed status/reason; never guesses phase).
-   - **Write scope is still UNPROVEN** — the token may be read-only (`access-denied`). Test
-     plan lives in the 2026-08-14 implementation plan: Phase A dry-run only (`dry_run:true`
-     returns the exact payload, token redacted), Phase B one guaranteed-no-op push (an order
-     cancelled identically on both sides → expect `error:"edit"` = write scope proven, nothing
-     changed), Phase C one real change + a watch on the next status-cron run. **Record the
-     Phase B result here when it runs.**
+   - **Write scope PROVEN 2026-08-18** (live push on oid 1434157: accept landed, phase 3 on
+     read-back). The same test exposed the GET-transport bug above — data fields were
+     dropped until the POST fix.
    - `comp/status.json` (coarser: approve/hold/cancel/trash + free-text fields) exists but is
      not used by the button.
 4. **Pendings only** (`import_scope='pending_only'`). Only phase 1/2 become orders. Phase 3/4/5
