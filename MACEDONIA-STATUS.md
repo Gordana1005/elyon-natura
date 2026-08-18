@@ -66,7 +66,9 @@ Merged 3-way against the fork point (BG@`25561ef`): 69 fast-forwards, 21 merges,
 
 **Deliberately NOT ported:** the BigArena stock-sync upload — its parser reads the Bulgarian
 fulfilment panel's Cyrillic headers (`Свободна наличност`, `Баркод`) and MK uses a different
-provider. Its parser lib *is* present because `BigArenaStatusSync` imports from it.
+provider. Its parser lib (`src/lib/bigarenaStock.ts`) is still present for the products
+stock-sync path. (`BigArenaStatusSync` itself was deleted 2026-08-18 — statuses come from the
+MEX reconcile cron.)
 
 ### Pendings queue + sticky trash + full stock — done 2026-08-06
 
@@ -166,10 +168,11 @@ was actually quoted on the phone.
    because they now drive Pure Profit, Margin Lab and the floor-price calculator.
    Re-run with `node scripts/import-costs-from-bg.mjs` (dry run) to see the current mapping.
 
-**🛑 Hard go-live blocker:** the fulfilment CSV is BigArena's **Bulgarian 3PL format**. Until a
-Macedonian carrier confirms the column contract (and whether they want whole denars), **it must
-not be used for real shipments**. `.grok/skills/elyon-fulfilment-csv/SKILL.md` describes a
-Bulgarian warehouse serving a Skopje call centre — for MK that relationship inverts.
+**✅ Resolved (2026-08-18):** the fulfilment CSV is now the **MEX Poshta client-portal import
+file** — MEX's own 8-column template (`Kod na pratka … Tezina`), Latin, integer denari, contract
+in `src/lib/mexImportCsv.ts` (+ pinned tests). The BigArena Status upload button was removed from
+/orders and /warehouse (courier outcomes come from the `mex-reconcile` cron). Validate with a
+small real import into the MEX portal before the first big batch.
 
 **Also pending:** rotate the seeded admin passwords and the credentials in `docs/VAULT.md`
 (**still open — see H2 in the security audit**); a real production domain (the `elyon-mk.com`
@@ -227,8 +230,6 @@ mostly small, but each one bites somebody eventually.
   exist. Anyone following it would break the denar display. **Rewrite before relying on it.**
 - `.grok/skills/elyon-logistics-costs/SKILL.md` teaches **VAT 20%** and the lev peg (Bulgarian).
   The code is 18%.
-- `.grok/skills/elyon-fulfilment-csv/SKILL.md` describes a Bulgarian warehouse serving a Skopje
-  call centre; for Macedonia that relationship inverts.
 - `docs/USERS_ROLES_PERMISSIONS.md` describes "the 7 roles" (there are nine) and the Bulgarian
   `@elyoncrm.local` login domain.
 - `docs/SECURITY.md` describes the **Bulgarian** Supabase project's auth settings, not this one —

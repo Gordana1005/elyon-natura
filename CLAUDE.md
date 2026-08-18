@@ -81,9 +81,11 @@ target **explicitly** and verify it before running:
 - **VAT:** 18% standard. ⚠️ Confirm with the accountant whether supplements fall under the
   preferential 5%/10% band — `VAT_RATE` feeds every profit report.
 - **Login email domain:** `elyon-mk.local` (placeholder — see TODO).
-- **Couriers/cities:** still BG (Speedy/Econt + `bg_settlements`) — **TODO:** replace with
-  Macedonian carriers. ⚠️ **The fulfilment CSV must not be used for real shipments until a
-  Macedonian carrier confirms the column contract** (it is BigArena's Bulgarian 3PL format).
+- **Couriers/cities:** MEX Poshta is the carrier. The /orders "MEX Import CSV" emits MEX's own
+  8-column portal template (contract: `src/lib/mexImportCsv.ts` — Latin, integer denari, no
+  quoted fields); courier outcomes come from the automated `mex-reconcile` cron. The BigArena
+  status-upload button was removed 2026-08-18. `bg_settlements` is dead (0 rows) — Macedonian
+  addresses live in `mk_settlements`/`mk_streets`/`mex_cities`.
 - **Telephony:** deferred (Phase 2). `VITE_USE_REAL_VOIP=false`; PBX/DID values are BG placeholders.
   The VOIP minutes bundle is seeded at 0 — there is no MK carrier contract.
 - **Trash is STICKY here (engine v3.7-mk, 2026-08-06)** and differs from Bulgaria in two ways on
@@ -102,7 +104,7 @@ before non-trivial work on money, phones, warehouse, stock, webhooks, or fulfilm
 
 - `elyon-currency` — ⚠️ inherited BG/Macedonia rules. The currency override above wins.
 - `elyon-phone-normalization` — Last-8-digits search + E.164 storage + pollution protection.
-- `elyon-fulfilment-csv` — ⚠️ describes a Bulgarian warehouse serving a Skopje call centre; for MK that relationship inverts. Rewrite before relying on it.
+- `elyon-fulfilment-csv` — The MEX Poshta portal-import CSV contract (rewritten 2026-08-18, current).
 - `elyon-warehouse-incoming` — The full daily warehouse workflow and stock safety.
 - `elyon-webhook-and-lead-ingestion` — Inbound pipeline, HMAC, per-product slugs.
 - `elyon-stock-and-bigarena` — Stock movements, import rules, and historical operator decisions.

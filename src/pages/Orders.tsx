@@ -35,14 +35,13 @@ import { Trash2, Ban } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 // The price filter talks EUR to the API (orders are stored in EUR) but the
 // operator picks and types denari — convert at the boundary, show ден only.
-import { formatMoney, codFor, eurToDen, denToEur } from '@/lib/currency';
+import { formatMoney, eurToDen, denToEur } from '@/lib/currency';
 import { toCsv, downloadCsv } from '@/lib/csv';
-import { composeHomeAddress, effectiveHomeParts } from '@/lib/address';
+import { buildMexImportColumns } from '@/lib/mexImportCsv';
 import { validateOrderForFulfilment } from '@/lib/fulfilmentValidation';
 import { FulfilmentValidationDialog, type InvalidOrder } from '@/components/FulfilmentValidationDialog';
 import { Truck } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { BigArenaStatusSync } from '@/components/BigArenaStatusSync';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/contexts/PermissionsContext';
 import { OrderModal, OrderModalData } from '@/components/OrderModal';
@@ -629,99 +628,13 @@ export default function Orders() {
   ) => {
     const { isSelected, readyByStr, heldBackPostponed, heldBackInvalid } = ctx;
 
-    // MEX Poshta shipment file. One row per parcel, comma-separated, no BOM.
-    //
-    // The columns ARE the add_shipment.php parameter list, verbatim and in the
-    // documented order. MEX publishes no CSV spec of its own — their API is
-    // JSON-only — so the parameter contract is the only definition of "what MEX
-    // expects" that is actually theirs rather than invented. It also means this
-    // file can be fed straight into add_shipment.php when the direct push is
-    // switched on, with no remapping.
-    //
-    // Replaced BigArena's Bulgarian 3PL format, which carried a lev-era column
-    // layout, Bulgarian office markers and a courier/service pair that means
-    // nothing to MEX.
-    //
-    // NOTE: the product list is deliberately NOT here — MEX has no field for it
-    // and a strict importer would reject unknown columns. Picking/packing is
-    // served by the Warehouse page's own export.
-    // Street-level address only — city goes in its own column. For office
-    // delivery this carries the office code + name instead.
-    const addressLine = (o: any) => {
-      if (o.delivery_type === 'speedy_office' || o.delivery_type === 'econt_office' || o.delivery_type === 'mex_office') {
-        // MEX has no office concept at all — receiver_address is free text — so
-        // a pickup order states the pickup point inside the address itself.
-        return [
-          'Подигање:',
-          o.courier_office_code && `#${o.courier_office_code}`,
-          o.courier_office_name,
-          o.courier_office_city,
-        ].filter(Boolean).join(' ');
-      }
-      // Resolve the real parts first — splits a house number stuck in the street
-      // field so the line carries "бр. <n>", and parses legacy blob-only rows.
-      // Falls back to the raw blob if the address can't be resolved at all.
-      return composeHomeAddress(effectiveHomeParts(o)) || (o.customer_address || '');
-    };
-
-    const cityName = (o: any) => (o.delivery_type === 'speedy_office' || o.delivery_type === 'econt_office' || o.delivery_type === 'mex_office') ? (o.courier_office_city || '') : (o.customer_city || '');
-
-    // MK national format (0XXXXXXXX) from the stored +389 E.164 number.
-    // NOTE: this used to strip only +359. A +389 number fell straight through
-    // and was emitted as "389XXXXXXXX" — a plausible-looking but wrong national
-    // number that a courier would fail to dial.
-    const phoneNational = (o: any) => {
-      let p = (o.customer_phone || '').replace(/[^\d+]/g, '');
-      if (p.startsWith('+389')) p = '0' + p.slice(4);
-      else if (p.startsWith('389')) p = '0' + p.slice(3);
-      return p.replace(/\D/g, '');
-    };
-
-    // COD amount and its currency come from ONE call, deliberately. They used to
-    // be two independent `format:` lambdas, one emitting the currency code and
-    // one the converted amount — change one and forget the other and the courier
-    // collects the wrong sum on every parcel, with nothing throwing.
-    const cod = (o: any) => codFor(o.price || 0);
-
-    const dash = (v: string) => (v && v.trim()) ? v.trim() : '-';
-
-    // MEX takes first_name and last_name separately and requires both. Split on
-    // the FIRST space and keep the whole remainder as the surname, so
-    // "Ана Марија Петровска" stays intact rather than losing a middle name.
-    const splitName = (full: string | null | undefined) => {
-      const parts = String(full || '').trim().split(/\s+/).filter(Boolean);
-      if (parts.length === 0) return { first: '', last: '' };
-      if (parts.length === 1) return { first: parts[0], last: '' };
-      return { first: parts[0], last: parts.slice(1).join(' ') };
-    };
-
-    const csv = toCsv(orders, [
-      // Our reference, echoed back by MEX on every status lookup.
-      { key: 'tracking_id', header: 'tracking_id', format: (o: any) => o.display_id || '' },
-      // The idempotency key. get_shipment_status_by_ref.php takes this, which is
-      // how a retry after a timeout can tell "already sent" from "never sent" —
-      // MEX has no cancellation endpoint, so a duplicate parcel is permanent.
-      { key: 'sender_reference', header: 'sender_reference', format: (o: any) => o.display_id || '' },
-      // MEX requires BOTH names. validateOrderForFulfilment already rejects a
-      // single-token name, so last_name is never blank in an exported row.
-      { key: 'first_name', header: 'first_name', format: (o: any) => splitName(o.customer_name).first },
-      { key: 'last_name', header: 'last_name', format: (o: any) => splitName(o.customer_name).last },
-      { key: 'receiver_phone', header: 'receiver_phone', format: phoneNational },
-      { key: 'receiver_address', header: 'receiver_address', format: addressLine },
-      // THE routing key. add_shipment.php has no postcode field and treats the
-      // address as free text, so this integer alone decides where the parcel
-      // goes. Never blank: an order without a zone is held back by validation.
-      { key: 'receiver_city_id', header: 'receiver_city_id', format: (o: any) => o.mex_city_id != null ? String(o.mex_city_id) : '' },
-      // Human-readable twin of the id, for the operator eyeballing the file.
-      // MEX ignores it whenever receiver_city_id is present.
-      { key: 'receiver_city', header: 'receiver_city', format: (o: any) => o.mex_city_name || cityName(o) },
-      // A STRING with a dot decimal — "1500.00", not 1500 and not "1500,00".
-      // codFor() is the single source for the amount, exactly as before.
-      { key: 'cod', header: 'cod', format: (o: any) => `${cod(o).amount}.00` },
-      // MEX's own default. Every parcel we ship is well under it.
-      { key: 'weight', header: 'weight', format: () => '2' },
-      { key: 'instructions', header: 'instructions', format: (o: any) => dash(o.delivery_instructions || '') },
-    ], ',', false);
+    // MEX Poshta CLIENT-PORTAL import file — the 8 fixed columns their bulk
+    // importer accepts (Kod na pratka … Tezina), comma-separated, no BOM, and
+    // never a quoted field. The whole column contract — Latin transliteration,
+    // integer Otkup, Grad matched by zone NAME, and why this replaced the
+    // add_shipment.php parameter layout — lives in src/lib/mexImportCsv.ts.
+    // This page only decides WHICH orders go in.
+    const csv = toCsv(orders, buildMexImportColumns(), ',', false);
 
     const today = format(new Date(), 'yyyy-MM-dd');
     const fromStr = fulfilFrom ? format(fulfilFrom, 'yyyy-MM-dd') : today;
@@ -1225,8 +1138,6 @@ export default function Orders() {
                 </Button>
               </PopoverContent>
             </Popover>
-
-            <BigArenaStatusSync onSuccess={() => fetchOrders()} />
 
             <Button onClick={exportXLSX} size="sm" variant="outline" className="h-9 gap-1.5 rounded-lg text-sm"><Download className="h-3.5 w-3.5" /> {t('ordersPage.exportView')}</Button>
             <Button onClick={() => setShowCreateModal(true)} size="sm" className="h-9 gap-1.5 rounded-lg text-sm"><Plus className="h-3.5 w-3.5" /> {t('common.createOrder')}</Button>

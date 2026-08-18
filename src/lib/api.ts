@@ -1395,8 +1395,6 @@ export const apiBulkUnassignOrders = (orderIds: string[]) =>
   apiFetch('orders/bulk-unassign', { method: 'POST', body: JSON.stringify({ order_ids: orderIds }) });
 export const apiBulkStatusUpdate = (orderIds: string[], newStatus: string) =>
   apiFetch('orders/bulk-status-update', { method: 'POST', body: JSON.stringify({ order_ids: orderIds, new_status: newStatus }) });
-export const apiBigArenaSync = (updates: Array<{ ref: string; rawStatus: string; targetStatus: 'paid' | 'returned' | 'cancelled' }>, meta?: { filename?: string; uploadedAt?: string }) =>
-  apiFetch('orders/bigarena-sync', { method: 'POST', body: JSON.stringify({ updates, meta: meta || {} }) });
 // BigArena "Fulfillment Panel" stock export → overwrite CRM stock_quantity.
 // Rows are the parsed/merged output of src/lib/bigarenaStock.ts; the server
 // re-matches them against the catalogue and never trusts a client product id.

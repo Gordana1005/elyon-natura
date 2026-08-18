@@ -1,7 +1,8 @@
 // BigArena "Fulfillment Panel" stock-export parser.
 //
 // This is the product-inventory export (Наименование / Информация / Количество …),
-// NOT the order-tracking export handled by BigArenaStatusSync. The logic here is a
+// NOT the order-tracking export (whose manual upload UI was removed 2026-08-18 —
+// courier statuses now come from the automated MEX reconcile). The logic here is a
 // browser-safe port of the battle-tested scripts/import-products-bigarena.mjs so the
 // UI button and the CLI fallback always read the file identically.
 
@@ -63,7 +64,7 @@ export const normalizeName = (s: unknown): string =>
 
 /**
  * True when the sheet header looks like the Fulfillment Panel (product stock) export.
- * Shared with BigArenaStatusSync, which uses it to REJECT this file.
+ * Lets the stock-sync UI confirm it was handed the right BigArena file.
  */
 export function isFulfillmentPanelFile(headerText: string): boolean {
   const h = (headerText || '').toLowerCase();

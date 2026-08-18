@@ -26,7 +26,6 @@ import {
   apiDeleteWarehouseOrder,
   apiBulkStatusUpdate,
 } from '@/lib/api';
-import { BigArenaStatusSync } from '@/components/BigArenaStatusSync';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   Package,
@@ -365,10 +364,6 @@ function PackingTab() {
         <Button variant="outline" size="sm" onClick={exportCSV} disabled={visible.length === 0}>
           <Download className="h-4 w-4 mr-1" /> {t('wh.exportCsv')}
         </Button>
-        <BigArenaStatusSync
-          onSuccess={() => queryClient.invalidateQueries({ queryKey: ['warehouse-incoming-orders'] })}
-          compact
-        />
         <span className="text-sm text-muted-foreground ml-auto">{t('wh.ordersTotal', { count: visible.length })}</span>
       </div>
 
