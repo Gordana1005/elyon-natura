@@ -12,8 +12,10 @@ Built 2026-08-06, live the same day. Four operator decisions define its shape:
    decide independently on ours. **No automatic postbacks, ever.** The ONE outbound path
    (added 2026-08-14) is the **manual CPA push** on /orders — admin/manager sends a single order
    (or, since 2026-08-18, a selection that loops the same endpoint one order at a time) and its
-   current state goes to `comp/edit.json` as a **POST** (data fields in the query string are
-   silently dropped — found live 2026-08-18). The write signs with the dedicated push token
+   current state goes to `comp/edit.json` as **two POSTs** — the state transition and the data
+   fields separately, because a call that performs a real transition silently drops its data
+   fields, and data fields in a GET query string are always dropped (both found live
+   2026-08-18). The write signs with the dedicated push token
    (`push_token_secret_name`, Dragana) so their panel attributes it to her; the confirming agent
    rides in the comment (`Agent: <name>`). Gated by `app_settings.altercpa_push_enabled`
    (default off). Full contract in `.grok/skills/elyon-altercpa-bridge` decision #3.

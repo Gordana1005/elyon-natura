@@ -7150,17 +7150,50 @@ async function handleRequest(req: Request): Promise<Response> {
       if (pushComment) p.set("comment", pushComment);
 
       const pushBase = String(pushAccount.api_base ?? "https://api.cpa.moe").replace(/\/+$/, "");
+
+      // TWO calls, not one — proven live 2026-08-18 in two rounds:
+      //   1. (oid 1434157, 12:13) data fields sent via GET query string are
+      //      silently dropped; only oid/accept/status/reason/track are
+      //      GET-capable per their doc. → switched to POST.
+      //   2. (oid 1434755 accept + oid 1434337 cancel, 13:49) a POST that
+      //      performs a REAL state transition (first accept, or a status
+      //      change) applies the transition and drops every data field —
+      //      including comment — in the same call. A call with a no-op
+      //      transition applies data fine (oid 1434157, 12:55).
+      // So: the transition and the data travel in separate calls.
+      //   - accept target: transition FIRST, then data (data edits are proven
+      //     to work on already-accepted orders; unproven on pending ones).
+      //   - any status target: data FIRST while the order is still open, then
+      //     the transition (a terminal order may refuse later edits — the
+      //     read-back verification will say so if it does).
+      const STATE_KEYS = ["accept", "status", "reason"];
+      const pushOid = String(order.external_order_id);
+      const pState = new URLSearchParams({ oid: pushOid });
+      const pData = new URLSearchParams({ oid: pushOid });
+      for (const [k, v] of p) {
+        if (k === "oid") continue;
+        (STATE_KEYS.includes(k) ? pState : pData).set(k, v);
+      }
+      const hasData = [...pData.keys()].length > 1;
+      const pushCalls: Array<{ kind: "state" | "data"; params: URLSearchParams }> =
+        pushStatus === "accept"
+          ? [{ kind: "state" as const, params: pState }, ...(hasData ? [{ kind: "data" as const, params: pData }] : [])]
+          : [...(hasData ? [{ kind: "data" as const, params: pData }] : []), { kind: "state" as const, params: pState }];
+
       if (dryRun) {
         // The costless preview: exactly what WOULD be sent, token redacted.
-        // Powers the confirm dialog and Phase A of the test plan.
+        // Powers the confirm dialog and Phase A of the test plan. `params`
+        // stays the merged flat set (the dialog renders it); `sequence` shows
+        // the actual call order.
         return json({
           dry_run: true,
           account: pushAccount.name,
-          oid: String(order.external_order_id),
+          oid: pushOid,
           token_present: !!pushToken,
           write_secret: pushWriteSecret,
           params: Object.fromEntries(p),
-          url: `POST ${pushBase}/comp/edit.json?id=<${pushWriteSecret}> body: ${p.toString()}`,
+          sequence: pushCalls.map((c) => ({ [c.kind]: c.params.toString() })),
+          url: `POST ×${pushCalls.length} ${pushBase}/comp/edit.json?id=<${pushWriteSecret}>`,
           remote: pushLead ? { phase: pushLead.phase, status: pushLead.status, reason: pushLead.reason } : null,
           ...(pushWarning ? { warning: pushWarning } : {}),
         });
@@ -7170,44 +7203,40 @@ async function handleRequest(req: Request): Promise<Response> {
         .from("profiles").select("full_name").eq("user_id", user.id).single();
       const pushActorName = pushActorProfile?.full_name || user.email;
 
-      // POST, not GET — proven live on oid 1434157 (2026-08-18): their doc marks
-      // only oid/accept/status/reason/track as "Can be send via GET"; every
-      // customer/price/address field sent in the query string is SILENTLY
-      // dropped while the accept still lands. The token stays in the query (the
-      // documented endpoint shape); everything else goes in the form body.
-      // If data fields are ever ignored again: retry as multipart FormData,
-      // then as two calls (data-only edit, then accept/status) — in that order.
-      let pushBodyText = "";
-      try {
-        const res = await fetch(`${pushBase}/comp/edit.json?id=${encodeURIComponent(pushToken)}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: p.toString(),
-        });
-        pushBodyText = await res.text();
-      } catch (e) {
-        return json({ error: `AlterCPA unreachable: ${(e as Error).message}` }, 502);
+      // HTTP 200 is meaningless on their API — the verdict is in the JSON body,
+      // and their "edit" (no fields changed) is a successful no-op.
+      const callNoop: Record<string, boolean> = {};
+      for (const call of pushCalls) {
+        let bodyText = "";
+        try {
+          const res = await fetch(`${pushBase}/comp/edit.json?id=${encodeURIComponent(pushToken)}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: call.params.toString(),
+          });
+          bodyText = await res.text();
+        } catch (e) {
+          return json({ error: `AlterCPA unreachable during the ${call.kind} call: ${(e as Error).message}` }, 502);
+        }
+        const verdict = classifyPostbackBody(bodyText);
+        try { callNoop[call.kind] = JSON.parse(bodyText)?.error === "edit"; } catch { callNoop[call.kind] = false; }
+        if (!verdict.ok) {
+          const msg = String(verdict.error ?? "").includes("access-denied")
+            ? "AlterCPA refused the write (access-denied) — the push token has no write scope. Turn the feature off in Settings until a write-capable key exists."
+            : `AlterCPA error on the ${call.kind} call: ${verdict.error}`;
+          await adminClient.from("order_notes").insert({
+            order_id: order.id, text: `CPA push FAILED: ${msg}`,
+            author_id: user.id, author_name: pushActorName,
+          });
+          await audit(adminClient, user.id, user.email, "order.altercpa_push_failed", {
+            target_type: "order", target_id: order.id,
+            payload: { oid: pushOid, account: pushAccount.name, call: call.kind, error: verdict.error },
+          });
+          return json({ error: msg }, 502);
+        }
       }
-      // HTTP 200 is meaningless here — the verdict is in the JSON body, and
-      // their "edit" (no fields changed) is a successful no-op.
-      const verdict = classifyPostbackBody(pushBodyText);
-      let pushNoop = false;
-      try { pushNoop = JSON.parse(pushBodyText)?.error === "edit"; } catch { /* non-JSON = delivered */ }
-
-      if (!verdict.ok) {
-        const msg = String(verdict.error ?? "").includes("access-denied")
-          ? "AlterCPA refused the write (access-denied) — the merchant token has no write scope. Turn the feature off in Settings until a write-capable key exists."
-          : `AlterCPA error: ${verdict.error}`;
-        await adminClient.from("order_notes").insert({
-          order_id: order.id, text: `CPA push FAILED: ${msg}`,
-          author_id: user.id, author_name: pushActorName,
-        });
-        await audit(adminClient, user.id, user.email, "order.altercpa_push_failed", {
-          target_type: "order", target_id: order.id,
-          payload: { oid: String(order.external_order_id), account: pushAccount.name, error: verdict.error },
-        });
-        return json({ error: msg }, 502);
-      }
+      // "Already current" only when EVERY call was a no-op on their side.
+      const pushNoop = pushCalls.every((c) => callNoop[c.kind]);
 
       // Ledger truth: re-read the ONE lead so altercpa_leads reflects what the
       // push actually did on their side (edit.json may normalize status→phase).
@@ -7253,7 +7282,7 @@ async function handleRequest(req: Request): Promise<Response> {
         if (Number(remoteAfter.count) !== pushQty) pushIgnored.push("count");
         const sentBase = p.get("base");
         if (sentBase && Math.abs(Number(remoteAfter.base) - Number(sentBase)) > 0.02) pushIgnored.push("base");
-        for (const k of ["addr", "street", "city", "index", "area"] as const) {
+        for (const k of ["addr", "street", "city", "index", "area", "comment"] as const) {
           const sent = p.get(k);
           if (sent && String(remoteAfter[k] ?? "").trim() !== sent.trim()) pushIgnored.push(k);
         }

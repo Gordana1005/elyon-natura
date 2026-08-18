@@ -25,13 +25,17 @@ into Elyon so the CRM is one place. **We poll them; nothing is configured on the
    `POST /orders/:id/altercpa-push` in the `api` edge fn + a "Send to CPA" item on each
    AlterCPA-sourced order row on /orders (admin/manager only). It pushes THAT order's current
    state to `comp/edit.json` (https://cpa.moe/en/api-comp.html):
-   - **⚠️ POST, not GET (found live 2026-08-18 on oid 1434157).** Their doc marks only
-     `oid`/`eid`, `accept`, `status`, `reason`, `track` as "Can be send via GET". Every other
-     field (name/phone/address/`base`/`count`/`comment`) sent in the query string is
-     **silently dropped** while the accept still lands — the API answers success either way.
-     The route sends the token in the query and everything else as an
-     `application/x-www-form-urlencoded` body. If fields are ever ignored again, the retry
-     ladder is: multipart FormData → two calls (data-only edit, then accept/status).
+   - **⚠️ POST, and TWO calls per push (both found live 2026-08-18).** Round 1 (oid 1434157):
+     data fields sent via GET query string are **silently dropped** — their doc marks only
+     `oid`/`eid`, `accept`, `status`, `reason`, `track` as "Can be send via GET" → POST body.
+     Round 2 (oids 1434755/1434337): a POST that performs a REAL state transition (first
+     accept, or a status change) applies the transition and drops every data field —
+     including `comment` — in the same call; a call whose transition is a no-op applies data
+     fine. So the route sends the transition and the data as SEPARATE
+     `application/x-www-form-urlencoded` POSTs: accept target → transition first, then data
+     (data edits proven on accepted orders); status targets → data first, then transition.
+     Data edits also work on already-terminal orders (proven: comment onto a phase-4 cancel).
+     The API answers success either way — only the read-back comparison tells the truth.
    - **Write token = Dragana's, not the merchant token (operator decision 2026-08-18).**
      AlterCPA shows the API token's ACCOUNT as the order's operator and has **no API param for
      an operator name**, so the edit write signs with
@@ -58,10 +62,10 @@ into Elyon so the CRM is one place. **We poll them; nothing is configured on the
      `call_again` (their 3 Callback) is excluded until the loop is verified live;
      `pending_cleanup`/`stale_pending_cleanup` cancels are blocked with 422 (server markers,
      not dispositions).
-   - **Verified read-back:** after the write, the one-oid re-read compares `count`/`base` and
-     each sent address field against what their side now holds; mismatches come back as a
-     `warning` on the response and a "remote did NOT apply: …" order note instead of a silent
-     success. This is what caught the GET-transport bug.
+   - **Verified read-back:** after the write, the one-oid re-read compares `count`/`base`,
+     each sent address field AND `comment` against what their side now holds; mismatches come
+     back as a `warning` on the response and a "remote did NOT apply: …" order note instead of
+     a silent success. This caught BOTH transport bugs (GET-drop and transition-drop).
    - **Outbound reason maps** (in `api/index.ts`, `ALTERCPA_PUSH_CANCEL_REASON` /
      `ALTERCPA_PUSH_TRASH_REASON`): same decisions as `ALTERCPA_REASON_DEFAULT` with one
      override — `not_satisfied → 10` (their exact code; round-trips via
