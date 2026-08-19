@@ -1145,6 +1145,67 @@ function buildAgentIdentityIndex(profiles: Array<{ user_id: string; full_name: s
   return idByIdentity;
 }
 
+// ── The caller's own spellings, for the agent self-dashboard ────────────────
+// buildAgentIdentityIndex() answers "whose account is this name?", which is what
+// a report grouping every operator needs. The agent dashboard has the opposite
+// question — "which raw spellings are MINE?" — because it hands the answer to
+// agent_self_stats()/agent_self_activity() as an array and lets Postgres do the
+// filtering. Same fold, inverted.
+//
+// Two arrays come back and they are NOT interchangeable:
+//   folded — every spelling that folds onto this agent. Drives counts/revenue.
+//   exact  — only spellings whose normalised form equals the profile name.
+//            Drives the BONUS, and nothing else. Widening this to `folded`
+//            would silently add €15,985 — see the comment on idByExactName in
+//            /agent-performance and scripts/audit-agent-identity-merge.mjs.
+//
+// The distinct-spelling list is ~90 rows and changes when an import lands, so it
+// is memoised process-wide for 10 minutes rather than re-scanned per request.
+let ownerVariantCache: { at: number; rows: Array<{ owner_raw: string; n: number }> } | null = null;
+const OWNER_VARIANT_TTL_MS = 10 * 60_000;
+
+async function ownerNameVariants(admin: any): Promise<Array<{ owner_raw: string; n: number }>> {
+  const now = Date.now();
+  if (ownerVariantCache && now - ownerVariantCache.at < OWNER_VARIANT_TTL_MS) return ownerVariantCache.rows;
+  const { data, error } = await admin.rpc("agent_owner_name_variants");
+  if (error) throw error;
+  ownerVariantCache = { at: now, rows: (data as any[]) || [] };
+  return ownerVariantCache.rows;
+}
+
+/** Raw operator spellings belonging to `fullName`, folded and exact. */
+async function ownerNameVariantsFor(
+  admin: any,
+  fullName: string | null | undefined,
+): Promise<{ folded: string[]; exact: string[] }> {
+  const key = agentIdentityKey(fullName);
+  const norm = normAgentName(fullName);
+  if (!key) return { folded: [], exact: [] };
+  let rows: Array<{ owner_raw: string; n: number }>;
+  try {
+    rows = await ownerNameVariants(admin);
+  } catch (_e) {
+    // Never fail a dashboard because the variant list is unavailable — fall
+    // back to the profile's own spelling, which is what the UUID-only era
+    // effectively had.
+    return { folded: [norm], exact: [norm] };
+  }
+  const folded: string[] = [];
+  const exact: string[] = [];
+  for (const r of rows) {
+    const raw = r.owner_raw;
+    if (!raw) continue;
+    if (agentIdentityKey(raw) !== key) continue;
+    folded.push(raw);
+    if (normAgentName(raw) === norm) exact.push(raw);
+  }
+  // The profile spelling itself may not appear in orders yet (a new agent).
+  // Including it costs nothing and makes the first order they confirm count.
+  if (!folded.includes(norm)) folded.push(norm);
+  if (!exact.includes(norm)) exact.push(norm);
+  return { folded, exact };
+}
+
 // ONE owner per order: the account id when the order carries one, otherwise the
 // operator's folded name. `name:<key>` is opaque and is what report filters pass
 // back as `agent_id` — it is never written to a row and never grants anything.
@@ -1163,6 +1224,34 @@ function agentOwnerKey(o: any, idByIdentity: Record<string, string>): string | n
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function salesOwnerOrFilter(uid: string): string {
   return `confirmed_by_agent_id.eq.${uid},and(confirmed_by_agent_id.is.null,assigned_agent_id.eq.${uid})`;
+}
+
+// Same predicate, plus the NAME legs — the ones the UUID-only version could not
+// see. In this database 67,970 orders carry an operator name and only 902 an
+// account id, so scoping an agent's own worklist by uid alone returned an empty
+// page for 25 of the 32 operators (complaint, 2026-08-19).
+//
+// `names` MUST be the folded set from ownerNameVariantsFor(); they are
+// interpolated into an .or() string, so any value that could carry a comma,
+// parenthesis or quote is dropped rather than escaped — PostgREST's filter
+// grammar has no escape that survives every position, and a mangled filter here
+// would widen the scope instead of narrowing it. The dropped spelling simply
+// falls back to the uid legs.
+const PGRST_SAFE_NAME = /^[^,()"\\]+$/;
+function salesOwnerOrFilterWithNames(uid: string, names: string[]): string {
+  const safe = names.filter((n) => n && PGRST_SAFE_NAME.test(n));
+  const legs = [
+    `confirmed_by_agent_id.eq.${uid}`,
+    `and(confirmed_by_agent_id.is.null,assigned_agent_id.eq.${uid})`,
+  ];
+  if (safe.length) {
+    const list = `(${safe.map((n) => `"${n}"`).join(",")})`;
+    legs.push(`and(confirmed_by_agent_id.is.null,assigned_agent_id.is.null,confirmed_by_name.in.${list})`);
+    legs.push(
+      `and(confirmed_by_agent_id.is.null,assigned_agent_id.is.null,confirmed_by_name.is.null,assigned_agent_name.in.${list})`,
+    );
+  }
+  return legs.join(",");
 }
 
 // Release every order a take-lock view is holding, restoring what was there
@@ -1396,7 +1485,7 @@ function redactCustomerList<T extends Record<string, any>>(arr: T[] | null | und
 //
 // Separate from redactCustomer on purpose: that masks PII per fine-grained
 // piiFlags, this is a flat role gate on a different axis.
-const CPA_ATTRIBUTION_FIELDS = ["cpa_webmaster_id", "cpa_offer_id", "cpa_offer_name"] as const;
+const CPA_ATTRIBUTION_FIELDS = ["cpa_webmaster_id", "cpa_offer_id", "cpa_offer_name", "cpa_stream_id"] as const;
 function stripCpaAttribution<T extends Record<string, any>>(row: T | null | undefined, allowed: boolean): T | null | undefined {
   if (!row || allowed) return row;
   const x: Record<string, any> = { ...row };
@@ -2624,15 +2713,23 @@ async function handleRequest(req: Request): Promise<Response> {
       for (const r of ruleRows || []) rules[r.metric] = { tiers: r.tiers || [], is_active: !!r.is_active };
 
       // Orders confirmed that day, scoped to the mode's source:
-      //  • prediction = cold lists (prediction_list_id set OR source_type=prediction_lead)
-      //  • pending    = warm inbound orders the customer placed (inbound_lead / opencart)
+      //  • prediction = cold lists (prediction_list_id or prediction_list_name set)
+      //  • pending    = the inbound lead sources — LEAD_SOURCE_TYPES, one
+      //                 definition shared with /calls and the agent dashboard
+      //
+      // Both filters were inherited from Bulgaria and matched NOTHING here
+      // (fixed 2026-08-19): `source_type='prediction_lead'` and
+      // 'inbound_lead'/'opencart' are all 0 rows in this database, so the
+      // pending board could never light up — Macedonian pendings arrive as
+      // source_type='altercpa' (2,299 orders). Do not narrow these back to a
+      // literal list; use the constant.
       let oq = adminClient.from("orders")
         .select("id,status,price,quantity,confirmed_by_agent_id,confirmed_by_name,assigned_agent_id,assigned_agent_name,confirmed_at,order_items(price_per_unit,quantity)")
         .gte("confirmed_at", startISO).lt("confirmed_at", endISO)
         .in("status", REAL_ORDER_STATUSES);
       oq = mode === "prediction"
-        ? oq.or("prediction_list_id.not.is.null,source_type.eq.prediction_lead")
-        : oq.in("source_type", ["inbound_lead", "opencart"]);
+        ? oq.or("prediction_list_id.not.is.null,prediction_list_name.not.is.null")
+        : oq.in("source_type", LEAD_SOURCE_TYPES);
       const { data: orders } = await oq;
 
       // Calls scoped to the motion via context_type.
@@ -2644,8 +2741,23 @@ async function handleRequest(req: Request): Promise<Response> {
       const { data: logins } = await adminClient
         .from("shift_login_logs").select("user_id").eq("shift_date", day);
 
+      // Resolve a name-only confirm onto its real account before anything is
+      // counted. Only 202 of the 485 orders confirmed since 2026-08-01 carry
+      // confirmed_by_agent_id; the rest carry just the operator's name, and
+      // salesOwnerId() alone silently dropped every one of them off the board.
+      // `name:<key>` keys (an operator with no CRM account) are not user ids, so
+      // they never reach a roster or a bonus — they simply stop being counted as
+      // somebody else's.
+      const { data: lbProfiles } = await adminClient
+        .from("profiles").select("user_id, full_name").eq("is_active", true);
+      const lbIdByIdentity = buildAgentIdentityIndex(lbProfiles as any);
+      const lbOwner = (o: any): string | null => {
+        const k = agentOwnerKey(o, lbIdByIdentity);
+        return k && !k.startsWith("name:") ? k : null;
+      };
+
       const activeIds = new Set<string>();
-      for (const o of orders || []) { const id = salesOwnerId(o); if (id) activeIds.add(id); }
+      for (const o of orders || []) { const id = lbOwner(o); if (id) activeIds.add(id); }
       for (const c of calls || []) { if (c.agent_id) activeIds.add(c.agent_id); }
       for (const l of logins || []) { if (l.user_id) activeIds.add(l.user_id); }
 
@@ -2665,7 +2777,7 @@ async function handleRequest(req: Request): Promise<Response> {
       for (const id of displayIds) agg[id] = { user_id: id, full_name: nameById[id] || "Agent", confirmed_count: 0, total_price: 0, packages: 0, package_bonus: 0, calls: 0 };
 
       for (const o of orders || []) {
-        const id = salesOwnerId(o);
+        const id = lbOwner(o);
         if (!id || !display.has(id)) continue;
         const a = agg[id];
         if (a.full_name === "Agent") a.full_name = salesOwnerName(o) || a.full_name;
@@ -3025,14 +3137,26 @@ async function handleRequest(req: Request): Promise<Response> {
       return json(data);
     }
 
-    // The two /orders filter dropdowns. Grouped in Postgres — 82k rows must not
-    // be pulled into the function to be counted — and served from the partial
-    // indexes added in 20260927000100.
+    // The three /orders filter dropdowns. Grouped in Postgres — 82k rows must
+    // not be pulled into the function to be counted — and served from the
+    // partial indexes added in 20260927000100 and 20260929000000.
     if (req.method === "GET" && path.startsWith("altercpa/attribution-dimensions")) {
       if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
       const { data, error } = await adminClient.rpc("altercpa_attribution_dimensions");
       if (error) return json({ error: sanitizeDbError(error) }, 400);
-      return json(data ?? { webmasters: [], offers: [] });
+      return json(data ?? { webmasters: [], offers: [], streams: [] });
+    }
+
+    // The /altercpa Sources tab — the CRM's counterpart of AlterCPA's "Lead
+    // distribution by affiliate traffic sources" panel: per-status counts and
+    // first/last-seen per (stream, webmaster). A separate RPC from the
+    // dimensions one on purpose (20260929000100): this needs heap access over
+    // ~70k rows, and must not ride along on every /orders filter fetch.
+    if (req.method === "GET" && path.startsWith("altercpa/stream-distribution")) {
+      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      const { data, error } = await adminClient.rpc("altercpa_stream_distribution");
+      if (error) return json({ error: sanitizeDbError(error) }, 400);
+      return json(data ?? { total_orders: 0, attributed_orders: 0, streams: [] });
     }
 
     // The offer→product queue. Everything AlterCPA has ever sent us, with the
@@ -5342,6 +5466,7 @@ async function handleRequest(req: Request): Promise<Response> {
       // passing these by hand narrows nothing they could not already see.
       const cpaWebmaster = isAdminOrManager ? url.searchParams.get("cpa_webmaster") : null;
       const cpaOffer = isAdminOrManager ? url.searchParams.get("cpa_offer") : null;
+      const cpaStream = isAdminOrManager ? url.searchParams.get("cpa_stream") : null;
       const page = parseInt(url.searchParams.get("page") || "1");
       const limit = parseInt(url.searchParams.get("limit") || "20");
 
@@ -5360,7 +5485,8 @@ async function handleRequest(req: Request): Promise<Response> {
         (status && status !== "all") || (agentId && agentId !== "all") ||
         (source && source !== "all") || from || to || priceMin || priceMax ||
         search || readyOnly || leadOnly ||
-        (cpaWebmaster && cpaWebmaster !== "all") || (cpaOffer && cpaOffer !== "all"),
+        (cpaWebmaster && cpaWebmaster !== "all") || (cpaOffer && cpaOffer !== "all") ||
+        (cpaStream && cpaStream !== "all"),
       );
       let query = client
         .from("orders")
@@ -5379,6 +5505,10 @@ async function handleRequest(req: Request): Promise<Response> {
       if (source && source !== "all") query = query.eq("source_type", source);
       if (cpaWebmaster && cpaWebmaster !== "all") query = query.eq("cpa_webmaster_id", cpaWebmaster);
       if (cpaOffer && cpaOffer !== "all") query = query.eq("cpa_offer_id", cpaOffer);
+      // Code alone, not (code, wm): codes are unique per webmaster today, and a
+      // future numeric collision would filter to an honest superset (both rows
+      // are visible in the popover with their affiliate names).
+      if (cpaStream && cpaStream !== "all") query = query.eq("cpa_stream_id", cpaStream);
       if (leadOnly) query = query.in("source_type", LEAD_SOURCE_TYPES);
       if (from) query = query.gte("created_at", from);
       if (to) query = query.lte("created_at", to);
@@ -6950,6 +7080,12 @@ async function handleRequest(req: Request): Promise<Response> {
       // today's confirmed count, so they don't celebrate.
       if (REAL_ORDER_STATUSES.includes(newStatus) && !order.confirmed_by_name) {
         await broadcastLeaderboard("confirmed", { agent_id: user.id, order_id: orderId });
+      } else if (order.status !== newStatus
+        && ["cancelled", "trashed", "call_again"].includes(newStatus)) {
+        // Agent dashboards listen on the same channel. A cancel or a trash is
+        // not a celebration — it fires `refresh`, which moves the agent's own
+        // tiles without triggering the TV's confetti.
+        await broadcastLeaderboard("refresh", { agent_id: user.id, order_id: orderId });
       }
 
       // Log history — but not for a no-op transition. The Order Editor now
@@ -7899,7 +8035,11 @@ async function handleRequest(req: Request): Promise<Response> {
         "id, status, price, quantity, created_at, paid_at, confirmed_at, returned_at, assigned_agent_id, confirmed_by_agent_id, order_items(product_name, quantity, price_per_unit, total_price, product_id)";
 
       // Helper to compute metrics for a given agent filter
-      async function computeMetrics(effectiveAgentId: string | null) {
+      // `ownerNames` widens the scope to the agent's own operator spellings.
+      // Empty for the admin/team path, so that behaviour is byte-identical.
+      async function computeMetrics(effectiveAgentId: string | null, ownerNames: string[] = []) {
+        const ownerFilter = (uid: string) =>
+          ownerNames.length ? salesOwnerOrFilterWithNames(uid, ownerNames) : salesOwnerOrFilter(uid);
         let winFrom = fromDate;
         let winTo = toDate;
         if (period === "start" && effectiveAgentId) {
@@ -7918,7 +8058,7 @@ async function handleRequest(req: Request): Promise<Response> {
           let q = adminClient.from("orders").select(DASH_ORDER_SELECT)
             .gte("created_at", winFrom).lte("created_at", winTo)
             .or("source_type.is.null,source_type.neq.monadon_legacy");
-          if (effectiveAgentId) q = q.or(salesOwnerOrFilter(effectiveAgentId));
+          if (effectiveAgentId) q = q.or(ownerFilter(effectiveAgentId));
           return q;
         });
         for (const o of activityOrders) byId.set(o.id, o);
@@ -7928,7 +8068,7 @@ async function handleRequest(req: Request): Promise<Response> {
             .eq("status", "paid")
             .gte("paid_at", winFrom).lte("paid_at", winTo)
             .or("source_type.is.null,source_type.neq.monadon_legacy");
-          if (effectiveAgentId) q = q.or(salesOwnerOrFilter(effectiveAgentId));
+          if (effectiveAgentId) q = q.or(ownerFilter(effectiveAgentId));
           return q;
         });
         for (const o of paidWindowOrders) byId.set(o.id, o);
@@ -8030,9 +8170,85 @@ async function handleRequest(req: Request): Promise<Response> {
       }
 
       if (!isAdminOrManager) {
-        // Pure agent: personal stats only
-        const metrics = await computeMetrics(user.id);
-        return json({ ...metrics, period, from: metrics.from || fromDate, to: metrics.to || toDate });
+        // ── Pure agent: their own book, and nothing else ──────────────────
+        // Attribution is the whole story here. Until 2026-08-19 this scoped by
+        // UUID alone, and 67,970 of 88,645 orders carry only an operator NAME —
+        // so 25 of the 32 operators opened a dashboard full of zeros while
+        // Insights → Agents (which folds names) showed thousands of orders.
+        // Same fold, same numbers, one truth.
+        const { data: selfProfile } = await adminClient
+          .from("profiles").select("full_name").eq("user_id", user.id).maybeSingle();
+        const { folded, exact } = await ownerNameVariantsFor(adminClient, selfProfile?.full_name);
+
+        const metrics = await computeMetrics(user.id, folded);
+
+        // period=start resolves per-agent inside computeMetrics; reuse the
+        // window it settled on so the rollups cover exactly the same span.
+        const winFrom = metrics.from || fromDate;
+        const winTo = metrics.to || toDate;
+        // Lifetime ("start"/all-time) must NOT window the rollup by created_at,
+        // or COD paid inside the window on an order created before the agent
+        // joined would drop out. computeMetrics already resolved that; pass its
+        // bounds straight through.
+        const [statsRes, actRes] = await Promise.all([
+          adminClient.rpc("agent_self_stats", {
+            p_owner_id: user.id,
+            p_owner_names: folded,
+            p_bonus_names: exact,
+            p_lead_sources: LEAD_SOURCE_TYPES,
+            p_from: winFrom,
+            p_to: winTo,
+          }),
+          adminClient.rpc("agent_self_activity", {
+            p_owner_id: user.id,
+            p_owner_names: folded,
+            p_lead_sources: LEAD_SOURCE_TYPES,
+            p_from: winFrom,
+            p_to: winTo,
+          }),
+        ]);
+        // A rollup failure must not blank the dashboard — the legacy metrics
+        // above are already a complete answer, the split is the enrichment.
+        if (statsRes.error) console.error("agent_self_stats:", statsRes.error.message);
+        if (actRes.error) console.error("agent_self_activity:", actRes.error.message);
+        const selfStats = (statsRes.data as any) || {};
+        const channels = selfStats.channels || {};
+        const activity = (actRes.data as any) || {};
+
+        // How many prediction-list members this agent actually called in the
+        // window. Orders answer "what did I sell"; this answers "how many people
+        // did I get through", which is the other half of the operator's ask and
+        // has never been shown anywhere.
+        let predictionMembers: Record<string, number> = {};
+        const memberQ = adminClient
+          .from("prediction_segment_members")
+          .select("last_call_outcome")
+          .eq("assigned_agent_id", user.id)
+          .not("last_call_at", "is", null)
+          .gte("last_call_at", winFrom)
+          .lte("last_call_at", winTo)
+          .limit(5000);
+        const { data: memberRows, error: memberErr } = await memberQ;
+        if (memberErr) console.error("prediction members:", memberErr.message);
+        for (const m of memberRows || []) {
+          const k = (m as any).last_call_outcome || "unknown";
+          predictionMembers[k] = (predictionMembers[k] || 0) + 1;
+        }
+        const predictionMembersTotal = (memberRows || []).length;
+
+        return json({
+          ...metrics,
+          // Split by sales motion — пендинзи vs предикциски листи — from the
+          // orders themselves (`channels`) and from what the agent actually did
+          // in the window (`activity`, read off order_history). They answer
+          // different questions and the UI shows both.
+          channels,
+          activity,
+          call_again_open: selfStats.call_again_open ?? 0,
+          prediction_members: predictionMembers,
+          prediction_members_total: predictionMembersTotal,
+          period, from: winFrom, to: winTo,
+        });
       }
 
       // Admin or dual-role: compute admin-level metrics (with optional agent filter)
@@ -8122,7 +8338,14 @@ async function handleRequest(req: Request): Promise<Response> {
         toDate = now.toISOString();
       }
 
-      const ownerOr = salesOwnerOrFilter(targetId);
+      // Name legs included, for the same reason dashboard-stats needed them:
+      // the worklist was empty for any agent whose orders carry an operator
+      // name rather than an account id — which is nearly all of them. The tabs
+      // and the tiles must agree, so both scope identically.
+      const { data: targetProfile } = await adminClient
+        .from("profiles").select("full_name").eq("user_id", targetId).maybeSingle();
+      const { folded: targetNames } = await ownerNameVariantsFor(adminClient, targetProfile?.full_name);
+      const ownerOr = salesOwnerOrFilterWithNames(targetId, targetNames);
       const legacyOr = "source_type.is.null,source_type.neq.monadon_legacy";
       // No address columns on purpose — the worklist doesn't need them.
       const SELECT_COLS = "id, display_id, status, price, quantity, product_name, customer_name, customer_phone, created_at, confirmed_at, shipped_at, paid_at, returned_at, return_reason, order_items(product_name, quantity, price_per_unit, total_price)";

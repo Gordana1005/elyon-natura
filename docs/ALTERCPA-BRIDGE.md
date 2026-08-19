@@ -91,6 +91,7 @@ touches the affiliate drain.
 | Admin routes | `supabase/functions/api/index.ts` → `altercpa/*` |
 | Admin UI | `src/pages/AlterCpaPage.tsx`, `src/components/altercpa/` |
 | Manual CPA push (2026-08-14) | `supabase/functions/api/index.ts` → `POST orders/:id/altercpa-push`; button + dialog in `src/pages/Orders.tsx`; toggle in Settings → System |
+| Order attribution (wm/offer/stream) | `orders.cpa_webmaster_id/cpa_offer_id/cpa_offer_name` (`20260927000100`) + `cpa_stream_id` = tracking.exts, raw code, no names (`20260929000000`, 2026-08-19); backfills `scripts/backfill-cpa-attribution.mjs` + `backfill-cpa-stream.mjs`; Sources tab `src/components/altercpa/SourcesTab.tsx` ← `altercpa_stream_distribution()` |
 | Reconciliation | `scripts/verify-altercpa-bridge.mjs` |
 | Status-sync reconciliation | `scripts/verify-altercpa-status.mjs` |
 | Status-sync scheduler | `supabase/migrations/20260918000000_altercpa_status_sync.sql` |

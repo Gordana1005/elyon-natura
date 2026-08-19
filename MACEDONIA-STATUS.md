@@ -165,6 +165,35 @@ pieces, all shipped together:
   no longer destroyed. `/orders` gate: `CPA_PUSHABLE` + `call_again`; no new i18n (the dialog
   renders `Call Again → 3` from existing keys).
 
+### Publisher (traffic-source) attribution — done 2026-08-19
+
+Third CPA dimension after affiliate + offer: **which media buyer under the partner** sent the
+lead. The code is AlterCPA's `tracking.exts` (undocumented in their API; verified: the hashes in
+Mile's panel screenshot sit verbatim in our ledger payloads). KMA.biz is a reseller network, so
+this is the only way to tell its buyers apart. **Raw code, no names, on purpose** (operator:
+"the publisher code is okay.. no needed names") — no registry, no naming UI; even AlterCPA's own
+panel shows the bare hashes.
+
+- `orders.cpa_stream_id` (migration `20260929000000`, composite partial index on
+  `(stream, wm)` — codes are only unique within one webmaster). Sync writes it via
+  `cpaAttribution()`; agents never see it (`stripCpaAttribution`, all three order endpoints).
+- Surfaces: /orders expand "Publisher: <code>" + mobile + XLSX PUBLISHER column + a publisher
+  filter popover; **/altercpa → Traffic sources** tab = read-only per-source distribution
+  (orders/paid/confirmed/cancelled/trashed + first/last seen, affiliate names resolved) via new
+  `altercpa_stream_distribution()` RPC; the dimensions RPC gained a minimal `streams` key
+  (`20260929000100`).
+- Backfill `scripts/backfill-cpa-stream.mjs` (clone of the wm/offer one; ledger wins only when
+  non-null — a null ledger observation must not clobber a dump code): **70.550 / 82.622 orders**
+  now carry a code, 195 distinct (wm, stream) pairs, 12.072 genuinely have no exts (stay NULL),
+  collision probe 0, `updated_at` untouched (replica-role batches).
+- **Never `tracking.extu`** — per-lead click id. `tracking.source` = UTM axis (KMA only),
+  possible 4th dimension, not built. Insights per-source money: not built (follow-up).
+- ⚠️ Their panel counts LEADS across ALL geos; our surfaces count MK ORDERS. The circled
+  `drkbu8aj7hhbps6n` is KMA's **Serbian** Prostatol traffic (837 ledger leads, 85 today —
+  panel showed 83 at screenshot time ✓) and correctly shows 0 orders here.
+
+### Market layer (Macedonia)
+
 | Area | State |
 |---|---|
 | Currency | **MKD only** in the UI. Stored EUR; `MKD_PER_EUR = 61.5` is **frozen** (see below). `formatMoney` is the money formatter; `formatLev`/`eurToLev`/`BGN_PER_EUR` are deleted. |

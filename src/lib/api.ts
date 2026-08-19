@@ -294,7 +294,7 @@ export const apiManageLeaderboardToken = (
   apiFetch('leaderboard/token', { method: 'POST', body: JSON.stringify(body) });
 
 // Orders
-export const apiGetOrders = (params?: { status?: string; search?: string; agent_id?: string; source?: string; cpa_webmaster?: string; cpa_offer?: string; ready_only?: boolean; lead_only?: boolean; from?: string; to?: string; price_min?: number; price_max?: number; page?: number; limit?: number }) => {
+export const apiGetOrders = (params?: { status?: string; search?: string; agent_id?: string; source?: string; cpa_webmaster?: string; cpa_offer?: string; cpa_stream?: string; ready_only?: boolean; lead_only?: boolean; from?: string; to?: string; price_min?: number; price_max?: number; page?: number; limit?: number }) => {
   const sp = new URLSearchParams();
   if (params?.status) sp.set('status', params.status);
   if (params?.search) sp.set('search', params.search);
@@ -304,6 +304,7 @@ export const apiGetOrders = (params?: { status?: string; search?: string; agent_
   // strips the columns from the response, so these can never widen a view.
   if (params?.cpa_webmaster) sp.set('cpa_webmaster', params.cpa_webmaster);
   if (params?.cpa_offer) sp.set('cpa_offer', params.cpa_offer);
+  if (params?.cpa_stream) sp.set('cpa_stream', params.cpa_stream);
   if (params?.ready_only) sp.set('ready_only', '1');
   // Inbound leads only (altercpa | inbound_lead | opencart | opencart_abandoned).
   // Keeps agent-created `manual` work and the legacy `import` out of the
@@ -2248,13 +2249,34 @@ export const apiUpdateAlterCpaWebmaster = (id: string, patch: { name?: string | 
   Promise<AlterCpaWebmaster> =>
   apiFetch(`altercpa/webmasters/${id}`, { method: 'PATCH', body: JSON.stringify(patch) });
 
-/** Feeds the Affiliate and Offer filter dropdowns on /orders. */
+/** Feeds the Affiliate, Offer and Publisher filter dropdowns on /orders. */
 export interface CpaAttributionDimensions {
   webmasters: Array<{ wm_id: string; name: string | null; orders: number }>;
   offers: Array<{ offer_id: string; name: string | null; orders: number }>;
+  // Publisher/traffic-source codes (tracking.exts). Raw codes by design — no
+  // names exist upstream (operator decision 2026-08-19). wm_id rides along
+  // because codes are only guaranteed unique within one webmaster.
+  streams: Array<{ stream_id: string; wm_id: string | null; orders: number }>;
 }
 export const apiGetCpaAttributionDimensions = (): Promise<CpaAttributionDimensions> =>
   apiFetch('altercpa/attribution-dimensions');
+
+/**
+ * The /altercpa Sources tab — per-publisher distribution, the CRM's counterpart
+ * of AlterCPA's "Lead distribution by affiliate traffic sources" panel.
+ */
+export interface AlterCpaStreamDistribution {
+  total_orders: number;
+  attributed_orders: number;
+  streams: Array<{
+    stream_id: string; wm_id: string | null; orders: number;
+    paid: number; confirmed: number; shipped: number;
+    cancelled: number; trashed: number; returned: number;
+    first_seen: string; last_seen: string;
+  }>;
+}
+export const apiGetAlterCpaStreamDistribution = (): Promise<AlterCpaStreamDistribution> =>
+  apiFetch('altercpa/stream-distribution');
 
 export const apiGetAlterCpaLeads = (params: {
   account_id?: string; geo?: string; offer?: string; webmaster?: string;

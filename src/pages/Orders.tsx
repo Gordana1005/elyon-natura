@@ -18,7 +18,7 @@ import { format, addDays } from 'date-fns'; // raw format: fulfilment CSV + mach
 import { formatDate } from '@/i18n/dates';
 import {
   Download, ChevronLeft, ChevronRight, ChevronDown, Filter, Search, Loader2,
-  CalendarIcon, X, User, Users, Plus, MoreVertical, History, Lock, Copy, CopyPlus, Euro, Package, Send,
+  CalendarIcon, X, User, Users, Plus, MoreVertical, History, Lock, Copy, CopyPlus, Euro, Package, Send, Waypoints,
 } from 'lucide-react';
 import { Check } from 'lucide-react';
 import { MobileCard, MobileCardHeader, MobileCardField, MobileCardActions } from '@/components/ui/mobile-card';
@@ -85,12 +85,14 @@ interface ApiOrder {
   // AlterCPA linkage (GET /orders selects *; these power the CPA push button)
   external_source?: string | null;
   external_order_id?: string | null;
-  // CPA provenance — which affiliate sent the lead, and for which offer. The
-  // server omits all three for anyone below manager, so treat absent as "not
-  // allowed to see" rather than "no attribution".
+  // CPA provenance — which affiliate sent the lead, for which offer, through
+  // which traffic source. The server omits all four for anyone below manager,
+  // so treat absent as "not allowed to see" rather than "no attribution".
   cpa_webmaster_id?: string | null;
   cpa_offer_id?: string | null;
   cpa_offer_name?: string | null;
+  // Publisher/stream code (tracking.exts) — raw, no names exist upstream.
+  cpa_stream_id?: string | null;
   ship_after_date?: string | null;
   // Reason pairs — orderReasonText() composes the CPA push comment from these
   cancellation_reason?: string | null;
@@ -161,6 +163,7 @@ export default function Orders() {
   // CPA provenance filters — admin/manager only, like the columns they filter on.
   const [affiliateFilter, setAffiliateFilter] = useState('all');
   const [offerFilter, setOfferFilter] = useState('all');
+  const [publisherFilter, setPublisherFilter] = useState('all');
   const [agentFilter, setAgentFilter] = useState('all');
   const [myOrdersOnly, setMyOrdersOnly] = useState(isAgent); // agents default to my orders
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
@@ -316,7 +319,7 @@ export default function Orders() {
     return () => clearTimeout(t);
   }, [search]);
 
-  useEffect(() => { setPage(1); }, [debouncedSearch, selectedStatuses, sourceFilter, affiliateFilter, offerFilter, agentFilter, myOrdersOnly, dateFrom, dateTo, priceMin, priceMax]);
+  useEffect(() => { setPage(1); }, [debouncedSearch, selectedStatuses, sourceFilter, affiliateFilter, offerFilter, publisherFilter, agentFilter, myOrdersOnly, dateFrom, dateTo, priceMin, priceMax]);
 
   const { data: agentsData } = useQuery({
     queryKey: ['agents'],
@@ -366,6 +369,7 @@ export default function Orders() {
       source: sourceFilter !== 'all' ? sourceFilter : undefined,
       cpa_webmaster: affiliateFilter !== 'all' ? affiliateFilter : undefined,
       cpa_offer: offerFilter !== 'all' ? offerFilter : undefined,
+      cpa_stream: publisherFilter !== 'all' ? publisherFilter : undefined,
       search: debouncedSearch || undefined,
       agent_id: effectiveAgentId,
       from: dateFrom ? format(dateFrom, "yyyy-MM-dd'T'00:00:00") : undefined,
@@ -385,7 +389,7 @@ export default function Orders() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchOrders(); }, [page, selectedStatuses, sourceFilter, affiliateFilter, offerFilter, debouncedSearch, agentFilter, myOrdersOnly, dateFrom, dateTo, priceMin, priceMax]);
+  useEffect(() => { fetchOrders(); }, [page, selectedStatuses, sourceFilter, affiliateFilter, offerFilter, publisherFilter, debouncedSearch, agentFilter, myOrdersOnly, dateFrom, dateTo, priceMin, priceMax]);
 
   // Status filtering (single or multi-select) is now done server-side, so the
   // page already contains exactly the orders that match — and total/pagination
@@ -485,9 +489,9 @@ export default function Orders() {
   const toggleStatus = (s: OrderStatus) => {
     setSelectedStatuses(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
   };
-  const hasActiveFilters = search.trim() || selectedStatuses.length > 0 || sourceFilter !== 'all' || affiliateFilter !== 'all' || offerFilter !== 'all' || agentFilter !== 'all' || (myOrdersOnly && isAdmin) || dateFrom || dateTo || priceMin != null || priceMax != null;
+  const hasActiveFilters = search.trim() || selectedStatuses.length > 0 || sourceFilter !== 'all' || affiliateFilter !== 'all' || offerFilter !== 'all' || publisherFilter !== 'all' || agentFilter !== 'all' || (myOrdersOnly && isAdmin) || dateFrom || dateTo || priceMin != null || priceMax != null;
   const clearAllFilters = () => {
-    setSearch(''); setSelectedStatuses([]); setSourceFilter('all'); setAffiliateFilter('all'); setOfferFilter('all'); setAgentFilter('all'); if (isAdmin) setMyOrdersOnly(false); setDateFrom(undefined); setDateTo(undefined);
+    setSearch(''); setSelectedStatuses([]); setSourceFilter('all'); setAffiliateFilter('all'); setOfferFilter('all'); setPublisherFilter('all'); setAgentFilter('all'); if (isAdmin) setMyOrdersOnly(false); setDateFrom(undefined); setDateTo(undefined);
     setPriceMin(null); setPriceMax(null); setPriceMinDraft(''); setPriceMaxDraft('');
   };
 
@@ -837,6 +841,7 @@ export default function Orders() {
         // better blank, and agents never receive these fields at all.
         'AFFILIATE': o.cpa_webmaster_id ? affiliateLabel(o.cpa_webmaster_id, webmasterNames) : '',
         'OFFER': o.cpa_offer_name || (o.cpa_offer_id ? `#${o.cpa_offer_id}` : ''),
+        'PUBLISHER': o.cpa_stream_id || '',
         'DATE': new Date(o.created_at).toLocaleDateString(),
       };
     });
@@ -992,6 +997,39 @@ export default function Orders() {
                       >
                         <span className="flex-1 text-left truncate">{o.name || `#${o.offer_id}`}</span>
                         <span className="text-[11px] tabular-nums text-muted-foreground shrink-0">{o.orders.toLocaleString()}</span>
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
+
+            {/* Publisher — the traffic-source code under the affiliate
+                (tracking.exts). Raw codes by design: no names exist upstream,
+                so the entry shows the mono code plus whose traffic it is. */}
+            {isAdmin && (cpaDimensions?.streams?.length ?? 0) > 0 && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-lg text-sm font-normal">
+                    <Waypoints className="h-3.5 w-3.5" />
+                    {publisherFilter === 'all'
+                      ? t('ordersPage.colPublisher')
+                      : <span className="font-mono text-xs max-w-32 truncate">{publisherFilter}</span>}
+                    {publisherFilter !== 'all' && <span className="ml-1 h-2 w-2 rounded-full bg-primary" />}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-2" align="start">
+                  <div className="space-y-0.5 max-h-72 overflow-y-auto">
+                    <button onClick={() => setPublisherFilter('all')} className={cn('flex w-full rounded-lg px-3 py-2 text-sm transition-colors', publisherFilter === 'all' ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted')}>{t('ordersPage.allPublishers')}</button>
+                    {(cpaDimensions?.streams || []).map((s) => (
+                      <button
+                        key={`${s.stream_id}|${s.wm_id ?? ''}`}
+                        onClick={() => setPublisherFilter(s.stream_id)}
+                        className={cn('flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors', publisherFilter === s.stream_id ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted')}
+                      >
+                        <span className="flex-1 text-left truncate font-mono text-xs">{s.stream_id}</span>
+                        <span className="text-[11px] text-muted-foreground truncate max-w-24">{affiliateLabel(s.wm_id, webmasterNames)}</span>
+                        <span className="text-[11px] tabular-nums text-muted-foreground shrink-0">{s.orders.toLocaleString()}</span>
                       </button>
                     ))}
                   </div>
@@ -1513,6 +1551,12 @@ export default function Orders() {
                                   {order.cpa_offer_id && <span className="ml-1 text-xs text-muted-foreground">#{order.cpa_offer_id}</span>}
                                 </div>
                               )}
+                              {order.cpa_stream_id && (
+                                <div>
+                                  <span className="text-muted-foreground">{t('ordersPage.publisherField')}</span>{' '}
+                                  <span className="font-mono text-xs">{order.cpa_stream_id}</span>
+                                </div>
+                              )}
                               {order.ship_after_date && (
                                 <div><span className="text-muted-foreground">{t('ordersPage.shipAfterField')}</span> {new Date(order.ship_after_date).toLocaleDateString()}</div>
                               )}
@@ -1695,6 +1739,9 @@ export default function Orders() {
               )}
               {(order.cpa_offer_name || order.cpa_offer_id) && (
                 <MobileCardField label={t('ordersPage.colOffer')} value={offerLabel(order)} />
+              )}
+              {order.cpa_stream_id && (
+                <MobileCardField label={t('ordersPage.colPublisher')} value={<span className="font-mono text-xs">{order.cpa_stream_id}</span>} />
               )}
               <MobileCardField label={t('ordersPage.colDate')} value={`${new Date(order.created_at).toLocaleDateString()}, ${new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`} />
               <MobileCardActions>

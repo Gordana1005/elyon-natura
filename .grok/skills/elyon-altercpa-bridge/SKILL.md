@@ -216,20 +216,35 @@ date to get right**. Do not invent a new key.
   The 5 live names were derived by matching their panel's per-phase counts against our ledger
   for the same window, then seeded in `20260927000000`:
   2676 KMA.biz · 3221 Fomikch · 3223 ezaff.com · 3285 LeadBit · 3226 Nastia Shakes.
-- **Attribution lives on `orders`, not only in the ledger** (`20260927000100`):
-  `cpa_webmaster_id`, `cpa_offer_id`, `cpa_offer_name`. The ledger began with the live poller on
-  2026-08-05 and covers ~2.3k of the 82k `external_source='altercpa'` orders, so a read-time join
-  would be blank on 97% of the table. The **id** is stored and the name resolved at display time,
-  so renaming a partner is one row. Backfilled from `scripts/data/altercpa-mk-raw.jsonl` by
-  `scripts/backfill-cpa-attribution.mjs` (idempotent; suppresses triggers via
-  `session_replication_role = replica` so `trg_orders_updated_at` does not stamp 82k rows —
-  `GET /call-agains` reports `orders.updated_at` as `last_call_at`).
-  **Admin/manager only**: `stripCpaAttribution()` deletes the three fields on the way out of
+- **Attribution lives on `orders`, not only in the ledger** (`20260927000100` + `20260929000000`):
+  `cpa_webmaster_id`, `cpa_offer_id`, `cpa_offer_name`, and since 2026-08-19 **`cpa_stream_id`**
+  — the publisher/traffic-source code (`tracking.exts`), the third dimension: which media buyer
+  UNDER the webmaster (KMA.biz is a reseller network, so this is the only way to tell its buyers
+  apart). The ledger began with the live poller on 2026-08-05 and covers only a sliver of the
+  82k `external_source='altercpa'` orders, so a read-time join would be blank on 97% of the
+  table. The **id** is stored and the name resolved at display time, so renaming a partner is
+  one row. Backfilled from `scripts/data/altercpa-mk-raw.jsonl` by
+  `scripts/backfill-cpa-attribution.mjs` and `scripts/backfill-cpa-stream.mjs` (idempotent;
+  suppress triggers via `session_replication_role = replica` so `trg_orders_updated_at` does not
+  stamp 82k rows — `GET /call-agains` reports `orders.updated_at` as `last_call_at`).
+  **Admin/manager only**: `stripCpaAttribution()` deletes all four fields on the way out of
   `GET /orders` and `GET /orders/:id` for every other role.
+- **Streams have NO names and NO registry, on purpose** (operator decision 2026-08-19: "the
+  publisher code is okay.. no needed names"). The tracking fields are undocumented in their API,
+  no endpoint lists or names streams, and their own panel renders the bare hashes. `exts` is the
+  stream code (unique per webmaster — grain is `(stream, wm)`, formats are heterogeneous:
+  16-char hashes for KMA, bare numerics for Fomikch/ezaff); **`extu` is a PER-LEAD click id —
+  never use it as attribution**. Surfaces: /orders expand "Publisher", a publisher filter,
+  /altercpa → Traffic sources tab (`altercpa_stream_distribution()`; the dimensions RPC gained a
+  minimal `streams` key). ⚠️ Their panel's per-source counts are LEADS across ALL geos; our
+  surfaces count MK ORDERS — a foreign-geo stream (e.g. `drkbu8aj7hhbps6n` = KMA's RS Prostatol
+  traffic, 837 leads) correctly shows 0 orders and lives only in the ledger.
 - The payload holds much more than we promote — `tracking.{source,campaign,content,term,medium,
-  extu,exts}`, `user`/`app` (their operator), `ip`, `gender`, `email`, `base`, `delivery`. All of
-  it is already in `altercpa_leads.payload` and reachable with plain JSON operators; no re-sync
-  is needed to surface any of it.
+  extu}`, `user`/`app` (their operator), `ip`, `gender`, `email`, `base`, `delivery`
+  (`tracking.exts` graduated to `orders.cpa_stream_id` 2026-08-19; `tracking.source` is a
+  genuinely different UTM-ish axis, populated only on KMA leads — a possible fourth dimension,
+  not built). All of it is already in `altercpa_leads.payload` and reachable with plain JSON
+  operators; no re-sync is needed to surface any of it.
 - Cancel reasons 1-15 are documented; **16-19 are this account's custom codes** with no API
   lookup. Meanings recovered from operator comments — see `scripts/lib/altercpa.mjs`.
 - **An error is an OBJECT, not an array.** `{"status":"error",…}` comes back with HTTP 200.

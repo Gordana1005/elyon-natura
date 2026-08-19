@@ -315,6 +315,15 @@ export interface AlterCpaOrder {
   currency?: string;
   price?: number;
   goods?: Array<{ id?: number; name?: string; short?: string; count?: number; price?: number }>;
+  // Undocumented in their API doc but present on every record. `exts` is the
+  // traffic-source/stream code — the publisher under the webmaster — promoted
+  // to orders.cpa_stream_id. `extu` is a PER-LEAD click id (81.551 distinct
+  // across 81.637 measured) — never store it as attribution.
+  tracking?: {
+    source?: string; campaign?: string; content?: string; term?: string;
+    medium?: string; click?: string; uid?: string; subid?: string;
+    uuid?: string; extu?: string; exts?: string;
+  };
   [k: string]: unknown;
 }
 

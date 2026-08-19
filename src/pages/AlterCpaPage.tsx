@@ -2,13 +2,14 @@ import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AppLayout } from '@/layouts/AppLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Globe, History, Percent, Radio, Tag, Users } from 'lucide-react';
+import { Globe, History, Percent, Radio, Tag, Users, Waypoints } from 'lucide-react';
 import { AccountsTab } from '@/components/altercpa/AccountsTab';
 import { MirrorTab } from '@/components/altercpa/MirrorTab';
 import { OfferQueueTab } from '@/components/altercpa/OfferQueueTab';
 import { SyncRunsTab } from '@/components/altercpa/SyncRunsTab';
 import { RatesTab } from '@/components/altercpa/RatesTab';
 import { AffiliatesTab } from '@/components/altercpa/AffiliatesTab';
+import { SourcesTab } from '@/components/altercpa/SourcesTab';
 
 /**
  * AlterCPA Bridge — a read-only mirror of an AlterCPA account.
@@ -47,6 +48,9 @@ export default function AlterCpaPage() {
           <TabsTrigger value="affiliates" className="gap-2">
             <Users className="h-4 w-4" /> {t('altercpa.tabAffiliates')}
           </TabsTrigger>
+          <TabsTrigger value="sources" className="gap-2">
+            <Waypoints className="h-4 w-4" /> {t('altercpa.tabSources')}
+          </TabsTrigger>
           <TabsTrigger value="accounts" className="gap-2">
             <Radio className="h-4 w-4" /> {t('altercpa.tabAccounts')}
           </TabsTrigger>
@@ -61,6 +65,7 @@ export default function AlterCpaPage() {
         <TabsContent value="mirror"><MirrorTab /></TabsContent>
         <TabsContent value="offers"><OfferQueueTab /></TabsContent>
         <TabsContent value="affiliates"><AffiliatesTab /></TabsContent>
+        <TabsContent value="sources"><SourcesTab /></TabsContent>
         <TabsContent value="accounts"><AccountsTab /></TabsContent>
         <TabsContent value="rates"><RatesTab /></TabsContent>
         <TabsContent value="runs"><SyncRunsTab /></TabsContent>

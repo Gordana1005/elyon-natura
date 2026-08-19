@@ -425,7 +425,7 @@ async function upsertLead(
     // external_order_id too, and a bare id match could adopt a stranger's row.
     const { data: adopted } = await admin
       .from("orders")
-      .select("id, cpa_webmaster_id, cpa_offer_id, cpa_offer_name")
+      .select("id, cpa_webmaster_id, cpa_offer_id, cpa_offer_name, cpa_stream_id")
       .eq("external_source", "altercpa")
       .eq("external_order_id", row.altercpa_id)
       .limit(1)
@@ -497,19 +497,25 @@ function outcomeTimestamps(o: AlterCpaOrder, status: string): Record<string, str
 }
 
 /**
- * The three CPA provenance columns on `orders` — which affiliate sent the lead
- * and for which offer. Only the affiliate ID is stored; the name is resolved
- * through altercpa_webmasters at display time, so renaming a partner is one row.
+ * The four CPA provenance columns on `orders` — which affiliate sent the lead,
+ * for which offer, and through which traffic source. Only the affiliate ID is
+ * stored; the name is resolved through altercpa_webmasters at display time, so
+ * renaming a partner is one row.
  *
  * `offername` is the OFFER's name, while row.offer_name is productNameOf() —
  * goods[0].name, which is the offer-map key. They are identical on every record
  * we hold, but offername is the authoritative one here.
+ *
+ * `tracking.exts` is the stream/publisher code (raw, no name registry —
+ * operator decision 2026-08-19). Empty string → NULL via `|| null`. Never
+ * `tracking.extu` — that is a per-lead click id, unique per record.
  */
 function cpaAttribution(row: Record<string, any>, o: AlterCpaOrder) {
   return {
     cpa_webmaster_id: row.webmaster ?? null,
     cpa_offer_id: row.offer_ext_id ?? null,
     cpa_offer_name: s(o.offername, 200) || row.offer_name || null,
+    cpa_stream_id: s(o.tracking?.exts, 120) || null,
   };
 }
 
@@ -567,7 +573,7 @@ async function upsertOrder(
 
   const { data: existing } = await admin
     .from("orders")
-    .select("id, status, assigned_agent_id, confirmed_at, cpa_webmaster_id, cpa_offer_id, cpa_offer_name")
+    .select("id, status, assigned_agent_id, confirmed_at, cpa_webmaster_id, cpa_offer_id, cpa_offer_name, cpa_stream_id")
     .eq("external_source", "altercpa")
     .eq("external_order_id", row.altercpa_id)
     .maybeSingle();

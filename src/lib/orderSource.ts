@@ -77,7 +77,7 @@ export function offerLabel(
 
 /** True when this order carries any CPA provenance worth showing. */
 export function hasCpaAttribution(
-  order: { cpa_webmaster_id?: string | null; cpa_offer_id?: string | null } | null | undefined,
+  order: { cpa_webmaster_id?: string | null; cpa_offer_id?: string | null; cpa_stream_id?: string | null } | null | undefined,
 ): boolean {
-  return Boolean(order?.cpa_webmaster_id || order?.cpa_offer_id);
+  return Boolean(order?.cpa_webmaster_id || order?.cpa_offer_id || order?.cpa_stream_id);
 }
