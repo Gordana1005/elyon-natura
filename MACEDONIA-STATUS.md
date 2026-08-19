@@ -17,7 +17,7 @@ operation. It shares **nothing at runtime** with Bulgaria (own repo / own Supaba
 ## 🟢 Current state
 
 - **Frontend (Vercel):** https://elyon-natura.vercel.app (`gordanas-projects-a53c0208/elyon-natura`, GitHub-connected → **push to `main` auto-deploys production**)
-- **Backend (Supabase):** `bmfxhgznttcnnlqloqzp` — **172 migrations applied**, edge function `api` deployed (v18, 2026-08-06), `WEBHOOK_SECRET` set, `pg_cron` on.
+- **Backend (Supabase):** `bmfxhgznttcnnlqloqzp` — **206 migrations applied** (repo and remote in step, latest `20260928000100`), edge function `api` deployed (v52, 2026-08-19), `WEBHOOK_SECRET` set, `pg_cron` on, **`INSIGHTS_ENGINE=sql`**.
 - **Data (2026-08-05): the historical order book is LOADED.** 80.360 orders · 47.231 customers ·
   56.807 prediction-list memberships. 0 call logs. **88 products** (67 + 21 created for the import),
   46 carrying a real unit cost.
@@ -106,6 +106,41 @@ v3.7 for Macedonia. Migrations `20260913000000` … `20260913000300`, edge funct
   0 on purpose** — they recorded neither price nor quantity (662 are Alpha Male, whose
   1.490/3.000/4.000 ден "spread" is pack size 1/3/4, so there is nothing to price). Audit is
   therefore **13/14** by design. Rollback: `scripts/data/zero-price-recovery-2026-08-06.json`.
+
+### Channel P&L + per-affiliator breakdown — done 2026-08-19
+
+Commit `334fe27`, migrations `20260928000000` + `20260928000100`, edge fn v52. Insights now says
+**where the money came from**, not just how much. Ported from BG (`f522cdc`/`8a4e44b` there) but
+re-based on this market's reality: the affiliate world here is the **AlterCPA bridge**
+(`orders.cpa_webmaster_id` / `external_source='altercpa'`), NOT BG's `affiliate_leads` sidecar —
+which is EMPTY here and must never be joined for MK money.
+
+- **Overview** gains the order-basis channel strip (confirmed value + confirms/cancels/trashes per
+  channel, in ден). It deliberately leads with confirmed value, never cash-basis profit — BG's
+  lesson: the profit-led version read 0 ден all day under a live Revenue tile.
+- **Pure Profit** gains the channel waterfall table + **"By affiliator"** (per AlterCPA webmaster,
+  named from `altercpa_webmasters`; unnamed → "WM <id>"). Since 2026-07-01: Fomikch €116k
+  confirmed / €107k cash · KMA.biz 44/39k · ezaff.com 20/17k · LeadBit 3,9/3,1k.
+- **Lead cost is a wired-but-ZERO slot everywhere** (operator, 2026-08-19: rates come later, per
+  affiliator). When they arrive: add a rates table and replace the single `0::float8 AS payout`
+  line in the RPC's `base` CTE — RPC → edge fn → cards already carry every lead_cost field.
+- **Channel truth:** affiliate = 100% AlterCPA (every order carries a webmaster id — verified 0
+  exceptions); prediction = 100% `prediction_list_id`-stamped, **which exists only since
+  2026-08-14** (the UI warns on earlier ranges); **manual = the collabBox register imports**
+  (437 since July — outbound Predikcii book + lost-inbound, real warehouse-dispatched sales worked
+  OUTSIDE the CRM, no attribution possible) **plus genuine hand-typed orders** (~35, incl. the 14
+  `duplicated` copies, which carry NO attribution by design — a confirmed copy counts as manual,
+  not the original's channel). Going forward manual ≈ hand-entries only. Possible refinement,
+  not done: the collabBox source files split LeadIn/LeadOut, so the 437 could be back-tagged.
+- **Found + fixed a real money bug** (`20260928000100`): the SQL engine's courier CASEs
+  (`insights_orders_rollup`, `insights_paid_basis`, from `20260911000000`) predate MEX — every MEX
+  order was costed at the €3,50 fallback instead of MEX €2,439 and Logistics showed one 'unknown'
+  bucket. Caught because the new channel RPC (MEX-aware from birth) refused to tie by exactly
+  €95,49 = 90 delivered MEX orders × 1,061. All seven waterfall terms now reconcile to the cent
+  (real clear profit since July: **96.060,06**, not 95.964,57). Lesson: when a courier/enum is
+  added, grep the SQL twins in migrations, not just the TS.
+- Verified live end-to-end post-deploy: RPC paid count = direct DB count (4.068), Σ channel
+  confirmed value = Overview revenue to the cent, channels × affiliators reconcile.
 
 ### Market layer (Macedonia)
 
