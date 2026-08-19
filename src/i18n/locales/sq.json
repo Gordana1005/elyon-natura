@@ -839,6 +839,13 @@
     "predictionMembersSub": "Anëtarë listash që i arrita këtë periudhë",
     "conversionSubProcessed": "{{won}} nga {{processed}} lead-e të punuara ende qëndrojnë",
     "conversionSubOrders": "Konfirmuar ÷ porositë e mia (historiku i paraprin ditarit)",
+    "revenueConfirmed": "Të ardhura të konfirmuara",
+    "revenueConfirmedSub": "Vlera e asaj që konfirmova në këtë periudhë",
+    "funnel": {
+      "title": "Gypi im",
+      "worked": "Të përpunuara",
+      "footnote": "Përqindjet janë ndaj hapit të mëparshëm: dërguar ndaj konfirmuar, paguar dhe kthyer ndaj dërguar. Pagesa vjen vetëm kur MEX rakordon dërgesën, prandaj një ditë e re shfaq 0 aty."
+    },
     "split": {
       "title": "Puna ime — pending kundrejt listave parashikuese",
       "subtitle": "Çfarë mbylla këtë periudhë, jo çfarë u krijua",

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { Fragment, useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useTranslation } from 'react-i18next';
@@ -86,6 +86,12 @@ interface ActivityStats {
 
 const EMPTY_ACTIVITY: ActivityStats = {
   processed: 0, confirmed: 0, cancelled: 0, trashed: 0, call_again: 0, won: 0, lost: 0,
+};
+
+const EMPTY_CHANNEL: ChannelStats = {
+  orders: 0, confirmed: 0, shipped: 0, returned: 0, cancelled: 0, trashed: 0,
+  call_again: 0, paid: 0, revenue_confirmed: 0, revenue_paid: 0,
+  packages_sold: 0, packages_awaiting: 0, packages_returned: 0, bonus_raw: 0,
 };
 
 function exportCSV(data: DashStats, period: string, label?: string) {
@@ -196,6 +202,60 @@ function WorkSplitCard({ pendings, prediction, total, t }: {
   );
 }
 
+// ── The agent's own funnel ──────────────────────────────────────────────────
+// The same Worked → Confirmed → Shipped → Paid → Returned shape management sees,
+// scoped to one agent. Every figure already travelled in `channels.__total`; it
+// was fetched, typed and thrown away, so agents could see their cancels but
+// never what happened to the orders they won.
+//
+// The rates use the same definitions as /agent-performance so a tile here and a
+// column in Insights can never tell the agent two different stories: shipment is
+// of confirmed, collection and return are of shipped. Paid lags by days — it
+// arrives only when MEX reconciles the delivery — so a fresh day legitimately
+// reads 0 there while Confirmed is healthy.
+function AgentFunnelCard({ worked, ch, t }: {
+  worked: number; ch: ChannelStats; t: (k: string, o?: any) => string;
+}) {
+  const pct = (n: number, base: number) => (base > 0 ? Math.round((n / base) * 1000) / 10 : null);
+  const steps = [
+    { key: 'worked', label: t('dashboard.funnel.worked'), value: worked, rate: null as number | null, tone: 'bg-primary' },
+    { key: 'confirmed', label: t('status.confirmed'), value: ch.confirmed, rate: pct(ch.confirmed, worked), tone: 'bg-[hsl(var(--success))]' },
+    { key: 'shipped', label: t('status.shipped'), value: ch.shipped, rate: pct(ch.shipped, ch.confirmed), tone: 'bg-[hsl(var(--info))]' },
+    { key: 'paid', label: t('status.paid'), value: ch.paid, rate: pct(ch.paid, ch.shipped), tone: 'bg-emerald-600' },
+    { key: 'returned', label: t('status.returned'), value: ch.returned, rate: pct(ch.returned, ch.shipped), tone: 'bg-destructive' },
+  ];
+  return (
+    <Card className="border-none shadow-sm">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-semibold flex items-center gap-2">
+          <Target className="h-4 w-4 text-primary" /> {t('dashboard.funnel.title')}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="pt-2">
+        <div className="flex items-start gap-1 overflow-x-auto pb-1">
+          {steps.map((s, i) => (
+            <Fragment key={s.key}>
+              {i > 0 && <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50 mt-4" />}
+              <div className="min-w-[76px] flex-1 text-center">
+                <div className={cn('mx-auto flex h-11 w-11 items-center justify-center rounded-full text-base font-bold text-white tabular-nums', s.tone)}>
+                  {s.value}
+                </div>
+                <div className="mt-1.5 text-[11px] font-medium leading-tight">{s.label}</div>
+                {s.rate !== null && (
+                  <div className="text-[10px] text-muted-foreground tabular-nums">{s.rate}%</div>
+                )}
+              </div>
+            </Fragment>
+          ))}
+        </div>
+        <p className="pt-3 text-[10px] leading-tight text-muted-foreground/80">
+          {t('dashboard.funnel.footnote')}
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
 function MetricCard({ title, value, icon: Icon, trend, trendLabel, color, subtitle }: {
   title: string; value: string | number; icon: any; trend?: number; trendLabel?: string; color: string; subtitle?: string;
 }) {
@@ -267,7 +327,10 @@ export default function Dashboard() {
   const isDualRole = user?.isAdmin && user?.isAgent;
   const [agentPeriod, setAgentPeriod] = useState<'today' | 'month' | 'start' | 'custom'>('today');
   // Day browsing (◀ ▶): UTC day string, matching the backend's UTC window math.
-  const todayUtc = new Date().toISOString().slice(0, 10);
+  // The agent's "today" is the Skopje calendar day, matching the window the API
+  // now resolves. Reading it off the UTC clock made the ◀ ▶ navigator and the
+  // server disagree for the first two hours of every Macedonian day.
+  const todayUtc = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Skopje' }).format(new Date());
   const [agentDate, setAgentDate] = useState(todayUtc);
   // Custom range (period='custom'): defaults to this month so far, fully editable.
   const [agentRange, setAgentRange] = useState<DateRange>({ from: todayUtc.slice(0, 7) + '-01', to: todayUtc });
@@ -437,6 +500,11 @@ export default function Dashboard() {
     const actTotal = act.__total || EMPTY_ACTIVITY;
     const predMembers = stats?.prediction_members_total || 0;
     const callAgainOpen = stats?.call_again_open || 0;
+    // channels.__total has always been fetched and typed and never rendered.
+    // It carries the order-lifecycle counts and, notably, revenue_confirmed —
+    // the one figure on the operator's list that no screen showed anywhere.
+    const chTotal: ChannelStats = stats?.channels?.__total || EMPTY_CHANNEL;
+    const revenueConfirmed = chTotal.revenue_confirmed || 0;
 
     // Realizacija = of the leads I worked, how many stand confirmed-or-better
     // NOW. The old formula divided sales by call_logs rows — a table holding
@@ -516,7 +584,67 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Earnings hero — paid packages & commission only */}
+        {/* ── The work comes first ─────────────────────────────────────────────
+            Operator ruling 2026-08-19: an agent's screen opens on what they did
+            on the phone — who they worked and how it ended — not on commission.
+            Earnings moved below the fold of this block. */}
+        <div className="mb-4">
+          <AgentFunnelCard worked={actTotal.processed || stats?.total_orders || 0} ch={chTotal} t={t} />
+        </div>
+
+        {/* Пендинзи vs Предикциски листи — what I actually worked this period */}
+        <WorkSplitCard pendings={actPend} prediction={actPred} total={actTotal} t={t} />
+
+        {/* Outcomes of that work */}
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-5 mb-6">
+          <MetricCard title={t('dashboard.sales')} value={sales} icon={CheckCircle2} color="bg-[hsl(var(--success))]" subtitle={t('dashboard.salesSub')} />
+          <MetricCard title={t('dashboard.cancels')} value={cancels} icon={X} color="bg-destructive" subtitle={t('dashboard.cancelsSub')} />
+          <MetricCard title={t('dashboard.trashed')} value={trashed} icon={Trash2} color="bg-destructive/80" subtitle={t('dashboard.trashedSub')} />
+          <MetricCard
+            title={t('dashboard.callAgainOpen')}
+            value={callAgainOpen}
+            icon={PhoneForwarded}
+            color="bg-[hsl(var(--warning))]"
+            subtitle={t('dashboard.callAgainOpenSub')}
+          />
+          <MetricCard
+            title={t('dashboard.returns')}
+            value={returnsOrders}
+            icon={TrendingDown}
+            color="bg-destructive"
+            subtitle={t('dashboard.returnsPackagesSub', { packages: packagesReturned })}
+          />
+        </div>
+
+        {/* Realisation + the revenue the agent actually created */}
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 mb-6">
+          <MetricCard
+            title={t('dashboard.conversion')}
+            value={`${conversion}%`}
+            icon={Target}
+            color="bg-primary"
+            subtitle={actTotal.processed > 0
+              ? t('dashboard.conversionSubProcessed', { won: actTotal.won, processed: actTotal.processed })
+              : t('dashboard.conversionSubOrders')}
+          />
+          <MetricCard
+            title={t('dashboard.revenueConfirmed')}
+            value={formatMoney(revenueConfirmed)}
+            icon={FileText}
+            color="bg-[hsl(var(--success))]"
+            subtitle={t('dashboard.revenueConfirmedSub')}
+          />
+          <MetricCard
+            title={t('dashboard.predictionMembers')}
+            value={predMembers}
+            icon={Users}
+            color="bg-[hsl(var(--info))]"
+            subtitle={t('dashboard.predictionMembersSub')}
+          />
+          <MetricCard title={t('dashboard.tabOrders')} value={stats?.total_orders || 0} icon={FileText} color="bg-muted-foreground" subtitle={t('dashboard.ordersSub')} />
+        </div>
+
+        {/* Earnings — what the work paid, after the work itself */}
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 mb-4">
           <MetricCard
             title={t('dashboard.payoutEarned')}
@@ -550,50 +678,9 @@ export default function Dashboard() {
           />
         </div>
 
-        {/* Пендинзи vs Предикциски листи — what I actually worked this period */}
-        <WorkSplitCard pendings={actPend} prediction={actPred} total={actTotal} t={t} />
-
-        {/* Work / activity cards */}
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-5 mb-6">
-          <MetricCard title={t('dashboard.sales')} value={sales} icon={CheckCircle2} color="bg-[hsl(var(--success))]" subtitle={t('dashboard.salesSub')} />
-          <MetricCard
-            title={t('dashboard.callAgainOpen')}
-            value={callAgainOpen}
-            icon={PhoneForwarded}
-            color="bg-[hsl(var(--warning))]"
-            subtitle={t('dashboard.callAgainOpenSub')}
-          />
-          <MetricCard
-            title={t('dashboard.returns')}
-            value={returnsOrders}
-            icon={TrendingDown}
-            color="bg-destructive"
-            subtitle={t('dashboard.returnsPackagesSub', { packages: packagesReturned })}
-          />
-          <MetricCard title={t('dashboard.cancels')} value={cancels} icon={X} color="bg-destructive" subtitle={t('dashboard.cancelsSub')} />
-          <MetricCard title={t('dashboard.trashed')} value={trashed} icon={Trash2} color="bg-destructive/80" subtitle={t('dashboard.trashedSub')} />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 mb-6">
-          <MetricCard
-            title={t('dashboard.conversion')}
-            value={`${conversion}%`}
-            icon={Target}
-            color="bg-primary"
-            subtitle={actTotal.processed > 0
-              ? t('dashboard.conversionSubProcessed', { won: actTotal.won, processed: actTotal.processed })
-              : t('dashboard.conversionSubOrders')}
-          />
-          <MetricCard
-            title={t('dashboard.predictionMembers')}
-            value={predMembers}
-            icon={Users}
-            color="bg-[hsl(var(--info))]"
-            subtitle={t('dashboard.predictionMembersSub')}
-          />
-          <MetricCard title={t('dashboard.tabOrders')} value={stats?.total_orders || 0} icon={FileText} color="bg-muted-foreground" subtitle={t('dashboard.ordersSub')} />
-          <Card className="border border-border/60 bg-card shadow-sm flex items-center">
-            <CardContent className="p-5 w-full flex items-center justify-between gap-2">
+        <div className="mb-6">
+          <Card className="border border-border/60 bg-card shadow-sm">
+            <CardContent className="p-5 flex items-center justify-between gap-2">
               <div>
                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.5px]">{t('dashboard.myPayoutDetails')}</p>
                 <p className="text-sm text-muted-foreground mt-1">{t('dashboard.myPayoutDetailsDesc')}</p>

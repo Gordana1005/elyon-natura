@@ -1329,9 +1329,59 @@ function customRangeWindow(
   const to = toRaw > todayStr ? todayStr : toRaw;
   if (from > to) from = to; // guard against reversed bounds → single day
   return {
-    fromDate: from + "T00:00:00Z",
-    toDate: to === todayStr ? now.toISOString() : to + "T23:59:59Z",
+    fromDate: skopjeMidnight(from),
+    toDate: to === todayStr ? now.toISOString() : skopjeRangeEnd(to),
   };
+}
+
+// The one window resolver behind the agent dashboard tiles (`dashboard-stats`)
+// and the list those tiles drill into (`my-orders`). They MUST agree on the
+// instant or a tile says 8 and the list shows 12; they used to guarantee that by
+// both doing UTC day math inline, which kept them consistent and wrong.
+//
+// Skopje is UTC+1 in winter and +2 in summer, so on the old math a day began at
+// 01:00/02:00 local: an agent looking at "Today" between local midnight and that
+// hour was shown YESTERDAY, and the first hours of every real working day were
+// filed under the day before.
+// Everything else in the app already pins to Skopje (orders/stats, insights, the
+// leaderboard) — this was the last UTC island.
+function dashboardWindow(
+  period: string,
+  dateRaw: string | null,
+  fromRaw: string | null,
+  toRaw: string | null,
+  now = new Date(),
+): { fromDate: string; toDate: string; today: string; dayParam: string | null } {
+  const today = skopjeDayStart(now).day;
+  const nowISO = now.toISOString();
+  // Day browsing (◀ ▶) is past-only; a future date clamps to today.
+  const dayParam = dateRaw && DATE_ONLY_RE.test(dateRaw)
+    ? (dateRaw > today ? today : dateRaw)
+    : null;
+  const shiftDays = (day: string, delta: number): string => {
+    const [y, m, d] = day.split("-").map(Number);
+    return new Date(Date.UTC(y, m - 1, d + delta)).toISOString().slice(0, 10);
+  };
+
+  if (period === "yesterday") {
+    const yest = shiftDays(today, -1);
+    return { fromDate: skopjeMidnight(yest), toDate: skopjeRangeEnd(yest), today, dayParam };
+  }
+  if (period === "custom") {
+    const win = customRangeWindow(fromRaw, toRaw, today, now);
+    if (win) return { ...win, today, dayParam };
+  }
+  if (period === "month") {
+    return { fromDate: skopjeMidnight(today.slice(0, 7) + "-01"), toDate: nowISO, today, dayParam };
+  }
+  if (period === "start") {
+    // Overridden per-agent further down (profiles.created_at / earliest order).
+    return { fromDate: "2000-01-01T00:00:00Z", toDate: nowISO, today, dayParam };
+  }
+  if (dayParam && dayParam !== today) {
+    return { fromDate: skopjeMidnight(dayParam), toDate: skopjeRangeEnd(dayParam), today, dayParam };
+  }
+  return { fromDate: skopjeMidnight(today), toDate: nowISO, today, dayParam };
 }
 
 // ── TV leaderboard: SEPARATE daily gamification layer ────────────────────────
@@ -7975,47 +8025,17 @@ async function handleRequest(req: Request): Promise<Response> {
       const agentFilterRaw = url.searchParams.get("agent_id");
       const agentFilter = agentFilterRaw && UUID_RE.test(agentFilterRaw) ? agentFilterRaw : null;
 
+      // Window resolved in Europe/Skopje, shared with /my-orders so the tiles and
+      // the list they drill into can never disagree. period=start is overridden
+      // per-agent below (profiles.created_at / earliest attributed order).
       const now = new Date();
-      const todayStr = now.toISOString().substring(0, 10);
-      const yesterday = new Date(now);
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().substring(0, 10);
-      const monthStart = todayStr.substring(0, 7) + "-01";
-
-      // Optional single-day override (agent dashboard ◀ ▶ day browsing).
-      // Past days only — a future date clamps to today. Ignored for month.
-      const dateRaw = url.searchParams.get("date");
-      const dayParam = dateRaw && /^\d{4}-\d{2}-\d{2}$/.test(dateRaw)
-        ? (dateRaw > todayStr ? todayStr : dateRaw)
-        : null;
-      // Optional custom from–to range (agent dashboard "Custom" period).
-      const customWin = period === "custom"
-        ? customRangeWindow(url.searchParams.get("from"), url.searchParams.get("to"), todayStr, now)
-        : null;
-
-      // period=start: from agent's profiles.created_at (first day in CRM) → now.
-      // Resolved per-agent inside computeMetrics when effectiveAgentId is set;
-      // for admin team-wide, falls back to a far-past floor.
-      let fromDate: string, toDate: string;
-      if (period === "yesterday") {
-        fromDate = yesterdayStr + "T00:00:00Z";
-        toDate = yesterdayStr + "T23:59:59Z";
-      } else if (customWin) {
-        fromDate = customWin.fromDate;
-        toDate = customWin.toDate;
-      } else if (period === "month") {
-        fromDate = monthStart + "T00:00:00Z";
-        toDate = now.toISOString();
-      } else if (period === "start") {
-        fromDate = "2000-01-01T00:00:00Z"; // overridden per-agent below
-        toDate = now.toISOString();
-      } else if (dayParam && dayParam !== todayStr) {
-        fromDate = dayParam + "T00:00:00Z";
-        toDate = dayParam + "T23:59:59Z";
-      } else {
-        fromDate = todayStr + "T00:00:00Z";
-        toDate = now.toISOString();
-      }
+      let { fromDate, toDate } = dashboardWindow(
+        period,
+        url.searchParams.get("date"),
+        url.searchParams.get("from"),
+        url.searchParams.get("to"),
+        now,
+      );
 
       // PostgREST default page size is 1000. Paginate so a single high-volume
       // day doesn't silently truncate the dashboard.
@@ -8298,9 +8318,28 @@ async function handleRequest(req: Request): Promise<Response> {
         });
       }
 
-      // Admin or dual-role: compute admin-level metrics (with optional agent filter)
+      // Admin or dual-role: compute admin-level metrics (with optional agent filter).
+      //
+      // When an admin inspects ONE agent, resolve that agent's name variants and
+      // scope by them too. Without this the admin path matched UUID columns only,
+      // while the agent's own dashboard also matches on name — and only 202 of
+      // 88.6k orders carry confirmed_by_agent_id against ~35k carrying
+      // confirmed_by_name. The manager was therefore shown a strictly smaller
+      // book than the agent saw for the same period, with no indication why.
       const effectiveAgentId = agentFilter || null;
-      const adminMetrics = await computeMetrics(effectiveAgentId);
+      let inspectFolded: string[] = [];
+      let inspectExact: string[] = [];
+      if (effectiveAgentId) {
+        const { data: targetProfile } = await adminClient
+          .from("profiles")
+          .select("full_name")
+          .eq("user_id", effectiveAgentId)
+          .maybeSingle();
+        const variants = await ownerNameVariantsFor(adminClient, targetProfile?.full_name);
+        inspectFolded = variants.folded;
+        inspectExact = variants.exact;
+      }
+      const adminMetrics = await computeMetrics(effectiveAgentId, inspectFolded, inspectExact);
 
       // For dual-role users, also compute personal metrics
       let personalMetrics = null;
@@ -8358,32 +8397,16 @@ async function handleRequest(req: Request): Promise<Response> {
         targetId = agentParam;
       }
 
-      // Same UTC window math as dashboard-stats — deliberately NOT Skopje-
-      // midnight, so the dashboard tiles and these lists agree. Day browsing
-      // is past-only: a future date clamps to today.
+      // Exactly the window dashboard-stats used, via the same resolver — the tile
+      // count and this list must describe the same instant. Both are Skopje-local.
       const now = new Date();
-      const todayStr = now.toISOString().substring(0, 10);
-      const dateRaw = url.searchParams.get("date");
-      const dayParam = dateRaw && /^\d{4}-\d{2}-\d{2}$/.test(dateRaw)
-        ? (dateRaw > todayStr ? todayStr : dateRaw)
-        : null;
-      const customWin = period === "custom"
-        ? customRangeWindow(url.searchParams.get("from"), url.searchParams.get("to"), todayStr, now)
-        : null;
-      let fromDate: string, toDate: string;
-      if (customWin) {
-        fromDate = customWin.fromDate;
-        toDate = customWin.toDate;
-      } else if (period === "month") {
-        fromDate = todayStr.substring(0, 7) + "-01T00:00:00Z";
-        toDate = now.toISOString();
-      } else if (dayParam && dayParam !== todayStr) {
-        fromDate = dayParam + "T00:00:00Z";
-        toDate = dayParam + "T23:59:59Z";
-      } else {
-        fromDate = todayStr + "T00:00:00Z";
-        toDate = now.toISOString();
-      }
+      const { fromDate, toDate } = dashboardWindow(
+        period,
+        url.searchParams.get("date"),
+        url.searchParams.get("from"),
+        url.searchParams.get("to"),
+        now,
+      );
 
       // Name legs included, for the same reason dashboard-stats needed them:
       // the worklist was empty for any agent whose orders carry an operator

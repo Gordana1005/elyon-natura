@@ -839,6 +839,13 @@
     "predictionMembersSub": "List members I reached this period",
     "conversionSubProcessed": "{{won}} of {{processed}} leads I worked still stand",
     "conversionSubOrders": "Confirmed ÷ my orders (history predates the work log)",
+    "revenueConfirmed": "Confirmed revenue",
+    "revenueConfirmedSub": "Value of what I confirmed this period",
+    "funnel": {
+      "title": "My funnel",
+      "worked": "Worked",
+      "footnote": "Percentages are of the previous step: shipped of confirmed, paid and returned of shipped. Paid arrives only when MEX reconciles the delivery, so a fresh day reads 0 there."
+    },
     "split": {
       "title": "My work — pendings vs prediction lists",
       "subtitle": "What I settled this period, not what was created",
