@@ -201,6 +201,10 @@ async function syncAccount(
     offerMap.set(`${String(m.geo).toUpperCase()}|${String(m.offer_name).trim().toLowerCase()}`, m);
   }
   const newOfferSightings = new Map<string, { geo: string; name: string; n: number }>();
+  // Same idea for affiliates: their API has no directory endpoint, so an
+  // affiliate we have never seen would otherwise show up as a bare number on
+  // /orders with nothing anywhere prompting anyone to name it.
+  const newWebmasterSightings = new Map<string, number>();
 
   for (const o of rows) {
     const geo = s(o.country, 8).toUpperCase();
@@ -237,6 +241,11 @@ async function syncAccount(
     const seen = newOfferSightings.get(offerKey);
     if (seen) seen.n++;
     else newOfferSightings.set(offerKey, { geo, name: offerName, n: 1 });
+
+    if (o.wm != null) {
+      const wmKey = String(o.wm);
+      newWebmasterSightings.set(wmKey, (newWebmasterSightings.get(wmKey) || 0) + 1);
+    }
 
     const mapping = offerMap.get(offerKey);
     if (skip === null) {
@@ -313,6 +322,20 @@ async function syncAccount(
         _n: v.n,
       });
       if (mapErr) console.error("altercpa-sync: offer sighting:", mapErr.message);
+    }
+  }
+
+  // ── and the affiliates, so the naming queue is self-populating too ────────
+  // A sighting never touches `name` — the sync discovers affiliates, humans name
+  // them, and a re-sighting must not undo an admin's correction.
+  if (!dry && newWebmasterSightings.size) {
+    for (const [wmId, n] of newWebmasterSightings) {
+      const { error: wmErr } = await admin.rpc("altercpa_record_webmaster_sighting", {
+        _account_id: account.id,
+        _wm_id: wmId,
+        _n: n,
+      });
+      if (wmErr) console.error("altercpa-sync: webmaster sighting:", wmErr.message);
     }
   }
 
@@ -402,13 +425,16 @@ async function upsertLead(
     // external_order_id too, and a bare id match could adopt a stranger's row.
     const { data: adopted } = await admin
       .from("orders")
-      .select("id")
+      .select("id, cpa_webmaster_id, cpa_offer_id, cpa_offer_name")
       .eq("external_source", "altercpa")
       .eq("external_order_id", row.altercpa_id)
       .limit(1)
       .maybeSingle();
     if (adopted?.id) {
       orderId = adopted.id;
+      // A skipped lead still knows who sent it. This is the only path that
+      // reaches orders created by the 2026-08 history import.
+      await fillMissingCpaAttribution(admin, adopted, row, o);
       stats.skipped.adopted_existing_order = (stats.skipped.adopted_existing_order || 0) + 1;
     }
   }
@@ -471,6 +497,44 @@ function outcomeTimestamps(o: AlterCpaOrder, status: string): Record<string, str
 }
 
 /**
+ * The three CPA provenance columns on `orders` — which affiliate sent the lead
+ * and for which offer. Only the affiliate ID is stored; the name is resolved
+ * through altercpa_webmasters at display time, so renaming a partner is one row.
+ *
+ * `offername` is the OFFER's name, while row.offer_name is productNameOf() —
+ * goods[0].name, which is the offer-map key. They are identical on every record
+ * we hold, but offername is the authoritative one here.
+ */
+function cpaAttribution(row: Record<string, any>, o: AlterCpaOrder) {
+  return {
+    cpa_webmaster_id: row.webmaster ?? null,
+    cpa_offer_id: row.offer_ext_id ?? null,
+    cpa_offer_name: s(o.offername, 200) || row.offer_name || null,
+  };
+}
+
+/**
+ * Fill attribution on an order that predates these columns, or that some other
+ * path created. NULL-only: provenance is what their record said when the lead
+ * arrived, so a value already present is never rewritten.
+ *
+ * `existing` must already carry the three columns — every caller selects them,
+ * so this costs no extra round-trip.
+ */
+async function fillMissingCpaAttribution(
+  admin: SupabaseClient,
+  existing: Record<string, any>,
+  row: Record<string, any>,
+  o: AlterCpaOrder,
+): Promise<void> {
+  const patch: Record<string, any> = {};
+  for (const [k, v] of Object.entries(cpaAttribution(row, o))) {
+    if (v != null && existing[k] == null) patch[k] = v;
+  }
+  if (Object.keys(patch).length) await admin.from("orders").update(patch).eq("id", existing.id);
+}
+
+/**
  * Create or update the mirrored order.
  *
  * Keyed on (external_source='altercpa', external_order_id=<their id>) — the
@@ -503,7 +567,7 @@ async function upsertOrder(
 
   const { data: existing } = await admin
     .from("orders")
-    .select("id, status, assigned_agent_id, confirmed_at")
+    .select("id, status, assigned_agent_id, confirmed_at, cpa_webmaster_id, cpa_offer_id, cpa_offer_name")
     .eq("external_source", "altercpa")
     .eq("external_order_id", row.altercpa_id)
     .maybeSingle();
@@ -523,6 +587,7 @@ async function upsertOrder(
       source_type: "altercpa",
       external_source: "altercpa",
       external_order_id: row.altercpa_id,
+      ...cpaAttribution(row, o),
       created_at: row.created_remote ?? undefined,
       // Unassigned on purpose so it surfaces in the Assigner like any other
       // pending lead. The bridge distributes nothing.
@@ -596,6 +661,11 @@ async function upsertOrder(
     stats.orders_created++;
     return order.id;
   }
+
+  // Attribution is independent of the status-mirror policy below: it is
+  // provenance, not an outcome, so it is filled even on an order nobody here is
+  // allowed to touch.
+  await fillMissingCpaAttribution(admin, existing, row, o);
 
   // ── existing order: apply the status-mirror policy ───────────────────────
   // NOTE: this branch still maps A-style via PHASE_TO_STATUS (phase 3 → paid).

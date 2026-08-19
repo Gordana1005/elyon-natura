@@ -18,11 +18,13 @@ import { format, addDays } from 'date-fns'; // raw format: fulfilment CSV + mach
 import { formatDate } from '@/i18n/dates';
 import {
   Download, ChevronLeft, ChevronRight, ChevronDown, Filter, Search, Loader2,
-  CalendarIcon, X, User, Plus, MoreVertical, History, Lock, Copy, CopyPlus, Euro, Package, Send,
+  CalendarIcon, X, User, Users, Plus, MoreVertical, History, Lock, Copy, CopyPlus, Euro, Package, Send,
 } from 'lucide-react';
 import { Check } from 'lucide-react';
 import { MobileCard, MobileCardHeader, MobileCardField, MobileCardActions } from '@/components/ui/mobile-card';
-import { apiGetOrders, apiGetAgents, apiGetProducts, apiBulkStatusUpdate, apiBulkDisposition, apiDuplicateOrder, apiPushOrderAltercpa, apiGetAppSettings, type AltercpaPushPreview, type TrashReason, type CancellationReason } from '@/lib/api';
+import { apiGetOrders, apiGetAgents, apiGetProducts, apiBulkStatusUpdate, apiBulkDisposition, apiDuplicateOrder, apiPushOrderAltercpa, apiGetAppSettings, apiGetCpaAttributionDimensions, type AltercpaPushPreview, type CpaAttributionDimensions, type TrashReason, type CancellationReason } from '@/lib/api';
+import { sourceLabel, sourceBadgeVariant, affiliateLabel, offerLabel } from '@/lib/orderSource';
+import { useWebmasterNames } from '@/hooks/useWebmasterNames';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 // The SAME reason pickers the Calls page and both order modals use — a bulk
 // path must never grow its own reason list, or the two drift and the cancel
@@ -83,6 +85,13 @@ interface ApiOrder {
   // AlterCPA linkage (GET /orders selects *; these power the CPA push button)
   external_source?: string | null;
   external_order_id?: string | null;
+  // CPA provenance — which affiliate sent the lead, and for which offer. The
+  // server omits all three for anyone below manager, so treat absent as "not
+  // allowed to see" rather than "no attribution".
+  cpa_webmaster_id?: string | null;
+  cpa_offer_id?: string | null;
+  cpa_offer_name?: string | null;
+  ship_after_date?: string | null;
   // Reason pairs — orderReasonText() composes the CPA push comment from these
   cancellation_reason?: string | null;
   cancellation_reason_notes?: string | null;
@@ -149,6 +158,9 @@ export default function Orders() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedStatuses, setSelectedStatuses] = useState<OrderStatus[]>([]);
   const [sourceFilter, setSourceFilter] = useState('all');
+  // CPA provenance filters — admin/manager only, like the columns they filter on.
+  const [affiliateFilter, setAffiliateFilter] = useState('all');
+  const [offerFilter, setOfferFilter] = useState('all');
   const [agentFilter, setAgentFilter] = useState('all');
   const [myOrdersOnly, setMyOrdersOnly] = useState(isAgent); // agents default to my orders
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
@@ -302,12 +314,26 @@ export default function Orders() {
     return () => clearTimeout(t);
   }, [search]);
 
-  useEffect(() => { setPage(1); }, [debouncedSearch, selectedStatuses, sourceFilter, agentFilter, myOrdersOnly, dateFrom, dateTo, priceMin, priceMax]);
+  useEffect(() => { setPage(1); }, [debouncedSearch, selectedStatuses, sourceFilter, affiliateFilter, offerFilter, agentFilter, myOrdersOnly, dateFrom, dateTo, priceMin, priceMax]);
 
   const { data: agentsData } = useQuery({
     queryKey: ['agents'],
     queryFn: apiGetAgents,
     enabled: !!isAdmin,
+  });
+
+  // Affiliate names. AlterCPA gives us only a numeric `wm` and has no directory
+  // endpoint, so these come from altercpa_webmasters. Agents never receive the
+  // ids, so the request is skipped for them entirely.
+  const webmasterNames = useWebmasterNames(!!isAdmin);
+
+  // The two provenance dropdowns, grouped in Postgres — 82k rows must not be
+  // counted in the browser.
+  const { data: cpaDimensions } = useQuery<CpaAttributionDimensions>({
+    queryKey: ['cpa-attribution-dimensions'],
+    queryFn: apiGetCpaAttributionDimensions,
+    enabled: !!isAdmin,
+    staleTime: 300_000,
   });
 
   // Product catalogue → product_id:sku map, so the warehouse export can encode
@@ -336,6 +362,8 @@ export default function Orders() {
     apiGetOrders({
       status: selectedStatuses.length > 0 ? selectedStatuses.join(',') : undefined,
       source: sourceFilter !== 'all' ? sourceFilter : undefined,
+      cpa_webmaster: affiliateFilter !== 'all' ? affiliateFilter : undefined,
+      cpa_offer: offerFilter !== 'all' ? offerFilter : undefined,
       search: debouncedSearch || undefined,
       agent_id: effectiveAgentId,
       from: dateFrom ? format(dateFrom, "yyyy-MM-dd'T'00:00:00") : undefined,
@@ -355,7 +383,7 @@ export default function Orders() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchOrders(); }, [page, selectedStatuses, sourceFilter, debouncedSearch, agentFilter, myOrdersOnly, dateFrom, dateTo, priceMin, priceMax]);
+  useEffect(() => { fetchOrders(); }, [page, selectedStatuses, sourceFilter, affiliateFilter, offerFilter, debouncedSearch, agentFilter, myOrdersOnly, dateFrom, dateTo, priceMin, priceMax]);
 
   // Status filtering (single or multi-select) is now done server-side, so the
   // page already contains exactly the orders that match — and total/pagination
@@ -455,9 +483,9 @@ export default function Orders() {
   const toggleStatus = (s: OrderStatus) => {
     setSelectedStatuses(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
   };
-  const hasActiveFilters = search.trim() || selectedStatuses.length > 0 || sourceFilter !== 'all' || agentFilter !== 'all' || (myOrdersOnly && isAdmin) || dateFrom || dateTo || priceMin != null || priceMax != null;
+  const hasActiveFilters = search.trim() || selectedStatuses.length > 0 || sourceFilter !== 'all' || affiliateFilter !== 'all' || offerFilter !== 'all' || agentFilter !== 'all' || (myOrdersOnly && isAdmin) || dateFrom || dateTo || priceMin != null || priceMax != null;
   const clearAllFilters = () => {
-    setSearch(''); setSelectedStatuses([]); setSourceFilter('all'); setAgentFilter('all'); if (isAdmin) setMyOrdersOnly(false); setDateFrom(undefined); setDateTo(undefined);
+    setSearch(''); setSelectedStatuses([]); setSourceFilter('all'); setAffiliateFilter('all'); setOfferFilter('all'); setAgentFilter('all'); if (isAdmin) setMyOrdersOnly(false); setDateFrom(undefined); setDateTo(undefined);
     setPriceMin(null); setPriceMax(null); setPriceMinDraft(''); setPriceMaxDraft('');
   };
 
@@ -802,15 +830,11 @@ export default function Orders() {
         'COD AMOUNT': Number(o.price),
         'PRODUCT': items,
         'CONFIRMED BY': o.confirmed_by_name || o.last_action_by || o.assigned_agent_name || '',
-        'SOURCE': o.source_type === 'monadon_legacy' ? 'MONADLIST'
-          : o.source_type === 'altercpa' ? 'AlterCPA'
-          : o.source_type === 'import' ? 'Import'
-          : o.source_type === 'affiliate' ? 'Affiliate'
-          : o.source_type === 'opencart' ? 'naturatherapy.mk'
-          : o.source_type === 'opencart_abandoned' ? 'naturatherapy.mk (abandoned)'
-          : o.source_type === 'inbound_lead' ? 'Webhook'
-          : o.source_type === 'prediction_lead' ? 'Lead'
-          : (o.source_type || 'manual'),
+        'SOURCE': sourceLabel(t, o.source_type),
+        // Empty rather than "—" for non-CPA orders: a spreadsheet column reads
+        // better blank, and agents never receive these fields at all.
+        'AFFILIATE': o.cpa_webmaster_id ? affiliateLabel(o.cpa_webmaster_id, webmasterNames) : '',
+        'OFFER': o.cpa_offer_name || (o.cpa_offer_id ? `#${o.cpa_offer_id}` : ''),
         'DATE': new Date(o.created_at).toLocaleDateString(),
       };
     });
@@ -910,6 +934,68 @@ export default function Orders() {
                 </div>
               </PopoverContent>
             </Popover>
+
+            {/* Affiliate + Offer — which partner and which offer is producing the
+                work in front of the agents. Admin/manager only, matching the
+                columns themselves; the server ignores both params for anyone
+                else, so this is presentation, not the access control. */}
+            {isAdmin && (cpaDimensions?.webmasters?.length ?? 0) > 0 && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-lg text-sm font-normal">
+                    <Users className="h-3.5 w-3.5" />
+                    {affiliateFilter === 'all'
+                      ? t('ordersPage.colAffiliate')
+                      : affiliateLabel(affiliateFilter, webmasterNames)}
+                    {affiliateFilter !== 'all' && <span className="ml-1 h-2 w-2 rounded-full bg-primary" />}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-2" align="start">
+                  <div className="space-y-0.5 max-h-72 overflow-y-auto">
+                    <button onClick={() => setAffiliateFilter('all')} className={cn('flex w-full rounded-lg px-3 py-2 text-sm transition-colors', affiliateFilter === 'all' ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted')}>{t('ordersPage.allAffiliates')}</button>
+                    {(cpaDimensions?.webmasters || []).map((w) => (
+                      <button
+                        key={w.wm_id}
+                        onClick={() => setAffiliateFilter(w.wm_id)}
+                        className={cn('flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors', affiliateFilter === w.wm_id ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted')}
+                      >
+                        <span className="flex-1 text-left truncate">{w.name || `#${w.wm_id}`}</span>
+                        <span className="text-[11px] tabular-nums text-muted-foreground shrink-0">{w.orders.toLocaleString()}</span>
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
+
+            {isAdmin && (cpaDimensions?.offers?.length ?? 0) > 0 && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-lg text-sm font-normal">
+                    <Package className="h-3.5 w-3.5" />
+                    {offerFilter === 'all'
+                      ? t('ordersPage.colOffer')
+                      : (cpaDimensions?.offers || []).find((o) => o.offer_id === offerFilter)?.name || `#${offerFilter}`}
+                    {offerFilter !== 'all' && <span className="ml-1 h-2 w-2 rounded-full bg-primary" />}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-72 p-2" align="start">
+                  <div className="space-y-0.5 max-h-72 overflow-y-auto">
+                    <button onClick={() => setOfferFilter('all')} className={cn('flex w-full rounded-lg px-3 py-2 text-sm transition-colors', offerFilter === 'all' ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted')}>{t('ordersPage.allOffers')}</button>
+                    {(cpaDimensions?.offers || []).map((o) => (
+                      <button
+                        key={o.offer_id}
+                        onClick={() => setOfferFilter(o.offer_id)}
+                        className={cn('flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors', offerFilter === o.offer_id ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted')}
+                      >
+                        <span className="flex-1 text-left truncate">{o.name || `#${o.offer_id}`}</span>
+                        <span className="text-[11px] tabular-nums text-muted-foreground shrink-0">{o.orders.toLocaleString()}</span>
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
 
             {isAdmin && (
               <Popover>
@@ -1331,17 +1417,20 @@ export default function Orders() {
                     ) : <span className="text-muted-foreground">—</span>}
                   </td>
                   <td className="px-4 py-3">
-                    <Badge variant={order.source_type === 'monadon_legacy' ? 'destructive' : order.source_type === 'prediction_lead' || order.source_type === 'inbound_lead' || order.source_type === 'opencart' || order.source_type === 'opencart_abandoned' || order.source_type === 'affiliate' || order.source_type === 'altercpa' ? 'secondary' : 'outline'} className="text-[10px]">
-                      {order.source_type === 'monadon_legacy' ? 'MONADLIST'
-                        : order.source_type === 'altercpa' ? t('ordersPage.sourceAltercpa')
-                        : order.source_type === 'import' ? t('ordersPage.sourceImport')
-                        : order.source_type === 'affiliate' ? t('ordersPage.sourceAffiliate')
-                        : order.source_type === 'prediction_lead' ? t('ordersPage.sourceLead')
-                        : order.source_type === 'inbound_lead' ? t('ordersPage.sourceWebhook')
-                        : order.source_type === 'opencart' ? t('ordersPage.sourceSite')
-                        : order.source_type === 'opencart_abandoned' ? t('ordersPage.sourceSiteAbandoned')
-                        : t('ordersPage.sourceManual')}
+                    <Badge variant={sourceBadgeVariant(order.source_type)} className="text-[10px]">
+                      {sourceLabel(t, order.source_type)}
                     </Badge>
+                    {/* The partner, under the chip rather than in a column of its
+                        own — the table already carries eleven. Absent for agents,
+                        who never receive the field. */}
+                    {order.cpa_webmaster_id && (
+                      <div
+                        className="mt-0.5 max-w-[130px] truncate text-[11px] text-muted-foreground"
+                        title={`${affiliateLabel(order.cpa_webmaster_id, webmasterNames)} · ${offerLabel(order)}`}
+                      >
+                        {affiliateLabel(order.cpa_webmaster_id, webmasterNames)}
+                      </div>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
                     <div className="leading-tight">
@@ -1406,7 +1495,21 @@ export default function Orders() {
                               <div><span className="text-muted-foreground">{t('ordersPage.created')}</span> {new Date(order.created_at).toLocaleString()}</div>
                               <div><span className="text-muted-foreground">{t('ordersPage.statusField')}</span> <span className="font-medium">{statusLabel(order.status)}</span></div>
                               {order.source_type && (
-                                <div><span className="text-muted-foreground">{t('ordersPage.sourceField')}</span> {order.source_type}</div>
+                                <div><span className="text-muted-foreground">{t('ordersPage.sourceField')}</span> {sourceLabel(t, order.source_type)}</div>
+                              )}
+                              {order.cpa_webmaster_id && (
+                                <div>
+                                  <span className="text-muted-foreground">{t('ordersPage.affiliateField')}</span>{' '}
+                                  <span className="font-medium">{affiliateLabel(order.cpa_webmaster_id, webmasterNames)}</span>
+                                  <span className="ml-1 text-xs text-muted-foreground">#{order.cpa_webmaster_id}</span>
+                                </div>
+                              )}
+                              {(order.cpa_offer_name || order.cpa_offer_id) && (
+                                <div>
+                                  <span className="text-muted-foreground">{t('ordersPage.offerField')}</span>{' '}
+                                  <span className="font-medium">{offerLabel(order)}</span>
+                                  {order.cpa_offer_id && <span className="ml-1 text-xs text-muted-foreground">#{order.cpa_offer_id}</span>}
+                                </div>
                               )}
                               {order.ship_after_date && (
                                 <div><span className="text-muted-foreground">{t('ordersPage.shipAfterField')}</span> {new Date(order.ship_after_date).toLocaleDateString()}</div>
@@ -1503,7 +1606,9 @@ export default function Orders() {
           })}
               {filteredOrders.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="p-0">
+                  {/* 11 real <th>s — this said 10, so the empty state sat one
+                      column short of the table it belongs to. */}
+                  <td colSpan={11} className="p-0">
                     <EmptyState
                       icon={<Package className="h-5 w-5" />}
                       title={t('ordersPage.noOrdersFound')}
@@ -1536,15 +1641,7 @@ export default function Orders() {
           />
         ) : filteredOrders.map(order => {
           const isExpanded = expandedIds.has(order.id);
-          const sourceLabel = order.source_type === 'monadon_legacy' ? 'MONADLIST'
-            : order.source_type === 'altercpa' ? 'AlterCPA'
-            : order.source_type === 'import' ? 'Import'
-            : order.source_type === 'affiliate' ? 'Affiliate'
-            : order.source_type === 'prediction_lead' ? 'Lead'
-            : order.source_type === 'inbound_lead' ? 'Webhook'
-            : order.source_type === 'opencart' ? 'Site'
-            : order.source_type === 'opencart_abandoned' ? 'Site · abandoned'
-            : 'Manual';
+          const cardSourceLabel = sourceLabel(t, order.source_type);
           const confirmedBy = order.confirmed_by_name || order.last_action_by || order.assigned_agent_name;
           return (
             <MobileCard key={order.id}>
@@ -1590,7 +1687,13 @@ export default function Orders() {
               <MobileCardField label={t('ordersPage.colQty')} value={order.quantity || 1} />
               <MobileCardField label={t('createOrder.total')} value={<>{formatMoney(order.price)}</>} />
               <MobileCardField label={t('ordersPage.colConfirmedBy')} value={confirmedBy || '—'} />
-              <MobileCardField label={t('ordersPage.colSource')} value={sourceLabel} />
+              <MobileCardField label={t('ordersPage.colSource')} value={cardSourceLabel} />
+              {order.cpa_webmaster_id && (
+                <MobileCardField label={t('ordersPage.colAffiliate')} value={affiliateLabel(order.cpa_webmaster_id, webmasterNames)} />
+              )}
+              {(order.cpa_offer_name || order.cpa_offer_id) && (
+                <MobileCardField label={t('ordersPage.colOffer')} value={offerLabel(order)} />
+              )}
               <MobileCardField label={t('ordersPage.colDate')} value={`${new Date(order.created_at).toLocaleDateString()}, ${new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`} />
               <MobileCardActions>
                 <Button size="sm" variant="outline" className="gap-1.5" onClick={() => tryOpenOrder(order)}>

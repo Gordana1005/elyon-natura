@@ -14,6 +14,8 @@ import { EmptyState } from '@/components/EmptyState';
 import { formatMoney, formatEurExact } from '@/lib/currency';
 import { Globe, Loader2, Search } from 'lucide-react';
 import { format } from 'date-fns';
+import { affiliateLabel } from '@/lib/orderSource';
+import { useWebmasterNames } from '@/hooks/useWebmasterNames';
 import { cn } from '@/lib/utils';
 
 /** AlterCPA `phase` — their outcome field. 1-5, and the only one worth reading. */
@@ -207,6 +209,8 @@ export function MirrorTab() {
 }
 
 function LeadRow({ lead }: { lead: AlterCpaLead }) {
+  // Shared React Query cache — one request for the whole table, not one per row.
+  const webmasterNames = useWebmasterNames();
   const { t } = useTranslation();
   const isMk = lead.geo === 'MK';
 
@@ -253,7 +257,9 @@ function LeadRow({ lead }: { lead: AlterCpaLead }) {
           </>
         )}
       </TableCell>
-      <TableCell className="text-xs text-muted-foreground">{lead.webmaster || '—'}</TableCell>
+      <TableCell className="text-xs text-muted-foreground" title={lead.webmaster ? `#${lead.webmaster}` : undefined}>
+        {affiliateLabel(lead.webmaster, webmasterNames)}
+      </TableCell>
       <TableCell>
         {lead.orders?.display_id ? (
           <span className="font-mono text-xs">{lead.orders.display_id}</span>

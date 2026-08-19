@@ -294,12 +294,16 @@ export const apiManageLeaderboardToken = (
   apiFetch('leaderboard/token', { method: 'POST', body: JSON.stringify(body) });
 
 // Orders
-export const apiGetOrders = (params?: { status?: string; search?: string; agent_id?: string; source?: string; ready_only?: boolean; lead_only?: boolean; from?: string; to?: string; price_min?: number; price_max?: number; page?: number; limit?: number }) => {
+export const apiGetOrders = (params?: { status?: string; search?: string; agent_id?: string; source?: string; cpa_webmaster?: string; cpa_offer?: string; ready_only?: boolean; lead_only?: boolean; from?: string; to?: string; price_min?: number; price_max?: number; page?: number; limit?: number }) => {
   const sp = new URLSearchParams();
   if (params?.status) sp.set('status', params.status);
   if (params?.search) sp.set('search', params.search);
   if (params?.agent_id) sp.set('agent_id', params.agent_id);
   if (params?.source) sp.set('source', params.source);
+  // CPA provenance. The server ignores both for non-admin/manager callers and
+  // strips the columns from the response, so these can never widen a view.
+  if (params?.cpa_webmaster) sp.set('cpa_webmaster', params.cpa_webmaster);
+  if (params?.cpa_offer) sp.set('cpa_offer', params.cpa_offer);
   if (params?.ready_only) sp.set('ready_only', '1');
   // Inbound leads only (altercpa | inbound_lead | opencart | opencart_abandoned).
   // Keeps agent-created `manual` work and the legacy `import` out of the
@@ -2146,6 +2150,43 @@ export interface AlterCpaLead {
   last_seen_at: string;
   orders?: { display_id: string; status: string } | null;
 }
+/**
+ * An AlterCPA affiliate. Their merchant API returns only the numeric `wm` and
+ * has no directory endpoint, so `name` is maintained here by an admin; NULL
+ * means "discovered but not yet named" and is the work queue.
+ */
+export interface AlterCpaWebmaster {
+  id: string;
+  account_id: string;
+  wm_id: string;
+  name: string | null;
+  note: string | null;
+  seen_count: number;
+  first_seen_at: string;
+  last_seen_at: string;
+  named_by: string | null;
+  named_at: string | null;
+}
+export const apiGetAlterCpaWebmasters = (params: { account_id?: string; unnamed?: boolean } = {}):
+  Promise<AlterCpaWebmaster[]> => {
+  const sp = new URLSearchParams();
+  if (params.account_id) sp.set('account_id', params.account_id);
+  if (params.unnamed) sp.set('unnamed', '1');
+  const q = sp.toString();
+  return apiFetch(`altercpa/webmasters${q ? `?${q}` : ''}`);
+};
+export const apiUpdateAlterCpaWebmaster = (id: string, patch: { name?: string | null; note?: string | null }):
+  Promise<AlterCpaWebmaster> =>
+  apiFetch(`altercpa/webmasters/${id}`, { method: 'PATCH', body: JSON.stringify(patch) });
+
+/** Feeds the Affiliate and Offer filter dropdowns on /orders. */
+export interface CpaAttributionDimensions {
+  webmasters: Array<{ wm_id: string; name: string | null; orders: number }>;
+  offers: Array<{ offer_id: string; name: string | null; orders: number }>;
+}
+export const apiGetCpaAttributionDimensions = (): Promise<CpaAttributionDimensions> =>
+  apiFetch('altercpa/attribution-dimensions');
+
 export const apiGetAlterCpaLeads = (params: {
   account_id?: string; geo?: string; offer?: string; webmaster?: string;
   phase?: number; skip?: string; from?: string; to?: string; q?: string;

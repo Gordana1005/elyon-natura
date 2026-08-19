@@ -605,6 +605,11 @@ const altercpaOfferMapPatchSchema = z.object({
   is_ignored: z.boolean().optional(),
   notes: z.string().max(2000).nullable().optional(),
 });
+const altercpaWebmasterPatchSchema = z.object({
+  // Empty string clears the name and puts the affiliate back in the queue.
+  name: z.string().trim().max(120).nullable().optional(),
+  note: z.string().max(2000).nullable().optional(),
+});
 const altercpaSyncSchema = z.object({
   account: z.string().trim().max(120).optional(),
   kind: z.enum(["rolling", "nightly", "weekly", "backfill", "manual", "status"]).optional(),
@@ -1366,6 +1371,27 @@ function redactCustomer<T extends Record<string, any>>(obj: T | null | undefined
 }
 function redactCustomerList<T extends Record<string, any>>(arr: T[] | null | undefined, f: PiiFlags, maskLeadName = false): T[] {
   return (arr || []).map((o) => redactCustomer(o, f, maskLeadName)!);
+}
+
+// ── CPA provenance is admin/manager only ────────────────────────────────────
+// Which affiliate sends what volume is commercially sensitive — the same reason
+// every altercpa_* table is gated on is_admin_or_manager and deliberately NOT
+// is_internal_staff. Order endpoints select `*`, so the columns have to be
+// removed on the way out; hiding them in the UI would still ship them over the
+// wire to anyone reading the network tab.
+//
+// Separate from redactCustomer on purpose: that masks PII per fine-grained
+// piiFlags, this is a flat role gate on a different axis.
+const CPA_ATTRIBUTION_FIELDS = ["cpa_webmaster_id", "cpa_offer_id", "cpa_offer_name"] as const;
+function stripCpaAttribution<T extends Record<string, any>>(row: T | null | undefined, allowed: boolean): T | null | undefined {
+  if (!row || allowed) return row;
+  const x: Record<string, any> = { ...row };
+  for (const k of CPA_ATTRIBUTION_FIELDS) delete x[k];
+  return x as T;
+}
+function stripCpaAttributionList<T extends Record<string, any>>(arr: T[] | null | undefined, allowed: boolean): T[] {
+  if (allowed) return arr || [];
+  return (arr || []).map((o) => stripCpaAttribution(o, allowed)!);
 }
 
 // ── Cost of goods for one order ──
@@ -2934,6 +2960,65 @@ async function handleRequest(req: Request): Promise<Response> {
       });
       if (error) return json({ error: sanitizeDbError(error) }, 400);
       return json(data ?? { geos: [], offers: [], webmasters: [], totals: {} });
+    }
+
+    // ── Affiliate directory ──────────────────────────────────────────────────
+    // AlterCPA's merchant API exposes the affiliate only as a bare integer
+    // (`wm`) and has no directory endpoint — comp/list.json returns no name and
+    // comp/stats.json cannot even group by affiliate. So the names live here,
+    // maintained by an admin, and the sync auto-discovers new ids.
+    //
+    // Unnamed first: that is the work queue, same ordering rule as the offer map.
+    if (req.method === "GET" && path.startsWith("altercpa/webmasters")) {
+      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      let q = adminClient.from("altercpa_webmasters").select("*");
+      if (url.searchParams.get("account_id")) q = q.eq("account_id", url.searchParams.get("account_id"));
+      if (url.searchParams.get("unnamed") === "1") q = q.is("name", null);
+      const { data, error } = await q
+        .order("name", { ascending: true, nullsFirst: true })
+        .order("seen_count", { ascending: false });
+      if (error) return json({ error: sanitizeDbError(error) }, 400);
+      return json(data || []);
+    }
+
+    if (req.method === "PATCH" && segments[0] === "altercpa" && segments[1] === "webmasters" && segments.length === 3) {
+      if (!isAdmin) return json({ error: "Forbidden — admin only" }, 403);
+      let body: z.infer<typeof altercpaWebmasterPatchSchema>;
+      try { body = parseBody(altercpaWebmasterPatchSchema, await req.json()); }
+      catch (e: any) { return json({ error: e.message }, 400); }
+      const update: Record<string, unknown> = {};
+      if (body.name !== undefined) {
+        // Blank is a real answer — it means "I do not know who this is yet" and
+        // must put the row back in the unnamed queue rather than storing "".
+        update.name = body.name ? body.name : null;
+        update.named_by = user.id;
+        update.named_at = new Date().toISOString();
+      }
+      if (body.note !== undefined) update.note = body.note;
+      if (!Object.keys(update).length) return json({ error: "Nothing to update" }, 400);
+
+      const { data, error } = await adminClient
+        .from("altercpa_webmasters").update(update).eq("id", segments[2]).select("*").single();
+      if (error) return json({ error: sanitizeDbError(error) }, 400);
+      // Worth an audit line: this renames a partner across every historical
+      // order at once, and there is no other record of who decided the name.
+      await audit(adminClient, user.id, user.email, "altercpa.webmaster_named", {
+        target_type: "altercpa_webmasters",
+        target_id: segments[2],
+        target_name: (data as any).name ?? (data as any).wm_id,
+        payload: { wm_id: (data as any).wm_id, name: (data as any).name },
+      });
+      return json(data);
+    }
+
+    // The two /orders filter dropdowns. Grouped in Postgres — 82k rows must not
+    // be pulled into the function to be counted — and served from the partial
+    // indexes added in 20260927000100.
+    if (req.method === "GET" && path.startsWith("altercpa/attribution-dimensions")) {
+      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      const { data, error } = await adminClient.rpc("altercpa_attribution_dimensions");
+      if (error) return json({ error: sanitizeDbError(error) }, 400);
+      return json(data ?? { webmasters: [], offers: [] });
     }
 
     // The offer→product queue. Everything AlterCPA has ever sent us, with the
@@ -5239,6 +5324,10 @@ async function handleRequest(req: Request): Promise<Response> {
       const to = url.searchParams.get("to");
       const priceMin = url.searchParams.get("price_min");
       const priceMax = url.searchParams.get("price_max");
+      // CPA provenance. Admin/manager only — see the strip below; an agent
+      // passing these by hand narrows nothing they could not already see.
+      const cpaWebmaster = isAdminOrManager ? url.searchParams.get("cpa_webmaster") : null;
+      const cpaOffer = isAdminOrManager ? url.searchParams.get("cpa_offer") : null;
       const page = parseInt(url.searchParams.get("page") || "1");
       const limit = parseInt(url.searchParams.get("limit") || "20");
 
@@ -5256,7 +5345,8 @@ async function handleRequest(req: Request): Promise<Response> {
       const isFiltered = Boolean(
         (status && status !== "all") || (agentId && agentId !== "all") ||
         (source && source !== "all") || from || to || priceMin || priceMax ||
-        search || readyOnly || leadOnly,
+        search || readyOnly || leadOnly ||
+        (cpaWebmaster && cpaWebmaster !== "all") || (cpaOffer && cpaOffer !== "all"),
       );
       let query = client
         .from("orders")
@@ -5273,6 +5363,8 @@ async function handleRequest(req: Request): Promise<Response> {
       }
       if (agentId && agentId !== "all") query = query.eq("assigned_agent_id", agentId);
       if (source && source !== "all") query = query.eq("source_type", source);
+      if (cpaWebmaster && cpaWebmaster !== "all") query = query.eq("cpa_webmaster_id", cpaWebmaster);
+      if (cpaOffer && cpaOffer !== "all") query = query.eq("cpa_offer_id", cpaOffer);
       if (leadOnly) query = query.in("source_type", LEAD_SOURCE_TYPES);
       if (from) query = query.gte("created_at", from);
       if (to) query = query.lte("created_at", to);
@@ -5317,11 +5409,14 @@ async function handleRequest(req: Request): Promise<Response> {
       }
 
       // Add is_owned flag for agents
-      const enrichedOrders = (orders || []).map((o: any) => ({
-        ...o,
-        is_owned: isAdminOrManager || o.assigned_agent_id === user.id,
-        last_action_by: lastActionBy[o.id] || o.assigned_agent_name || null,
-      }));
+      const enrichedOrders = stripCpaAttributionList(
+        (orders || []).map((o: any) => ({
+          ...o,
+          is_owned: isAdminOrManager || o.assigned_agent_id === user.id,
+          last_action_by: lastActionBy[o.id] || o.assigned_agent_name || null,
+        })),
+        isAdminOrManager,
+      );
 
       return json({ orders: redactCustomerList(enrichedOrders, piiFlags), total: count, page, limit });
     }
@@ -6301,7 +6396,7 @@ async function handleRequest(req: Request): Promise<Response> {
       // Mask customer identity per role; hide the status timeline + duplicate-order
       // lookups when the role can't see order history (e.g. investor managers).
       return json({
-        ...redactCustomer(order, piiFlags),
+        ...stripCpaAttribution(redactCustomer(order, piiFlags), isAdminOrManager),
         order_items: orderItems || [],
         history: showOrderHistory ? history : [],
         notes,
@@ -7666,7 +7761,7 @@ async function handleRequest(req: Request): Promise<Response> {
 
       // Return full updated order
       const { data: updatedOrder } = await adminClient.from("orders").select("*").eq("id", orderId).single();
-      return json({ ...updatedOrder, order_items: insertedItems });
+      return json({ ...stripCpaAttribution(updatedOrder, isAdminOrManager), order_items: insertedItems });
     }
 
     // POST /api/orders/:id/notes

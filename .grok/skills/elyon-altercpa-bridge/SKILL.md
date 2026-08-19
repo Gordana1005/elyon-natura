@@ -191,6 +191,30 @@ date to get right**. Do not invent a new key.
   (3 → `paid`, 4 → `cancelled`, 5 → `trashed`) applies only under `import_scope='all'`.
 - The documented `items` map is **empty on every real order**. The product is `goods[0].name`,
   falling back to `offername`.
+- **The affiliate has no name, anywhere in the API.** `wm` is a bare integer and there is no
+  directory endpoint: `comp/list.json` returns no `wmname`/`wmlogin`, and `comp/stats.json`'s
+  `item` accepts only offer/date/hour/stage/geo — it cannot even group by affiliate (checked
+  against both the EN and RU doc pages, 2026-08-18). Names exist solely in their web panel, so
+  `altercpa_webmasters` holds them, an admin maintains them on **/altercpa → Affiliates**, and
+  the sync auto-discovers new ids via `altercpa_record_webmaster_sighting`. Same wall, same
+  answer as `scripts/data/altercpa-operators.json` for their `user`/`app` operator ids.
+  The 5 live names were derived by matching their panel's per-phase counts against our ledger
+  for the same window, then seeded in `20260927000000`:
+  2676 KMA.biz · 3221 Fomikch · 3223 ezaff.com · 3285 LeadBit · 3226 Nastia Shakes.
+- **Attribution lives on `orders`, not only in the ledger** (`20260927000100`):
+  `cpa_webmaster_id`, `cpa_offer_id`, `cpa_offer_name`. The ledger began with the live poller on
+  2026-08-05 and covers ~2.3k of the 82k `external_source='altercpa'` orders, so a read-time join
+  would be blank on 97% of the table. The **id** is stored and the name resolved at display time,
+  so renaming a partner is one row. Backfilled from `scripts/data/altercpa-mk-raw.jsonl` by
+  `scripts/backfill-cpa-attribution.mjs` (idempotent; suppresses triggers via
+  `session_replication_role = replica` so `trg_orders_updated_at` does not stamp 82k rows —
+  `GET /call-agains` reports `orders.updated_at` as `last_call_at`).
+  **Admin/manager only**: `stripCpaAttribution()` deletes the three fields on the way out of
+  `GET /orders` and `GET /orders/:id` for every other role.
+- The payload holds much more than we promote — `tracking.{source,campaign,content,term,medium,
+  extu,exts}`, `user`/`app` (their operator), `ip`, `gender`, `email`, `base`, `delivery`. All of
+  it is already in `altercpa_leads.payload` and reachable with plain JSON operators; no re-sync
+  is needed to surface any of it.
 - Cancel reasons 1-15 are documented; **16-19 are this account's custom codes** with no API
   lookup. Meanings recovered from operator comments — see `scripts/lib/altercpa.mjs`.
 - **An error is an OBJECT, not an array.** `{"status":"error",…}` comes back with HTTP 200.

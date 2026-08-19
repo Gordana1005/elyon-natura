@@ -8,6 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { EmptyState } from '@/components/EmptyState';
 import { cn } from '@/lib/utils';
+import { affiliateLabel } from '@/lib/orderSource';
+import { useWebmasterNames } from '@/hooks/useWebmasterNames';
 import { Loader2, Percent, ChevronRight, TriangleAlert } from 'lucide-react';
 
 /**
@@ -20,6 +22,7 @@ import { Loader2, Percent, ChevronRight, TriangleAlert } from 'lucide-react';
  * judged. Judging an unfinished day would flag most mornings as a breach.
  */
 export function RatesTab() {
+  const webmasterNames = useWebmasterNames();
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const [days, setDays] = useState('14');
@@ -154,7 +157,7 @@ export function RatesTab() {
                           <td className="py-2 pr-3">
                             <span className="flex items-center gap-1 font-medium">
                               <ChevronRight className={cn('h-3 w-3 transition-transform', isOpen && 'rotate-90')} />
-                              {r.webmaster}
+                              {affiliateLabel(r.webmaster, webmasterNames)}
                             </span>
                           </td>
                           <td className="py-2 pr-3 text-right tabular-nums">{r.leads}</td>
