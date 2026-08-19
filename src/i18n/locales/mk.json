@@ -1377,6 +1377,7 @@
     "colOrderId": "Нарачка №",
     "colCustomer": "Клиент",
     "colProduct": "Производ",
+    "colProductReason": "Производ и причина",
     "colQty": "Кол.",
     "colTotalPrice": "Вкупна цена",
     "colConfirmedBy": "Потврдена од",

@@ -1421,6 +1421,7 @@
     "colOrderId": "Order ID",
     "colCustomer": "Customer",
     "colProduct": "Product",
+    "colProductReason": "Product & Reason",
     "colQty": "Qty",
     "colTotalPrice": "Total Price",
     "colConfirmedBy": "Confirmed By",

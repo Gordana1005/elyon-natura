@@ -414,7 +414,14 @@ export default function Orders() {
   // Resolve the product label for an order (shared by the desktop table cell and
   // the mobile card). Handles real line items, clean names, and synthetic
   // cancelled/trashed rows that stash the prior product in notes.
-  const productOnlyLabel = (order: any): string => {
+  //
+  // reasonFallback: on a legacy row with no product of its own this falls back to
+  // the reason text, which is better than an empty cell — but the Product & Reason
+  // cell already prints the reason on its own second line, so it passes false to
+  // avoid saying the same thing twice. Recovering a real product out of a
+  // "Prior product:" note still runs either way.
+  const productOnlyLabel = (order: any, opts?: { reasonFallback?: boolean }): string => {
+    const reasonFallback = opts?.reasonFallback !== false;
     if (order.order_items && order.order_items.length > 0) {
       return order.order_items.map((i: any) => {
         const displayName = i.product_id && nameById[i.product_id] ? nameById[i.product_id] : (i.product_name || '—');
@@ -426,12 +433,12 @@ export default function Orders() {
     if (pn && !isSyntheticPlaceholder) {
       return formatProductWithQuantity(resolveToCleanCatalogueName(pn), order.quantity || 1);
     }
-    const isOutcomeSynthetic = ['cancelled', 'trashed', 'call_again'].includes(order.status);
+    const isOutcomeSynthetic = ['cancelled', 'trashed', 'returned', 'call_again'].includes(order.status);
     if (isOutcomeSynthetic) {
       // Structured trash reason (orders.trash_reason) — translated for display.
       // Replaces the old "No prior product on file" placeholder on trashed rows
       // that carry no product of their own.
-      if (order.status === 'trashed' && order.trash_reason) {
+      if (reasonFallback && order.status === 'trashed' && order.trash_reason) {
         const label = t(`trashReason.${order.trash_reason}`, { defaultValue: order.trash_reason });
         const extra = (order.trash_reason_notes || '').trim();
         return extra ? `${label} — ${extra}` : label;
@@ -442,38 +449,32 @@ export default function Orders() {
         return formatProductWithQuantity(resolveToCleanCatalogueName(priorMatch[1].trim()), order.quantity || 1);
       }
       const reasonNote = order.cancellation_reason_notes || order.notes;
-      if (reasonNote) return resolveToCleanCatalogueName(reasonNote);
+      if (reasonFallback && reasonNote) return resolveToCleanCatalogueName(reasonNote);
+      if (!reasonFallback) return '—';
     }
     return formatProductWithQuantity(resolveToCleanCatalogueName(pn), order.quantity || 1) || '—';
   };
 
-  // What actually goes in the Product column.
+  // What goes in the Product & Reason column.
   //
-  // On a cancelled or trashed row the product is not the useful fact — the
-  // reason is. Which product they declined stays on the cell as a hover title,
-  // and is one click away in the order; why they declined is the thing you scan
-  // a cancel list for.
+  // Both facts matter on a row that ended badly: which product it was, and why it
+  // died. The cell stacks them — product on top in the normal size, reason (coded
+  // label + whatever the agent typed) underneath, smaller and muted. An earlier
+  // version showed the reason INSTEAD of the product, with the product demoted to
+  // a hover title, which meant a cancel list could not be scanned for the product
+  // at all.
   //
-  // The reason check has to happen BEFORE the product is resolved. The old
-  // reason branch sat at the bottom of productOnlyLabel and only ever ran for
-  // legacy rows carrying a placeholder product name, so any row with a real
-  // product — every imported order, and every order an agent takes — returned
-  // the product and never reached it.
-  const isTerminated = (order: any) => order.status === 'cancelled' || order.status === 'trashed';
+  // Returned rows are included even though none carry a reason today — the status
+  // is set by the MEX reconciliation cron, which learns a parcel came back but not
+  // why. They render product-only until someone records a return_reason, which the
+  // order-update endpoint already accepts.
+  const isTerminated = (order: any) =>
+    order.status === 'cancelled' || order.status === 'trashed' || order.status === 'returned';
 
-  const productLabel = (order: any): string => {
-    if (isTerminated(order)) {
-      const reason = sharedOrderReasonText(order);
-      // No reason recorded at all → show the product rather than an empty cell.
-      if (reason) return reason;
-    }
-    return productOnlyLabel(order);
+  const productCellParts = (order: any): { product: string; reason: string | null } => {
+    const reason = isTerminated(order) ? sharedOrderReasonText(order) : null;
+    return { product: productOnlyLabel(order, { reasonFallback: !reason }), reason };
   };
-
-  // Tooltip for the Product cell: on a terminated row it holds the product the
-  // reason displaced, so nothing is actually lost from the table.
-  const productLabelTitle = (order: any): string | undefined =>
-    isTerminated(order) && sharedOrderReasonText(order) ? productOnlyLabel(order) : undefined;
 
   // Human text for the rich reason panel on cancelled/trashed rows (desktop
   // expanded row + mobile card). Trashed orders carry a STRUCTURED reason in
@@ -1392,7 +1393,7 @@ export default function Orders() {
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('ordersPage.colStatus')}</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('ordersPage.colOrderId')}</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('ordersPage.colCustomer')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('ordersPage.colProduct')}</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('ordersPage.colProductReason')}</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('ordersPage.colQty')}</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('ordersPage.colTotalPrice')}</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground" title={t('ordersPage.confirmedByTitle')}>
@@ -1441,7 +1442,19 @@ export default function Orders() {
                     )}
                     <ActiveViewBadge phone={order.customer_phone} className="ml-2" />
                   </td>
-                  <td className="px-4 py-3" title={productLabelTitle(order)}>{productLabel(order)}</td>
+                  {(() => {
+                    const { product, reason } = productCellParts(order);
+                    return (
+                      <td className="px-4 py-3">
+                        <div className="max-w-[320px] break-words">{product}</div>
+                        {reason && (
+                          <div className="mt-0.5 max-w-[320px] break-words text-xs leading-snug text-muted-foreground">
+                            {reason}
+                          </div>
+                        )}
+                      </td>
+                    );
+                  })()}
                   <td className="px-4 py-3 text-center">{order.quantity || 1}</td>
                   <td className="px-4 py-3">
                     <div className="font-bold text-primary leading-tight">{formatMoney(order.price)}</div>
@@ -1729,7 +1742,18 @@ export default function Orders() {
                   </span>
                 }
               />
-              <MobileCardField label={t('ordersPage.colProduct')} value={productLabel(order)} />
+              <MobileCardField
+                label={t('ordersPage.colProductReason')}
+                value={(() => {
+                  const { product, reason } = productCellParts(order);
+                  return (
+                    <>
+                      <div>{product}</div>
+                      {reason && <div className="mt-0.5 text-xs font-normal leading-snug text-muted-foreground">{reason}</div>}
+                    </>
+                  );
+                })()}
+              />
               <MobileCardField label={t('ordersPage.colQty')} value={order.quantity || 1} />
               <MobileCardField label={t('createOrder.total')} value={<>{formatMoney(order.price)}</>} />
               <MobileCardField label={t('ordersPage.colConfirmedBy')} value={confirmedBy || '—'} />

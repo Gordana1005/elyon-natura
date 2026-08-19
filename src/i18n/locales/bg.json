@@ -1421,6 +1421,7 @@
     "colOrderId": "Поръчка №",
     "colCustomer": "Клиент",
     "colProduct": "Продукт",
+    "colProductReason": "Продукт и причина",
     "colQty": "Бр.",
     "colTotalPrice": "Обща цена",
     "colConfirmedBy": "Потвърдена от",
