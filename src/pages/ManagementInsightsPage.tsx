@@ -35,6 +35,9 @@ import PayoutTab from '@/components/insights/PayoutTab';
 import CallActivityTimeline from '@/components/insights/CallActivityTimeline';
 import PureProfitExportDialog from '@/components/insights/PureProfitExportDialog';
 import MarginLabTab from '@/components/insights/MarginLabTab';
+import ChannelStrip from '@/components/insights/ChannelStrip';
+import ChannelPLCard from '@/components/insights/ChannelPLCard';
+import AffiliateBreakdownCard from '@/components/insights/AffiliateBreakdownCard';
 
 const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
 const cap = (s: string) => s.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase());
@@ -198,6 +201,8 @@ function Overview({ data }: { data: InsightsResponse }) {
         <Kpi icon={PackageX} label={i18n.t('insights.cancelRate')} value={pct(o.cancel_rate)} sub={i18n.t('insights.cancelledSub', { count: o.cancelled_count.toLocaleString() })} tone="bg-red-100 text-red-700" />
         <Kpi icon={Users} label={i18n.t('insights.leadsPending')} value={o.leads_pending.toLocaleString()} sub={i18n.t('insights.awaitingFirstCall')} tone="bg-violet-100 text-violet-700" />
       </div>
+
+      {data.channel_pl && <ChannelStrip channels={data.channel_pl.channels} />}
 
       <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4">
         <Card>
@@ -425,6 +430,14 @@ function PureProfit({ data, range }: { data: InsightsResponse; range: DateRange 
           </div>
         </div>
       )}
+
+      {/* Where the money came from: the same waterfall split by channel, plus
+          the per-affiliator (webmaster) breakdown. Lead cost is 0 until
+          per-webmaster rates are injected. */}
+      {data.channel_pl && (
+        <ChannelPLCard data={data.channel_pl} vatPct={vatPct} rangeFrom={range?.from} />
+      )}
+      {data.channel_pl && <AffiliateBreakdownCard byAffiliate={data.channel_pl.by_affiliate} />}
 
       {byProduct.length > 0 && (
         <Card>

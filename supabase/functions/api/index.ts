@@ -161,6 +161,20 @@ const bulkDispositionSchema = z.object({
 // write-paths (confirmed_by attribution) and the analytics endpoints.
 const REAL_ORDER_STATUSES = ["confirmed", "shipped", "delivered", "paid", "returned"];
 
+// ── Order channel (canonical, for money) ─────────────────────────────────────
+// SQL twin: public.order_channel() in migration 20260928000000_insights_channel_pl.sql.
+// Four buckets: affiliate (arrived via the AlterCPA bridge — cpa_webmaster_id
+// or external_source='altercpa'), prediction (our own cold database), inbound
+// (own site/webhook — none in this market yet, slot kept for a future funnel),
+// manual (operator-created or unattributed). Channel P&L is built solely from
+// the insights_channel_pl RPC, never re-derived in TS — so the classifier has
+// no TS twin here on purpose.
+// LEAD COST IS 0 EVERYWHERE for now: no per-webmaster rates exist yet
+// (operator, 2026-08-19 — "we will inject those things later"). The RPC emits
+// zeroed lead_cost_* fields so the whole pipeline is already wired for them.
+type OrderChannel = "affiliate" | "prediction" | "inbound" | "manual";
+const ORDER_CHANNELS: OrderChannel[] = ["affiliate", "prediction", "inbound", "manual"];
+
 // A lead is work that ARRIVED from outside — the AlterCPA feed, a landing page
 // webhook, or the website. Everything else on `orders` is agent-created
 // (`manual`, including every record produced while working a prediction list),
@@ -15763,6 +15777,14 @@ async function handleRequest(req: Request): Promise<Response> {
       // Editable courier rate card (deliver / round-trip return per courier+service).
       const { rates: courierRates, fallback: courierFallback } = await loadCourierRates(adminClient);
 
+      // Channel P&L counters — called UNCONDITIONALLY (not gated on the engine
+      // switch) so both engines read identical channel numbers by construction.
+      const chRes = await adminClient.rpc("insights_channel_pl", { p_from: from || null, p_to_end: toEnd || null });
+      if (chRes.error) {
+        return json({ error: `insights_channel_pl: ${sanitizeDbError(chRes.error)}` }, 500);
+      }
+      const CHR = chRes.data || {};
+
       // ── SQL engine: one parallel batch of aggregates replaces the row stream ──
       // insights_paid_basis needs the rate card, so this runs after
       // loadCourierRates rather than inside the fetch batch above. The card is
@@ -16299,7 +16321,164 @@ async function handleRequest(req: Request): Promise<Response> {
       deliveryCost = r2(deliveryCost); returnLoss = r2(returnLoss); cogsPaid = r2(cogsPaid);
       // VAT owed on collected cash (prices are gross / VAT-inclusive).
       const vatDue = r2(paidRevenue - paidRevenue / (1 + VAT_RATE));
-      const clearProfit = r2(paidRevenue - vatDue - cogsPaid - totalSpecialAgentCommissions - deliveryCost - returnLoss);
+
+      // ── Channel P&L ────────────────────────────────────────────────────────
+      // The Pure Profit waterfall split by where the lead came from, plus the
+      // per-webmaster drill-down. Ported from Bulgaria (index.ts, 2026-08-11);
+      // every line is EXACTLY attributable to one order — nothing is allocated
+      // on a key. Sourced entirely from insights_channel_pl under both engines.
+      // Raw (unrounded) accumulation here; r2() once at the end.
+      //
+      // lead_cost is 0 on every row until per-webmaster rates are injected
+      // (see the RPC header) — the fields still flow so the UI shape is final.
+      const chBlank = (key: string) => ({
+        channel: key,
+        orders: 0, real_orders: 0, sold: 0, paid_orders: 0, shipped_orders: 0,
+        cancelled: 0, trashed: 0, returned: 0, leads_pending: 0,
+        units_sold: 0, paid_packages: 0,
+        cash_collected: 0, sold_revenue: 0,
+        cogs: 0, delivery_cost: 0, return_loss: 0, agent_commissions: 0,
+        lead_cost: 0, lead_cost_orders: 0,
+        lead_cost_earned: 0, lead_cost_orders_earned: 0,
+        lead_cost_open: 0, lead_cost_dead: 0, lead_cost_orders_dead: 0,
+      });
+      const chMap: Record<string, any> = {};
+      for (const c of ORDER_CHANNELS) chMap[c] = chBlank(c);
+      // An unrecognised channel folds into `manual` rather than being dropped:
+      // money must never vanish, and the array stays exactly 4 rows long.
+      const chBucket = (c: string) => chMap[c] || chMap.manual;
+
+      for (const r of (CHR.channels || [])) {
+        const M = chBucket(r.channel);
+        M.orders += r.orders; M.real_orders += r.real_orders; M.sold += r.sold;
+        M.paid_orders += r.paid_orders; M.shipped_orders += r.shipped_orders;
+        M.cancelled += r.cancelled;
+        M.trashed += r.trashed; M.returned += r.returned;
+        M.leads_pending += r.leads_pending; M.units_sold += r.units_sold;
+        M.cash_collected += num(r.cash_collected); M.sold_revenue += num(r.sold_revenue);
+        M.lead_cost += num(r.lead_cost_paid); M.lead_cost_orders += r.lead_cost_orders_paid;
+        M.lead_cost_earned += num(r.lead_cost_earned);
+        M.lead_cost_orders_earned += r.lead_cost_orders_earned;
+        M.lead_cost_open += num(r.lead_cost_open);
+        M.lead_cost_dead += num(r.lead_cost_dead);
+        M.lead_cost_orders_dead += r.lead_cost_orders_dead;
+      }
+      for (const r of (CHR.packages || [])) chBucket(r.channel).paid_packages += r.paid_packages;
+      // COGS keys on the RAW product name — the same key/unit count quirk as
+      // pure_profit.cogs, which is what makes Σ channels tie.
+      for (const r of (CHR.cogs_units || [])) {
+        chBucket(r.channel).cogs += (costByName[r.raw_product] || 0) * r.cogs_units;
+      }
+      // Rate card applied here, rate-by-rate (not rate × count) so the float
+      // addition order matches the blended loop above exactly.
+      for (const L of (CHR.logistics || [])) {
+        const rate = (L.known && courierRates[`${L.courier}_${L.service}`]) || courierFallback;
+        const M = chBucket(L.channel);
+        for (let k = 0; k < L.delivered; k++) M.delivery_cost += rate.deliver;
+        for (let k = 0; k < L.returned; k++) M.return_loss += rate.return_;
+      }
+      // normAgent applied ONCE — identical to the totalSpecialAgentCommissions
+      // gate, so Σ channels ties to THAT figure.
+      for (const r of (CHR.agents || [])) {
+        if (agentNames.has(normAgent(r.owner_raw))) chBucket(r.channel).agent_commissions += r.bonus_sum;
+      }
+
+      // Money in − money out, per channel.
+      const finishPL = (m: any) => {
+        const vat = m.cash_collected - m.cash_collected / (1 + VAT_RATE);
+        const beforeLead = m.cash_collected - vat - m.cogs - m.agent_commissions
+          - m.delivery_cost - m.return_loss;
+        const clear = beforeLead - m.lead_cost;
+        return {
+          ...m,
+          cash_collected: r2(m.cash_collected), sold_revenue: r2(m.sold_revenue),
+          vat: r2(vat), cogs: r2(m.cogs),
+          delivery_cost: r2(m.delivery_cost), return_loss: r2(m.return_loss),
+          agent_commissions: r2(m.agent_commissions),
+          lead_cost: r2(m.lead_cost),
+          lead_cost_earned: r2(m.lead_cost_earned),
+          lead_cost_open: r2(m.lead_cost_open),
+          lead_cost_dead: r2(m.lead_cost_dead),
+          clear_profit_before_lead_cost: r2(beforeLead),
+          clear_profit: r2(clear),
+          net_profit_per_order: m.paid_orders > 0 ? r2(clear / m.paid_orders) : 0,
+          net_profit_per_package: m.paid_packages > 0 ? r2(clear / m.paid_packages) : 0,
+          margin_pct: m.cash_collected > 0 ? clear / m.cash_collected : 0,
+          lead_cost_per_paid_order: m.paid_orders > 0 ? r2(m.lead_cost_earned / m.paid_orders) : 0,
+          // Orders vs cancels/trashes is the decision the agent actually reached.
+          confirm_rate: (m.real_orders + m.cancelled + m.trashed) > 0
+            ? m.real_orders / (m.real_orders + m.cancelled + m.trashed) : 0,
+          paid_rate: m.real_orders > 0 ? m.paid_orders / m.real_orders : 0,
+          cancel_rate: (m.real_orders + m.cancelled) > 0 ? m.cancelled / (m.real_orders + m.cancelled) : 0,
+          return_rate: m.real_orders > 0 ? m.returned / m.real_orders : 0,
+        };
+      };
+      // Totals come from the RAW sums, not the rounded rows, so they match the
+      // blended headline. Σ rows can differ from totals by ~2 cents — honest
+      // rounding, never fudged.
+      const chRaw = ORDER_CHANNELS.map((c) => chMap[c]);
+      const chTotalRaw = chBlank("total");
+      for (const m of chRaw) {
+        for (const k of Object.keys(chTotalRaw)) {
+          if (k === "channel") continue;
+          (chTotalRaw as any)[k] += (m as any)[k];
+        }
+      }
+      const channelRows = chRaw.map(finishPL);
+      const channelTotals = finishPL(chTotalRaw);
+
+      // Per-webmaster drill-down inside the affiliate channel. Same machinery,
+      // keyed on the AlterCPA wm_id (text) instead of channel.
+      const affMap: Record<string, any> = {};
+      const affRow = (id: string) => (affMap[id] ??= { ...chBlank("affiliate"), affiliate_id: id, name: "", code: "" });
+      for (const r of (CHR.by_affiliate || [])) {
+        const M = affRow(r.affiliate_id);
+        M.name = r.name; M.code = r.code;
+        M.orders += r.leads; M.real_orders += r.confirmed; M.paid_orders += r.paid;
+        M.shipped_orders += r.shipped_orders;
+        M.cancelled += r.cancelled; M.trashed += r.trashed; M.returned += r.returned;
+        // Order-basis value — how much this affiliate MADE us; cash lags it.
+        M.sold += r.sold ?? 0; M.sold_revenue += num(r.sold_revenue);
+        M.cash_collected += num(r.cash_collected);
+        M.lead_cost += num(r.lead_cost_paid);
+        M.lead_cost_earned += num(r.lead_cost_earned);
+        M.lead_cost_open += num(r.lead_cost_open);
+        M.lead_cost_dead += num(r.lead_cost_dead);
+      }
+      for (const r of (CHR.aff_packages || [])) affRow(r.affiliate_id).paid_packages += r.paid_packages;
+      for (const r of (CHR.aff_cogs_units || [])) {
+        affRow(r.affiliate_id).cogs += (costByName[r.raw_product] || 0) * r.cogs_units;
+      }
+      for (const L of (CHR.aff_logistics || [])) {
+        const rate = (L.known && courierRates[`${L.courier}_${L.service}`]) || courierFallback;
+        const M = affRow(L.affiliate_id);
+        for (let k = 0; k < L.delivered; k++) M.delivery_cost += rate.deliver;
+        for (let k = 0; k < L.returned; k++) M.return_loss += rate.return_;
+      }
+      for (const r of (CHR.aff_agents || [])) {
+        if (agentNames.has(normAgent(r.owner_raw))) affRow(r.affiliate_id).agent_commissions += r.bonus_sum;
+      }
+      const byAffiliate = Object.values(affMap).map((m: any) => {
+        const row = finishPL(m);
+        return {
+          ...row,
+          leads: row.orders,
+          confirmed: row.real_orders,
+          paid: row.paid_orders,
+          lead_cost_share_of_cash: row.cash_collected > 0 ? row.lead_cost / row.cash_collected : 0,
+        };
+      }).sort((a: any, b: any) => b.cash_collected - a.cash_collected
+        || String(a.name).localeCompare(String(b.name)));
+
+      const chAccrual = CHR.accrual || {};
+      const chBounds = CHR.bounds || {};
+      // The cash-matched lead-cost term — 0 until per-webmaster rates exist.
+      const leadCost = r2(chTotalRaw.lead_cost);
+
+      // Byte-identical to the pre-channel clear_profit while leadCost is 0;
+      // the day rates are injected, the historical figure above cannot move.
+      const clearProfitBeforeLeadCost = r2(paidRevenue - vatDue - cogsPaid - totalSpecialAgentCommissions - deliveryCost - returnLoss);
+      const clearProfit = r2(paidRevenue - vatDue - cogsPaid - totalSpecialAgentCommissions - deliveryCost - returnLoss - leadCost);
       // Cost coverage: how much of what sold has a known cost_price. Products
       // without one count €0 COGS (never invent a cost) — surface the gap instead.
       let knownCostPackages = 0;
@@ -16469,6 +16648,17 @@ async function handleRequest(req: Request): Promise<Response> {
           agent_commissions: totalSpecialAgentCommissions, // first-confirmer bonus (agents only)
           delivery_cost: deliveryCost,                     // courier outbound on all shipped
           return_loss: returnLoss,                         // round-trip loss on every return
+          // Lead cost — 0 until per-webmaster rates are injected (see the
+          // channel RPC header). The fields ship now so the UI shape is final.
+          lead_cost: leadCost,
+          lead_cost_basis: "paid",
+          lead_cost_orders: chTotalRaw.lead_cost_orders,
+          lead_cost_earned: r2(chTotalRaw.lead_cost_earned),
+          lead_cost_orders_earned: chTotalRaw.lead_cost_orders_earned,
+          lead_cost_open: r2(chTotalRaw.lead_cost_open),
+          lead_cost_dead: r2(chTotalRaw.lead_cost_dead),
+          lead_cost_orders_dead: chTotalRaw.lead_cost_orders_dead,
+          clear_profit_before_lead_cost: clearProfitBeforeLeadCost,
           clear_profit: clearProfit,
           // COGS completeness: share of sold packages whose product has a known
           // cost_price, plus the offenders (their cost counts €0 above).
@@ -16487,6 +16677,24 @@ async function handleRequest(req: Request): Promise<Response> {
 
         // === Prediction Lists ROI (which list generated how much money) ===
         prediction_lists: predictionLists,
+
+        // === Channel P&L: the same waterfall, split by where the lead came ===
+        // NB this need not agree with prediction_lists above: that block keys
+        // purely on prediction_list_id, while the channel resolver gives
+        // affiliate priority over any attribution an affiliate order carries.
+        channel_pl: {
+          basis: { window: "created_at", revenue: "paid", lead_cost: "paid" },
+          channels: channelRows,
+          totals: channelTotals,
+          by_affiliate: byAffiliate,
+          // Read from the DATA, never from a migration filename. The UI warns
+          // when the requested range starts before a channel could be
+          // attributed at all (prediction attribution starts 2026-08-14 here;
+          // CPA attribution was backfilled across the history import).
+          first_affiliate_lead_at: chBounds.first_affiliate_lead_at ?? null,
+          first_prediction_attr_at: chBounds.first_prediction_attr_at ?? null,
+          orphan_affiliate_leads: chAccrual.orphan_leads || 0,
+        },
       });
     }
 

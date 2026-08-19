@@ -1503,6 +1503,17 @@ export interface InsightsResponse {
     products_missing_cost?: string[]; // products whose COGS counts €0 (no cost_price)
     gross_profit_from_cost: number; // back-compat alias (cash − cogs)
     special_agent_commissions: number; // back-compat alias of agent_commissions
+    // Lead cost — 0 until per-webmaster rates are injected; fields ship now so
+    // the shape is final (mirrors Bulgaria's response).
+    lead_cost?: number;
+    lead_cost_basis?: string;
+    lead_cost_orders?: number;
+    lead_cost_earned?: number;
+    lead_cost_orders_earned?: number;
+    lead_cost_open?: number;
+    lead_cost_dead?: number;
+    lead_cost_orders_dead?: number;
+    clear_profit_before_lead_cost?: number;
     clear_profit: number;
   };
 
@@ -1555,7 +1566,65 @@ export interface InsightsResponse {
     conversion_rate: number;
     return_rate: number;
   }[];
+
+  // Channel P&L — the Pure Profit waterfall split by where the lead came from.
+  // Every line is exactly attributable per order; nothing is allocated on a
+  // key. Ported from Bulgaria; here `affiliate` = arrived via the AlterCPA
+  // bridge and by_affiliate is per WEBMASTER (wm_id). All lead_cost fields are
+  // 0 until per-webmaster rates are injected.
+  //
+  // NB this need not agree with `prediction_lists` above: that block keys
+  // purely on prediction_list_id, while the channel resolver gives affiliate
+  // priority.
+  channel_pl?: {
+    basis: { window: 'created_at'; revenue: 'paid'; lead_cost: 'paid' };
+    channels: ChannelPL[];      // ALWAYS 4 rows, fixed order
+    totals: ChannelPL;          // from RAW sums — Σ rows may differ by ~2 cents
+    by_affiliate: AffiliatePL[];
+    // Read from the DATA: prediction attribution starts 2026-08-14 here; CPA
+    // attribution was backfilled across the history import.
+    first_affiliate_lead_at: string | null;
+    first_prediction_attr_at: string | null;
+    orphan_affiliate_leads: number;
+  };
 }
+
+export type OrderChannel = 'affiliate' | 'prediction' | 'inbound' | 'manual';
+
+export interface ChannelPL {
+  channel: OrderChannel | 'total';
+  // Funnel (every order created in range, any status)
+  orders: number; real_orders: number; sold: number; paid_orders: number;
+  shipped_orders: number;   // the delivery-cost denominator (shipped|delivered|paid)
+  cancelled: number; trashed: number; returned: number; leads_pending: number;
+  confirm_rate: number; paid_rate: number; cancel_rate: number; return_rate: number;
+  // Money (cash basis, except sold_revenue which is order basis)
+  units_sold: number; paid_packages: number;
+  cash_collected: number; sold_revenue: number;
+  vat: number; cogs: number; delivery_cost: number; return_loss: number;
+  agent_commissions: number;
+  lead_cost: number;                        // 0 until per-webmaster rates exist
+  clear_profit_before_lead_cost: number;
+  clear_profit: number;
+  net_profit_per_order: number;
+  net_profit_per_package: number;
+  margin_pct: number;
+  lead_cost_orders?: number;
+  lead_cost_earned?: number;
+  lead_cost_orders_earned?: number;
+  lead_cost_open?: number;
+  lead_cost_dead?: number;
+  lead_cost_orders_dead?: number;
+  lead_cost_per_paid_order?: number;
+}
+export interface AffiliatePL extends ChannelPL {
+  affiliate_id: string;    // AlterCPA wm_id
+  name: string;            // from altercpa_webmasters, or "WM <id>"
+  code: string;            // = wm_id
+  leads: number; confirmed: number; paid: number;  // aliases of orders/real_orders/paid_orders
+  lead_cost_share_of_cash: number;
+}
+
 export const apiGetManagementInsights = (params?: { from?: string; to?: string; target?: number }, signal?: AbortSignal): Promise<InsightsResponse> => {
   const sp = new URLSearchParams();
   if (params?.from) sp.set('from', params.from);
