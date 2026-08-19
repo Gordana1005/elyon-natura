@@ -33,6 +33,23 @@ export function formatProductWithQuantity(productName: string, quantity: number 
 }
 
 /**
+ * Placeholder product names the CRM writes on synthetic outcome rows — the
+ * cancel/trash records /calls creates when a customer has no open order.
+ *
+ * These are NOT products and must never be treated as one. Reading a placeholder
+ * back as a real product is self-perpetuating: the next cancel for the same
+ * customer finds the placeholder row (it is the most recent), copies it forward,
+ * and the customer's actual purchase is buried one row deeper each time. That is
+ * how 401 orders ended up claiming "No prior product on file" while 94% of those
+ * customers had a real, paid product one row below.
+ */
+export function isSyntheticProductName(name: string | null | undefined): boolean {
+  const n = (name || '').trim();
+  if (!n || n === '—') return true;
+  return /^(Cancelled|Trashed|No prior product on file)/i.test(n);
+}
+
+/**
  * Detects product names that likely came from the website as promotional bundles
  * (e.g. "Prostatol 3 + Palmetto 1 x3", "Prostatol 4", names with "+" or baked-in numbers).
  * These should be replaced by the agent with real catalogue products during the call.

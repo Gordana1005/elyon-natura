@@ -23,6 +23,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useActiveCallView } from '@/hooks/useActiveCallView';
 import { hoverLift } from '@/lib/design-utils';
+import { isSyntheticProductName } from '@/lib/utils';
 import { EmptyState } from '@/components/EmptyState';
 
 // Link the call only to an order a call outcome can legitimately act on
@@ -774,17 +775,21 @@ export default function CallsPage() {
 
   // Most recent REAL product this customer ordered — used as the product on
   // cancel/trash records (never a placeholder / first-in-catalogue default).
-  // Skips the '—' rows that cancel/trash records themselves create.
+  //
+  // It must skip EVERY synthetic placeholder, not just '—'. A cancel record is
+  // the customer's newest order, so on the next call it is the first row scanned;
+  // treating its "No prior product on file" as a product copied that placeholder
+  // forward forever and hid the real purchase sitting one row below.
   const lastRealProduct = (orders: any[]): { name: string; productId: string | null } => {
     for (const o of orders || []) {
       const items = o.order_items || [];
       if (items.length > 0) {
-        const named = items.filter((i: any) => i.product_name);
+        const named = items.filter((i: any) => i.product_name && !isSyntheticProductName(i.product_name));
         if (named.length > 0) {
           return { name: named.map((i: any) => i.product_name).join(', '), productId: named.length === 1 ? (named[0].product_id ?? null) : null };
         }
       }
-      if (o.product_name && o.product_name !== '—') return { name: o.product_name, productId: o.product_id ?? null };
+      if (!isSyntheticProductName(o.product_name)) return { name: o.product_name, productId: o.product_id ?? null };
     }
     return { name: '', productId: null };
   };

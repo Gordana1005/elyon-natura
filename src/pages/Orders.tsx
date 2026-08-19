@@ -13,7 +13,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { cn, formatProductWithQuantity, buildProductNameLookups } from '@/lib/utils';
+import { cn, formatProductWithQuantity, buildProductNameLookups, isSyntheticProductName } from '@/lib/utils';
 import { format, addDays } from 'date-fns'; // raw format: fulfilment CSV + machine payloads only
 import { formatDate } from '@/i18n/dates';
 import {
@@ -429,8 +429,7 @@ export default function Orders() {
       }).join(', ');
     }
     const pn = order.product_name || '';
-    const isSyntheticPlaceholder = /^(Cancelled|Trashed|No prior product on file)/i.test(pn);
-    if (pn && !isSyntheticPlaceholder) {
+    if (pn && !isSyntheticProductName(pn)) {
       return formatProductWithQuantity(resolveToCleanCatalogueName(pn), order.quantity || 1);
     }
     const isOutcomeSynthetic = ['cancelled', 'trashed', 'returned', 'call_again'].includes(order.status);
