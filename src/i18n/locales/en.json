@@ -832,7 +832,27 @@
     "nextPage": "Next page",
     "custom": "Custom",
     "rangeFrom": "From",
-    "rangeTo": "To"
+    "rangeTo": "To",
+    "callAgainOpen": "Call again (open)",
+    "callAgainOpenSub": "Waiting on a callback from me right now",
+    "predictionMembers": "Prediction clients called",
+    "predictionMembersSub": "List members I reached this period",
+    "conversionSubProcessed": "{{won}} of {{processed}} leads I worked still stand",
+    "conversionSubOrders": "Confirmed ÷ my orders (history predates the work log)",
+    "split": {
+      "title": "My work — pendings vs prediction lists",
+      "subtitle": "What I settled this period, not what was created",
+      "processed": "Processed",
+      "confirmed": "Confirmed",
+      "cancelled": "Cancelled",
+      "callAgain": "Call again",
+      "trashed": "Trashed",
+      "realization": "Realization",
+      "colPendings": "Pendings",
+      "colPrediction": "Prediction lists",
+      "colTotal": "Total",
+      "footnote": "Realization = leads I worked that still stand confirmed, shipped or paid. Total also covers older orders imported before the split existed."
+    }
   },
   "products": {
     "outOfStock": "Out of Stock",
@@ -2456,7 +2476,9 @@
     "colNetC": "Net C.",
     "colAov": "AOV",
     "start": "Start",
-    "noDataDesc": "Performance data will appear as agents work."
+    "noDataDesc": "Performance data will appear as agents work.",
+    "altercpa": "AlterCPA (pendings)",
+    "imported": "Imported history"
   },
   "payout": {
     "unpaidOnly": "Unpaid only",

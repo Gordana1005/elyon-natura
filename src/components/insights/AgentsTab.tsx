@@ -250,16 +250,20 @@ export default function AgentsTab() {
           </Select>
         )}
 
-        {/* Source */}
+        {/* Source — the LIVE source_type values, not the Bulgarian ones.
+            'prediction' and 'inbound_lead' were inherited from the fork and
+            match 0 rows here, so two of the three options silently returned an
+            empty report (fixed 2026-08-19). Macedonian orders are
+            altercpa (2,299) / manual (465) / import (85,881). */}
         <Select value={sourceFilter} onValueChange={setSourceFilter}>
           <SelectTrigger className="w-36 h-8 text-xs">
             <SelectValue placeholder={t('agentsTab.allSources')} />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t('agentsTab.allSources')}</SelectItem>
-            <SelectItem value="prediction">{t('agentsTab.prediction')}</SelectItem>
-            <SelectItem value="inbound_lead">{t('agentsTab.webhook')}</SelectItem>
+            <SelectItem value="altercpa">{t('agentsTab.altercpa')}</SelectItem>
             <SelectItem value="manual">{t('agentsTab.manual')}</SelectItem>
+            <SelectItem value="import">{t('agentsTab.imported')}</SelectItem>
           </SelectContent>
         </Select>
 

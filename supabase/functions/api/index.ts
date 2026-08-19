@@ -8031,13 +8031,23 @@ async function handleRequest(req: Request): Promise<Response> {
         return all;
       };
 
+      // confirmed_by_name / assigned_agent_name are load-bearing, not decoration:
+      // salesOwnerName() reads them, and the exact-name bonus gate below reads
+      // salesOwnerName(). Without them every name-attributed order looked
+      // ownerless and the payout tile showed €36 instead of €2,206.
       const DASH_ORDER_SELECT =
-        "id, status, price, quantity, created_at, paid_at, confirmed_at, returned_at, assigned_agent_id, confirmed_by_agent_id, order_items(product_name, quantity, price_per_unit, total_price, product_id)";
+        "id, status, price, quantity, created_at, paid_at, confirmed_at, returned_at, assigned_agent_id, confirmed_by_agent_id, assigned_agent_name, confirmed_by_name, order_items(product_name, quantity, price_per_unit, total_price, product_id)";
 
       // Helper to compute metrics for a given agent filter
-      // `ownerNames` widens the scope to the agent's own operator spellings.
-      // Empty for the admin/team path, so that behaviour is byte-identical.
-      async function computeMetrics(effectiveAgentId: string | null, ownerNames: string[] = []) {
+      // `ownerNames` widens the ROW SCOPE to the agent's own operator spellings.
+      // `bonusNames` is the narrower EXACT-name set and gates the PAYOUT only —
+      // see the comment on payout_earned below. Both empty for the admin/team
+      // path, so that behaviour is byte-identical.
+      async function computeMetrics(
+        effectiveAgentId: string | null,
+        ownerNames: string[] = [],
+        bonusNames: string[] = [],
+      ) {
         const ownerFilter = (uid: string) =>
           ownerNames.length ? salesOwnerOrFilterWithNames(uid, ownerNames) : salesOwnerOrFilter(uid);
         let winFrom = fromDate;
@@ -8049,6 +8059,25 @@ async function handleRequest(req: Request): Promise<Response> {
             .eq("user_id", effectiveAgentId)
             .maybeSingle();
           if (prof?.created_at) winFrom = prof.created_at;
+          // "Start" means since the operator started WORKING, not since they got
+          // a login. Every Macedonian profile was created in 2026-08 when this
+          // CRM went live, while their attributed orders go back to 2026-06 and
+          // earlier — so clamping to profiles.created_at made the widest period
+          // show FEWER orders than "this month" (Aleksandra: 204 vs 282) and hid
+          // the 1,133 imported orders that are the whole point of name
+          // attribution. Take whichever came first.
+          if (ownerNames.length) {
+            const { data: firstOrder } = await adminClient
+              .from("orders")
+              .select("created_at")
+              .or(ownerFilter(effectiveAgentId))
+              .order("created_at", { ascending: true })
+              .limit(1)
+              .maybeSingle();
+            if (firstOrder?.created_at && firstOrder.created_at < winFrom) {
+              winFrom = firstOrder.created_at;
+            }
+          }
         }
 
         // Merge activity window (created_at) + earnings window (paid_at) so
@@ -8137,7 +8166,25 @@ async function handleRequest(req: Request): Promise<Response> {
         const paid_revenue = paidRevenueOf(earningsOrders);
         // Super-admins earn nothing — but pure-agent dashboards only call this for agents.
         // When admin inspects an agent, still compute bonus (recipient is the agent).
-        const payout_earned = calcAgentBonus(earningsOrders);
+        //
+        // THE EXACT-NAME GATE. Row scope was just widened to every spelling that
+        // FOLDS onto this agent, which is right for counts and revenue — but the
+        // bonus basis is deliberately narrower, and has been since 2026-08-14:
+        // an order earns only when it carries the agent's account id, or when
+        // its operator spelling matches their profile name exactly. Letting the
+        // folded set through here would add €15,985 across the team and put this
+        // tile permanently above the payout on Insights → Agents. Same gate,
+        // same number, both places.
+        const bonusSet = new Set(bonusNames);
+        const bonusOrders = bonusNames.length
+          ? earningsOrders.filter((o: any) => {
+            const id = salesOwnerId(o);
+            if (id) return id === effectiveAgentId;
+            const raw = salesOwnerName(o);
+            return !!raw && bonusSet.has(raw);
+          })
+          : earningsOrders;
+        const payout_earned = calcAgentBonus(bonusOrders);
 
         // Products on PAID packages only (align with packages_sold)
         const products_sold: Record<string, number> = {};
@@ -8180,7 +8227,7 @@ async function handleRequest(req: Request): Promise<Response> {
           .from("profiles").select("full_name").eq("user_id", user.id).maybeSingle();
         const { folded, exact } = await ownerNameVariantsFor(adminClient, selfProfile?.full_name);
 
-        const metrics = await computeMetrics(user.id, folded);
+        const metrics = await computeMetrics(user.id, folded, exact);
 
         // period=start resolves per-agent inside computeMetrics; reuse the
         // window it settled on so the rollups cover exactly the same span.

@@ -832,7 +832,27 @@
     "nextPage": "Faqja tjetër",
     "custom": "Personalizuar",
     "rangeFrom": "Nga",
-    "rangeTo": "Deri"
+    "rangeTo": "Deri",
+    "callAgainOpen": "Thirrje sërish (të hapura)",
+    "callAgainOpenSub": "Presin një thirrje kthyese nga unë tani",
+    "predictionMembers": "Klientë të thirrur nga listat",
+    "predictionMembersSub": "Anëtarë listash që i arrita këtë periudhë",
+    "conversionSubProcessed": "{{won}} nga {{processed}} lead-e të punuara ende qëndrojnë",
+    "conversionSubOrders": "Konfirmuar ÷ porositë e mia (historiku i paraprin ditarit)",
+    "split": {
+      "title": "Puna ime — pending kundrejt listave parashikuese",
+      "subtitle": "Çfarë mbylla këtë periudhë, jo çfarë u krijua",
+      "processed": "Të përpunuara",
+      "confirmed": "Të konfirmuara",
+      "cancelled": "Të anuluara",
+      "callAgain": "Thirrje sërish",
+      "trashed": "Të hedhura",
+      "realization": "Realizimi",
+      "colPendings": "Pending",
+      "colPrediction": "Lista parashikuese",
+      "colTotal": "Totali",
+      "footnote": "Realizimi = lead-e të punuara që ende qëndrojnë të konfirmuara, të dërguara ose të paguara. Totali përfshin edhe porositë më të vjetra të importuara para se të ekzistonte ndarja."
+    }
   },
   "products": {
     "outOfStock": "Pa stok",
@@ -2456,7 +2476,9 @@
     "colNetC": "Neto K.",
     "colAov": "AOV",
     "start": "Fillimi",
-    "noDataDesc": "Të dhënat e performancës do të shfaqen ndërsa agjentët punojnë."
+    "noDataDesc": "Të dhënat e performancës do të shfaqen ndërsa agjentët punojnë.",
+    "altercpa": "AlterCPA (pending)",
+    "imported": "Historik i importuar"
   },
   "payout": {
     "unpaidOnly": "Vetëm të papaguara",

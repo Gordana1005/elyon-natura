@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/i18n';
 import { AppLayout } from '@/layouts/AppLayout';
@@ -20,6 +21,7 @@ import {
   X, MessageSquare, Phone, ArrowRightLeft, FileText,
   DollarSign, AlertTriangle, Trophy, Zap, Shield, ChevronRight,
   ChevronLeft, Trash2, Banknote, Clock,
+  PhoneForwarded, ListChecks,
 } from 'lucide-react';
 import { MyOrdersSection } from '@/components/dashboard/MyOrdersSection';
 import { formatDate } from '@/i18n/dates';
@@ -50,7 +52,41 @@ interface DashStats {
   returns_orders?: number;
   paid_revenue?: number;
   payout_earned?: number;
+  /** Per-sales-motion split of the agent's own orders. Keys: pendings |
+   *  prediction | other | __total. `other` is the pre-CRM import, which
+   *  predates the split — it is in __total but has no column of its own. */
+  channels?: Record<string, ChannelStats>;
+  /** What the agent actually DID in the window, read off order_history.
+   *  Same keys. This — not `statusCounts` — answers "how much did I work
+   *  today", because statusCounts windows on when the order was CREATED. */
+  activity?: Record<string, ActivityStats>;
+  /** Leads parked on a callback right now (not a period figure). */
+  call_again_open?: number;
+  /** Prediction-list members this agent called in the window, by outcome. */
+  prediction_members?: Record<string, number>;
+  prediction_members_total?: number;
 }
+
+interface ChannelStats {
+  orders: number; confirmed: number; shipped: number; returned: number;
+  cancelled: number; trashed: number; call_again: number; paid: number;
+  revenue_confirmed: number; revenue_paid: number;
+  packages_sold: number; packages_awaiting: number; packages_returned: number;
+  bonus_raw: number;
+}
+
+interface ActivityStats {
+  processed: number; confirmed: number; cancelled: number;
+  trashed: number; call_again: number;
+  /** Of the leads I processed, how many stand confirmed-or-better NOW. The
+   *  honest realizacija numerator: a confirm that was cancelled an hour later
+   *  counts in `confirmed` but not here. */
+  won: number; lost: number;
+}
+
+const EMPTY_ACTIVITY: ActivityStats = {
+  processed: 0, confirmed: 0, cancelled: 0, trashed: 0, call_again: 0, won: 0, lost: 0,
+};
 
 function exportCSV(data: DashStats, period: string, label?: string) {
   const rows = [
@@ -81,6 +117,85 @@ function exportCSV(data: DashStats, period: string, label?: string) {
 }
 
 // Premium Metric Card — Phase 2 elevated treatment
+// ── "My work, split" ────────────────────────────────────────────────────────
+// The operator's ask, verbatim: "број на обработени лидови и клиенти од
+// предикциски листи, и тоа да е поделено". One column per sales motion, one
+// row per outcome, and a Total column — because the pre-CRM import belongs to
+// the total but predates the split and has no column of its own.
+function WorkSplitCard({ pendings, prediction, total, t }: {
+  pendings: ActivityStats; prediction: ActivityStats; total: ActivityStats;
+  t: (k: string, o?: any) => string;
+}) {
+  const rate = (a: ActivityStats) => (a.processed > 0 ? Math.round((a.won / a.processed) * 100) : 0);
+  const rows: Array<{ key: string; label: string; get: (a: ActivityStats) => number; tone?: string }> = [
+    { key: 'processed', label: t('dashboard.split.processed'), get: a => a.processed },
+    { key: 'confirmed', label: t('dashboard.split.confirmed'), get: a => a.confirmed, tone: 'text-[hsl(var(--success))]' },
+    { key: 'cancelled', label: t('dashboard.split.cancelled'), get: a => a.cancelled, tone: 'text-destructive' },
+    { key: 'callAgain', label: t('dashboard.split.callAgain'), get: a => a.call_again, tone: 'text-[hsl(var(--warning))]' },
+    { key: 'trashed', label: t('dashboard.split.trashed'), get: a => a.trashed, tone: 'text-destructive/80' },
+  ];
+  const cols: Array<{ key: string; label: string; data: ActivityStats; accent?: boolean }> = [
+    { key: 'pendings', label: t('dashboard.split.colPendings'), data: pendings },
+    { key: 'prediction', label: t('dashboard.split.colPrediction'), data: prediction },
+    { key: 'total', label: t('dashboard.split.colTotal'), data: total, accent: true },
+  ];
+
+  return (
+    <Card className="border-none shadow-sm mb-6">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-semibold text-card-foreground flex items-center gap-2">
+          <ListChecks className="h-4 w-4 text-primary" /> {t('dashboard.split.title')}
+        </CardTitle>
+        <p className="text-[11px] text-muted-foreground">{t('dashboard.split.subtitle')}</p>
+      </CardHeader>
+      <CardContent className="px-3 sm:px-6">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[320px]">
+            <thead>
+              <tr className="border-b text-[11px] uppercase tracking-wider text-muted-foreground">
+                <th className="text-left py-2 font-medium" />
+                {cols.map(c => (
+                  <th key={c.key} className={`text-right py-2 font-medium ${c.accent ? 'text-card-foreground' : ''}`}>
+                    {c.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(r => (
+                <tr key={r.key} className="border-b last:border-0">
+                  <td className="py-2 pr-2 text-[12px] text-muted-foreground whitespace-nowrap">{r.label}</td>
+                  {cols.map(c => (
+                    <td
+                      key={c.key}
+                      className={`py-2 text-right tabular-nums font-mono ${r.tone || ''} ${c.accent ? 'font-semibold' : ''}`}
+                    >
+                      {r.get(c.data)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+              <tr className="border-t-2">
+                <td className="py-2 pr-2 text-[12px] font-medium whitespace-nowrap">
+                  {t('dashboard.split.realization')}
+                </td>
+                {cols.map(c => (
+                  <td key={c.key} className={`py-2 text-right tabular-nums font-mono font-semibold ${c.accent ? 'text-primary' : ''}`}>
+                    {rate(c.data)}%
+                  </td>
+                ))}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p className="pt-3 text-[10px] text-muted-foreground/80 leading-tight">
+          {t('dashboard.split.footnote')}
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
 function MetricCard({ title, value, icon: Icon, trend, trendLabel, color, subtitle }: {
   title: string; value: string | number; icon: any; trend?: number; trendLabel?: string; color: string; subtitle?: string;
 }) {
@@ -226,6 +341,38 @@ export default function Dashboard() {
     refetchInterval: 30000,
   });
 
+  // ── Live tiles ────────────────────────────────────────────────────────────
+  // The agent's numbers move the moment they settle a lead, instead of waiting
+  // out the 30s poll. This is the SAME broadcast channel the office TV board
+  // listens on (see TvLeaderboardPage) — the server fires `confirmed` on a
+  // fresh confirm and `refresh` on a cancel / trash / call-again, so no new
+  // infrastructure and no second subscription per agent.
+  //
+  // Debounced: a bulk action fires one broadcast per order, and each of those
+  // must not become its own refetch. The polling above stays as the fallback,
+  // so a dropped socket degrades to "up to 30s stale", never to stale forever.
+  const queryClient = useQueryClient();
+  const refetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (isAdmin) return;
+    const bump = () => {
+      if (refetchTimer.current) clearTimeout(refetchTimer.current);
+      refetchTimer.current = setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+        queryClient.invalidateQueries({ queryKey: ['my-orders'] });
+      }, 1000);
+    };
+    const ch = supabase
+      .channel('tv-leaderboard')
+      .on('broadcast', { event: 'confirmed' }, bump)
+      .on('broadcast', { event: 'refresh' }, bump)
+      .subscribe();
+    return () => {
+      if (refetchTimer.current) clearTimeout(refetchTimer.current);
+      supabase.removeChannel(ch);
+    };
+  }, [isAdmin, queryClient]);
+
   const statusCounts = orderStats?.statusCounts || {};
 
   const lowStock = products.filter((p: any) => p.stock_quantity <= p.low_stock_threshold).length;
@@ -281,8 +428,26 @@ export default function Dashboard() {
       const next = d.toISOString().slice(0, 10);
       setAgentDate(next > todayUtc ? todayUtc : next);
     };
-    const calls = stats?.tasks_completed || 0;
-    const conversion = calls > 0 ? Math.round((sales / calls) * 100) : 0;
+    // ── The split the operator asked for (2026-08-19) ────────────────────────
+    // Пендинзи (inbound leads) vs Предикциски листи, from what the agent
+    // actually DID in the window — order_history, not order.created_at.
+    const act = stats?.activity || {};
+    const actPend = act.pendings || EMPTY_ACTIVITY;
+    const actPred = act.prediction || EMPTY_ACTIVITY;
+    const actTotal = act.__total || EMPTY_ACTIVITY;
+    const predMembers = stats?.prediction_members_total || 0;
+    const callAgainOpen = stats?.call_again_open || 0;
+
+    // Realizacija = of the leads I worked, how many stand confirmed-or-better
+    // NOW. The old formula divided sales by call_logs rows — a table holding
+    // 523 rows for the whole company, because telephony is off and the Call
+    // button is optional. It produced numbers in the thousands of percent.
+    // Lifetime falls back to orders, because order_history only starts
+    // 2026-08-01 and would under-report every earlier period as 0 processed.
+    const pct = (won: number, base: number) => (base > 0 ? Math.round((won / base) * 100) : 0);
+    const conversion = actTotal.processed > 0
+      ? pct(actTotal.won, actTotal.processed)
+      : pct(sales, stats?.total_orders || 0);
     const paidRevenue = stats?.paid_revenue ?? 0;
     const payoutEarned = stats?.payout_earned ?? 0;
     const packagesSold = stats?.packages_sold ?? stats?.units_sold ?? 0;
@@ -385,10 +550,19 @@ export default function Dashboard() {
           />
         </div>
 
+        {/* Пендинзи vs Предикциски листи — what I actually worked this period */}
+        <WorkSplitCard pendings={actPend} prediction={actPred} total={actTotal} t={t} />
+
         {/* Work / activity cards */}
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-5 mb-6">
           <MetricCard title={t('dashboard.sales')} value={sales} icon={CheckCircle2} color="bg-[hsl(var(--success))]" subtitle={t('dashboard.salesSub')} />
-          <MetricCard title={t('dashboard.callsMade')} value={calls} icon={Phone} color="bg-[hsl(var(--warning))]" />
+          <MetricCard
+            title={t('dashboard.callAgainOpen')}
+            value={callAgainOpen}
+            icon={PhoneForwarded}
+            color="bg-[hsl(var(--warning))]"
+            subtitle={t('dashboard.callAgainOpenSub')}
+          />
           <MetricCard
             title={t('dashboard.returns')}
             value={returnsOrders}
@@ -401,7 +575,22 @@ export default function Dashboard() {
         </div>
 
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 mb-6">
-          <MetricCard title={t('dashboard.conversion')} value={`${conversion}%`} icon={Target} color="bg-primary" subtitle={t('dashboard.conversionSub')} />
+          <MetricCard
+            title={t('dashboard.conversion')}
+            value={`${conversion}%`}
+            icon={Target}
+            color="bg-primary"
+            subtitle={actTotal.processed > 0
+              ? t('dashboard.conversionSubProcessed', { won: actTotal.won, processed: actTotal.processed })
+              : t('dashboard.conversionSubOrders')}
+          />
+          <MetricCard
+            title={t('dashboard.predictionMembers')}
+            value={predMembers}
+            icon={Users}
+            color="bg-[hsl(var(--info))]"
+            subtitle={t('dashboard.predictionMembersSub')}
+          />
           <MetricCard title={t('dashboard.tabOrders')} value={stats?.total_orders || 0} icon={FileText} color="bg-muted-foreground" subtitle={t('dashboard.ordersSub')} />
           <Card className="border border-border/60 bg-card shadow-sm flex items-center">
             <CardContent className="p-5 w-full flex items-center justify-between gap-2">

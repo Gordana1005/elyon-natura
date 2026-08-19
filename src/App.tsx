@@ -28,7 +28,9 @@ const AssignedPage = lazy(() => import("./pages/AssignedPage"));
 const AssignerPage = lazy(() => import("./pages/AssignerPage"));
 const PredictionListsPage = lazy(() => import("./pages/PredictionListsPage"));
 const PredictionListDetail = lazy(() => import("./pages/PredictionListDetail"));
-const PredictionLeadsPage = lazy(() => import("./pages/PredictionLeadsPage"));
+// Kept imported-but-unrouted on purpose: the route below redirects while the
+// prediction_leads table is empty. Deleting the page would make restoring it
+// a rewrite rather than a one-line route change.
 const ImportOrdersPage = lazy(() => import("./pages/ImportOrdersPage"));
 const ShiftsManagementPage = lazy(() => import("./pages/ShiftsManagementPage"));
 const MyShiftsPage = lazy(() => import("./pages/MyShiftsPage"));
@@ -107,7 +109,13 @@ const App = () => (
                 <Route path="/assigner" element={<ProtectedRoute moduleKey="assigner"><AssignerPage /></ProtectedRoute>} />
                 <Route path="/predictions" element={<ProtectedRoute moduleKey="prediction_lists"><PredictionListsPage /></ProtectedRoute>} />
                 <Route path="/predictions/:id" element={<ProtectedRoute moduleKey="prediction_lists"><PredictionListDetail /></ProtectedRoute>} />
-                <Route path="/prediction-leads" element={<ProtectedRoute moduleKey="prediction_leads"><PredictionLeadsPage /></ProtectedRoute>} />
+                {/* /prediction-leads is HIDDEN, not deleted (2026-08-19). It reads
+                    the prediction_leads table, which has 0 rows here — every
+                    prediction_agent had a permanently empty page in their
+                    sidebar, while their real work surface is /calls. The page
+                    and the permission rows stay so it can come back the day
+                    prediction_leads is populated. */}
+                <Route path="/prediction-leads" element={<Navigate to="/calls" replace />} />
                 <Route path="/import-orders" element={<ProtectedRoute moduleKey="order_import"><ImportOrdersPage /></ProtectedRoute>} />
                 {/* Performance + Agent Activity merged into Insights (2026-06). Keep old paths working. */}
                 <Route path="/performance" element={<Navigate to="/insights?tab=agents" replace />} />

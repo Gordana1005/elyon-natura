@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/contexts/PermissionsContext';
 import {
-  LayoutDashboard, ShoppingCart, ClipboardList, FileSpreadsheet, Package,
+  LayoutDashboard, ShoppingCart, ClipboardList, Package,
   Users, CalendarDays, FileText, History, ChevronLeft,
   ChevronRight, ChevronDown, Phone, PhoneCall, PhoneIncoming, Warehouse, Settings, Inbox,
   Webhook, UserPlus, SearchIcon, TrendingUp, Activity, Zap, Layers, Lock, Clock, Gauge, FileUp,
@@ -74,7 +74,6 @@ const sections: NavSection[] = [
       { titleKey: 'nav.assigner', path: '/assigner', icon: UserPlus, moduleKey: 'assigner' },
       { titleKey: 'nav.leadDistribution', path: '/lead-distribution', icon: Zap, moduleKey: 'lead_distribution' },
       { titleKey: 'nav.assignedToMe', path: '/assigned', icon: ClipboardList, moduleKey: 'assigned' },
-      { titleKey: 'nav.predictionLeads', path: '/prediction-leads', icon: FileSpreadsheet, moduleKey: 'prediction_leads' },
       { titleKey: 'nav.predictionLists', path: '/segments', icon: Layers, moduleKey: 'segments' },
       { titleKey: 'nav.searchPrediction', path: '/search-prediction', icon: SearchIcon, moduleKey: 'search_prediction' },
       // Admin-only: the 'order_import' module key isn't seeded for any role, so
