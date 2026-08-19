@@ -142,7 +142,28 @@ which is EMPTY here and must never be joined for MK money.
 - Verified live end-to-end post-deploy: RPC paid count = direct DB count (4.068), Σ channel
   confirmed value = Overview revenue to the cent, channels × affiliators reconcile.
 
-### Market layer (Macedonia)
+### Call-agains pushable to AlterCPA (status 3 Callback) — done 2026-08-19
+
+Operator request: agents' call-backs must reach AlterCPA like every other disposition. Three
+pieces, all shipped together:
+
+- **`call_again` joined the CPA push map** (`ALTERCPA_PUSH_STATUS`, edge fn `api`) → their
+  status **3 Callback**, via the same two-POST transport, Dragana write token and read-back
+  verification as every other push. It had been deliberately excluded until the read-back loop
+  was verified live — that happened 08-18. Comment = `Agent: <name>` only (no reason pair; leads
+  never carry `next_call_after`, and their API has no callback-time param anyway).
+- **Two guards:** the route 422s unless the ledger row exists AND shows phase ≤ 2 — status 3
+  lives inside their open phase, so pushing it onto an accepted/resolved order would REGRESS it
+  (ledger-less = pre-08-05 historical imports, long decided there). And uniquely for this push,
+  the read-back verifies `status` actually reads 3 — their API answers success even when a
+  transition rule swallows the change.
+- **The callback-mirror revert was fixed to make this usable** (`altercpa-sync`): it used to
+  flip ANY `call_again` whose remote wasn't 3 back to `pending` — undoing every agent-set
+  call-back within 5 minutes and leaving the new push nothing to send. It now fires only on an
+  **observed 3→non-3 transition** (pre-run ledger snapshot 3, remote now non-3), i.e. exactly
+  when THEY clear an acknowledged callback — bridge rule 6 preserved to the letter, agent work
+  no longer destroyed. `/orders` gate: `CPA_PUSHABLE` + `call_again`; no new i18n (the dialog
+  renders `Call Again → 3` from existing keys).
 
 | Area | State |
 |---|---|

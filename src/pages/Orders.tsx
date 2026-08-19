@@ -261,7 +261,9 @@ export default function Orders() {
     staleTime: 60_000,
   });
   const cpaPushEnabled = !!isAdmin && appSettings?.altercpa_push_enabled === true;
-  const CPA_PUSHABLE = ['confirmed', 'shipped', 'delivered', 'paid', 'returned', 'cancelled', 'trashed'];
+  // call_again added 2026-08-19 → their status 3 Callback; the server refuses
+  // it for leads AlterCPA has already moved past phase 2 (no regressions).
+  const CPA_PUSHABLE = ['confirmed', 'call_again', 'shipped', 'delivered', 'paid', 'returned', 'cancelled', 'trashed'];
   const canPushCpa = (order: ApiOrder) =>
     cpaPushEnabled && order.source_type === 'altercpa' && !!order.external_order_id && CPA_PUSHABLE.includes(order.status);
   const [cpaLoadingId, setCpaLoadingId] = useState<string | null>(null);

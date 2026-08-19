@@ -7099,7 +7099,12 @@ async function handleRequest(req: Request): Promise<Response> {
     // Loop safety vs the */5 altercpa-sync status cron: terminal statuses
     // (paid/returned/cancelled/trashed) sit outside STATUS_OPEN and are never
     // re-read; confirmed (accept=1 → their phase 3) resolves back to
-    // 'confirmed' = unchanged; shipped/delivered hit the courier exception. The
+    // 'confirmed' = unchanged; shipped/delivered hit the courier exception.
+    // call_again (status 3, 2026-08-19): after the push their status is 3 and
+    // ours is call_again, so the cron's callback mirror sees agreement and
+    // no-ops; when THEIR side later clears the callback, the mirror observes
+    // the 3→non-3 transition and returns the order to pending — bridge rule 6,
+    // intended while AlterCPA is the system of record. The
     // bridge-skill sharp edge (phase-4 unmappable reason flips a NON-terminal
     // order to confirmed) cannot fire on our pushes, because status 5 is only
     // ever sent for orders that are terminal here. Price: `base` derives from
@@ -7162,6 +7167,20 @@ async function handleRequest(req: Request): Promise<Response> {
           return json({ error: "No ledger link for this order and the AlterCPA account is ambiguous" }, 422);
         }
         pushAccount = accts![0];
+      }
+      // Callback (status 3) lives INSIDE their phase 1/2. Pushing it onto an
+      // order they already accepted or resolved would drag that order BACK to
+      // the open phase — so it requires a ledger row proving the lead is still
+      // open there. The ledger lags ≤5 min (the status cron re-reads every open
+      // mirrored order), and the ledger-less rows are the pre-08-05 historical
+      // imports, long resolved on their side — exactly the ones to refuse.
+      if (order.status === "call_again") {
+        if (!pushLead) {
+          return json({ error: "No AlterCPA ledger row for this order — cannot verify the lead is still open there, so a callback push is refused" }, 422);
+        }
+        if (Number(pushLead.phase) > 2) {
+          return json({ error: `AlterCPA already has this lead in phase ${pushLead.phase} (${Number(pushLead.phase) === 3 ? "approved" : "resolved"}) — a callback would regress their order` }, 422);
+        }
       }
       // Write identity vs read identity (operator decision 2026-08-18): AlterCPA
       // shows the API token's ACCOUNT as the order's operator, and there is no
@@ -7388,6 +7407,13 @@ async function handleRequest(req: Request): Promise<Response> {
       // push, so it succeeds with a warning rather than erroring.
       const pushIgnored: string[] = [];
       if (remoteAfter) {
+        // Callback is the one push whose POINT is the remote status flag —
+        // their operators plan around the 3, and the callback mirror keys on
+        // it. Their API answers success even when a transition rule swallows
+        // the change, so check it like a data field. Other statuses keep the
+        // 08-18 contract (transition verified via error classification only —
+        // e.g. paid can legitimately read back phase-advanced).
+        if (pushStatus === 3 && Number(remoteAfter.status) !== 3) pushIgnored.push("status");
         if (Number(remoteAfter.count) !== pushQty) pushIgnored.push("count");
         const sentBase = p.get("base");
         if (sentBase && Math.abs(Number(remoteAfter.base) - Number(sentBase)) > 0.02) pushIgnored.push("base");
@@ -17693,10 +17719,16 @@ const ALTERCPA_STATUS = { processing: 2, cancelled: 5, sending: 7, completed: 10
 // Our order_status → their comp/edit.json expression. This is the BUTTON's map,
 // not the affiliate drain's event map above — the two speak different source
 // vocabularies (order statuses vs postback stages) and must not be merged.
-// pending/take/duplicated have nothing truthful to say; call_again (their 3
-// Callback) is deliberately excluded until the read-back loop is verified live.
+// pending/take/duplicated have nothing truthful to say. call_again (their 3
+// Callback) was excluded until the read-back loop was verified live; verified
+// 2026-08-18, enabled 2026-08-19 (operator request — agents' call-backs must
+// reach AlterCPA). Status 3 lives INSIDE their phase 1/2, so the push route
+// additionally refuses it unless the ledger shows the lead still open there
+// (phase ≤ 2) — a callback pushed onto their accepted/resolved order would
+// REGRESS it and disturb their commission mechanics.
 const ALTERCPA_PUSH_STATUS: Record<string, number | "accept"> = {
   confirmed: "accept",   // accept=1 — never status 10 (their commission timers)
+  call_again: 3,         // Callback — open-phase only, see the guard in the route
   shipped: 7,            // Sending
   delivered: 9,          // Arrived
   paid: 10,              // Completed

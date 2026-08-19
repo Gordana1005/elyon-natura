@@ -18,7 +18,12 @@ Built 2026-08-06, live the same day. Four operator decisions define its shape:
    2026-08-18). The write signs with the dedicated push token
    (`push_token_secret_name`, Dragana) so their panel attributes it to her; the confirming agent
    rides in the comment (`Agent: <name>`). Gated by `app_settings.altercpa_push_enabled`
-   (default off). Full contract in `.grok/skills/elyon-altercpa-bridge` decision #3.
+   (default off). Since 2026-08-19 `call_again` is pushable too (their status 3 Callback) —
+   guarded to leads the ledger still shows in phase ≤ 2, so a callback can never regress an
+   order they already accepted or resolved; the same change made the status cron's callback
+   mirror revert (`call_again` → `pending`) fire only on an observed 3→non-3 remote
+   transition, so agent-set call-backs survive until they are pushed.
+   Full contract in `.grok/skills/elyon-altercpa-bridge` decision #3.
 4. **Pendings only.** Only AlterCPA phase 1 (processing) and 2 (hold) become orders here. An
    order they already approved, cancelled or trashed has been decided — importing it would drop
    a finished order into the calling queue, and for phase 3 would book revenue and commission our

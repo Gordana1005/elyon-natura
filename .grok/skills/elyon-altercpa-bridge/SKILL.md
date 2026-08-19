@@ -51,17 +51,27 @@ into Elyon so the CRM is one place. **We poll them; nothing is configured on the
      bigarena-sync must never call it. Rate-limited 60/min per user.
    - **Kill switch:** `app_settings.altercpa_push_enabled` (default **false**), a switch in
      Settings → System → "CPA Push". The route re-reads it on every call.
-   - **What it sends:** status (`accept=1` for confirmed — never status 10; shipped→7,
-     delivered→9, paid→10, returned→11, cancelled/trashed→5+reason), customer name /
+   - **What it sends:** status (`accept=1` for confirmed — never status 10; call_again→3,
+     shipped→7, delivered→9, paid→10, returned→11, cancelled/trashed→5+reason), customer name /
      digits-only phone / city / street+number / quarter (`area`) / address / postal (`index`),
      `count` (= SUM(order_items.quantity), falling back to orders.quantity — the column can
      lag single-item edits), `base` (unit price in THEIR currency — rate from the lead's own
      `price_raw/price_eur`, eur→1, mkd→61.5, anything else omits base; **mkd rounds to whole
      denars** — their own upsell edits produce 3 × 1000, never 3 × 999.89), and `comment` =
      `Agent: <name>` + `orderReasonText()`. `pending`/`take`/`duplicated` are not pushable;
-     `call_again` (their 3 Callback) is excluded until the loop is verified live;
      `pending_cleanup`/`stale_pending_cleanup` cancels are blocked with 422 (server markers,
      not dispositions).
+   - **call_again → their 3 Callback (enabled 2026-08-19, operator request; was excluded
+     until the read-back loop was verified live on 08-18).** Two protections ship with it:
+     (1) status 3 lives INSIDE their phase 1/2, so the route 422s unless the ledger row
+     exists AND shows phase ≤ 2 — pushing a callback onto their accepted/resolved order
+     would REGRESS it (ledger-less = the pre-08-05 historical imports, long resolved there);
+     (2) the read-back additionally verifies `status` really reads 3 (their API answers
+     success even when a transition rule swallows the change) — call_again is the ONE push
+     that verifies the status flag; the others keep the 08-18 error-classification contract.
+     For call_again the comment is just `Agent: <name>` (no reason pair, and
+     `next_call_after` is always NULL on leads — lead rule 9 — so there is no callback
+     time to send; their API has no scheduling param anyway).
    - **Verified read-back:** after the write, the one-oid re-read compares `count`/`base`,
      each sent address field AND `comment` against what their side now holds; mismatches come
      back as a `warning` on the response and a "remote did NOT apply: …" order note instead of
@@ -120,6 +130,11 @@ into Elyon so the CRM is one place. **We poll them; nothing is configured on the
    ladder: `pending`, `take` and `call_again` all share `CRM_STATUS_RANK` 0 and the forward-only
    rule deliberately refuses lateral moves. So it is mirrored as its own explicitly-lateral step:
    - `pending` → `call_again` when they set status 3; `call_again` → `pending` when they clear it.
+     **"Clear" = an OBSERVED 3→non-3 transition** (ledger snapshot 3, remote now non-3 — fixed
+     2026-08-19): until then the test was just "remote isn't 3", which silently reverted every
+     AGENT-set call_again within 5 minutes (their side still showed 1/2) and would have left the
+     call_again CPA push nothing to send. An agent's call-back now stands until it is pushed
+     (both sides then agree at 3) or until THEY clear an acknowledged callback.
    - `call_again_since` is anchored at the FIRST call-back and never reset (`20260622000000`).
    - `next_call_after` stays NULL — **leads are never throttled** (lead rule 9).
    - `take` is never touched: an agent has the customer open right now; the next run catches it.

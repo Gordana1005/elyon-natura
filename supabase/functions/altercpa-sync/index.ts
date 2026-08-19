@@ -899,7 +899,10 @@ async function syncStatusAccount(
     // ── Callback mirror (operator rule, 2026-08-13) ────────────────────────
     // While AlterCPA is the system of record, our status follows theirs: a lead
     // they marked for a call-back must read `call_again` here, and must return
-    // to `pending` when they clear it.
+    // to `pending` when they clear it. "Clear" means an OBSERVED 3→non-3
+    // transition (2026-08-19, see wantPendingBack below) — a call_again OUR
+    // agent set, with their side never having shown 3, is not "cleared" and
+    // must stand until it is pushed to them (the call_again CPA push).
     //
     // This cannot go through the outcome ladder above. Their status 3
     // "Callback" lives INSIDE phase 1/2 — the lead is still open, so
@@ -912,7 +915,14 @@ async function syncStatusAccount(
     if ((phase === 1 || phase === 2) && cur !== "take") {
       const remoteCallback = Number(o.status) === 3;
       const wantCallAgain = remoteCallback && cur === "pending";
-      const wantPendingBack = !remoteCallback && cur === "call_again";
+      // `c.status` is the pre-run ledger snapshot (same idiom as statusChanged
+      // above), so this fires exactly when THEY move off an acknowledged
+      // callback — ledger 3 → remote non-3. Until 2026-08-19 the test was just
+      // `!remoteCallback`, which also reverted every AGENT-set call_again
+      // within 5 minutes (their side still showed 1/2) — silently undoing the
+      // agent's disposition and leaving the call_again CPA push nothing to
+      // send. After a push the two sides agree at 3 and this stays quiet.
+      const wantPendingBack = Number(c.status) === 3 && !remoteCallback && cur === "call_again";
       if (wantCallAgain || wantPendingBack) {
         if (dry) { bump(wantCallAgain ? "would_callback_on" : "would_callback_off"); continue; }
         const next = wantCallAgain ? "call_again" : "pending";
