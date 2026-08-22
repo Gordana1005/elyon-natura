@@ -1668,7 +1668,9 @@ async function handleRequest(req: Request): Promise<Response> {
       if (!city) return { id: null, name: null };
       // The picker stores "Кадино, општ. Скопје"; match on the settlement part
       // and drop any гр./с. marker.
-      const base = city.split(",")[0].replace(/^s*(гр.?|с.?|село|град)s*/i, "").trim();
+      // Bare `с.?` with the `i` flag eats the first letter of Скопје / Струмица.
+      // Require dotted `с.` / `гр.` or a following space on село/град.
+      const base = city.split(",")[0].replace(/^\s*(?:гр\.|с\.|село\s+|град\s+)/i, "").trim();
       const norm = normalizeMkGeo(base);
       if (norm.length < 2) return { id: null, name: null };
       const { data } = await adminClient

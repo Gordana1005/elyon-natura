@@ -28,7 +28,7 @@ const ALL = process.argv.includes('--all');
 
 // Only these can still be shipped, so only these block anything operationally.
 // --all also stamps closed history, which makes logistics reporting consistent.
-const ACTIVE = ['pending', 'confirmed', 'call_again', 'shipped'];
+const ACTIVE = ['pending', 'take', 'confirmed', 'call_again', 'shipped'];
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -40,7 +40,12 @@ const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
 /** Strip the picker's ", општ. X" suffix and any гр./с. marker, then normalise. */
 function cityKey(raw) {
-  const base = String(raw || '').split(',')[0].replace(/^\s*(гр\.?|с\.?|село|град)\s*/i, '').trim();
+  // Bare `с.?` with the `i` flag eats the first letter of Скопје / Струмица
+  // (Cyrillic С). Require the dotted form `с.` / `гр.` or a following space
+  // on село/град so Градско is not stripped to ско.
+  const base = String(raw || '').split(',')[0]
+    .replace(/^\s*(?:гр\.|с\.|село\s+|град\s+)/i, '')
+    .trim();
   return normalizeMkGeo(base);
 }
 

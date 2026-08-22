@@ -179,6 +179,37 @@ export const FX_TO_EUR: Record<string, number> = {
 /** Legally fixed or hard-pegged: these convert exactly, the rest are indicative. */
 export const EXACT_FX = new Set(["eur", "mkd", "bgn", "bam"]);
 
+/**
+ * Macedonian place-name key — port of scripts/lib/mk-translit.mjs
+ * `normalizeMkGeo`. Needed so AlterCPA's Latin "Skopje" / "Kicevo" resolves to
+ * the same mk_settlements.name_norm as Cyrillic Скопје / Кичево. Lossy on
+ * purpose (ш/с → s); a missed match leaves mex_city_id NULL rather than
+ * guessing a zone. Keep in step with the script and src/lib/transliterate.ts.
+ */
+const MK_GEO_CYR: Record<string, string> = {
+  а: "a", б: "b", в: "v", г: "g", д: "d", ѓ: "g", е: "e",
+  ж: "z", з: "z", ѕ: "d", и: "i", ј: "j", к: "k", л: "l",
+  љ: "l", м: "m", н: "n", њ: "n", о: "o", п: "p", р: "r",
+  с: "s", т: "t", ќ: "k", у: "u", ф: "f", х: "h", ц: "c",
+  ч: "c", џ: "d", ш: "s",
+  й: "j", щ: "st", ъ: "a", ь: "j", ю: "u", я: "a",
+  ы: "i", э: "e", ё: "e", ђ: "d", ћ: "c", ѐ: "e", ѝ: "i",
+};
+const MK_GEO_MARKS = /[\u0300-\u036f]/g;
+const MK_GEO_DIGRAPHS: Array<[string, string]> = [
+  ["dzh", "d"], ["zh", "z"], ["sh", "s"], ["ch", "c"], ["dz", "d"],
+  ["dj", "d"], ["gj", "g"], ["kj", "k"], ["lj", "l"], ["nj", "n"], ["ts", "c"],
+];
+export function normalizeMkGeo(s: string): string {
+  if (!s) return "";
+  let out = String(s).toLowerCase();
+  out = out.split("").map((c) => MK_GEO_CYR[c] ?? c).join("");
+  out = out.normalize("NFD").replace(MK_GEO_MARKS, "");
+  out = out.replace(/ç/g, "c").replace(/đ/g, "d").replace(/ł/g, "l").replace(/ø/g, "o");
+  for (const [from, to] of MK_GEO_DIGRAPHS) out = out.split(from).join(to);
+  return out.replace(/[^a-z0-9]/g, "");
+}
+
 export function toEur(price: unknown, currency: unknown): number | null {
   const cur = String(currency || "mkd").toLowerCase();
   const div = FX_TO_EUR[cur];

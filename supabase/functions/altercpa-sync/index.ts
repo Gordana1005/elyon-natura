@@ -32,7 +32,8 @@ import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-
 import {
   AlterCpaOrder, PHASE, PHASE_TO_STATUS, REASON, STATUS_LABEL,
   CRM_STATUS_RANK, CRM_TERMINAL, crmReasonFor, resolveRemoteOutcome,
-  fetchByIds, fetchWindow, isTestOrder, normalizePhoneForGeo, productNameOf, quantityOf, toEur,
+  fetchByIds, fetchWindow, isTestOrder, normalizeMkGeo, normalizePhoneForGeo,
+  productNameOf, quantityOf, toEur,
 } from "./altercpa.ts";
 
 const json = (body: unknown, status = 200) =>
@@ -545,6 +546,44 @@ function cpaAttribution(row: Record<string, any>, o: AlterCpaOrder) {
   };
 }
 
+/** Settlement → MEX zone, same join the api uses on POST /orders. Cached
+ *  per isolate: a rolling run creates a handful of orders, not thousands. */
+let mexZoneByNorm: Map<string, { id: number; name: string | null }> | null = null;
+async function loadMexZones(admin: SupabaseClient) {
+  if (mexZoneByNorm) return mexZoneByNorm;
+  const map = new Map<string, { id: number; name: string | null }>();
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await admin.from("mk_settlements")
+      .select("name_norm, kind, mex_city_id, mex_cities(city_name)")
+      .not("mex_city_id", "is", null)
+      .order("kind", { ascending: true })
+      .range(from, from + 999);
+    if (error) throw new Error(`mex zones: ${error.message}`);
+    for (const row of data || []) {
+      const norm = String(row.name_norm || "");
+      if (!norm || map.has(norm)) continue;
+      const zone = (row as { mex_cities?: { city_name?: string } }).mex_cities;
+      map.set(norm, { id: row.mex_city_id as number, name: zone?.city_name ?? null });
+    }
+    if (!data || data.length < 1000) break;
+  }
+  mexZoneByNorm = map;
+  return map;
+}
+
+async function resolveMexCity(
+  admin: SupabaseClient,
+  cityRaw: string | null | undefined,
+): Promise<{ id: number | null; name: string | null }> {
+  const city = String(cityRaw || "").trim();
+  if (!city) return { id: null, name: null };
+  const base = city.split(",")[0].replace(/^\s*(?:гр\.|с\.|село\s+|град\s+)/i, "").trim();
+  const key = normalizeMkGeo(base);
+  if (key.length < 2) return { id: null, name: null };
+  const zone = (await loadMexZones(admin)).get(key);
+  return zone ? { id: zone.id, name: zone.name } : { id: null, name: null };
+}
+
 /**
  * Fill attribution on an order that predates these columns, or that some other
  * path created. NULL-only: provenance is what their record said when the lead
@@ -599,10 +638,12 @@ async function upsertOrder(
 
   const { data: existing } = await admin
     .from("orders")
-    .select("id, status, assigned_agent_id, confirmed_at, cpa_webmaster_id, cpa_offer_id, cpa_offer_name, cpa_stream_id")
+    .select("id, status, assigned_agent_id, confirmed_at, cpa_webmaster_id, cpa_offer_id, cpa_offer_name, cpa_stream_id, mex_city_id")
     .eq("external_source", "altercpa")
     .eq("external_order_id", row.altercpa_id)
     .maybeSingle();
+
+  const mexZone = await resolveMexCity(admin, row.city || s(o.city, 200));
 
   if (!existing) {
     const { data: order, error } = await admin.from("orders").insert({
@@ -613,6 +654,8 @@ async function upsertOrder(
       customer_city: row.city || "",
       customer_address: s(o.addr, 600),
       postal_code: s(o.index, 30),
+      mex_city_id: mexZone.id,
+      mex_city_name: mexZone.name,
       price: priceTotal,
       quantity: row.quantity,
       status: remoteStatus,
@@ -698,6 +741,15 @@ async function upsertOrder(
   // provenance, not an outcome, so it is filled even on an order nobody here is
   // allowed to touch.
   await fillMissingCpaAttribution(admin, existing, row, o);
+
+  // NULL-only: the zone is a snapshot (re-running the settlement map must not
+  // rewrite where an already-routed parcel went). A lead that arrived before
+  // the bridge stamped mex_city_id still needs one before fulfilment export.
+  if (existing.mex_city_id == null && mexZone.id != null) {
+    await admin.from("orders")
+      .update({ mex_city_id: mexZone.id, mex_city_name: mexZone.name })
+      .eq("id", existing.id);
+  }
 
   // ── existing order: apply the status-mirror policy ───────────────────────
   // NOTE: this branch still maps A-style via PHASE_TO_STATUS (phase 3 → paid).

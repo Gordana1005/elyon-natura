@@ -54,7 +54,13 @@ A1234567,Alex Test,Varshavska 123,Skopje,076123456,150,maska za telefon,0.1
    exported only with a full name, valid phone, 4-digit postal code, a resolved
    `mex_city_id` (the routable-zone gate — MEX has NO cancellation endpoint),
    product lines, price > 0 and a usable address. Invalid ones are held back
-   via `FulfilmentValidationDialog`, never silently dropped or exported broken.
+   via `FulfilmentValidationDialog` ("Fix first"), never silently dropped or
+   exported broken. Manual orders get the zone on save (`resolveMexCity` in
+   `api/index.ts`). AlterCPA mirrored orders must be stamped by `altercpa-sync`
+   — until 2026-08-22 they were not, so 593/631 confirmed sat unexportable
+   with city "Skopje" already on the row. Catch-up:
+   `node --env-file=.env scripts/backfill-order-mex-city.mjs`. Foreign cities
+   (Sofia, Vienna, …) stay NULL on purpose.
 4. **Product list is NOT in the file.** Picking/packing lives on the Warehouse
    page (its own export). `Opis` is delivery info, not contents.
 

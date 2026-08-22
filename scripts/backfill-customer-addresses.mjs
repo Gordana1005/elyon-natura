@@ -216,7 +216,7 @@ async function main() {
     if (prof.mex_city_id == null) {
       const cityForZone = patch.city || String(prof.city ?? '').trim();
       if (cityForZone) {
-        const key = normalizeMkGeo(cityForZone.split(',')[0].replace(/^\s*(гр\.?|с\.?|село|град)\s*/i, '').trim());
+        const key = normalizeMkGeo(cityForZone.split(',')[0].replace(/^\s*(?:гр\.|с\.|село\s+|град\s+)/i, '').trim());
         const zone = key ? byNorm.get(key) : null;
         if (zone) { patch.mex_city_id = zone.id; patch.mex_city_name = zone.name; }
       }
