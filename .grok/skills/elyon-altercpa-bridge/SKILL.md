@@ -106,6 +106,12 @@ into Elyon so the CRM is one place. **We poll them; nothing is configured on the
    them orders still in the calling queue that AlterCPA had already closed. A skipped lead now
    **adopts** an existing order on the same `(external_source='altercpa', external_order_id)` key.
    Repair migration: `20260921000200_altercpa_adopt_orphaned_orders.sql`.
+   ⚠️ **And skip ≠ leave the existing order pending.** Under `pending_only` a lead that
+   resolves inside the rolling 45-minute overlap used to update the ledger to phase 3/4/5
+   and skip `upsertOrder` entirely — CRM stayed `pending`. Outcomes were delegated to the
+   `status` kind, which is correct only while that kind actually scans the row. As of
+   2026-08-22 `upsertLead` also runs B′ `applyOutcomeToExistingOrder` on a skipped lead
+   that already has an `order_id`.
 5. **`status_mirror = 'until_touched'` is the transition-period operating mode** (revised
    2026-08-11; the original default was `off`). During the migration off AlterCPA their operators
    still resolve most pendings THERE, so the `status` sync kind (below) chases those outcomes —
@@ -147,10 +153,19 @@ into Elyon so the CRM is one place. **We poll them; nothing is configured on the
 The windowed kinds filter on CREATION time and can never see an old pending resolve. The
 `status` kind inverts it: every 5 minutes (07:00–20:55 Skopje, gate inside
 `invoke_altercpa_status_sync()` because pg_cron is UTC and Skopje flips CET/CEST) it takes our
-still-open mirrored orders (`pending/take/call_again/confirmed/shipped/delivered`), re-reads
-exactly those ids with `comp/list.json?oid=…` (batches of 100, same non-array-is-failure
-contract), and resolves forward-only via `resolveRemoteOutcome` — **the B′ map, not
-`PHASE_TO_STATUS`**:
+still-open mirrored orders (`pending/take/call_again` first, then `confirmed/shipped/delivered`),
+rotates by `last_seen_at ASC` (default cap 2000), re-reads exactly those ids with
+`comp/list.json?oid=…` (batches of 100, same non-array-is-failure contract), and resolves
+forward-only via `resolveRemoteOutcome` — **the B′ map, not `PHASE_TO_STATUS`**:
+
+⚠️ **Do not sort by `created_remote` ASC with a small cap.** Confirmed/shipped stay in
+`STATUS_OPEN` until MEX marks them paid/returned, so they accumulate. On 2026-08-20 that
+filled the original 500-row window (377 confirmed + 97 shipped + 26 call_again, **zero
+pendings**). Every pending created after 08:25 UTC that day — all of 21–22 Aug — sat
+`pending` while AlterCPA had already approved/cancelled/trashed them. The run log looked
+healthy (`fetched: 500`, `orders_updated: 0`). `skipped.candidates_total` vs
+`candidates_scanned` is how you see the next freeze. Do not drop confirmed/shipped from
+the set — an AlterCPA cancel on an unshipped confirmed sale still has to land.
 
 **Final doctrine (2026-08-11, after two same-day corrections): AlterCPA decides only whether a
 sale is CONFIRMED or dead; MEX alone decides shipped/paid/returned.** An order may show
@@ -271,6 +286,8 @@ date to get right**. Do not invent a new key.
   its NAME. A token can read every order in the account — never put it in a table or a body.
 - **`altercpa_*` tables are admin/manager only**, deliberately NOT `is_internal_staff`:
   `payload` holds every competing webmaster's volumes and customer PII across every geo.
+- **Status-kind candidate selection must prefer the calling queue and rotate.** See the
+  2026-08-20 starvation above. Never go back to `created_remote ASC` + 500.
 
 ## The window is CREATION time (measured 2026-08-06)
 

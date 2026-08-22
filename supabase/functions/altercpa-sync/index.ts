@@ -5,7 +5,7 @@
  *   header: x-altercpa-sync-secret: <ALTERCPA_SYNC_SECRET>
  *   body:   { account?: string, kind?: 'rolling'|'nightly'|'weekly'|'backfill'|'manual'|'status',
  *             from?: <ISO or epoch s>, to?: <ISO or epoch s>, dry?: boolean,
- *             limit?: number }   // status only: cap on candidates per run
+ *             limit?: number }   // status only: cap on candidates per run (default 2000)
  *
  * Called by pg_cron every 2 minutes (rolling), nightly and weekly (sweeps),
  * every 5 minutes 07:00–20:55 Skopje ('status' — resolves imported pendings
@@ -83,13 +83,31 @@ serve(async (req: Request) => {
   }
   const dry = body.dry === true;
   const limitRaw = Number(body.limit);
-  const limit = Number.isFinite(limitRaw) && limitRaw >= 1 ? Math.min(Math.floor(limitRaw), 2000) : 500;
+  // Default 2000: the 500 cap + created_remote ASC starved every pending after
+  // 2026-08-20 08:25 UTC — confirmed/shipped filled the window and never left
+  // STATUS_OPEN. Hard max stays 2000 (altercpaSyncSchema).
+  const limit = Number.isFinite(limitRaw) && limitRaw >= 1 ? Math.min(Math.floor(limitRaw), 2000) : 2000;
 
   const admin = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     { auth: { persistSession: false } },
   );
+
+  // Nightly/weekly have been dying mid-sweep since 2026-08-10 (edge wall-clock)
+  // and leaving status='running' forever. pg_cron still reports success because
+  // invoke_altercpa_sync is fire-and-forget. Mark those failed so the run log
+  // stops looking healthy.
+  if (!dry) {
+    await admin.from("altercpa_sync_runs")
+      .update({
+        status: "failed",
+        error: "stale: still running after 10 minutes (edge function likely timed out)",
+        finished_at: new Date().toISOString(),
+      })
+      .eq("status", "running")
+      .lt("started_at", new Date(Date.now() - 10 * 60 * 1000).toISOString());
+  }
 
   const accountRef = s(body.account, 200);
   let q = admin.from("altercpa_accounts").select("*").eq("is_active", true);
@@ -438,6 +456,14 @@ async function upsertLead(
       stats.skipped.adopted_existing_order = (stats.skipped.adopted_existing_order || 0) + 1;
     }
   }
+  // skip ≠ leave stale. Under pending_only a lead that resolves inside the
+  // rolling overlap gets skip_reason='not_pending' and used to skip upsertOrder
+  // entirely — ledger phase 3/4/5, CRM still pending — because outcomes were
+  // delegated to the status kind. When that kind is starved (2026-08-20) the
+  // 45-minute window writes the truth and never applies it. Apply B′ here too.
+  if (row.skip_reason === "not_pending" && orderId) {
+    await applyOutcomeToExistingOrder(admin, account, orderId, o, stats);
+  }
   row.order_id = orderId;
 
   if (existing) {
@@ -725,6 +751,121 @@ async function upsertOrder(
  * returned; terminal statuses are excluded, so our own dedupe/cancel decisions
  * permanently outrank a later remote change. */
 const STATUS_OPEN = ["pending", "take", "call_again", "confirmed", "shipped", "delivered"];
+/** Calling-queue first: confirmed/shipped stay in STATUS_OPEN until MEX
+ * settles them, so oldest-first used to fill the whole cap with them and
+ * starve every pending created after ~2026-08-20 08:25 UTC. */
+const STATUS_CALLING = ["pending", "take", "call_again"];
+const STATUS_FULFILMENT = ["confirmed", "shipped", "delivered"];
+
+const CANDIDATE_SELECT =
+  "id, altercpa_id, phase, status, order_id, last_seen_at, orders!inner(id, status, assigned_agent_id, confirmed_at, quantity, price, call_again_since)";
+
+function embedOrder(c: { orders?: unknown }) {
+  const o = c.orders as unknown;
+  return (Array.isArray(o) ? o[0] : o) as {
+    id: string; status: string; assigned_agent_id: string | null;
+    confirmed_at: string | null; quantity: number; price: number;
+    call_again_since: string | null;
+  } | undefined;
+}
+
+async function countOpenLeads(
+  admin: SupabaseClient,
+  accountId: string,
+  statuses: string[],
+): Promise<number> {
+  const { count, error } = await admin.from("altercpa_leads")
+    .select("id, orders!inner(id)", { count: "exact", head: true })
+    .eq("account_id", accountId)
+    .not("order_id", "is", null)
+    .in("orders.status", statuses);
+  if (error) throw new Error(`status candidate count: ${error.message}`);
+  return count ?? 0;
+}
+
+async function fetchOpenLeads(
+  admin: SupabaseClient,
+  accountId: string,
+  statuses: string[],
+  limit: number,
+) {
+  if (limit <= 0) return [];
+  // Rotate by last_seen_at, not created_remote: oldest-first pinned the same
+  // 500 confirmed/shipped forever (they never leave STATUS_OPEN).
+  const { data, error } = await admin.from("altercpa_leads")
+    .select(CANDIDATE_SELECT)
+    .eq("account_id", accountId)
+    .not("order_id", "is", null)
+    .in("orders.status", statuses)
+    .order("last_seen_at", { ascending: true, nullsFirst: true })
+    .limit(limit);
+  if (error) throw new Error(`status candidates: ${error.message}`);
+  return data || [];
+}
+
+/**
+ * B′ apply onto an order that already exists. Used by the rolling path when
+ * pending_only stamps skip_reason='not_pending' — that skip means "do not
+ * CREATE", never "leave the existing row pending". Silent when there is
+ * nothing to do (still open, already matching, guarded, terminal).
+ */
+async function applyOutcomeToExistingOrder(
+  admin: SupabaseClient,
+  account: Record<string, any>,
+  orderId: string,
+  o: AlterCpaOrder,
+  stats: { orders_updated: number; skipped: Record<string, number> },
+) {
+  const mode = String(account.status_mirror || "off");
+  if (mode === "off") return;
+  const { data: order } = await admin.from("orders")
+    .select("id, status, confirmed_at, quantity, price, call_again_since")
+    .eq("id", orderId)
+    .maybeSingle();
+  if (!order) return;
+  const cur = String(order.status);
+  const target = resolveRemoteOutcome(o, cur);
+  if (target == null || target === cur) return;
+  if (CRM_TERMINAL.has(cur)) return;
+  if ((CRM_STATUS_RANK[target] ?? 0) <= (CRM_STATUS_RANK[cur] ?? 0)) return;
+  const untouched = !order.confirmed_at && cur !== "take";
+  if (!(mode === "always" || untouched)) {
+    stats.skipped.guarded = (stats.skipped.guarded || 0) + 1;
+    return;
+  }
+  const phase = Number(o.phase) || null;
+  const reason = Number(o.reason) || 0;
+  const upd: Record<string, unknown> = { status: target, ...outcomeTimestamps(o, target) };
+  if (target === "cancelled" && reason > 0) {
+    const r = crmReasonFor("cancel", reason, o.comment);
+    upd.cancellation_reason = r.value;
+    if (r.notes) upd.cancellation_reason_notes = r.notes;
+  } else if (target === "trashed" && reason > 0) {
+    const r = crmReasonFor("trash", reason, o.comment);
+    upd.trash_reason = r.value;
+    if (r.notes) upd.trash_reason_notes = r.notes;
+  }
+  const { error: updErr } = await admin.from("orders").update(upd).eq("id", order.id);
+  if (updErr) throw new Error(`rolling outcome ${o.id}: ${updErr.message}`);
+  await admin.from("order_history").insert({
+    order_id: order.id,
+    from_status: cur,
+    to_status: target,
+    changed_by: null,
+    changed_by_name: `System (altercpa:${account.name})`,
+  });
+  if (target === "confirmed" && phase === 4) {
+    await admin.from("order_notes").insert({
+      order_id: order.id,
+      text: `AlterCPA cancelled (${REASON[reason] ?? reason}) — confirmed disposition per the 2026-08-11 manager rule; status set to confirmed. MEX tracking will move it to shipped/paid/returned.`
+        + (s(o.comment, 300) ? ` Their comment: ${s(o.comment, 300)}` : ""),
+      author_id: null,
+      author_name: "System",
+    });
+    stats.skipped.cancel_other_confirmed = (stats.skipped.cancel_other_confirmed || 0) + 1;
+  }
+  stats.orders_updated++;
+}
 
 /**
  * kind='status' — chase outcomes for already-imported pendings.
@@ -766,26 +907,34 @@ async function syncStatusAccount(
   // Ledger rows linked to a still-open order. `orders!inner` is load-bearing:
   // without it the .in() filter on the embed does not restrict the parent rows
   // and every linked lead would come back regardless of order status.
-  const { data: candidates, error: candErr } = await admin
-    .from("altercpa_leads")
-    .select("id, altercpa_id, phase, status, order_id, orders!inner(id, status, assigned_agent_id, confirmed_at, quantity, price, call_again_since)")
-    .eq("account_id", account.id)
-    .not("order_id", "is", null)
-    .in("orders.status", STATUS_OPEN)
-    .order("created_remote", { ascending: true })
-    .limit(limit);
-  if (candErr) throw new Error(`status candidates: ${candErr.message}`);
+  //
+  // Calling-queue first, then fulfilment, each rotated by last_seen_at.
+  // created_remote ASC + 500 cap (the original query) filled the window with
+  // confirmed/shipped and never scanned a pending after 2026-08-20 08:25 UTC.
+  const [callingTotal, fulfilmentTotal] = await Promise.all([
+    countOpenLeads(admin, account.id, STATUS_CALLING),
+    countOpenLeads(admin, account.id, STATUS_FULFILMENT),
+  ]);
+  const callingRows = await fetchOpenLeads(admin, account.id, STATUS_CALLING, limit);
+  const fulfilmentRows = await fetchOpenLeads(
+    admin, account.id, STATUS_FULFILMENT, Math.max(0, limit - callingRows.length),
+  );
+  const candidates = [...callingRows, ...fulfilmentRows];
+  const candidatesTotal = callingTotal + fulfilmentTotal;
 
   const stats = {
     fetched: 0, ledger_new: 0, ledger_updated: 0,
     orders_created: 0, orders_updated: 0,
-    skipped: {} as Record<string, number>,
+    skipped: {
+      candidates_total: candidatesTotal,
+      candidates_scanned: candidates.length,
+    } as Record<string, number>,
   };
   const bump = (k: string) => { stats.skipped[k] = (stats.skipped[k] || 0) + 1; };
   const preview: unknown[] = [];
 
-  if (!candidates?.length) {
-    return { account: account.name, status: "ok", dry, mode, candidates: 0, ...stats };
+  if (!candidates.length) {
+    return { account: account.name, status: "ok", dry, mode, candidates: 0, candidates_total: 0, ...stats };
   }
 
   // Run log opened before the fetch, same as the windowed kinds. window_from =
@@ -815,8 +964,16 @@ async function syncStatusAccount(
   }
   stats.fetched = byId.size;
 
+  // Supabase's edge gateway 504s at ~150s. A 2000-oid catch-up with hundreds
+  // of order writes exceeds that (proved 2026-08-22: calling queue applied,
+  // run row left 'running'). Stop with ~40s of headroom and still write the
+  // log; last_seen_at rotation continues next tick.
+  const BUDGET_MS = 110_000;
+
   for (const c of candidates as any[]) {
-    const order = c.orders;
+    if (Date.now() - startedMs > BUDGET_MS) { bump("budget_exhausted"); break; }
+    const order = embedOrder(c);
+    if (!order) { bump("missing_order"); continue; }
     const o = byId.get(String(c.altercpa_id));
     if (!o) { bump("missing_remote"); continue; }        // deleted on their side
 
@@ -1047,7 +1204,7 @@ async function syncStatusAccount(
 
   return {
     account: account.name, status: "ok", dry, mode,
-    candidates: candidates.length, ...stats,
+    candidates: candidates.length, candidates_total: candidatesTotal, ...stats,
     ...(dry ? { preview } : {}),
     splits,
   };

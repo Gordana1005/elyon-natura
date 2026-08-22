@@ -202,8 +202,14 @@ path remains only for ADDRESS backfill (the API withholds `receiver_address`).
 `invoke_altercpa_status_sync()` gates on `hour(Europe/Skopje) BETWEEN 7 AND 20` — i.e. it works
 07:00–20:55 local, DST-proof, and pre-gates on any active account having
 `status_mirror <> 'off'`. Each run takes the ledger rows linked to still-open orders
-(`pending/take/call_again/confirmed/shipped/delivered`, oldest first, `limit` 500 default) and
-re-reads exactly those ids with `comp/list.json?oid=…` in batches of 100.
+(`pending/take/call_again` first, then `confirmed/shipped/delivered`, rotated by
+`last_seen_at`, `limit` 2000 default) and re-reads exactly those ids with
+`comp/list.json?oid=…` in batches of 100.
+
+⚠️ The original query (`created_remote ASC`, cap 500) starved every pending after
+2026-08-20 08:25 UTC: confirmed/shipped filled the window and never leave `STATUS_OPEN`
+until MEX settles them. Do not restore that sort. The run log's `skipped.candidates_total`
+vs `candidates_scanned` is the freeze detector.
 
 **The window is CREATION time** — measured 2026-08-06 with `scripts/probe-altercpa-window.mjs`:
 re-fetching a month captured in August returns exactly the same id set. So the rolling poll sees
