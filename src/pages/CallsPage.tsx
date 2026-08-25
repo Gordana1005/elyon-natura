@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { apiGetOrder, apiGetOrders, apiCreateOrder, apiUpdateOrderStatus, apiReleaseActiveView, apiLookupPersonalHold, apiReleasePersonalHold, apiLogCall, apiGetMyPendingsSummary, apiGetOpenLead, apiGetMyCallObligation, apiRegisterCallObligation, type CancellationReason, type TrashReason, type OpenLead } from '@/lib/api';
+import { apiGetOrder, apiGetOrders, apiCreateOrder, apiUpdateOrderStatus, apiReleaseActiveView, apiLookupPersonalHold, apiReleasePersonalHold, apiLogCall, apiGetMyPendingsSummary, apiGetOpenLead, apiGetMyCallObligation, apiRegisterCallObligation, apiClaimCallback, type CancellationReason, type TrashReason, type OpenLead } from '@/lib/api';
 import { cancelReasonLabel } from '@/lib/cancellationReasons';
 import { useTranslation } from 'react-i18next';
 import { useVoip, type LinkedContext } from '@/contexts/VoipContext';
@@ -25,6 +25,7 @@ import { useActiveCallView } from '@/hooks/useActiveCallView';
 import { hoverLift } from '@/lib/design-utils';
 import { isSyntheticProductName } from '@/lib/utils';
 import { EmptyState } from '@/components/EmptyState';
+import { sortPendingQueue, pickNextPending as pickNextFromSorted } from '@/lib/pendingQueue';
 
 // Link the call only to an order a call outcome can legitimately act on
 // (pending → confirm/cancel, etc.). Finished orders — paid, shipped, delivered,
@@ -175,33 +176,18 @@ export default function CallsPage() {
     refetchInterval: 30_000,
   });
 
-  // Queue order, and this is where the paced retry now lives:
-  //   1. fresh leads (pending / take) — warm, always first
-  //   2. call agains whose retry time has passed — due now
-  //   3. call agains still parked — visible, but last, so an agent only reaches
-  //      them once the real work is done rather than ringing a customer twice
-  //      in an hour. Within each band: parked by soonest due, others newest first.
-  const LEAD_ORDER: Record<string, number> = { pending: 0, take: 1, call_again: 2 };
-  const isParked = (o: any) => !!o.next_call_after && new Date(o.next_call_after).getTime() > Date.now();
-  const pendingOrders = useMemo(() => {
-    const raw = (pendingData as any)?.orders || [];
-    return [...raw].sort((a, b) => {
-      const parked = Number(isParked(a)) - Number(isParked(b));
-      if (parked !== 0) return parked;
-      const rank = (LEAD_ORDER[a.status] ?? 9) - (LEAD_ORDER[b.status] ?? 9);
-      if (rank !== 0) return rank;
-      if (isParked(a) && isParked(b)) {
-        return new Date(a.next_call_after).getTime() - new Date(b.next_call_after).getTime();
-      }
-      const aTime = new Date(a.assigned_at || a.created_at || 0).getTime();
-      const bTime = new Date(b.assigned_at || b.created_at || 0).getTime();
-      return bTime - aTime;
-    });
-  }, [pendingData]);
+  // Queue order (see src/lib/pendingQueue.ts):
+  //   1. fresh leads (pending / take) — always first
+  //   2. call agains last (oldest waiting first)
+  // Parked rows (next_call_after in the future) stay last; leads keep
+  // next_call_after NULL so they never hide, they just sort behind fresh.
+  const pendingOrders = useMemo(
+    () => sortPendingQueue((pendingData as any)?.orders || []),
+    [pendingData],
+  );
 
   const pickNextPending = useCallback((excludeId?: string | null) => {
-    if (!pendingOrders.length) return null;
-    return pendingOrders.find((o: any) => o.id !== excludeId) || null;
+    return pickNextFromSorted(pendingOrders, excludeId);
   }, [pendingOrders]);
 
   // True once the user DELIBERATELY picked a prediction list from the dropdown.
@@ -281,6 +267,23 @@ export default function CallsPage() {
     [pendingsQueueEntry, queues],
   );
 
+  // Opening a callback (search, Call Again, Personal List) takes it immediately
+  // even if another agent still holds it — so it never sits on an offline account.
+  // No-op when the phone is not a call_again lead / prediction member.
+  const takeCallback = useCallback((phone: string) => {
+    if (!phone) return;
+    void apiClaimCallback(phone)
+      .then((res) => {
+        if (!res?.claimed) return;
+        qc.invalidateQueries({ queryKey: ['calls-page-pendings', user?.id] });
+        qc.invalidateQueries({ queryKey: ['my-pendings-summary', user?.id] });
+        qc.invalidateQueries({ queryKey: ['my-queue-summary'] });
+        qc.invalidateQueries({ queryKey: ['call-again-queue'] });
+        toast({ title: t('callsPage.callbackClaimed'), description: t('callsPage.callbackClaimedDesc') });
+      })
+      .catch(() => { /* never block opening a customer */ });
+  }, [qc, user?.id, toast, t]);
+
   // If we navigated here with ?phone= (e.g. from Personal List or Call Again),
   // honour it as the starting customer instead of auto-picking a queue.
   useEffect(() => {
@@ -295,11 +298,12 @@ export default function CallsPage() {
     setHandOpenedPhone(fromUrl);
     setCurrentSource('manual');
     setCurrentPendingOrderId(null);
+    takeCallback(fromUrl);
     // Strip the param so a manual refresh doesn't reopen the same customer.
     const next = new URLSearchParams(searchParams);
     next.delete('phone');
     setSearchParams(next, { replace: true });
-  }, [searchParams, setSearchParams]);
+  }, [searchParams, setSearchParams, takeCallback]);
 
   // Auto-pick the first non-empty queue on mount / when queues load. Pendings
   // win outright: leads are always the priority, and selecting the queue here
@@ -415,6 +419,7 @@ export default function CallsPage() {
     setCurrentSource('manual');
     setCurrentPendingOrderId(null);
     setManualPhoneDraft('');
+    takeCallback(next);
     startCall(next, null, callerIds?.secondary || callerIds?.primary || undefined);
   };
 
@@ -973,6 +978,7 @@ export default function CallsPage() {
   // and polluted conversion insights).
   const handleAnswerDidntAnswer = useCallback(async () => {
     const phone = selectedPhone;
+    const disposedId = currentPendingOrderId ?? activePendingOrder?.id ?? null;
     try {
       await apiLogCall({
         context_type: 'standalone',
@@ -983,6 +989,21 @@ export default function CallsPage() {
       });
       toast({ title: t('callsPage.movedToCallAgain'), description: t('callsPage.noAnswerResurface') });
       try { await apiReleaseActiveView(phone); } catch { /* best effort */ }
+      // Flip locally before advance so sort already treats this row as
+      // call_again (behind remaining pending/take). Refetch follows.
+      if (disposedId) {
+        qc.setQueryData(['calls-page-pendings', user?.id], (old: any) => {
+          if (!old?.orders) return old;
+          return {
+            ...old,
+            orders: old.orders.map((o: any) =>
+              o.id === disposedId
+                ? { ...o, status: 'call_again', call_again_since: o.call_again_since || new Date().toISOString() }
+                : o,
+            ),
+          };
+        });
+      }
       qc.invalidateQueries({ queryKey: ['calls-page-pendings', user?.id] });
       qc.invalidateQueries({ queryKey: ['my-pendings-summary', user?.id] });
       qc.invalidateQueries({ queryKey: ['calls-page-orders', phone] });
@@ -996,7 +1017,7 @@ export default function CallsPage() {
     } catch (err: any) {
       toast({ title: t('callsPage.noAnswerFailed'), description: err?.message, variant: 'destructive' });
     }
-  }, [selectedPhone, toast, qc, user?.id, advanceQueue, refreshObligation]);
+  }, [selectedPhone, currentPendingOrderId, activePendingOrder, toast, qc, user?.id, advanceQueue, refreshObligation, t]);
 
   // When an order is created from the modal, immediately mark the current
   // queue member done (mapping the chosen status → queue outcome) and advance

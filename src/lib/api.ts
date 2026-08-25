@@ -371,10 +371,13 @@ export const apiBulkDisposition = (
     body: JSON.stringify({ order_ids: orderIds, action, reason, reason_notes: reasonNotes || undefined }),
   });
 
-// Prediction-list call agains as a redistributable pool (Assigner tab). Leads
-// are NOT here on purpose: a lead that didn't answer stays with its own agent.
+// Call agains as a redistributable pool (Assigner tab + lead-distribution).
+// Two sources: prediction no-answers AND pending `call_again` leads. Filter
+// with `source`. Opening one on /calls claims it (`apiClaimCallback`).
 export interface CallAgainMember {
+  source_kind?: 'order' | 'prediction';
   list_id: string;
+  order_id?: string;
   customer_phone: string;
   customer_name: string | null;
   call_again_since: string | null;
@@ -388,17 +391,23 @@ export interface CallAgainMember {
   avg_package_price: number | null;
   prediction_segment_lists?: { name: string; category: string } | null;
 }
-export const apiGetCallAgains = (params?: { page?: number; limit?: number; agent_id?: string }) => {
+export const apiGetCallAgains = (params?: {
+  page?: number;
+  limit?: number;
+  agent_id?: string;
+  source?: 'all' | 'order' | 'prediction';
+}) => {
   const sp = new URLSearchParams();
   if (params?.page) sp.set('page', String(params.page));
   if (params?.limit) sp.set('limit', String(params.limit));
   if (params?.agent_id) sp.set('agent_id', params.agent_id);
+  if (params?.source && params.source !== 'all') sp.set('source', params.source);
   return apiFetch(`call-agains?${sp.toString()}`) as Promise<{
     members: CallAgainMember[]; total: number; page: number; limit: number;
   }>;
 };
 // Members span many lists, so the selection is (list_id, customer_phone) pairs.
-// agent_id = null frees them back to the pool.
+// Pending leads use list_id = `order:<uuid>`. agent_id = null frees them.
 export const apiAssignCallAgains = (
   members: Array<{ list_id: string; customer_phone: string }>,
   agentId: string | null,
@@ -406,6 +415,26 @@ export const apiAssignCallAgains = (
   apiFetch('call-agains/assign', {
     method: 'POST',
     body: JSON.stringify({ members, agent_id: agentId }),
+  });
+
+/** Opening a callback on /calls takes it immediately — even if another agent holds it. Never steals pending/take/confirmed. */
+export const apiClaimCallback = (
+  phone: string,
+): Promise<{ claimed: boolean; orders: number; members: number; reason?: string }> =>
+  apiFetch('call-agains/claim', {
+    method: 'POST',
+    body: JSON.stringify({ phone }),
+  });
+
+/** Round-robin ALL matching callbacks onto named agents, or anyone seen in the last N minutes. */
+export const apiAutoAssignCallAgains = (body: {
+  source?: 'all' | 'order' | 'prediction';
+  online_minutes?: number;
+  agent_ids?: string[];
+}): Promise<{ assigned: number; agents: number; per_agent: Record<string, number>; source: string; reason?: string }> =>
+  apiFetch('call-agains/auto-assign', {
+    method: 'POST',
+    body: JSON.stringify(body),
   });
 
 export interface CreateOrderBody {
@@ -688,6 +717,73 @@ export const apiGetMyOrders = (params: {
   if (params.page) sp.set('page', String(params.page));
   if (params.agent_id) sp.set('agent_id', params.agent_id);
   return apiFetch(`my-orders?${sp.toString()}`);
+};
+
+export interface DayWorkItem {
+  product_name: string;
+  quantity: number;
+  price_per_unit: number;
+  total_price: number;
+}
+export interface DayWorkRow {
+  id: string;
+  display_id: string | null;
+  status: string;
+  price: number;
+  quantity: number | null;
+  product_name: string | null;
+  customer_name: string | null;
+  customer_phone: string | null;
+  customer_address: string | null;
+  customer_city: string | null;
+  postal_code: string | null;
+  notes: string | null;
+  cancellation_reason: string | null;
+  cancellation_reason_notes: string | null;
+  trash_reason: string | null;
+  trash_reason_notes: string | null;
+  confirmed_at: string | null;
+  cancelled_at: string | null;
+  trashed_at: string | null;
+  created_at: string;
+  source_type: string | null;
+  assigned_agent_id: string | null;
+  ship_after_date: string | null;
+  last_to_status: string;
+  last_changed_at: string;
+  order_items: DayWorkItem[] | null;
+}
+export interface DayWorkTotals {
+  n: number;
+  confirmed_n: number;
+  confirmed_sum: number;
+  cancelled_n: number;
+  cancelled_sum: number;
+  trashed_n: number;
+  trashed_sum: number;
+  call_again_n: number;
+}
+export interface DayWorkResponse {
+  orders: DayWorkRow[];
+  total: number;
+  totals: DayWorkTotals;
+  page: number;
+  limit: number;
+  period: string;
+  from: string;
+  to: string;
+}
+export const apiGetMyDayWork = (params: {
+  period: 'today' | 'month' | 'custom'; date?: string;
+  from?: string; to?: string; page?: number; agent_id?: string;
+}): Promise<DayWorkResponse> => {
+  const sp = new URLSearchParams({ period: params.period });
+  if (params.date) sp.set('date', params.date);
+  if (params.from) sp.set('from', params.from);
+  if (params.to) sp.set('to', params.to);
+  if (params.page) sp.set('page', String(params.page));
+  if (params.agent_id) sp.set('agent_id', params.agent_id);
+  return apiFetch(`my-day-work?${sp.toString()}`);
 };
 export const apiGetCeoDashboardStats = (params?: { period?: string; agent_id?: string; from?: string; to?: string }) => {
   const sp = new URLSearchParams();
@@ -1681,6 +1777,8 @@ export interface LeadDistConfig {
   last_run_at: string | null;
   last_run_assigned: number;
   waiting_leads: number;
+  waiting_call_agains: number;
+  call_again_offline_release_minutes: number;
   assigned_today: number;
   last_meaningful_run: LeadDistRun | null;
   candidates: LeadDistCandidate[];
@@ -1709,7 +1807,8 @@ export interface LeadDistParticipant {
 export const apiGetLeadDistributionConfig = (): Promise<LeadDistConfig> => apiFetch('lead-distribution-config');
 export const apiUpdateLeadDistributionConfig = (body: Partial<Pick<LeadDistConfig,
   'strategy' | 'is_active' | 'max_leads_per_agent' | 'priority_threshold' | 'respect_online' |
-  'include_prediction_load' | 'participating_roles' | 'working_hours_only' | 'order_direction'>>) =>
+  'include_prediction_load' | 'participating_roles' | 'working_hours_only' | 'order_direction' |
+  'call_again_offline_release_minutes'>>) =>
   apiFetch('lead-distribution-config', { method: 'PATCH', body: JSON.stringify(body) });
 /** dryRun previews the split without writing anything — loads are simulated as it goes. */
 export const apiAutoAssignLeads = (opts?: { limit?: number; dryRun?: boolean }): Promise<LeadDistResult> =>
@@ -1820,7 +1919,7 @@ export const apiGetAssignmentSummary = (): Promise<AssignmentSummary> =>
 export const apiUnassignAllForAgent = (
   agentId: 'all' | string,
   listIds?: string[],
-  opts?: { includePendings?: boolean; includeDone?: boolean },
+  opts?: { includePendings?: boolean; includeDone?: boolean; includeCallAgains?: boolean },
 ): Promise<{ unassigned: number; pendings_unassigned?: number; agent_id: string; per_agent: Record<string, number> }> =>
   apiFetch('assigner/unassign-all', {
     method: 'POST',
@@ -1828,6 +1927,7 @@ export const apiUnassignAllForAgent = (
       agent_id: agentId,
       ...(listIds?.length ? { list_ids: listIds } : {}),
       ...(opts?.includePendings ? { include_pendings: true } : {}),
+      ...(opts?.includeCallAgains ? { include_call_agains: true } : {}),
       ...(opts?.includeDone ? { include_done: true } : {}),
     }),
   });

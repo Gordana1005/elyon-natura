@@ -8,12 +8,14 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import {
   apiGetLeadDistributionConfig, apiUpdateLeadDistributionConfig, apiAutoAssignLeads,
   apiGetLeadRoutingRules, apiSetLeadRoutingRule,
   apiGetLeadDistParticipants, apiSetLeadDistParticipant,
+  apiAutoAssignCallAgains,
   type LeadDistConfig, type LeadDistResult, type LeadDistProductRule, type LeadDistParticipant,
 } from '@/lib/api';
 import { formatEurExact } from '@/lib/currency';
@@ -53,6 +55,11 @@ export default function LeadDistributionPage() {
   const [includePredictionLoad, setIncludePredictionLoad] = useState(false);
   const [workingHoursOnly, setWorkingHoursOnly] = useState(false);
   const [orderDirection, setOrderDirection] = useState<'newest' | 'oldest'>('newest');
+  const [offlineReleaseMins, setOfflineReleaseMins] = useState('15');
+  const [cbSource, setCbSource] = useState<'all' | 'order' | 'prediction'>('all');
+  const [cbMinutes, setCbMinutes] = useState('15');
+  const [cbAgents, setCbAgents] = useState<string[]>([]);
+  const [cbRunning, setCbRunning] = useState(false);
 
   const hydrate = (cfg: LeadDistConfig) => {
     setConfig(cfg);
@@ -63,6 +70,7 @@ export default function LeadDistributionPage() {
     setIncludePredictionLoad(cfg.include_prediction_load);
     setWorkingHoursOnly(cfg.working_hours_only);
     setOrderDirection(cfg.order_direction);
+    setOfflineReleaseMins(String(cfg.call_again_offline_release_minutes ?? 15));
   };
 
   const fetchData = async (withSpinner = true) => {
@@ -102,6 +110,7 @@ export default function LeadDistributionPage() {
         include_prediction_load: includePredictionLoad,
         working_hours_only: workingHoursOnly,
         order_direction: orderDirection,
+        call_again_offline_release_minutes: parseInt(offlineReleaseMins) || 0,
       });
       toast({ title: t('leadDist.configSaved') });
       fetchData(false);
@@ -122,6 +131,31 @@ export default function LeadDistributionPage() {
     } catch (err: any) {
       toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' });
     } finally { setToggling(false); }
+  };
+
+  const handleAutoAssignCallbacks = async (mode: 'online' | 'selected') => {
+    if (mode === 'selected' && cbAgents.length === 0) {
+      toast({ title: t('leadDist.autoAssignNoAgents'), variant: 'destructive' });
+      return;
+    }
+    setCbRunning(true);
+    try {
+      const result = await apiAutoAssignCallAgains({
+        source: cbSource,
+        online_minutes: parseInt(cbMinutes) || 15,
+        agent_ids: mode === 'selected' ? cbAgents : undefined,
+      });
+      if (!result.agents) {
+        toast({ title: t('leadDist.autoAssignNoAgents'), variant: 'destructive' });
+        return;
+      }
+      toast({
+        title: t('leadDist.autoAssignSuccess', { count: result.assigned, agents: result.agents }),
+      });
+      fetchData(false);
+    } catch (err: any) {
+      toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' });
+    } finally { setCbRunning(false); }
   };
 
   const handleRun = async (dryRun: boolean) => {
@@ -241,9 +275,12 @@ export default function LeadDistributionPage() {
         </div>
 
         {/* Live status strip */}
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
           <StatTile icon={<Inbox className="h-4 w-4" />} label={t('leadDist.waitingNow')}
             value={String(config?.waiting_leads ?? 0)} tone={(config?.waiting_leads ?? 0) > 0 && !isActive ? 'warn' : 'default'} />
+          <StatTile icon={<Inbox className="h-4 w-4" />} label={t('leadDist.waitingCallAgains')}
+            value={String(config?.waiting_call_agains ?? 0)}
+            sub={t('leadDist.waitingCallAgainsSub')} />
           <StatTile icon={<CheckCircle2 className="h-4 w-4" />} label={t('leadDist.assignedToday')}
             value={String(config?.assigned_today ?? 0)} />
           <StatTile icon={<Users className="h-4 w-4" />} label={t('leadDist.agentsReady')}
@@ -349,6 +386,11 @@ export default function LeadDistributionPage() {
                   checked={orderDirection === 'newest'}
                   onChange={v => setOrderDirection(v ? 'newest' : 'oldest')}
                 />
+                <div>
+                  <Label className="text-xs">{t('leadDist.offlineReleaseMinutes')}</Label>
+                  <Input type="number" value={offlineReleaseMins} onChange={e => setOfflineReleaseMins(e.target.value)} min="0" max="1440" className="mt-1" />
+                  <p className="text-[10px] text-muted-foreground mt-1">{t('leadDist.offlineReleaseMinutesDesc')}</p>
+                </div>
 
                 <div className="flex flex-wrap items-center gap-3 pt-2">
                   <Button onClick={handleSave} disabled={saving}>
@@ -366,6 +408,71 @@ export default function LeadDistributionPage() {
                 </div>
 
                 {lastResult && <RunResult result={lastResult} reasonText={reasonText} t={t} />}
+              </CardContent>
+            </Card>
+
+            <Card className="border-none shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Clock className="h-4 w-4" /> {t('leadDist.autoAssignCallbacks')}
+                </CardTitle>
+                <CardDescription>{t('leadDist.autoAssignCallbacksDesc')}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <Label className="text-xs">{t('leadDist.callbackSource')}</Label>
+                    <Select value={cbSource} onValueChange={v => setCbSource(v as typeof cbSource)}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{t('callAgainPage.sourceAll')}</SelectItem>
+                        <SelectItem value="order">{t('callAgainPage.sourcePendings')}</SelectItem>
+                        <SelectItem value="prediction">{t('callAgainPage.sourcePrediction')}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">{t('leadDist.autoAssignMinutes')}</Label>
+                    <Select value={cbMinutes} onValueChange={setCbMinutes}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="15">15</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">{t('leadDist.pickAgentsOrOnline')}</p>
+                <AgentPickerChips
+                  agents={agentChips}
+                  selected={cbAgents}
+                  onToggle={(id) => setCbAgents(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
+                  onClear={() => setCbAgents([])}
+                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="secondary"
+                    disabled={cbRunning}
+                    onClick={() => handleAutoAssignCallbacks('online')}
+                    className="gap-2"
+                  >
+                    {cbRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Shuffle className="h-4 w-4" />}
+                    {t('leadDist.autoAssignCallbacksOnline')}
+                  </Button>
+                  <Button
+                    disabled={cbRunning || cbAgents.length === 0}
+                    onClick={() => handleAutoAssignCallbacks('selected')}
+                    className="gap-2"
+                  >
+                    {cbRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Users className="h-4 w-4" />}
+                    {t('leadDist.autoAssignCallbacksToSelected', { count: cbAgents.length })}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

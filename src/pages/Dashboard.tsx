@@ -6,7 +6,7 @@ import i18n from '@/i18n';
 import { AppLayout } from '@/layouts/AppLayout';
 import { ALL_STATUSES, statusLabel } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
-import { apiGetCeoDashboardStats, apiGetDashboardStats, apiGetOrderStats, apiGetAgents, apiGetProducts, apiGetRecentActivity } from '@/lib/api';
+import { apiGetCeoDashboardStats, apiGetDashboardStats, apiGetOrderStats, apiGetAgents, apiGetProducts, apiGetRecentActivity, apiGetMyDayWork } from '@/lib/api';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,7 @@ import {
   PhoneForwarded, ListChecks,
 } from 'lucide-react';
 import { MyOrdersSection } from '@/components/dashboard/MyOrdersSection';
+import { MyDayWorkTable } from '@/components/dashboard/MyDayWorkTable';
 import { formatDate } from '@/i18n/dates';
 import { Link } from 'react-router-dom';
 import {
@@ -381,6 +382,22 @@ export default function Dashboard() {
     refetchInterval: 60000,
   });
 
+  const dayWorkPeriod = agentPeriod === 'start' ? 'custom' as const : agentPeriod === 'custom' ? 'custom' as const : agentPeriod;
+  const dayWorkFrom = agentPeriod === 'start' ? '2000-01-01' : agentRange.from;
+  const dayWorkTo = agentPeriod === 'start' ? todayUtc : agentRange.to;
+  const { data: dayWorkHead } = useQuery({
+    queryKey: ['my-day-work', dayWorkPeriod, agentDate, dayWorkFrom, dayWorkTo, 1],
+    queryFn: () => apiGetMyDayWork({
+      period: dayWorkPeriod,
+      date: agentDate,
+      from: dayWorkFrom,
+      to: dayWorkTo,
+      page: 1,
+    }),
+    enabled: !isAdmin,
+    refetchInterval: 30_000,
+  });
+
   const { data: orderStats } = useQuery({
     queryKey: ['order-stats'],
     queryFn: () => apiGetOrderStats(),
@@ -473,9 +490,6 @@ export default function Dashboard() {
       : agentPeriod === 'month' ? monthStats
       : agentPeriod === 'start' ? startStats
       : customStats;
-    const sales = stats?.deals_won || 0;
-    const cancels = stats?.statusCounts?.cancelled || 0;
-    const trashed = stats?.statusCounts?.trashed || 0;
     const returnsOrders = stats?.returns_orders ?? stats?.statusCounts?.returned ?? 0;
     const packagesReturned = stats?.packages_returned ?? 0;
     // Day navigator: past days only — ▶ is disabled once we're back at today.
@@ -498,13 +512,16 @@ export default function Dashboard() {
     const actPend = act.pendings || EMPTY_ACTIVITY;
     const actPred = act.prediction || EMPTY_ACTIVITY;
     const actTotal = act.__total || EMPTY_ACTIVITY;
+    const sales = actTotal.confirmed || 0;
+    const cancels = actTotal.cancelled || 0;
+    const trashed = actTotal.trashed || 0;
     const predMembers = stats?.prediction_members_total || 0;
-    const callAgainOpen = stats?.call_again_open || 0;
+    const callAgainOpen = actTotal.call_again || stats?.call_again_open || 0;
     // channels.__total has always been fetched and typed and never rendered.
     // It carries the order-lifecycle counts and, notably, revenue_confirmed —
     // the one figure on the operator's list that no screen showed anywhere.
     const chTotal: ChannelStats = stats?.channels?.__total || EMPTY_CHANNEL;
-    const revenueConfirmed = chTotal.revenue_confirmed || 0;
+    const revenueConfirmed = Number(dayWorkHead?.totals?.confirmed_sum ?? chTotal.revenue_confirmed ?? 0);
 
     // Realizacija = of the leads I worked, how many stand confirmed-or-better
     // NOW. The old formula divided sales by call_logs rows — a table holding
@@ -692,7 +709,9 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* My Orders drill-down: Confirmed | Shipped | Paid | Returned */}
+        <MyDayWorkTable period={ordersPeriod} date={agentDate} from={ordersFrom} to={ordersTo} />
+
+        {/* Pipeline chase: Confirmed | Shipped | Paid | Returned */}
         <MyOrdersSection period={ordersPeriod} date={agentDate} from={ordersFrom} to={ordersTo} />
 
         <div className="grid gap-6 lg:grid-cols-3 mb-6">

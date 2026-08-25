@@ -10,7 +10,6 @@ import { AppLayout } from '@/layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { useAuth } from '@/contexts/AuthContext';
 import { apiGetCallAgainQueue, type CallAgainEntry } from '@/lib/api';
 import { formatMoney } from '@/lib/currency';
 import { MobileCard, MobileCardHeader, MobileCardField, MobileCardActions } from '@/components/ui/mobile-card';
@@ -18,8 +17,6 @@ import { cn } from '@/lib/utils';
 
 export default function CallAgainPage() {
   const { t } = useTranslation();
-  const { user } = useAuth();
-  const isAdminOrManager = user?.isAdmin || user?.isManager;
   return (
     <AppLayout title={t('nav.callAgain')}>
       <div className="mx-auto w-full max-w-6xl space-y-4">
@@ -37,15 +34,13 @@ export default function CallAgainPage() {
             <TabsTrigger value="mine" className="gap-1.5">
               <Users className="h-3.5 w-3.5" /> {t('callAgainPage.myQueue')}
             </TabsTrigger>
-            {isAdminOrManager && (
-              <TabsTrigger value="all" className="gap-1.5">
-                <Users className="h-3.5 w-3.5" /> {t('callAgainPage.everyonesQueue')}
-              </TabsTrigger>
-            )}
+            <TabsTrigger value="all" className="gap-1.5">
+              <Users className="h-3.5 w-3.5" /> {t('callAgainPage.everyonesQueue')}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="mine"><QueueTab mine /></TabsContent>
-          {isAdminOrManager && <TabsContent value="all"><QueueTab mine={false} /></TabsContent>}
+          <TabsContent value="all"><QueueTab mine={false} /></TabsContent>
         </Tabs>
       </div>
     </AppLayout>

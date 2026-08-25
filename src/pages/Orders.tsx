@@ -1486,8 +1486,8 @@ export default function Orders() {
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
                     <div className="leading-tight">
-                      <div>{new Date(order.created_at).toLocaleDateString()}</div>
-                      <div className="text-xs text-muted-foreground/70 tabular-nums">{new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                      <div>{new Date(order.confirmed_at || order.cancelled_at || order.trashed_at || order.created_at).toLocaleDateString()}</div>
+                      <div className="text-xs text-muted-foreground/70 tabular-nums">{new Date(order.confirmed_at || order.cancelled_at || order.trashed_at || order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                     </div>
                   </td>
                   <td className="px-4 py-3" onClick={e => e.stopPropagation()}>

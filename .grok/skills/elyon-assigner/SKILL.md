@@ -101,9 +101,14 @@ with no id; every one is a terminal-state legacy import holding historical
 attribution. Scope any such repair to `status IN ('pending','take','call_again')`
 or you erase who sold and who cancelled across the whole order history.
 
-**Call Agains tab** (`CallAgainsPanel.tsx`) redistributes **prediction** call
-agains only. A lead that didn't answer stays in its own agent's Pendings queue
-until they reach the customer — it is never handed out from there.
+**Call Agains tab** (`CallAgainsPanel.tsx`) redistributes **both** sources,
+filterable: prediction no-answers AND pending `call_again` leads. Callbacks
+are pool-owned: any floor agent may open one on `/calls` (search, Call Again,
+typed number) and it is claimed immediately. Never steal `pending` / `take` /
+`confirmed`. Manager can manually assign from this tab or auto-assign the
+whole pool to named agents / anyone seen in the last 10–20 minutes
+(`POST /call-agains/auto-assign`). `/lead-distribution` has the same
+auto-assign action; it is a one-shot, not the continuous engine.
 
 ## The Lead Distribution Engine (2026-08-13) — automatic, continuous
 
@@ -221,8 +226,8 @@ Recent broader improvements:
   - `AgentListMembersRow.tsx` — expandable per-(agent, list) client rows + per-client unassign + 403 handling
   - `AgentPendingLeadsRow.tsx` — expandable pending-leads row + per-order unassign
   - `SegmentMemberTable.tsx` (Avg / pkg dual-currency column), `AgentPickerChips.tsx`, `CrossListBasketBar.tsx`
-- API layer (`src/lib/api.ts`): `apiGetUnassignedPending`, `apiBulkAssignOrders`, `apiBulkUnassignOrders`, `apiGetSegment`, `apiAssignSegmentMembers`, `apiBulkUnassignSegment`, `apiAutoAssignSegment`, `apiGetAssignmentSummary`, `apiUnassignAllForAgent(agentId, listIds?, {includePendings, includeDone})`
-- Backend: `supabase/functions/api/index.ts` — `GET /assigner/assignment-summary`, `POST /assigner/unassign-all`, `GET /agents/online`, segment member endpoints
+- API layer (`src/lib/api.ts`): `apiGetUnassignedPending`, `apiBulkAssignOrders`, `apiBulkUnassignOrders`, `apiGetSegment`, `apiAssignSegmentMembers`, `apiBulkUnassignSegment`, `apiAutoAssignSegment`, `apiGetAssignmentSummary`, `apiUnassignAllForAgent(agentId, listIds?, {includePendings, includeDone})`, `apiGetCallAgains`, `apiAssignCallAgains`, `apiClaimCallback`, `apiAutoAssignCallAgains`
+- Backend: `supabase/functions/api/index.ts` — `GET /assigner/assignment-summary`, `POST /assigner/unassign-all`, `GET /agents/online`, segment member endpoints, `GET /call-agains?source=`, `POST /call-agains/assign`, `POST /call-agains/claim`, `POST /call-agains/auto-assign`
 - RPCs: `assignment_matrix()`, `assigned_pending_counts()`, `agent_workloads()`, `bulk_last_calls()`,
   and the engine's `lead_distribution_candidates()` / `pick_agent_for_lead()` / `assign_one_lead()` / `distribute_pending_leads()`
 - Live agent status: `profiles.voip_state` / `voip_state_at` (migration `20260908000000`), `src/lib/voip/callStateBus.ts`, `POST /presence/heartbeat` — see **Live agent status** below

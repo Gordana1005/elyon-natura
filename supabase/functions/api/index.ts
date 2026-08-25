@@ -5562,8 +5562,40 @@ async function handleRequest(req: Request): Promise<Response> {
       // are visible in the popover with their affiliate names).
       if (cpaStream && cpaStream !== "all") query = query.eq("cpa_stream_id", cpaStream);
       if (leadOnly) query = query.in("source_type", LEAD_SOURCE_TYPES);
-      if (from) query = query.gte("created_at", from);
-      if (to) query = query.lte("created_at", to);
+      const dateField = url.searchParams.get("date_field") || "event";
+      if (from || to) {
+        if (dateField === "created_at") {
+          if (from) query = query.gte("created_at", from);
+          if (to) query = query.lte("created_at", to);
+        } else {
+          const single = status && status !== "all" && !status.includes(",") ? status : null;
+          const stamp =
+            single && ["confirmed", "shipped", "delivered", "paid", "returned"].includes(single) ? "confirmed_at"
+            : single === "cancelled" ? "cancelled_at"
+            : single === "trashed" ? "trashed_at"
+            : single === "call_again" ? "call_again_since"
+            : null;
+          if (stamp) {
+            if (from) query = query.gte(stamp, from);
+            if (to) query = query.lte(stamp, to);
+          } else {
+            const parts: string[] = [];
+            const addRange = (col: string) => {
+              if (from && to) parts.push(`and(${col}.gte.${from},${col}.lte.${to})`);
+              else if (from) parts.push(`${col}.gte.${from}`);
+              else if (to) parts.push(`${col}.lte.${to}`);
+            };
+            addRange("confirmed_at");
+            addRange("cancelled_at");
+            addRange("trashed_at");
+            addRange("call_again_since");
+            if (from && to) {
+              parts.push(`and(confirmed_at.is.null,cancelled_at.is.null,trashed_at.is.null,created_at.gte.${from},created_at.lte.${to})`);
+            }
+            if (parts.length) query = query.or(parts.join(","));
+          }
+        }
+      }
       if (priceMin) {
         const n = Number(priceMin);
         if (Number.isFinite(n)) query = query.gte("price", n);
@@ -8466,6 +8498,61 @@ async function handleRequest(req: Request): Promise<Response> {
           returned: rRes.count || 0,
         },
         tab, period, from: fromDate, to: toDate,
+      });
+    }
+
+    // GET /api/my-day-work?period=today|month|custom&date=&from=&to=&page=&limit=&agent_id=
+    // Agent "what I did in this Skopje window": human confirm/cancel/trash/call_again
+    // from order_history. Clock is the disposition, not orders.created_at.
+    if (req.method === "GET" && path === "my-day-work") {
+      if (!isAgent && !isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      if (!checkUserRateLimit(user.id, "my-day-work", 60)) {
+        return json({ error: "Rate limit exceeded — slow down" }, 429);
+      }
+
+      const periodRaw = url.searchParams.get("period");
+      const period = periodRaw === "month" ? "month" : periodRaw === "custom" ? "custom" : "today";
+      const page = Math.max(1, parseInt(url.searchParams.get("page") || "1") || 1);
+      const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get("limit") || "20") || 20));
+      const agentParam = url.searchParams.get("agent_id");
+      let targetId = user.id;
+      if (agentParam && isAdminOrManager) {
+        if (!UUID_RE.test(agentParam)) return json({ error: "Invalid agent_id" }, 400);
+        targetId = agentParam;
+      }
+
+      const now = new Date();
+      const { fromDate, toDate } = dashboardWindow(
+        period,
+        url.searchParams.get("date"),
+        url.searchParams.get("from"),
+        url.searchParams.get("to"),
+        now,
+      );
+
+      const { data: targetProfile } = await adminClient
+        .from("profiles").select("full_name").eq("user_id", targetId).maybeSingle();
+      const { folded: targetNames } = await ownerNameVariantsFor(adminClient, targetProfile?.full_name);
+
+      const { data: payload, error } = await adminClient.rpc("agent_self_day_orders", {
+        p_owner_id: targetId,
+        p_owner_names: targetNames,
+        p_from: fromDate,
+        p_to: toDate,
+        p_limit: limit,
+        p_offset: (page - 1) * limit,
+      });
+      if (error) return json({ error: sanitizeDbError(error) }, 400);
+      const body = payload && typeof payload === "object" ? payload : { orders: [], total: 0, totals: {} };
+      return json({
+        orders: redactCustomerList(body.orders || [], piiFlags),
+        total: body.total || 0,
+        totals: body.totals || {},
+        page,
+        limit,
+        period,
+        from: fromDate,
+        to: toDate,
       });
     }
 
@@ -12056,7 +12143,9 @@ async function handleRequest(req: Request): Promise<Response> {
     // lazy: anything past its 3-day window is reverted here before we read.
     if (req.method === "GET" && path === "call-again-queue") {
       const mine = url.searchParams.get("mine") !== "false";
-      const restrictToMe = mine || !isAdminOrManager;
+      // Any floor agent may browse the whole callback list — opening one on
+      // /calls claims it. Affiliates never reach this route.
+      const restrictToMe = mine;
       await adminClient.rpc("expire_call_again_window");
 
       // ── Source A: prediction members in an open window ──
@@ -12137,42 +12226,84 @@ async function handleRequest(req: Request): Promise<Response> {
     }
 
     // ── Call Agains as an assignable pool (Assigner tab) ──────────────────
-    //
-    // PREDICTION-LIST call agains only. A lead (AlterCPA/webhook/site) that
-    // didn't answer stays in its agent's own Pendings queue until they reach the
-    // customer — it is never redistributed from here. Prediction call agains are
-    // the opposite: they belong to no single agent's day and the operator wants
-    // to hand them out repeatedly until somebody gets through.
-    //
-    // A member is "in Call Again" while `call_again_since` is set and the row is
-    // not completed; `expire_call_again_window()` clears it after 6 days.
-    // Sorted oldest-waiting-first — the ones going stale are the ones to hand out.
+    // Prediction members AND pending call_again leads. Source filter:
+    //   source=prediction | order | all (default).
     if (req.method === "GET" && path === "call-agains") {
       if (!canViewModule("assigner")) return json({ error: "Forbidden" }, 403);
       const page = Math.max(1, parseInt(url.searchParams.get("page") || "1"));
       const limit = Math.min(200, Math.max(1, parseInt(url.searchParams.get("limit") || "50")));
-      const agentId = url.searchParams.get("agent_id");   // uuid | 'unassigned' | null
+      const agentId = url.searchParams.get("agent_id");
+      const source = url.searchParams.get("source") || "all";
 
       await adminClient.rpc("expire_call_again_window");
 
-      let q = adminClient
-        .from("prediction_segment_members")
-        .select(`
-          list_id, customer_phone, customer_name, call_again_since, last_call_at,
-          last_call_outcome, in_call_again_until, assigned_agent_id, assigned_agent_name,
-          lifetime_value, paid_count, avg_package_price,
-          prediction_segment_lists(name, category)
-        `, { count: "exact" })
-        .not("call_again_since", "is", null)
-        .eq("is_completed", false)
-        .order("call_again_since", { ascending: true })
-        .range((page - 1) * limit, page * limit - 1);
-      if (agentId === "unassigned") q = q.is("assigned_agent_id", null);
-      else if (agentId && agentId !== "all" && UUID_RE.test(agentId)) q = q.eq("assigned_agent_id", agentId);
+      const applyAgent = (q: any) => {
+        if (agentId === "unassigned") return q.is("assigned_agent_id", null);
+        if (agentId && agentId !== "all" && UUID_RE.test(agentId)) return q.eq("assigned_agent_id", agentId);
+        return q;
+      };
 
-      const { data, count, error } = await q;
-      if (error) return json({ error: sanitizeDbError(error) }, 400);
-      return json({ members: data || [], total: count ?? 0, page, limit });
+      const predRows: any[] = [];
+      if (source === "all" || source === "prediction") {
+        let q = adminClient
+          .from("prediction_segment_members")
+          .select(`
+            list_id, customer_phone, customer_name, call_again_since, last_call_at,
+            last_call_outcome, in_call_again_until, assigned_agent_id, assigned_agent_name,
+            lifetime_value, paid_count, avg_package_price,
+            prediction_segment_lists(name, category)
+          `)
+          .not("call_again_since", "is", null)
+          .eq("is_completed", false)
+          .order("call_again_since", { ascending: true })
+          .limit(2000);
+        q = applyAgent(q);
+        const { data, error } = await q;
+        if (error) return json({ error: sanitizeDbError(error) }, 400);
+        for (const m of data || []) predRows.push({ source_kind: "prediction", ...m });
+      }
+
+      const orderRows: any[] = [];
+      if (source === "all" || source === "order") {
+        let q = adminClient
+          .from("orders")
+          .select("id, customer_phone, customer_name, call_again_since, updated_at, assigned_agent_id, assigned_agent_name, product_name, price")
+          .eq("status", "call_again")
+          .in("source_type", LEAD_SOURCE_TYPES)
+          .order("call_again_since", { ascending: true, nullsFirst: false })
+          .limit(2000);
+        q = applyAgent(q);
+        const { data, error } = await q;
+        if (error) return json({ error: sanitizeDbError(error) }, 400);
+        for (const o of data || []) {
+          orderRows.push({
+            source_kind: "order",
+            list_id: `order:${o.id}`,
+            order_id: o.id,
+            customer_phone: o.customer_phone,
+            customer_name: o.customer_name,
+            call_again_since: o.call_again_since,
+            last_call_at: o.updated_at,
+            last_call_outcome: "no_answer",
+            in_call_again_until: null,
+            assigned_agent_id: o.assigned_agent_id,
+            assigned_agent_name: o.assigned_agent_name,
+            lifetime_value: o.price,
+            paid_count: null,
+            avg_package_price: o.price,
+            prediction_segment_lists: { name: o.product_name, category: "order" },
+          });
+        }
+      }
+
+      const merged = [...orderRows, ...predRows].sort((a, b) => {
+        const ta = a.call_again_since ? new Date(a.call_again_since).getTime() : 0;
+        const tb = b.call_again_since ? new Date(b.call_again_since).getTime() : 0;
+        return ta - tb;
+      });
+      const total = merged.length;
+      const start = (page - 1) * limit;
+      return json({ members: merged.slice(start, start + limit), total, page, limit });
     }
 
     // POST /api/call-agains/assign — hand a selection to an agent (or free it).
@@ -12201,13 +12332,36 @@ async function handleRequest(req: Request): Promise<Response> {
       }
 
       const byList = new Map<string, string[]>();
+      const orderIds: string[] = [];
       for (const m of members) {
-        if (!m?.list_id || !m?.customer_phone) continue;
+        if (!m?.list_id) continue;
+        if (m.list_id.startsWith("order:")) {
+          const id = m.list_id.slice("order:".length);
+          if (UUID_RE.test(id)) orderIds.push(id);
+          continue;
+        }
+        if (!m?.customer_phone) continue;
         if (!byList.has(m.list_id)) byList.set(m.list_id, []);
         byList.get(m.list_id)!.push(m.customer_phone);
       }
 
       let assigned = 0;
+      if (orderIds.length) {
+        const nowIso = new Date().toISOString();
+        const { count, error } = await adminClient
+          .from("orders")
+          .update({
+            assigned_agent_id: agentId,
+            assigned_agent_name: agentName,
+            assigned_at: agentId ? nowIso : null,
+            assigned_by: agentId ? user.id : null,
+          }, { count: "exact" })
+          .in("id", orderIds)
+          .eq("status", "call_again")
+          .in("source_type", LEAD_SOURCE_TYPES);
+        if (error) return json({ error: sanitizeDbError(error) }, 400);
+        assigned += count ?? 0;
+      }
       for (const [listId, phones] of byList) {
         // Only the three assignment columns move — never is_completed,
         // last_call_* or the call-again window (elyon-assigner skill).
@@ -12249,6 +12403,210 @@ async function handleRequest(req: Request): Promise<Response> {
       }
 
       return json({ success: true, assigned });
+    }
+
+    // POST /api/call-agains/claim — any agent opening a callback on /calls
+    // takes it immediately (pending call_again lead + prediction member).
+    // Never steals take / pending / confirmed.
+    if (req.method === "POST" && path === "call-agains/claim") {
+      if (!isAgent && !isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      if (!checkUserRateLimit(user.id, "call-agains.claim", 60)) {
+        return json({ error: "Rate limit exceeded — slow down" }, 429);
+      }
+      let body: any;
+      try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
+      const raw = String(body?.phone || "").trim();
+      const digits = raw.replace(/\D/g, "");
+      const last8 = digits.length >= 8 ? digits.slice(-8) : "";
+      if (!last8) return json({ claimed: false, reason: "no_phone" });
+
+      const { data: profile } = await adminClient
+        .from("profiles").select("full_name").eq("user_id", user.id).maybeSingle();
+      const name = profile?.full_name || user.email || null;
+      const nowIso = new Date().toISOString();
+
+      const { data: leads } = await adminClient
+        .from("orders")
+        .select("id, assigned_agent_id")
+        .ilike("customer_phone", `%${last8}`)
+        .eq("status", "call_again")
+        .in("source_type", LEAD_SOURCE_TYPES)
+        .limit(5);
+      let claimedOrders = 0;
+      for (const o of leads || []) {
+        if (o.assigned_agent_id === user.id) continue;
+        const { count } = await adminClient
+          .from("orders")
+          .update({
+            assigned_agent_id: user.id,
+            assigned_agent_name: name,
+            assigned_at: nowIso,
+            assigned_by: user.id,
+          }, { count: "exact" })
+          .eq("id", o.id)
+          .eq("status", "call_again");
+        claimedOrders += count ?? 0;
+      }
+
+      const { data: members } = await adminClient
+        .from("prediction_segment_members")
+        .select("list_id, customer_phone, assigned_agent_id")
+        .ilike("customer_phone", `%${last8}`)
+        .not("call_again_since", "is", null)
+        .eq("is_completed", false)
+        .limit(10);
+      let claimedMembers = 0;
+      for (const m of members || []) {
+        if (m.assigned_agent_id === user.id) continue;
+        const { count } = await adminClient
+          .from("prediction_segment_members")
+          .update({
+            assigned_agent_id: user.id,
+            assigned_agent_name: name,
+            assigned_at: nowIso,
+          }, { count: "exact" })
+          .eq("list_id", m.list_id)
+          .eq("customer_phone", m.customer_phone)
+          .not("call_again_since", "is", null)
+          .eq("is_completed", false);
+        claimedMembers += count ?? 0;
+      }
+
+      const claimed = claimedOrders + claimedMembers > 0;
+      if (claimed) {
+        await audit(adminClient, user.id, user.email, "call_agains.claim", {
+          target_type: "callback",
+          target_name: last8,
+          payload: { orders: claimedOrders, members: claimedMembers },
+        });
+      }
+      return json({ claimed, orders: claimedOrders, members: claimedMembers });
+    }
+
+    // POST /api/call-agains/auto-assign — round-robin ALL matching callbacks
+    // onto named agents, or onto anyone seen in the last N minutes.
+    if (req.method === "POST" && path === "call-agains/auto-assign") {
+      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      if (!checkUserRateLimit(user.id, "assigner.unassign", 10)) {
+        return json({ error: "Rate limit exceeded — try again in a minute" }, 429);
+      }
+      let body: any;
+      try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
+      const source = body?.source === "order" || body?.source === "prediction" ? body.source : "all";
+      const minutes = Math.min(120, Math.max(1, Math.floor(Number(body?.online_minutes) || 15)));
+      const requestedIds: string[] = Array.isArray(body?.agent_ids)
+        ? body.agent_ids.filter((id: any) => typeof id === "string" && UUID_RE.test(id))
+        : [];
+
+      let agents: { user_id: string; full_name: string }[] = [];
+      if (requestedIds.length) {
+        const { data } = await adminClient
+          .from("profiles")
+          .select("user_id, full_name")
+          .in("user_id", requestedIds)
+          .eq("is_active", true);
+        agents = data || [];
+      } else {
+        const since = new Date(Date.now() - minutes * 60_000).toISOString();
+        const { data: seen } = await adminClient
+          .from("profiles")
+          .select("user_id, full_name")
+          .eq("is_active", true)
+          .gte("last_seen_at", since);
+        const ids = (seen || []).map((p: any) => p.user_id);
+        if (ids.length) {
+          const { data: roles } = await adminClient.from("user_roles").select("user_id, role").in("user_id", ids);
+          const FLOOR = new Set(["pending_agent", "agent", "prediction_agent", "inbound_agent"]);
+          const skip = new Set((roles || []).filter((r: any) => r.role === "admin" || r.role === "manager").map((r: any) => r.user_id));
+          const floor = new Set((roles || []).filter((r: any) => FLOOR.has(r.role)).map((r: any) => r.user_id));
+          agents = (seen || []).filter((p: any) => floor.has(p.user_id) && !skip.has(p.user_id));
+        }
+      }
+      if (!agents.length) return json({ assigned: 0, agents: 0, reason: "no_agents" });
+
+      const pool: Array<{ kind: "order" | "prediction"; id?: string; list_id?: string; phone?: string }> = [];
+      if (source === "all" || source === "order") {
+        const { data } = await adminClient
+          .from("orders")
+          .select("id")
+          .eq("status", "call_again")
+          .in("source_type", LEAD_SOURCE_TYPES)
+          .order("call_again_since", { ascending: true, nullsFirst: false })
+          .limit(2000);
+        for (const o of data || []) pool.push({ kind: "order", id: o.id });
+      }
+      if (source === "all" || source === "prediction") {
+        const { data } = await adminClient
+          .from("prediction_segment_members")
+          .select("list_id, customer_phone")
+          .not("call_again_since", "is", null)
+          .eq("is_completed", false)
+          .order("call_again_since", { ascending: true })
+          .limit(2000);
+        for (const m of data || []) pool.push({ kind: "prediction", list_id: m.list_id, phone: m.customer_phone });
+      }
+
+      const nowIso = new Date().toISOString();
+      type Bucket = { orders: string[]; members: Map<string, string[]> };
+      const buckets: Bucket[] = agents.map(() => ({ orders: [], members: new Map() }));
+      for (let i = 0; i < pool.length; i++) {
+        const b = buckets[i % agents.length];
+        const item = pool[i];
+        if (item.kind === "order" && item.id) b.orders.push(item.id);
+        else if (item.kind === "prediction" && item.list_id && item.phone) {
+          if (!b.members.has(item.list_id)) b.members.set(item.list_id, []);
+          b.members.get(item.list_id)!.push(item.phone);
+        }
+      }
+
+      let assigned = 0;
+      const perAgent: Record<string, number> = {};
+      const CHUNK = 200;
+      for (let a = 0; a < agents.length; a++) {
+        const agent = agents[a];
+        const b = buckets[a];
+        let n = 0;
+        for (let i = 0; i < b.orders.length; i += CHUNK) {
+          const ids = b.orders.slice(i, i + CHUNK);
+          const { count } = await adminClient
+            .from("orders")
+            .update({
+              assigned_agent_id: agent.user_id,
+              assigned_agent_name: agent.full_name,
+              assigned_at: nowIso,
+              assigned_by: user.id,
+            }, { count: "exact" })
+            .in("id", ids)
+            .eq("status", "call_again");
+          n += count ?? 0;
+        }
+        for (const [listId, phones] of b.members) {
+          for (let i = 0; i < phones.length; i += CHUNK) {
+            const slice = phones.slice(i, i + CHUNK);
+            const { count } = await adminClient
+              .from("prediction_segment_members")
+              .update({
+                assigned_agent_id: agent.user_id,
+                assigned_agent_name: agent.full_name,
+                assigned_at: nowIso,
+              }, { count: "exact" })
+              .eq("list_id", listId)
+              .in("customer_phone", slice)
+              .not("call_again_since", "is", null)
+              .eq("is_completed", false);
+            n += count ?? 0;
+          }
+        }
+        assigned += n;
+        perAgent[agent.user_id] = n;
+      }
+
+      await audit(adminClient, user.id, user.email, "call_agains.auto_assign", {
+        target_type: "callback",
+        target_name: `${assigned} → ${agents.length} agents`,
+        payload: { source, minutes, agent_ids: agents.map((a) => a.user_id), assigned, per_agent: perAgent },
+      });
+      return json({ assigned, agents: agents.length, per_agent: perAgent, source });
     }
 
     // ============================================================
@@ -13452,8 +13810,13 @@ async function handleRequest(req: Request): Promise<Response> {
           oQuery = oQuery.in("status", ["confirmed", "shipped", "delivered", "paid"]);
         }
         if (agentFilter && agentFilter !== "all") oQuery = oQuery.eq("assigned_agent_id", agentFilter);
-        if (from) oQuery = oQuery.gte("created_at", from);
-        if (to) oQuery = oQuery.lte("created_at", to);
+        if (from && to) {
+          oQuery = oQuery.or(`and(confirmed_at.gte.${from},confirmed_at.lte.${to}),and(confirmed_at.is.null,created_at.gte.${from},created_at.lte.${to})`);
+        } else if (from) {
+          oQuery = oQuery.or(`confirmed_at.gte.${from},and(confirmed_at.is.null,created_at.gte.${from})`);
+        } else if (to) {
+          oQuery = oQuery.or(`confirmed_at.lte.${to},and(confirmed_at.is.null,created_at.lte.${to})`);
+        }
         if (productFilter) oQuery = oQuery.ilike("product_name", `%${productFilter}%`);
         // Apply source filter
         if (sourceFilter === "order") {
@@ -15325,6 +15688,7 @@ async function handleRequest(req: Request): Promise<Response> {
         : [];
       const listIds: string[] | null = requestedLists.length > 0 ? requestedLists : null;
       const includePendings: boolean = body?.include_pendings === true && !listIds;
+      const includeCallAgains: boolean = body?.include_call_agains === true && !listIds;
       const includeDone: boolean = body?.include_done === true;
 
       // Snapshot the breakdown BEFORE the wipe — after the update these numbers
@@ -15377,6 +15741,25 @@ async function handleRequest(req: Request): Promise<Response> {
         pendingsUnassigned = pendCount ?? 0;
       }
 
+      // Pending call-agains: same assignment triple, never take/confirmed/import.
+      // Default off from the UI so a live floor is not surprised.
+      let callAgainsUnassigned = 0;
+      if (includeCallAgains) {
+        let cq = adminClient
+          .from("orders")
+          .update(
+            { assigned_agent_id: null, assigned_agent_name: null, assigned_at: null, assigned_by: null },
+            { count: "exact" },
+          )
+          .not("assigned_agent_id", "is", null)
+          .eq("status", "call_again")
+          .in("source_type", LEAD_SOURCE_TYPES);
+        if (agentId !== "all") cq = cq.eq("assigned_agent_id", agentId);
+        const { error: caError, count: caCount } = await cq;
+        if (caError) return json({ error: sanitizeDbError(caError) }, 400);
+        callAgainsUnassigned = caCount ?? 0;
+      }
+
       const who = agentId === "all"
         ? `all agents (${Object.keys(perAgent).length})`
         : (await adminClient.from("profiles").select("full_name").eq("user_id", agentId).maybeSingle()).data?.full_name || agentId;
@@ -15384,18 +15767,26 @@ async function handleRequest(req: Request): Promise<Response> {
       await audit(adminClient, user.id, user.email, "assigner.unassign_all", {
         target_type: "prediction_segment_members",
         target_id: agentId,
-        target_name: `${count ?? 0} clients${includePendings ? ` + ${pendingsUnassigned} pendings` : ""} freed from ${who}`,
+        target_name: `${count ?? 0} clients${includePendings ? ` + ${pendingsUnassigned} pendings` : ""}${includeCallAgains ? ` + ${callAgainsUnassigned} call-agains` : ""} freed from ${who}`,
         payload: {
           agent_id: agentId,
           list_ids: listIds,
           include_done: includeDone,
+          include_call_agains: includeCallAgains,
           unassigned: count ?? 0,
           per_agent: perAgent,
           ...(includePendings ? { pendings_unassigned: pendingsUnassigned, per_agent_pendings: perAgentPendings } : {}),
+          ...(includeCallAgains ? { call_agains_unassigned: callAgainsUnassigned } : {}),
         },
       });
 
-      return json({ unassigned: count ?? 0, pendings_unassigned: pendingsUnassigned, agent_id: agentId, per_agent: perAgent });
+      return json({
+        unassigned: count ?? 0,
+        pendings_unassigned: pendingsUnassigned,
+        call_agains_unassigned: callAgainsUnassigned,
+        agent_id: agentId,
+        per_agent: perAgent,
+      });
     }
 
     // PATCH /api/segments/:id — admin-only edit of rule parameters
@@ -17045,12 +17436,18 @@ async function handleRequest(req: Request): Promise<Response> {
       // nothing for a week still displayed "Engine Active" and gave the
       // operator no way at all to find out why.
       const { startISO } = skopjeDayStart();
-      const [waiting, assignedToday, candidatesRes, runsRes] = await Promise.all([
+      const [waiting, waitingCallAgains, assignedToday, candidatesRes, runsRes] = await Promise.all([
         adminClient
           .from("orders")
           .select("id", { count: "exact", head: true })
           .is("assigned_agent_id", null)
           .eq("status", "pending")
+          .in("source_type", LEAD_SOURCE_TYPES),
+        adminClient
+          .from("orders")
+          .select("id", { count: "exact", head: true })
+          .is("assigned_agent_id", null)
+          .eq("status", "call_again")
           .in("source_type", LEAD_SOURCE_TYPES),
         // Counted from orders, not from run rows: the AFTER INSERT trigger
         // assigns without writing a run row at all, so run rows would
@@ -17084,6 +17481,7 @@ async function handleRequest(req: Request): Promise<Response> {
       return json({
         ...data,
         waiting_leads: waiting.count ?? 0,
+        waiting_call_agains: waitingCallAgains.count ?? 0,
         assigned_today: assignedToday.count ?? 0,
         last_meaningful_run: runs[0] || null,
         candidates,
@@ -17260,7 +17658,7 @@ async function handleRequest(req: Request): Promise<Response> {
       const {
         strategy, is_active, max_leads_per_agent, priority_threshold,
         respect_online, include_prediction_load, participating_roles,
-        working_hours_only, order_direction,
+        working_hours_only, order_direction, call_again_offline_release_minutes,
       } = body;
       const updates: any = { updated_at: new Date().toISOString(), updated_by: user.id };
       if (strategy !== undefined) {
@@ -17279,6 +17677,13 @@ async function handleRequest(req: Request): Promise<Response> {
       if (order_direction !== undefined) {
         if (!["newest", "oldest"].includes(order_direction)) return json({ error: "order_direction must be newest|oldest" }, 400);
         updates.order_direction = order_direction;
+      }
+      if (call_again_offline_release_minutes !== undefined) {
+        const n = Math.floor(Number(call_again_offline_release_minutes));
+        if (!Number.isFinite(n) || n < 0 || n > 24 * 60) {
+          return json({ error: "call_again_offline_release_minutes must be 0–1440" }, 400);
+        }
+        updates.call_again_offline_release_minutes = n;
       }
       if (participating_roles !== undefined) {
         const ALLOWED = ["pending_agent", "agent", "inbound_agent", "prediction_agent"];

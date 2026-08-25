@@ -145,7 +145,7 @@ function PackingTab() {
   const groupedOrders = useMemo(() => {
     const groups: Record<string, any[]> = {};
     for (const o of visible) {
-      const dateKey = format(new Date(o.created_at), 'yyyy-MM-dd');
+      const dateKey = format(new Date(o.confirmed_at || o.created_at), 'yyyy-MM-dd');
       if (!groups[dateKey]) groups[dateKey] = [];
       groups[dateKey].push(o);
     }
@@ -247,7 +247,7 @@ function PackingTab() {
   };
 
   const handleBulkUpdate = async () => {
-    const dateOrders = visible.filter((o: any) => format(new Date(o.created_at), 'yyyy-MM-dd') === bulkModalDate);
+    const dateOrders = visible.filter((o: any) => format(new Date(o.confirmed_at || o.created_at), 'yyyy-MM-dd') === bulkModalDate);
     // If checkboxes selected within that date, use those; otherwise all in date
     const idsInDate = dateOrders.map(o => o.id);
     const selectedInDate = idsInDate.filter(id => selectedIds.has(id));
@@ -496,7 +496,7 @@ function PackingTab() {
                                   {o.packed_by_name && <div className="text-muted-foreground text-[10px]">{o.packed_by_name}</div>}
                                 </td>
                               )}
-                              <td className="px-4 py-2.5 text-muted-foreground text-xs">{format(new Date(o.created_at), 'HH:mm')}</td>
+                              <td className="px-4 py-2.5 text-muted-foreground text-xs">{format(new Date(o.confirmed_at || o.created_at), 'HH:mm')}</td>
                               <td className="px-4 py-2.5 flex items-center gap-1">
                                 {view === 'topack' ? (
                                   <Button

@@ -9,6 +9,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -57,6 +58,7 @@ export function BulkUnassignPanel({ onlineIds = [], focus, onFocusHandled }: Pro
   const [expanded, setExpanded] = useState<string[]>([]);
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [busy, setBusy] = useState(false);
+  const [releaseCallAgains, setReleaseCallAgains] = useState(false);
   // Latched from `focus` (which the page clears right away) so the pendings
   // sub-row still knows to auto-open once its agent row renders expanded.
   const [pendingsAutoOpenFor, setPendingsAutoOpenFor] = useState<string | null>(null);
@@ -114,15 +116,24 @@ export function BulkUnassignPanel({ onlineIds = [], focus, onFocusHandled }: Pro
       // touch orders (the server also ignores the flag when list_ids is set).
       const res = await apiUnassignAllForAgent(pending.agentId, pending.listIds, {
         includePendings: !pending.listIds && pending.pendings > 0,
+        includeCallAgains: !pending.listIds && releaseCallAgains,
         includeDone: true,
       });
       const freedPendings = res?.pendings_unassigned ?? 0;
+      const freedCallAgains = res?.call_agains_unassigned ?? 0;
       toast({
-        title: freedPendings > 0
+        title: freedCallAgains > 0
+          ? t('assigner.nClientsPendingsCallAgainsFreed', {
+              count: res?.unassigned ?? 0,
+              pendings: freedPendings,
+              callAgains: freedCallAgains,
+            })
+          : freedPendings > 0
           ? t('assigner.nClientsAndPendingsFreed', { count: res?.unassigned ?? 0, pendings: freedPendings })
           : t('assigner.nClientsFreed', { count: res?.unassigned ?? 0 }),
       });
       setPending(null);
+      setReleaseCallAgains(false);
       invalidateAll();
     } catch (err) {
       toast({ title: t('assigner.unassignFailed'), description: apiErrorText(err), variant: 'destructive' });
@@ -273,6 +284,19 @@ export function BulkUnassignPanel({ onlineIds = [], focus, onFocusHandled }: Pro
               {t('assigner.unassignFullDetach')}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {!pending?.listIds && (
+            <label className="flex items-start gap-2 rounded-md border px-3 py-2 text-sm">
+              <Checkbox
+                checked={releaseCallAgains}
+                onCheckedChange={(v) => setReleaseCallAgains(v === true)}
+                className="mt-0.5"
+              />
+              <span>
+                <span className="font-medium">{t('assigner.releasePendingCallAgains')}</span>
+                <span className="block text-xs text-muted-foreground">{t('assigner.releasePendingCallAgainsHint')}</span>
+              </span>
+            </label>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={busy}>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction

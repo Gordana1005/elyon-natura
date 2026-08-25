@@ -119,7 +119,10 @@ export default function ManagementInsightsPage() {
       <div className="space-y-5">
         {showRangePicker && (
           <div className="flex items-center gap-2">
-            <DateRangePicker value={range} onChange={setRange} simple />
+            <div className="flex flex-col gap-1">
+              <DateRangePicker value={range} onChange={setRange} simple />
+              <p className="text-[11px] text-muted-foreground">{t('insights.workClockFromAugust')}</p>
+            </div>
             {/* keepPreviousData leaves the OLD numbers on screen while a new range
                 loads. Without this the operator can't tell they're looking at the
                 previous range's figures. Past ~3s the spinner gains elapsed time
