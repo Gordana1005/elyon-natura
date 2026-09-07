@@ -16,6 +16,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { cn, formatProductWithQuantity, buildProductNameLookups, isSyntheticProductName } from '@/lib/utils';
 import { format, addDays } from 'date-fns'; // raw format: fulfilment CSV + machine payloads only
 import { formatDate } from '@/i18n/dates';
+import { planExportWindow, clampPageRange, estimateExportRows } from '@/lib/exportPageRange';
 import {
   Download, ChevronLeft, ChevronRight, ChevronDown, Filter, Search, Loader2,
   CalendarIcon, X, User, Users, Plus, MoreVertical, History, Lock, Copy, CopyPlus, Euro, Package, Send, Waypoints,
@@ -56,6 +57,15 @@ import { toast } from '@/hooks/use-toast';
 import { EmptyState } from '@/components/EmptyState';
 
 const PAGE_SIZE = 20;
+
+// Browser-side XLSX generation has to hold every row in memory and serialise it
+// on the main thread, so "Export view" is bounded. Well past any real reporting
+// need (a whole filtered year of Shipped is a few thousand rows), and the
+// operator is TOLD when the cap bites rather than quietly receiving a short
+// file — which is the bug this whole export change exists to fix.
+// Module scope, not component scope: the row estimate reads it during render,
+// above the export handlers.
+const EXPORT_ROW_CAP = 20000;
 
 // Statuses whose expanded row shows the Delivery Details section; the inline
 // Calls panel sits beside it there, and stands alone for every other status.
@@ -357,14 +367,16 @@ export default function Orders() {
     return buildProductNameLookups(productsData || []);
   }, [productsData]);
 
-  const fetchOrders = () => {
-    setLoading(true);
+  // The filter set behind the on-screen list. Extracted so "Export view" can
+  // re-run the EXACT same query across every page instead of formatting
+  // whatever 20 rows happen to be loaded — the two can never drift apart now.
+  const currentFilterParams = () => {
     // When agent is searching, don't restrict by agent_id (global search)
     const isSearching = !!debouncedSearch;
     const effectiveAgentId = isSearching && isAgent
       ? undefined
       : (myOrdersOnly && user?.id ? user.id : (agentFilter !== 'all' ? agentFilter : undefined));
-    apiGetOrders({
+    return {
       status: selectedStatuses.length > 0 ? selectedStatuses.join(',') : undefined,
       source: sourceFilter !== 'all' ? sourceFilter : undefined,
       cpa_webmaster: affiliateFilter !== 'all' ? affiliateFilter : undefined,
@@ -376,6 +388,13 @@ export default function Orders() {
       to: dateTo ? format(dateTo, "yyyy-MM-dd'T'23:59:59") : undefined,
       price_min: priceMin ?? undefined,
       price_max: priceMax ?? undefined,
+    };
+  };
+
+  const fetchOrders = () => {
+    setLoading(true);
+    apiGetOrders({
+      ...currentFilterParams(),
       page,
       limit: PAGE_SIZE,
     })
@@ -486,6 +505,15 @@ export default function Orders() {
     sharedOrderReasonText(order) || order.notes || null;
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  // Rows the current export settings would produce, shown before they click.
+  // A page window is clamped to the pages that actually exist, so "1–999" on a
+  // 3-page view reads as the real 57, not a fantasy number.
+  const exportEstimate = useMemo(() => {
+    const { pageFrom, pageTo } = clampPageRange(exportPageFrom, exportPageTo, totalPages);
+    return estimateExportRows(exportScope, pageFrom, pageTo, total, PAGE_SIZE, EXPORT_ROW_CAP);
+  }, [exportScope, exportPageFrom, exportPageTo, total, totalPages]);
+
   const toggleStatus = (s: OrderStatus) => {
     setSelectedStatuses(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
   };
@@ -537,6 +565,22 @@ export default function Orders() {
   // FULL order object (not just the id) so the CSV has every field even after
   // the row scrolls off-page or the filters change — selections accumulate
   // across pages/dates.
+  // ── "Export view" scope ───────────────────────────────────────────────────
+  // The XLSX export used to dump `filteredOrders`, which is ONE page (20 rows),
+  // so a 57-order Shipped view exported 20 rows and silently dropped the rest.
+  // The export now walks the server pages itself, using the exact same filters
+  // the list is showing. 'all' = every matching row; 'range' = the operator's
+  // page window, numbered the same as the pager at the bottom of the screen.
+  const [exportScope, setExportScope] = useState<'all' | 'range'>('all');
+  // Kept as strings so the inputs can be emptied while typing; clamped on use.
+  const [exportPageFrom, setExportPageFrom] = useState('1');
+  const [exportPageTo, setExportPageTo] = useState('1');
+  const [exportLoading, setExportLoading] = useState(false);
+  // Rows fetched so far. A 20.000-row export is ~100 sequential requests; with
+  // only a spinner the operator cannot tell a slow export from a hung one.
+  const [exportProgress, setExportProgress] = useState(0);
+  const [exportOpen, setExportOpen] = useState(false);
+
   const [fulfilSource, setFulfilSource] = useState<'range' | 'selected'>('range');
   const [selectedExport, setSelectedExport] = useState<Map<string, any>>(new Map());
   // Pending validation result when an export batch has incomplete orders. The
@@ -820,9 +864,76 @@ export default function Orders() {
     }
   };
 
+  /** Fetch every row matching the current filters, over `pageFrom..pageTo` of
+   *  the on-screen pager (or all pages when `scope === 'all'`).
+   *
+   *  Page numbers are the ones the operator sees, i.e. PAGE_SIZE rows each, but
+   *  we fetch in 200-row chunks and slice — 1 request per 10 screen pages
+   *  instead of 1 per page. `total` is only an estimate when nothing is
+   *  filtered, so the loop stops on a short chunk rather than trusting it. */
+  const fetchOrdersForExport = async (
+    scope: 'all' | 'range',
+    pageFrom: number,
+    pageTo: number,
+  ): Promise<{ rows: any[]; capped: boolean }> => {
+    const params = currentFilterParams();
+    const CHUNK = 200;
+    const { startRow, endRow, firstChunk, offsetIntoChunk } =
+      planExportWindow(scope, pageFrom, pageTo, PAGE_SIZE, CHUNK);
+    const collected: any[] = [];
+    let capped = false;
+
+    for (let chunk = firstChunk; ; chunk++) {
+      const data = await apiGetOrders({ ...params, page: chunk, limit: CHUNK });
+      const batch = data.orders || [];
+      collected.push(...batch);
+      setExportProgress(Math.max(0, Math.min(collected.length - offsetIntoChunk, endRow - startRow)));
+      const fetchedThrough = chunk * CHUNK;
+      if (batch.length < CHUNK) break;              // ran out of matching rows
+      if (fetchedThrough >= endRow) break;          // covered the page window
+      if (collected.length >= EXPORT_ROW_CAP + startRow) { capped = true; break; }
+    }
+
+    // `collected` starts at row (firstChunk-1)*CHUNK, which is at or before
+    // startRow — trim the head, then the tail.
+    let rows = collected.slice(offsetIntoChunk);
+    if (endRow !== Infinity) rows = rows.slice(0, endRow - startRow);
+    if (rows.length > EXPORT_ROW_CAP) { rows = rows.slice(0, EXPORT_ROW_CAP); capped = true; }
+    return { rows, capped };
+  };
+
   const exportXLSX = async () => {
+    if (exportLoading) return;
+    // Empty, reversed and out-of-range windows all resolve to something sane
+    // instead of exporting nothing. See exportPageRange.test.ts.
+    const { pageFrom: pFrom, pageTo: pTo } = clampPageRange(exportPageFrom, exportPageTo, totalPages);
+
+    setExportLoading(true);
+    setExportProgress(0);
+    try {
+      const { rows: sourceOrders, capped } = await fetchOrdersForExport(exportScope, pFrom, pTo);
+      if (sourceOrders.length === 0) {
+        toast({ title: t('ordersPage.noOrders'), description: t('ordersPage.exportNothingMatched') });
+        return;
+      }
+      await writeOrdersXLSX(sourceOrders);
+      setExportOpen(false);
+      toast({
+        title: t('ordersPage.exportDone'),
+        description: capped
+          ? t('ordersPage.exportCapped', { count: sourceOrders.length, cap: EXPORT_ROW_CAP })
+          : t('ordersPage.exportRows', { count: sourceOrders.length }),
+      });
+    } catch (err: any) {
+      toast({ title: t('ordersPage.exportFailed'), description: err?.message || t('common.unknownError'), variant: 'destructive' });
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const writeOrdersXLSX = async (sourceOrders: any[]) => {
     const XLSX = await import('xlsx');
-    const rows = filteredOrders.map(o => {
+    const rows = sourceOrders.map(o => {
       const items = o.order_items && o.order_items.length > 0
         ? o.order_items.map((i: any) => formatProductWithQuantity(i.product_name, i.quantity)).join(', ')
         : formatProductWithQuantity(o.product_name, o.quantity || 1);
@@ -1265,7 +1376,102 @@ export default function Orders() {
               </PopoverContent>
             </Popover>
 
-            <Button onClick={exportXLSX} size="sm" variant="outline" className="h-9 gap-1.5 rounded-lg text-sm"><Download className="h-3.5 w-3.5" /> {t('ordersPage.exportView')}</Button>
+            {/* Export view — same filters as the list, but the operator picks
+                how much of it comes out. Opening it resets the page window to
+                "everything currently matching". */}
+            <Popover
+              open={exportOpen}
+              onOpenChange={(o) => {
+                setExportOpen(o);
+                if (o) { setExportPageFrom('1'); setExportPageTo(String(Math.max(1, totalPages))); }
+              }}
+            >
+              <PopoverTrigger asChild>
+                <Button size="sm" variant="outline" className="h-9 gap-1.5 rounded-lg text-sm"><Download className="h-3.5 w-3.5" /> {t('ordersPage.exportView')}</Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-3 space-y-3" align="end">
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">{t('ordersPage.exportView')}</div>
+                  <p className="text-[11px] text-muted-foreground leading-tight">{t('ordersPage.exportScopeDesc')}</p>
+                </div>
+
+                {/* Date window. These are the SAME from/to as the toolbar
+                    filter, on purpose: editing them re-filters the list behind
+                    the popover, so the count and page total below always
+                    describe exactly what will land in the file. */}
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{t('ordersPage.exportDateRange')}</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs justify-start font-normal">
+                          <CalendarIcon className="h-3 w-3" />{t('ordersPage.from')}: {dateFrom ? formatDate(dateFrom, 'MMM d') : '—'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar mode="single" selected={dateFrom} onSelect={(d) => { setDateFrom(d); setPage(1); }} className="p-3 pointer-events-auto" />
+                      </PopoverContent>
+                    </Popover>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs justify-start font-normal">
+                          <CalendarIcon className="h-3 w-3" />{t('ordersPage.to')}: {dateTo ? formatDate(dateTo, 'MMM d') : '—'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar mode="single" selected={dateTo} onSelect={(d) => { setDateTo(d); setPage(1); }} className="p-3 pointer-events-auto" />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  {(dateFrom || dateTo) && (
+                    <button
+                      type="button"
+                      className="mt-1 text-[10px] text-muted-foreground underline hover:text-foreground"
+                      onClick={() => { setDateFrom(undefined); setDateTo(undefined); setPage(1); }}
+                    >
+                      {t('ordersPage.exportClearDates')}
+                    </button>
+                  )}
+                </div>
+
+                {/* How much of the filtered set to write out. */}
+                <div className="grid grid-cols-2 gap-1">
+                  <Button variant={exportScope === 'all' ? 'default' : 'outline'} size="sm" className="h-7 text-xs" onClick={() => setExportScope('all')}>{t('ordersPage.exportAllPages')}</Button>
+                  <Button variant={exportScope === 'range' ? 'default' : 'outline'} size="sm" className="h-7 text-xs" onClick={() => setExportScope('range')}>{t('ordersPage.exportPageRange')}</Button>
+                </div>
+
+                {exportScope === 'range' && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-muted-foreground shrink-0">{t('ordersPage.exportPagesLabel')}</span>
+                    <Input
+                      type="number" min={1} max={Math.max(1, totalPages)} value={exportPageFrom}
+                      onChange={(e) => setExportPageFrom(e.target.value)}
+                      className="h-8 w-16 text-xs" aria-label={t('ordersPage.exportPageFrom')}
+                    />
+                    <span className="text-[11px] text-muted-foreground">–</span>
+                    <Input
+                      type="number" min={1} max={Math.max(1, totalPages)} value={exportPageTo}
+                      onChange={(e) => setExportPageTo(e.target.value)}
+                      className="h-8 w-16 text-xs" aria-label={t('ordersPage.exportPageTo')}
+                    />
+                    <span className="text-[11px] text-muted-foreground whitespace-nowrap">{t('ordersPage.exportOfPages', { pages: Math.max(1, totalPages) })}</span>
+                  </div>
+                )}
+
+                {/* What they are about to get, in rows, before they click. */}
+                <div className="rounded-md border bg-muted/30 p-2 text-[11px] leading-tight">
+                  <span className="font-medium text-foreground">{t('ordersPage.exportEstimate', { count: exportEstimate })}</span>
+                  <span className="text-muted-foreground"> · {t('ordersPage.exportKeepsFilters')}</span>
+                </div>
+
+                <Button size="sm" className="w-full h-8 gap-1.5" onClick={exportXLSX} disabled={exportLoading || total === 0}>
+                  {exportLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                  {exportLoading
+                    ? (exportProgress > 0 ? t('ordersPage.exportingProgress', { count: exportProgress }) : t('ordersPage.exporting'))
+                    : t('ordersPage.exportView')}
+                </Button>
+              </PopoverContent>
+            </Popover>
             <Button onClick={() => setShowCreateModal(true)} size="sm" className="h-9 gap-1.5 rounded-lg text-sm"><Plus className="h-3.5 w-3.5" /> {t('common.createOrder')}</Button>
           </div>
         </div>
