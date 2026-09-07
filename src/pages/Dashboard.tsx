@@ -313,6 +313,7 @@ const chartTooltipStyle = {
   boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
 };
 
+import { cn } from '@/lib/utils';
 import { formatMoney } from '@/lib/currency';
 import { CHART_COLORS, hoverLift } from '@/lib/design-utils';
 import { EmptyState } from '@/components/EmptyState';
