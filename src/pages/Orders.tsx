@@ -183,6 +183,23 @@ export default function Orders() {
   const [priceMinDraft, setPriceMinDraft] = useState('');
   const [priceMaxDraft, setPriceMaxDraft] = useState('');
   const [page, setPage] = useState(1);
+
+  // ── "Export view" scope ───────────────────────────────────────────────────
+  // The XLSX export used to dump `filteredOrders`, which is ONE page (20 rows),
+  // so a 57-order Shipped view exported 20 rows and silently dropped the rest.
+  // The export now walks the server pages itself, using the exact same filters
+  // the list is showing. 'all' = every matching row; 'range' = the operator's
+  // page window, numbered the same as the pager at the bottom of the screen.
+  const [exportScope, setExportScope] = useState<'all' | 'range'>('all');
+  // Kept as strings so the inputs can be emptied while typing; clamped on use.
+  const [exportPageFrom, setExportPageFrom] = useState('1');
+  const [exportPageTo, setExportPageTo] = useState('1');
+  const [exportLoading, setExportLoading] = useState(false);
+  // Rows fetched so far. A 20.000-row export is ~100 sequential requests; with
+  // only a spinner the operator cannot tell a slow export from a hung one.
+  const [exportProgress, setExportProgress] = useState(0);
+  const [exportOpen, setExportOpen] = useState(false);
+
   const [orders, setOrders] = useState<ApiOrder[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -565,22 +582,6 @@ export default function Orders() {
   // FULL order object (not just the id) so the CSV has every field even after
   // the row scrolls off-page or the filters change — selections accumulate
   // across pages/dates.
-  // ── "Export view" scope ───────────────────────────────────────────────────
-  // The XLSX export used to dump `filteredOrders`, which is ONE page (20 rows),
-  // so a 57-order Shipped view exported 20 rows and silently dropped the rest.
-  // The export now walks the server pages itself, using the exact same filters
-  // the list is showing. 'all' = every matching row; 'range' = the operator's
-  // page window, numbered the same as the pager at the bottom of the screen.
-  const [exportScope, setExportScope] = useState<'all' | 'range'>('all');
-  // Kept as strings so the inputs can be emptied while typing; clamped on use.
-  const [exportPageFrom, setExportPageFrom] = useState('1');
-  const [exportPageTo, setExportPageTo] = useState('1');
-  const [exportLoading, setExportLoading] = useState(false);
-  // Rows fetched so far. A 20.000-row export is ~100 sequential requests; with
-  // only a spinner the operator cannot tell a slow export from a hung one.
-  const [exportProgress, setExportProgress] = useState(0);
-  const [exportOpen, setExportOpen] = useState(false);
-
   const [fulfilSource, setFulfilSource] = useState<'range' | 'selected'>('range');
   const [selectedExport, setSelectedExport] = useState<Map<string, any>>(new Map());
   // Pending validation result when an export batch has incomplete orders. The
