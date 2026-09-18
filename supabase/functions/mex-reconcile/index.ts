@@ -9,6 +9,10 @@
  * invoke_mex_reconcile). Port of scripts/reconcile-mex-shipments.mjs matching —
  * keep the two in step, the same way altercpa.ts mirrors scripts/lib.
  *
+ * Sweeps BOTH MEX accounts (BIO NATURAL = the Elyon business; NATURA = teleshop
+ * and social). Their tracking ids are disjoint, so the two shipment lists merge
+ * into one pass. Add/remove an account by setting MEX_API_KEY / MEX_API_KEY_2.
+ *
  * What it does: pulls MEX shipments whose status changed since the cursor,
  * matches each to an order, and applies the truth the 2026-08-11
  * reconciliation established:
@@ -74,8 +78,21 @@ serve(async (req: Request) => {
   if (!expected) return json({ error: "Not configured" }, 503);
   if ((req.headers.get("x-mex-sync-secret") || "") !== expected) return json({ error: "Forbidden" }, 403);
 
-  const apiKey = Deno.env.get("MEX_API_KEY");
-  if (!apiKey) return json({ error: "MEX_API_KEY is not set" }, 503);
+  // TWO MEX ACCOUNTS (2026-09-18). BIO NATURAL carries the Elyon business —
+  // doc series 002-9110 (Нарачка LEADS) and 002-9103 (LEADS-OUT). NATURA carries
+  // teleshop and social — 002-9102 (Нарачка out), 002-9100 (Нарачка in), 002-9108
+  // (Социјални Мрежи). They are separate contracts with DISJOINT tracking ids
+  // (verified: 0 overlap over 15k shipments), so merging their shipment lists is
+  // safe and every match below is unambiguous about which parcel it means.
+  //
+  // Reconciling only the first one left NATURA — the LARGER account — completely
+  // unswept: 9.355 shipments and EUR 250.546 of delivered COD invisible to the
+  // CRM. MEX_API_KEY_2 is optional so the function still runs if it is unset.
+  const mexAccounts = [
+    { label: "bio_natural", key: Deno.env.get("MEX_API_KEY") ?? "" },
+    { label: "natura",      key: Deno.env.get("MEX_API_KEY_2") ?? "" },
+  ].filter((a) => a.key);
+  if (!mexAccounts.length) return json({ error: "No MEX API key is set (MEX_API_KEY / MEX_API_KEY_2)" }, 503);
 
   let body: Record<string, unknown> = {};
   try { body = await req.json(); } catch { /* defaults */ }
@@ -126,19 +143,24 @@ serve(async (req: Request) => {
   try {
     // ── fetch terminal shipments updated in the window ──────────────────────
     const ships: MexShipment[] = [];
-    for (let page = 1; ; page++) {
-      const url = `${MEX_BASE}/list_shipments.php?updated_from=${fromDate}&per_page=500&page=${page}&order=last_update_asc`;
-      const res = await fetch(url, { headers: { AuthKey: apiKey } });
-      if (!res.ok) throw new Error(`MEX HTTP ${res.status}`);
-      const j = await res.json();
-      if (j?.success !== 1 || !Array.isArray(j.shipments)) {
-        throw new Error(`MEX error body: ${JSON.stringify(j).slice(0, 200)}`);
+    // Per-account cap: one busy account must not starve the other of headroom.
+    const cap = kind === "backfill" ? 30000 : 4000;
+    for (const acct of mexAccounts) {
+      const before = ships.length;
+      for (let page = 1; ; page++) {
+        const url = `${MEX_BASE}/list_shipments.php?updated_from=${fromDate}&per_page=500&page=${page}&order=last_update_asc`;
+        const res = await fetch(url, { headers: { AuthKey: acct.key } });
+        if (!res.ok) throw new Error(`MEX HTTP ${res.status} (${acct.label})`);
+        const j = await res.json();
+        if (j?.success !== 1 || !Array.isArray(j.shipments)) {
+          throw new Error(`MEX error body (${acct.label}): ${JSON.stringify(j).slice(0, 200)}`);
+        }
+        ships.push(...j.shipments);
+        // Rolling runs are incremental and small; a backfill sweep must see the
+        // whole window or "never lose an order" is a lie.
+        if (page >= Number(j.total_pages || 1) || ships.length - before >= cap) break;
       }
-      ships.push(...j.shipments);
-      // Rolling runs are incremental and small; a backfill sweep must see the
-      // whole window or "never lose an order" is a lie.
-      const cap = kind === "backfill" ? 30000 : 4000;
-      if (page >= Number(j.total_pages || 1) || ships.length >= cap) break;
+      stats.skipped[`fetched_${acct.label}`] = ships.length - before;
     }
     stats.fetched = ships.length;
 
