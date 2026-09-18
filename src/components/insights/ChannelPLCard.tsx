@@ -11,21 +11,18 @@ const pct1 = (x: number) => `${((x || 0) * 100).toFixed(1)}%`;
 const CHANNEL_LABEL: Record<string, string> = {
   affiliate: 'insights.channelAffiliate',
   prediction: 'insights.channelPrediction',
-  inbound: 'insights.channelInbound',
   manual: 'insights.channelManual',
 };
 const CHANNEL_HINT: Record<string, string> = {
   affiliate: 'insights.channelAffiliateHint',
   prediction: 'insights.channelPredictionHint',
-  inbound: 'insights.channelInboundHint',
   manual: 'insights.channelManualHint',
 };
 /** Only the paid-lead channel gets a colour — the point of the table is that
- *  one of these four will cost money to feed and the other three do not. */
+ *  one of these three will cost money to feed and the other two do not. */
 const CHANNEL_TONE: Record<string, string> = {
   affiliate: 'bg-purple-500',
   prediction: 'bg-emerald-500',
-  inbound: 'bg-sky-500',
   manual: 'bg-muted-foreground',
 };
 

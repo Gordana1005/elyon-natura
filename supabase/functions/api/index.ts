@@ -163,17 +163,24 @@ const REAL_ORDER_STATUSES = ["confirmed", "shipped", "delivered", "paid", "retur
 
 // ── Order channel (canonical, for money) ─────────────────────────────────────
 // SQL twin: public.order_channel() in migration 20260928000000_insights_channel_pl.sql.
-// Four buckets: affiliate (arrived via the AlterCPA bridge — cpa_webmaster_id
-// or external_source='altercpa'), prediction (our own cold database), inbound
-// (own site/webhook — none in this market yet, slot kept for a future funnel),
-// manual (operator-created or unattributed). Channel P&L is built solely from
+// THREE buckets (operator ruling 2026-09-18 — 'inbound' retired):
+//   prediction — the customer ORDERED BEFORE; a re-call to make them buy
+//                again, whatever channel originally acquired them.
+//   affiliate  — the customer's FIRST-EVER order, arrived via the AlterCPA
+//                bridge: a new client the affiliate produced by running ads.
+//   manual     — first-ever order from anywhere else. Teleshop comes from the
+//                TV, NOT the affiliate, so it lands here.
+// Prediction deliberately OUTRANKS affiliate: under the old affiliate-first
+// order a CPA-acquired customer stayed 'affiliate' for life and the prediction
+// team's revenue read 0,9% of the business instead of ~50%.
+// Channel P&L is built solely from
 // the insights_channel_pl RPC, never re-derived in TS — so the classifier has
 // no TS twin here on purpose.
 // LEAD COST IS 0 EVERYWHERE for now: no per-webmaster rates exist yet
 // (operator, 2026-08-19 — "we will inject those things later"). The RPC emits
 // zeroed lead_cost_* fields so the whole pipeline is already wired for them.
-type OrderChannel = "affiliate" | "prediction" | "inbound" | "manual";
-const ORDER_CHANNELS: OrderChannel[] = ["affiliate", "prediction", "inbound", "manual"];
+type OrderChannel = "affiliate" | "prediction" | "manual";
+const ORDER_CHANNELS: OrderChannel[] = ["affiliate", "prediction", "manual"];
 
 // A lead is work that ARRIVED from outside — the AlterCPA feed, a landing page
 // webhook, or the website. Everything else on `orders` is agent-created

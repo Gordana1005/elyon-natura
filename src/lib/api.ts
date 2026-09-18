@@ -1686,7 +1686,7 @@ export interface InsightsResponse {
   };
 }
 
-export type OrderChannel = 'affiliate' | 'prediction' | 'inbound' | 'manual';
+export type OrderChannel = 'affiliate' | 'prediction' | 'manual';
 
 export interface ChannelPL {
   channel: OrderChannel | 'total';
