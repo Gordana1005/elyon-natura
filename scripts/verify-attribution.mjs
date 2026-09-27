@@ -19,9 +19,23 @@
  *
  * Exit: 0 = no FAIL · 1 = at least one FAIL · 2 = refused / bad arguments / DB unreachable.
  *
- * Windows   C7, BASELINE  orders created --from (default 2026-08-01) .. --to (default today)
- *           C8, C10       all time — they are invariants; narrowed only by an explicit --from/--to
+ * Windows   C1-C3, C6, C7, C13, C14, BASELINE   --from (default 2026-08-01) .. --to (default today)
+ *           C8, C10, C12  all time — they are invariants; narrowed only by an explicit --from/--to
  *           C9            order_history, the last 30 Skopje days (or the explicit --from/--to)
+ *
+ * The connected Overview (migration 20260936000000) — C1/C2/C3/C6 call public.insights_overview
+ * read-only for the window, exactly as GET /api/insights/overview does, and tie it out:
+ *   C1   KPI tiles = Σ of the four sources = single-statement SQL over the same rows (placed,
+ *        confirmed, delivered cash) and Σ buckets = placed; lists delivered parcels whose order
+ *        the Overview cannot book as delivered cash
+ *   C2   MEX-only cash = Σ COD of delivered parcels no order owns (web shop vs teleshop split)
+ *   C3   Prediction-lists tab (insights_orders_rollup) = the ElyonCRM prediction_list portion; the
+ *        orders on one side only are listed (lost list attribution / dispositions)
+ *   C6   proven cash = Σ COD of linked delivered parcels; COD − price × 61.5 splits into exact /
+ *        +150 delivery fee / listed mismatches
+ *   C12  orders.sale_source never NULL      C13  ≥ 99% of v_sales_work decisions have a person
+ *   C14  insights_web_block = the shop's own classifier over web_orders (SKIP until web-sync lands)
+ * They SKIP while the objects they read are not deployed.
  *
  * Safety. Pinned to Macedonia: the ref is a constant and the run is refused unless
  * supabase/config.toml agrees. Every statement passes assertReadOnly() — a single
@@ -595,13 +609,384 @@ SELECT
   };
 }
 
+// ── connected Overview (migration 20260936000000) ───────────────────────────
+// C1/C2/C3/C6 call public.insights_overview read-only for the --from/--to
+// window (default 2026-08-01 .. today) and hold it against single-statement
+// SQL over the same rows. The window is passed exactly as the api passes it:
+// Skopje 00:00 of the first day, the last microsecond of the last day.
+
+const OV_EUR_TOL = 0.05;   // Σ of per-source figures, each rounded to the cent
+const OV_MKD_TOL = 4;      // Σ of per-source figures, each rounded to the denar
+const SALE_STATUSES_SQL = `('confirmed', 'shipped', 'delivered', 'paid', 'returned')`;
+const SOLD_STATUSES_SQL = `('confirmed', 'shipped', 'delivered', 'paid')`;
+const NOT_MONADON = (a) => `(${a}.source_type IS NULL OR ${a}.source_type <> 'monadon_legacy')`;
+/** [fromUtc, toUtc) → the inclusive µs end the api hands the RPC. */
+const inclusiveEnd = (iso) => new Date(Date.parse(iso) - 1).toISOString().replace(/Z$/, '999Z');
+
+function needOverview(ctx, w) {
+  const { overview, canOverview } = ctx.schema.fns;
+  if (overview && canOverview) return null;
+  return { status: overview ? 'WARN' : 'SKIP', count: null, sample: [], window: describeWindow(w),
+           note: overview
+             ? 'public.insights_overview exists but this read-only role may not EXECUTE it — the GRANT to supabase_read_only_user in migration 20260936000000 is missing'
+             : 'public.insights_overview is not deployed yet (migration 20260936000000)' };
+}
+
+/** The RPC's answer for a window — fetched once per window per run. */
+function overviewOf(ctx, w) {
+  const key = `${w.fromUtc}|${w.toUtc}`;
+  ctx.overviewCache ??= new Map();
+  if (!ctx.overviewCache.has(key)) {
+    ctx.overviewCache.set(key, ctx.sql(
+      `SELECT public.insights_overview(${lit(w.fromUtc)}, ${lit(inclusiveEnd(w.toUtc))}) AS j`,
+    ).then(([r]) => r.j));
+  }
+  return ctx.overviewCache.get(key);
+}
+
+const num = (v) => Number(v ?? 0);
+const sumSources = (ov, f) => ov.sources.reduce((t, s) => t + num(f(s)), 0);
+const r2 = (x) => Math.round(x * 100) / 100;
+/** One row of a tie-out table; `ok` when every present figure agrees within tol. */
+function tieRow(metric, figures, tol) {
+  const vals = Object.values(figures).filter((v) => v != null).map(Number);
+  const spread = vals.length ? Math.max(...vals) - Math.min(...vals) : 0;
+  return { metric, ...figures, diff: r2(spread), ok: spread <= tol };
+}
+
+async function c1SourcesTieOut(ctx) {
+  const w = ctx.windows.range;
+  const skip = needOverview(ctx, w);
+  if (skip) return skip;
+  const ov = await overviewOf(ctx, w);
+  // The web shop mirror's share of placed comes from the RPC itself (C14 holds
+  // it against web_orders); everything else is recomputed from public.orders.
+  const shop = ov.sources.find((s) => s.key === 'web')?.placed_shop ?? { count: 0, value_mkd: 0 };
+  const [t] = await ctx.sql(`
+WITH placed AS (
+  SELECT count(*)::int AS n, coalesce(sum(o.price), 0) AS eur
+  FROM public.orders o WHERE ${within('o.created_at', w)} AND ${NOT_MONADON('o')}
+), conf AS (
+  SELECT count(*)::int AS n, coalesce(sum(o.price), 0) AS eur
+  FROM public.orders o
+  WHERE ${NOT_MONADON('o')} AND coalesce(o.sale_source_detail, '') <> 'disposition'
+    AND (o.sold_at IS NOT NULL OR o.status::text IN ${SALE_STATUSES_SQL})
+    AND ${within('coalesce(o.sold_at, o.confirmed_at, o.created_at)', w)}
+), parcels AS (
+  SELECT count(*)::int AS n, coalesce(sum(p.cod_mkd), 0)::bigint AS mkd
+  FROM public.mex_parcels p WHERE p.status_id = ${MEX_DELIVERED} AND ${within('p.delivered_at', w)}
+), unproven AS (
+  SELECT count(*)::int AS n, coalesce(sum(round(coalesce(o.price, 0) * ${MKD_PER_EUR})), 0)::bigint AS mkd
+  FROM public.orders o
+  WHERE o.status::text IN ('paid', 'delivered') AND o.mex_delivered_at IS NULL AND ${NOT_MONADON('o')}
+    AND ${within('coalesce(o.paid_at, o.created_at)', w)}
+), odd AS (
+  -- delivered parcels whose order the overview cannot book as delivered cash
+  SELECT p.tracking_id, o.display_id, o.status::text AS order_status, p.cod_mkd,
+         CASE WHEN o.status::text NOT IN ('paid', 'delivered') THEN 'order not paid'
+              WHEN o.mex_tracking_id IS DISTINCT FROM p.tracking_id THEN 'order names another parcel'
+              ELSE 'order has no mex_delivered_at' END AS why
+  FROM public.mex_parcels p JOIN public.orders o ON o.id = p.order_id
+  WHERE p.status_id = ${MEX_DELIVERED} AND ${within('p.delivered_at', w)}
+    AND (o.status::text NOT IN ('paid', 'delivered') OR o.mex_tracking_id IS DISTINCT FROM p.tracking_id
+         OR o.mex_delivered_at IS NULL)
+)
+SELECT (SELECT n FROM placed) + ${Number(shop.count) || 0} AS placed_n,
+       round((SELECT eur FROM placed) + ${Number(shop.value_mkd) || 0} / ${MKD_PER_EUR}, 2) AS placed_eur,
+       (SELECT n FROM conf) AS conf_n, round((SELECT eur FROM conf), 2) AS conf_eur,
+       (SELECT n FROM parcels) + (SELECT n FROM unproven) AS cash_n,
+       (SELECT mkd FROM parcels) + (SELECT mkd FROM unproven) AS cash_mkd,
+       (SELECT count(*) FROM odd)::int AS odd_n,
+       (SELECT coalesce(json_agg(s), '[]') FROM (SELECT * FROM odd ORDER BY tracking_id LIMIT ${ctx.sampleN}) s) AS odd`);
+
+  const k = ov.kpis;
+  const rows = [
+    tieRow('placed (count)', { tile: k.placed.count, sum_sources: sumSources(ov, (s) => s.placed?.count), sql_truth: t.placed_n }, 0),
+    tieRow('placed (EUR)', { tile: k.placed.value_eur, sum_sources: r2(sumSources(ov, (s) => s.placed?.value_eur)), sql_truth: num(t.placed_eur) }, OV_EUR_TOL),
+    tieRow('confirmed (count)', { tile: k.confirmed.count, sum_sources: sumSources(ov, (s) => s.confirmed), sql_truth: t.conf_n }, 0),
+    tieRow('confirmed (EUR)', { tile: k.confirmed.value_eur, sum_sources: r2(sumSources(ov, (s) => s.confirmed_value_eur)), sql_truth: num(t.conf_eur) }, OV_EUR_TOL),
+    tieRow('delivered (count)', { tile: k.delivered.count, sum_sources: sumSources(ov, (s) => s.cash?.count), sql_truth: t.cash_n - t.odd_n }, 0),
+    tieRow('delivered (MKD)', { tile: k.delivered.cod_mkd, sum_sources: sumSources(ov, (s) => s.cash?.cod_mkd),
+                                sql_truth: num(t.cash_mkd) - t.odd.reduce((a, o) => a + num(o.cod_mkd), 0) }, OV_MKD_TOL),
+    tieRow('buckets = placed', { tile: k.placed.count,
+      sum_buckets: ov.sources.reduce((a, s) => a + Object.entries(s.buckets || {})
+        .filter(([b]) => b !== 'mex_only').reduce((x, [, v]) => x + num(v.count), 0), 0) }, 0),
+  ];
+  const bad = rows.filter((r) => !r.ok);
+  return {
+    status: bad.length ? 'FAIL' : t.odd_n ? 'WARN' : 'PASS',
+    count: bad.length,
+    sample: t.odd,
+    note: `KPI tiles vs Σ of the four sources vs single-statement SQL over the same rows (placed = created, confirmed = sold_at `
+      + `→ confirmed_at → created_at, delivered = MEX delivered_at, else paid_at). ${bad.length} figure(s) disagree`
+      + (t.odd_n ? `; ${fmtNum(t.odd_n)} delivered parcel(s) sit on an order the overview cannot book as delivered cash (listed)` : ''),
+    window: describeWindow(w),
+    breakdown: { tie_out: rows },
+  };
+}
+
+async function c2MexOnlyCash(ctx) {
+  const w = ctx.windows.range;
+  const skip = needOverview(ctx, w);
+  if (skip) return skip;
+  const ov = await overviewOf(ctx, w);
+  const claimed = ctx.schema.tables.webOrders
+    ? `EXISTS (SELECT 1 FROM public.web_orders wo WHERE wo.mex_tracking_id = p.tracking_id AND wo.deleted_in_shop_at IS NULL)`
+    : 'false';
+  const [t] = await ctx.sql(`
+WITH u AS (
+  SELECT p.account, coalesce(p.series, '-') AS series, coalesce(p.cod_mkd, 0) AS cod,
+         (coalesce(p.sender_reference, '') ~ '^NTMK' OR p.tracking_id ~ '^NTMK' OR ${claimed}) AS web
+  FROM public.mex_parcels p
+  WHERE p.status_id = ${MEX_DELIVERED} AND p.order_id IS NULL AND ${within('p.delivered_at', w)}
+)
+SELECT count(*)::int AS n, coalesce(sum(cod), 0)::bigint AS mkd,
+       count(*) FILTER (WHERE web)::int AS web_n, coalesce(sum(cod) FILTER (WHERE web), 0)::bigint AS web_mkd,
+       (SELECT coalesce(json_agg(b ORDER BY b.n DESC), '[]') FROM (
+          SELECT account, series, count(*)::int AS n, sum(cod)::bigint AS cod_mkd FROM u GROUP BY 1, 2) b) AS by_series
+FROM u`);
+  const src = (key) => ov.sources.find((s) => s.key === key)?.cash ?? {};
+  const rows = [
+    tieRow('MEX-only (count)', { tile: ov.kpis.delivered.mex_only_count, sum_sources: sumSources(ov, (s) => s.cash?.mex_only_count), sql_truth: t.n }, 0),
+    tieRow('MEX-only (MKD)', { tile: ov.kpis.delivered.mex_only_cod_mkd, sum_sources: sumSources(ov, (s) => s.cash?.mex_only_cod_mkd), sql_truth: num(t.mkd) }, OV_MKD_TOL),
+    tieRow('web shop parcels (count)', { source: num(src('web').mex_only_count), sql_truth: t.web_n }, 0),
+    tieRow('teleshop/other (count)', { source: num(src('teleshop_other').mex_only_count), sql_truth: t.n - t.web_n }, 0),
+  ];
+  const bad = rows.filter((r) => !r.ok);
+  return {
+    status: bad.length ? 'FAIL' : 'PASS',
+    count: t.n,
+    sample: [],
+    note: `delivered MEX parcels no order owns, delivered in the window: ${fmtNum(t.n)} = ${fmtNum(t.mkd)} MKD `
+      + `(${fmtNum(t.web_n)} the web shop's, ${fmtNum(t.n - t.web_n)} teleshop/other)`,
+    window: describeWindow(w),
+    breakdown: { tie_out: rows, by_series: t.by_series },
+  };
+}
+
+async function c3PredictionListsTab(ctx) {
+  const w = ctx.windows.range;
+  const skip = needOverview(ctx, w);
+  if (skip) return skip;
+  const ov = await overviewOf(ctx, w);
+  const split = ov.sources.find((s) => s.key === 'elyon_crm')?.splits?.find((s) => s.key === 'prediction_list') ?? {};
+  const tabRpc = ctx.schema.fns.canRollup
+    ? `(SELECT coalesce(sum((x ->> 'revenue')::numeric), 0) FROM jsonb_array_elements(
+          public.insights_orders_rollup(${lit(w.fromUtc)}, ${lit(inclusiveEnd(w.toUtc))}) -> 'prediction') x)`
+    : 'NULL::numeric';
+  const [t] = await ctx.sql(`
+WITH tab AS (      -- the Prediction-lists tab: list-attributed orders still sold
+  SELECT o.id, o.display_id, o.price, o.status::text AS status, o.sale_source, o.sale_source_detail
+  FROM public.orders o
+  WHERE o.prediction_list_id IS NOT NULL AND ${within('o.created_at', w)} AND ${NOT_MONADON('o')}
+    AND o.status::text IN ${SOLD_STATUSES_SQL}
+), ovr AS (        -- the Overview: ElyonCRM / prediction_list, still sold
+  SELECT o.id, o.display_id, o.price, o.status::text AS status, o.sale_source, o.sale_source_detail
+  FROM public.orders o
+  WHERE o.sale_source = 'elyon_crm' AND o.sale_source_detail = 'prediction_list'
+    AND ${within('o.created_at', w)} AND ${NOT_MONADON('o')}
+    AND o.status::text IN ${SOLD_STATUSES_SQL}
+), only_tab AS (SELECT * FROM tab WHERE id NOT IN (SELECT id FROM ovr)),
+   only_ovr AS (SELECT * FROM ovr WHERE id NOT IN (SELECT id FROM tab))
+SELECT (SELECT count(*) FROM tab)::int AS tab_n, (SELECT ${eur2('sum(price)')} FROM tab) AS tab_eur,
+       ${tabRpc} AS tab_rpc_eur,
+       (SELECT count(*) FROM ovr)::int AS ovr_n, (SELECT ${eur2('sum(price)')} FROM ovr) AS ovr_eur,
+       (SELECT count(*) FROM only_tab)::int AS only_tab_n, (SELECT ${eur2('sum(price)')} FROM only_tab) AS only_tab_eur,
+       (SELECT count(*) FROM only_ovr)::int AS only_ovr_n, (SELECT ${eur2('sum(price)')} FROM only_ovr) AS only_ovr_eur,
+       (SELECT coalesce(json_agg(s), '[]') FROM (
+          SELECT display_id, status, ${eur2('price')} AS eur, 'tab only: ' || coalesce(sale_source, '-') || '/' || coalesce(sale_source_detail, '-') AS why
+          FROM only_tab
+          UNION ALL
+          SELECT display_id, status, ${eur2('price')}, 'overview only: list attribution missing on the order'
+          FROM only_ovr
+          ORDER BY 3 DESC, 1 LIMIT ${ctx.sampleN}) s) AS sample`);
+  const rows = [
+    tieRow('RPC split = its SQL (EUR)', { rpc: num(split.sold_value_eur), sql: num(t.ovr_eur) }, 0.005),
+    tieRow('RPC split = its SQL (count)', { rpc: num(split.sold_count), sql: t.ovr_n }, 0),
+  ];
+  if (t.tab_rpc_eur != null) rows.push(tieRow('tab RPC = tab SQL (EUR)', { rpc: num(t.tab_rpc_eur), sql: num(t.tab_eur) }, 0.005));
+  const explained = r2(num(t.tab_eur) - num(t.only_tab_eur) + num(t.only_ovr_eur));
+  rows.push(tieRow('tab − tab-only + overview-only = overview (EUR)', { lhs: explained, overview: num(t.ovr_eur) }, 0.005));
+  const bad = rows.filter((r) => !r.ok);
+  const differ = t.only_tab_n + t.only_ovr_n;
+  return {
+    status: bad.length ? 'FAIL' : differ ? 'WARN' : 'PASS',
+    count: differ,
+    sample: t.sample,
+    note: `Prediction-lists tab (list-attributed, still sold) ${fmtNum(t.tab_n)} / EUR ${fmtNum(t.tab_eur, 2)} vs Overview `
+      + `ElyonCRM prediction_list ${fmtNum(t.ovr_n)} / EUR ${fmtNum(t.ovr_eur, 2)}; ${fmtNum(differ)} order(s) sit on one side only `
+      + `(tab only ${fmtNum(t.only_tab_n)} / EUR ${fmtNum(t.only_tab_eur, 2)}, overview only ${fmtNum(t.only_ovr_n)} / EUR ${fmtNum(t.only_ovr_eur, 2)})`,
+    window: describeWindow(w),
+    breakdown: { tie_out: rows },
+  };
+}
+
+async function c6ProvenCash(ctx) {
+  const w = ctx.windows.range;
+  const skip = needOverview(ctx, w);
+  if (skip) return skip;
+  const ov = await overviewOf(ctx, w);
+  const [t] = await ctx.sql(`
+WITH lp AS (
+  SELECT p.tracking_id, o.display_id, coalesce(p.cod_mkd, 0) AS cod,
+         round(coalesce(o.price, 0) * ${MKD_PER_EUR}) AS price_mkd,
+         coalesce(p.cod_mkd, 0) - round(coalesce(o.price, 0) * ${MKD_PER_EUR}) AS d,
+         (o.status::text IN ('paid', 'delivered') AND o.mex_tracking_id = p.tracking_id
+          AND o.mex_delivered_at IS NOT NULL) AS booked
+  FROM public.mex_parcels p JOIN public.orders o ON o.id = p.order_id
+  WHERE p.status_id = ${MEX_DELIVERED} AND ${within('p.delivered_at', w)}
+), c AS (
+  SELECT lp.*, CASE WHEN abs(d) <= 3 THEN 'exact' WHEN abs(d - 150) <= 3 THEN 'fee_150' ELSE 'mismatch' END AS cls
+  FROM lp
+)
+SELECT count(*)::int AS n, coalesce(sum(cod), 0)::bigint AS cod,
+       count(*) FILTER (WHERE booked)::int AS booked_n, coalesce(sum(cod) FILTER (WHERE booked), 0)::bigint AS booked_cod,
+       (SELECT coalesce(json_agg(b ORDER BY b.cls), '[]') FROM (
+          SELECT cls, count(*)::int AS n, sum(cod)::bigint AS cod_mkd, sum(price_mkd)::bigint AS price_mkd, sum(d)::bigint AS diff_mkd
+          FROM c GROUP BY cls) b) AS by_class,
+       (SELECT coalesce(json_agg(s), '[]') FROM (
+          SELECT display_id, tracking_id, cod AS cod_mkd, price_mkd, d AS diff_mkd FROM c
+          WHERE cls = 'mismatch' ORDER BY abs(d) DESC, display_id LIMIT ${ctx.sampleN}) s) AS sample,
+       count(*) FILTER (WHERE cls = 'mismatch')::int AS mismatch_n
+FROM c`);
+  const rpcLinked = num(ov.kpis.delivered.proven_cod_mkd) - num(ov.kpis.delivered.mex_only_cod_mkd);
+  const rpcLinkedN = num(ov.kpis.delivered.proven_count) - num(ov.kpis.delivered.mex_only_count);
+  const rows = [
+    tieRow('proven cash on orders (MKD)', { rpc: rpcLinked, sql_booked: num(t.booked_cod) }, OV_MKD_TOL),
+    tieRow('proven cash on orders (count)', { rpc: rpcLinkedN, sql_booked: t.booked_n }, 0),
+  ];
+  const bad = rows.filter((r) => !r.ok);
+  const unbooked = t.n - t.booked_n;
+  return {
+    status: bad.length ? 'FAIL' : (t.mismatch_n || unbooked) ? 'WARN' : 'PASS',
+    count: t.mismatch_n,
+    sample: t.sample,
+    note: `linked delivered parcels in the window: ${fmtNum(t.n)} = ${fmtNum(t.cod)} MKD; the Overview books ${fmtNum(t.booked_n)} of them `
+      + `(${fmtNum(t.booked_cod)} MKD)${unbooked ? `, ${fmtNum(unbooked)} sit on an order that is not paid or names another parcel (C1 lists them)` : ''}. `
+      + `COD − price × ${MKD_PER_EUR} splits into exact / +150 delivery fee / mismatch (listed, COD ≠ price: report only)`,
+    window: describeWindow(w),
+    breakdown: { tie_out: rows, by_class: t.by_class },
+  };
+}
+
+async function c12SaleSourceNeverNull(ctx) {
+  const w = ctx.windows.invariant;
+  const [t] = await ctx.sql(`
+SELECT count(*)::int AS n,
+       count(*) FILTER (WHERE o.sale_source IS NULL)::int AS no_source,
+       count(*) FILTER (WHERE o.sale_source_detail IS NULL)::int AS no_detail,
+       (SELECT coalesce(json_agg(s), '[]') FROM (
+          SELECT o2.display_id, ${skDay('o2.created_at')} AS created, ${SOURCE('o2')} AS intake
+          FROM public.orders o2 WHERE o2.sale_source IS NULL AND ${within('o2.created_at', w)}
+          ORDER BY o2.created_at DESC LIMIT ${ctx.sampleN}) s) AS sample
+FROM public.orders o WHERE ${within('o.created_at', w)}`);
+  return {
+    status: t.no_source ? 'FAIL' : t.no_detail ? 'WARN' : 'PASS',
+    count: t.no_source,
+    sample: t.sample,
+    note: `${fmtNum(t.no_source)} of ${fmtNum(t.n)} orders have no sale_source (trg_orders_sale_source_fill leaves it NULL only when `
+      + `classification failed); ${fmtNum(t.no_detail)} have no sale_source_detail`,
+    window: describeWindow(w),
+    breakdown: {},
+  };
+}
+
+async function c13DecisionsHavePerson(ctx) {
+  const w = ctx.windows.range;
+  if (!ctx.schema.tables.work) {
+    return { status: 'SKIP', count: null, sample: [], note: 'public.v_sales_work is not deployed (migration 20260935000100)', window: describeWindow(w, 'decided') };
+  }
+  const [t] = await ctx.sql(`
+WITH v AS (SELECT * FROM public.v_sales_work WHERE ${within('at', w)})
+SELECT count(*)::int AS n, count(person_id)::int AS with_person,
+       (SELECT coalesce(json_agg(b ORDER BY b.via), '[]') FROM (
+          SELECT via, count(*)::int AS decisions, count(person_id)::int AS with_person FROM v GROUP BY via) b) AS by_via,
+       (SELECT coalesce(json_agg(s ORDER BY s.decisions DESC), '[]') FROM (
+          SELECT via, coalesce(actor_ext, '(none)') AS unmapped_actor, count(*)::int AS decisions,
+                 ${skDay('max(at)')} AS last_decision
+          FROM v WHERE person_id IS NULL GROUP BY 1, 2 ORDER BY 3 DESC LIMIT ${ctx.sampleN}) s) AS sample
+FROM v`);
+  const share = t.n ? t.with_person / t.n : 1;
+  return {
+    status: share >= 0.99 ? 'PASS' : 'FAIL',
+    count: t.n - t.with_person,
+    sample: t.sample,
+    note: `${fmtNum(t.with_person)} of ${fmtNum(t.n)} decisions (${(share * 100).toFixed(2)}%) resolve to a sales person; `
+      + 'the gate is 99%. Unmapped actors go to Settings → Teams (sales_person_identities)',
+    window: describeWindow(w, 'decided'),
+    breakdown: { by_via: t.by_via },
+  };
+}
+
+async function c14WebBlockEqualsShop(ctx) {
+  const w = ctx.windows.range;
+  if (!ctx.schema.fns.webBlock || !ctx.schema.tables.webOrders) {
+    return { status: 'SKIP', count: null, sample: [], window: describeWindow(w),
+             note: 'the web shop mirror is not deployed yet (web_orders / insights_web_block, migrations 20260937…)' };
+  }
+  if (!ctx.schema.fns.canWebBlock) {
+    return { status: 'WARN', count: null, sample: [], window: describeWindow(w),
+             note: 'insights_web_block exists but this read-only role may not EXECUTE it — grant EXECUTE on it to supabase_read_only_user to enable C14' };
+  }
+  const [t] = await ctx.sql(`
+WITH b AS (SELECT public.insights_web_block(${lit(w.fromUtc)}, ${lit(inclusiveEnd(w.toUtc))}) AS j),
+w AS (
+  -- the shop's classifyOutcome(), spelled out here on purpose: an independent
+  -- twin of public.web_order_outcome (migration 20260937000000)
+  SELECT CASE
+           WHEN o.payment_method = 'CARD' AND o.status IN ('PENDING', 'CANCELLED')
+            AND o.payment_status NOT IN ('PAID', 'PARTIALLY_REFUNDED', 'REFUNDED')       THEN 'card_unpaid'
+           WHEN o.status = 'CANCELLED'                                                   THEN 'cancelled'
+           WHEN o.status IN ('RETURNED', 'REFUNDED')                                     THEN 'returned'
+           WHEN o.status = 'DELIVERED'                                                   THEN 'delivered'
+           WHEN o.status = 'DONE' AND o.payment_status IN ('PAID', 'PARTIALLY_REFUNDED') THEN 'delivered'
+           WHEN o.status = 'DONE'                                                        THEN 'no_record'
+           WHEN o.status = 'SHIPPED'                                                     THEN 'courier'
+           WHEN o.status IN ('CONFIRMED', 'PROCESSING')                                  THEN 'preparing'
+           ELSE 'awaiting' END AS bucket,
+         o.total
+  FROM public.web_orders o
+  WHERE o.deleted_in_shop_at IS NULL AND ${within('o.created_at', w)}
+), p AS (SELECT * FROM w WHERE bucket <> 'card_unpaid')
+SELECT (SELECT count(*) FROM p)::int AS placed_n, (SELECT round(coalesce(sum(total), 0), 2) FROM p) AS placed_mkd,
+       (SELECT (j #>> '{placed,count}')::numeric FROM b) AS block_n,
+       (SELECT (j #>> '{placed,value_mkd}')::numeric FROM b) AS block_mkd,
+       (SELECT coalesce(json_agg(x ORDER BY x.bucket), '[]') FROM (
+          SELECT k.bucket, coalesce(q.n, 0) AS sql_n,
+                 (SELECT (j -> 'buckets' -> k.bucket ->> 'count')::numeric FROM b) AS block_n
+          FROM (VALUES ('awaiting'), ('preparing'), ('courier'), ('delivered'), ('returned'), ('cancelled'), ('no_record')) k(bucket)
+          LEFT JOIN (SELECT bucket, count(*)::int AS n FROM p GROUP BY 1) q ON q.bucket = k.bucket) x) AS by_bucket`);
+  const rows = [
+    tieRow('placed (count)', { block: num(t.block_n), sql: t.placed_n }, 0),
+    tieRow('placed (MKD)', { block: num(t.block_mkd), sql: num(t.placed_mkd) }, 0.5),
+    ...t.by_bucket.map((b) => tieRow(`bucket ${b.bucket}`, { block: num(b.block_n), sql: b.sql_n }, 0)),
+  ];
+  const bad = rows.filter((r) => !r.ok);
+  return {
+    status: bad.length ? 'FAIL' : 'PASS',
+    count: bad.length,
+    sample: [],
+    note: 'insights_web_block vs the shop\'s own classifier over web_orders for the same Skopje days. The last mile — this against '
+      + 'the live shop panel — needs the shop database and stays a manual look',
+    window: describeWindow(w),
+    breakdown: { tie_out: rows },
+  };
+}
+
 export const CHECKS = [
+  { id: 'C1', title: 'Overview: Σ sources = KPI tiles = SQL truth', run: c1SourcesTieOut },
+  { id: 'C2', title: 'Overview: MEX-only cash = unlinked delivered parcels', run: c2MexOnlyCash },
+  { id: 'C3', title: 'Overview: Prediction-lists tab = ElyonCRM list portion', run: c3PredictionListsTab },
+  { id: 'C6', title: 'Overview: proven cash = COD of linked delivered parcels', run: c6ProvenCash },
   { id: 'C7', title: 'paid without MEX proof', run: c7PaidWithoutProof },
   { id: 'C8a', title: 'one parcel, one order: tracking id on 2+ live orders', run: c8aSharedTracking },
   { id: 'C8b', title: 'one parcel, one order: order tracking id not in mex_parcels', run: c8bTrackingNotInLedger },
   { id: 'C8c', title: 'one parcel, one order: parcel link disagrees with the order', run: c8cLinkDisagrees },
   { id: 'C9', title: 'AlterCPA never writes money', run: c9AltercpaNeverWritesMoney },
   { id: 'C10', title: 'no ghost parcels', run: c10NoGhostParcels },
+  { id: 'C12', title: 'sale_source never NULL', run: c12SaleSourceNeverNull },
+  { id: 'C13', title: '≥ 99% of decisions have a person', run: c13DecisionsHavePerson },
+  { id: 'C14', title: 'web block = the shop\'s own classifier', run: c14WebBlockEqualsShop },
   { id: 'BASELINE', title: 'paid / shipped / returned in range, claimed vs proven', run: baseline, informational: true },
 ];
 
@@ -613,7 +998,14 @@ SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'pub
   (SELECT coalesce(json_object_agg(column_name, data_type), '{}') FROM information_schema.columns
      WHERE table_schema = 'public' AND table_name = 'mex_parcels') AS parcel_cols,
   (SELECT coalesce(json_object_agg(column_name, data_type ORDER BY column_name), '{}') FROM information_schema.columns
-     WHERE table_schema = 'public' AND table_name = 'orders' AND (left(column_name, 4) = 'mex_' OR column_name = 'paid_basis')) AS order_cols`);
+     WHERE table_schema = 'public' AND table_name = 'orders' AND (left(column_name, 4) = 'mex_' OR column_name = 'paid_basis')) AS order_cols,
+  to_regprocedure('public.insights_overview(text,text,text,text)') IS NOT NULL AS has_overview,
+  coalesce(has_function_privilege(to_regprocedure('public.insights_overview(text,text,text,text)'), 'execute'), false) AS can_overview,
+  to_regprocedure('public.insights_web_block(text,text)') IS NOT NULL AS has_web_block,
+  coalesce(has_function_privilege(to_regprocedure('public.insights_web_block(text,text)'), 'execute'), false) AS can_web_block,
+  coalesce(has_function_privilege(to_regprocedure('public.insights_orders_rollup(text,text)'), 'execute'), false) AS can_rollup,
+  to_regclass('public.web_orders') IS NOT NULL AS has_web_orders,
+  to_regclass('public.v_sales_work') IS NOT NULL AS has_work`);
   const parcels = { exists: Boolean(row.has_parcels), cols: row.parcel_cols ?? {}, rows: null, linked: null, delivered: null };
   if (parcels.exists) {
     const has = (c) => c in parcels.cols;
@@ -621,7 +1013,15 @@ SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'pub
       has('status_id') ? `, count(*) FILTER (WHERE ${deliveredSql('p', parcels)})::int AS delivered` : ''} FROM public.mex_parcels p`);
     Object.assign(parcels, { rows: p.n, linked: p.linked ?? null, delivered: p.delivered ?? null });
   }
-  return { parcels, orderCols: row.order_cols ?? {} };
+  return {
+    parcels,
+    orderCols: row.order_cols ?? {},
+    // exists / executable by the role read_only queries run as (supabase_read_only_user)
+    fns: { overview: Boolean(row.has_overview), canOverview: Boolean(row.can_overview),
+           webBlock: Boolean(row.has_web_block), canWebBlock: Boolean(row.can_web_block),
+           canRollup: Boolean(row.can_rollup) },
+    tables: { webOrders: Boolean(row.has_web_orders), work: Boolean(row.has_work) },
+  };
 }
 
 export async function buildContext(opts, sql = runSql) {
@@ -758,7 +1158,7 @@ function printText(ctx, results, summary, exitCode) {
   const { parcels, orderCols } = ctx.schema;
   const W = ctx.windows;
   const out = [];
-  out.push(`verify-attribution v1 | Macedonia ${REF} | read-only | ${skopjeStamp(Date.now())} Skopje`);
+  out.push(`verify-attribution v2 | Macedonia ${REF} | read-only | ${skopjeStamp(Date.now())} Skopje`);
   out.push(`windows  C7/BASELINE ${describeWindow(W.range).replace(/ = .*/, '')} | C8/C10 ${describeWindow(W.invariant).replace(/ = .*/, '')}`
     + ` | C9 ${describeWindow(W.c9, 'changed').replace(/ = .*/, '')}${ctx.guardSince ? ` | guard since ${skopjeStamp(Date.parse(ctx.guardSince))} Skopje` : ''}`);
   const mexCols = Object.keys(orderCols).filter((c) => c.startsWith('mex_'));
@@ -805,7 +1205,7 @@ async function main(argv) {
   if (opts.json) {
     const { parcels, orderCols } = ctx.schema;
     console.log(JSON.stringify({
-      tool: 'verify-attribution', version: 1, ref: REF, read_only: true,
+      tool: 'verify-attribution', version: 2, ref: REF, read_only: true,
       generated_at: new Date().toISOString(), generated_at_skopje: skopjeStamp(Date.now()),
       windows: ctx.windows, guard_since: ctx.guardSince, sample: ctx.sampleN,
       schema: {

@@ -1,6 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "https://esm.sh/zod@3.23.8";
+// Connected Overview: windows, the non-owner money strip, drill-down filters
+// (pure, unit-tested in overview.test.ts).
+import * as OV from "./overview.ts";
 
 // ============================================================
 // INPUT VALIDATION SCHEMAS
@@ -5608,6 +5611,78 @@ async function handleRequest(req: Request): Promise<Response> {
       const page = parseInt(url.searchParams.get("page") || "1");
       const limit = parseInt(url.searchParams.get("limit") || "20");
 
+      // ── Overview drill-down (connected Overview, migration 20260936000000) ──
+      // Additive filters; each only narrows. Combined with created_from /
+      // created_to (or sold_from / sold_to) they list EXACTLY the orders an
+      // Overview number counted: the bucket and SOLD-clock predicates are the
+      // PostgREST twins of insights_overview's, and the Skopje day bounds come
+      // from the same helper the RPC's bounds do (overview.ts).
+      //   sale_source         csv of orders.sale_source
+      //   sale_source_detail  csv of orders.sale_source_detail
+      //   outcome             csv of awaiting|preparing|packed|courier|delivered|
+      //                       returned|cancelled|trashed (+ to_collect, lost,
+      //                       cancelled_after_confirm)
+      //   sold_by_person_id   sales_people.id of the decider
+      //   created_from/_to    Skopje days, inclusive — the PLACED clock
+      //   sold_from/_to       Skopje days, inclusive — the SOLD clock
+      const ovSource = OV.parseCsvParam(url.searchParams.get("sale_source"), OV.SALE_SOURCES);
+      if (!ovSource.ok) return json({ error: `Invalid sale_source: ${ovSource.bad}` }, 400);
+      const ovDetail = OV.parseDetailParam(url.searchParams.get("sale_source_detail"));
+      if (!ovDetail.ok) return json({ error: `Invalid sale_source_detail: ${ovDetail.bad}` }, 400);
+      const ovOutcome = OV.parseCsvParam(url.searchParams.get("outcome"), OV.OUTCOMES);
+      if (!ovOutcome.ok) return json({ error: `Invalid outcome: ${ovOutcome.bad}` }, 400);
+      const ovPerson = url.searchParams.get("sold_by_person_id") || null;
+      if (ovPerson && !OV.isUuid(ovPerson)) return json({ error: "Invalid sold_by_person_id" }, 400);
+      const ovDay = (k: string) => url.searchParams.get(k) || null;
+      const ovCreatedFrom = ovDay("created_from"), ovCreatedTo = ovDay("created_to");
+      let ovSoldFrom = ovDay("sold_from"), ovSoldTo = ovDay("sold_to");
+      for (const d of [ovCreatedFrom, ovCreatedTo, ovSoldFrom, ovSoldTo]) {
+        if (d && !OV.isValidYmd(d)) return json({ error: "Dates must be YYYY-MM-DD (Skopje days)" }, 400);
+      }
+      if (ovSoldFrom || ovSoldTo) { ovSoldFrom = ovSoldFrom || ovSoldTo; ovSoldTo = ovSoldTo || ovSoldFrom; }
+      const ovOutcomeOr = OV.outcomeOrFilter(ovOutcome.values);
+      // Further Overview links (the tiles, the pivot leaves, the rail):
+      //   cash_from/_to  Skopje days, inclusive — the CASH clock
+      //   proof          mex | unproven (a delivered order with / without a delivered MEX parcel)
+      //   paid_basis     orders.paid_basis
+      //   team_key       the decider's primary team (sold_by_person_id ∈ its members;
+      //                  members over the created/sold window when one is given)
+      //   prediction_list / product / city   exact names, as the pivot shows them
+      //   attention      approved_no_parcel_7d | mex_problem (the rail's other
+      //                  kinds are not an orders filter → 400)
+      let ovCashFrom = ovDay("cash_from"), ovCashTo = ovDay("cash_to");
+      for (const d of [ovCashFrom, ovCashTo]) {
+        if (d && !OV.isValidYmd(d)) return json({ error: "Dates must be YYYY-MM-DD (Skopje days)" }, 400);
+      }
+      if (ovCashFrom || ovCashTo) { ovCashFrom = ovCashFrom || ovCashTo; ovCashTo = ovCashTo || ovCashFrom; }
+      const ovProof = url.searchParams.get("proof") || null;
+      if (ovProof && !(OV.PROOF_VALUES as readonly string[]).includes(ovProof)) return json({ error: "Invalid proof" }, 400);
+      const ovPaidBasis = url.searchParams.get("paid_basis") || null;
+      if (ovPaidBasis && !(OV.PAID_BASIS_VALUES as readonly string[]).includes(ovPaidBasis)) return json({ error: "Invalid paid_basis" }, 400);
+      const ovText: Record<string, string | null> = {
+        prediction_list_name: url.searchParams.get("prediction_list") || null,
+        product_name: url.searchParams.get("product") || null,
+        customer_city: url.searchParams.get("city") || null,
+      };
+      for (const v of Object.values(ovText)) if (v !== null && !OV.isSafeText(v)) return json({ error: "Invalid name filter" }, 400);
+      const ovTeam = url.searchParams.get("team_key") || null;
+      if (ovTeam && !/^[a-z][a-z0-9_]{0,40}$/.test(ovTeam)) return json({ error: "Invalid team_key" }, 400);
+      const ovAttention = url.searchParams.get("attention") || null;
+      const ovAttentionF = ovAttention ? OV.attentionFilter(ovAttention) : null;
+      if (ovAttention && !ovAttentionF) {
+        return json({ error: "attention_not_listable", detail: `attention=${ovAttention} is not a filter over orders; open its samples instead` }, 400);
+      }
+      let ovTeamPeople: string[] | null = null;
+      if (ovTeam) {
+        let mq = adminClient.from("sales_team_members").select("person_id").eq("team_key", ovTeam).eq("is_primary", true);
+        const winFrom = ovCreatedFrom || ovSoldFrom, winTo = ovCreatedTo || ovSoldTo;
+        if (winTo) mq = mq.lte("valid_from", winTo);
+        if (winFrom) mq = mq.or(`valid_to.is.null,valid_to.gte.${winFrom}`);
+        const { data: tmRows, error: tmErr } = await mq;
+        if (tmErr) return json({ error: sanitizeDbError(tmErr) }, 400);
+        ovTeamPeople = [...new Set(((tmRows || []) as any[]).map((r) => r.person_id as string))];
+      }
+
       // Only admins/managers may use the elevated client. Agents are always
       // restricted by RLS — search must not bypass row-level access controls.
       const isGlobalSearch = false;
@@ -5624,7 +5699,10 @@ async function handleRequest(req: Request): Promise<Response> {
         (source && source !== "all") || from || to || priceMin || priceMax ||
         search || readyOnly || leadOnly ||
         (cpaWebmaster && cpaWebmaster !== "all") || (cpaOffer && cpaOffer !== "all") ||
-        (cpaStream && cpaStream !== "all"),
+        (cpaStream && cpaStream !== "all") ||
+        ovSource.values.length || ovDetail.values.length || ovOutcomeOr || ovPerson ||
+        ovCreatedFrom || ovCreatedTo || ovSoldFrom || ovCashFrom || ovProof || ovPaidBasis ||
+        Object.values(ovText).some(Boolean) || ovTeam || ovAttention,
       );
       let query = client
         .from("orders")
@@ -5648,6 +5726,33 @@ async function handleRequest(req: Request): Promise<Response> {
       // are visible in the popover with their affiliate names).
       if (cpaStream && cpaStream !== "all") query = query.eq("cpa_stream_id", cpaStream);
       if (leadOnly) query = query.in("source_type", LEAD_SOURCE_TYPES);
+      // Overview drill-down (see the block above `isFiltered`).
+      if (ovSource.values.length) query = query.in("sale_source", ovSource.values);
+      if (ovDetail.values.length) query = query.in("sale_source_detail", ovDetail.values);
+      if (ovOutcomeOr) query = query.or(ovOutcomeOr);
+      if (ovPerson) query = query.eq("sold_by_person_id", ovPerson);
+      if (ovCreatedFrom) query = query.gte("created_at", OV.skopjeMidnightIso(ovCreatedFrom));
+      if (ovCreatedTo) query = query.lte("created_at", OV.skopjeDayEndIso(ovCreatedTo));
+      if (ovSoldFrom && ovSoldTo) {
+        query = query.or(OV.soldWindowOrFilter(OV.skopjeMidnightIso(ovSoldFrom), OV.skopjeDayEndIso(ovSoldTo)));
+      }
+      if (ovCashFrom && ovCashTo) {
+        query = query.or(OV.cashWindowOrFilter(OV.skopjeMidnightIso(ovCashFrom), OV.skopjeDayEndIso(ovCashTo)));
+      }
+      if (ovProof === "mex") query = query.not("mex_delivered_at", "is", null);
+      if (ovProof === "unproven") query = query.in("status", ["paid", "delivered"]).is("mex_delivered_at", null);
+      if (ovPaidBasis) query = query.eq("paid_basis", ovPaidBasis);
+      for (const [col, v] of Object.entries(ovText)) if (v !== null) query = query.eq(col, v);
+      if (ovTeamPeople) {
+        // No member → nothing to list (a nil uuid matches no order).
+        query = query.in("sold_by_person_id", ovTeamPeople.length ? ovTeamPeople : ["00000000-0000-0000-0000-000000000000"]);
+      }
+      if (ovAttentionF) {
+        for (const [col, v] of Object.entries(ovAttentionF.eq)) query = query.eq(col, v);
+        for (const [col, v] of Object.entries(ovAttentionF.in)) query = query.in(col, v);
+        for (const col of ovAttentionF.isNull) query = query.is(col, null);
+        for (const expr of ovAttentionF.or) query = query.or(expr);
+      }
       const dateField = url.searchParams.get("date_field") || "event";
       if (from || to) {
         if (dateField === "created_at") {
@@ -16750,6 +16855,60 @@ async function handleRequest(req: Request): Promise<Response> {
         },
       });
       return json({ success: true, user_id: targetId });
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // GET /api/insights/overview?from=YYYY-MM-DD&to=YYYY-MM-DD&compare=1
+    // The connected Overview (Phase 5 — migration 20260936000000, contract
+    // 2026-09-28): freshness, KPI tiles (+previous period, +spark), the four
+    // sources with their outcome bars, trend, teams, and the attention rail.
+    //   owner (public.business_owners) → the whole payload, meta.money = true
+    //   non-owner admin / manager      → the SAME payload with every money
+    //                                    field removed (a whitelist —
+    //                                    overview.ts stripOverviewMoney) and
+    //                                    meta.money = false. Never a 403.
+    //   everyone else                  → 403
+    // Dates are Skopje days (default today); the RPC gets Skopje-midnight /
+    // end-of-day instants, the same ones GET /orders?created_from&created_to
+    // uses, so every number opens exactly the orders it counted.
+    // ══════════════════════════════════════════════════════════════
+    if (req.method === "GET" && path === "insights/overview") {
+      const ovOwner = await isBusinessOwner(user.id);
+      if (!ovOwner && !isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      const ovWin = OV.overviewWindows(
+        url.searchParams.get("from"), url.searchParams.get("to"),
+        url.searchParams.get("compare") === "1",
+      );
+      if ("error" in ovWin) return json({ error: ovWin.error }, 400);
+      const { data: ovData, error: ovErr } = await adminClient.rpc("insights_overview", {
+        p_from: ovWin.fromIso,
+        p_to_end: ovWin.toEndIso,
+        p_prev_from: ovWin.prev?.fromIso ?? null,
+        p_prev_to_end: ovWin.prev?.toEndIso ?? null,
+      });
+      if (ovErr) return json({ error: `insights_overview: ${sanitizeDbError(ovErr)}` }, 500);
+      return json(OV.buildOverviewResponse((ovData ?? {}) as Record<string, unknown>, ovWin, ovOwner));
+    }
+
+    // GET /api/insights/pivot?from&to&by=source,team,person — the Overview's
+    // lazy drill-down table (1–4 of source|detail|team|person|list|webmaster|
+    // stream|product|city). Every row carries money → OWNERS ONLY.
+    if (req.method === "GET" && path === "insights/pivot") {
+      if (!(await isBusinessOwner(user.id))) {
+        return json({ error: isAdminOrManager ? "owners_only" : "Forbidden" }, 403);
+      }
+      const pvWin = OV.overviewWindows(url.searchParams.get("from"), url.searchParams.get("to"), false);
+      if ("error" in pvWin) return json({ error: pvWin.error }, 400);
+      const pvBy = OV.parsePivotBy(url.searchParams.get("by"));
+      if (!pvBy.ok) return json({ error: `Invalid by: ${pvBy.bad}` }, 400);
+      const { data: pvData, error: pvErr } = await adminClient.rpc("insights_pivot", {
+        p_from: pvWin.fromIso, p_to_end: pvWin.toEndIso, p_by: pvBy.values,
+      });
+      if (pvErr) return json({ error: `insights_pivot: ${sanitizeDbError(pvErr)}` }, 500);
+      return json({
+        meta: { from: pvWin.from, to: pvWin.to, by: pvBy.values, generated_at: new Date().toISOString(), money: true },
+        ...((pvData ?? {}) as Record<string, unknown>),
+      });
     }
 
     // ══════════════════════════════════════════════════════════════
