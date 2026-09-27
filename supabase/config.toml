@@ -13,3 +13,9 @@ verify_jwt = false
 # Same pattern: pg_cron caller, x-mex-sync-secret header checked in code.
 [functions.mex-reconcile]
 verify_jwt = false
+
+# naturatherapy.mk mirror: pg_cron caller, x-web-sync-secret header checked in
+# code (fails closed when WEB_SYNC_SECRET is unset). Reads the SHOP database as
+# the read-only elyon_crm_reader role (WEB_SHOP_DB_URL) — never writes to it.
+[functions.web-sync]
+verify_jwt = false
