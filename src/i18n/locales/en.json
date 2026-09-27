@@ -3533,5 +3533,292 @@
     "loadFailed": "Could not load who is working",
     "alertRule": "Idle alert after every {{minutes}} minutes without activity.",
     "alertsOff": "Idle alerts are switched off."
+  },
+  "overview": {
+    "demoData": "Demo data — the overview endpoint is not deployed yet. These are NOT real numbers.",
+    "notDeployed": "The overview endpoint is not deployed yet (GET /insights/overview).",
+    "staleError": "Could not refresh — these are the previous numbers.",
+    "refreshing": "Updating",
+    "asOf": "status as of {{time}}",
+    "compare": "Compare with the previous period",
+    "sourcesLabel": "Sources",
+    "teamsLabel": "Teams",
+    "allSources": "All sources",
+    "allTeams": "All teams",
+    "range": {
+      "label": "Period",
+      "today": "Today",
+      "week": "Week",
+      "month": "Month",
+      "year": "Year",
+      "custom": "Custom",
+      "from": "From",
+      "to": "To",
+      "apply": "Apply",
+      "maxSpan": "Up to {{n}} days"
+    },
+    "unit": {
+      "k": "{{n}}k",
+      "m": "{{n}}M"
+    },
+    "ago": {
+      "now": "just now",
+      "min": "{{n}} min ago",
+      "hour": "{{n}} h ago",
+      "day": "{{n}} d ago",
+      "never": "never"
+    },
+    "fresh": {
+      "title": "Data",
+      "feed": {
+        "altercpa": "AlterCPA",
+        "mex_bio_natural": "MEX · BIO NATURAL",
+        "mex_natura": "MEX · NATURA",
+        "collabbox": "collabBox",
+        "web": "Web shop"
+      },
+      "status": {
+        "ok": "OK",
+        "stale": "Stale",
+        "failed": "Failed",
+        "na": "Not connected"
+      }
+    },
+    "delta": {
+      "flat": "No change",
+      "new": "New",
+      "upAria": "Up {{pct}} on the previous period",
+      "downAria": "Down {{pct}} on the previous period"
+    },
+    "kpi": {
+      "title": "Key figures",
+      "heroLabel": "Cash collected — proven by MEX",
+      "heroLabelNoMoney": "Parcels delivered — proven by MEX",
+      "placed": "Placed",
+      "confirmed": "Confirmed",
+      "at_courier": "At the courier",
+      "delivered": "Delivered",
+      "to_collect": "To collect",
+      "lost": "Lost",
+      "unproven_paid": "Unproven “paid”",
+      "ordersN": "{{n}} orders",
+      "parcelsN": "{{n}} parcels",
+      "notSplit": "count not split by source",
+      "filtered": "Selected sources only",
+      "vsPrev": "vs {{period}}",
+      "unprovenOk": "OK — every paid order is proven",
+      "unprovenBad": "Must be 0 — paid without MEX proof",
+      "vsPrevPartial": "vs {{period}}, up to {{time}} on its last day",
+      "mexOnlyPart": "of which {{n}} parcels only at MEX (no order)",
+      "mexOnlyPartMoney": "of which {{n}} parcels only at MEX (no order) · {{value}}"
+    },
+    "kpiHint": {
+      "placed": "By order day: every order placed in the period, whatever became of it",
+      "confirmed": "By sale day: orders confirmed in the period",
+      "at_courier": "By order day: placed in the period and now with the courier",
+      "delivered": "By MEX delivery day: cash on delivery MEX reports as collected — proven by a delivered parcel",
+      "to_collect": "By order day: being prepared or at the courier — not paid yet",
+      "lost": "By order day: returned, or cancelled after a sale",
+      "unproven_paid": "By payment day: paid in the period without a delivered MEX parcel — must be 0"
+    },
+    "bucket": {
+      "delivered": "Delivered",
+      "courier": "With the courier",
+      "preparing": "Being prepared",
+      "awaiting": "Awaiting confirmation",
+      "returned": "Returned",
+      "cancelled": "Cancelled",
+      "trashed": "Trashed",
+      "packed": "Packed",
+      "to_pack": "To pack",
+      "to_collect": "Still to collect",
+      "lost": "Lost",
+      "no_record": "No record"
+    },
+    "money": {
+      "collected": "Collected",
+      "to_collect": "Still to collect",
+      "lost": "Lost",
+      "collectedHint": "MEX cash on delivery",
+      "toCollectHint": "being prepared or at the courier",
+      "lostHint": "returned, or cancelled after confirming",
+      "unprovenPart": "includes {{value}} without MEX proof",
+      "shopPart": "includes {{value}} by the shop’s own records",
+      "unrecorded": "{{value}} from older web orders has no payment record"
+    },
+    "rates": {
+      "delivery": "Delivery success",
+      "returns": "Returns",
+      "cancel": "Cancelled",
+      "of": "{{a}} of {{b}}"
+    },
+    "source": {
+      "altercpa": "AlterCPA",
+      "elyon_crm": "ElyonCRM",
+      "web": "Web shop",
+      "teleshopOther": "Teleshop / other"
+    },
+    "saleSource": {
+      "altercpa": "AlterCPA",
+      "elyon_crm": "ElyonCRM",
+      "collabbox": "collabBox",
+      "web": "Web",
+      "affiliate": "Affiliate",
+      "legacy": "Older records"
+    },
+    "split": {
+      "leads": "LEADS",
+      "leads_out": "LEADS-OUT",
+      "new": "New customers",
+      "returning": "Returning customers",
+      "prediction_list": "Prediction lists",
+      "direct": "Direct",
+      "disposition": "Call outcomes",
+      "teleshop": "Teleshop",
+      "social": "Social media",
+      "mex_only_unlinked": "MEX only, no order",
+      "shop": "Shop",
+      "mex_only": "MEX only"
+    },
+    "sources": {
+      "title": "Where the money came from",
+      "titleNoMoney": "Where the orders came from",
+      "subtitle": "Orders placed in the period and where they stand now · every number opens exactly those orders",
+      "howCounted": "How it is counted",
+      "howCountedText": "Counts are the orders placed in the period (Skopje days), by where each one stands now — a recent day keeps moving until its last parcel is delivered or returned.",
+      "howCountedMoney": "Collected = cash on delivery that MEX reports as collected. Still to collect = being prepared or at the courier. Lost = returned, or cancelled after being confirmed.",
+      "placedLine": "{{n}} orders · {{value}}",
+      "worked": "Worked",
+      "confirmed": "Confirmed",
+      "conversion": "Conversion",
+      "aov": "Average order",
+      "barLabel": "order outcomes",
+      "packedN": "{{n}} packed",
+      "toPackN": "{{n}} to pack",
+      "splits": "Breakdown",
+      "noLinks": "Counted from the web-shop mirror — these orders are not in the Orders list.",
+      "empty": "No orders in this period.",
+      "mexOnlyChip": "+ {{n}} delivered parcels only at MEX, with no order (not in the bar)",
+      "noLinksOther": "These numbers are not in the Orders list."
+    },
+    "trend": {
+      "title": "Trend by source",
+      "subtitleMoney": "Value placed vs cash collected (MEX) · each chart has its own scale",
+      "subtitleCount": "Orders placed vs parcels delivered · each chart has its own scale",
+      "byDay": "by day",
+      "byMonth": "by month",
+      "placed": "Placed (value)",
+      "placedCount": "Placed (orders)",
+      "cash": "Collected (MEX)",
+      "delivered": "Delivered (parcels)",
+      "chart": "Chart",
+      "table": "Table",
+      "viewLabel": "View",
+      "colPeriod": "Period",
+      "empty": "Nothing to chart in this period."
+    },
+    "teams": {
+      "title": "Teams",
+      "subtitle": "Who is online, for how long, what they worked and sold",
+      "onlineNow": "{{n}} online now",
+      "peopleOnline": "{{n}} people · {{online}} online",
+      "mode": {
+        "pending": "Pending · AlterCPA leads",
+        "prediction": "Prediction · ElyonCRM",
+        "management": "Management",
+        "unassigned": "Not on a team yet"
+      },
+      "col": {
+        "person": "Person",
+        "time": "Online",
+        "worked": "Worked",
+        "confirmed": "Confirmed",
+        "conversion": "Conv.",
+        "sold": "Sold",
+        "cash": "Collected (MEX)",
+        "alerts": "Idle alerts"
+      },
+      "state": {
+        "online": "Online",
+        "idle": "Idle",
+        "break": "On break",
+        "offline": "Offline",
+        "na": "Works in AlterCPA"
+      },
+      "lastDecision": "last decision {{ago}}",
+      "timeTitle": "Online {{online}} · active {{active}} · idle {{idle}} · break {{brk}}",
+      "tvBoard": "TV board",
+      "tvNoLink": "No TV link yet — create one in Settings → Leaderboard",
+      "empty": "Nobody on this team in the period.",
+      "onBreak": "{{n}} on break"
+    },
+    "pivot": {
+      "title": "Drill-down",
+      "subtitle": "Source → team → person → detail · open a row to go deeper",
+      "leaf": "Last level",
+      "dim": {
+        "source": "Source",
+        "team": "Team",
+        "person": "Person",
+        "list": "Prediction list",
+        "webmaster": "Webmaster",
+        "stream": "Stream",
+        "product": "Product",
+        "city": "City",
+        "detail": "Source detail"
+      },
+      "col": {
+        "name": "Breakdown",
+        "count": "Orders",
+        "value": "Sold value",
+        "cash": "Collected (MEX)",
+        "sold": "Sold"
+      },
+      "noTeam": "No team",
+      "noPerson": "Not decided by a person",
+      "none": "(none)",
+      "nothing": "Nothing here.",
+      "failed": "Could not load this level.",
+      "expand": "Open {{name}}",
+      "collapse": "Close {{name}}",
+      "truncated": "Showing the first 2.000 rows of this level."
+    },
+    "attention": {
+      "title": "Needs attention",
+      "allClear": "All clear — nothing needs attention right now.",
+      "jump": "{{n}} need attention",
+      "severity": {
+        "warning": "Warning",
+        "critical": "Critical"
+      },
+      "kind": {
+        "approved_no_parcel_7d": "Approved, no parcel after 7 days",
+        "mex_problem": "MEX problems — problematic, delivery attempted, rejected",
+        "cod_mismatch": "Cash on delivery ≠ order price",
+        "unlinked_parcels": "Parcels at MEX with no order",
+        "stale_feed": "Stale or failing data feeds",
+        "web_waiting_24h": "Web orders waiting over 24 h",
+        "night_approvals": "Approvals at night",
+        "burst_approvals": "Approvals in bursts"
+      },
+      "byPerson": "Most from",
+      "noList": "These are not in the Orders list."
+    },
+    "drill": {
+      "from": "From the overview:",
+      "back": "Overview",
+      "clear": "Remove filter",
+      "created": "placed {{period}}",
+      "sold": "confirmed {{period}}",
+      "paidBasis": "paid basis: {{basis}}",
+      "cash": "paid {{period}}",
+      "proof": {
+        "unproven": "without MEX proof",
+        "mex": "proven by MEX"
+      }
+    },
+    "clock": {
+      "placed": "Counted by the day the order was placed (Skopje time)"
+    }
   }
 }

@@ -257,17 +257,24 @@ export function usePermissions() {
 }
 
 /** Which parts of /insights the current login may open (owner ruling
- *  2026-09-27). `business` gates the money tabs (Overview, Sales, Pure Profit,
+ *  2026-09-27). `business` gates the money tabs (Sales, Pure Profit,
  *  Margin Lab, Prediction Lists, Stock, Returns) and follows canSeeBusiness
- *  ONLY — no admin bypass. The operational tabs keep their module rules.
+ *  ONLY — no admin bypass. `overview` opens the connected Overview to owners
+ *  (with money) and to admins/managers (without). The operational tabs keep
+ *  their module rules.
  *  ManagementInsightsPage and the sidebar both read this, so the two can never
  *  disagree; the server enforces the same split (GET /management-insights is
  *  owners-only except ?scope=calls). */
 export function useInsightsAccess() {
   const { canAccessModule, canSeeBusiness, isModuleEnabled } = usePermissions();
+  const { user } = useAuth();
   const canInsights = canAccessModule('insights');
   // The global module switch still hides Insights from everyone, owners too.
   const business = canSeeBusiness && isModuleEnabled('insights');
+  // The connected Overview (2026-09-28): owners see it with money; any
+  // admin/manager with Insights sees the same page counted, without money.
+  // GET /insights/overview enforces the same split (meta.money).
+  const overview = business || (canInsights && !!(user?.isAdmin || user?.isManager) && !user?.isExternalAffiliate);
   // Agents also honours the legacy Performance module key.
   const agents = canInsights || canAccessModule('performance');
   // Payout: admin/manager (insights access implies management).
@@ -275,5 +282,5 @@ export function useInsightsAccess() {
   // Call Activity is its own module (admin-only by default), governed from
   // Settings → Role Permissions.
   const calls = canAccessModule('call_activity');
-  return { business, agents, payout, calls, any: business || agents || payout || calls };
+  return { business, overview, agents, payout, calls, any: business || overview || agents || payout || calls };
 }

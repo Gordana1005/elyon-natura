@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, Fragment } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AppLayout } from '@/layouts/AppLayout';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -55,6 +56,9 @@ import { ActiveViewBadge } from '@/components/ActiveViewBadge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { EmptyState } from '@/components/EmptyState';
+// Drill-down from Insights → Overview: /orders?sale_source=…&outcome=…&created_from=…
+import { parseDrillParams, DRILL_LABEL_PARAM } from '@/components/insights/overview/model';
+import { OrdersDrillBanner } from '@/components/insights/overview/OrdersDrillBanner';
 
 const PAGE_SIZE = 20;
 
@@ -166,8 +170,21 @@ export default function Orders() {
   // so the "auto-mark shipped" toggle is only meaningful for those roles.
   const canBulkUpdateStatus = !!(user?.isAdmin || user?.isManager || user?.isWarehouse);
 
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  // Overview drill-down (and ?search= from its examples) arrive in the URL.
+  // The drill restricts the list to exactly the orders a number counted; the
+  // toolbar filters still narrow it further.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const drill = useMemo(() => parseDrillParams(searchParams), [searchParams]);
+  const drillKey = drill ? JSON.stringify(drill) : '';
+  const drillLabel = searchParams.get(DRILL_LABEL_PARAM);
+  const clearDrill = () => setSearchParams((prev) => {
+    const next = new URLSearchParams(prev);
+    for (const k of [...next.keys()]) if (k !== 'search') next.delete(k);
+    return next;
+  }, { replace: true });
+
+  const [search, setSearch] = useState(() => searchParams.get('search') ?? '');
+  const [debouncedSearch, setDebouncedSearch] = useState(() => searchParams.get('search') ?? '');
   const [selectedStatuses, setSelectedStatuses] = useState<OrderStatus[]>([]);
   const [sourceFilter, setSourceFilter] = useState('all');
   // CPA provenance filters — admin/manager only, like the columns they filter on.
@@ -346,7 +363,7 @@ export default function Orders() {
     return () => clearTimeout(t);
   }, [search]);
 
-  useEffect(() => { setPage(1); }, [debouncedSearch, selectedStatuses, sourceFilter, affiliateFilter, offerFilter, publisherFilter, agentFilter, myOrdersOnly, dateFrom, dateTo, priceMin, priceMax]);
+  useEffect(() => { setPage(1); }, [debouncedSearch, selectedStatuses, sourceFilter, affiliateFilter, offerFilter, publisherFilter, agentFilter, myOrdersOnly, dateFrom, dateTo, priceMin, priceMax, drillKey]);
 
   const { data: agentsData } = useQuery({
     queryKey: ['agents'],
@@ -405,6 +422,7 @@ export default function Orders() {
       to: dateTo ? format(dateTo, "yyyy-MM-dd'T'23:59:59") : undefined,
       price_min: priceMin ?? undefined,
       price_max: priceMax ?? undefined,
+      drill: drill ?? undefined,
     };
   };
 
@@ -425,7 +443,7 @@ export default function Orders() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchOrders(); }, [page, selectedStatuses, sourceFilter, affiliateFilter, offerFilter, publisherFilter, debouncedSearch, agentFilter, myOrdersOnly, dateFrom, dateTo, priceMin, priceMax]);
+  useEffect(() => { fetchOrders(); }, [page, selectedStatuses, sourceFilter, affiliateFilter, offerFilter, publisherFilter, debouncedSearch, agentFilter, myOrdersOnly, dateFrom, dateTo, priceMin, priceMax, drillKey]);
 
   // Status filtering (single or multi-select) is now done server-side, so the
   // page already contains exactly the orders that match — and total/pagination
@@ -534,8 +552,9 @@ export default function Orders() {
   const toggleStatus = (s: OrderStatus) => {
     setSelectedStatuses(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
   };
-  const hasActiveFilters = search.trim() || selectedStatuses.length > 0 || sourceFilter !== 'all' || affiliateFilter !== 'all' || offerFilter !== 'all' || publisherFilter !== 'all' || agentFilter !== 'all' || (myOrdersOnly && isAdmin) || dateFrom || dateTo || priceMin != null || priceMax != null;
+  const hasActiveFilters = !!drill || search.trim() || selectedStatuses.length > 0 || sourceFilter !== 'all' || affiliateFilter !== 'all' || offerFilter !== 'all' || publisherFilter !== 'all' || agentFilter !== 'all' || (myOrdersOnly && isAdmin) || dateFrom || dateTo || priceMin != null || priceMax != null;
   const clearAllFilters = () => {
+    if (searchParams.toString()) setSearchParams({}, { replace: true });
     setSearch(''); setSelectedStatuses([]); setSourceFilter('all'); setAffiliateFilter('all'); setOfferFilter('all'); setPublisherFilter('all'); setAgentFilter('all'); if (isAdmin) setMyOrdersOnly(false); setDateFrom(undefined); setDateTo(undefined);
     setPriceMin(null); setPriceMax(null); setPriceMinDraft(''); setPriceMaxDraft('');
   };
@@ -965,6 +984,7 @@ export default function Orders() {
 
   return (
     <AppLayout title={t('nav.orders')}>
+      {drill && <OrdersDrillBanner drill={drill} label={drillLabel} onClear={clearDrill} />}
       {/* Filter Bar */}
       <div className="sticky top-0 z-10 mb-4 space-y-3">
         <div className="rounded-xl border bg-card/80 backdrop-blur-sm p-3 shadow-sm">

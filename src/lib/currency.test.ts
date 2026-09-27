@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { MKD_PER_EUR, eurToDen, denToEur, formatMoney, formatEurExact, formatPriceInline, codFor } from './currency';
+import { MKD_PER_EUR, eurToDen, denToEur, formatMoney, formatDenari, formatEurExact, formatPriceInline, codFor } from './currency';
 
 // These tests exist to make two specific, expensive mistakes impossible to ship.
 //
@@ -58,6 +58,17 @@ describe('formatting', () => {
 
   it('handles negatives (reversed commissions on returns)', () => {
     expect(formatMoney(-30)).toBe('-1.845 ден');
+  });
+
+  it('formatDenari prints an amount that is already denars — no second conversion', () => {
+    // MEX COD arrives in denars. Running it through formatMoney would print
+    // 61.5× the cash — the webhook 61× bug.
+    expect(formatDenari(4000)).toBe('4.000 ден');
+    expect(formatDenari(1979400)).toBe('1.979.400 ден');
+    expect(formatDenari(2489.6)).toBe('2.490 ден');
+    expect(formatDenari(null)).toBe('0 ден');
+    expect(formatDenari('abc')).toBe('0 ден');
+    expect(formatDenari(-150)).toBe('-150 ден');
   });
 });
 

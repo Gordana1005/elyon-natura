@@ -56,6 +56,17 @@ function groupMk(n: number): string {
 export const formatMoney = (eur: number | string) => `${groupMk(eurToDen(eur))} ден`;
 
 /**
+ * For amounts that are ALREADY denars — MEX cash-on-delivery (`mex_cod_mkd`,
+ * `cod_mkd`, `delivered_cash_mkd`). Never pass a EUR price here (that is
+ * `formatMoney`), and never pass a denar amount to `formatMoney` (that would
+ * multiply it by the peg a second time — the 61× bug).
+ */
+export const formatDenari = (mkd: number | string | null | undefined) => {
+  const n = Number(mkd);
+  return `${groupMk(Number.isFinite(n) ? n : 0)} ден`;
+};
+
+/**
  * Deliberate EUR display — only for surfaces where EUR really is the unit:
  * affiliate offers (partner networks are priced in EUR) and the internal
  * margin bands. Always label these as EUR in the UI.

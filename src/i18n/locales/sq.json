@@ -3533,5 +3533,292 @@
     "loadFailed": "Nuk u ngarkua kush po punon",
     "alertRule": "Sinjalizim pas çdo {{minutes}} minutash pa aktivitet.",
     "alertsOff": "Sinjalizimet për mosaktivitet janë të fikura."
+  },
+  "overview": {
+    "demoData": "Të dhëna demo — pika e përmbledhjes ende nuk është vendosur. Këto NUK janë shifra të vërteta.",
+    "notDeployed": "Pika e përmbledhjes ende nuk është vendosur (GET /insights/overview).",
+    "staleError": "Nuk u rifreskua — këto janë shifrat e mëparshme.",
+    "refreshing": "Po përditësohet",
+    "asOf": "gjendja në {{time}}",
+    "compare": "Krahaso me periudhën e mëparshme",
+    "sourcesLabel": "Burimet",
+    "teamsLabel": "Ekipet",
+    "allSources": "Të gjitha burimet",
+    "allTeams": "Të gjitha ekipet",
+    "range": {
+      "label": "Periudha",
+      "today": "Sot",
+      "week": "Java",
+      "month": "Muaji",
+      "year": "Viti",
+      "custom": "E personalizuar",
+      "from": "Nga",
+      "to": "Deri",
+      "apply": "Zbato",
+      "maxSpan": "Deri në {{n}} ditë"
+    },
+    "unit": {
+      "k": "{{n}} mijë",
+      "m": "{{n}} mln"
+    },
+    "ago": {
+      "now": "tani",
+      "min": "para {{n}} min",
+      "hour": "para {{n}} orë",
+      "day": "para {{n}} ditësh",
+      "never": "asnjëherë"
+    },
+    "fresh": {
+      "title": "Të dhënat",
+      "feed": {
+        "altercpa": "AlterCPA",
+        "mex_bio_natural": "MEX · BIO NATURAL",
+        "mex_natura": "MEX · NATURA",
+        "collabbox": "collabBox",
+        "web": "Dyqani online"
+      },
+      "status": {
+        "ok": "Në rregull",
+        "stale": "E vjetëruar",
+        "failed": "Dështoi",
+        "na": "Nuk është lidhur"
+      }
+    },
+    "delta": {
+      "flat": "Pa ndryshim",
+      "new": "E re",
+      "upAria": "Rritje {{pct}} krahasuar me periudhën e mëparshme",
+      "downAria": "Rënie {{pct}} krahasuar me periudhën e mëparshme"
+    },
+    "kpi": {
+      "title": "Shifrat kryesore",
+      "heroLabel": "Të arkëtuara — të vërtetuara nga MEX",
+      "heroLabelNoMoney": "Dërgesa të dorëzuara — të vërtetuara nga MEX",
+      "placed": "Të bëra",
+      "confirmed": "Të konfirmuara",
+      "at_courier": "Te korieri",
+      "delivered": "Të dorëzuara",
+      "to_collect": "Për t'u arkëtuar",
+      "lost": "Të humbura",
+      "unproven_paid": "“Të paguara” pa dëshmi",
+      "ordersN": "{{n}} porosi",
+      "parcelsN": "{{n}} dërgesa",
+      "notSplit": "numri nuk ndahet sipas burimit",
+      "filtered": "Vetëm burimet e zgjedhura",
+      "vsPrev": "krahasuar me {{period}}",
+      "unprovenOk": "Në rregull — çdo porosi e paguar është e vërtetuar",
+      "unprovenBad": "Duhet të jetë 0 — të paguara pa dëshmi nga MEX",
+      "vsPrevPartial": "krahasuar me {{period}}, deri në {{time}} të ditës së fundit",
+      "mexOnlyPart": "prej tyre {{n}} dërgesa vetëm në MEX (pa porosi)",
+      "mexOnlyPartMoney": "prej tyre {{n}} dërgesa vetëm në MEX (pa porosi) · {{value}}"
+    },
+    "kpiHint": {
+      "placed": "Sipas ditës së porosisë: çdo porosi e bërë në periudhë, çfarëdo që ndodhi me të",
+      "confirmed": "Sipas ditës së shitjes: porosi të konfirmuara në periudhë",
+      "at_courier": "Sipas ditës së porosisë: të bëra në periudhë dhe tani te korieri",
+      "delivered": "Sipas ditës së dorëzimit në MEX: pagesa në dorëzim që MEX e raporton si të arkëtuar — e vërtetuar me dërgesë të dorëzuar",
+      "to_collect": "Sipas ditës së porosisë: në përgatitje ose te korieri — ende të papaguara",
+      "lost": "Sipas ditës së porosisë: të kthyera, ose të anuluara pas shitjes",
+      "unproven_paid": "Sipas ditës së pagesës: të paguara në periudhë pa dërgesë të dorëzuar në MEX — duhet të jenë 0"
+    },
+    "bucket": {
+      "delivered": "Të dorëzuara",
+      "courier": "Te korieri",
+      "preparing": "Në përgatitje",
+      "awaiting": "Në pritje të konfirmimit",
+      "returned": "Të kthyera",
+      "cancelled": "Të anuluara",
+      "trashed": "Të hedhura",
+      "packed": "Të paketuara",
+      "to_pack": "Për paketim",
+      "to_collect": "Për t'u arkëtuar",
+      "lost": "Të humbura",
+      "no_record": "Pa evidencë"
+    },
+    "money": {
+      "collected": "Të arkëtuara",
+      "to_collect": "Për t'u arkëtuar",
+      "lost": "Të humbura",
+      "collectedHint": "pagesa në dorëzim nga MEX",
+      "toCollectHint": "në përgatitje ose te korieri",
+      "lostHint": "të kthyera, ose të anuluara pas konfirmimit",
+      "unprovenPart": "përfshin {{value}} pa dëshmi nga MEX",
+      "shopPart": "përfshin {{value}} sipas evidencës së dyqanit",
+      "unrecorded": "{{value}} nga porosi më të vjetra web nuk ka evidencë pagese"
+    },
+    "rates": {
+      "delivery": "Dorëzim i suksesshëm",
+      "returns": "Kthime",
+      "cancel": "Të anuluara",
+      "of": "{{a}} nga {{b}}"
+    },
+    "source": {
+      "altercpa": "AlterCPA",
+      "elyon_crm": "ElyonCRM",
+      "web": "Dyqani online",
+      "teleshopOther": "Teleshop / tjetër"
+    },
+    "saleSource": {
+      "altercpa": "AlterCPA",
+      "elyon_crm": "ElyonCRM",
+      "collabbox": "collabBox",
+      "web": "Web",
+      "affiliate": "Afiliat",
+      "legacy": "Regjistrime të vjetra"
+    },
+    "split": {
+      "leads": "LEADS",
+      "leads_out": "LEADS-OUT",
+      "new": "Klientë të rinj",
+      "returning": "Klientë të kthyer",
+      "prediction_list": "Listat e parashikimit",
+      "direct": "Direkt",
+      "disposition": "Rezultate thirrjesh",
+      "teleshop": "Teleshop",
+      "social": "Rrjete sociale",
+      "mex_only_unlinked": "Vetëm në MEX, pa porosi",
+      "shop": "Dyqani",
+      "mex_only": "Vetëm në MEX"
+    },
+    "sources": {
+      "title": "Nga erdhën paratë",
+      "titleNoMoney": "Nga erdhën porositë",
+      "subtitle": "Porositë e bëra në periudhë dhe ku janë tani · çdo numër hap pikërisht ato porosi",
+      "howCounted": "Si numërohen",
+      "howCountedText": "Numrat janë porositë e bëra në periudhë (ditë sipas Shkupit), sipas asaj ku është secila tani — një ditë e afërt ndryshon derisa dërgesa e fundit të dorëzohet ose të kthehet.",
+      "howCountedMoney": "Të arkëtuara = pagesa në dorëzim që MEX e raporton si të arkëtuar. Për t'u arkëtuar = në përgatitje ose te korieri. Të humbura = të kthyera, ose të anuluara pas konfirmimit.",
+      "placedLine": "{{n}} porosi · {{value}}",
+      "worked": "Të punuara",
+      "confirmed": "Të konfirmuara",
+      "conversion": "Konvertimi",
+      "aov": "Porosia mesatare",
+      "barLabel": "rezultatet e porosive",
+      "packedN": "{{n}} të paketuara",
+      "toPackN": "{{n}} për paketim",
+      "splits": "Ndarja",
+      "noLinks": "Të numëruara nga pasqyra e dyqanit online — këto porosi nuk janë në listën Porosi.",
+      "empty": "Nuk ka porosi në këtë periudhë.",
+      "mexOnlyChip": "+ {{n}} dërgesa të dorëzuara vetëm në MEX, pa porosi (jo në shirit)",
+      "noLinksOther": "Këto shifra nuk janë në listën Porosi."
+    },
+    "trend": {
+      "title": "Trendi sipas burimit",
+      "subtitleMoney": "Vlera e porosive të bëra kundrejt të arkëtuarave (MEX) · çdo grafik ka shkallën e vet",
+      "subtitleCount": "Porosi të bëra kundrejt dërgesave të dorëzuara · çdo grafik ka shkallën e vet",
+      "byDay": "sipas ditëve",
+      "byMonth": "sipas muajve",
+      "placed": "Të bëra (vlera)",
+      "placedCount": "Të bëra (porosi)",
+      "cash": "Të arkëtuara (MEX)",
+      "delivered": "Të dorëzuara (dërgesa)",
+      "chart": "Grafik",
+      "table": "Tabelë",
+      "viewLabel": "Pamja",
+      "colPeriod": "Periudha",
+      "empty": "Asgjë për të shfaqur në këtë periudhë."
+    },
+    "teams": {
+      "title": "Ekipet",
+      "subtitle": "Kush është online, sa kohë, çfarë punoi dhe shiti",
+      "onlineNow": "{{n}} online tani",
+      "peopleOnline": "{{n}} persona · {{online}} online",
+      "mode": {
+        "pending": "Në pritje · lead-e AlterCPA",
+        "prediction": "Parashikim · ElyonCRM",
+        "management": "Menaxhmenti",
+        "unassigned": "Ende pa ekip"
+      },
+      "col": {
+        "person": "Personi",
+        "time": "Online",
+        "worked": "Të punuara",
+        "confirmed": "Të konfirmuara",
+        "conversion": "Konv.",
+        "sold": "Të shitura",
+        "cash": "Të arkëtuara (MEX)",
+        "alerts": "Paralajmërime"
+      },
+      "state": {
+        "online": "Online",
+        "idle": "Pa aktivitet",
+        "break": "Në pushim",
+        "offline": "Offline",
+        "na": "Punon në AlterCPA"
+      },
+      "lastDecision": "vendimi i fundit {{ago}}",
+      "timeTitle": "Online {{online}} · aktiv {{active}} · pa aktivitet {{idle}} · pushim {{brk}}",
+      "tvBoard": "Tabela TV",
+      "tvNoLink": "Ende nuk ka lidhje TV — krijojeni te Cilësimet → Renditja",
+      "empty": "Askush nga ekipi në këtë periudhë.",
+      "onBreak": "{{n}} në pushim"
+    },
+    "pivot": {
+      "title": "Zbërthimi",
+      "subtitle": "Burimi → ekipi → personi → detaji · hapni një rresht për më thellë",
+      "leaf": "Niveli i fundit",
+      "dim": {
+        "source": "Burimi",
+        "team": "Ekipi",
+        "person": "Personi",
+        "list": "Lista e parashikimit",
+        "webmaster": "Uebmaster",
+        "stream": "Stream",
+        "product": "Produkti",
+        "city": "Qyteti",
+        "detail": "Detaji i burimit"
+      },
+      "col": {
+        "name": "Ndarja",
+        "count": "Porosi",
+        "value": "Vlera e shitur",
+        "cash": "Të arkëtuara (MEX)",
+        "sold": "Të shitura"
+      },
+      "noTeam": "Pa ekip",
+      "noPerson": "Pa vendim nga një person",
+      "none": "(asnjë)",
+      "nothing": "Asgjë këtu.",
+      "failed": "Ky nivel nuk u ngarkua.",
+      "expand": "Hap {{name}}",
+      "collapse": "Mbyll {{name}}",
+      "truncated": "Shfaqen 2.000 rreshtat e parë të këtij niveli."
+    },
+    "attention": {
+      "title": "Kërkon vëmendje",
+      "allClear": "Gjithçka në rregull — asgjë nuk kërkon vëmendje tani.",
+      "jump": "{{n}} kërkojnë vëmendje",
+      "severity": {
+        "warning": "Paralajmërim",
+        "critical": "Kritike"
+      },
+      "kind": {
+        "approved_no_parcel_7d": "Të miratuara, pa dërgesë pas 7 ditësh",
+        "mex_problem": "Probleme në MEX — problematike, tentativë dorëzimi, e refuzuar",
+        "cod_mismatch": "Pagesa në dorëzim ≠ çmimi i porosisë",
+        "unlinked_parcels": "Dërgesa në MEX pa porosi",
+        "stale_feed": "Burime të dhënash të vjetëruara ose që dështojnë",
+        "web_waiting_24h": "Porosi web që presin mbi 24 orë",
+        "night_approvals": "Miratime natën",
+        "burst_approvals": "Miratime në breshëri"
+      },
+      "byPerson": "Më së shumti nga",
+      "noList": "Këto nuk janë në listën Porosi."
+    },
+    "drill": {
+      "from": "Nga përmbledhja:",
+      "back": "Përmbledhje",
+      "clear": "Hiq filtrin",
+      "created": "të bëra {{period}}",
+      "sold": "të konfirmuara {{period}}",
+      "paidBasis": "baza e pagesës: {{basis}}",
+      "cash": "të paguara {{period}}",
+      "proof": {
+        "unproven": "pa dëshmi nga MEX",
+        "mex": "të vërtetuara nga MEX"
+      }
+    },
+    "clock": {
+      "placed": "Numëruar sipas ditës kur është bërë porosia (ora e Shkupit)"
+    }
   }
 }

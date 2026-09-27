@@ -14,14 +14,12 @@ import {
   PackageX, Coins, Truck, AlertTriangle, Trash2, ListChecks,
 } from 'lucide-react';
 import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, PieChart, Pie, Cell, Legend,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import {
   apiGetManagementInsights, apiGetInsightsCalls,
   type InsightsResponse, type InsightsCallsResponse,
 } from '@/lib/api';
-import { statusLabel } from '@/types';
 import { formatMoney } from '@/lib/currency';
 import { cn } from '@/lib/utils';
 import { EmptyState } from '@/components/EmptyState';
@@ -29,21 +27,16 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useInsightsAccess } from '@/contexts/PermissionsContext';
 import { cancelReasonLabel } from '@/lib/cancellationReasons';
 import { apiErrorText } from '@/i18n/apiErrors';
-import {
-  CHART_COLORS as DESIGN_CHART_COLORS,
-  CHART_PALETTE,
-  STATUS_COLOR,
-  fmtDuration as fmtDur,
-} from '@/lib/design-utils';
+import { fmtDuration as fmtDur } from '@/lib/design-utils';
 import { KpiCard as Kpi } from '@/components/insights/KpiCard';
 import AgentsTab from '@/components/insights/AgentsTab';
 import PayoutTab from '@/components/insights/PayoutTab';
 import CallActivityTimeline from '@/components/insights/CallActivityTimeline';
 import PureProfitExportDialog from '@/components/insights/PureProfitExportDialog';
 import MarginLabTab from '@/components/insights/MarginLabTab';
-import ChannelStrip from '@/components/insights/ChannelStrip';
 import ChannelPLCard from '@/components/insights/ChannelPLCard';
 import AffiliateBreakdownCard from '@/components/insights/AffiliateBreakdownCard';
+import OverviewTab from '@/components/insights/overview/OverviewTab';
 
 const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
 const cap = (s: string) => s.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase());
@@ -53,7 +46,9 @@ const cap = (s: string) => s.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCas
 // while Agents / Payout / Call Activity keep their module rules (Agents also
 // honours the legacy Performance key, so nobody lost the old standalone page).
 const TAB_DEFS = [
-  { value: 'overview', labelKey: 'insights.tabOverview', need: 'business' },
+  // The connected Overview brings its own data, filter row and money gate
+  // (meta.money): owners see money, admins/managers the same page counted.
+  { value: 'overview', labelKey: 'insights.tabOverview', need: 'overview' },
   { value: 'sales', labelKey: 'insights.tabSales', need: 'business' },
   { value: 'agents', labelKey: 'insights.tabAgents', need: 'agents' },
   { value: 'payout', labelKey: 'insights.tabPayout', need: 'payout' },
@@ -191,8 +186,11 @@ export default function ManagementInsightsPage() {
             )
           ) : (
             <>
+              {access.overview && (
+                <TabsContent value="overview" className="mt-4"><OverviewTab /></TabsContent>
+              )}
+
               {access.business && data && <>
-                <TabsContent value="overview" className="mt-4"><Overview data={data} /></TabsContent>
                 <TabsContent value="sales" className="mt-4"><Sales data={data} /></TabsContent>
                 <TabsContent value="pure-profit" className="mt-4"><PureProfit data={data} range={range} canExport={access.business} /></TabsContent>
                 <TabsContent value="margin-lab" className="mt-4"><MarginLabTab data={data} /></TabsContent>
@@ -228,66 +226,6 @@ export default function ManagementInsightsPage() {
 }
 
 const moneyTip = (v: number) => formatMoney(v);
-
-function Overview({ data }: { data: InsightsResponse }) {
-  const o = data.overview;
-  const donut = data.status_distribution.map(s => ({ name: statusLabel(s.status), value: s.count, key: s.status }));
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-        <Kpi icon={Coins} label={i18n.t('insights.revenueSold')} value={formatMoney(o.revenue)} tone="bg-emerald-100 text-emerald-700" />
-        <Kpi icon={BarChart3} label={i18n.t('insights.orders')} value={o.orders_total.toLocaleString()} sub={i18n.t('insights.soldPaidSub', { sold: o.sold_count.toLocaleString(), paid: o.paid_count.toLocaleString() })} tone="bg-blue-100 text-blue-700" />
-        <Kpi icon={TrendingUp} label={i18n.t('insights.avgOrderValue')} value={formatMoney(o.aov)} sub={i18n.t('insights.unitsSoldSub', { count: o.units_sold.toLocaleString() })} tone="bg-amber-100 text-amber-700" />
-        <Kpi icon={Coins} label={i18n.t('insights.paidRevenue')} value={formatMoney(o.paid_revenue)} sub={i18n.t('insights.paidCashSub', { count: o.paid_count.toLocaleString() })} tone="bg-teal-100 text-teal-700" />
-        <Kpi icon={Truck} label={i18n.t('insights.pipeline')} value={formatMoney(o.pipeline_value)} sub={i18n.t('insights.pipelineSub')} tone="bg-indigo-100 text-indigo-700" />
-        <Kpi icon={RotateCcw} label={i18n.t('insights.returnRate')} value={pct(o.return_rate)} sub={i18n.t('insights.returnsSub', { count: o.returned_count.toLocaleString(), value: formatMoney(o.returns_value) })} tone="bg-orange-100 text-orange-700" />
-        <Kpi icon={PackageX} label={i18n.t('insights.cancelRate')} value={pct(o.cancel_rate)} sub={i18n.t('insights.cancelledSub', { count: o.cancelled_count.toLocaleString() })} tone="bg-red-100 text-red-700" />
-        <Kpi icon={Users} label={i18n.t('insights.leadsPending')} value={o.leads_pending.toLocaleString()} sub={i18n.t('insights.awaitingFirstCall')} tone="bg-violet-100 text-violet-700" />
-      </div>
-
-      {data.channel_pl && <ChannelStrip channels={data.channel_pl.channels} />}
-
-      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4">
-        <Card>
-          <CardHeader><CardTitle className="text-base flex items-center gap-2"><TrendingUp className="h-4 w-4" /> Revenue trend ({data.meta.granularity})</CardTitle></CardHeader>
-          <CardContent>
-            {data.revenue_trend.length ? (
-              <ResponsiveContainer width="100%" height={260}>
-                <AreaChart data={data.revenue_trend}>
-                  <defs>
-                    <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={DESIGN_CHART_COLORS.primary} stopOpacity={0.35} />
-                      <stop offset="100%" stopColor={DESIGN_CHART_COLORS.primary} stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                  <XAxis dataKey="bucket" tick={{ fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }} />
-                  <Area type="monotone" dataKey="revenue" stroke={DESIGN_CHART_COLORS.primary} fill="url(#rev)" name={i18n.t('insights.revenue')} />
-                </AreaChart>
-              </ResponsiveContainer>
-            ) : <EmptyState title={i18n.t('insights.noData')} size="sm" />}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader><CardTitle className="text-base">{i18n.t('insights.statusMix')}</CardTitle></CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={260}>
-              <PieChart>
-                <Pie data={donut} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={90}>
-                  {donut.map((d, i) => <Cell key={i} fill={STATUS_COLOR[d.key] || CHART_PALETTE[i % CHART_PALETTE.length]} />)}
-                </Pie>
-                <Tooltip />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
-}
 
 function Sales({ data }: { data: InsightsResponse }) {
   return (

@@ -1,0 +1,1726 @@
+{
+  "meta": {
+    "from": "2026-09-22",
+    "to": "2026-09-28",
+    "prev_from": "2026-09-15",
+    "prev_to": "2026-09-21",
+    "generated_at": "2026-09-28T08:45:00Z",
+    "money": true
+  },
+  "freshness": [
+    {
+      "feed": "altercpa",
+      "last_ok_at": "2026-09-28T08:43:00Z",
+      "status": "ok",
+      "detail": "rolling every 2 min; status sync last ok 28.09 10:40"
+    },
+    {
+      "feed": "mex_bio_natural",
+      "last_ok_at": "2026-09-28T08:33:00Z",
+      "status": "ok",
+      "detail": "mex-reconcile every 30 min 07:00-20:55; parcels updated through 28.09 10:31"
+    },
+    {
+      "feed": "mex_natura",
+      "last_ok_at": "2026-09-28T08:31:00Z",
+      "status": "ok",
+      "detail": "mex-reconcile every 30 min 07:00-20:55; parcels updated through 28.09 10:30"
+    },
+    {
+      "feed": "web",
+      "last_ok_at": "2026-09-28T08:40:00Z",
+      "status": "ok",
+      "detail": "web-sync every 15 min"
+    },
+    {
+      "feed": "collabbox",
+      "last_ok_at": "2026-09-11T07:12:00Z",
+      "status": "stale",
+      "detail": "manual import; newest document 11.09.2026"
+    }
+  ],
+  "kpis": {
+    "placed": {
+      "count": 2447,
+      "value_eur": 94614.87
+    },
+    "confirmed": {
+      "count": 1051,
+      "value_eur": 42911.1
+    },
+    "at_courier": {
+      "count": 603,
+      "value_eur": 23705.35
+    },
+    "delivered": {
+      "count": 1296,
+      "cod_mkd": 3062500,
+      "proven_count": 1285,
+      "proven_cod_mkd": 3036660,
+      "unproven_count": 11,
+      "unproven_cod_mkd": 25840,
+      "mex_only_count": 135,
+      "mex_only_cod_mkd": 293060
+    },
+    "to_collect": {
+      "count": 908,
+      "value_eur": 36041.2
+    },
+    "lost": {
+      "count": 163,
+      "value_eur": 5996.14
+    },
+    "unproven_paid": {
+      "count": 11,
+      "value_eur": 420.16,
+      "cod_mkd": 25840
+    },
+    "prev": {
+      "placed": {
+        "count": 2388,
+        "value_eur": 92015.3
+      },
+      "confirmed": {
+        "count": 1122,
+        "value_eur": 45301.1
+      },
+      "at_courier": {
+        "count": 548,
+        "value_eur": 21440.6
+      },
+      "delivered": {
+        "count": 1241,
+        "cod_mkd": 2938560,
+        "proven_count": 1204,
+        "proven_cod_mkd": 2851270,
+        "unproven_count": 37,
+        "unproven_cod_mkd": 87290,
+        "mex_only_count": 128,
+        "mex_only_cod_mkd": 276480
+      },
+      "to_collect": {
+        "count": 861,
+        "value_eur": 34120.9
+      },
+      "lost": {
+        "count": 181,
+        "value_eur": 6702.35
+      },
+      "unproven_paid": {
+        "count": 37,
+        "value_eur": 1419.35,
+        "cod_mkd": 87290
+      }
+    },
+    "spark": {
+      "from": "2026-09-22",
+      "granularity": "day",
+      "placed_value": [
+        {
+          "d": "2026-09-22",
+          "v": 15769.16
+        },
+        {
+          "d": "2026-09-23",
+          "v": 16520.08
+        },
+        {
+          "d": "2026-09-24",
+          "v": 15769.16
+        },
+        {
+          "d": "2026-09-25",
+          "v": 15018.23
+        },
+        {
+          "d": "2026-09-26",
+          "v": 12765.48
+        },
+        {
+          "d": "2026-09-27",
+          "v": 10512.74
+        },
+        {
+          "d": "2026-09-28",
+          "v": 8260.02
+        }
+      ],
+      "delivered_cash_mkd": [
+        {
+          "d": "2026-09-22",
+          "v": 556817
+        },
+        {
+          "d": "2026-09-23",
+          "v": 584660
+        },
+        {
+          "d": "2026-09-24",
+          "v": 528977
+        },
+        {
+          "d": "2026-09-25",
+          "v": 612502
+        },
+        {
+          "d": "2026-09-26",
+          "v": 445454
+        },
+        {
+          "d": "2026-09-27",
+          "v": 0
+        },
+        {
+          "d": "2026-09-28",
+          "v": 334090
+        }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "key": "altercpa",
+      "placed": {
+        "count": 1262,
+        "value_eur": 51488.87
+      },
+      "buckets": {
+        "awaiting": {
+          "count": 198,
+          "value_eur": 8151.66
+        },
+        "preparing": {
+          "count": 109,
+          "value_eur": 4452.93
+        },
+        "packed": {
+          "count": 64,
+          "value_eur": 2613.12
+        },
+        "courier": {
+          "count": 287,
+          "value_eur": 11751.65
+        },
+        "delivered": {
+          "count": 196,
+          "value_eur": 8003.68,
+          "cod_mkd": 498760
+        },
+        "returned": {
+          "count": 24,
+          "value_eur": 979.2
+        },
+        "cancelled": {
+          "count": 341,
+          "value_eur": 13944.49
+        },
+        "trashed": {
+          "count": 43,
+          "value_eur": 1592.14
+        }
+      },
+      "money": {
+        "collected_mkd": 498760,
+        "collected_proven_mkd": 490480,
+        "collected_unproven_mkd": 8280,
+        "to_collect_eur": 18817.7,
+        "lost_eur": 1755.54
+      },
+      "cash": {
+        "count": 431,
+        "cod_mkd": 1092410,
+        "proven_count": 423,
+        "proven_cod_mkd": 1073920,
+        "unproven_count": 8,
+        "unproven_cod_mkd": 18490,
+        "mex_only_count": 0,
+        "mex_only_cod_mkd": 0
+      },
+      "worked": 1219,
+      "cohort_sold": 704,
+      "conversion": 0.5775,
+      "confirmed": 680,
+      "confirmed_value_eur": 27737.2,
+      "aov_eur": 40.79,
+      "splits": [
+        {
+          "key": "new",
+          "basis": "placed",
+          "count": 1041,
+          "value_eur": 42300.81,
+          "sold_count": 579,
+          "sold_value_eur": 23612.4,
+          "drill": null
+        },
+        {
+          "key": "returning",
+          "basis": "placed",
+          "count": 221,
+          "value_eur": 9188.06,
+          "bought_before": 221,
+          "sold_count": 125,
+          "sold_value_eur": 5093.1,
+          "drill": null
+        }
+      ],
+      "drill": {
+        "sale_source": [
+          "altercpa",
+          "affiliate"
+        ]
+      },
+      "web_block": null
+    },
+    {
+      "key": "elyon_crm",
+      "placed": {
+        "count": 412,
+        "value_eur": 15693.7
+      },
+      "buckets": {
+        "awaiting": {
+          "count": 6,
+          "value_eur": 228
+        },
+        "preparing": {
+          "count": 55,
+          "value_eur": 2271.5
+        },
+        "packed": {
+          "count": 41,
+          "value_eur": 1693.3
+        },
+        "courier": {
+          "count": 147,
+          "value_eur": 5968.2
+        },
+        "delivered": {
+          "count": 118,
+          "value_eur": 4861.6,
+          "cod_mkd": 301290
+        },
+        "returned": {
+          "count": 9,
+          "value_eur": 359.1
+        },
+        "cancelled": {
+          "count": 25,
+          "value_eur": 312
+        },
+        "trashed": {
+          "count": 11,
+          "value_eur": 0
+        }
+      },
+      "money": {
+        "collected_mkd": 301290,
+        "collected_proven_mkd": 298830,
+        "collected_unproven_mkd": 2460,
+        "to_collect_eur": 9933,
+        "lost_eur": 671.1
+      },
+      "cash": {
+        "count": 247,
+        "cod_mkd": 612880,
+        "proven_count": 244,
+        "proven_cod_mkd": 605530,
+        "unproven_count": 3,
+        "unproven_cod_mkd": 7350,
+        "mex_only_count": 0,
+        "mex_only_cod_mkd": 0
+      },
+      "worked": 2946,
+      "cohort_sold": 379,
+      "conversion": 0.1286,
+      "confirmed": 371,
+      "confirmed_value_eur": 15173.9,
+      "aov_eur": 40.9,
+      "splits": [
+        {
+          "key": "prediction_list",
+          "basis": "placed",
+          "count": 318,
+          "value_eur": 12480.4,
+          "sold_count": 301,
+          "sold_value_eur": 12301.2,
+          "drill": {
+            "sale_source": [
+              "elyon_crm"
+            ],
+            "detail": [
+              "prediction_list"
+            ]
+          }
+        },
+        {
+          "key": "direct",
+          "basis": "placed",
+          "count": 58,
+          "value_eur": 2901.3,
+          "sold_count": 56,
+          "sold_value_eur": 2871.5,
+          "drill": {
+            "sale_source": [
+              "elyon_crm"
+            ],
+            "detail": [
+              "direct"
+            ]
+          }
+        },
+        {
+          "key": "disposition",
+          "basis": "placed",
+          "count": 36,
+          "value_eur": 312,
+          "sold_count": 0,
+          "sold_value_eur": 0,
+          "drill": {
+            "sale_source": [
+              "elyon_crm"
+            ],
+            "detail": [
+              "disposition"
+            ]
+          }
+        }
+      ],
+      "drill": {
+        "sale_source": [
+          "elyon_crm"
+        ]
+      },
+      "web_block": null
+    },
+    {
+      "key": "web",
+      "placed": {
+        "count": 175,
+        "value_eur": 6566
+      },
+      "placed_shop": {
+        "count": 175,
+        "value_mkd": 403809
+      },
+      "buckets": {
+        "awaiting": {
+          "count": 9,
+          "value_eur": 324.9
+        },
+        "preparing": {
+          "count": 14,
+          "value_eur": 530.6
+        },
+        "packed": {
+          "count": 0,
+          "value_eur": 0
+        },
+        "courier": {
+          "count": 38,
+          "value_eur": 1413.6
+        },
+        "delivered": {
+          "count": 86,
+          "value_eur": 3250.8,
+          "cod_mkd": 199870
+        },
+        "returned": {
+          "count": 7,
+          "value_eur": 245
+        },
+        "cancelled": {
+          "count": 17,
+          "value_eur": 651.1
+        },
+        "trashed": {
+          "count": 0,
+          "value_eur": 0
+        },
+        "no_record": {
+          "count": 4,
+          "value_eur": 150
+        },
+        "mex_only": {
+          "count": 3,
+          "cod_mkd": 6890
+        }
+      },
+      "money": {
+        "collected_mkd": 199870,
+        "collected_proven_mkd": 0,
+        "collected_unproven_mkd": 0,
+        "collected_shop_mkd": 199870,
+        "to_collect_eur": 1944.2,
+        "lost_eur": 896.1,
+        "unrecorded_mkd": 9225
+      },
+      "cash": {
+        "count": 95,
+        "cod_mkd": 219340,
+        "proven_count": 95,
+        "proven_cod_mkd": 219340,
+        "unproven_count": 0,
+        "unproven_cod_mkd": 0,
+        "mex_only_count": 4,
+        "mex_only_cod_mkd": 9120
+      },
+      "worked": 0,
+      "cohort_sold": 0,
+      "conversion": null,
+      "confirmed": 0,
+      "confirmed_value_eur": 0,
+      "aov_eur": null,
+      "splits": [
+        {
+          "key": "shop",
+          "basis": "placed",
+          "count": 175,
+          "value_eur": 6566,
+          "cod_mkd": 403809,
+          "drill": null
+        },
+        {
+          "key": "mex_only",
+          "basis": "placed",
+          "count": 3,
+          "cod_mkd": 6890,
+          "drill": null
+        }
+      ],
+      "drill": {
+        "sale_source": [
+          "web"
+        ]
+      },
+      "web_block": true
+    },
+    {
+      "key": "teleshop_other",
+      "placed": {
+        "count": 598,
+        "value_eur": 20866.3
+      },
+      "buckets": {
+        "awaiting": {
+          "count": 0,
+          "value_eur": 0
+        },
+        "preparing": {
+          "count": 22,
+          "value_eur": 774.4
+        },
+        "packed": {
+          "count": 0,
+          "value_eur": 0
+        },
+        "courier": {
+          "count": 131,
+          "value_eur": 4571.9
+        },
+        "delivered": {
+          "count": 366,
+          "value_eur": 12846.6,
+          "cod_mkd": 793120
+        },
+        "returned": {
+          "count": 63,
+          "value_eur": 2129.4
+        },
+        "cancelled": {
+          "count": 16,
+          "value_eur": 544
+        },
+        "trashed": {
+          "count": 0,
+          "value_eur": 0
+        },
+        "mex_only": {
+          "count": 86,
+          "cod_mkd": 186360
+        }
+      },
+      "money": {
+        "collected_mkd": 793120,
+        "collected_proven_mkd": 793120,
+        "collected_unproven_mkd": 0,
+        "to_collect_eur": 5346.3,
+        "lost_eur": 2673.4
+      },
+      "cash": {
+        "count": 523,
+        "cod_mkd": 1137870,
+        "proven_count": 523,
+        "proven_cod_mkd": 1137870,
+        "unproven_count": 0,
+        "unproven_cod_mkd": 0,
+        "mex_only_count": 131,
+        "mex_only_cod_mkd": 283940
+      },
+      "worked": 0,
+      "cohort_sold": 0,
+      "conversion": null,
+      "confirmed": 0,
+      "confirmed_value_eur": 0,
+      "aov_eur": null,
+      "splits": [
+        {
+          "key": "teleshop",
+          "basis": "placed",
+          "count": 402,
+          "value_eur": 13936.4,
+          "sold_count": 0,
+          "sold_value_eur": 0,
+          "drill": {
+            "sale_source": [
+              "collabbox"
+            ],
+            "detail": [
+              "teleshop"
+            ]
+          }
+        },
+        {
+          "key": "social",
+          "basis": "placed",
+          "count": 118,
+          "value_eur": 4210.4,
+          "sold_count": 0,
+          "sold_value_eur": 0,
+          "drill": {
+            "sale_source": [
+              "collabbox"
+            ],
+            "detail": [
+              "social"
+            ]
+          }
+        },
+        {
+          "key": "leads_out",
+          "basis": "placed",
+          "count": 57,
+          "value_eur": 1988.3,
+          "sold_count": 0,
+          "sold_value_eur": 0,
+          "drill": {
+            "sale_source": [
+              "collabbox"
+            ],
+            "detail": [
+              "leads_out"
+            ]
+          }
+        },
+        {
+          "key": "leads",
+          "basis": "placed",
+          "count": 21,
+          "value_eur": 731.2,
+          "sold_count": 0,
+          "sold_value_eur": 0,
+          "drill": {
+            "sale_source": [
+              "collabbox"
+            ],
+            "detail": [
+              "leads"
+            ]
+          }
+        },
+        {
+          "key": "mex_only_unlinked",
+          "basis": "placed",
+          "count": 86,
+          "cod_mkd": 186360,
+          "drill": null
+        }
+      ],
+      "drill": {
+        "sale_source": [
+          "collabbox",
+          "legacy"
+        ]
+      },
+      "web_block": null
+    }
+  ],
+  "trend": {
+    "granularity": "day",
+    "points": [
+      {
+        "bucket": "2026-09-22",
+        "by_source": {
+          "altercpa": {
+            "placed_count": 211,
+            "placed_value_eur": 8581.48,
+            "delivered_count": 78,
+            "delivered_cash_mkd": 198620
+          },
+          "elyon_crm": {
+            "placed_count": 69,
+            "placed_value_eur": 2615.62,
+            "delivered_count": 45,
+            "delivered_cash_mkd": 111432
+          },
+          "web": {
+            "placed_count": 30,
+            "placed_value_eur": 1094.34,
+            "delivered_count": 17,
+            "delivered_cash_mkd": 39880
+          },
+          "teleshop_other": {
+            "placed_count": 100,
+            "placed_value_eur": 3477.72,
+            "delivered_count": 95,
+            "delivered_cash_mkd": 206885
+          }
+        }
+      },
+      {
+        "bucket": "2026-09-23",
+        "by_source": {
+          "altercpa": {
+            "placed_count": 221,
+            "placed_value_eur": 8990.13,
+            "delivered_count": 83,
+            "delivered_cash_mkd": 208551
+          },
+          "elyon_crm": {
+            "placed_count": 72,
+            "placed_value_eur": 2740.17,
+            "delivered_count": 48,
+            "delivered_cash_mkd": 117005
+          },
+          "web": {
+            "placed_count": 31,
+            "placed_value_eur": 1146.45,
+            "delivered_count": 19,
+            "delivered_cash_mkd": 41874
+          },
+          "teleshop_other": {
+            "placed_count": 105,
+            "placed_value_eur": 3643.33,
+            "delivered_count": 100,
+            "delivered_cash_mkd": 217230
+          }
+        }
+      },
+      {
+        "bucket": "2026-09-24",
+        "by_source": {
+          "altercpa": {
+            "placed_count": 210,
+            "placed_value_eur": 8581.48,
+            "delivered_count": 74,
+            "delivered_cash_mkd": 188689
+          },
+          "elyon_crm": {
+            "placed_count": 69,
+            "placed_value_eur": 2615.62,
+            "delivered_count": 43,
+            "delivered_cash_mkd": 105861
+          },
+          "web": {
+            "placed_count": 30,
+            "placed_value_eur": 1094.34,
+            "delivered_count": 16,
+            "delivered_cash_mkd": 37886
+          },
+          "teleshop_other": {
+            "placed_count": 100,
+            "placed_value_eur": 3477.72,
+            "delivered_count": 90,
+            "delivered_cash_mkd": 196541
+          }
+        }
+      },
+      {
+        "bucket": "2026-09-25",
+        "by_source": {
+          "altercpa": {
+            "placed_count": 200,
+            "placed_value_eur": 8172.83,
+            "delivered_count": 87,
+            "delivered_cash_mkd": 218482
+          },
+          "elyon_crm": {
+            "placed_count": 66,
+            "placed_value_eur": 2491.07,
+            "delivered_count": 50,
+            "delivered_cash_mkd": 122577
+          },
+          "web": {
+            "placed_count": 27,
+            "placed_value_eur": 1042.22,
+            "delivered_count": 20,
+            "delivered_cash_mkd": 43868
+          },
+          "teleshop_other": {
+            "placed_count": 95,
+            "placed_value_eur": 3312.11,
+            "delivered_count": 105,
+            "delivered_cash_mkd": 227575
+          }
+        }
+      },
+      {
+        "bucket": "2026-09-26",
+        "by_source": {
+          "altercpa": {
+            "placed_count": 170,
+            "placed_value_eur": 6946.91,
+            "delivered_count": 62,
+            "delivered_cash_mkd": 158896
+          },
+          "elyon_crm": {
+            "placed_count": 56,
+            "placed_value_eur": 2117.4,
+            "delivered_count": 35,
+            "delivered_cash_mkd": 89146
+          },
+          "web": {
+            "placed_count": 23,
+            "placed_value_eur": 885.88,
+            "delivered_count": 13,
+            "delivered_cash_mkd": 31904
+          },
+          "teleshop_other": {
+            "placed_count": 80,
+            "placed_value_eur": 2815.29,
+            "delivered_count": 76,
+            "delivered_cash_mkd": 165508
+          }
+        }
+      },
+      {
+        "bucket": "2026-09-27",
+        "by_source": {
+          "altercpa": {
+            "placed_count": 140,
+            "placed_value_eur": 5720.98,
+            "delivered_count": 0,
+            "delivered_cash_mkd": 0
+          },
+          "elyon_crm": {
+            "placed_count": 45,
+            "placed_value_eur": 1743.74,
+            "delivered_count": 0,
+            "delivered_cash_mkd": 0
+          },
+          "web": {
+            "placed_count": 19,
+            "placed_value_eur": 729.55,
+            "delivered_count": 0,
+            "delivered_cash_mkd": 0
+          },
+          "teleshop_other": {
+            "placed_count": 66,
+            "placed_value_eur": 2318.47,
+            "delivered_count": 0,
+            "delivered_cash_mkd": 0
+          }
+        }
+      },
+      {
+        "bucket": "2026-09-28",
+        "by_source": {
+          "altercpa": {
+            "placed_count": 110,
+            "placed_value_eur": 4495.06,
+            "delivered_count": 47,
+            "delivered_cash_mkd": 119172
+          },
+          "elyon_crm": {
+            "placed_count": 35,
+            "placed_value_eur": 1370.08,
+            "delivered_count": 26,
+            "delivered_cash_mkd": 66859
+          },
+          "web": {
+            "placed_count": 15,
+            "placed_value_eur": 573.22,
+            "delivered_count": 10,
+            "delivered_cash_mkd": 23928
+          },
+          "teleshop_other": {
+            "placed_count": 52,
+            "placed_value_eur": 1821.66,
+            "delivered_count": 57,
+            "delivered_cash_mkd": 124131
+          }
+        }
+      }
+    ]
+  },
+  "teams": [
+    {
+      "team_key": "altercpa_leads",
+      "name": "Pending — AlterCPA",
+      "mode": "pending",
+      "online_now": 6,
+      "break_now": 1,
+      "worked": 1219,
+      "confirmed": 680,
+      "sold_value_eur": 27379.48,
+      "delivered_cash_mkd": 457111,
+      "members": [
+        {
+          "person_id": "p-001",
+          "name": "Ана Петровска",
+          "user_id": "u-001",
+          "is_manager": false,
+          "role": "member",
+          "online_state": "online",
+          "online_min": 108,
+          "active_min": 101,
+          "idle_min": 7,
+          "break_min": 0,
+          "first_active": "2026-09-28T08:02:00+02:00",
+          "last_active": "2026-09-28T10:37:00+02:00",
+          "idle_alerts": 0,
+          "worked": 151,
+          "sales_decisions": 91,
+          "confirmed": 88,
+          "conversion": 0.6026,
+          "sold_value_eur": 3530.44,
+          "delivered_cash_mkd": 60072,
+          "last_decision_at": "2026-09-28T10:43:00+02:00"
+        },
+        {
+          "person_id": "p-002",
+          "name": "Biljana Trajkovska",
+          "user_id": "u-002",
+          "is_manager": false,
+          "role": "member",
+          "online_state": "online",
+          "online_min": 133,
+          "active_min": 109,
+          "idle_min": 22,
+          "break_min": 2,
+          "first_active": "2026-09-28T08:14:00+02:00",
+          "last_active": "2026-09-28T10:30:00+02:00",
+          "idle_alerts": 0,
+          "worked": 139,
+          "sales_decisions": 81,
+          "confirmed": 79,
+          "conversion": 0.5827,
+          "sold_value_eur": 2968.71,
+          "delivered_cash_mkd": 51933,
+          "last_decision_at": "2026-09-28T10:33:00+02:00"
+        },
+        {
+          "person_id": "p-003",
+          "name": "Марија Николовска",
+          "user_id": "u-003",
+          "is_manager": false,
+          "role": "member",
+          "online_state": "idle",
+          "online_min": 124,
+          "active_min": 86,
+          "idle_min": 32,
+          "break_min": 6,
+          "first_active": "2026-09-28T08:10:00+02:00",
+          "last_active": "2026-09-28T10:38:00+02:00",
+          "idle_alerts": 1,
+          "worked": 127,
+          "sales_decisions": 71,
+          "confirmed": 70,
+          "conversion": 0.5591,
+          "sold_value_eur": 2798.18,
+          "delivered_cash_mkd": 47329,
+          "last_decision_at": "2026-09-28T10:05:00+02:00"
+        },
+        {
+          "person_id": "p-004",
+          "name": "Elena Stojanova",
+          "user_id": "u-004",
+          "is_manager": false,
+          "role": "member",
+          "online_state": "online",
+          "online_min": 126,
+          "active_min": 108,
+          "idle_min": 10,
+          "break_min": 8,
+          "first_active": "2026-09-28T08:11:00+02:00",
+          "last_active": "2026-09-28T10:36:00+02:00",
+          "idle_alerts": 0,
+          "worked": 122,
+          "sales_decisions": 71,
+          "confirmed": 69,
+          "conversion": 0.582,
+          "sold_value_eur": 3019.35,
+          "delivered_cash_mkd": 45619,
+          "last_decision_at": "2026-09-28T10:38:00+02:00"
+        },
+        {
+          "person_id": "p-005",
+          "name": "Ивана Ристова",
+          "user_id": "u-005",
+          "is_manager": false,
+          "role": "member",
+          "online_state": "break",
+          "online_min": 143,
+          "active_min": 102,
+          "idle_min": 21,
+          "break_min": 20,
+          "first_active": "2026-09-28T08:17:00+02:00",
+          "last_active": "2026-09-28T10:43:00+02:00",
+          "idle_alerts": 0,
+          "worked": 118,
+          "sales_decisions": 65,
+          "confirmed": 64,
+          "conversion": 0.5508,
+          "sold_value_eur": 2668.94,
+          "delivered_cash_mkd": 42687,
+          "last_decision_at": "2026-09-28T10:22:00+02:00"
+        },
+        {
+          "person_id": "p-006",
+          "name": "Sara Iljazi",
+          "user_id": "u-006",
+          "is_manager": false,
+          "role": "member",
+          "online_state": "online",
+          "online_min": 141,
+          "active_min": 117,
+          "idle_min": 17,
+          "break_min": 7,
+          "first_active": "2026-09-28T08:20:00+02:00",
+          "last_active": "2026-09-28T10:39:00+02:00",
+          "idle_alerts": 0,
+          "worked": 104,
+          "sales_decisions": 58,
+          "confirmed": 55,
+          "conversion": 0.5577,
+          "sold_value_eur": 2402.26,
+          "delivered_cash_mkd": 39450,
+          "last_decision_at": "2026-09-28T10:19:00+02:00"
+        },
+        {
+          "person_id": "p-007",
+          "name": "Фросина Костова",
+          "user_id": "u-007",
+          "is_manager": false,
+          "role": "member",
+          "online_state": "offline",
+          "online_min": 138,
+          "active_min": 123,
+          "idle_min": 14,
+          "break_min": 1,
+          "first_active": "2026-09-28T08:13:00+02:00",
+          "last_active": "2026-09-28T09:22:00+02:00",
+          "idle_alerts": 0,
+          "worked": 97,
+          "sales_decisions": 52,
+          "confirmed": 51,
+          "conversion": 0.5361,
+          "sold_value_eur": 2001,
+          "delivered_cash_mkd": 34160,
+          "last_decision_at": "2026-09-28T10:05:00+02:00"
+        },
+        {
+          "person_id": "p-008",
+          "name": "Dragica Mitreva",
+          "user_id": "u-008",
+          "is_manager": false,
+          "role": "member",
+          "online_state": "online",
+          "online_min": 158,
+          "active_min": 129,
+          "idle_min": 20,
+          "break_min": 9,
+          "first_active": "2026-09-28T08:22:00+02:00",
+          "last_active": "2026-09-28T10:37:00+02:00",
+          "idle_alerts": 0,
+          "worked": 88,
+          "sales_decisions": 48,
+          "confirmed": 47,
+          "conversion": 0.5455,
+          "sold_value_eur": 1905.88,
+          "delivered_cash_mkd": 32149,
+          "last_decision_at": "2026-09-28T10:06:00+02:00"
+        },
+        {
+          "person_id": "p-009",
+          "name": "Весна Јованова",
+          "user_id": "u-009",
+          "is_manager": false,
+          "role": "member",
+          "online_state": "offline",
+          "online_min": null,
+          "active_min": null,
+          "idle_min": null,
+          "break_min": null,
+          "first_active": null,
+          "last_active": null,
+          "idle_alerts": null,
+          "worked": 0,
+          "sales_decisions": 0,
+          "confirmed": 0,
+          "conversion": null,
+          "sold_value_eur": 0,
+          "delivered_cash_mkd": 0,
+          "last_decision_at": null
+        },
+        {
+          "person_id": "p-010",
+          "name": "AlterCPA #4411",
+          "user_id": null,
+          "is_manager": false,
+          "role": "member",
+          "online_state": "n/a",
+          "online_min": 0,
+          "active_min": 0,
+          "idle_min": 0,
+          "break_min": 0,
+          "first_active": null,
+          "last_active": null,
+          "idle_alerts": 0,
+          "worked": 173,
+          "sales_decisions": 105,
+          "confirmed": 104,
+          "conversion": 0.6069,
+          "sold_value_eur": 3946.64,
+          "delivered_cash_mkd": 69272,
+          "last_decision_at": "2026-09-28T10:44:00+02:00"
+        },
+        {
+          "person_id": "p-011",
+          "name": "AlterCPA #4512",
+          "user_id": null,
+          "is_manager": false,
+          "role": "member",
+          "online_state": "n/a",
+          "online_min": 0,
+          "active_min": 0,
+          "idle_min": 0,
+          "break_min": 0,
+          "first_active": null,
+          "last_active": null,
+          "idle_alerts": 0,
+          "worked": 100,
+          "sales_decisions": 54,
+          "confirmed": 53,
+          "conversion": 0.54,
+          "sold_value_eur": 2138.08,
+          "delivered_cash_mkd": 34440,
+          "last_decision_at": "2026-09-28T10:22:00+02:00"
+        }
+      ]
+    },
+    {
+      "team_key": "crm_prediction",
+      "name": "Prediction — ElyonCRM",
+      "mode": "prediction",
+      "online_now": 10,
+      "break_now": 1,
+      "worked": 2746,
+      "confirmed": 351,
+      "sold_value_eur": 14483.52,
+      "delivered_cash_mkd": 269509,
+      "members": [
+        {
+          "person_id": "p-012",
+          "name": "Катерина Илиевска",
+          "user_id": "u-012",
+          "is_manager": false,
+          "role": "member",
+          "online_state": "online",
+          "online_min": 134,
+          "active_min": 122,
+          "idle_min": 12,
+          "break_min": 0,
+          "first_active": "2026-09-28T08:00:00+02:00",
+          "last_active": "2026-09-28T10:39:00+02:00",
+          "idle_alerts": 0,
+          "worked": 262,
+          "sales_decisions": 40,
+          "confirmed": 38,
+          "conversion": 0.1527,
+          "sold_value_eur": 1606.53,
+          "delivered_cash_mkd": 29448,
+          "last_decision_at": "2026-09-28T10:05:00+02:00"
+        },
+        {
+          "person_id": "p-013",
+          "name": "Mimoza Rexhepi",
+          "user_id": "u-013",
+          "is_manager": false,
+          "role": "member",
+          "online_state": "online",
+          "online_min": 138,
+          "active_min": 124,
+          "idle_min": 9,
+          "break_min": 5,
+          "first_active": "2026-09-28T08:21:00+02:00",
+          "last_active": "2026-09-28T10:40:00+02:00",
+          "idle_alerts": 0,
+          "worked": 251,
+          "sales_decisions": 36,
+          "confirmed": 35,
+          "conversion": 0.1434,
+          "sold_value_eur": 1527.06,
+          "delivered_cash_mkd": 27775,
+          "last_decision_at": "2026-09-28T10:16:00+02:00"
+        },
+        {
+          "person_id": "p-014",
+          "name": "Сузана Атанасова",
+          "user_id": "u-014",
+          "is_manager": false,
+          "role": "member",
+          "online_state": "online",
+          "online_min": 157,
+          "active_min": 128,
+          "idle_min": 17,
+          "break_min": 12,
+          "first_active": "2026-09-28T08:19:00+02:00",
+          "last_active": "2026-09-28T10:39:00+02:00",
+          "idle_alerts": 0,
+          "worked": 247,
+          "sales_decisions": 36,
+          "confirmed": 33,
+          "conversion": 0.1457,
+          "sold_value_eur": 1343.5,
+          "delivered_cash_mkd": 24090,
+          "last_decision_at": "2026-09-28T10:15:00+02:00"
+        },
+        {
+          "person_id": "p-015",
+          "name": "Tanja Georgieva",
+          "user_id": "u-015",
+          "is_manager": false,
+          "role": "member",
+          "online_state": "idle",
+          "online_min": 134,
+          "active_min": 122,
+          "idle_min": 10,
+          "break_min": 2,
+          "first_active": "2026-09-28T08:06:00+02:00",
+          "last_active": "2026-09-28T10:33:00+02:00",
+          "idle_alerts": 2,
+          "worked": 238,
+          "sales_decisions": 34,
+          "confirmed": 31,
+          "conversion": 0.1429,
+          "sold_value_eur": 1263.7,
+          "delivered_cash_mkd": 24730,
+          "last_decision_at": "2026-09-28T10:16:00+02:00"
+        },
+        {
+          "person_id": "p-016",
+          "name": "Билјана Спасовска",
+          "user_id": "u-016",
+          "is_manager": false,
+          "role": "member",
+          "online_state": "online",
+          "online_min": 111,
+          "active_min": 85,
+          "idle_min": 17,
+          "break_min": 9,
+          "first_active": "2026-09-28T08:08:00+02:00",
+          "last_active": "2026-09-28T10:31:00+02:00",
+          "idle_alerts": 0,
+          "worked": 233,
+          "sales_decisions": 30,
+          "confirmed": 30,
+          "conversion": 0.1288,
+          "sold_value_eur": 1266.4,
+          "delivered_cash_mkd": 21672,
+          "last_decision_at": "2026-09-28T10:43:00+02:00"
+        },
+        {
+          "person_id": "p-017",
+          "name": "Lirije Memeti",
+          "user_id": "u-017",
+          "is_manager": false,
+          "role": "member",
+          "online_state": "online",
+          "online_min": 139,
+          "active_min": 119,
+          "idle_min": 20,
+          "break_min": 0,
+          "first_active": "2026-09-28T08:18:00+02:00",
+          "last_active": "2026-09-28T10:31:00+02:00",
+          "idle_alerts": 0,
+          "worked": 226,
+          "sales_decisions": 31,
+          "confirmed": 29,
+          "conversion": 0.1372,
+          "sold_value_eur": 1182.73,
+          "delivered_cash_mkd": 23616,
+          "last_decision_at": "2026-09-28T10:37:00+02:00"
+        },
+        {
+          "person_id": "p-018",
+          "name": "Јасмина Велкова",
+          "user_id": "u-018",
+          "is_manager": false,
+          "role": "member",
+          "online_state": "break",
+          "online_min": 163,
+          "active_min": 135,
+          "idle_min": 13,
+          "break_min": 15,
+          "first_active": "2026-09-28T08:19:00+02:00",
+          "last_active": "2026-09-28T10:39:00+02:00",
+          "idle_alerts": 0,
+          "worked": 219,
+          "sales_decisions": 28,
+          "confirmed": 27,
+          "conversion": 0.1279,
+          "sold_value_eur": 1145.39,
+          "delivered_cash_mkd": 20064,
+          "last_decision_at": "2026-09-28T10:44:00+02:00"
+        },
+        {
+          "person_id": "p-019",
+          "name": "Snežana Pavlovska",
+          "user_id": "u-019",
+          "is_manager": false,
+          "role": "member",
+          "online_state": "online",
+          "online_min": 159,
+          "active_min": 128,
+          "idle_min": 20,
+          "break_min": 11,
+          "first_active": "2026-09-28T08:22:00+02:00",
+          "last_active": "2026-09-28T10:31:00+02:00",
+          "idle_alerts": 0,
+          "worked": 214,
+          "sales_decisions": 28,
+          "confirmed": 26,
+          "conversion": 0.1308,
+          "sold_value_eur": 984.68,
+          "delivered_cash_mkd": 20624,
+          "last_decision_at": "2026-09-28T10:19:00+02:00"
+        },
+        {
+          "person_id": "p-020",
+          "name": "Ангела Димитрова",
+          "user_id": "u-020",
+          "is_manager": false,
+          "role": "member",
+          "online_state": "online",
+          "online_min": 99,
+          "active_min": 82,
+          "idle_min": 11,
+          "break_min": 6,
+          "first_active": "2026-09-28T08:15:00+02:00",
+          "last_active": "2026-09-28T10:37:00+02:00",
+          "idle_alerts": 0,
+          "worked": 207,
+          "sales_decisions": 25,
+          "confirmed": 25,
+          "conversion": 0.1208,
+          "sold_value_eur": 1035.37,
+          "delivered_cash_mkd": 19504,
+          "last_decision_at": "2026-09-28T10:33:00+02:00"
+        },
+        {
+          "person_id": "p-021",
+          "name": "Irena Kocevska",
+          "user_id": "u-021",
+          "is_manager": false,
+          "role": "member",
+          "online_state": "offline",
+          "online_min": 152,
+          "active_min": 131,
+          "idle_min": 17,
+          "break_min": 4,
+          "first_active": "2026-09-28T08:15:00+02:00",
+          "last_active": "2026-09-28T09:34:00+02:00",
+          "idle_alerts": 0,
+          "worked": 198,
+          "sales_decisions": 27,
+          "confirmed": 24,
+          "conversion": 0.1364,
+          "sold_value_eur": 1053.15,
+          "delivered_cash_mkd": 18018,
+          "last_decision_at": "2026-09-28T10:15:00+02:00"
+        },
+        {
+          "person_id": "p-022",
+          "name": "Маја Здравковска",
+          "user_id": "u-022",
+          "is_manager": false,
+          "role": "member",
+          "online_state": "online",
+          "online_min": 131,
+          "active_min": 108,
+          "idle_min": 12,
+          "break_min": 11,
+          "first_active": "2026-09-28T08:06:00+02:00",
+          "last_active": "2026-09-28T10:34:00+02:00",
+          "idle_alerts": 0,
+          "worked": 191,
+          "sales_decisions": 25,
+          "confirmed": 23,
+          "conversion": 0.1309,
+          "sold_value_eur": 909.32,
+          "delivered_cash_mkd": 17178,
+          "last_decision_at": "2026-09-28T10:29:00+02:00"
+        },
+        {
+          "person_id": "p-023",
+          "name": "Arta Selmani",
+          "user_id": "u-023",
+          "is_manager": false,
+          "role": "member",
+          "online_state": "idle",
+          "online_min": 148,
+          "active_min": 116,
+          "idle_min": 23,
+          "break_min": 9,
+          "first_active": "2026-09-28T08:19:00+02:00",
+          "last_active": "2026-09-28T10:41:00+02:00",
+          "idle_alerts": 1,
+          "worked": 184,
+          "sales_decisions": 23,
+          "confirmed": 22,
+          "conversion": 0.125,
+          "sold_value_eur": 830.17,
+          "delivered_cash_mkd": 17948,
+          "last_decision_at": "2026-09-28T10:05:00+02:00"
+        },
+        {
+          "person_id": "p-024",
+          "name": "Даниела Цветковска",
+          "user_id": "u-024",
+          "is_manager": false,
+          "role": "member",
+          "online_state": "offline",
+          "online_min": 96,
+          "active_min": 74,
+          "idle_min": 13,
+          "break_min": 9,
+          "first_active": "2026-09-28T08:05:00+02:00",
+          "last_active": "2026-09-28T09:21:00+02:00",
+          "idle_alerts": 0,
+          "worked": 76,
+          "sales_decisions": 10,
+          "confirmed": 8,
+          "conversion": 0.1316,
+          "sold_value_eur": 335.52,
+          "delivered_cash_mkd": 4842,
+          "last_decision_at": "2026-09-28T10:21:00+02:00"
+        }
+      ]
+    },
+    {
+      "team_key": "management",
+      "name": "Management",
+      "mode": null,
+      "online_now": 3,
+      "break_now": 0,
+      "worked": 47,
+      "confirmed": 27,
+      "sold_value_eur": 1108.3,
+      "delivered_cash_mkd": 22124,
+      "members": [
+        {
+          "person_id": "p-025",
+          "name": "Горан Ангеловски",
+          "user_id": "u-025",
+          "is_manager": true,
+          "role": "member",
+          "online_state": "online",
+          "online_min": 106,
+          "active_min": 85,
+          "idle_min": 18,
+          "break_min": 3,
+          "first_active": "2026-09-28T08:19:00+02:00",
+          "last_active": "2026-09-28T10:33:00+02:00",
+          "idle_alerts": 0,
+          "worked": 12,
+          "sales_decisions": 9,
+          "confirmed": 7,
+          "conversion": 0.75,
+          "sold_value_eur": 272.36,
+          "delivered_cash_mkd": 4844,
+          "last_decision_at": "2026-09-28T10:17:00+02:00"
+        },
+        {
+          "person_id": "p-026",
+          "name": "Violeta Markovska",
+          "user_id": "u-026",
+          "is_manager": true,
+          "role": "member",
+          "online_state": "online",
+          "online_min": 141,
+          "active_min": 120,
+          "idle_min": 13,
+          "break_min": 8,
+          "first_active": "2026-09-28T08:14:00+02:00",
+          "last_active": "2026-09-28T10:36:00+02:00",
+          "idle_alerts": 0,
+          "worked": 31,
+          "sales_decisions": 19,
+          "confirmed": 18,
+          "conversion": 0.6129,
+          "sold_value_eur": 756.16,
+          "delivered_cash_mkd": 14802,
+          "last_decision_at": "2026-09-28T10:09:00+02:00"
+        },
+        {
+          "person_id": "p-027",
+          "name": "Дејан Стефановски",
+          "user_id": "u-027",
+          "is_manager": true,
+          "role": "member",
+          "online_state": "offline",
+          "online_min": 140,
+          "active_min": 120,
+          "idle_min": 13,
+          "break_min": 7,
+          "first_active": "2026-09-28T08:23:00+02:00",
+          "last_active": "2026-09-28T09:27:00+02:00",
+          "idle_alerts": 0,
+          "worked": 0,
+          "sales_decisions": 0,
+          "confirmed": 0,
+          "conversion": null,
+          "sold_value_eur": 0,
+          "delivered_cash_mkd": 0,
+          "last_decision_at": null
+        },
+        {
+          "person_id": "p-028",
+          "name": "Kire Todorov",
+          "user_id": "u-028",
+          "is_manager": true,
+          "role": "member",
+          "online_state": "idle",
+          "online_min": 126,
+          "active_min": 73,
+          "idle_min": 44,
+          "break_min": 9,
+          "first_active": "2026-09-28T08:19:00+02:00",
+          "last_active": "2026-09-28T10:36:00+02:00",
+          "idle_alerts": 0,
+          "worked": 4,
+          "sales_decisions": 2,
+          "confirmed": 2,
+          "conversion": 0.5,
+          "sold_value_eur": 79.78,
+          "delivered_cash_mkd": 2478,
+          "last_decision_at": "2026-09-28T10:36:00+02:00"
+        }
+      ]
+    },
+    {
+      "team_key": "unassigned",
+      "name": "Unassigned",
+      "mode": null,
+      "online_now": 0,
+      "break_now": 0,
+      "worked": 9,
+      "confirmed": 5,
+      "sold_value_eur": 195.86,
+      "delivered_cash_mkd": 2596,
+      "members": [
+        {
+          "person_id": "p-029",
+          "name": "AlterCPA #4603",
+          "user_id": null,
+          "is_manager": false,
+          "role": "member",
+          "online_state": "n/a",
+          "online_min": 0,
+          "active_min": 0,
+          "idle_min": 0,
+          "break_min": 0,
+          "first_active": null,
+          "last_active": null,
+          "idle_alerts": 0,
+          "worked": 9,
+          "sales_decisions": 5,
+          "confirmed": 5,
+          "conversion": 0.5556,
+          "sold_value_eur": 195.86,
+          "delivered_cash_mkd": 2596,
+          "last_decision_at": "2026-09-28T10:18:00+02:00"
+        }
+      ],
+      "unmapped_decisions": 14
+    }
+  ],
+  "attention": [
+    {
+      "kind": "approved_no_parcel_7d",
+      "severity": "critical",
+      "count": 38,
+      "value_eur": 1547.22,
+      "by_person": [
+        {
+          "person_id": "p-010",
+          "name": "AlterCPA #4411",
+          "count": 21
+        },
+        {
+          "person_id": "p-003",
+          "name": "Марија Николовска",
+          "count": 9
+        },
+        {
+          "person_id": "p-007",
+          "name": "Фросина Костова",
+          "count": 8
+        }
+      ],
+      "sample": [
+        {
+          "display_id": "ORD-104233",
+          "at": "2026-09-19T21:41:00Z",
+          "note": "AlterCPA #4411 · 19.09 · 9d"
+        },
+        {
+          "display_id": "ORD-104101",
+          "at": "2026-09-18T05:12:00Z",
+          "note": "Марија Николовска · 18.09 · 10d"
+        }
+      ]
+    },
+    {
+      "kind": "mex_problem",
+      "severity": "warning",
+      "count": 17,
+      "value_eur": 612.4,
+      "by_status": [
+        {
+          "status_id": 9,
+          "status_name": "Delivery attempted",
+          "count": 9
+        },
+        {
+          "status_id": 11,
+          "status_name": "Problematic",
+          "count": 5
+        },
+        {
+          "status_id": 13,
+          "status_name": "Rejected",
+          "count": 3
+        }
+      ],
+      "by_person": [
+        {
+          "person_id": "p-001",
+          "name": "Ана Петровска",
+          "count": 4
+        },
+        {
+          "person_id": "p-004",
+          "name": "Elena Stojanova",
+          "count": 3
+        }
+      ],
+      "sample": [
+        {
+          "display_id": "ORD-105412",
+          "at": "2026-09-28T07:02:00Z",
+          "note": "Delivery attempted · 28.09 09:02"
+        },
+        {
+          "display_id": "ORD-105388",
+          "at": "2026-09-27T14:40:00Z",
+          "note": "Problematic · 27.09 16:40"
+        }
+      ]
+    },
+    {
+      "kind": "cod_mismatch",
+      "severity": "warning",
+      "count": 6,
+      "value_eur": 243.9,
+      "by_person": [
+        {
+          "person_id": "p-012",
+          "name": "Катерина Илиевска",
+          "count": 2
+        }
+      ],
+      "sample": [
+        {
+          "display_id": "ORD-103977",
+          "at": "2026-09-24T10:00:00Z",
+          "note": "COD <> price"
+        }
+      ]
+    },
+    {
+      "kind": "unlinked_parcels",
+      "severity": "warning",
+      "count": 135,
+      "value_eur": 4765.2,
+      "sample": [
+        {
+          "display_id": "9102-0045117",
+          "at": "2026-09-27T09:00:00Z",
+          "note": "natura · 9102 · 27.09"
+        }
+      ]
+    },
+    {
+      "kind": "stale_feed",
+      "severity": "warning",
+      "count": 1,
+      "sample": [
+        {
+          "display_id": "collabbox",
+          "at": "2026-09-11T07:12:00Z",
+          "note": "stale · manual import; newest document 11.09.2026"
+        }
+      ]
+    },
+    {
+      "kind": "web_waiting_24h",
+      "severity": "warning",
+      "count": 5,
+      "value_eur": 187.3
+    },
+    {
+      "kind": "night_approvals",
+      "severity": "warning",
+      "count": 12,
+      "by_person": [
+        {
+          "person_id": "p-010",
+          "name": "AlterCPA #4411",
+          "count": 12
+        }
+      ],
+      "sample": [
+        {
+          "display_id": "ORD-104950",
+          "at": "2026-09-25T22:14:00Z",
+          "note": "AlterCPA #4411 · 26.09 00:14"
+        }
+      ]
+    },
+    {
+      "kind": "burst_approvals",
+      "severity": "warning",
+      "count": 3,
+      "by_person": [
+        {
+          "person_id": "p-011",
+          "name": "AlterCPA #4512",
+          "count": 2
+        },
+        {
+          "person_id": "p-003",
+          "name": "Марија Николовска",
+          "count": 1
+        }
+      ],
+      "sample": [
+        {
+          "display_id": null,
+          "at": "2026-09-24T06:00:00Z",
+          "note": "AlterCPA #4512 · 24.09 08:00-08:04"
+        }
+      ]
+    }
+  ]
+}

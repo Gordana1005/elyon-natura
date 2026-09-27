@@ -294,8 +294,54 @@ export const apiManageLeaderboardToken = (
   apiFetch('leaderboard/token', { method: 'POST', body: JSON.stringify(body) });
 
 // Orders
-export const apiGetOrders = (params?: { status?: string; search?: string; agent_id?: string; source?: string; cpa_webmaster?: string; cpa_offer?: string; cpa_stream?: string; ready_only?: boolean; lead_only?: boolean; from?: string; to?: string; price_min?: number; price_max?: number; page?: number; limit?: number }) => {
+/**
+ * The Overview's drill-down filters (contract 2026-09-28): every number on
+ * /insights → Overview opens /orders with these, and the list must return
+ * exactly the orders that number counted. Days are Skopje calendar days
+ * (YYYY-MM-DD). Multi-value params are comma-joined.
+ *   outcome: one or more (comma list) of awaiting | preparing (to pack) |
+ *            packed | courier | delivered | returned | cancelled | trashed,
+ *            or `lost` (returned + cancelled/trashed after a sale)
+ */
+export interface OrdersDrillParams {
+  sale_source?: string;
+  sale_source_detail?: string;
+  outcome?: string;
+  sold_by_person_id?: string;
+  created_from?: string;
+  created_to?: string;
+  /** "Confirmed that day" — the sold_at basis. */
+  sold_from?: string;
+  sold_to?: string;
+  /** The cash clock (MEX delivered_at, else paid_at). */
+  cash_from?: string;
+  cash_to?: string;
+  /** mex | unproven — whether a delivered order has a delivered MEX parcel. */
+  proof?: string;
+  paid_basis?: string;
+  /** An attention-rail kind (approved_no_parcel_7d, mex_problem, …). */
+  attention?: string;
+  team_key?: string;
+  cpa_webmaster?: string;
+  cpa_stream?: string;
+  /** Names, as the pivot reports them. */
+  prediction_list?: string;
+  product?: string;
+  city?: string;
+}
+export const ORDERS_DRILL_KEYS: (keyof OrdersDrillParams)[] = [
+  'sale_source', 'sale_source_detail', 'outcome', 'sold_by_person_id', 'created_from', 'created_to',
+  'sold_from', 'sold_to', 'cash_from', 'cash_to', 'proof', 'paid_basis', 'attention', 'team_key',
+  'cpa_webmaster', 'cpa_stream', 'prediction_list', 'product', 'city',
+];
+export const apiGetOrders = (params?: { status?: string; search?: string; agent_id?: string; source?: string; cpa_webmaster?: string; cpa_offer?: string; cpa_stream?: string; ready_only?: boolean; lead_only?: boolean; from?: string; to?: string; price_min?: number; price_max?: number; page?: number; limit?: number; drill?: OrdersDrillParams }) => {
   const sp = new URLSearchParams();
+  // Drill-down first; the explicit toolbar filters below win on a clash
+  // (cpa_webmaster / cpa_stream exist in both).
+  for (const k of ORDERS_DRILL_KEYS) {
+    const v = params?.drill?.[k];
+    if (v) sp.set(k, v);
+  }
   if (params?.status) sp.set('status', params.status);
   if (params?.search) sp.set('search', params.search);
   if (params?.agent_id) sp.set('agent_id', params.agent_id);
@@ -1809,6 +1855,237 @@ export const apiGetInsightsCalls = (params?: { from?: string; to?: string }, sig
   if (params?.from) sp.set('from', params.from);
   if (params?.to) sp.set('to', params.to);
   return apiFetch(`management-insights?${sp.toString()}`, { signal });
+};
+
+// ── Connected Overview (GET /insights/overview) ─────────────────────────────
+// Contract: scratchpad overview-contract.md (2026-09-28), extended with what
+// insights_overview() (migration 20260936000000) actually returns. Owners get
+// the full payload (meta.money = true). A non-owner admin/manager gets the SAME
+// shape with every money key omitted or null (meta.money = false) — never a
+// 403. Prices are EUR (`*_eur`, shown via formatMoney); MEX cash is already
+// denars (`*_mkd`, shown via formatDenari). THREE CLOCKS: placed (created day)
+// drives buckets/placed/to_collect/lost; sold (sold_at) drives confirmed; cash
+// (MEX delivered_at) drives delivered, unproven_paid, sources[].cash, trend cash.
+export type OverviewSourceKey = 'altercpa' | 'elyon_crm' | 'web' | 'teleshop_other';
+/** Disjoint: `preparing` = confirmed, NOT packed ("to pack"); `packed` =
+ *  confirmed and packed. The shop panel's "preparing" is the two together, and
+ *  Σ buckets = placed. (`mex_only` sits beside them, never in placed.) */
+export type OverviewBucketKey =
+  'awaiting' | 'preparing' | 'packed' | 'courier' | 'delivered' | 'returned' | 'cancelled' | 'trashed';
+export type OverviewFeedKey = 'altercpa' | 'mex_bio_natural' | 'mex_natura' | 'web' | 'collabbox';
+export type OverviewFeedStatus = 'ok' | 'stale' | 'failed' | 'n/a';
+export type OverviewPresenceState = 'online' | 'idle' | 'break' | 'offline' | 'n/a';
+export type OverviewAttentionKind =
+  | 'approved_no_parcel_7d' | 'mex_problem' | 'cod_mismatch' | 'unlinked_parcels'
+  | 'stale_feed' | 'web_waiting_24h' | 'night_approvals' | 'burst_approvals';
+
+/** One count with its (owners-only) money. */
+export interface OverviewMeasure {
+  count: number;
+  value_eur?: number | null;
+  cod_mkd?: number | null;
+  /** kpis.delivered / unproven_paid, sources[].cash (cash clock): the
+   *  MEX-proven part, the unproven part (paid, no delivered parcel) and the
+   *  delivered parcels no order owns. */
+  proven_count?: number | null;
+  proven_cod_mkd?: number | null;
+  unproven_count?: number | null;
+  unproven_cod_mkd?: number | null;
+  mex_only_count?: number | null;
+  mex_only_cod_mkd?: number | null;
+}
+export interface OverviewSparkPoint { d: string; v: number }
+export interface OverviewKpiSet {
+  placed: OverviewMeasure;
+  confirmed: OverviewMeasure;
+  at_courier: OverviewMeasure;
+  delivered: OverviewMeasure;
+  to_collect: OverviewMeasure;
+  lost: OverviewMeasure;
+  unproven_paid: OverviewMeasure;
+}
+export interface OverviewKpis extends OverviewKpiSet {
+  /** Present when the request had compare=1. */
+  prev?: OverviewKpiSet | null;
+  /** Owners only — dropped entirely for a non-owner. Spans ≥ 14 days
+   *  (spark.from / spark.granularity). placed_value is EUR, delivered_cash_mkd
+   *  is denars. Extra series keyed by tile are picked up if the backend adds them. */
+  spark?: {
+    placed_value?: OverviewSparkPoint[] | null;
+    delivered_cash_mkd?: OverviewSparkPoint[] | null;
+    [series: string]: OverviewSparkPoint[] | string | null | undefined;
+  };
+}
+export interface OverviewFreshness {
+  feed: OverviewFeedKey;
+  last_ok_at: string | null;
+  status: OverviewFeedStatus;
+  detail?: string | null;
+}
+export interface OverviewDrill { sale_source: string[]; detail?: string[] | null }
+export interface OverviewSplit {
+  key: string;
+  count: number;
+  value_eur?: number | null;
+  cod_mkd?: number | null;
+  sold_count?: number | null;
+  sold_value_eur?: number | null;
+  /** The split's own /orders filter; null = not an orders filter (new vs
+   *  returning customer, MEX-only parcels, the shop mirror). */
+  drill?: OverviewDrill | null;
+}
+export interface OverviewSource {
+  key: OverviewSourceKey;
+  /** Orders placed in the window (Σ buckets; mex_only is not an order). */
+  placed?: { count: number; value_eur?: number | null } | null;
+  /** `no_record` (web only): OpenCart history nobody closed — never guessed.
+   *  `mex_only`: delivered MEX parcels no order owns — beside the bar, not in placed. */
+  buckets: Record<OverviewBucketKey, OverviewMeasure> & {
+    no_record?: OverviewMeasure | null;
+    mex_only?: OverviewMeasure | null;
+  };
+  /** Web only: the shop mirror's own part of placed. */
+  placed_shop?: { count: number; value_eur?: number | null; value_mkd?: number | null } | null;
+  /** Placed clock (the cohort): collected = delivered (proven COD, else price). */
+  money?: {
+    collected_mkd?: number | null;
+    collected_proven_mkd?: number | null;
+    collected_unproven_mkd?: number | null;
+    collected_shop_mkd?: number | null;
+    to_collect_eur?: number | null;
+    lost_eur?: number | null;
+    unrecorded_mkd?: number | null;
+  } | null;
+  /** Cash clock: money that landed in the window (MEX delivered_at). */
+  cash?: OverviewMeasure | null;
+  worked: number;
+  cohort_sold?: number | null;
+  confirmed: number;
+  confirmed_value_eur?: number | null;
+  /** 0..1, null when nothing was worked. */
+  conversion: number | null;
+  aov_eur?: number | null;
+  splits: OverviewSplit[];
+  /** The /orders filter that returns exactly this row's orders. An EMPTY
+   *  sale_source list — or web_block = true (the shop mirror, not `orders`) —
+   *  means its numbers render without links. */
+  drill: OverviewDrill;
+  web_block?: boolean | null;
+}
+export interface OverviewTrendCell {
+  placed_value_eur?: number | null;
+  delivered_cash_mkd?: number | null;
+  placed_count: number;
+  delivered_count: number;
+}
+export interface OverviewTrendPoint {
+  /** YYYY-MM-DD (day) or YYYY-MM (month), Skopje. */
+  bucket: string;
+  by_source: Partial<Record<OverviewSourceKey, OverviewTrendCell>>;
+}
+export interface OverviewTeamMember {
+  person_id: string;
+  name: string;
+  user_id: string | null;
+  is_manager?: boolean | null;
+  role?: string | null;
+  online_state: OverviewPresenceState;
+  /** Presence minutes: null when there is no presence data (it starts 28.09.2026). */
+  online_min: number | null;
+  active_min: number | null;
+  idle_min: number | null;
+  break_min: number | null;
+  first_active: string | null;
+  last_active: string | null;
+  idle_alerts: number | null;
+  worked: number;
+  sales_decisions?: number | null;
+  confirmed: number;
+  /** sales_decisions / worked. */
+  conversion: number | null;
+  sold_value_eur?: number | null;
+  delivered_cash_mkd?: number | null;
+  last_decision_at: string | null;
+}
+export interface OverviewTeam {
+  /** altercpa_leads | crm_prediction | management | unassigned | … */
+  team_key: string;
+  name: string;
+  /** Board mode: 'pending' (AlterCPA leads) | 'prediction' (ElyonCRM) | null. */
+  mode: string | null;
+  /** online + idle right now (break counted apart). */
+  online_now: number;
+  break_now?: number | null;
+  worked?: number | null;
+  confirmed?: number | null;
+  sold_value_eur?: number | null;
+  delivered_cash_mkd?: number | null;
+  members: OverviewTeamMember[];
+}
+export interface OverviewAttention {
+  kind: OverviewAttentionKind;
+  severity: 'warning' | 'critical';
+  count: number;
+  value_eur?: number | null;
+  by_person?: { person_id: string; name: string; count: number }[] | null;
+  by_status?: { status_id: number; status_name: string; count: number }[] | null;
+  sample?: { display_id: string | null; note: string; at?: string | null }[] | null;
+}
+export interface OverviewResponse {
+  meta: {
+    from: string; to: string;
+    prev_from?: string | null; prev_to?: string | null;
+    /** When the window ends today the previous one is cut at the same elapsed
+     *  time — this is that instant ("yesterday by this time"). */
+    prev_to_end?: string | null;
+    partial?: boolean;
+    days?: number;
+    generated_at: string;
+    money: boolean;
+  };
+  freshness: OverviewFreshness[];
+  kpis: OverviewKpis;
+  sources: OverviewSource[];
+  trend: { granularity: 'day' | 'month'; points: OverviewTrendPoint[] };
+  teams: OverviewTeam[];
+  attention: OverviewAttention[];
+}
+export const apiGetInsightsOverview = (
+  params: { from: string; to: string; compare?: boolean },
+  signal?: AbortSignal,
+): Promise<OverviewResponse> => {
+  const sp = new URLSearchParams({ from: params.from, to: params.to });
+  if (params.compare) sp.set('compare', '1');
+  return apiFetch(`insights/overview?${sp.toString()}`, { signal });
+};
+
+// GET /insights/pivot?from&to&by=source,team,person,<leaf> — the drill-down
+// table, lazily per level (insights_pivot). Orders PLACED in the window. Each
+// row carries one value per requested dimension — `team` is the team NAME,
+// `person` the display name (+ `person_id`), '(none)' when there is none.
+export type OverviewPivotDim = 'source' | 'detail' | 'team' | 'person' | 'list' | 'webmaster' | 'stream' | 'product' | 'city';
+export interface OverviewPivotRow {
+  count: number;
+  sold?: number | null;
+  placed_value_eur?: number | null;
+  /** Sold value. */
+  value_eur?: number | null;
+  delivered?: number | null;
+  delivered_cash_mkd?: number | null;
+  returned?: number | null;
+  lost?: number | null;
+  person_id?: string | null;
+  [key: string]: string | number | boolean | null | undefined;
+}
+export interface OverviewPivotResponse { by: OverviewPivotDim[]; rows: OverviewPivotRow[]; truncated?: boolean }
+export const apiGetInsightsPivot = (
+  params: { from: string; to: string; by: OverviewPivotDim[] },
+  signal?: AbortSignal,
+): Promise<OverviewPivotResponse> => {
+  const sp = new URLSearchParams({ from: params.from, to: params.to, by: params.by.join(',') });
+  // Tolerates a bare row array as well as { by, rows }.
+  return apiFetch<OverviewPivotResponse | OverviewPivotRow[]>(`insights/pivot?${sp.toString()}`, { signal })
+    .then((r) => (Array.isArray(r) ? { by: params.by, rows: r } : { by: r.by ?? params.by, rows: r.rows ?? [], truncated: r.truncated }));
 };
 
 // ── Business owners (owner ruling 2026-09-27) ───────────────────────────────
