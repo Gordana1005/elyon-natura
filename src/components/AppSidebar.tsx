@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
-import { usePermissions } from '@/contexts/PermissionsContext';
+import { usePermissions, useInsightsAccess } from '@/contexts/PermissionsContext';
 import {
   LayoutDashboard, ShoppingCart, ClipboardList, Package,
   Users, CalendarDays, FileText, History, ChevronLeft,
@@ -59,9 +59,9 @@ const sections: NavSection[] = [
     labelKey: 'nav.sections.analytics',
     items: [
       { titleKey: 'nav.dashboard', path: '/', icon: LayoutDashboard, moduleKey: 'dashboard' },
-      // Insights now also hosts the former Performance (Agents tab) and
-      // Agent Activity (Call Activity tab) pages, so keep it visible for users
-      // who only had those modules.
+      // Insights hosts the money tabs (owners only) plus the operational
+      // Agents / Payout / Call Activity tabs. Its visibility is decided by
+      // useInsightsAccess() in the filter below, NOT by these module keys.
       { titleKey: 'nav.insights', path: '/insights', icon: TrendingUp, moduleKey: 'insights', moduleKeysAny: ['performance', 'agent_activity'] },
       { titleKey: 'nav.operations', path: '/operations', icon: Activity, moduleKey: 'operations' },
     ],
@@ -121,6 +121,7 @@ export function AppSidebar() {
   const location = useLocation();
   const { user } = useAuth();
   const { canAccessModule } = usePermissions();
+  const insightsAccess = useInsightsAccess();
 
   const isMobile = useIsMobile();
   const [collapsed, setCollapsed] = useState(() => {
@@ -139,6 +140,10 @@ export function AppSidebar() {
         // Partner-only surface: admins pass canAccessModule for everything,
         // but the portal items should only clutter an actual affiliate's nav.
         if (item.moduleKey === 'affiliate_portal' && !user?.isAffiliate) return false;
+        // Insights (owner ruling 2026-09-27): shown to an owner, or to anyone
+        // who can open at least one operational tab — the same rule the page
+        // uses to build its tab list.
+        if (item.path === '/insights') return insightsAccess.any;
         return canAccessModule(item.moduleKey) ||
           (item.moduleKeysAny?.some(k => canAccessModule(k)) ?? false);
       });

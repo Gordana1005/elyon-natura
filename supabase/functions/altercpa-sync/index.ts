@@ -26,12 +26,23 @@
  *
  * Nothing is ever sent back to AlterCPA. Mirrored orders get no affiliate_leads
  * row, so the postback trigger has nothing to fire on.
+ *
+ * ── What AlterCPA may decide here: confirmed or dead, nothing physical ─────
+ * Every write path — the insert, the rolling/sweep apply and the status kind —
+ * maps their record through resolveRemoteOutcome (B′, 2026-08-11 doctrine):
+ * pending | confirmed | cancelled | trashed. shipped, delivered, paid and
+ * returned are MEX's alone (mex-reconcile); AlterCPA never moves this account
+ * past status 6 "Packing", even for parcels MEX delivered. Until 2026-09-27
+ * the insert path used the history table instead (phase 3 → paid), and the
+ * 2026-09-18 import_scope='all' backfill created 1.344 orders directly as
+ * paid, ~345 of them with no parcel at all.
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
-  AlterCpaOrder, PHASE, PHASE_TO_STATUS, REASON, STATUS_LABEL,
-  CRM_STATUS_RANK, CRM_TERMINAL, crmReasonFor, resolveRemoteOutcome,
+  AlterCpaOrder, PHASE, REASON, STATUS_LABEL,
+  CRM_STATUS_RANK, CRM_TERMINAL, resolveRemoteOutcome, insertStatusFor,
+  outcomeColumns, cancelOtherConfirmedNote, guardedOutcomeNote,
   fetchByIds, fetchWindow, isTestOrder, normalizeMkGeo, normalizePhoneForGeo,
   productNameOf, quantityOf, toEur,
 } from "./altercpa.ts";
@@ -62,6 +73,29 @@ const epoch = (v: unknown): number | null => {
   return isNaN(d.getTime()) ? null : Math.floor(d.getTime() / 1000);
 };
 const isoOf = (sec: number) => new Date(sec * 1000).toISOString();
+
+/**
+ * Nudge the TV leaderboard and the agent dashboards after a run that changed
+ * orders — the same minimal REST broadcast as broadcastLeaderboard in
+ * api/index.ts (channel 'tv-leaderboard', event 'refresh'; both listeners
+ * ignore the payload and just refetch). Best-effort: the board also polls, so
+ * a failure must never fail the sync. Bounded, because the status kind runs
+ * against a 110s budget under the gateway's ~150s cut-off.
+ */
+async function broadcastBoardRefresh(payload: Record<string, unknown>): Promise<void> {
+  try {
+    const url = Deno.env.get("SUPABASE_URL");
+    const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!url || !key) return;
+    const res = await fetch(`${url}/realtime/v1/api/broadcast`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: key, Authorization: `Bearer ${key}` },
+      body: JSON.stringify({ messages: [{ topic: "tv-leaderboard", event: "refresh", payload }] }),
+      signal: AbortSignal.timeout(5000),
+    });
+    await res.body?.cancel();
+  } catch (_e) { /* never fail a sync on the broadcast */ }
+}
 
 serve(async (req: Request) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -245,10 +279,12 @@ async function syncAccount(
     else if (!callable.has(geo)) skip = "geo_not_callable";
     // PENDINGS ONLY (the default). AlterCPA's own operators work their queue:
     // an order already approved, cancelled or trashed there has been decided,
-    // and importing it would drop a finished order into our pipeline — or, for
-    // phase 3, book revenue our agents never earned. We take the leads that are
-    // still open and decide them ourselves. Everything else stays in the ledger,
-    // fully visible in reports, just not in the calling queue.
+    // and importing it would drop a finished order into our pipeline — for
+    // phase 3, a sale our agents never made, straight into the to-ship queue
+    // as confirmed (insertStatusFor; it can no longer arrive as paid). We take
+    // the leads that are still open and decide them ourselves. Everything else
+    // stays in the ledger, fully visible in reports, just not in the calling
+    // queue.
     else if (importScope === "pending_only" && phase != null && phase !== 1 && phase !== 2) {
       skip = "not_pending";
     }
@@ -316,7 +352,9 @@ async function syncAccount(
           price_raw: ledgerRow.price_raw, currency: ledgerRow.currency_raw, price_eur: priceEur,
           skip_reason: skip,
           would_write_order: skip === null,
-          would_be_status: skip === null && phase ? PHASE_TO_STATUS[phase] : null,
+          // What an INSERT would create. An order that already exists goes
+          // through applyOutcomeToExistingOrder instead (forward-only B′).
+          would_be_status: skip === null ? insertStatusFor(o) : null,
         });
       }
       continue;
@@ -391,6 +429,13 @@ async function syncAccount(
       finished_at: new Date().toISOString(),
       duration_ms: Date.now() - startedMs,
     }).eq("id", runId);
+  }
+
+  if (stats.orders_created > 0 || stats.orders_updated > 0) {
+    await broadcastBoardRefresh({
+      source: "altercpa-sync", kind,
+      orders_created: stats.orders_created, orders_updated: stats.orders_updated,
+    });
   }
 
   return {
@@ -479,48 +524,6 @@ async function upsertLead(
     throw new Error(`ledger insert ${row.altercpa_id}: ${error.message}`);
   }
   return "new";
-}
-
-/**
- * Outcome timestamps taken from AlterCPA's own clock rather than ours.
- *
- * orders has NULL-only BEFORE triggers for paid_at / cancelled_at / trashed_at
- * (20260727000000, 20260711000000, 20260913000100), so anything we set
- * explicitly wins and anything we omit gets stamped now().
- *
- * Letting them default to now() would be wrong in a way that MOVES MONEY AND
- * MEMBERSHIPS: a lead trashed on their side five days ago would get
- * trashed_at = now(), restarting the engine v3.7 21-day Trash List parking
- * period from today, and a COD paid last week would land in this week's paid
- * window on every agent dashboard and payout report.
- *
- * `paid` and `done` are epoch seconds on their record. Guarded against zero and
- * against times before creation, either of which would be worse than a NULL.
- */
-function outcomeTimestamps(o: AlterCpaOrder, status: string): Record<string, string> {
-  const created = Number(o.time) || 0;
-  const at = (v: unknown): string | null => {
-    const n = Number(v) || 0;
-    if (n <= 0) return null;
-    if (created && n < created) return null;
-    if (n > Math.floor(Date.now() / 1000) + 86400) return null;   // clock skew / bad data
-    return isoOf(n);
-  };
-  const done = at(o.done);
-  const out: Record<string, string> = {};
-  if (status === "paid") {
-    const p = at(o.paid) ?? done;
-    if (p) out.paid_at = p;
-  } else if (status === "cancelled") {
-    if (done) out.cancelled_at = done;
-  } else if (status === "trashed") {
-    if (done) out.trashed_at = done;
-  } else if (status === "returned") {
-    // returned_at has no NULL-only trigger (20260514110000), so it must be set
-    // here explicitly or the return carries no date at all.
-    if (done) out.returned_at = done;
-  }
-  return out;
 }
 
 /**
@@ -625,7 +628,6 @@ async function upsertOrder(
   phaseChanged: boolean,
 ): Promise<string | null> {
   const phase = row.phase as number | null;
-  const remoteStatus = phase ? PHASE_TO_STATUS[phase] : "pending";
   // o.price is the ORDER TOTAL on their side (3 × 1000 arrives as price=3000,
   // goods[0].price=1000) — multiplying by quantity would double-count. It never
   // fired only because leads arrive as 1 pack; found 2026-08-11 via the upsell
@@ -646,6 +648,11 @@ async function upsertOrder(
   const mexZone = await resolveMexCity(admin, row.city || s(o.city, 200));
 
   if (!existing) {
+    // B′ as if this were a fresh pending: pending | confirmed | cancelled |
+    // trashed, and insertStatusFor throws on anything else. Under
+    // import_scope='pending_only' only phase 1/2 (or none) reaches here; under
+    // 'all' this line is what used to book every approved lead as paid.
+    const insertStatus = insertStatusFor(o);
     const { data: order, error } = await admin.from("orders").insert({
       product_id: product?.id ?? null,
       product_name: product?.name ?? row.offer_name,
@@ -658,7 +665,7 @@ async function upsertOrder(
       mex_city_name: mexZone.name,
       price: priceTotal,
       quantity: row.quantity,
-      status: remoteStatus,
+      status: insertStatus,
       source_type: "altercpa",
       external_source: "altercpa",
       external_order_id: row.altercpa_id,
@@ -669,7 +676,10 @@ async function upsertOrder(
       assigned_agent_id: null,
       assigned_agent_name: null,
       assigned_at: null,
-      ...outcomeTimestamps(o, remoteStatus),
+      // Their-clock timestamp + the reason pair for cancelled/trashed — the
+      // same columns a B′ update writes, so an insert and an update of the
+      // same record can never differ.
+      ...outcomeColumns(o, insertStatus),
     }).select("id, display_id").single();
 
     if (error) {
@@ -700,10 +710,17 @@ async function upsertOrder(
     });
     await admin.from("order_history").insert({
       order_id: order.id,
-      to_status: remoteStatus,
+      to_status: insertStatus,
       changed_by: null,
       changed_by_name: `System (altercpa:${account.name})`,
     });
+    const cancelOtherNote = cancelOtherConfirmedNote(o, insertStatus);
+    if (cancelOtherNote) {
+      await admin.from("order_notes").insert({
+        order_id: order.id, text: cancelOtherNote, author_id: null, author_name: "System",
+      });
+      stats.skipped.cancel_other_confirmed = (stats.skipped.cancel_other_confirmed || 0) + 1;
+    }
 
     // Keep the phone-keyed profile in step — FILL-ONLY. An agent who corrected
     // an address on the phone has better data than the web form AlterCPA
@@ -751,50 +768,16 @@ async function upsertOrder(
       .eq("id", existing.id);
   }
 
-  // ── existing order: apply the status-mirror policy ───────────────────────
-  // NOTE: this branch still maps A-style via PHASE_TO_STATUS (phase 3 → paid).
-  // Under import_scope='pending_only' it is unreachable for RESOLUTIONS —
-  // a resolved lead gets skip_reason='not_pending' before upsertOrder is ever
-  // called, and phases 1/2 both map to 'pending' — so outcomes flow exclusively
-  // through syncStatusAccount's resolveRemoteOutcome (B′: paid only on their
-  // Completed). Do not flip an account to import_scope='all' without moving
-  // this branch onto resolveRemoteOutcome too, or approval→paid comes back
-  // through the side door.
-  const mode = account.status_mirror as string;
-  if (mode === "off" || !phaseChanged) return existing.id;
-
-  // 'until_touched' — an untouched order is one nobody here has worked. Once an
-  // agent takes or confirms it, a stale phase from the other system must never
-  // silently revert what they just did; it becomes a note instead.
-  const untouched = existing.status === "pending"
-    && !existing.assigned_agent_id
-    && !existing.confirmed_at;
-
-  if (mode === "always" || (mode === "until_touched" && untouched)) {
-    if (existing.status !== remoteStatus) {
-      const { error } = await admin.from("orders")
-        .update({ status: remoteStatus, ...outcomeTimestamps(o, remoteStatus) })
-        .eq("id", existing.id);
-      if (error) throw new Error(`order update ${row.altercpa_id}: ${error.message}`);
-      await admin.from("order_history").insert({
-        order_id: existing.id,
-        from_status: existing.status,
-        to_status: remoteStatus,
-        changed_by: null,
-        changed_by_name: `System (altercpa:${account.name})`,
-      });
-      stats.orders_updated++;
-    }
-  } else {
-    await admin.from("order_notes").insert({
-      order_id: existing.id,
-      text: `AlterCPA moved this to "${phase ? PHASE[phase] : "?"}"`
-        + `${row.reason ? ` (${REASON[row.reason] ?? row.reason})` : ""}`
-        + ` — not applied, this order is already being worked here.`,
-      author_id: null,
-      author_name: "System",
-    });
-  }
+  // ── existing order: the same B′ apply as every other path ────────────────
+  // Forward-only, never over a terminal status, never over an order someone
+  // here is working (guarded → one note per remote phase change), never
+  // anything physical. Until 2026-09-27 this branch mapped through
+  // PHASE_TO_STATUS (phase 3 → paid) with no ladder, no terminal check and the
+  // pre-08-13 assigned_agent_id guard — the side door its own comment warned
+  // would open the moment import_scope became 'all'. Still evaluated once per
+  // REMOTE phase change; the status kind re-reads every open order anyway.
+  if (!phaseChanged) return existing.id;
+  await applyOutcomeToExistingOrder(admin, account, existing.id, o, stats, { noteIfGuarded: true });
   return existing.id;
 }
 
@@ -856,10 +839,14 @@ async function fetchOpenLeads(
 }
 
 /**
- * B′ apply onto an order that already exists. Used by the rolling path when
- * pending_only stamps skip_reason='not_pending' — that skip means "do not
- * CREATE", never "leave the existing row pending". Silent when there is
- * nothing to do (still open, already matching, guarded, terminal).
+ * B′ apply onto an order that already exists. Two callers:
+ *   - the rolling path when pending_only stamps skip_reason='not_pending' —
+ *     that skip means "do not CREATE", never "leave the existing row pending";
+ *     silent when guarded, because it re-runs on every pass of the overlap.
+ *   - upsertOrder's existing-order branch (import_scope='all', or a sweep
+ *     re-reading a lead), once per remote phase change, with noteIfGuarded.
+ * Silent when there is nothing to do (still open, already matching, terminal,
+ * would move backwards).
  */
 async function applyOutcomeToExistingOrder(
   admin: SupabaseClient,
@@ -867,6 +854,7 @@ async function applyOutcomeToExistingOrder(
   orderId: string,
   o: AlterCpaOrder,
   stats: { orders_updated: number; skipped: Record<string, number> },
+  opts: { noteIfGuarded?: boolean } = {},
 ) {
   const mode = String(account.status_mirror || "off");
   if (mode === "off") return;
@@ -883,22 +871,17 @@ async function applyOutcomeToExistingOrder(
   const untouched = !order.confirmed_at && cur !== "take";
   if (!(mode === "always" || untouched)) {
     stats.skipped.guarded = (stats.skipped.guarded || 0) + 1;
+    if (opts.noteIfGuarded) {
+      await admin.from("order_notes").insert({
+        order_id: order.id, text: guardedOutcomeNote(o), author_id: null, author_name: "System",
+      });
+    }
     return;
   }
-  const phase = Number(o.phase) || null;
-  const reason = Number(o.reason) || 0;
-  const upd: Record<string, unknown> = { status: target, ...outcomeTimestamps(o, target) };
-  if (target === "cancelled" && reason > 0) {
-    const r = crmReasonFor("cancel", reason, o.comment);
-    upd.cancellation_reason = r.value;
-    if (r.notes) upd.cancellation_reason_notes = r.notes;
-  } else if (target === "trashed" && reason > 0) {
-    const r = crmReasonFor("trash", reason, o.comment);
-    upd.trash_reason = r.value;
-    if (r.notes) upd.trash_reason_notes = r.notes;
-  }
-  const { error: updErr } = await admin.from("orders").update(upd).eq("id", order.id);
-  if (updErr) throw new Error(`rolling outcome ${o.id}: ${updErr.message}`);
+  const { error: updErr } = await admin.from("orders")
+    .update({ status: target, ...outcomeColumns(o, target) })
+    .eq("id", order.id);
+  if (updErr) throw new Error(`outcome apply ${o.id}: ${updErr.message}`);
   await admin.from("order_history").insert({
     order_id: order.id,
     from_status: cur,
@@ -906,13 +889,10 @@ async function applyOutcomeToExistingOrder(
     changed_by: null,
     changed_by_name: `System (altercpa:${account.name})`,
   });
-  if (target === "confirmed" && phase === 4) {
+  const cancelOtherNote = cancelOtherConfirmedNote(o, target);
+  if (cancelOtherNote) {
     await admin.from("order_notes").insert({
-      order_id: order.id,
-      text: `AlterCPA cancelled (${REASON[reason] ?? reason}) — confirmed disposition per the 2026-08-11 manager rule; status set to confirmed. MEX tracking will move it to shipped/paid/returned.`
-        + (s(o.comment, 300) ? ` Their comment: ${s(o.comment, 300)}` : ""),
-      author_id: null,
-      author_name: "System",
+      order_id: order.id, text: cancelOtherNote, author_id: null, author_name: "System",
     });
     stats.skipped.cancel_other_confirmed = (stats.skipped.cancel_other_confirmed || 0) + 1;
   }
@@ -1185,12 +1165,7 @@ async function syncStatusAccount(
       bump("guarded");
       if (!dry && phaseChanged) {
         await admin.from("order_notes").insert({
-          order_id: order.id,
-          text: `AlterCPA moved this to "${phase ? PHASE[phase] : "?"}"`
-            + `${Number(o.reason) ? ` (${REASON[Number(o.reason)] ?? o.reason})` : ""}`
-            + ` — not applied, this order is already being worked here.`,
-          author_id: null,
-          author_name: "System",
+          order_id: order.id, text: guardedOutcomeNote(o), author_id: null, author_name: "System",
         });
       }
       continue;
@@ -1198,17 +1173,7 @@ async function syncStatusAccount(
 
     if (dry) { bump("would_apply"); continue; }
 
-    const upd: Record<string, unknown> = { status: target, ...outcomeTimestamps(o, target) };
-    const reason = Number(o.reason) || 0;
-    if (target === "cancelled" && reason > 0) {
-      const r = crmReasonFor("cancel", reason, o.comment);
-      upd.cancellation_reason = r.value;
-      if (r.notes) upd.cancellation_reason_notes = r.notes;
-    } else if (target === "trashed" && reason > 0) {
-      const r = crmReasonFor("trash", reason, o.comment);
-      upd.trash_reason = r.value;
-      if (r.notes) upd.trash_reason_notes = r.notes;
-    }
+    const upd: Record<string, unknown> = { status: target, ...outcomeColumns(o, target) };
     if (CRM_TERMINAL.has(target) && !(Number(o.paid) > 0) && !(Number(o.done) > 0)) {
       // Their record carries no settlement stamp; the NULL-only trigger will
       // date this outcome today. Counted so the catch-up dry run surfaces it.
@@ -1224,15 +1189,11 @@ async function syncStatusAccount(
       changed_by: null,
       changed_by_name: `System (altercpa:${account.name})`,
     });
-    if (target === "confirmed" && phase === 4) {
-      // The cancel-other-is-confirmed rule fired — say so on the order, keeping
-      // their original disposition wording, or the note reads as a mystery.
+    // The cancel-other-is-confirmed rule fired — say so on the order.
+    const cancelOtherNote = cancelOtherConfirmedNote(o, target);
+    if (cancelOtherNote) {
       await admin.from("order_notes").insert({
-        order_id: order.id,
-        text: `AlterCPA cancelled (${REASON[reason] ?? reason}) — confirmed disposition per the 2026-08-11 manager rule; status set to confirmed. MEX tracking will move it to shipped/paid/returned.`
-          + (s(o.comment, 300) ? ` Their comment: ${s(o.comment, 300)}` : ""),
-        author_id: null,
-        author_name: "System",
+        order_id: order.id, text: cancelOtherNote, author_id: null, author_name: "System",
       });
       bump("cancel_other_confirmed");
     }
@@ -1252,6 +1213,10 @@ async function syncStatusAccount(
       finished_at: new Date().toISOString(),
       duration_ms: Date.now() - startedMs,
     }).eq("id", runId);
+  }
+
+  if (!dry && stats.orders_updated > 0) {
+    await broadcastBoardRefresh({ source: "altercpa-sync", kind: "status", orders_updated: stats.orders_updated });
   }
 
   return {

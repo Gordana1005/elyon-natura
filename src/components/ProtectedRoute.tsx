@@ -10,11 +10,16 @@ interface ProtectedRouteProps {
    *  merged in other modules' content (e.g. Insights hosts Performance +
    *  Agent Activity), so users with only those keys keep their access. */
   moduleKeysAny?: string[];
+  /** Business owners (owner ruling 2026-09-27 — see useInsightsAccess) may open
+   *  the page whatever their role permissions say, as long as the module
+   *  itself is switched on. Owners see the sidebar link from canSeeBusiness,
+   *  so without this the link could bounce them straight back out. */
+  allowBusinessOwner?: boolean;
 }
 
-export function ProtectedRoute({ children, moduleKey, moduleKeysAny }: ProtectedRouteProps) {
+export function ProtectedRoute({ children, moduleKey, moduleKeysAny, allowBusinessOwner }: ProtectedRouteProps) {
   const { session, user, loading } = useAuth();
-  const { canAccessModule, loading: permLoading } = usePermissions();
+  const { canAccessModule, canSeeBusiness, isModuleEnabled, loading: permLoading } = usePermissions();
 
   if (loading || permLoading) {
     return (
@@ -31,7 +36,8 @@ export function ProtectedRoute({ children, moduleKey, moduleKeysAny }: Protected
   // Check module-level access (enabled + role permission)
   if (moduleKey && user) {
     const hasAccess = canAccessModule(moduleKey) ||
-      (moduleKeysAny?.some(k => canAccessModule(k)) ?? false);
+      (moduleKeysAny?.some(k => canAccessModule(k)) ?? false) ||
+      (!!allowBusinessOwner && canSeeBusiness && isModuleEnabled(moduleKey));
     if (!hasAccess) {
       // Find a module the user CAN access for redirect
       if (user.isPendingAgent || user.isPredictionAgent || user.isAgent) {

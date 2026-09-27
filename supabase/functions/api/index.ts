@@ -117,14 +117,29 @@ const updateCustomerSchema = z.object({
   ship_after_date: z.string().nullable().optional(),
 });
 
+// Cancellation reasons written ONLY by a system job, never picked by a person.
+//   no_parcel_7d — AlterCPA confirmed the order but no MEX parcel appeared
+//                  within 7 days (set by a cron, 2026-09-27).
+// The two enums that can carry an order's EXISTING reason back to us accept
+// these values (updateStatusSchema, callLogSchema: the Order Modal pre-fills
+// the order's current reason and re-sends it on a note-only save), so a row
+// that carries one never 400s. But a request may never ASSIGN one to an order
+// that doesn't already carry it — both routes check that against the row.
+// Deliberately absent from createOrderSchema (a new order carries nothing to
+// round-trip), from bulk-disposition's VALID_CANCEL and from
+// src/lib/cancellationReasons.ts — the lists people pick from.
+const SYSTEM_CANCEL_REASONS: string[] = ["no_parcel_7d"];
+
 const updateStatusSchema = z.object({
   status: z.enum(["pending", "take", "call_again", "confirmed", "shipped", "delivered", "returned", "paid", "trashed", "cancelled"]),
   // Optional structured reason — required when status is being changed to
   // 'cancelled' so the customer lands in the right Cancelled mirror list.
+  // no_parcel_7d is system-only — accepted to round-trip, see SYSTEM_CANCEL_REASONS.
   cancellation_reason: z.enum([
     "no_money", "changed_mind", "wrong_product", "bought_elsewhere",
     "family_refused", "duplicate_order", "price_too_high", "not_satisfied",
     "still_using_product", "not_interested", "will_call_back", "other",
+    "no_parcel_7d",
   ]).optional(),
   cancellation_reason_notes: z.string().max(1000).optional(),
   // Structured trash reason — stored when status is 'trashed'. Also accepted on
@@ -326,10 +341,12 @@ const callLogSchema = z.object({
   // Structured cancel reason — required by UI when outcome=cancelled but the
   // server validates the combination explicitly so we can return a helpful
   // 400 instead of a Zod error.
+  // no_parcel_7d is system-only — accepted to round-trip, see SYSTEM_CANCEL_REASONS.
   cancellation_reason: z.enum([
     "no_money", "changed_mind", "wrong_product", "bought_elsewhere",
     "family_refused", "duplicate_order", "price_too_high", "not_satisfied",
     "still_using_product", "not_interested", "will_call_back", "other",
+    "no_parcel_7d",
   ]).optional(),
   cancellation_reason_notes: z.string().max(1000).optional(),
   // Structured trash reason for an in-call 'trash' outcome. The 'wrong_number'
@@ -2972,6 +2989,31 @@ async function handleRequest(req: Request): Promise<Response> {
     const showSegmentMembers = privCan("show_segment_members");
     const canHearRecordings = privCan("can_hear_recordings");          // hear ALL recordings (admin/manager/inbound_agent)
     const canHearOwnRecordings = privCan("can_hear_own_recordings");   // hear ONLY recordings attached to your own calls
+
+    // Business owners (owner ruling 2026-09-27): the full business/money view
+    // is visible ONLY to the people named in public.business_owners — NOT to
+    // every admin (nine accounts hold the full admin role set). There is
+    // deliberately NO admin bypass here. Asks the DB's own is_business_owner()
+    // — the same predicate get_my_permissions() hands the UI — so server and
+    // client can never disagree about who is an owner. Fail-closed: a failed
+    // lookup (or the migration not applied yet) means "not an owner".
+    // Memoized per request.
+    const businessOwnerMemo = new Map<string, Promise<boolean>>();
+    const isBusinessOwner = (uid: string): Promise<boolean> => {
+      let p = businessOwnerMemo.get(uid);
+      if (!p) {
+        p = (async () => {
+          const { data, error } = await adminClient.rpc("is_business_owner", { p_uid: uid });
+          if (error) {
+            console.error("is_business_owner failed:", error.message);
+            return false;
+          }
+          return data === true;
+        })();
+        businessOwnerMemo.set(uid, p);
+      }
+      return p;
+    };
 
     // ============================================================
     // ROUTING
@@ -6897,6 +6939,14 @@ async function handleRequest(req: Request): Promise<Response> {
         .single();
       if (!order) return json({ error: "Order not found" }, 404);
 
+      // A system-only reason (no_parcel_7d) may round-trip on an order that
+      // already carries it; a request may never newly assign one.
+      if (newStatus === "cancelled" && body.cancellation_reason
+          && SYSTEM_CANCEL_REASONS.includes(body.cancellation_reason)
+          && order.cancellation_reason !== body.cancellation_reason) {
+        return json({ error: "This cancellation reason is set by the system only" }, 400);
+      }
+
       // Ownership guard (mirrors the orders UPDATE RLS: assigned_agent_id =
       // auth.uid()). This handler writes via adminClient, which bypasses RLS,
       // so without this an agent could PATCH ANY order by id — confirming a
@@ -7366,8 +7416,10 @@ async function handleRequest(req: Request): Promise<Response> {
       if (!pushStatus) {
         return json({ error: `Status '${order.status}' cannot be pushed to AlterCPA` }, 422);
       }
+      // no_parcel_7d (2026-09-27) is a system marker too: a cron wrote it, no
+      // person dispositioned the order, so there is nothing truthful to send.
       if (order.status === "cancelled" &&
-          ["pending_cleanup", "stale_pending_cleanup"].includes(String(order.cancellation_reason))) {
+          ["pending_cleanup", "stale_pending_cleanup", "no_parcel_7d"].includes(String(order.cancellation_reason))) {
         return json({ error: "This cancel is a server cleanup marker, not a real disposition — nothing truthful to send" }, 422);
       }
 
@@ -10752,11 +10804,21 @@ async function handleRequest(req: Request): Promise<Response> {
         if (!mayMutate) {
           order_warning = "Order is assigned to another agent — status not changed.";
         } else {
+          // A system-only reason (no_parcel_7d) passes through only when this
+          // order already carries it. Otherwise it is dropped, applyOutcomeToOrder
+          // refuses the cancel for want of a reason, and that surfaces as
+          // order_warning — the call itself is still logged below.
+          let orderCancelReason: string | undefined = cancellation_reason;
+          if (orderCancelReason && SYSTEM_CANCEL_REASONS.includes(orderCancelReason)) {
+            const { data: cur } = await adminClient
+              .from("orders").select("cancellation_reason").eq("id", context_id).maybeSingle();
+            if (cur?.cancellation_reason !== orderCancelReason) orderCancelReason = undefined;
+          }
           const result = await applyOutcomeToOrder(adminClient, {
             orderId: context_id,
             outcome,
             agentId: user.id,
-            cancellationReason: cancellation_reason,
+            cancellationReason: orderCancelReason,
             cancellationReasonNotes: cancellation_reason_notes,
             trashReason: trash_reason,
             claimIfUnassigned: !isAdminOrManager && !isWarehouse,
@@ -16369,11 +16431,157 @@ async function handleRequest(req: Request): Promise<Response> {
     }
 
     // ══════════════════════════════════════════════════════════════
+    // BUSINESS OWNERS — who may see the full business/money view
+    // (owner ruling 2026-09-27). Managed from Settings → Owners. Every route
+    // is owners-only and every change is audited. The table's own RLS lets
+    // only owners SELECT; these routes use the service role behind the
+    // explicit isBusinessOwner() gate.
+    // ══════════════════════════════════════════════════════════════
+
+    // GET /api/business-owners → [{ user_id, full_name, email, is_active,
+    //   added_at, added_by, added_by_name, note }], oldest owner first.
+    if (req.method === "GET" && path === "business-owners") {
+      if (!(await isBusinessOwner(user.id))) return json({ error: "owners_only" }, 403);
+      const { data: rows, error } = await adminClient
+        .from("business_owners")
+        .select("user_id, added_by, added_at, note")
+        .order("added_at", { ascending: true })
+        .order("user_id", { ascending: true });
+      if (error) return json({ error: sanitizeDbError(error) }, 400);
+      const ids = [...new Set(((rows || []) as any[]).flatMap((r) => [r.user_id, r.added_by]).filter(Boolean))];
+      const profById: Record<string, any> = {};
+      if (ids.length) {
+        const { data: profs } = await adminClient
+          .from("profiles").select("user_id, full_name, email, is_active").in("user_id", ids);
+        for (const p of (profs || []) as any[]) profById[p.user_id] = p;
+      }
+      return json(((rows || []) as any[]).map((r) => ({
+        user_id: r.user_id,
+        full_name: profById[r.user_id]?.full_name ?? null,
+        email: profById[r.user_id]?.email ?? null,
+        is_active: profById[r.user_id]?.is_active === true,
+        added_at: r.added_at,
+        added_by: r.added_by ?? null,
+        added_by_name: r.added_by ? (profById[r.added_by]?.full_name ?? null) : null,
+        note: r.note ?? null,
+      })));
+    }
+
+    // POST /api/business-owners { user_id, note? } — make an ACTIVE staff
+    // account an owner. A login whose only role is `affiliate` is an external
+    // partner and is refused: it must never reach a staff surface, let alone
+    // the money (see the hard wall above).
+    if (req.method === "POST" && path === "business-owners") {
+      if (!(await isBusinessOwner(user.id))) return json({ error: "owners_only" }, 403);
+      let body: any;
+      try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
+      const targetId = typeof body?.user_id === "string" ? body.user_id.trim() : "";
+      if (!UUID_RE.test(targetId)) return json({ error: "user_id is required" }, 400);
+      const note = typeof body?.note === "string" ? body.note.trim().slice(0, 500) : "";
+
+      const [profRes, roleRes, existingRes, actorRes] = await Promise.all([
+        adminClient.from("profiles").select("user_id, full_name, email, is_active").eq("user_id", targetId).maybeSingle(),
+        adminClient.from("user_roles").select("role").eq("user_id", targetId),
+        adminClient.from("business_owners").select("user_id").eq("user_id", targetId).maybeSingle(),
+        adminClient.from("profiles").select("full_name").eq("user_id", user.id).maybeSingle(),
+      ]);
+      const target = profRes.data as any;
+      const targetRoles = ((roleRes.data || []) as any[]).map((r) => r.role as string);
+      if (!target || target.is_active !== true || !targetRoles.some((r) => r !== "affiliate")) {
+        return json({ error: "target_not_active_staff" }, 422);
+      }
+      if (existingRes.data) return json({ error: "already_owner" }, 409);
+
+      const { data: row, error } = await adminClient
+        .from("business_owners")
+        .insert({ user_id: targetId, added_by: user.id, added_at: new Date().toISOString(), note: note || null })
+        .select("user_id, added_by, added_at, note")
+        .single();
+      if (error) {
+        // Two owners adding the same person at once: the loser hits the PK.
+        if ((error as any).code === "23505") return json({ error: "already_owner" }, 409);
+        return json({ error: sanitizeDbError(error) }, 400);
+      }
+      await audit(adminClient, user.id, user.email, "business_owner.add", {
+        target_type: "business_owners",
+        target_id: targetId,
+        target_name: target.full_name || target.email || null,
+        payload: { user_id: targetId, email: target.email ?? null, note: note || null },
+      });
+      return json({
+        user_id: row.user_id,
+        full_name: target.full_name ?? null,
+        email: target.email ?? null,
+        is_active: true,
+        added_at: row.added_at,
+        added_by: row.added_by ?? null,
+        added_by_name: (actorRes.data as any)?.full_name ?? null,
+        note: row.note ?? null,
+      });
+    }
+
+    // DELETE /api/business-owners/:user_id — the LAST remaining owner can
+    // never be removed: nobody would be left to see the money or to add
+    // anyone back. An owner may remove themselves while another remains.
+    if (req.method === "DELETE" && segments[0] === "business-owners" && segments.length === 2) {
+      if (!(await isBusinessOwner(user.id))) return json({ error: "owners_only" }, 403);
+      const targetId = segments[1];
+      if (!UUID_RE.test(targetId)) return json({ error: "user_id is required" }, 400);
+
+      const { data: row, error: rowErr } = await adminClient
+        .from("business_owners").select("user_id, added_by, added_at, note").eq("user_id", targetId).maybeSingle();
+      if (rowErr) return json({ error: sanitizeDbError(rowErr) }, 400);
+      if (!row) return json({ error: "not_an_owner" }, 404);
+      const { count, error: cntErr } = await adminClient
+        .from("business_owners").select("user_id", { count: "exact", head: true });
+      if (cntErr) return json({ error: sanitizeDbError(cntErr) }, 400);
+      if ((count ?? 0) <= 1) return json({ error: "last_owner" }, 409);
+
+      const { error: delErr } = await adminClient.from("business_owners").delete().eq("user_id", targetId);
+      if (delErr) return json({ error: sanitizeDbError(delErr) }, 400);
+      // Two owners removing each other at the same instant both pass the count
+      // above. Re-count after the fact and put the row back rather than leave
+      // the business with nobody who can see the money.
+      const { count: left } = await adminClient
+        .from("business_owners").select("user_id", { count: "exact", head: true });
+      if (left === 0) {
+        await adminClient.from("business_owners").insert(row);
+        return json({ error: "last_owner" }, 409);
+      }
+
+      const { data: prof } = await adminClient
+        .from("profiles").select("full_name, email").eq("user_id", targetId).maybeSingle();
+      await audit(adminClient, user.id, user.email, "business_owner.remove", {
+        target_type: "business_owners",
+        target_id: targetId,
+        target_name: (prof as any)?.full_name || (prof as any)?.email || null,
+        payload: {
+          user_id: targetId, email: (prof as any)?.email ?? null, self: targetId === user.id,
+          added_by: (row as any).added_by ?? null, added_at: (row as any).added_at ?? null,
+        },
+      });
+      return json({ success: true, user_id: targetId });
+    }
+
+    // ══════════════════════════════════════════════════════════════
     // GET /api/management-insights
-    // Admin/Manager only analytics
+    // The full business/money view — OWNERS ONLY (owner ruling 2026-09-27).
+    //   owner (public.business_owners, any role) → the full response, exactly
+    //     as before this ruling.
+    //   non-owner admin/manager → ONLY ?scope=calls (the Call Activity KPI
+    //     slice, below), and only with the call_activity module — the same
+    //     rule as the Call Activity tab and GET /agent-activity. Anything else
+    //     → 403 owners_only.
+    //   everyone else → 403 Forbidden, as before.
+    // Hiding the tabs in the UI is not the control; this is.
     // ══════════════════════════════════════════════════════════════
     if (req.method === "GET" && path === "management-insights") {
-      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      const insightsScope = url.searchParams.get("scope");
+      if (!(await isBusinessOwner(user.id))) {
+        if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+        if (insightsScope !== "calls") return json({ error: "owners_only" }, 403);
+        if (!canViewModule("call_activity")) return json({ error: "Forbidden" }, 403);
+      }
 
       const fromRaw = url.searchParams.get("from") || "";
       const to = url.searchParams.get("to") || "";
@@ -16439,6 +16647,75 @@ async function handleRequest(req: Request): Promise<Response> {
         }
         return [...head, others];
       };
+
+      // ── ?scope=calls: the Call Activity slice ──
+      // Everything the Call Activity tab's KPI block needs and nothing else: no
+      // order, product, stock or money figure is computed here, let alone
+      // returned. It is the only slice a non-owner may fetch (see the gate
+      // above). total / answered / talk_seconds / by_outcome are the SAME
+      // numbers the full response carries — same predicates, same engine
+      // switch, same RPC. per_agent differs on purpose: the full response
+      // lists only operators who ALSO own an order outcome in range, ranked by
+      // revenue — both need the order rollup this slice exists to skip — so
+      // here it is every operator with a call in range, ranked by calls.
+      if (insightsScope === "calls") {
+        const callNameById: Record<string, string> = {};
+        for (const p of await paginate(() => adminClient.from("profiles").select("user_id,full_name"))) {
+          callNameById[p.user_id] = p.full_name;
+        }
+        let cTotal = 0, cAnswered = 0, cTalk = 0;
+        const cByOutcome: Record<string, number> = {};
+        const cByName: Record<string, { calls: number; answered: number; talk_seconds: number }> = {};
+        // Same key as the full response: normAgent of the profile name, so
+        // several agent_ids collapsing to one operator name merge.
+        const addCalls = (agentId: any, calls: number, answered: number, talk: number) => {
+          const e = (cByName[normAgent(callNameById[agentId])] ??= { calls: 0, answered: 0, talk_seconds: 0 });
+          e.calls += calls; e.answered += answered; e.talk_seconds += talk;
+        };
+        if (useSql) {
+          const q = await adminClient.rpc("insights_calls_and_movement", { p_from: from || null, p_to_end: toEnd || null });
+          if (q.error) return json({ error: `insights_calls: ${sanitizeDbError(q.error)}` }, 500);
+          const C = q.data;
+          cTotal = C.total; cAnswered = C.answered; cTalk = Number(C.talk);
+          for (const r of C.by_outcome) cByOutcome[r.outcome] = r.count;
+          for (const r of C.by_agent) addCalls(r.agent_id, r.calls, r.answered, Number(r.talk_seconds));
+        } else {
+          const callRows = await paginate(() => {
+            let q = adminClient.from("call_logs").select("agent_id,outcome,connection_state,talk_seconds");
+            if (from) q = q.gte("created_at", from);
+            if (toEnd) q = q.lte("created_at", toEnd);
+            return q;
+          });
+          for (const c of callRows) {
+            const talk = Number(c.talk_seconds || 0);
+            const answered = c.connection_state === "answered" || (c.connection_state == null && talk > 0);
+            cTotal++;
+            if (answered) cAnswered++;
+            cTalk += talk;
+            cByOutcome[c.outcome || "(none)"] = (cByOutcome[c.outcome || "(none)"] || 0) + 1;
+            addCalls(c.agent_id, 1, answered ? 1 : 0, talk);
+          }
+        }
+        return json({
+          meta: { from: fromRaw, to, scope: "calls", generated_at: new Date().toISOString() },
+          calls: {
+            total: cTotal,
+            answered: cAnswered,
+            answer_rate: cTotal > 0 ? cAnswered / cTotal : 0,
+            talk_seconds: cTalk,
+            by_outcome: Object.entries(cByOutcome).map(([outcome, count]) => ({ outcome, count }))
+              .sort((a, b) => b.count - a.count || String(a.outcome).localeCompare(String(b.outcome))),
+            per_agent: Object.entries(cByName)
+              .filter(([, e]) => e.calls > 0)
+              .map(([name, e]) => ({
+                name, calls: e.calls, answered: e.answered,
+                answer_rate: e.calls > 0 ? e.answered / e.calls : 0,
+                talk_seconds: e.talk_seconds,
+              }))
+              .sort((a, b) => b.calls - a.calls || String(a.name).localeCompare(String(b.name))),
+          },
+        });
+      }
 
       // ── Fetch (paginated where it matters) ──
       // The SQL engine never materialises order rows — this is the 70,000-row,
@@ -18447,8 +18724,8 @@ const ALTERCPA_PUSH_STATUS: Record<string, number | "accept"> = {
 // orders.cancellation_reason → their cancel code 1-15. Same decisions as
 // ALTERCPA_REASON_DEFAULT with ONE override: not_satisfied → 10 ("Not satisfied
 // with delivery" — their exact code, and CANCEL_REASON_TO_CRM maps 10 back to
-// not_satisfied, so it round-trips). pending_cleanup / stale_pending_cleanup
-// are deliberately absent: server cleanup markers, blocked with 422 upstream.
+// not_satisfied, so it round-trips). pending_cleanup / stale_pending_cleanup /
+// no_parcel_7d are deliberately absent: server markers, blocked with 422 upstream.
 const ALTERCPA_PUSH_CANCEL_REASON: Record<string, number> = {
   no_money: 9, changed_mind: 2, wrong_product: 14, bought_elsewhere: 8,
   family_refused: 2, duplicate_order: 7, price_too_high: 9, not_satisfied: 10,

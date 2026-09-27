@@ -938,7 +938,12 @@ export type CallOutcome =
 export type CancellationReason =
   | 'no_money' | 'changed_mind' | 'wrong_product' | 'bought_elsewhere'
   | 'family_refused' | 'duplicate_order' | 'not_satisfied' | 'price_too_high'
-  | 'still_using_product' | 'not_interested' | 'will_call_back' | 'other';
+  | 'still_using_product' | 'not_interested' | 'will_call_back' | 'other'
+  // System-only (2026-09-27): an AlterCPA-confirmed order with no MEX parcel
+  // within 7 days, set by a cron. It can arrive on an order we READ, so the
+  // type carries it — but it is never in CANCEL_REASON_VALUES (the picker list)
+  // and the server refuses any request that tries to assign it.
+  | 'no_parcel_7d';
 
 // Trash reasons. The pickable list + its order live in src/lib/trashReasons.ts
 // (TRASH_REASON_VALUES); this union is just the type. 'not_reachable' is also
@@ -1722,6 +1727,8 @@ export interface AffiliatePL extends ChannelPL {
   lead_cost_share_of_cash: number;
 }
 
+// The full response is OWNERS ONLY (owner ruling 2026-09-27) — anyone else
+// gets 403 `owners_only`. Non-owners use apiGetInsightsCalls below.
 export const apiGetManagementInsights = (params?: { from?: string; to?: string; target?: number }, signal?: AbortSignal): Promise<InsightsResponse> => {
   const sp = new URLSearchParams();
   if (params?.from) sp.set('from', params.from);
@@ -1729,6 +1736,42 @@ export const apiGetManagementInsights = (params?: { from?: string; to?: string; 
   if (params?.target != null) sp.set('target', String(params.target));
   return apiFetch(`management-insights?${sp.toString()}`, { signal });
 };
+
+// GET /management-insights?scope=calls — the Call Activity KPI slice and
+// nothing else (no order, stock or money figure). The only slice a non-owner
+// admin/manager with the call_activity module may fetch. `calls` has the same
+// shape as InsightsResponse['calls']; its per_agent lists every operator with
+// a call in range, ranked by calls.
+export interface InsightsCallsResponse {
+  meta: { from: string; to: string; scope: 'calls'; generated_at: string };
+  calls: InsightsResponse['calls'];
+}
+export const apiGetInsightsCalls = (params?: { from?: string; to?: string }, signal?: AbortSignal): Promise<InsightsCallsResponse> => {
+  const sp = new URLSearchParams({ scope: 'calls' });
+  if (params?.from) sp.set('from', params.from);
+  if (params?.to) sp.set('to', params.to);
+  return apiFetch(`management-insights?${sp.toString()}`, { signal });
+};
+
+// ── Business owners (owner ruling 2026-09-27) ───────────────────────────────
+// The people who see the full business/money view. Every route is owners-only
+// (403 `owners_only`). Error bodies are codes, translated in OwnersTab:
+// owners_only · already_owner · target_not_active_staff · not_an_owner · last_owner.
+export interface BusinessOwner {
+  user_id: string;
+  full_name: string | null;
+  email: string | null;
+  is_active: boolean;
+  added_at: string;
+  added_by: string | null;
+  added_by_name: string | null;
+  note: string | null;
+}
+export const apiGetBusinessOwners = (): Promise<BusinessOwner[]> => apiFetch('business-owners');
+export const apiAddBusinessOwner = (user_id: string, note?: string): Promise<BusinessOwner> =>
+  apiFetch('business-owners', { method: 'POST', body: JSON.stringify({ user_id, ...(note ? { note } : {}) }) });
+export const apiRemoveBusinessOwner = (user_id: string): Promise<{ success: true; user_id: string }> =>
+  apiFetch(`business-owners/${encodeURIComponent(user_id)}`, { method: 'DELETE' });
 
 // Courier rate card (logistics cost per courier+service — editable in Settings)
 export interface CourierRate {

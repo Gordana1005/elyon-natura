@@ -17,12 +17,18 @@ import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from 'recharts';
-import { apiGetManagementInsights, type InsightsResponse } from '@/lib/api';
+import {
+  apiGetManagementInsights, apiGetInsightsCalls,
+  type InsightsResponse, type InsightsCallsResponse,
+} from '@/lib/api';
 import { statusLabel } from '@/types';
 import { formatMoney } from '@/lib/currency';
 import { cn } from '@/lib/utils';
 import { EmptyState } from '@/components/EmptyState';
-import { usePermissions } from '@/contexts/PermissionsContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useInsightsAccess } from '@/contexts/PermissionsContext';
+import { cancelReasonLabel } from '@/lib/cancellationReasons';
+import { apiErrorText } from '@/i18n/apiErrors';
 import {
   CHART_COLORS as DESIGN_CHART_COLORS,
   CHART_PALETTE,
@@ -42,56 +48,53 @@ import AffiliateBreakdownCard from '@/components/insights/AffiliateBreakdownCard
 const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
 const cap = (s: string) => s.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase());
 
-// Tab catalogue. `need` keys into the permission map below so we only show
-// tabs the user is allowed to see (and never lose access for users who had
-// the old standalone Performance / Agent Activity pages).
+// Tab catalogue. `need` keys into useInsightsAccess(). The money tabs
+// (`business`) are OWNERS ONLY — owner ruling 2026-09-27, no admin bypass —
+// while Agents / Payout / Call Activity keep their module rules (Agents also
+// honours the legacy Performance key, so nobody lost the old standalone page).
 const TAB_DEFS = [
-  { value: 'overview', labelKey: 'insights.tabOverview', need: 'insights' },
-  { value: 'sales', labelKey: 'insights.tabSales', need: 'insights' },
+  { value: 'overview', labelKey: 'insights.tabOverview', need: 'business' },
+  { value: 'sales', labelKey: 'insights.tabSales', need: 'business' },
   { value: 'agents', labelKey: 'insights.tabAgents', need: 'agents' },
   { value: 'payout', labelKey: 'insights.tabPayout', need: 'payout' },
-  { value: 'pure-profit', labelKey: 'insights.tabPureProfit', need: 'insights' },
-  { value: 'margin-lab', labelKey: 'insights.tabMarginLab', need: 'insights' },
-  { value: 'prediction-lists', labelKey: 'insights.tabPredictionLists', need: 'insights' },
-  { value: 'stock', labelKey: 'insights.tabStock', need: 'insights' },
-  { value: 'returns', labelKey: 'insights.tabReturns', need: 'insights' },
+  { value: 'pure-profit', labelKey: 'insights.tabPureProfit', need: 'business' },
+  { value: 'margin-lab', labelKey: 'insights.tabMarginLab', need: 'business' },
+  { value: 'prediction-lists', labelKey: 'insights.tabPredictionLists', need: 'business' },
+  { value: 'stock', labelKey: 'insights.tabStock', need: 'business' },
+  { value: 'returns', labelKey: 'insights.tabReturns', need: 'business' },
   { value: 'call-activity', labelKey: 'insights.tabCallActivity', need: 'calls' },
 ] as const;
 
+// Every tab that renders from the full (owners-only) aggregate.
+const MONEY_TABS = new Set<string>(TAB_DEFS.filter(d => d.need === 'business').map(d => d.value));
+
 export default function ManagementInsightsPage() {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [range, setRange] = useState<DateRange>(defaultRange);
   const [searchParams, setSearchParams] = useSearchParams();
-  const { canAccessModule } = usePermissions();
 
-  // Per-area access. Insights unlocks the analytical tabs; the merged Agents /
-  // Call Activity tabs also honour their legacy module keys so a user who only
-  // had Performance or Agent Activity before keeps exactly that.
-  const canInsights = canAccessModule('insights');
-  const access: Record<string, boolean> = {
-    insights: canInsights,
-    agents: canInsights || canAccessModule('performance'),
-    // PAYOUT: admin/manager only (insights access implies management).
-    payout: canInsights,
-    // Call Activity is its own module now (admin-only by default) so it can be
-    // governed per-role from Settings → Role Permissions.
-    calls: canAccessModule('call_activity'),
-  };
-  const tabs = TAB_DEFS.filter(t => access[t.need]);
+  // Per-area access — shared with the sidebar, see useInsightsAccess().
+  const access = useInsightsAccess();
+  const tabs = TAB_DEFS.filter(tab => access[tab.need]);
 
+  // The default is always a tab this user can actually see.
   const requested = searchParams.get('tab');
-  const activeTab = tabs.some(t => t.value === requested) ? requested! : (tabs[0]?.value ?? 'overview');
+  const activeTab = tabs.some(tab => tab.value === requested) ? requested! : (tabs[0]?.value ?? 'overview');
+  const moneyTab = MONEY_TABS.has(activeTab);
+  const onCalls = activeTab === 'call-activity';
 
-  // Heavy aggregate is only needed by the insights tabs + the Call Activity
-  // summary, so don't fetch (or block) for Performance/Activity-only users —
-  // and not while the operator sits on Agents/Payout, which bring their own
-  // (also heavy) requests. It fires when they switch to a tab that needs it.
+  // OWNERS: the full aggregate (money tabs + the Call Activity KPI block) —
+  // only on a tab that needs it, never while the operator sits on
+  // Agents/Payout, which bring their own (also heavy) requests. The key
+  // carries the login, so a cached owner response can never render for the
+  // next person who signs in on this browser.
   const queryClient = useQueryClient();
-  const { data, isLoading, isFetching } = useQuery<InsightsResponse>({
-    queryKey: ['insights', range.from, range.to],
+  const fullQ = useQuery<InsightsResponse>({
+    queryKey: ['insights', user?.id, range.from, range.to],
     queryFn: ({ signal }) => apiGetManagementInsights({ from: range.from || undefined, to: range.to || undefined }, signal),
     staleTime: 5 * 60_000,
-    enabled: canInsights && activeTab !== 'agents' && activeTab !== 'payout',
+    enabled: access.business && (moneyTab || onCalls),
     // Keep the previous range's numbers on screen while the new ones load, instead
     // of blanking every tab to a spinner. On a wide range that spinner is the whole
     // wait. `retry` is 0 rather than the global 1 because retrying a heavy aggregate
@@ -99,6 +102,29 @@ export default function ManagementInsightsPage() {
     placeholderData: keepPreviousData,
     retry: 0,
   });
+
+  // NON-OWNERS on Call Activity: the calls-only slice (?scope=calls) — the
+  // one part of this endpoint the server gives them. Admin/manager only,
+  // mirroring the server gate; any other role granted call_activity keeps
+  // the timeline alone, exactly as before.
+  const canCallsSlice = !access.business && access.calls && !!(user?.isAdmin || user?.isManager);
+  const callsQ = useQuery<InsightsCallsResponse>({
+    queryKey: ['insights', 'calls', user?.id, range.from, range.to],
+    queryFn: ({ signal }) => apiGetInsightsCalls({ from: range.from || undefined, to: range.to || undefined }, signal),
+    staleTime: 5 * 60_000,
+    enabled: canCallsSlice && onCalls,
+    placeholderData: keepPreviousData,
+    retry: 0,
+  });
+
+  const activeQ = access.business ? fullQ : callsQ;
+  const { isFetching, isLoading } = activeQ;
+  // Money only ever renders from the owner query, and only for an owner.
+  const data = access.business ? fullQ.data : undefined;
+  const callsBlock = access.business ? fullQ.data?.calls : callsQ.data?.calls;
+  const callsError = access.business ? fullQ.error : callsQ.error;
+  const errorText = (err: unknown) =>
+    err instanceof Error && err.message === 'owners_only' ? t('insights.ownersOnly') : apiErrorText(err);
 
   // After ~3s of fetching, upgrade the silent spinner to elapsed-seconds + a
   // Cancel button, so a wide range never looks like a hang.
@@ -109,10 +135,17 @@ export default function ManagementInsightsPage() {
     return () => clearInterval(id);
   }, [isFetching]);
 
-  // Date range drives the aggregate tabs; Agents/Payout bring their own filter bars.
-  const showRangePicker = canInsights && activeTab !== 'agents' && activeTab !== 'payout';
-  // Loader only for tabs that depend on the aggregate fetch.
-  const aggregateTab = activeTab !== 'agents' && activeTab !== 'payout' && activeTab !== 'call-activity';
+  // The date range drives the aggregate tabs and the Call Activity KPIs;
+  // Agents/Payout bring their own filter bars.
+  const showRangePicker = access.business ? (moneyTab || onCalls) : (canCallsSlice && onCalls);
+
+  if (tabs.length === 0) {
+    return (
+      <AppLayout title={t('nav.insights')}>
+        <EmptyState icon={<BarChart3 className="h-5 w-5" />} title={t('insights.noAccess')} description={t('insights.noAccessDesc')} />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout title={t('nav.insights')}>
@@ -149,14 +182,19 @@ export default function ManagementInsightsPage() {
             {tabs.map(tab => <TabsTrigger key={tab.value} value={tab.value}>{t(tab.labelKey)}</TabsTrigger>)}
           </TabsList>
 
-          {access.insights && (aggregateTab && (isLoading || !data)) ? (
-            <div className="flex items-center justify-center py-24"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+          {moneyTab && !data ? (
+            // A failed aggregate says so — it never spins forever.
+            fullQ.isError ? (
+              <div className="mt-4"><LoadError text={errorText(fullQ.error)} onRetry={() => { void fullQ.refetch(); }} /></div>
+            ) : (
+              <div className="flex items-center justify-center py-24"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+            )
           ) : (
             <>
-              {data && <>
+              {access.business && data && <>
                 <TabsContent value="overview" className="mt-4"><Overview data={data} /></TabsContent>
                 <TabsContent value="sales" className="mt-4"><Sales data={data} /></TabsContent>
-                <TabsContent value="pure-profit" className="mt-4"><PureProfit data={data} range={range} /></TabsContent>
+                <TabsContent value="pure-profit" className="mt-4"><PureProfit data={data} range={range} canExport={access.business} /></TabsContent>
                 <TabsContent value="margin-lab" className="mt-4"><MarginLabTab data={data} /></TabsContent>
                 <TabsContent value="prediction-lists" className="mt-4"><PredictionLists data={data} /></TabsContent>
                 <TabsContent value="stock" className="mt-4"><Stock data={data} /></TabsContent>
@@ -174,7 +212,9 @@ export default function ManagementInsightsPage() {
               {access.calls && (
                 <TabsContent value="call-activity" className="mt-4">
                   <div className="space-y-5">
-                    {data && <Calls data={data} />}
+                    {callsBlock ? <Calls c={callsBlock} /> : callsError ? (
+                      <LoadError text={errorText(callsError)} onRetry={() => { void activeQ.refetch(); }} />
+                    ) : null}
                     <CallActivityTimeline />
                   </div>
                 </TabsContent>
@@ -294,7 +334,7 @@ const courierServiceLabel = (k: string): string => ({
   unknown: i18n.t('insights.courierNotRecorded'),
 }[k] || k);
 
-function PureProfit({ data, range }: { data: InsightsResponse; range: DateRange }) {
+function PureProfit({ data, range, canExport }: { data: InsightsResponse; range: DateRange; canExport: boolean }) {
   const pp = data.pure_profit;
   const hasPureProfit = !!pp;
 
@@ -332,9 +372,12 @@ function PureProfit({ data, range }: { data: InsightsResponse; range: DateRange 
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <PureProfitExportDialog data={data} range={range} />
-      </div>
+      {/* The export carries the whole money picture — owners only. */}
+      {canExport && (
+        <div className="flex justify-end">
+          <PureProfitExportDialog data={data} range={range} />
+        </div>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <Kpi
           icon={Coins}
@@ -760,14 +803,34 @@ function Returns({ data }: { data: InsightsResponse }) {
         <ListCard title={i18n.t('insights.returnsByReason')} icon={RotateCcw} rows={r.by_reason} nameKey="reason" cols={[{ k: 'count', label: i18n.t('insights.count') }]} transformName={cap} />
         <ListCard title={i18n.t('insights.returnsByProduct')} icon={Package} rows={r.by_product} nameKey="product" cols={[{ k: 'count', label: i18n.t('insights.count') }]} />
         <ListCard title={i18n.t('insights.returnsByCity')} icon={MapPin} rows={r.by_city} nameKey="city" cols={[{ k: 'count', label: i18n.t('insights.count') }]} />
-        <ListCard title={i18n.t('insights.cancellationsByReason')} icon={PackageX} rows={data.cancellations.by_reason} nameKey="reason" cols={[{ k: 'count', label: i18n.t('insights.count') }]} transformName={cap} />
+        <ListCard title={i18n.t('insights.cancellationsByReason')} icon={PackageX} rows={data.cancellations.by_reason} nameKey="reason" cols={[{ k: 'count', label: i18n.t('insights.count') }]} transformName={cancelReasonName} />
       </div>
     </div>
   );
 }
 
-function Calls({ data }: { data: InsightsResponse }) {
-  const c = data.calls;
+// A reason that has a label (cancelReason.* — including the system-only
+// no_parcel_7d) shows it in the reader's language; server markers without one
+// (pending_cleanup, "(unspecified)") keep the plain prettified value.
+const cancelReasonName = (s: string) => (i18n.exists(`cancelReason.${s}`) ? cancelReasonLabel(s) : cap(s));
+
+// Failed fetch: say so, with a retry — never an endless spinner.
+function LoadError({ text, onRetry }: { text: string; onRetry: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <EmptyState
+      icon={<AlertTriangle className="h-5 w-5" />}
+      title={t('insights.loadFailed')}
+      description={text}
+      size="sm"
+      action={<Button variant="outline" size="sm" onClick={onRetry}>{t('common.retry')}</Button>}
+    />
+  );
+}
+
+// The Call Activity KPI block. Takes the calls block alone, because a
+// non-owner's response (?scope=calls) carries nothing else.
+function Calls({ c }: { c: InsightsCallsResponse['calls'] }) {
   if (!c.total) return (
     <Card>
       <CardContent className="p-0">

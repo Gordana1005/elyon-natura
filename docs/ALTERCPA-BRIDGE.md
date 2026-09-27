@@ -124,7 +124,7 @@ touches the affiliate drain.
 
 Once imported, an order's RESOLUTION arrives through the `status` sync kind (below), which maps
 the remote record forward-only via `resolveRemoteOutcome` (the **B′ map**, 2026-08-11 decision —
-deliberately not `PHASE_TO_STATUS`, whose `3 → paid` was correct only for the settled history
+deliberately not `HISTORY_PHASE_TO_STATUS` (renamed from `PHASE_TO_STATUS` 2026-09-27 after the 18.09 catch-up inserted 1.344 orders as `paid` through it), whose `3 → paid` was correct only for the settled history
 import):
 
 **Final doctrine (2026-08-11): AlterCPA decides confirmed-or-dead; MEX alone decides

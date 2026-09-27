@@ -216,13 +216,15 @@
     "family_refused": "Husband / wife refused",
     "wrong_product": "Wrong product",
     "duplicate_order": "Duplicate order",
+    "no_parcel_7d": "No parcel within 7 days",
     "other": "Other"
   },
   "cancelPicker": {
     "reasonLabel": "Cancellation reason",
     "customerSaidLabel": "What did the customer say? (optional)",
     "notesPlaceholder": "e.g. ще пробва другаде, или след заплата",
-    "otherRequiredPlaceholder": "Please type the cancellation reason…"
+    "otherRequiredPlaceholder": "Please type the cancellation reason…",
+    "notSelectable": "Current reason — it can't be picked. Choose another reason to replace it."
   },
   "trashReason": {
     "wrong_number": "Wrong number",
@@ -1948,6 +1950,7 @@
     "adminAccessRequired": "Admin access required",
     "noPermissionSettings": "You don't have permission to view settings.",
     "tabUsersRoles": "Users & Roles",
+    "tabOwners": "Owners",
     "tabModules": "Module Manager",
     "tabRolePerms": "Role Permissions",
     "tabFinancial": "Financial Visibility",
@@ -2451,7 +2454,11 @@
     "affiliateBreakdown": "By affiliator",
     "affiliateBreakdownDesc": "Every AlterCPA partner that sent leads in this range — what they made us, order by order.",
     "leadCostLine": "Lead cost",
-    "total": "Total"
+    "total": "Total",
+    "ownersOnly": "Only the business owners can see these figures.",
+    "loadFailed": "Could not load these figures",
+    "noAccess": "No part of Insights is available to you",
+    "noAccessDesc": "Ask an administrator for access."
   },
   "agentsTab": {
     "today": "Today",
@@ -3450,5 +3457,30 @@
     "offerNote": "Per-offer split — for diagnosis only, never judged on its own.",
     "lastNDays": "Last {{n}} days",
     "noData": "No leads in this period"
+  },
+  "owners": {
+    "title": "Business owners",
+    "desc": "Only the people on this list see the business and money figures in Insights — Overview, Sales, Pure Profit, Margin Lab, Prediction Lists, Products & Stock, Returns — and can export Pure Profit. Being an admin is not enough: admins who are not on this list keep only Agents, Payout and Call Activity.",
+    "addLabel": "Add an owner",
+    "pickPlaceholder": "Choose an active staff member…",
+    "noCandidates": "Every active staff member is already an owner",
+    "addButton": "Add owner",
+    "addedToast": "{{name}} is now an owner",
+    "removedToast": "{{name}} is no longer an owner",
+    "colOwner": "Owner",
+    "colAdded": "Added",
+    "colAddedBy": "Added by",
+    "empty": "No owners yet",
+    "loadFailed": "Could not load the owners list",
+    "removeTitle": "Remove owner",
+    "removeDesc": "{{name}} will stop seeing the business and money figures right away.",
+    "removeSelfDesc": "You will stop seeing the business and money figures right away, and only another owner can add you back.",
+    "removeConfirm": "Remove",
+    "auditNote": "Every change to this list is recorded in the audit log.",
+    "errOwnersOnly": "Only an owner can manage the owners list.",
+    "errAlreadyOwner": "This person is already an owner.",
+    "errNotActiveStaff": "Only an active staff account can become an owner.",
+    "errNotAnOwner": "This person is not an owner.",
+    "errLastOwner": "The last owner cannot be removed — add another owner first."
   }
 }

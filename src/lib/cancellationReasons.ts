@@ -28,8 +28,11 @@ export const CANCEL_REASON_VALUES: CancellationReason[] = [
 
 // Label for DISPLAY (pickers, history tabs, synthetic records). Covers the
 // active values above plus retired reasons (family_refused, wrong_product,
-// duplicate_order) that still exist on historical orders. Unknown values
-// render as-is.
+// duplicate_order) that still exist on historical orders, and the SYSTEM-ONLY
+// no_parcel_7d ("AlterCPA-confirmed, no MEX parcel within 7 days" — written by
+// a cron, 2026-09-27). no_parcel_7d must never join CANCEL_REASON_VALUES: it
+// is not an agent's choice, and the server refuses any request assigning it.
+// Unknown values render as-is.
 export const cancelReasonLabel = (value: string): string =>
   i18n.t(`cancelReason.${value}`, { defaultValue: value });
 

@@ -24,7 +24,7 @@ import { readFileSync } from 'node:fs';
 const REF='bmfxhgznttcnnlqloqzp';
 const env={}; for(const l of readFileSync('d:/Dev/archives/elyon-natura/.env','utf8').split(/\r?\n/)){const m=l.match(/^\s*([A-Z0-9_]+)\s*=\s*"?([^"]*)"?\s*$/); if(m) env[m[1]]=m[2];}
 const U=env.VITE_SUPABASE_URL, A=env.VITE_SUPABASE_PUBLISHABLE_KEY;
-const r=await fetch(`${U}/auth/v1/token?grant_type=password`,{method:'POST',headers:{apikey:A,'Content-Type':'application/json'},body:JSON.stringify({email:'mile@elyon.com',password:'naturatherapy123'})});
+const r=await fetch(`${U}/auth/v1/token?grant_type=password`,{method:'POST',headers:{apikey:A,'Content-Type':'application/json'},body:JSON.stringify({email:'mile@elyon.com',password:process.env.MK_ADMIN_PASSWORD})});
 const JWT=(await r.json()).access_token;
 const mg=async q=>{const x=await fetch(`https://api.supabase.com/v1/projects/${REF}/database/query`,{method:'POST',headers:{Authorization:`Bearer ${env.SUPABASE_ACCESS_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({query:q})}); return JSON.parse(await x.text());};
 
@@ -46,7 +46,7 @@ import { readFileSync } from 'node:fs';
 const REF='bmfxhgznttcnnlqloqzp';
 const env={}; for(const l of readFileSync('d:/Dev/archives/elyon-natura/.env','utf8').split(/\r?\n/)){const m=l.match(/^\s*([A-Z0-9_]+)\s*=\s*"?([^"]*)"?\s*$/); if(m) env[m[1]]=m[2];}
 const U=env.VITE_SUPABASE_URL, A=env.VITE_SUPABASE_PUBLISHABLE_KEY;
-const r=await fetch(`${U}/auth/v1/token?grant_type=password`,{method:'POST',headers:{apikey:A,'Content-Type':'application/json'},body:JSON.stringify({email:'mile@elyon.com',password:'naturatherapy123'})});
+const r=await fetch(`${U}/auth/v1/token?grant_type=password`,{method:'POST',headers:{apikey:A,'Content-Type':'application/json'},body:JSON.stringify({email:'mile@elyon.com',password:process.env.MK_ADMIN_PASSWORD})});
 const JWT=(await r.json()).access_token;
 const mg=async q=>{const x=await fetch(`https://api.supabase.com/v1/projects/${REF}/database/query`,{method:'POST',headers:{Authorization:`Bearer ${env.SUPABASE_ACCESS_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({query:q})}); return JSON.parse(await x.text());};
 

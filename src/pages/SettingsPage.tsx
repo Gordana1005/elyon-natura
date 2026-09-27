@@ -25,10 +25,11 @@ import {
   Sun, Moon, Eye, EyeOff, Bell, ChevronDown, ChevronRight, Languages,
   AlertTriangle, Mail, Lock, User as UserIcon,
   Crown, Clock, TrendingUp, Megaphone, ArrowUpDown,
-  Blocks, KeyRound, DollarSign, LockKeyhole, Check, X, Phone, Truck, Trophy,
+  Blocks, KeyRound, DollarSign, LockKeyhole, Check, X, Phone, Truck, Trophy, Briefcase,
 } from 'lucide-react';
 import { TelephonyTab } from '@/components/settings/TelephonyTab';
 import { LeaderboardTab } from '@/components/settings/LeaderboardTab';
+import { OwnersTab } from '@/components/settings/OwnersTab';
 import { PredictionEngineTab } from '@/components/settings/PredictionEngineTab';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
@@ -93,6 +94,8 @@ export default function SettingsPage() {
   const { user: currentUser } = useAuth();
   const isAdmin = currentUser?.isAdmin ?? false;
   const isManager = currentUser?.isManager ?? false;
+  // Owners tab: business owners only (owner ruling 2026-09-27) — no admin bypass.
+  const { canSeeBusiness } = usePermissions();
 
   if (!isAdmin && !isManager) {
     return (
@@ -113,6 +116,11 @@ export default function SettingsPage() {
           <TabsTrigger value="users" className="rounded-lg gap-2 text-sm data-[state=active]:bg-card data-[state=active]:shadow-sm">
             <Users className="h-4 w-4" /> {t('settings.tabUsersRoles')}
           </TabsTrigger>
+          {canSeeBusiness && (
+            <TabsTrigger value="owners" className="rounded-lg gap-2 text-sm data-[state=active]:bg-card data-[state=active]:shadow-sm">
+              <Briefcase className="h-4 w-4" /> {t('settings.tabOwners')}
+            </TabsTrigger>
+          )}
           {isAdmin && (
             <TabsTrigger value="modules" className="rounded-lg gap-2 text-sm data-[state=active]:bg-card data-[state=active]:shadow-sm">
               <Blocks className="h-4 w-4" /> {t('settings.tabModules')}
@@ -163,6 +171,7 @@ export default function SettingsPage() {
         </TabsList>
 
         <TabsContent value="users"><UsersTab /></TabsContent>
+        {canSeeBusiness && <TabsContent value="owners"><OwnersTab /></TabsContent>}
         {isAdmin && <TabsContent value="modules"><ModuleManagerTab /></TabsContent>}
         {isAdmin && <TabsContent value="permissions"><RolePermissionsTab /></TabsContent>}
         {isAdmin && <TabsContent value="financial"><FinancialVisibilityTab /></TabsContent>}

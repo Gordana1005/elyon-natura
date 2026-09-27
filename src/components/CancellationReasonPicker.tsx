@@ -3,7 +3,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import type { CancellationReason } from '@/lib/api';
-import { getCancelReasonOptions, cancelReasonRequiresNote } from '@/lib/cancellationReasons';
+import { getCancelReasonOptions, cancelReasonRequiresNote, cancelReasonLabel } from '@/lib/cancellationReasons';
 
 interface Props {
   value: CancellationReason | null;
@@ -18,12 +18,25 @@ export function CancellationReasonPicker({ value, notes, onChange, onNotesChange
   const { t } = useTranslation();
   const reasons = getCancelReasonOptions();
   const requireNote = cancelReasonRequiresNote(value);
+  // The order's CURRENT reason may be one nobody can pick: the system-only
+  // no_parcel_7d, or a retired reason on an old order. Show it as a fixed,
+  // selected chip so the reader sees why it was cancelled; picking any
+  // reason below replaces it.
+  const unpickable = value && !reasons.some(r => r.value === value) ? value : null;
   return (
     <div className={cn('space-y-2', className)}>
       <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         {t('cancelPicker.reasonLabel')} <span className="text-rose-600">*</span>
       </Label>
       <div className="flex flex-wrap gap-1.5">
+        {unpickable && (
+          <span
+            title={t('cancelPicker.notSelectable')}
+            className="px-2.5 py-1 rounded-full text-[11px] font-medium border cursor-default bg-red-100 text-red-800 border-red-300 ring-2 ring-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/40 dark:ring-red-500/30"
+          >
+            {cancelReasonLabel(unpickable)}
+          </span>
+        )}
         {reasons.map(r => (
           <button
             key={r.value}

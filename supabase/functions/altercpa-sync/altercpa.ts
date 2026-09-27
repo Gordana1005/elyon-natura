@@ -19,8 +19,20 @@ export const PHASE: Record<number, string> = {
   1: "processing", 2: "hold", 3: "approved", 4: "cancelled", 5: "trash",
 };
 
-/** phase → Elyon order_status. Approved counts as paid per the 2026-08-05 decision. */
-export const PHASE_TO_STATUS: Record<number, string> = {
+/**
+ * phase → Elyon order_status — history import only — never used by the live
+ * bridge. Approved counted as paid per the 2026-08-05 decision, which fitted
+ * long-settled history and is wrong for a live lead: AlterCPA never moves this
+ * account past status 6 "Packing", even for parcels MEX delivered. The bridge
+ * maps through resolveRemoteOutcome / insertStatusFor (B′) instead.
+ *
+ * Renamed from PHASE_TO_STATUS 2026-09-27: the insert path still used it, and
+ * the 2026-09-18 import_scope='all' backfill created 1.344 orders directly as
+ * `paid` from their "approved" — ~345 of them never had a parcel.
+ * outcome.test.ts fails if index.ts references it again. scripts/lib/
+ * altercpa.mjs keeps the old name on purpose: it IS the history importer.
+ */
+export const HISTORY_PHASE_TO_STATUS: Record<number, string> = {
   1: "pending", 2: "pending", 3: "paid", 4: "cancelled", 5: "trashed",
 };
 
@@ -107,18 +119,16 @@ export const CRM_TERMINAL = new Set(["paid", "returned", "cancelled", "trashed",
 /**
  * The B′ outcome map (2026-08-11 decision): what a remote record means for a
  * mirrored order that is still open here. Returns null while the remote lead is
- * itself still open.
+ * itself still open, otherwise ONLY confirmed | cancelled | trashed — never
+ * shipped, delivered, paid or returned, whatever their status or o.paid stamp
+ * says. outcome.test.ts proves it for every phase × status × reason × CRM
+ * status. scripts/verify-altercpa-status.mjs carries a copy — keep in step.
  *
- * Deliberately NOT PHASE_TO_STATUS: that table books phase 3 as `paid`, which
- * was correct for the settled history import and is wrong for a live mirror —
- * approval happens while the COD parcel is merely Packing/Sending, and a wrong
- * `paid` is locked, moves commissions/sticky-trash/revenue, and can never be
- * corrected. Here money lands only on their Completed (or a real o.paid stamp).
- *
- * And deliberately never `confirmed`: that is our warehouse's to-ship queue,
- * and a parcel already in THEIR fulfilment pipeline must not invite a second
- * shipment from ours — `shipped` keeps it out of both the calling queue and
- * the to-ship queue, and later runs keep tracking it to paid/returned.
+ * Deliberately NOT HISTORY_PHASE_TO_STATUS: that table books phase 3 as
+ * `paid`, which was correct for the settled history import and is wrong for a
+ * live mirror — approval happens while the COD parcel is merely Packing, and a
+ * wrong `paid` is locked, moves commissions/sticky-trash/revenue, and can
+ * never be corrected.
  */
 export function resolveRemoteOutcome(o: AlterCpaOrder, currentCrmStatus: string): string | null {
   const phase = Number(o.phase) || 0;
@@ -145,6 +155,127 @@ export function resolveRemoteOutcome(o: AlterCpaOrder, currentCrmStatus: string)
   }
   if (phase === 5) return atCourier ? null : "trashed";
   return null;                              // unknown phase → touch nothing
+}
+
+/**
+ * The only statuses the bridge may CREATE an order in. Everything physical —
+ * shipped, delivered, paid, returned — is MEX's alone (mex-reconcile), so an
+ * insert that resolves to anything else is a bug upstream, never data: it
+ * throws, and the run fails loudly instead of booking it.
+ */
+export const INSERT_STATUSES: ReadonlySet<string> = new Set(["pending", "confirmed", "cancelled", "trashed"]);
+
+export function assertInsertStatus(status: string, o?: AlterCpaOrder): string {
+  if (!INSERT_STATUSES.has(status)) {
+    throw new Error(
+      `AlterCPA #${o?.id ?? "?"} (phase ${o?.phase ?? "?"}, reason ${o?.reason ?? "?"}) resolved to insert status '${status}'`
+        + " — only pending/confirmed/cancelled/trashed may be inserted; shipped/delivered/paid/returned are MEX's alone",
+    );
+  }
+  return status;
+}
+
+/**
+ * Status for a NEW mirrored order: B′ as if it were a fresh pending, so an
+ * insert can never disagree with what the status kind would do to the same
+ * record one run later.
+ *
+ *   phase 1/2 (or unknown) → pending · 3 → confirmed · 4 → cancelled, or
+ *   confirmed when the reason flattens into 'other' (2026-08-11 manager
+ *   rule) · 5 → trashed
+ */
+export function insertStatusFor(o: AlterCpaOrder): string {
+  return assertInsertStatus(resolveRemoteOutcome(o, "pending") ?? "pending", o);
+}
+
+/**
+ * Outcome timestamps taken from AlterCPA's own clock rather than ours.
+ *
+ * orders has NULL-only BEFORE triggers for paid_at / cancelled_at / trashed_at
+ * (20260727000000, 20260711000000, 20260913000100), so anything we set
+ * explicitly wins and anything we omit gets stamped now().
+ *
+ * Letting them default to now() would be wrong in a way that MOVES MONEY AND
+ * MEMBERSHIPS: a lead trashed on their side five days ago would get
+ * trashed_at = now(), restarting the engine v3.7 21-day Trash List parking
+ * period from today, and a COD paid last week would land in this week's paid
+ * window on every agent dashboard and payout report.
+ *
+ * `paid` and `done` are epoch seconds on their record. Guarded against zero and
+ * against times before creation, either of which would be worse than a NULL.
+ * The paid/returned branches are unreachable from the bridge (B′ never yields
+ * those statuses); they stay so this is the one place that knows which column
+ * each outcome stamps. `confirmed` stamps nothing — no confirmed_at, same as
+ * every B′ update, so the ownership guard still reads the order as untouched.
+ */
+export function outcomeTimestamps(o: AlterCpaOrder, status: string): Record<string, string> {
+  const created = Number(o.time) || 0;
+  const at = (v: unknown): string | null => {
+    const n = Number(v) || 0;
+    if (n <= 0) return null;
+    if (created && n < created) return null;
+    if (n > Math.floor(Date.now() / 1000) + 86400) return null;   // clock skew / bad data
+    return new Date(n * 1000).toISOString();
+  };
+  const done = at(o.done);
+  const out: Record<string, string> = {};
+  if (status === "paid") {
+    const p = at(o.paid) ?? done;
+    if (p) out.paid_at = p;
+  } else if (status === "cancelled") {
+    if (done) out.cancelled_at = done;
+  } else if (status === "trashed") {
+    if (done) out.trashed_at = done;
+  } else if (status === "returned") {
+    // returned_at has no NULL-only trigger (20260514110000), so it must be set
+    // here explicitly or the return carries no date at all.
+    if (done) out.returned_at = done;
+  }
+  return out;
+}
+
+/**
+ * The columns that travel WITH an outcome status: its timestamp from their
+ * clock and, for cancelled/trashed only, the reason pair (reason 0 = none
+ * recorded → no reason). One definition for the insert, the rolling apply and
+ * the status kind — the insert path kept its own map, and that is how 1.344
+ * orders were born paid. `status` itself stays with the caller, in plain sight.
+ */
+export function outcomeColumns(o: AlterCpaOrder, status: string): Record<string, string> {
+  const out = outcomeTimestamps(o, status);
+  const reason = Number(o.reason) || 0;
+  if (status === "cancelled" && reason > 0) {
+    const r = crmReasonFor("cancel", reason, o.comment);
+    out.cancellation_reason = r.value;
+    if (r.notes) out.cancellation_reason_notes = r.notes;
+  } else if (status === "trashed" && reason > 0) {
+    const r = crmReasonFor("trash", reason, o.comment);
+    out.trash_reason = r.value;
+    if (r.notes) out.trash_reason_notes = r.notes;
+  }
+  return out;
+}
+
+/**
+ * Order note for the 2026-08-11 manager rule, or null when it did not fire (it
+ * fires only when a phase-4 cancel resolved to confirmed). Keeps their original
+ * disposition wording on the order, or the confirmed status reads as a mystery.
+ */
+export function cancelOtherConfirmedNote(o: AlterCpaOrder, status: string): string | null {
+  if (status !== "confirmed" || Number(o.phase) !== 4) return null;
+  const reason = Number(o.reason) || 0;
+  const comment = o.comment == null ? "" : String(o.comment).trim().slice(0, 300);
+  return `AlterCPA cancelled (${REASON[reason] ?? reason}) — confirmed disposition per the 2026-08-11 manager rule; status set to confirmed. MEX tracking will move it to shipped/paid/returned.`
+    + (comment ? ` Their comment: ${comment}` : "");
+}
+
+/** Note for an outcome the ownership guard kept off an order someone here is working. */
+export function guardedOutcomeNote(o: AlterCpaOrder): string {
+  const phase = Number(o.phase) || 0;
+  const reason = Number(o.reason) || 0;
+  return `AlterCPA moved this to "${PHASE[phase] ?? "?"}"`
+    + (reason ? ` (${REASON[reason] ?? reason})` : "")
+    + " — not applied, this order is already being worked here.";
 }
 
 /**

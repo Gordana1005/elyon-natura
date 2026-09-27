@@ -156,7 +156,7 @@ The windowed kinds filter on CREATION time and can never see an old pending reso
 still-open mirrored orders (`pending/take/call_again` first, then `confirmed/shipped/delivered`),
 rotates by `last_seen_at ASC` (default cap 2000), re-reads exactly those ids with
 `comp/list.json?oid=…` (batches of 100, same non-array-is-failure contract), and resolves
-forward-only via `resolveRemoteOutcome` — **the B′ map, not `PHASE_TO_STATUS`**:
+forward-only via `resolveRemoteOutcome` — **the B′ map, not `HISTORY_PHASE_TO_STATUS`** (renamed 2026-09-27; history import only):
 
 ⚠️ **Do not sort by `created_remote` ASC with a small cap.** Confirmed/shipped stay in
 `STATUS_OPEN` until MEX marks them paid/returned, so they accumulate. On 2026-08-20 that
@@ -217,8 +217,16 @@ date to get right**. Do not invent a new key.
 ## AlterCPA's data, as it really is (not as documented)
 
 - `phase` (1-5) is the reliable outcome field. `status` (1-12) is noisier. Under `pending_only`,
-  **1 processing / 2 hold → `pending` (imported); 3/4/5 → ledger only.** The full map
-  (3 → `paid`, 4 → `cancelled`, 5 → `trashed`) applies only under `import_scope='all'`.
+  **1 processing / 2 hold → `pending` (imported); 3/4/5 → ledger only.** Under
+  `import_scope='all'` a decided lead is inserted through `insertStatusFor` = the B′ map
+  (3 → `confirmed`, 4 → `cancelled` or `confirmed` for "other" reasons, 5 → `trashed`) —
+  **never `paid`** (fixed 2026-09-27). The old table, now `HISTORY_PHASE_TO_STATUS`
+  (3 → `paid`), is for the settled history import only; on 2026-09-18 the insert path still
+  used it and a catch-up created 1.344 orders directly as `paid`, ~345 of which never had a
+  parcel. A DB trigger now refuses any `altercpa` insert as paid/returned/shipped/delivered.
+- **AlterCPA never moves this account past status 6 "Packing"** — even for parcels MEX
+  delivered (checked on all 1.180 catch-up orders, 2026-09-27). Their status can say
+  confirmed-or-dead; shipped/paid/returned come from MEX only.
 - The documented `items` map is **empty on every real order**. The product is `goods[0].name`,
   falling back to `offername`.
 - **The affiliate has no name, anywhere in the API.** `wm` is a bare integer and there is no

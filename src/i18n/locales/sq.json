@@ -216,13 +216,15 @@
     "family_refused": "Burri / gruaja refuzoi",
     "wrong_product": "Produkt i gabuar",
     "duplicate_order": "Porosi e dyfishtë",
+    "no_parcel_7d": "Asnjë pako brenda 7 ditëve",
     "other": "Tjetër"
   },
   "cancelPicker": {
     "reasonLabel": "Arsyeja e anulimit",
     "customerSaidLabel": "Çfarë tha klienti? (opsionale)",
     "notesPlaceholder": "p.sh. do të provojë gjetkë, ose pas rrogës",
-    "otherRequiredPlaceholder": "Shkruani arsyen e anulimit…"
+    "otherRequiredPlaceholder": "Shkruani arsyen e anulimit…",
+    "notSelectable": "Arsyeja aktuale — nuk mund të zgjidhet. Zgjidhni një arsye tjetër për ta zëvendësuar."
   },
   "trashReason": {
     "wrong_number": "Numër i gabuar",
@@ -1948,6 +1950,7 @@
     "adminAccessRequired": "Kërkohet qasje admini",
     "noPermissionSettings": "Nuk ke leje t'i shikosh cilësimet.",
     "tabUsersRoles": "Përdorues & Role",
+    "tabOwners": "Pronarët",
     "tabModules": "Menaxheri i moduleve",
     "tabRolePerms": "Lejet e roleve",
     "tabFinancial": "Dukshmëria financiare",
@@ -2451,7 +2454,11 @@
     "affiliateBreakdown": "Sipas afiliatorit",
     "affiliateBreakdownDesc": "Çdo partner AlterCPA që dërgoi lead-e në këtë periudhë — sa na solli, porosi pas porosie.",
     "leadCostLine": "Kosto lead-esh",
-    "total": "Gjithsej"
+    "total": "Gjithsej",
+    "ownersOnly": "Vetëm pronarët e biznesit i shohin këto shifra.",
+    "loadFailed": "Shifrat nuk u ngarkuan",
+    "noAccess": "Asnjë pjesë e Vështrimeve nuk është e qasshme për ju",
+    "noAccessDesc": "Kërkoni qasje nga një administrator."
   },
   "agentsTab": {
     "today": "Sot",
@@ -3450,5 +3457,30 @@
     "offerNote": "Ndarja sipas produktit — vetëm për diagnozë, kurrë nuk gjykohet më vete.",
     "lastNDays": "{{n}} ditët e fundit",
     "noData": "Asnjë lid në këtë periudhë"
+  },
+  "owners": {
+    "title": "Pronarët e biznesit",
+    "desc": "Vetëm personat në këtë listë i shohin shifrat e biznesit dhe të parave te Vështrime — Përmbledhje, Shitjet, Pure Profit, Marzhet, Listat e parashikimit, Produkte & Stok, Kthime — dhe mund të eksportojnë Pure Profit. Roli i adminit nuk mjafton: adminët që nuk janë në listë shohin vetëm Agjentët, Pagesat dhe Aktivitetin e thirrjeve.",
+    "addLabel": "Shto pronar",
+    "pickPlaceholder": "Zgjidhni një punonjës aktiv…",
+    "noCandidates": "Të gjithë punonjësit aktivë janë tashmë pronarë",
+    "addButton": "Shto pronar",
+    "addedToast": "{{name}} tani është pronar",
+    "removedToast": "{{name}} nuk është më pronar",
+    "colOwner": "Pronari",
+    "colAdded": "Shtuar më",
+    "colAddedBy": "Shtuar nga",
+    "empty": "Ende nuk ka pronarë",
+    "loadFailed": "Lista e pronarëve nuk u ngarkua",
+    "removeTitle": "Hiq pronarin",
+    "removeDesc": "{{name}} menjëherë nuk do t'i shohë më shifrat e biznesit dhe të parave.",
+    "removeSelfDesc": "Menjëherë nuk do t'i shihni më shifrat e biznesit dhe të parave, dhe vetëm një pronar tjetër mund t'ju shtojë përsëri.",
+    "removeConfirm": "Hiq",
+    "auditNote": "Çdo ndryshim në këtë listë regjistrohet në regjistrin e auditimit.",
+    "errOwnersOnly": "Vetëm një pronar mund ta menaxhojë listën e pronarëve.",
+    "errAlreadyOwner": "Ky person është tashmë pronar.",
+    "errNotActiveStaff": "Vetëm një llogari aktive e punonjësit mund të bëhet pronar.",
+    "errNotAnOwner": "Ky person nuk është pronar.",
+    "errLastOwner": "Pronari i fundit nuk mund të hiqet — shtoni së pari një pronar tjetër."
   }
 }

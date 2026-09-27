@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, useCallback, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import type { AppRole } from '@/contexts/AuthContext';
@@ -58,6 +58,11 @@ interface PermissionsContextType {
   canSeeFinancial: (metric: keyof Omit<FinancialVisibility, 'role'>) => boolean;
   /** Check a customer-privacy flag for the current user (admin-first, OR across roles) */
   canSeePrivacy: (flag: keyof Omit<RolePrivacy, 'role'>) => boolean;
+  /** The full business/money view (owner ruling 2026-09-27): true ONLY for a
+   *  login listed in public.business_owners. Deliberately NO admin bypass —
+   *  nine accounts hold the admin role set and most of them must not see it.
+   *  UX only: GET /management-insights enforces the same rule server-side. */
+  canSeeBusiness: boolean;
   /** Refresh all permissions from DB */
   refresh: () => Promise<void>;
 }
@@ -115,33 +120,45 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
   const [rolePermissions, setRolePermissions] = useState<RolePermission[]>([]);
   const [financialVisibility, setFinancialVisibility] = useState<FinancialVisibility[]>([]);
   const [privacy, setPrivacy] = useState<RolePrivacy[]>([]);
+  const [isBusinessOwner, setIsBusinessOwner] = useState(false);
   const [loading, setLoading] = useState(true);
+  // Only the newest fetch may write state: a slow response for the previous
+  // login must never land on top of the next login's permissions.
+  const fetchSeq = useRef(0);
 
   const fetchAll = useCallback(async () => {
+    const seq = ++fetchSeq.current;
     try {
       // Single RPC replaces three direct table SELECTs. The RPC is
       // SECURITY DEFINER so it works regardless of how restrictive the
       // underlying table policies are.
       const { data, error } = await supabase.rpc('get_my_permissions');
       if (error) throw error;
+      if (seq !== fetchSeq.current) return;
       const payload = data as {
         modules?: ModuleSetting[];
         rolePermissions?: RolePermission[];
         financialVisibility?: FinancialVisibility[];
         privacy?: RolePrivacy[];
+        isBusinessOwner?: boolean;
       } | null;
       setModules(payload?.modules ?? []);
       setRolePermissions(payload?.rolePermissions ?? []);
       setFinancialVisibility(payload?.financialVisibility ?? []);
       setPrivacy(payload?.privacy ?? []);
+      // Strictly `true` — a missing key (RPC not migrated yet) means NOT an owner.
+      setIsBusinessOwner(payload?.isBusinessOwner === true);
     } catch {
       // Silently fail — permissions will default to restrictive
     } finally {
-      setLoading(false);
+      if (seq === fetchSeq.current) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
+    // A different login never inherits the previous one's owner flag, not
+    // even for the moment its own permissions take to load.
+    setIsBusinessOwner(false);
     if (user) fetchAll();
     else setLoading(false);
   }, [user?.id]);
@@ -217,10 +234,15 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
     });
   }, [userRoles, privacy]);
 
+  // No admin bypass (see the type). An external partner login can never be an
+  // owner — the server refuses to add one — but the hard wall holds here too.
+  const canSeeBusiness = isBusinessOwner && !user?.isExternalAffiliate;
+
   return (
     <PermissionsContext.Provider value={{
       modules, rolePermissions, financialVisibility, privacy, loading,
       isModuleEnabled, canAccessModule, canAction, canSeeFinancial, canSeePrivacy,
+      canSeeBusiness,
       refresh: fetchAll,
     }}>
       {children}
@@ -232,4 +254,26 @@ export function usePermissions() {
   const ctx = useContext(PermissionsContext);
   if (!ctx) throw new Error('usePermissions must be used within PermissionsProvider');
   return ctx;
+}
+
+/** Which parts of /insights the current login may open (owner ruling
+ *  2026-09-27). `business` gates the money tabs (Overview, Sales, Pure Profit,
+ *  Margin Lab, Prediction Lists, Stock, Returns) and follows canSeeBusiness
+ *  ONLY — no admin bypass. The operational tabs keep their module rules.
+ *  ManagementInsightsPage and the sidebar both read this, so the two can never
+ *  disagree; the server enforces the same split (GET /management-insights is
+ *  owners-only except ?scope=calls). */
+export function useInsightsAccess() {
+  const { canAccessModule, canSeeBusiness, isModuleEnabled } = usePermissions();
+  const canInsights = canAccessModule('insights');
+  // The global module switch still hides Insights from everyone, owners too.
+  const business = canSeeBusiness && isModuleEnabled('insights');
+  // Agents also honours the legacy Performance module key.
+  const agents = canInsights || canAccessModule('performance');
+  // Payout: admin/manager (insights access implies management).
+  const payout = canInsights;
+  // Call Activity is its own module (admin-only by default), governed from
+  // Settings → Role Permissions.
+  const calls = canAccessModule('call_activity');
+  return { business, agents, payout, calls, any: business || agents || payout || calls };
 }

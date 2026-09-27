@@ -136,7 +136,7 @@ const App = () => (
                 <Route path="/affiliate/offers" element={<ProtectedRoute moduleKey="affiliate_portal"><AffiliateOffersCataloguePage /></ProtectedRoute>} />
                 <Route path="/affiliate/integration" element={<ProtectedRoute moduleKey="affiliate_portal"><AffiliateIntegrationPage /></ProtectedRoute>} />
                 <Route path="/search-prediction" element={<ProtectedRoute moduleKey="search_prediction"><SearchPredictionPage /></ProtectedRoute>} />
-                <Route path="/insights" element={<ProtectedRoute moduleKey="insights" moduleKeysAny={["performance", "agent_activity"]}><ManagementInsightsPage /></ProtectedRoute>} />
+                <Route path="/insights" element={<ProtectedRoute moduleKey="insights" moduleKeysAny={["performance", "agent_activity", "call_activity"]} allowBusinessOwner><ManagementInsightsPage /></ProtectedRoute>} />
                 <Route path="/operations" element={<ProtectedRoute moduleKey="operations"><OperationsPage /></ProtectedRoute>} />
                 <Route path="/lead-distribution" element={<ProtectedRoute moduleKey="lead_distribution"><LeadDistributionPage /></ProtectedRoute>} />
                 <Route path="/calls" element={<ProtectedRoute moduleKey="calls"><CallsPage /></ProtectedRoute>} />
