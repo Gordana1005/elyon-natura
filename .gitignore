@@ -94,3 +94,8 @@ scripts/data/collabbox-value-rollback-*.json
 scripts/data/orders-created-*.json
 scripts/data/products-created-*.json
 scripts/data/product-sku-rollback-*.json
+
+# ── Data exports (customer PII, regenerable) ──
+# exports/greece is the Greek AlterCPA client extract: names, phones, addresses.
+# Regenerate: node exports/greece/build-greece-export.mjs --token <altercpa-token>
+exports/
