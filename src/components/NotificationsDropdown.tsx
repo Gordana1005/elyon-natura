@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Bell, CheckCheck, Clock, AlertTriangle, Info, Package, PhoneMissed, RotateCcw, PackageX, UserPlus, BadgeCheck, Copy, Truck as TruckIcon, PackageSearch } from 'lucide-react';
+import { Bell, CheckCheck, Clock, AlertTriangle, Info, Package, PhoneMissed, RotateCcw, PackageX, UserPlus, BadgeCheck, Copy, Truck as TruckIcon, PackageSearch, Hourglass } from 'lucide-react';
+import { openPresencePanel, showIdleSelfToast } from '@/lib/presence/ui';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -89,6 +90,7 @@ const typeIcons: Record<string, typeof Info> = {
   assignment: UserPlus,
   shipped_unpaid: TruckIcon,
   unpaid_digest: PackageSearch,
+  inactivity: Hourglass,
 };
 
 const typeColors: Record<string, string> = {
@@ -104,6 +106,8 @@ const typeColors: Record<string, string> = {
   // Amber = "act today or this becomes a return" (same weight as low stock).
   shipped_unpaid: 'text-amber-500',
   unpaid_digest: 'text-amber-500',
+  // 30+ minutes with the CRM open and nothing done (migration 20260935000200).
+  inactivity: 'text-amber-500',
 };
 
 // Per-type "mood" styling for unread items in the dropdown.
@@ -122,6 +126,7 @@ const getUnreadMoodClass = (type: string): string => {
     case 'low_stock':
     case 'shipped_unpaid':
     case 'unpaid_digest':
+    case 'inactivity':
       return 'bg-amber-500/10 border-l-2 border-amber-500 data-[highlighted]:bg-amber-500/15 focus:bg-amber-500/15';
     default:
       return 'bg-red-500/5 border-l-2 border-red-500 data-[highlighted]:bg-red-500/15 focus:bg-red-500/15';
@@ -139,6 +144,7 @@ const getUnreadTitleClass = (type: string): string => {
     case 'low_stock':
     case 'shipped_unpaid':
     case 'unpaid_digest':
+    case 'inactivity':
       return 'font-semibold text-amber-600 dark:text-amber-400';
     default:
       return 'font-semibold text-foreground';
@@ -153,6 +159,7 @@ const toastSeverity: Record<string, 'error' | 'warning' | 'success' | 'default'>
   low_stock: 'warning',
   shipped_unpaid: 'warning',
   unpaid_digest: 'warning',
+  inactivity: 'warning',
 };
 
 export function NotificationsDropdown() {
@@ -214,6 +221,12 @@ export function NotificationsDropdown() {
   const handleClick = (n: Notification) => {
     void markAsRead(n.id);
     setOpen(false);
+    // An owner's copy of an idle alert opens the "Who is working" sheet in
+    // place (it exists for owners only; for anyone else this is a no-op).
+    if (n.type === 'inactivity' && !n.meta?.self) {
+      openPresencePanel();
+      return;
+    }
     if (n.type === 'missed_call') {
       const phone = extractCallerPhone(n);
       navigate(phone ? `/missed-calls?phone=${encodeURIComponent(phone)}` : (n.link || '/missed-calls'));
@@ -339,6 +352,14 @@ export function NotificationsDropdown() {
 ------------------------------------------------------------------ */
 
 function renderNotificationToast(n: Notification) {
+  // The person's OWN idle alert: the activity beat already raised this exact
+  // toast in the tab that sent it (same id → sonner replaces, never stacks);
+  // every other open tab gets it from here.
+  if (n.type === 'inactivity' && n.meta?.self) {
+    showIdleSelfToast(Number(n.meta?.minutes) || 0);
+    return;
+  }
+
   const local = localizeNotification(n);
   const description = local.message || undefined;
 

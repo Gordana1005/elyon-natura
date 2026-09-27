@@ -1269,6 +1269,14 @@
     "altercpaRateBelowFinal": {
       "title": "Affiliate finished below guarantee",
       "body": "Affiliate {{affiliate}} finished {{date}} at {{pct}}% ({{confirmed}}/{{sent}}) — under the {{target}}% guarantee. This cohort has settled."
+    },
+    "inactivity": {
+      "title": "{{name}} — inactive {{minutes}} min",
+      "body": "{{name}} has had Elyon CRM open with nothing done on the screen for {{minutes}} minutes."
+    },
+    "inactivitySelf": {
+      "title": "Inactive for {{minutes}} minutes",
+      "body": "Nothing has been done on the screen for {{minutes}} minutes. If you are on a break, press Take Break."
     }
   },
   "bigArenaStock": {
@@ -3482,5 +3490,48 @@
     "errNotActiveStaff": "Only an active staff account can become an owner.",
     "errNotAnOwner": "This person is not an owner.",
     "errLastOwner": "The last owner cannot be removed — add another owner first."
+  },
+  "presence": {
+    "button": "Who is working",
+    "title": "Who is working",
+    "subtitle": "Time with Elyon CRM open, per person, for one day (Skopje time). Active = work on the screen in the last minute or a call in progress; idle = open with nothing done; break = the Take Break button.",
+    "today": "Today",
+    "prevDay": "Previous day",
+    "nextDay": "Next day",
+    "agentsOnly": "Agents",
+    "allStaff": "All staff",
+    "colPerson": "Person",
+    "colStatus": "Status",
+    "colOnline": "Online",
+    "colActive": "Active",
+    "colIdle": "Idle",
+    "colBreak": "Break",
+    "colFromTo": "From – to",
+    "colAlerts": "Idle alerts",
+    "status": {
+      "active": "Working",
+      "idle": "Idle {{minutes}} min",
+      "break": "On break",
+      "offline": "Offline",
+      "noHeartbeat": "Logged in, no activity data",
+      "absent": "Had a shift, never came",
+      "upcoming": "Shift later"
+    },
+    "chip": {
+      "online": "Online now",
+      "offline": "Were online",
+      "noHeartbeat": "Logged in, no data",
+      "absent": "Never came",
+      "upcoming": "Shift later"
+    },
+    "loginAt": "Logged in {{time}}",
+    "shiftAt": "Shift {{from}}–{{to}}",
+    "hm": "{{h}} h {{m}} min",
+    "m": "{{m}} min",
+    "empty": "Nobody on this day.",
+    "ownersOnly": "Only the business owners can see who is working.",
+    "loadFailed": "Could not load who is working",
+    "alertRule": "Idle alert after every {{minutes}} minutes without activity.",
+    "alertsOff": "Idle alerts are switched off."
   }
 }

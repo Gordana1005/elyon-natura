@@ -8,6 +8,8 @@ import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { NotificationsDropdown } from '@/components/NotificationsDropdown';
 import { VoipIncidentBanner } from '@/components/VoipIncidentBanner';
+import { PresenceHeaderButton } from '@/components/presence/PresenceHeaderButton';
+import { usePresenceTracking } from '@/hooks/usePresence';
 import { friendlyRoleLabel } from '@/lib/roles';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -30,6 +32,9 @@ export function AppLayout({ children, title, headerActions }: AppLayoutProps) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  // Time on the CRM + the 30-minute idle alert. The tracker is module-level,
+  // so this per-page layout remounting on navigation does not restart it.
+  usePresenceTracking();
 
   const handleLogout = async () => {
     await signOut();
@@ -62,6 +67,8 @@ export function AppLayout({ children, title, headerActions }: AppLayoutProps) {
                 affiliate logins (their API calls would 403 on the hard wall). */}
             {!isMobile && !user?.isAffiliate && <BreakButton />}
             {!user?.isAffiliate && <GlobalSearch />}
+            {/* Owners only ("Who is working") — renders nothing for anyone else. */}
+            <PresenceHeaderButton />
             {!user?.isAffiliate && <NotificationsDropdown />}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

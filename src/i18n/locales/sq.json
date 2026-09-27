@@ -1269,6 +1269,14 @@
     "altercpaRateBelowFinal": {
       "title": "Partneri përfundoi nën garanci",
       "body": "Partneri {{affiliate}} e përfundoi {{date}} me {{pct}}% ({{confirmed}}/{{sent}}) — nën garancinë {{target}}%. Kjo kohortë ka përfunduar."
+    },
+    "inactivity": {
+      "title": "{{name}} — pa aktivitet {{minutes}} min",
+      "body": "{{name}} e ka Elyon CRM të hapur, por në ekran nuk është bërë asgjë prej {{minutes}} minutash."
+    },
+    "inactivitySelf": {
+      "title": "Pa aktivitet për {{minutes}} minuta",
+      "body": "Në ekran nuk është bërë asgjë prej {{minutes}} minutash. Nëse je në pushim, shtyp 'Bëj pushim'."
     }
   },
   "bigArenaStock": {
@@ -3482,5 +3490,48 @@
     "errNotActiveStaff": "Vetëm një llogari aktive e punonjësit mund të bëhet pronar.",
     "errNotAnOwner": "Ky person nuk është pronar.",
     "errLastOwner": "Pronari i fundit nuk mund të hiqet — shtoni së pari një pronar tjetër."
+  },
+  "presence": {
+    "button": "Kush po punon",
+    "title": "Kush po punon",
+    "subtitle": "Koha me Elyon CRM të hapur, për person, për një ditë (ora e Shkupit). Aktiv = punë në ekran në minutën e fundit ose telefonatë në vazhdim; pa aktivitet = i hapur pa u bërë asgjë; pushim = butoni 'Bëj pushim'.",
+    "today": "Sot",
+    "prevDay": "Dita e mëparshme",
+    "nextDay": "Dita tjetër",
+    "agentsOnly": "Agjentët",
+    "allStaff": "I gjithë stafi",
+    "colPerson": "Personi",
+    "colStatus": "Statusi",
+    "colOnline": "Online",
+    "colActive": "Aktiv",
+    "colIdle": "Pa aktivitet",
+    "colBreak": "Pushim",
+    "colFromTo": "Nga – deri",
+    "colAlerts": "Sinjalizime",
+    "status": {
+      "active": "Po punon",
+      "idle": "Pa aktivitet {{minutes}} min",
+      "break": "Në pushim",
+      "offline": "Offline",
+      "noHeartbeat": "Hyrje pa të dhëna aktiviteti",
+      "absent": "Kishte turn, nuk erdhi",
+      "upcoming": "Turni më vonë"
+    },
+    "chip": {
+      "online": "Online tani",
+      "offline": "Ishin online",
+      "noHeartbeat": "Hyrje pa të dhëna",
+      "absent": "Nuk erdhën",
+      "upcoming": "Turni më vonë"
+    },
+    "loginAt": "Hyrje {{time}}",
+    "shiftAt": "Turni {{from}}–{{to}}",
+    "hm": "{{h}} orë {{m}} min",
+    "m": "{{m}} min",
+    "empty": "Askush për këtë ditë.",
+    "ownersOnly": "Vetëm pronarët e biznesit shohin kush po punon.",
+    "loadFailed": "Nuk u ngarkua kush po punon",
+    "alertRule": "Sinjalizim pas çdo {{minutes}} minutash pa aktivitet.",
+    "alertsOff": "Sinjalizimet për mosaktivitet janë të fikura."
   }
 }

@@ -1518,6 +1518,64 @@ export const apiGetOnlineAgents = () => apiFetch('agents/online');
 export const apiPresenceHeartbeat = (opts?: { voip_state?: string }) =>
   apiFetch('presence/heartbeat', { method: 'POST', body: JSON.stringify(opts ?? {}) });
 
+// Presence — time on the CRM + the idle alert (migration 20260935000200).
+// A SEPARATE beat from apiPresenceHeartbeat above: this one runs in hidden
+// tabs too (src/lib/presence/tracker.ts) and must never feed
+// profiles.last_seen_at, the lead-distribution "online" signal.
+export type PresenceBeatState = 'active' | 'idle' | 'break';
+export interface PresenceBeatResult {
+  day?: string;                                  // Europe/Skopje day the minute went to
+  state?: PresenceBeatState;                     // what the server recorded (break = break button)
+  on_break?: boolean;
+  counted_minutes?: number;                      // 0 = deduplicated beat
+  idle_minutes_streak?: number;
+  should_alert?: boolean;                        // show the idle toast now
+  alert_minutes?: number | null;                 // 30, 60, 90 … when should_alert
+  threshold_minutes?: number;
+  skipped?: string;                              // e.g. 'inactive_profile'
+}
+export const apiPresenceActivity = (state: PresenceBeatState, signal?: AbortSignal): Promise<PresenceBeatResult> =>
+  apiFetch('presence/activity', { method: 'POST', body: JSON.stringify({ state }), signal });
+
+// Owners' "Who is working" view — business owners only (403 owners_only).
+export type PresenceDayStatus = 'online' | 'offline' | 'no_heartbeat' | 'absent' | 'upcoming';
+export interface PresenceDayRow {
+  user_id: string;
+  full_name: string;
+  is_active: boolean;
+  roles: string[];
+  /** In the default idle-alert scope: an agent role, not admin/manager/owner. */
+  is_agent: boolean;
+  status: PresenceDayStatus;
+  /** Live state while online, else null. */
+  live_state: PresenceBeatState | null;
+  online_minutes: number;
+  active_minutes: number;
+  idle_minutes: number;
+  break_minutes: number;
+  first_seen_at: string | null;
+  last_seen_at: string | null;
+  first_active_at: string | null;
+  last_active_at: string | null;
+  idle_streak_minutes: number;
+  idle_alerts: number;
+  /** Shift / admin login records that day (oldest first). */
+  logins: { at: string; out: string | null }[];
+  /** Scheduled shifts that day, HH:MM Skopje. */
+  shifts: { start: string; end: string }[];
+}
+export interface PresenceDayResponse {
+  day: string;
+  today: string;
+  is_today: boolean;
+  generated_at: string;
+  idle_alert_minutes: number;
+  counts: Record<PresenceDayStatus, number>;
+  rows: PresenceDayRow[];
+}
+export const apiGetPresenceDay = (date?: string): Promise<PresenceDayResponse> =>
+  apiFetch(`presence/day${date ? `?date=${encodeURIComponent(date)}` : ''}`);
+
 // Webhooks
 export const apiGetWebhooks = () => apiFetch('webhooks');
 export const apiCreateWebhook = (body: { product_name: string; description?: string }) =>

@@ -1491,6 +1491,43 @@ function skopjeRangeEnd(dateStr: string): string {
 }
 const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+// ── Presence (migration 20260935000200_agent_presence) ──────────────────────
+// States the SPA may report on POST /presence/activity. 'break' is accepted
+// but the DB only honours it while the break button has an open shift_breaks
+// row — the break button is the truth for breaks.
+const PRESENCE_STATES = new Set(["active", "idle", "break"]);
+// Same 3 minutes after which the presence-stale-sweep cron closes a session.
+const PRESENCE_ONLINE_MS = 3 * 60 * 1000;
+// Mirrors the engine's default alert scope ('agents'): an agent role, and not
+// admin / manager / business owner (admin fans out to every agent role).
+const PRESENCE_AGENT_ROLES = ["agent", "pending_agent", "prediction_agent", "inbound_agent"];
+type PresenceStatus = "online" | "offline" | "no_heartbeat" | "absent" | "upcoming";
+const PRESENCE_STATUS_RANK: Record<PresenceStatus, number> = {
+  online: 0, offline: 1, no_heartbeat: 2, absent: 3, upcoming: 4,
+};
+// Where one person stands on the viewed Skopje day:
+//   online        presence beat within 3 min (today only)
+//   offline       had presence minutes that day, not here now
+//   no_heartbeat  a login record but no presence at all (tab never beat —
+//                 e.g. an SPA bundle older than the presence release)
+//   upcoming      scheduled, shift not started yet (or a future day)
+//   absent        scheduled, shift started or over, never came
+function presenceStatusFor(p: {
+  hasPresence: boolean; lastState: string | null; lastSeenAt: string | null;
+  hasLogin: boolean; shiftStarts: string[]; isToday: boolean; isFuture: boolean;
+  nowHm: string; nowMs: number;
+}): PresenceStatus {
+  if (p.hasPresence) {
+    const fresh = p.isToday && !!p.lastState && p.lastState !== "offline" && !!p.lastSeenAt
+      && p.nowMs - Date.parse(p.lastSeenAt) < PRESENCE_ONLINE_MS;
+    return fresh ? "online" : "offline";
+  }
+  if (p.hasLogin) return "no_heartbeat";
+  if (p.isFuture) return "upcoming";
+  if (p.isToday && p.shiftStarts.length > 0 && p.shiftStarts.every((s) => s > p.nowHm)) return "upcoming";
+  return "absent";
+}
+
 // Fire-and-forget Realtime broadcast so the TV reacts within ~1s when an agent
 // confirms. Best-effort: the board also polls, so a failed broadcast is harmless.
 async function broadcastLeaderboard(event: string, payload: Record<string, any>): Promise<void> {
@@ -5931,6 +5968,158 @@ async function handleRequest(req: Request): Promise<Response> {
         .update(patch)
         .eq("user_id", user.id);
       return json({ ok: true });
+    }
+
+    // ── PRESENCE: time on the CRM + the idle alert (owner ask 2026-09-27) ───
+    // POST /api/presence/activity { state: 'active' | 'idle' | 'break' } —
+    // the SPA's once-a-minute activity beat, sent while the app is open,
+    // VISIBLE TAB OR NOT (usePresenceTracking). Deliberately a different route
+    // from POST /presence/heartbeat above: that one bumps profiles.last_seen_at,
+    // the lead-distribution engine's 2-minute "online" signal, and fires only
+    // from visible tabs — a hidden-tab beat must never make a forgotten tab
+    // look present enough to be dealt leads.
+    // Runs presence_heartbeat() under the CALLER's JWT (auth.uid() inside),
+    // which counts the minute, honours the break button, and raises the idle
+    // alerts to the person + the business owners (migration 20260935000200).
+    if (req.method === "POST" && path === "presence/activity") {
+      // Belt-and-braces: the affiliate hard wall above already 403s partners.
+      if (!hasInternalRole) return json({ error: "Forbidden" }, 403);
+      let body: any = null;
+      try { body = await req.json(); } catch { /* validated below */ }
+      const state = typeof body?.state === "string" ? body.state : "";
+      if (!PRESENCE_STATES.has(state)) return json({ error: "Invalid state" }, 400);
+      const { data, error } = await supabase.rpc("presence_heartbeat", { p_state: state });
+      if (error) return json({ error: sanitizeDbError(error) }, 400);
+      return json(data ?? {});
+    }
+
+    // GET /api/presence/day?date=YYYY-MM-DD — owners only (same gate as the
+    // money view: public.business_owners, no admin bypass). One row per staff
+    // person for that Europe/Skopje day: everyone with presence minutes, plus
+    // everyone with a login record or a scheduled shift but no presence at
+    // all, so "who wasn't there" shows too. Affiliate-only logins never appear.
+    if (req.method === "GET" && path === "presence/day") {
+      if (!(await isBusinessOwner(user.id))) return json({ error: "owners_only" }, 403);
+      const dateParam = url.searchParams.get("date");
+      if (dateParam && !DATE_ONLY_RE.test(dateParam)) return json({ error: "Invalid date" }, 400);
+      const { day, today, startISO, endISO } = skopjeDayRange(dateParam || undefined);
+
+      const [presRes, shiftLoginRes, adminLoginRes, assignRes, ownerRes, thresholdRes] = await Promise.all([
+        adminClient.from("agent_presence_days").select("*").eq("day", day),
+        adminClient.from("shift_login_logs").select("user_id, login_time, logout_time").eq("shift_date", day),
+        // Admins/managers bypass the shift gate and are logged here instead.
+        adminClient.from("admin_login_logs").select("user_id, login_time")
+          .gte("login_time", startISO).lt("login_time", endISO),
+        adminClient.from("shift_assignments").select("user_id, shifts!inner(start_time, end_time, date)")
+          .eq("shifts.date", day),
+        adminClient.from("business_owners").select("user_id"),
+        adminClient.from("app_settings").select("value").eq("key", "presence_idle_alert_minutes").maybeSingle(),
+      ]);
+      if (presRes.error) return json({ error: sanitizeDbError(presRes.error) }, 400);
+
+      const presById = new Map<string, any>();
+      for (const p of presRes.data || []) presById.set(p.user_id, p);
+      const loginsById = new Map<string, { at: string; out: string | null }[]>();
+      const addLogin = (uid: string, at: string, out: string | null) => {
+        if (!uid || !at) return;
+        const list = loginsById.get(uid) || [];
+        list.push({ at, out });
+        loginsById.set(uid, list);
+      };
+      for (const l of shiftLoginRes.data || []) addLogin(l.user_id, l.login_time, l.logout_time ?? null);
+      for (const l of adminLoginRes.data || []) addLogin(l.user_id, l.login_time, null);
+      const shiftsById = new Map<string, { start: string; end: string }[]>();
+      for (const a of assignRes.data || []) {
+        const s = (a as any).shifts;
+        if (!a.user_id || !s) continue;
+        const start = String(s.start_time || "").slice(0, 5);
+        const end = String(s.end_time || "").slice(0, 5);
+        if (start === "00:00" && end === "00:00") continue; // the "no active shift" marker (see check-login)
+        const list = shiftsById.get(a.user_id) || [];
+        list.push({ start, end });
+        shiftsById.set(a.user_id, list);
+      }
+
+      const ids = [...new Set([...presById.keys(), ...loginsById.keys(), ...shiftsById.keys()])];
+      let presProfiles: any[] = [];
+      let presRoles: any[] = [];
+      if (ids.length) {
+        const [pr, rr] = await Promise.all([
+          adminClient.from("profiles").select("user_id, full_name, is_active").in("user_id", ids),
+          adminClient.from("user_roles").select("user_id, role").in("user_id", ids),
+        ]);
+        presProfiles = pr.data || [];
+        presRoles = rr.data || [];
+      }
+      const profById = new Map<string, any>(presProfiles.map((p: any) => [p.user_id, p]));
+      const rolesById = new Map<string, string[]>();
+      for (const r of presRoles) rolesById.set(r.user_id, [...(rolesById.get(r.user_id) || []), String(r.role)]);
+      const owners = new Set((ownerRes.data || []).map((o: any) => o.user_id));
+
+      const nowMs = Date.now();
+      const nowHm = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Europe/Skopje", hour: "2-digit", minute: "2-digit", hour12: false,
+      }).format(new Date(nowMs)).replace(/^24:/, "00:");
+      const isToday = day === today;
+      const isFuture = day > today;
+
+      const rows: any[] = [];
+      for (const uid of ids) {
+        const roles = rolesById.get(uid) || [];
+        if (roles.length > 0 && roles.every((r) => r === "affiliate")) continue; // partners, not staff
+        const prof = profById.get(uid);
+        const pres = presById.get(uid);
+        const hasPresence = !!pres?.first_seen_at;
+        const logins = (loginsById.get(uid) || []).sort((a, b) => a.at.localeCompare(b.at));
+        const shifts = (shiftsById.get(uid) || []).sort((a, b) => a.start.localeCompare(b.start));
+        // Scheduled-only people count as missing only while the login is live.
+        if (!hasPresence && logins.length === 0 && !prof?.is_active) continue;
+        const status = presenceStatusFor({
+          hasPresence, lastState: pres?.last_state ?? null, lastSeenAt: pres?.last_seen_at ?? null,
+          hasLogin: logins.length > 0, shiftStarts: shifts.map((s) => s.start),
+          isToday, isFuture, nowHm, nowMs,
+        });
+        const liveState = status === "online" ? (pres?.last_state ?? null) : null;
+        const idleStreak = liveState === "idle" && pres?.idle_streak_started_at
+          ? Math.max(0, Math.floor((nowMs - Date.parse(pres.idle_streak_started_at)) / 60000))
+          : 0;
+        rows.push({
+          user_id: uid,
+          full_name: prof?.full_name || "—",
+          is_active: !!prof?.is_active,
+          roles,
+          is_agent: roles.some((r) => PRESENCE_AGENT_ROLES.includes(r))
+            && !roles.includes("admin") && !roles.includes("manager") && !owners.has(uid),
+          status,
+          live_state: liveState,
+          online_minutes: pres?.online_minutes ?? 0,
+          active_minutes: pres?.active_minutes ?? 0,
+          idle_minutes: pres?.idle_minutes ?? 0,
+          break_minutes: pres?.break_minutes ?? 0,
+          first_seen_at: pres?.first_seen_at ?? null,
+          last_seen_at: pres?.last_seen_at ?? null,
+          first_active_at: pres?.first_active_at ?? null,
+          last_active_at: pres?.last_active_at ?? null,
+          idle_streak_minutes: idleStreak,
+          idle_alerts: pres?.idle_alerts ?? 0,
+          logins,
+          shifts,
+        });
+      }
+      rows.sort((a, b) =>
+        PRESENCE_STATUS_RANK[a.status as PresenceStatus] - PRESENCE_STATUS_RANK[b.status as PresenceStatus]
+        || b.active_minutes - a.active_minutes
+        || String(a.full_name).localeCompare(String(b.full_name)));
+      const counts: Record<PresenceStatus, number> = { online: 0, offline: 0, no_heartbeat: 0, absent: 0, upcoming: 0 };
+      for (const r of rows) counts[r.status as PresenceStatus]++;
+      // Same fallback as the engine: anything but a whole number reads as 30.
+      const rawThreshold = String(thresholdRes.data?.value ?? "").trim();
+      const idleAlertMinutes = /^\d{1,5}$/.test(rawThreshold) ? Number(rawThreshold) : 30;
+
+      return json({
+        day, today, is_today: isToday, generated_at: new Date(nowMs).toISOString(),
+        idle_alert_minutes: idleAlertMinutes, counts, rows,
+      });
     }
 
     // GET /api/agents/online (admin only - active agents with load info)
