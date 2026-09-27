@@ -13,8 +13,9 @@
  * orders cancelled at AlterCPA but proven paid).
  *
  * What --commit changes:
- *   - MEX Delivered  → status 'paid', paid_at = MEX delivery time; any
- *     cancellation/trash reason is CLEARED (a paid order must not carry one)
+ *   - MEX Delivered  → status 'paid', paid_at = MEX delivery time,
+ *     paid_basis 'mex'; any cancellation/trash reason is CLEARED (a paid order
+ *     must not carry one)
  *   - MEX Return     → status 'returned' (returned_at = MEX time) — but ONLY
  *     from open statuses (pending/take/call_again/confirmed/shipped/delivered).
  *     A cancelled/trashed/paid order + MEX return is REPORTED, not changed.
@@ -23,11 +24,23 @@
  *   - every change gets an order_history row + an order_note with the tracking id
  *
  * Matching (never guessed):
- *   phone last-8  →  candidate orders, then COD must equal round(price€×61.5)
- *   or that +150 ДОСТАВА (±3 ден), then nearest |ship created − order created|
- *   within [−3d … +75d]. A phone+COD with several equally-plausible orders is
- *   matched greedily nearest-date, 1:1; leftovers are reported as ambiguous.
- *   Orders with price 0 match only when the phone has a single candidate.
+ *   phone last-8  →  candidate orders within [−3d … +75d], REAL SALES ONLY
+ *   (price > 0, a real product name, not 'duplicated'), then COD must equal
+ *   round(price€×61.5) or that +150 ДОСТАВА (±3 ден), nearest
+ *   |ship created − order created| wins. A phone+COD with several
+ *   equally-plausible orders is matched greedily nearest-date, 1:1; leftovers
+ *   are reported as ambiguous.
+ *   No COD fit → the single-candidate fallback applies ONLY when exactly one
+ *   real sale is in the window and it is open (pending/take/call_again/
+ *   confirmed) or shipped/delivered.
+ *
+ *   Real-sale guard (2026-09-27, same rule as supabase/functions/mex-reconcile/
+ *   match.ts — keep the two in step): the fallback used to take ANY lone
+ *   candidate, and on a customer's phone that is typically a prediction agent's
+ *   0 ден "No prior product on file" cancel/trash disposition. The parcel was
+ *   linked to it and it was flipped to paid/returned — 182 ghost rows by
+ *   2026-09-27. /calls creates those rows at price 0 even when it copies a prior
+ *   real product name, so price > 0 is what excludes them.
  */
 
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -145,7 +158,7 @@ async function loadAll(build) {
 }
 const orders = await loadAll(() => supabase
   .from('orders')
-  .select('id, display_id, customer_phone, customer_name, customer_address, customer_city, price, quantity, status, created_at, cancellation_reason, trash_reason, cancelled_by_agent_id, confirmed_at, assigned_agent_id, external_source, external_order_id')
+  .select('id, display_id, customer_phone, customer_name, customer_address, customer_city, product_name, price, quantity, status, created_at, cancellation_reason, trash_reason, cancelled_by_agent_id, confirmed_at, assigned_agent_id, external_source, external_order_id')
   .gte('created_at', SINCE)
   .order('created_at', { ascending: true }));
 console.log(`orders since ${SINCE}: ${orders.length.toLocaleString('en-US')}`);
@@ -167,7 +180,17 @@ const codOk = (o, cod) => {
 const DAY = 86400_000;
 const inWindow = (o, s) => s.created && (s.created - o.createdD) >= -3 * DAY && (s.created - o.createdD) <= 75 * DAY;
 
-let matched = 0, noPhone = 0, noCandidate = 0, ambiguous = 0;
+// Mirror of isSyntheticProductName in src/lib/utils.ts (and match.ts).
+const isSyntheticProductName = (name) => {
+  const n = String(name || '').trim();
+  if (!n || n === '—') return true;
+  return /^(Cancelled|Trashed|No prior product on file)/i.test(n);
+};
+// Only a real sale may take a parcel — see the header.
+const isRealSale = (o) => Number(o.price) > 0 && !isSyntheticProductName(o.product_name) && o.status !== 'duplicated';
+const SINGLE_FALLBACK = new Set(['pending', 'take', 'call_again', 'confirmed', 'shipped', 'delivered']);
+
+let matched = 0, noPhone = 0, noCandidate = 0, ambiguous = 0, noRealSale = 0;
 const unmatchedSamples = [];
 const shipList = [...ships.values()].sort((a, b) => (a.created?.getTime() ?? 0) - (b.created?.getTime() ?? 0));
 for (const s of shipList) {
@@ -178,8 +201,11 @@ for (const s of shipList) {
     if (unmatchedSamples.length < 40) unmatchedSamples.push({ id: s.id, name: s.name, tel8: s.tel8, cod: s.cod, created: s.created?.toISOString()?.slice(0, 10) });
     continue;
   }
-  const codMatches = cands.filter((o) => codOk(o, s.cod) === true);
-  let pool = codMatches.length ? codMatches : (cands.length === 1 ? cands : []);
+  const real = cands.filter(isRealSale);
+  if (!real.length) { noRealSale++; continue; }
+  const codMatches = real.filter((o) => codOk(o, s.cod) === true);
+  const pool = codMatches.length ? codMatches
+    : (real.length === 1 && SINGLE_FALLBACK.has(real[0].status) ? real : []);
   if (!pool.length) { ambiguous++; continue; }
   // nearest by date, preferring orders with no shipment yet (1:1), falling
   // back to reuse (a returned parcel re-sent is two shipments, one order)
@@ -189,7 +215,7 @@ for (const s of shipList) {
   target.shipments.push(s);
   matched++;
 }
-console.log(`\nmatching: ${matched.toLocaleString('en-US')} matched · ${noCandidate} no candidate order · ${ambiguous} ambiguous (skipped) · ${noPhone} unusable phone`);
+console.log(`\nmatching: ${matched.toLocaleString('en-US')} matched · ${noCandidate} no candidate order · ${noRealSale} only non-sale rows (0 ден dispositions — never matched) · ${ambiguous} ambiguous (skipped) · ${noPhone} unusable phone`);
 
 /* ── classify per order ──────────────────────────────────────────────────── */
 const OPEN = new Set(['pending', 'take', 'call_again', 'confirmed', 'shipped', 'delivered']);
@@ -264,6 +290,8 @@ for (const { o, s } of toPaid) {
   await withRetry(() => supabase.from('orders').update({
     status: 'paid',
     paid_at: s.updated.toISOString(),
+    // Explicit: a paid write with a NULL basis is stamped 'manual' by the DB trigger.
+    paid_basis: 'mex',
     cancellation_reason: null, cancellation_reason_notes: null, cancelled_at: null,
     trash_reason: null, trash_reason_notes: null, trashed_at: null,
   }).eq('id', o.id), `paid ${o.display_id}`);
