@@ -642,6 +642,9 @@ function InventoryTab() {
   const { user } = useAuth();
   // The warehouse worker restocks too — the server guard matches (POST /restock).
   const canRestock = user?.isAdmin || user?.isManager || user?.isWarehouse;
+  // Cost and price are money: business owners only (is_business_owner). The
+  // warehouse role and non-owner managers see the stock, never what it costs.
+  const { canSeeBusiness: showMoney } = usePermissions();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -763,8 +766,8 @@ function InventoryTab() {
               <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('wh.colSku')}</th>
               <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('wh.colCategory')}</th>
               <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('wh.colSupplier')}</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('wh.colCost')}</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('wh.colPrice')}</th>
+              {showMoney && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('wh.colCost')}</th>}
+              {showMoney && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('wh.colPrice')}</th>}
               <th className="px-4 py-3 text-left font-medium text-muted-foreground min-w-[160px]">{t('wh.colStockLevel')}</th>
               <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('wh.colStatus')}</th>
               {canRestock && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('wh.colActions')}</th>}
@@ -790,8 +793,8 @@ function InventoryTab() {
                   <td className="px-4 py-3 text-muted-foreground">{p.sku || '—'}</td>
                   <td className="px-4 py-3 text-muted-foreground">{p.category || '—'}</td>
                   <td className="px-4 py-3 text-muted-foreground">{p.suppliers?.name || '—'}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{formatMoney(p.cost_price || 0)}</td>
-                  <td className="px-4 py-3 font-semibold text-primary">{formatMoney(p.price)}</td>
+                  {showMoney && <td className="px-4 py-3 text-muted-foreground">{formatMoney(p.cost_price || 0)}</td>}
+                  {showMoney && <td className="px-4 py-3 font-semibold text-primary">{formatMoney(p.price)}</td>}
                   <td className="px-4 py-3 min-w-[160px]">
                     <div className="space-y-1">
                       <div className="flex items-center justify-between text-xs">
@@ -821,7 +824,7 @@ function InventoryTab() {
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={canRestock ? 9 : 8} className="p-0">
+                <td colSpan={(canRestock ? 9 : 8) - (showMoney ? 0 : 2)} className="p-0">
                   <EmptyState
                     icon={<Package className="h-5 w-5" />}
                     title={search || categoryFilter ? t('wh.noProductsMatch') : t('wh.noProducts')}
@@ -1100,7 +1103,7 @@ function HistoryTab() {
 // ─── Main Warehouse Page ───────────────────────────────────────
 export default function WarehousePage() {
   const { t } = useTranslation();
-  const { canAccessModule } = usePermissions();
+  const { canAccessModule, canSeeBusiness } = usePermissions();
   // Packing/History are the warehouse_incoming module — hidden from managers by
   // default, shown to warehouse + admin, governable from Settings → Role Permissions.
   const canIncoming = canAccessModule('warehouse_incoming');
@@ -1124,7 +1127,8 @@ export default function WarehousePage() {
   const kpiCards = [
     { labelKey: 'wh.kpiTotalProducts', value: totalProducts, icon: Boxes, color: 'bg-primary/10 text-primary' },
     { labelKey: 'wh.kpiLowStock', value: lowStockCount, icon: TrendingDown, color: lowStockCount > 0 ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground' },
-    { labelKey: 'wh.kpiStockValue', value: formatMoney(totalStockValue), icon: Banknote, color: 'bg-emerald-500/10 text-emerald-600' },
+    // The stock value is money: business owners only.
+    ...(canSeeBusiness ? [{ labelKey: 'wh.kpiStockValue', value: formatMoney(totalStockValue), icon: Banknote, color: 'bg-emerald-500/10 text-emerald-600' }] : []),
     ...(canIncoming ? [{ labelKey: 'wh.kpiPendingOrders', value: pendingOrders, icon: ShoppingCart, color: pendingOrders > 0 ? 'bg-amber-500/10 text-amber-600' : 'bg-muted text-muted-foreground' }] : []),
   ];
 

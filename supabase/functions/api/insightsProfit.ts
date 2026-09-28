@@ -1,0 +1,772 @@
+// ============================================================================
+// Insights → Pure Profit (Чиста добивка) + Margins (Маржи) — the pure half of
+// GET /api/insights/profit (migration 20260941000300_insights_profit).
+//
+// Dependency-free on purpose (no Deno globals, no URL imports): vitest runs
+// insightsProfit.test.ts against this file in Node, and index.ts imports it.
+//
+// The SQL returns the P&L INPUTS of one clock at a time — sales, their value,
+// lines split by price weight, known product cost, parcels, today's
+// per-package bonus raw per owner. This file does the P&L:
+//
+//   revenue     cohort: what MEX collected on the period's sales (paid +
+//               paid by ruling / legacy import); cash: MEX COD delivered in
+//               the period + the card money of card-paid web orders
+//   − VAT       revenue × r / (1 + r) — prices are gross; r = index.ts
+//               VAT_RATE (18 %, pending the accountant's confirmation)
+//   − COGS      known: catalogue cost_price × packages (never invented);
+//               estimated: the uncosted revenue × the cost share of the
+//               costed packages of the same view — LABELLED, never silent
+//   − courier   MEX rate card (courier_rates 'mex': 2,439 € = 150 ден per
+//               delivered parcel) × the parcels delivered
+//   − returns   the rate card's return fee (MEX: 0) × the parcels returned
+//   − lead cost the slot stays wired at 0 — "not configured" (no rates yet)
+//   − commission today's rule, UNCHANGED: index.ts orderPackageBonus() on
+//               every order whose status is paid, only when its owner
+//               (confirmed_by_name ?? assigned_agent_name, normAgent) is an
+//               agent that is not an admin / manager — the same gate as
+//               /management-insights' agent_commissions
+//   = net profit, margin % of revenue
+//
+// Every money figure leaves as whole денари (`*_mkd`); nothing here is ×61,5
+// again except the EUR the SQL names `_eur` (cost price, bonus, the rate
+// card), at the FROZEN peg.
+// ============================================================================
+
+import type { InsightsWindow } from "./insightsCommon.ts";
+
+/** The FROZEN peg (src/lib/currency.ts MKD_PER_EUR) — only to express a EUR
+ *  amount (cost price, bonus, rate card) in денари, never to re-price. */
+export const MKD_PER_EUR = 61.5;
+
+export const PROFIT_SOURCES = ["altercpa", "elyon_crm", "web", "teleshop_other"] as const;
+export type ProfitSource = (typeof PROFIT_SOURCES)[number];
+
+/** The previous-period comparison runs only up to this many days: it is a
+ *  second full scan, and a year against a year would double the heaviest
+ *  request of the page. */
+export const PROFIT_PREV_MAX_DAYS = 93;
+
+/** Product rows sent (by revenue); the rest fold into one "others" row. */
+export const PROFIT_PRODUCTS_MAX = 400;
+
+// ── the RPC payload (insights_profit) ───────────────────────────────────────
+
+export interface AggRow {
+  g: "collected" | "returned" | "open" | "unproven" | string;
+  dim: "s" | "d" | "w" | string;
+  key: string;
+  n: number; rev: number; card: number; pw: number;
+  rc: number; ru: number; rn: number; cm: number;
+  pc: number; pu: number; fr: number; lb: number;
+}
+export interface CommRow { dim: "s" | "d" | "w" | string; key: string; o: string | null; b: number; n: number }
+export interface ProductRpcRow {
+  s: string; g: string; k: string; name: string | null; kind: string | null; reviewed: boolean | null;
+  pkg: boolean | null; cost_eur: number | null; n: number; qty?: number; pkgs: number; fr: number;
+  rev: number; cm: number; sh: number; lb: number;
+}
+export interface HistRow { s: string; u: number; q: number; v: number }
+export interface StripRow { s: string; b: string; n: number; v: number; c: number; no: number; nw: number; nm: number }
+export interface ProfitRpc {
+  clock?: "cohort" | "cash";
+  granularity?: "day" | "month";
+  agg?: AggRow[];
+  comm?: CommRow[];
+  wm_names?: Record<string, string> | null;
+  strip?: StripRow[];
+  products?: ProductRpcRow[] | null;
+  hist?: HistRow[] | null;
+  no_items?: { n: number; v: number } | null;
+  returned_parcels?: { s: string; d: string; n: number }[];
+}
+
+// ── today's commission gate (twins of the /management-insights handler) ─────
+
+/** index.ts normAgent (management-insights), verbatim: trim, collapse
+ *  whitespace, drop a trailing single-letter initial; blank → "Unknown operator". */
+export function normAgent(raw: unknown): string {
+  let n = String(raw ?? "").trim().replace(/\s+/g, " ");
+  if (!n) return "Unknown operator";
+  n = n.replace(/\s+\p{L}\.?$/u, "").trim();
+  return n || "Unknown operator";
+}
+
+/** Who earns the per-package bonus today: an agent-role user who is NOT an
+ *  admin / manager (a super-admin earns nothing even with an agent role),
+ *  by normAgent(full name) — exactly the /management-insights agentNames set. */
+export function commissionAgentNames(
+  profiles: readonly { user_id: string; full_name: string | null }[] | null | undefined,
+  roles: readonly { user_id: string; role: string }[] | null | undefined,
+): Set<string> {
+  const agentIds = new Set<string>();
+  const superIds = new Set<string>();
+  for (const r of roles ?? []) {
+    if (r.role === "admin" || r.role === "manager") superIds.add(r.user_id);
+    else if (r.role === "agent" || r.role === "pending_agent" || r.role === "prediction_agent") agentIds.add(r.user_id);
+  }
+  const names = new Set<string>();
+  for (const p of profiles ?? []) {
+    if (agentIds.has(p.user_id) && !superIds.has(p.user_id)) names.add(normAgent(p.full_name));
+  }
+  return names;
+}
+
+// ── settings the api hands in ───────────────────────────────────────────────
+
+export interface ProfitSettings {
+  /** index.ts VAT_RATE (0.18) — pending the accountant's confirmation. */
+  vatRate: number;
+  /** courier_rates 'mex' (EUR): deliver per parcel, return per returned parcel. */
+  deliverEur: number;
+  returnEur: number;
+  /** Where the rate came from: the 'mex' row, or the api's fallback. */
+  rateSource: "courier_rates" | "fallback";
+  agentNames: ReadonlySet<string>;
+}
+
+/** The MEX row of the rate card (loadCourierRates' map), per parcel in EUR. */
+export function mexRate(
+  rates: Record<string, { deliver: number; return_: number }> | null | undefined,
+  fallback: { deliver: number; return_: number },
+): { deliverEur: number; returnEur: number; rateSource: "courier_rates" | "fallback" } {
+  const r = rates?.["mex_door"] ?? rates?.["mex_office"];
+  if (r) return { deliverEur: Number(r.deliver) || 0, returnEur: Number(r.return_) || 0, rateSource: "courier_rates" };
+  return { deliverEur: Number(fallback.deliver) || 0, returnEur: Number(fallback.return_) || 0, rateSource: "fallback" };
+}
+
+// ── the P&L ─────────────────────────────────────────────────────────────────
+
+const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : Number(v) || 0);
+const r0 = (v: number) => Math.round(v);
+const share = (a: number, b: number): number | null => (b > 0 ? a / b : null);
+
+interface Measures {
+  n: number; rev: number; card: number; pw: number; rc: number; ru: number; rn: number; cm: number;
+  pc: number; pu: number; fr: number; lb: number;
+}
+const ZERO: Measures = { n: 0, rev: 0, card: 0, pw: 0, rc: 0, ru: 0, rn: 0, cm: 0, pc: 0, pu: 0, fr: 0, lb: 0 };
+const MKEYS = Object.keys(ZERO) as (keyof Measures)[];
+
+function addM(a: Measures, b: Partial<Measures> | AggRow): Measures {
+  const o = { ...a };
+  for (const k of MKEYS) o[k] += num((b as Record<string, unknown>)[k]);
+  return o;
+}
+
+/** Σ of the agg rows of one group × dim (× key when given). */
+function measure(agg: AggRow[] | undefined, g: string, dim: string, key?: string): Measures {
+  let m = { ...ZERO };
+  for (const a of agg ?? []) if (a.g === g && a.dim === dim && (key === undefined || a.key === key)) m = addM(m, a);
+  return m;
+}
+
+/** Today's commission: Σ bonus (EUR) of the rows whose owner is an agent. */
+export function gatedBonusEur(comm: CommRow[] | undefined, dim: string, key: string | null, agents: ReadonlySet<string>): number {
+  let b = 0;
+  for (const c of comm ?? []) {
+    if (c.dim !== dim || (key !== null && c.key !== key)) continue;
+    if (agents.has(normAgent(c.o))) b += num(c.b);
+  }
+  return b;
+}
+
+export interface PLRow {
+  key: string;
+  sales: number;
+  revenue_mkd: number;
+  card_mkd: number;
+  vat_mkd: number;
+  cogs_known_mkd: number;
+  /** null when nothing in the view has a cost to estimate from. */
+  cogs_est_mkd: number | null;
+  courier_mkd: number;
+  returns_mkd: number;
+  commission_mkd: number;
+  lead_cost_mkd: number;
+  net_mkd: number;
+  /** The same with every uncosted package at 0 — an upper bound, never the headline. */
+  net_upper_mkd: number;
+  margin: number | null;
+  /** The P&L of the costed packages alone (their revenue, their known cost;
+   *  courier / returns / commission allocated by revenue share). */
+  costed: { revenue_mkd: number; net_mkd: number; margin: number | null };
+  revenue_costed_mkd: number;
+  revenue_uncosted_mkd: number;
+  revenue_other_mkd: number;
+  packages: number;
+  free_packages: number;
+  packages_costed: number;
+  packages_uncosted: number;
+  coverage_packages: number | null;
+  coverage_revenue: number | null;
+  parcels_delivered: number;
+  parcels_returned: number;
+  /** Returned sales (cohort) / parcels MEX returned (cash); null when unknown. */
+  returned: number | null;
+  returned_mkd: number | null;
+  return_rate: number | null;
+  aov_mkd: number | null;
+  cost_per_sale_mkd: number | null;
+  profit_per_sale_mkd: number | null;
+  packages_per_sale: number | null;
+}
+
+interface PLInputs {
+  key: string;
+  m: Measures;
+  commissionEur: number;
+  returnedParcels: number;
+  /** null = not known on this clock (a webmaster's returns by MEX return day). */
+  returnedSales: number | null;
+  returnedValue: number | null;
+  costRatio: number | null;
+}
+
+export function plRow(x: PLInputs, s: ProfitSettings): PLRow {
+  const { m } = x;
+  const rev = m.rev;
+  const vat = rev * s.vatRate / (1 + s.vatRate);
+  const deliverMkd = r0(s.deliverEur * MKD_PER_EUR);
+  const returnMkd = r0(s.returnEur * MKD_PER_EUR);
+  const courier = m.pw * deliverMkd;
+  const returns = x.returnedParcels * returnMkd;
+  const commission = x.commissionEur * MKD_PER_EUR;
+  const lead = 0;
+  const cogsEst = x.costRatio == null ? null : m.ru * x.costRatio;
+  const net = rev - vat - m.cm - (cogsEst ?? 0) - courier - returns - commission - lead;
+  const netUpper = net + (cogsEst ?? 0);
+  const sigma = rev > 0 ? m.rc / rev : 0;
+  const costedNet = m.rc - m.rc * s.vatRate / (1 + s.vatRate) - m.cm - sigma * (courier + returns + commission + lead);
+  const decided = m.n + (x.returnedSales ?? 0);
+  return {
+    key: x.key,
+    sales: m.n,
+    revenue_mkd: r0(rev),
+    card_mkd: r0(m.card),
+    vat_mkd: r0(vat),
+    cogs_known_mkd: r0(m.cm),
+    cogs_est_mkd: cogsEst == null ? null : r0(cogsEst),
+    courier_mkd: r0(courier),
+    returns_mkd: r0(returns),
+    commission_mkd: r0(commission),
+    lead_cost_mkd: lead,
+    net_mkd: r0(net),
+    net_upper_mkd: r0(netUpper),
+    margin: share(net, rev),
+    costed: { revenue_mkd: r0(m.rc), net_mkd: r0(costedNet), margin: share(costedNet, m.rc) },
+    revenue_costed_mkd: r0(m.rc),
+    revenue_uncosted_mkd: r0(m.ru),
+    revenue_other_mkd: r0(m.rn),
+    packages: m.pc + m.pu,
+    free_packages: m.fr,
+    packages_costed: m.pc,
+    packages_uncosted: m.pu,
+    coverage_packages: share(m.pc, m.pc + m.pu),
+    coverage_revenue: share(m.rc, m.rc + m.ru),
+    parcels_delivered: Math.round(m.pw * 100) / 100,
+    parcels_returned: Math.round(x.returnedParcels * 100) / 100,
+    returned: x.returnedSales,
+    returned_mkd: x.returnedValue == null ? null : r0(x.returnedValue),
+    return_rate: x.returnedSales == null ? null : share(x.returnedSales, decided),
+    aov_mkd: m.n > 0 ? r0(rev / m.n) : null,
+    cost_per_sale_mkd: m.n > 0 ? r0((rev - net) / m.n) : null,
+    profit_per_sale_mkd: m.n > 0 ? r0(net / m.n) : null,
+    packages_per_sale: m.n > 0 ? Math.round(((m.pc + m.pu) / m.n) * 100) / 100 : null,
+  };
+}
+
+/** The cost share of the costed packages (known COGS ÷ their revenue) of one
+ *  clock's collected sales, all sources — what an uncosted package is
+ *  estimated at. null when nothing is costed. */
+export function costRatioOf(agg: AggRow[] | undefined): number | null {
+  const m = measure(agg, "collected", "s");
+  return m.rc > 0 ? m.cm / m.rc : null;
+}
+
+// ── products ────────────────────────────────────────────────────────────────
+
+export interface ProductRow {
+  key: string;
+  name: string | null;
+  /** product | gift | loyalty_point | delivery | note | flyer | unknown */
+  kind: string;
+  /** false = the kind comes from the name heuristic, not a reviewed alias. */
+  reviewed: boolean;
+  /** A real package (product / gift); false for points, delivery, notes, MEX-only. */
+  package: boolean;
+  sources: string[];
+  sales: number;
+  packages: number;
+  free_packages: number;
+  revenue_mkd: number;
+  cost_known: boolean;
+  unit_cost_mkd: number | null;
+  cogs_mkd: number;
+  cogs_est_mkd: number | null;
+  vat_mkd: number;
+  courier_mkd: number;
+  commission_mkd: number;
+  /** Commissionable share of this product's packages (today's gate), 0..1. */
+  commission_share: number | null;
+  net_mkd: number;
+  margin: number | null;
+  returned_packages: number;
+  returned_mkd: number;
+  return_rate: number | null;
+}
+
+/** The product P&L on the cohort clock, folded across sources by product key.
+ *  Commission is today's total per source, spread over that source's
+ *  products by their package tiers (Σ products = the P&L line). */
+export function productRows(
+  rpc: ProfitRpc,
+  s: ProfitSettings,
+  costRatio: number | null,
+): { rows: ProductRow[]; others: ProductRow | null; total: number } {
+  const agg = rpc.agg ?? [];
+  // gate ratio per source: gated ÷ ungated bonus of its collected sales
+  const ratio: Record<string, number> = {};
+  for (const src of PROFIT_SOURCES) {
+    const ungated = measure(agg, "collected", "s", src).lb;
+    const gated = gatedBonusEur(rpc.comm, "s", src, s.agentNames);
+    ratio[src] = ungated > 0 ? gated / ungated : 0;
+  }
+  const deliverMkd = r0(s.deliverEur * MKD_PER_EUR);
+  const returnMkd = r0(s.returnEur * MKD_PER_EUR);
+  type Acc = {
+    key: string; name: string | null; kind: string; reviewed: boolean; pkg: boolean; sources: Set<string>;
+    cost_eur: number | null; n: number; pkgs: number; fr: number; rev: number; cm: number; sh: number;
+    lbUngated: number; commEur: number; rPkgs: number; rRev: number; rSh: number;
+  };
+  const by = new Map<string, Acc>();
+  for (const p of rpc.products ?? []) {
+    const a = by.get(p.k) ?? {
+      key: p.k, name: p.name ?? null, kind: p.kind ?? "product", reviewed: !!p.reviewed, pkg: !!p.pkg,
+      sources: new Set<string>(), cost_eur: null, n: 0, pkgs: 0, fr: 0, rev: 0, cm: 0, sh: 0,
+      lbUngated: 0, commEur: 0, rPkgs: 0, rRev: 0, rSh: 0,
+    };
+    if (p.name && (!a.name || p.name < a.name)) a.name = p.name;
+    if (p.cost_eur != null && num(p.cost_eur) > 0) a.cost_eur = num(p.cost_eur);
+    a.pkg = a.pkg || !!p.pkg;
+    a.reviewed = a.reviewed || !!p.reviewed;
+    if (p.g === "collected") {
+      a.sources.add(p.s);
+      a.n += num(p.n); a.pkgs += num(p.pkgs); a.fr += num(p.fr); a.rev += num(p.rev); a.cm += num(p.cm);
+      a.sh += num(p.sh); a.lbUngated += num(p.lb); a.commEur += num(p.lb) * (ratio[p.s] ?? 0);
+    } else if (p.g === "returned") {
+      a.rPkgs += num(p.pkgs); a.rRev += num(p.rev); a.rSh += num(p.sh);
+    }
+    by.set(p.k, a);
+  }
+  const toRow = (a: Acc): ProductRow => {
+    const known = a.cost_eur != null && a.pkg;
+    const vat = a.rev * s.vatRate / (1 + s.vatRate);
+    const courier = a.sh * deliverMkd + a.rSh * returnMkd;
+    const commission = a.commEur * MKD_PER_EUR;
+    const uncostedRev = a.pkg && !known ? a.rev : a.kind === "unknown" ? a.rev : 0;
+    const est = uncostedRev > 0 && costRatio != null ? uncostedRev * costRatio : null;
+    const net = a.rev - vat - a.cm - (est ?? 0) - courier - commission;
+    return {
+      key: a.key,
+      name: a.name,
+      kind: a.kind,
+      reviewed: a.reviewed,
+      package: a.pkg,
+      sources: PROFIT_SOURCES.filter((x) => a.sources.has(x)),
+      sales: a.n,
+      packages: a.pkgs,
+      free_packages: a.fr,
+      revenue_mkd: r0(a.rev),
+      cost_known: known,
+      unit_cost_mkd: known ? r0(a.cost_eur! * MKD_PER_EUR) : null,
+      cogs_mkd: r0(a.cm),
+      cogs_est_mkd: est == null ? null : r0(est),
+      vat_mkd: r0(vat),
+      courier_mkd: r0(courier),
+      commission_mkd: r0(commission),
+      commission_share: a.lbUngated > 0 ? a.commEur / a.lbUngated : null,
+      net_mkd: r0(net),
+      margin: share(net, a.rev),
+      returned_packages: a.rPkgs,
+      returned_mkd: r0(a.rRev),
+      return_rate: share(a.rPkgs, a.pkgs + a.rPkgs),
+    };
+  };
+  const all = [...by.values()].sort((x, y) => y.rev - x.rev || y.rRev - x.rRev || x.key.localeCompare(y.key));
+  const head = all.slice(0, PROFIT_PRODUCTS_MAX);
+  const tail = all.slice(PROFIT_PRODUCTS_MAX);
+  let others: ProductRow | null = null;
+  if (tail.length) {
+    const o: Acc = {
+      key: "__others__", name: null, kind: "product", reviewed: false, pkg: true, sources: new Set(), cost_eur: null,
+      n: 0, pkgs: 0, fr: 0, rev: 0, cm: 0, sh: 0, lbUngated: 0, commEur: 0, rPkgs: 0, rRev: 0, rSh: 0,
+    };
+    for (const a of tail) {
+      for (const x of a.sources) o.sources.add(x);
+      o.n += a.n; o.pkgs += a.pkgs; o.fr += a.fr; o.rev += a.rev; o.cm += a.cm; o.sh += a.sh;
+      o.lbUngated += a.lbUngated; o.commEur += a.commEur; o.rPkgs += a.rPkgs; o.rRev += a.rRev; o.rSh += a.rSh;
+    }
+    others = toRow(o);
+    // the tail's known costs are already in cogs_mkd; only its uncosted part is estimated
+    const uncosted = tail.filter((a) => !(a.cost_eur != null && a.pkg) && (a.pkg || a.kind === "unknown"))
+      .reduce((t, a) => t + a.rev, 0);
+    const est = uncosted > 0 && costRatio != null ? uncosted * costRatio : null;
+    others.cost_known = false;
+    others.cogs_est_mkd = est == null ? null : r0(est);
+    const vat = o.rev * s.vatRate / (1 + s.vatRate);
+    const net = o.rev - vat - o.cm - (est ?? 0) - (o.sh * deliverMkd + o.rSh * returnMkd) - o.commEur * MKD_PER_EUR;
+    others.net_mkd = r0(net);
+    others.margin = share(net, o.rev);
+  }
+  return { rows: head.map(toRow), others, total: all.length };
+}
+
+// ── realized денари per paid package (Margin Lab) ───────────────────────────
+
+export interface Distribution {
+  packages: number;
+  avg_mkd: number | null;
+  min_mkd: number | null;
+  p25_mkd: number | null;
+  median_mkd: number | null;
+  p75_mkd: number | null;
+  max_mkd: number | null;
+}
+
+/** Weighted order statistics over the denar-binned histogram (q packages at
+ *  u денари): the smallest price at which the running count reaches p × total. */
+export function distributionOf(hist: HistRow[] | null | undefined, source: string | null): Distribution {
+  const bins = new Map<number, { q: number; v: number }>();
+  for (const h of hist ?? []) {
+    if (source !== null && h.s !== source) continue;
+    const b = bins.get(num(h.u)) ?? { q: 0, v: 0 };
+    b.q += num(h.q); b.v += num(h.v);
+    bins.set(num(h.u), b);
+  }
+  const sorted = [...bins.entries()].sort((a, b) => a[0] - b[0]);
+  const total = sorted.reduce((t, [, b]) => t + b.q, 0);
+  if (!total) return { packages: 0, avg_mkd: null, min_mkd: null, p25_mkd: null, median_mkd: null, p75_mkd: null, max_mkd: null };
+  const at = (p: number) => {
+    let cum = 0;
+    for (const [u, b] of sorted) { cum += b.q; if (cum >= p * total) return u; }
+    return sorted[sorted.length - 1][0];
+  };
+  const value = sorted.reduce((t, [, b]) => t + b.v, 0);
+  return {
+    packages: total,
+    avg_mkd: Math.round(value / total),
+    min_mkd: sorted[0][0],
+    p25_mkd: at(0.25),
+    median_mkd: at(0.5),
+    p75_mkd: at(0.75),
+    max_mkd: sorted[sorted.length - 1][0],
+  };
+}
+
+// ── one clock ───────────────────────────────────────────────────────────────
+
+export interface TrendPoint { d: string; sales: number; revenue_mkd: number; net_mkd: number }
+export interface AffiliateRow {
+  key: string;
+  name: string | null;
+  /** All the period's sales of this webmaster (collected + returned + still open). */
+  sales_total: number;
+  open: number;
+  pl: PLRow;
+}
+export interface ProfitClock {
+  clock: "sale" | "delivered";
+  cost_ratio: number | null;
+  total: PLRow;
+  by_source: PLRow[];
+  prev: { revenue_mkd: number; net_mkd: number; sales: number; margin: number | null } | null;
+  trend: TrendPoint[];
+  affiliates: AffiliateRow[];
+  /** Cohort only: the sales still open (courier / label / to pack) and unproven paid. */
+  open: { count: number; value_mkd: number } | null;
+  unproven: { count: number; value_mkd: number } | null;
+}
+
+function returnedParcelsCash(rpc: ProfitRpc, source: string | null, day?: string): number {
+  let n = 0;
+  for (const r of rpc.returned_parcels ?? []) {
+    if (source !== null && r.s !== source) continue;
+    if (day !== undefined && r.d !== day) continue;
+    n += num(r.n);
+  }
+  return n;
+}
+
+/** Every day (YYYY-MM-DD) or month (YYYY-MM) bucket from `from` to `to` — the
+ *  trend shows the empty ones too. */
+export function bucketKeys(from: string, to: string, granularity: "day" | "month"): string[] {
+  const out: string[] = [];
+  const YMD = /^\d{4}-\d{2}-\d{2}$/;
+  if (!YMD.test(from) || !YMD.test(to) || from > to) return out;
+  if (granularity === "month") {
+    let y = Number(from.slice(0, 4)), m = Number(from.slice(5, 7));
+    const ey = Number(to.slice(0, 4)), em = Number(to.slice(5, 7));
+    while (y < ey || (y === ey && m <= em)) {
+      out.push(`${y}-${String(m).padStart(2, "0")}`);
+      m++; if (m > 12) { m = 1; y++; }
+      if (out.length > 800) break;
+    }
+    return out;
+  }
+  const d = new Date(`${from}T00:00:00Z`);
+  const end = new Date(`${to}T00:00:00Z`);
+  while (d <= end && out.length <= 800) {
+    out.push(d.toISOString().slice(0, 10));
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  return out;
+}
+
+export function buildClock(rpc: ProfitRpc, prev: ProfitRpc | null, s: ProfitSettings, keys?: readonly string[]): ProfitClock {
+  const cohort = rpc.clock !== "cash";
+  const agg = rpc.agg ?? [];
+  const costRatio = costRatioOf(agg);
+  const retOf = (dim: string, key: string | null): { parcels: number; sales: number | null; value: number | null } => {
+    if (!cohort) {
+      // MEX return days are known per source and per day, not per webmaster
+      if (dim === "w") return { parcels: 0, sales: null, value: null };
+      const n = dim === "s" ? returnedParcelsCash(rpc, key) : returnedParcelsCash(rpc, null, key ?? undefined);
+      return { parcels: n, sales: n, value: null };
+    }
+    const m = key === null ? measure(agg, "returned", dim) : measure(agg, "returned", dim, key);
+    return { parcels: m.pw, sales: m.n, value: m.rev };
+  };
+  const row = (key: string, dim: string, k: string | null): PLRow => {
+    const m = k === null ? measure(agg, "collected", dim) : measure(agg, "collected", dim, k);
+    const ret = retOf(dim, k);
+    return plRow({
+      key, m,
+      commissionEur: gatedBonusEur(rpc.comm, dim, k, s.agentNames),
+      returnedParcels: ret.parcels,
+      returnedSales: ret.sales,
+      returnedValue: ret.value,
+      costRatio,
+    }, s);
+  };
+  const total = row("total", "s", null);
+  const by_source = PROFIT_SOURCES.map((src) => row(src, "s", src));
+
+  // trend: every day / month bucket the SQL saw (collected), in order
+  const days = [...new Set([...(keys ?? []), ...agg.filter((a) => a.dim === "d").map((a) => a.key)])].sort();
+  const trend: TrendPoint[] = days.map((d) => {
+    const r = row(d, "d", d);
+    return { d, sales: r.sales, revenue_mkd: r.revenue_mkd, net_mkd: r.net_mkd };
+  });
+
+  // AlterCPA per webmaster (Σ collected = the AlterCPA row)
+  const wms = [...new Set(agg.filter((a) => a.dim === "w").map((a) => a.key))];
+  const affiliates: AffiliateRow[] = wms.map((w) => {
+    const pl = row(w, "w", w);
+    let all = 0, open = 0;
+    for (const a of agg) {
+      if (a.dim !== "w" || a.key !== w) continue;
+      all += num(a.n);
+      if (a.g === "open") open += num(a.n);
+    }
+    const name = w === "__none__" ? null : (rpc.wm_names?.[w] ?? null);
+    return { key: w, name, sales_total: all, open, pl };
+  }).sort((a, b) => b.pl.revenue_mkd - a.pl.revenue_mkd || b.sales_total - a.sales_total || a.key.localeCompare(b.key));
+
+  let prevOut: ProfitClock["prev"] = null;
+  if (prev) {
+    const pc = buildClockTotalsOnly(prev, s);
+    prevOut = { revenue_mkd: pc.revenue_mkd, net_mkd: pc.net_mkd, sales: pc.sales, margin: pc.margin };
+  }
+  const openM = cohort ? measure(agg, "open", "s") : null;
+  const unprovenM = cohort ? measure(agg, "unproven", "s") : null;
+  return {
+    clock: cohort ? "sale" : "delivered",
+    cost_ratio: costRatio,
+    total,
+    by_source,
+    prev: prevOut,
+    trend,
+    affiliates,
+    open: openM ? { count: openM.n, value_mkd: r0(openM.rev) } : null,
+    unproven: unprovenM ? { count: unprovenM.n, value_mkd: r0(unprovenM.rev) } : null,
+  };
+}
+
+/** The whole-business P&L row of a detail-less RPC (the previous period). */
+export function buildClockTotalsOnly(rpc: ProfitRpc, s: ProfitSettings): PLRow {
+  const cohort = rpc.clock !== "cash";
+  const agg = rpc.agg ?? [];
+  const m = measure(agg, "collected", "s");
+  const ret = cohort ? measure(agg, "returned", "s") : null;
+  const retParcels = cohort ? ret!.pw : returnedParcelsCash(rpc, null);
+  return plRow({
+    key: "total", m,
+    commissionEur: gatedBonusEur(rpc.comm, "s", null, s.agentNames),
+    returnedParcels: retParcels,
+    returnedSales: cohort ? ret!.n : retParcels,
+    returnedValue: cohort ? ret!.rev : null,
+    costRatio: costRatioOf(agg),
+  }, s);
+}
+
+// ── the cohort strip (CohortBar-compatible) ─────────────────────────────────
+
+const IN_TOTAL = ["paid", "paid_unproven", "paid_legacy", "courier", "courier_problem", "label", "to_pack", "returned"] as const;
+const OUTSIDE = ["cancelled_after_sale", "trashed_after_sale", "replacement"] as const;
+
+interface StripPart { key: string; count: number; value_mkd: number; cod_mkd?: number; orders: number; web: number; mex_only: number }
+export interface ProfitStrip {
+  total: { count: number; value_mkd: number; cod_mkd: number; orders: number; web: number; mex_only: number };
+  buckets: StripPart[];
+  outside: StripPart[];
+  by_source: { key: string; total: ProfitStrip["total"]; buckets: StripPart[]; outside: StripPart[] }[];
+}
+
+export function buildStrip(rows: StripRow[] | undefined): ProfitStrip {
+  const part = (key: string, src: string | null, withCod: boolean): StripPart => {
+    let count = 0, v = 0, c = 0, o = 0, w = 0, m = 0;
+    for (const r of rows ?? []) {
+      if (r.b !== key || (src !== null && r.s !== src)) continue;
+      count += num(r.n); v += num(r.v); c += num(r.c); o += num(r.no); w += num(r.nw); m += num(r.nm);
+    }
+    return { key, count, value_mkd: r0(v), ...(withCod ? { cod_mkd: r0(c) } : {}), orders: o, web: w, mex_only: m };
+  };
+  const block = (src: string | null) => {
+    const buckets = IN_TOTAL.map((k) => part(k, src, true));
+    const outside = OUTSIDE.map((k) => part(k, src, false));
+    const total = buckets.reduce((t, b) => ({
+      count: t.count + b.count, value_mkd: t.value_mkd + b.value_mkd, cod_mkd: t.cod_mkd + (b.cod_mkd ?? 0),
+      orders: t.orders + b.orders, web: t.web + b.web, mex_only: t.mex_only + b.mex_only,
+    }), { count: 0, value_mkd: 0, cod_mkd: 0, orders: 0, web: 0, mex_only: 0 });
+    return { total, buckets, outside };
+  };
+  const all = block(null);
+  return { ...all, by_source: PROFIT_SOURCES.map((k) => ({ key: k, ...block(k) })) };
+}
+
+// ── quality ─────────────────────────────────────────────────────────────────
+
+export type ProfitQualityKind =
+  | "uncosted_packages" | "mex_only_contents" | "unproven_paid" | "non_product_lines"
+  | "orders_without_lines" | "vat_unconfirmed" | "lead_cost_missing" | "return_fee_unconfirmed";
+
+export interface ProfitQuality {
+  kind: ProfitQualityKind;
+  severity: "critical" | "warning" | "info";
+  count: number;
+  value_mkd?: number;
+  share?: number | null;
+  /** uncosted_packages: the biggest ones (name, packages, revenue). */
+  top?: { key: string; name: string | null; packages: number; revenue_mkd: number }[];
+}
+
+export function buildQuality(
+  cohortRpc: ProfitRpc,
+  cohortClock: ProfitClock,
+  products: ProductRow[],
+  s: ProfitSettings,
+): ProfitQuality[] {
+  const t = cohortClock.total;
+  const out: ProfitQuality[] = [];
+  const unc = products.filter((p) => p.package && !p.cost_known);
+  out.push({
+    kind: "uncosted_packages",
+    severity: t.packages_uncosted > 0 ? "warning" : "info",
+    count: t.packages_uncosted,
+    value_mkd: r0(unc.reduce((a, p) => a + p.revenue_mkd, 0)),
+    share: t.coverage_packages == null ? null : 1 - t.coverage_packages,
+    top: [...unc].sort((a, b) => b.packages - a.packages || b.revenue_mkd - a.revenue_mkd).slice(0, 10)
+      .map((p) => ({ key: p.key, name: p.name, packages: p.packages, revenue_mkd: p.revenue_mkd })),
+  });
+  const mex = products.find((p) => p.key === "__mex_only__");
+  out.push({ kind: "mex_only_contents", severity: "info", count: mex?.sales ?? 0, value_mkd: mex?.revenue_mkd ?? 0 });
+  out.push({
+    kind: "unproven_paid", severity: "critical",
+    count: cohortClock.unproven?.count ?? 0, value_mkd: cohortClock.unproven?.value_mkd ?? 0,
+  });
+  const nonProduct = (cohortRpc.products ?? []).filter((p) => p.g === "collected" && !p.pkg && !p.reviewed
+    && p.kind && !["product", "gift", "unknown"].includes(p.kind));
+  out.push({
+    kind: "non_product_lines", severity: "info",
+    count: nonProduct.reduce((a, p) => a + num(p.qty ?? 0), 0),
+    value_mkd: r0(nonProduct.reduce((a, p) => a + num(p.rev), 0)),
+  });
+  out.push({
+    kind: "orders_without_lines", severity: "warning",
+    count: num(cohortRpc.no_items?.n), value_mkd: r0(num(cohortRpc.no_items?.v)),
+  });
+  out.push({ kind: "vat_unconfirmed", severity: "info", count: 1 });
+  out.push({ kind: "lead_cost_missing", severity: "info", count: cohortClock.by_source.find((r) => r.key === "altercpa")?.sales ?? 0 });
+  if (s.returnEur === 0) out.push({ kind: "return_fee_unconfirmed", severity: "info", count: r0(t.parcels_returned) });
+  return out;
+}
+
+// ── the response ────────────────────────────────────────────────────────────
+
+/** The previous window, or null past PROFIT_PREV_MAX_DAYS (see there). */
+export function profitPrevWindow(win: InsightsWindow): { fromIso: string; toEndIso: string } | null {
+  if (!win.prev || win.days > PROFIT_PREV_MAX_DAYS) return null;
+  return { fromIso: win.prev.fromIso, toEndIso: win.prev.toEndIso };
+}
+
+export interface ProfitRpcs {
+  cohort: ProfitRpc;
+  cash: ProfitRpc;
+  prevCohort?: ProfitRpc | null;
+  prevCash?: ProfitRpc | null;
+}
+
+/**
+ * GET /api/insights/profit (owners only). Both clocks, the cohort strip (Σ =
+ * insights_cohort), the product P&L (cohort), the realized-price
+ * distributions (Margin Lab) and the quality rail.
+ */
+export function buildProfitResponse(
+  r: ProfitRpcs,
+  win: InsightsWindow,
+  s: ProfitSettings,
+  now: Date = new Date(),
+): Record<string, unknown> {
+  const gran = r.cohort.granularity === "month" ? "month" : "day";
+  const keys = bucketKeys(win.from, win.to, gran);
+  const cohort = buildClock({ ...r.cohort, clock: "cohort" }, r.prevCohort ? { ...r.prevCohort, clock: "cohort" } : null, s, keys);
+  const cash = buildClock({ ...r.cash, clock: "cash" }, r.prevCash ? { ...r.prevCash, clock: "cash" } : null, s, keys);
+  const products = productRows(r.cohort, s, cohort.cost_ratio);
+  const realized: Record<string, Distribution> = { all: distributionOf(r.cohort.hist, null) };
+  for (const src of PROFIT_SOURCES) realized[src] = distributionOf(r.cohort.hist, src);
+  const prevWin = profitPrevWindow(win);
+  return {
+    meta: {
+      from: win.from,
+      to: win.to,
+      days: win.days,
+      partial: win.partial,
+      prev_from: prevWin ? win.prev!.from : null,
+      prev_to: prevWin ? win.prev!.to : null,
+      prev_to_end: prevWin ? win.prev!.toEndIso : null,
+      prev_skipped: !!win.prev && !prevWin,
+      prev_max_days: PROFIT_PREV_MAX_DAYS,
+      generated_at: now.toISOString(),
+      money: true,
+      granularity: gran,
+      vat: { rate: s.vatRate, confirmed: false },
+      courier: {
+        deliver_mkd: r0(s.deliverEur * MKD_PER_EUR),
+        return_mkd: r0(s.returnEur * MKD_PER_EUR),
+        source: s.rateSource,
+      },
+      lead_cost: { configured: false },
+      commission: { rule: "per_package_paid_agents", agents: s.agentNames.size },
+      mkd_per_eur: MKD_PER_EUR,
+    },
+    strip: buildStrip(r.cohort.strip),
+    cohort,
+    cash,
+    products: products.rows,
+    products_others: products.others,
+    products_total: products.total,
+    realized,
+    quality: buildQuality(r.cohort, cohort, products.rows, s),
+  };
+}

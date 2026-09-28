@@ -1,0 +1,1729 @@
+{
+ "meta": {
+  "to": "2026-09-27",
+  "from": "2026-09-01",
+  "part": "detail",
+  "clock": "sale",
+  "money": true,
+  "top_n": 40,
+  "generated_at": "2026-09-28T08:00:00.000Z"
+ },
+ "total": {
+  "count": 7170,
+  "value_mkd": 17951201
+ },
+ "basket": {
+  "dist": [
+   {
+    "key": "1",
+    "count": 851,
+    "value_mkd": 1556051
+   },
+   {
+    "key": "2",
+    "count": 338,
+    "value_mkd": 605088
+   },
+   {
+    "key": "3",
+    "count": 3290,
+    "value_mkd": 7837947
+   },
+   {
+    "key": "4",
+    "count": 864,
+    "value_mkd": 2780206
+   },
+   {
+    "key": "5",
+    "count": 384,
+    "value_mkd": 1721708
+   },
+   {
+    "key": "none",
+    "count": 1443,
+    "value_mkd": 3450201
+   }
+  ],
+  "by_source": [
+   {
+    "key": "altercpa",
+    "dist": [
+     {
+      "key": "1",
+      "count": 692
+     },
+     {
+      "key": "2",
+      "count": 6
+     },
+     {
+      "key": "3",
+      "count": 952
+     },
+     {
+      "key": "4",
+      "count": 331
+     },
+     {
+      "key": "5",
+      "count": 92
+     },
+     {
+      "key": "none",
+      "count": 4
+     }
+    ],
+    "count": 2077,
+    "units": 5452,
+    "value_mkd": 6161577,
+    "with_units": 2073
+   },
+   {
+    "key": "elyon_crm",
+    "dist": [
+     {
+      "key": "1",
+      "count": 39
+     },
+     {
+      "key": "2",
+      "count": 85
+     },
+     {
+      "key": "3",
+      "count": 331
+     },
+     {
+      "key": "4",
+      "count": 167
+     },
+     {
+      "key": "5",
+      "count": 65
+     },
+     {
+      "key": "none",
+      "count": 0
+     }
+    ],
+    "count": 687,
+    "units": 2272,
+    "value_mkd": 1933781,
+    "with_units": 687
+   },
+   {
+    "key": "web",
+    "dist": [
+     {
+      "key": "1",
+      "count": 50
+     },
+     {
+      "key": "2",
+      "count": 66
+     },
+     {
+      "key": "3",
+      "count": 181
+     },
+     {
+      "key": "4",
+      "count": 22
+     },
+     {
+      "key": "5",
+      "count": 45
+     },
+     {
+      "key": "none",
+      "count": 0
+     }
+    ],
+    "count": 364,
+    "units": 1096,
+    "value_mkd": 768476,
+    "with_units": 364
+   },
+   {
+    "key": "teleshop_other",
+    "dist": [
+     {
+      "key": "1",
+      "count": 70
+     },
+     {
+      "key": "2",
+      "count": 181
+     },
+     {
+      "key": "3",
+      "count": 1826
+     },
+     {
+      "key": "4",
+      "count": 344
+     },
+     {
+      "key": "5",
+      "count": 182
+     },
+     {
+      "key": "none",
+      "count": 1439
+     }
+    ],
+    "count": 4042,
+    "units": 8401,
+    "value_mkd": 9087367,
+    "with_units": 2603
+   }
+  ]
+ },
+ "cities": {
+  "rows": [
+   {
+    "key": "skopje",
+    "name": "Скопје",
+    "paid": 1771,
+    "count": 2544,
+    "known": true,
+    "courier": 205,
+    "to_pack": 227,
+    "name_lat": "Skopje",
+    "returned": 315,
+    "spellings": 23,
+    "value_mkd": 6354008
+   },
+   {
+    "key": "bitola",
+    "name": "Битола",
+    "paid": 433,
+    "count": 550,
+    "known": true,
+    "courier": 43,
+    "to_pack": 19,
+    "name_lat": "Bitola",
+    "returned": 51,
+    "spellings": 2,
+    "value_mkd": 1381315
+   },
+   {
+    "key": "prilep",
+    "name": "Прилеп",
+    "paid": 304,
+    "count": 385,
+    "known": true,
+    "courier": 30,
+    "to_pack": 13,
+    "name_lat": "Prilep",
+    "returned": 37,
+    "spellings": 3,
+    "value_mkd": 935626
+   },
+   {
+    "key": "strumica",
+    "name": "Струмица",
+    "paid": 266,
+    "count": 351,
+    "known": true,
+    "courier": 24,
+    "to_pack": 20,
+    "name_lat": "Strumica",
+    "returned": 40,
+    "spellings": 3,
+    "value_mkd": 872964
+   },
+   {
+    "key": "veles",
+    "name": "Велес",
+    "paid": 233,
+    "count": 294,
+    "known": true,
+    "courier": 22,
+    "to_pack": 12,
+    "name_lat": "Veles",
+    "returned": 25,
+    "spellings": 2,
+    "value_mkd": 750770
+   },
+   {
+    "key": "kumanovo",
+    "name": "Куманово",
+    "paid": 233,
+    "count": 293,
+    "known": true,
+    "courier": 18,
+    "to_pack": 17,
+    "name_lat": "Kumanovo",
+    "returned": 24,
+    "spellings": 2,
+    "value_mkd": 752609
+   },
+   {
+    "key": "ohrid",
+    "name": "Охрид",
+    "paid": 203,
+    "count": 283,
+    "known": true,
+    "courier": 26,
+    "to_pack": 12,
+    "name_lat": "Ohrid",
+    "returned": 42,
+    "spellings": 4,
+    "value_mkd": 733941
+   },
+   {
+    "key": "tetovo",
+    "name": "Тетово",
+    "paid": 196,
+    "count": 253,
+    "known": true,
+    "courier": 24,
+    "to_pack": 13,
+    "name_lat": "Tetovo",
+    "returned": 20,
+    "spellings": 5,
+    "value_mkd": 629155
+   },
+   {
+    "key": "stip",
+    "name": "Штип",
+    "paid": 147,
+    "count": 178,
+    "known": true,
+    "courier": 13,
+    "to_pack": 6,
+    "name_lat": "Štip",
+    "returned": 11,
+    "spellings": 5,
+    "value_mkd": 447730
+   },
+   {
+    "key": "kavadarci",
+    "name": "Кавадарци",
+    "paid": 149,
+    "count": 174,
+    "known": true,
+    "courier": 12,
+    "to_pack": 6,
+    "name_lat": "Kavadarci",
+    "returned": 6,
+    "spellings": 2,
+    "value_mkd": 458125
+   },
+   {
+    "key": "gostivar",
+    "name": "Гостивар",
+    "paid": 143,
+    "count": 174,
+    "known": true,
+    "courier": 11,
+    "to_pack": 5,
+    "name_lat": "Gostivar",
+    "returned": 15,
+    "spellings": 2,
+    "value_mkd": 425595
+   },
+   {
+    "key": "kocani",
+    "name": "Кочани",
+    "paid": 109,
+    "count": 150,
+    "known": true,
+    "courier": 21,
+    "to_pack": 2,
+    "name_lat": "Kochani",
+    "returned": 18,
+    "spellings": 3,
+    "value_mkd": 382392
+   },
+   {
+    "key": "struga",
+    "name": "Струга",
+    "paid": 117,
+    "count": 142,
+    "known": true,
+    "courier": 2,
+    "to_pack": 3,
+    "name_lat": "Struga",
+    "returned": 20,
+    "spellings": 2,
+    "value_mkd": 356666
+   },
+   {
+    "key": "kicevo",
+    "name": "Кичево",
+    "paid": 101,
+    "count": 131,
+    "known": true,
+    "courier": 10,
+    "to_pack": 4,
+    "name_lat": "Kičevo",
+    "returned": 15,
+    "spellings": 2,
+    "value_mkd": 322130
+   },
+   {
+    "key": "radovis",
+    "name": "Радовиш",
+    "paid": 98,
+    "count": 115,
+    "known": true,
+    "courier": 4,
+    "to_pack": 4,
+    "name_lat": "Radoviš",
+    "returned": 8,
+    "spellings": 3,
+    "value_mkd": 275119
+   },
+   {
+    "key": "krivapalanka",
+    "name": "Крива Паланка",
+    "paid": 91,
+    "count": 109,
+    "known": true,
+    "courier": 6,
+    "to_pack": 2,
+    "name_lat": "Kriva Palanka",
+    "returned": 10,
+    "spellings": 2,
+    "value_mkd": 267570
+   },
+   {
+    "key": "gevgelija",
+    "name": "Гевгелија",
+    "paid": 85,
+    "count": 104,
+    "known": true,
+    "courier": 11,
+    "to_pack": 2,
+    "name_lat": "Gevgelija",
+    "returned": 6,
+    "spellings": 2,
+    "value_mkd": 281885
+   },
+   {
+    "key": "svetinikole",
+    "name": "Свети Николе",
+    "paid": 82,
+    "count": 97,
+    "known": true,
+    "courier": 5,
+    "to_pack": 3,
+    "name_lat": "Sveti Nikole",
+    "returned": 7,
+    "spellings": 2,
+    "value_mkd": 234343
+   },
+   {
+    "key": "negotino",
+    "name": "Неготино",
+    "paid": 77,
+    "count": 83,
+    "known": true,
+    "courier": 3,
+    "to_pack": 0,
+    "name_lat": "Negotino",
+    "returned": 3,
+    "spellings": 3,
+    "value_mkd": 203795
+   },
+   {
+    "key": "resen",
+    "name": "Ресен",
+    "paid": 69,
+    "count": 81,
+    "known": true,
+    "courier": 6,
+    "to_pack": 2,
+    "name_lat": "Resen",
+    "returned": 4,
+    "spellings": 2,
+    "value_mkd": 201073
+   },
+   {
+    "key": "delcevo",
+    "name": "Делчево",
+    "paid": 53,
+    "count": 74,
+    "known": true,
+    "courier": 6,
+    "to_pack": 4,
+    "name_lat": "Delčevo",
+    "returned": 11,
+    "spellings": 3,
+    "value_mkd": 173217
+   },
+   {
+    "key": "berovo",
+    "name": "Берово",
+    "paid": 61,
+    "count": 67,
+    "known": true,
+    "courier": 3,
+    "to_pack": 2,
+    "name_lat": "Berovo",
+    "returned": 1,
+    "spellings": 2,
+    "value_mkd": 169510
+   },
+   {
+    "key": "vinica",
+    "name": "Виница",
+    "paid": 47,
+    "count": 63,
+    "known": true,
+    "courier": 13,
+    "to_pack": 0,
+    "name_lat": "Vinica",
+    "returned": 3,
+    "spellings": 2,
+    "value_mkd": 178690
+   },
+   {
+    "key": "probistip",
+    "name": "Пробиштип",
+    "paid": 49,
+    "count": 56,
+    "known": true,
+    "courier": 3,
+    "to_pack": 1,
+    "name_lat": "Probishtip",
+    "returned": 3,
+    "spellings": 3,
+    "value_mkd": 134710
+   },
+   {
+    "key": "debar",
+    "name": "Дебар",
+    "paid": 41,
+    "count": 54,
+    "known": true,
+    "courier": 5,
+    "to_pack": 1,
+    "name_lat": "Debar",
+    "returned": 7,
+    "spellings": 2,
+    "value_mkd": 123969
+   },
+   {
+    "key": "krusevo",
+    "name": "Крушево",
+    "paid": 38,
+    "count": 52,
+    "known": true,
+    "courier": 7,
+    "to_pack": 0,
+    "name_lat": "Kruševo",
+    "returned": 7,
+    "spellings": 3,
+    "value_mkd": 119210
+   },
+   {
+    "key": "kratovo",
+    "name": "Кратово",
+    "paid": 35,
+    "count": 41,
+    "known": true,
+    "courier": 1,
+    "to_pack": 1,
+    "name_lat": "Kratovo",
+    "returned": 4,
+    "spellings": 2,
+    "value_mkd": 101450
+   },
+   {
+    "key": "valandovo",
+    "name": "Валандово",
+    "paid": 30,
+    "count": 39,
+    "known": true,
+    "courier": 5,
+    "to_pack": 0,
+    "name_lat": "Valandovo",
+    "returned": 4,
+    "spellings": 2,
+    "value_mkd": 98110
+   },
+   {
+    "key": "makedonskakamenica",
+    "name": "Македонска Каменица",
+    "paid": 28,
+    "count": 35,
+    "known": true,
+    "courier": 6,
+    "to_pack": 0,
+    "name_lat": "Makedonska Kamenica",
+    "returned": 1,
+    "spellings": 2,
+    "value_mkd": 97685
+   },
+   {
+    "key": "bogdanci",
+    "name": "Богданци",
+    "paid": 34,
+    "count": 35,
+    "known": true,
+    "courier": 0,
+    "to_pack": 0,
+    "name_lat": "Bogdanci",
+    "returned": 1,
+    "spellings": 2,
+    "value_mkd": 88530
+   },
+   {
+    "key": "demirhisar",
+    "name": "Демир Хисар",
+    "paid": 31,
+    "count": 35,
+    "known": true,
+    "courier": 2,
+    "to_pack": 0,
+    "name_lat": "Demir Hisar",
+    "returned": 2,
+    "spellings": 2,
+    "value_mkd": 78580
+   },
+   {
+    "key": "makedonskibrod",
+    "name": "Македонски Брод",
+    "paid": 26,
+    "count": 30,
+    "known": true,
+    "courier": 2,
+    "to_pack": 0,
+    "name_lat": "Makedonski Brod",
+    "returned": 2,
+    "spellings": 1,
+    "value_mkd": 73310
+   },
+   {
+    "key": "dojran",
+    "name": "Дојран",
+    "paid": 17,
+    "count": 23,
+    "known": false,
+    "courier": 2,
+    "to_pack": 0,
+    "name_lat": "Дојран",
+    "returned": 4,
+    "spellings": 2,
+    "value_mkd": 59309
+   },
+   {
+    "key": "demirkapija",
+    "name": "Демир Капија",
+    "paid": 16,
+    "count": 21,
+    "known": true,
+    "courier": 5,
+    "to_pack": 0,
+    "name_lat": "Demir Kapija",
+    "returned": 0,
+    "spellings": 1,
+    "value_mkd": 58530
+   },
+   {
+    "key": "pehcevo",
+    "name": "Пехчево",
+    "paid": 9,
+    "count": 11,
+    "known": true,
+    "courier": 1,
+    "to_pack": 0,
+    "name_lat": "Pehčevo",
+    "returned": 1,
+    "spellings": 2,
+    "value_mkd": 27060
+   },
+   {
+    "key": "gradsko",
+    "name": "Градско",
+    "paid": 5,
+    "count": 6,
+    "known": true,
+    "courier": 0,
+    "to_pack": 0,
+    "name_lat": "Gradsko",
+    "returned": 1,
+    "spellings": 2,
+    "value_mkd": 15190
+   },
+   {
+    "key": "bardovci",
+    "name": "Бардовци",
+    "paid": 0,
+    "count": 4,
+    "known": true,
+    "courier": 0,
+    "to_pack": 4,
+    "name_lat": "Bardovci",
+    "returned": 0,
+    "spellings": 1,
+    "value_mkd": 7470
+   },
+   {
+    "key": "zletovo",
+    "name": "Злетово",
+    "paid": 2,
+    "count": 2,
+    "known": true,
+    "courier": 0,
+    "to_pack": 0,
+    "name_lat": "Zletovo",
+    "returned": 0,
+    "spellings": 2,
+    "value_mkd": 4050
+   },
+   {
+    "key": "strugaiopststruga",
+    "name": "Струга I, општ. Струга",
+    "paid": 0,
+    "count": 1,
+    "known": false,
+    "courier": 0,
+    "to_pack": 1,
+    "name_lat": "Струга I, општ. Струга",
+    "returned": 0,
+    "spellings": 1,
+    "value_mkd": 4500
+   },
+   {
+    "key": "strugaslozani",
+    "name": "Струга  с.Ложани",
+    "paid": 0,
+    "count": 1,
+    "known": false,
+    "courier": 0,
+    "to_pack": 1,
+    "name_lat": "Струга  с.Ложани",
+    "returned": 0,
+    "spellings": 1,
+    "value_mkd": 4490
+   }
+  ],
+  "others": {
+   "paid": 6,
+   "count": 21,
+   "places": 21,
+   "courier": 0,
+   "to_pack": 14,
+   "returned": 1,
+   "value_mkd": 49440
+  },
+  "places": 61,
+  "unknown": {
+   "paid": 5,
+   "count": 8,
+   "courier": 0,
+   "to_pack": 0,
+   "returned": 0,
+   "value_mkd": 17380
+  },
+  "spellings": 133,
+  "unknown_places": 11,
+  "unknown_places_count": 33,
+  "unknown_places_value_mkd": 87179
+ },
+ "products": {
+  "rows": [
+   {
+    "key": "p:d65b038a-3779-4bed-9e61-2d4916259e9e",
+    "name": "Adenofrin",
+    "paid": 183,
+    "sales": 369,
+    "units": 1032,
+    "courier": 47,
+    "to_pack": 84,
+    "returned": 49,
+    "by_source": [
+     {
+      "key": "altercpa",
+      "sales": 309,
+      "units": 806,
+      "value_mkd": 993023
+     },
+     {
+      "key": "elyon_crm",
+      "sales": 60,
+      "units": 226,
+      "value_mkd": 194780
+     }
+    ],
+    "catalogue": true,
+    "value_mkd": 1187803
+   },
+   {
+    "key": "n:magnesium citrat 325mg 150/1 tab",
+    "name": "MAGNESIUM CITRAT 325mg 150/1 tab",
+    "paid": 515,
+    "sales": 578,
+    "units": 1659,
+    "courier": 3,
+    "to_pack": 1,
+    "returned": 59,
+    "by_source": [
+     {
+      "key": "teleshop_other",
+      "sales": 578,
+      "units": 1659,
+      "value_mkd": 1113221
+     }
+    ],
+    "catalogue": false,
+    "value_mkd": 1113221
+   },
+   {
+    "key": "p:fae40061-d8ad-4025-9de0-3dea17daff71",
+    "name": "Urofix",
+    "paid": 288,
+    "sales": 379,
+    "units": 1080,
+    "courier": 14,
+    "to_pack": 23,
+    "returned": 47,
+    "by_source": [
+     {
+      "key": "altercpa",
+      "sales": 287,
+      "units": 810,
+      "value_mkd": 859820
+     },
+     {
+      "key": "elyon_crm",
+      "sales": 92,
+      "units": 270,
+      "value_mkd": 245101
+     }
+    ],
+    "catalogue": true,
+    "value_mkd": 1104921
+   },
+   {
+    "key": "p:7755d5c0-66ee-4ec6-93ae-fe7b8a47f4c6",
+    "name": "Neurofix",
+    "paid": 263,
+    "sales": 379,
+    "units": 997,
+    "courier": 31,
+    "to_pack": 43,
+    "returned": 38,
+    "by_source": [
+     {
+      "key": "altercpa",
+      "sales": 269,
+      "units": 683,
+      "value_mkd": 762060
+     },
+     {
+      "key": "elyon_crm",
+      "sales": 110,
+      "units": 314,
+      "value_mkd": 289630
+     }
+    ],
+    "catalogue": true,
+    "value_mkd": 1051690
+   },
+   {
+    "key": "p:cf38ad20-8608-4a81-b852-d9b5c7d3e0cc",
+    "name": "Alpha Male",
+    "paid": 164,
+    "sales": 291,
+    "units": 736,
+    "courier": 38,
+    "to_pack": 32,
+    "returned": 48,
+    "by_source": [
+     {
+      "key": "altercpa",
+      "sales": 271,
+      "units": 687,
+      "value_mkd": 755995
+     },
+     {
+      "key": "elyon_crm",
+      "sales": 20,
+      "units": 49,
+      "value_mkd": 45100
+     }
+    ],
+    "catalogue": true,
+    "value_mkd": 801095
+   },
+   {
+    "key": "n:простатол комплекс cps 30",
+    "name": "ПРОСТАТОЛ КОМПЛЕКС cps 30",
+    "paid": 354,
+    "sales": 398,
+    "units": 1160,
+    "courier": 4,
+    "to_pack": 1,
+    "returned": 39,
+    "by_source": [
+     {
+      "key": "teleshop_other",
+      "sales": 398,
+      "units": 1160,
+      "value_mkd": 772214
+     }
+    ],
+    "catalogue": false,
+    "value_mkd": 772214
+   },
+   {
+    "key": "n:снаил комплекс cps 30",
+    "name": "СНАИЛ КОМПЛЕКС cps 30",
+    "paid": 342,
+    "sales": 374,
+    "units": 1063,
+    "courier": 4,
+    "to_pack": 0,
+    "returned": 28,
+    "by_source": [
+     {
+      "key": "teleshop_other",
+      "sales": 374,
+      "units": 1063,
+      "value_mkd": 698851
+     }
+    ],
+    "catalogue": false,
+    "value_mkd": 698851
+   },
+   {
+    "key": "p:1395475b-b4a4-41cf-92ba-118d3d9af794",
+    "name": "Hemorofix",
+    "paid": 158,
+    "sales": 232,
+    "units": 651,
+    "courier": 17,
+    "to_pack": 21,
+    "returned": 33,
+    "by_source": [
+     {
+      "key": "altercpa",
+      "sales": 196,
+      "units": 540,
+      "value_mkd": 591809
+     },
+     {
+      "key": "elyon_crm",
+      "sales": 36,
+      "units": 111,
+      "value_mkd": 102791
+     }
+    ],
+    "catalogue": true,
+    "value_mkd": 694600
+   },
+   {
+    "key": "p:bdc79d87-8e42-430d-8925-c3b010ca257f",
+    "name": "Slim Fit",
+    "paid": 126,
+    "sales": 202,
+    "units": 560,
+    "courier": 12,
+    "to_pack": 28,
+    "returned": 35,
+    "by_source": [
+     {
+      "key": "altercpa",
+      "sales": 171,
+      "units": 471,
+      "value_mkd": 528710
+     },
+     {
+      "key": "elyon_crm",
+      "sales": 31,
+      "units": 89,
+      "value_mkd": 77175
+     }
+    ],
+    "catalogue": true,
+    "value_mkd": 605885
+   },
+   {
+    "key": "p:17e1f647-8091-4434-9fac-94ffc21c00d7",
+    "name": "Cardiofix",
+    "paid": 114,
+    "sales": 189,
+    "units": 514,
+    "courier": 20,
+    "to_pack": 23,
+    "returned": 28,
+    "by_source": [
+     {
+      "key": "altercpa",
+      "sales": 162,
+      "units": 447,
+      "value_mkd": 498280
+     },
+     {
+      "key": "elyon_crm",
+      "sales": 27,
+      "units": 67,
+      "value_mkd": 66042
+     }
+    ],
+    "catalogue": true,
+    "value_mkd": 564322
+   },
+   {
+    "key": "n:браин актив 30cps",
+    "name": "БРАИН АКТИВ 30cps",
+    "paid": 235,
+    "sales": 263,
+    "units": 761,
+    "courier": 0,
+    "to_pack": 1,
+    "returned": 27,
+    "by_source": [
+     {
+      "key": "teleshop_other",
+      "sales": 263,
+      "units": 761,
+      "value_mkd": 508336
+     }
+    ],
+    "catalogue": false,
+    "value_mkd": 508336
+   },
+   {
+    "key": "p:e25e349c-377e-45fb-9307-991573ac05ae",
+    "name": "GlucoFix",
+    "paid": 101,
+    "sales": 159,
+    "units": 441,
+    "courier": 10,
+    "to_pack": 21,
+    "returned": 24,
+    "by_source": [
+     {
+      "key": "altercpa",
+      "sales": 106,
+      "units": 276,
+      "value_mkd": 330140
+     },
+     {
+      "key": "elyon_crm",
+      "sales": 53,
+      "units": 165,
+      "value_mkd": 149283
+     }
+    ],
+    "catalogue": true,
+    "value_mkd": 479423
+   },
+   {
+    "key": "n:алое вера гел со аронија 1л",
+    "name": "АЛОЕ ВЕРА ГЕЛ СО АРОНИЈА 1Л",
+    "paid": 254,
+    "sales": 279,
+    "units": 761,
+    "courier": 3,
+    "to_pack": 0,
+    "returned": 22,
+    "by_source": [
+     {
+      "key": "teleshop_other",
+      "sales": 279,
+      "units": 761,
+      "value_mkd": 468410
+     }
+    ],
+    "catalogue": false,
+    "value_mkd": 468410
+   },
+   {
+    "key": "p:ab09eec7-638e-44a7-ab83-1b820df4c9cb",
+    "name": "ArthroFix",
+    "paid": 72,
+    "sales": 100,
+    "units": 258,
+    "courier": 4,
+    "to_pack": 10,
+    "returned": 12,
+    "by_source": [
+     {
+      "key": "altercpa",
+      "sales": 57,
+      "units": 136,
+      "value_mkd": 169500
+     },
+     {
+      "key": "elyon_crm",
+      "sales": 43,
+      "units": 122,
+      "value_mkd": 109833
+     }
+    ],
+    "catalogue": true,
+    "value_mkd": 279333
+   },
+   {
+    "key": "p:8ae08430-37c3-438a-b3cc-0d713bbfbc6a",
+    "name": "ProstaFix",
+    "paid": 69,
+    "sales": 99,
+    "units": 267,
+    "courier": 5,
+    "to_pack": 7,
+    "returned": 17,
+    "by_source": [
+     {
+      "key": "altercpa",
+      "sales": 54,
+      "units": 143,
+      "value_mkd": 153820
+     },
+     {
+      "key": "elyon_crm",
+      "sales": 45,
+      "units": 124,
+      "value_mkd": 114162
+     }
+    ],
+    "catalogue": true,
+    "value_mkd": 267982
+   },
+   {
+    "key": "p:92ffb0db-e8c0-433e-bc54-707c1281f380",
+    "name": "Parafix",
+    "paid": 69,
+    "sales": 95,
+    "units": 242,
+    "courier": 6,
+    "to_pack": 10,
+    "returned": 10,
+    "by_source": [
+     {
+      "key": "altercpa",
+      "sales": 78,
+      "units": 196,
+      "value_mkd": 220420
+     },
+     {
+      "key": "elyon_crm",
+      "sales": 17,
+      "units": 46,
+      "value_mkd": 43615
+     }
+    ],
+    "catalogue": true,
+    "value_mkd": 264035
+   },
+   {
+    "key": "p:e0a4c01f-f06b-4f49-98b3-f0de309f7992",
+    "name": "BrainFix",
+    "paid": 22,
+    "sales": 95,
+    "units": 217,
+    "courier": 12,
+    "to_pack": 60,
+    "returned": 1,
+    "by_source": [
+     {
+      "key": "altercpa",
+      "sales": 89,
+      "units": 195,
+      "value_mkd": 228950
+     },
+     {
+      "key": "elyon_crm",
+      "sales": 6,
+      "units": 22,
+      "value_mkd": 19400
+     }
+    ],
+    "catalogue": true,
+    "value_mkd": 248350
+   },
+   {
+    "key": "n:magnesium bisglycinate — хелатна форма, 120 таблети",
+    "name": "Magnesium Bisglycinate — хелатна форма, 120 таблети",
+    "paid": 105,
+    "sales": 135,
+    "units": 342,
+    "courier": 22,
+    "to_pack": 3,
+    "returned": 5,
+    "by_source": [
+     {
+      "key": "web",
+      "sales": 135,
+      "units": 342,
+      "value_mkd": 241600
+     }
+    ],
+    "catalogue": false,
+    "value_mkd": 241600
+   },
+   {
+    "key": "n:magnesium bisglycinate 120/1",
+    "name": "MAGNESIUM BISGLYCINATE 120/1",
+    "paid": 108,
+    "sales": 115,
+    "units": 316,
+    "courier": 1,
+    "to_pack": 1,
+    "returned": 5,
+    "by_source": [
+     {
+      "key": "teleshop_other",
+      "sales": 115,
+      "units": 316,
+      "value_mkd": 212819
+     }
+    ],
+    "catalogue": false,
+    "value_mkd": 212819
+   },
+   {
+    "key": "n:колаген пептид со малина 200 гр",
+    "name": "Колаген Пептид со МАЛИНА 200 гр",
+    "paid": 120,
+    "sales": 125,
+    "units": 276,
+    "courier": 2,
+    "to_pack": 0,
+    "returned": 3,
+    "by_source": [
+     {
+      "key": "teleshop_other",
+      "sales": 125,
+      "units": 276,
+      "value_mkd": 179266
+     }
+    ],
+    "catalogue": false,
+    "value_mkd": 179266
+   },
+   {
+    "key": "n:куркума актив",
+    "name": "КУРКУМА АКТИВ",
+    "paid": 82,
+    "sales": 91,
+    "units": 217,
+    "courier": 2,
+    "to_pack": 0,
+    "returned": 7,
+    "by_source": [
+     {
+      "key": "teleshop_other",
+      "sales": 91,
+      "units": 217,
+      "value_mkd": 147941
+     }
+    ],
+    "catalogue": false,
+    "value_mkd": 147941
+   },
+   {
+    "key": "n:колаген пептид со ванила 200гр",
+    "name": "КОЛАГЕН ПЕПТИД СО ВАНИЛА 200ГР",
+    "paid": 93,
+    "sales": 97,
+    "units": 183,
+    "courier": 2,
+    "to_pack": 0,
+    "returned": 2,
+    "by_source": [
+     {
+      "key": "teleshop_other",
+      "sales": 97,
+      "units": 183,
+      "value_mkd": 124534
+     }
+    ],
+    "catalogue": false,
+    "value_mkd": 124534
+   },
+   {
+    "key": "n:vitamin d3+k2+bor 180/1 tab",
+    "name": "VITAMIN D3+K2+BOR 180/1 tab",
+    "paid": 50,
+    "sales": 55,
+    "units": 102,
+    "courier": 1,
+    "to_pack": 0,
+    "returned": 4,
+    "by_source": [
+     {
+      "key": "teleshop_other",
+      "sales": 55,
+      "units": 102,
+      "value_mkd": 102250
+     }
+    ],
+    "catalogue": false,
+    "value_mkd": 102250
+   },
+   {
+    "key": "n:бронхо протект 500ml",
+    "name": "БРОНХО ПРОТЕКТ 500ml",
+    "paid": 70,
+    "sales": 76,
+    "units": 161,
+    "courier": 3,
+    "to_pack": 0,
+    "returned": 3,
+    "by_source": [
+     {
+      "key": "teleshop_other",
+      "sales": 76,
+      "units": 161,
+      "value_mkd": 97430
+     }
+    ],
+    "catalogue": false,
+    "value_mkd": 97430
+   },
+   {
+    "key": "p:a93a0b66-1aca-408d-a3c3-57b6a3316ab4",
+    "name": "MAGNESIUM CITRAT 325mg",
+    "paid": 29,
+    "sales": 45,
+    "units": 121,
+    "courier": 3,
+    "to_pack": 8,
+    "returned": 5,
+    "by_source": [
+     {
+      "key": "altercpa",
+      "sales": 1,
+      "units": 3,
+      "value_mkd": 2000
+     },
+     {
+      "key": "elyon_crm",
+      "sales": 44,
+      "units": 118,
+      "value_mkd": 81550
+     }
+    ],
+    "catalogue": true,
+    "value_mkd": 83550
+   },
+   {
+    "key": "n:magnesium+zink+b complex 120/1 tab",
+    "name": "MAGNESIUM+ZINK+B complex 120/1 TAB",
+    "paid": 43,
+    "sales": 46,
+    "units": 120,
+    "courier": 0,
+    "to_pack": 0,
+    "returned": 3,
+    "by_source": [
+     {
+      "key": "teleshop_other",
+      "sales": 46,
+      "units": 120,
+      "value_mkd": 82967
+     }
+    ],
+    "catalogue": false,
+    "value_mkd": 82967
+   },
+   {
+    "key": "n:neurofix bionatural 30/1",
+    "name": "NEUROFIX BIONATURAL 30/1",
+    "paid": 30,
+    "sales": 34,
+    "units": 90,
+    "courier": 0,
+    "to_pack": 0,
+    "returned": 4,
+    "by_source": [
+     {
+      "key": "teleshop_other",
+      "sales": 34,
+      "units": 90,
+      "value_mkd": 81898
+     }
+    ],
+    "catalogue": false,
+    "value_mkd": 81898
+   },
+   {
+    "key": "n:диабетол форте 30cps",
+    "name": "ДИАБЕТОЛ ФОРТЕ 30cps",
+    "paid": 43,
+    "sales": 46,
+    "units": 120,
+    "courier": 0,
+    "to_pack": 0,
+    "returned": 3,
+    "by_source": [
+     {
+      "key": "teleshop_other",
+      "sales": 46,
+      "units": 120,
+      "value_mkd": 80257
+     }
+    ],
+    "catalogue": false,
+    "value_mkd": 80257
+   },
+   {
+    "key": "n:urofix bionatural 30/1",
+    "name": "UROFIX BIONATURAL 30/1",
+    "paid": 26,
+    "sales": 31,
+    "units": 82,
+    "courier": 1,
+    "to_pack": 0,
+    "returned": 4,
+    "by_source": [
+     {
+      "key": "teleshop_other",
+      "sales": 31,
+      "units": 82,
+      "value_mkd": 72550
+     }
+    ],
+    "catalogue": false,
+    "value_mkd": 72550
+   },
+   {
+    "key": "p:680772d4-9e51-4a5f-ae72-491a0193e9e9",
+    "name": "R&R Melem",
+    "paid": 19,
+    "sales": 25,
+    "units": 56,
+    "courier": 1,
+    "to_pack": 0,
+    "returned": 4,
+    "by_source": [
+     {
+      "key": "altercpa",
+      "sales": 18,
+      "units": 35,
+      "value_mkd": 39450
+     },
+     {
+      "key": "elyon_crm",
+      "sales": 7,
+      "units": 21,
+      "value_mkd": 18900
+     }
+    ],
+    "catalogue": true,
+    "value_mkd": 58350
+   },
+   {
+    "key": "p:8f5732dc-cf65-4cae-b1d2-1d4ae96fd479",
+    "name": "NEUROFIX BIONATURAL 30/1",
+    "paid": 9,
+    "sales": 21,
+    "units": 57,
+    "courier": 4,
+    "to_pack": 4,
+    "returned": 4,
+    "by_source": [
+     {
+      "key": "altercpa",
+      "sales": 1,
+      "units": 2,
+      "value_mkd": 2200
+     },
+     {
+      "key": "elyon_crm",
+      "sales": 20,
+      "units": 55,
+      "value_mkd": 53200
+     }
+    ],
+    "catalogue": true,
+    "value_mkd": 55400
+   },
+   {
+    "key": "n:колаген пептид -без вкус 200 гр",
+    "name": "Колаген Пептид -БЕЗ ВКУС 200 гр",
+    "paid": 38,
+    "sales": 39,
+    "units": 80,
+    "courier": 1,
+    "to_pack": 0,
+    "returned": 0,
+    "by_source": [
+     {
+      "key": "teleshop_other",
+      "sales": 39,
+      "units": 80,
+      "value_mkd": 52267
+     }
+    ],
+    "catalogue": false,
+    "value_mkd": 52267
+   },
+   {
+    "key": "n:magnesium + zinc + b-complex — 120 таблети",
+    "name": "Magnesium + Zinc + B-Complex — 120 таблети",
+    "paid": 20,
+    "sales": 27,
+    "units": 65,
+    "courier": 3,
+    "to_pack": 0,
+    "returned": 4,
+    "by_source": [
+     {
+      "key": "web",
+      "sales": 27,
+      "units": 65,
+      "value_mkd": 46800
+     }
+    ],
+    "catalogue": false,
+    "value_mkd": 46800
+   },
+   {
+    "key": "n:gluco fix bionatural 30/1",
+    "name": "GLUCO FIX BIONATURAL 30/1",
+    "paid": 14,
+    "sales": 16,
+    "units": 42,
+    "courier": 0,
+    "to_pack": 0,
+    "returned": 2,
+    "by_source": [
+     {
+      "key": "teleshop_other",
+      "sales": 16,
+      "units": 42,
+      "value_mkd": 41107
+     }
+    ],
+    "catalogue": false,
+    "value_mkd": 41107
+   },
+   {
+    "key": "p:87337325-528f-4007-96b2-fcc1262a55e3",
+    "name": "ADENOFRIN 20/1 cps",
+    "paid": 9,
+    "sales": 15,
+    "units": 45,
+    "courier": 3,
+    "to_pack": 2,
+    "returned": 1,
+    "by_source": [
+     {
+      "key": "altercpa",
+      "sales": 1,
+      "units": 3,
+      "value_mkd": 3000
+     },
+     {
+      "key": "elyon_crm",
+      "sales": 14,
+      "units": 42,
+      "value_mkd": 38067
+     }
+    ],
+    "catalogue": true,
+    "value_mkd": 41067
+   },
+   {
+    "key": "n:adenofrin 20/1 cps",
+    "name": "ADENOFRIN 20/1 cps",
+    "paid": 14,
+    "sales": 17,
+    "units": 48,
+    "courier": 0,
+    "to_pack": 0,
+    "returned": 3,
+    "by_source": [
+     {
+      "key": "elyon_crm",
+      "sales": 1,
+      "units": 3,
+      "value_mkd": 2500
+     },
+     {
+      "key": "teleshop_other",
+      "sales": 16,
+      "units": 45,
+      "value_mkd": 38000
+     }
+    ],
+    "catalogue": false,
+    "value_mkd": 40500
+   },
+   {
+    "key": "n:d3 + k2 + bor — 180 таблети за коски и виталност",
+    "name": "D3 + K2 + Bor — 180 таблети за коски и виталност",
+    "paid": 17,
+    "sales": 26,
+    "units": 36,
+    "courier": 6,
+    "to_pack": 2,
+    "returned": 0,
+    "by_source": [
+     {
+      "key": "web",
+      "sales": 26,
+      "units": 36,
+      "value_mkd": 39750
+     }
+    ],
+    "catalogue": false,
+    "value_mkd": 39750
+   },
+   {
+    "key": "n:creatine monohydrate — за сила и раст на мускулите",
+    "name": "CREATINE MONOHYDRATE — за сила и раст на мускулите",
+    "paid": 35,
+    "sales": 43,
+    "units": 83,
+    "courier": 4,
+    "to_pack": 0,
+    "returned": 4,
+    "by_source": [
+     {
+      "key": "web",
+      "sales": 43,
+      "units": 83,
+      "value_mkd": 38315
+     }
+    ],
+    "catalogue": false,
+    "value_mkd": 38315
+   },
+   {
+    "key": "n:magnesium citrat — магнезиум за мускули, нерви и коски",
+    "name": "Magnesium Citrat — магнезиум за мускули, нерви и коски",
+    "paid": 13,
+    "sales": 19,
+    "units": 52,
+    "courier": 5,
+    "to_pack": 0,
+    "returned": 1,
+    "by_source": [
+     {
+      "key": "web",
+      "sales": 19,
+      "units": 52,
+      "value_mkd": 36000
+     }
+    ],
+    "catalogue": false,
+    "value_mkd": 36000
+   },
+   {
+    "key": "n:magnesium+ b6 150/1 tab",
+    "name": "MAGNESIUM+ B6 150/1 tab",
+    "paid": 18,
+    "sales": 18,
+    "units": 46,
+    "courier": 0,
+    "to_pack": 0,
+    "returned": 0,
+    "by_source": [
+     {
+      "key": "teleshop_other",
+      "sales": 18,
+      "units": 46,
+      "value_mkd": 30683
+     }
+    ],
+    "catalogue": false,
+    "value_mkd": 30683
+   }
+  ],
+  "others": {
+   "sales": 823,
+   "units": 2082,
+   "products": 260,
+   "value_mkd": 1402067
+  },
+  "summary": {
+   "sales": 5731,
+   "units": 17221,
+   "products": 300,
+   "value_mkd": 14499839,
+   "bad_qty_lines": 4,
+   "unmapped_sales": 2968,
+   "unmapped_units": 9500,
+   "bad_qty_value_mkd": 14500,
+   "unmapped_products": 230,
+   "unmapped_value_mkd": 6406981
+  },
+  "no_product": {
+   "sales": 1438,
+   "mex_only": 1438,
+   "value_mkd": 3435601,
+   "mex_only_value_mkd": 3435601
+  },
+  "non_product": [
+   {
+    "auto": 2868,
+    "kind": "gift",
+    "lines": 2868,
+    "sales": 2658,
+    "units": 2953,
+    "value_mkd": 0
+   },
+   {
+    "auto": 1231,
+    "kind": "loyalty_point",
+    "lines": 1231,
+    "sales": 1174,
+    "units": 1293,
+    "value_mkd": 1
+   },
+   {
+    "auto": 161,
+    "kind": "delivery",
+    "lines": 161,
+    "sales": 160,
+    "units": 161,
+    "value_mkd": 15760
+   }
+  ]
+ },
+ "customers": {
+  "new": 2495,
+  "sales": 7168,
+  "buyers": 6516,
+  "repeat": 545,
+  "no_phone": 2,
+  "by_source": [
+   {
+    "key": "altercpa",
+    "new": 1028,
+    "buyers": 1963,
+    "repeat": 88,
+    "returning": 935
+   },
+   {
+    "key": "elyon_crm",
+    "new": 9,
+    "buyers": 667,
+    "repeat": 19,
+    "returning": 658
+   },
+   {
+    "key": "web",
+    "new": 211,
+    "buyers": 349,
+    "repeat": 13,
+    "returning": 138
+   },
+   {
+    "key": "teleshop_other",
+    "new": 1289,
+    "buyers": 3728,
+    "repeat": 273,
+    "returning": 2439
+   }
+  ],
+  "returning": 4021,
+  "sales_new": 2622,
+  "cross_source": 187,
+  "history_from": "2025-04-23",
+  "value_new_mkd": 6559361,
+  "sales_returning": 4546,
+  "value_returning_mkd": 11385840
+ }
+}

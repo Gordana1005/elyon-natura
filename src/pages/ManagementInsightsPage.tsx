@@ -5,17 +5,14 @@ import { AppLayout } from '@/layouts/AppLayout';
 import type { DateRange } from '@/components/DateRangePicker';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Loader2, BarChart3 } from 'lucide-react';
-import {
-  apiGetManagementInsights, apiGetInsightsCalls,
-  type InsightsResponse, type InsightsCallsResponse,
-} from '@/lib/api';
+import { apiGetManagementInsights, type InsightsResponse } from '@/lib/api';
 import { EmptyState } from '@/components/EmptyState';
 import { useAuth } from '@/contexts/AuthContext';
 import { useInsightsAccess } from '@/contexts/PermissionsContext';
 import { apiErrorText } from '@/i18n/apiErrors';
-import AgentsTab from '@/components/insights/AgentsTab';
+import AgentsTab from '@/components/insights/agents/AgentsTab';
 import PayoutTab from '@/components/insights/PayoutTab';
-import MarginLabTab from '@/components/insights/MarginLabTab';
+import MarginLabTab from '@/components/insights/margins/MarginLabTab';
 import OverviewTab from '@/components/insights/overview/OverviewTab';
 import SalesTab from '@/components/insights/sales/SalesTab';
 import PureProfitTab from '@/components/insights/profit/PureProfitTab';
@@ -37,25 +34,33 @@ const TAB_DEFS = [
   // The connected Overview brings its own data and money gate (meta.money):
   // owners see money, admins/managers the same page counted.
   { value: 'overview', labelKey: 'insights.tabOverview', need: 'overview' },
-  { value: 'sales', labelKey: 'insights.tabSales', need: 'business' },
+  // Sales brings its own data (GET /insights/sales) and money gate
+  // (meta.money): owners see денари, admins/managers the same page counted.
+  { value: 'sales', labelKey: 'insights.tabSales', need: 'overview' },
   { value: 'agents', labelKey: 'insights.tabAgents', need: 'agents' },
   { value: 'payout', labelKey: 'insights.tabPayout', need: 'payout' },
   { value: 'pure-profit', labelKey: 'insights.tabPureProfit', need: 'business' },
   { value: 'margin-lab', labelKey: 'insights.tabMarginLab', need: 'business' },
-  { value: 'prediction-lists', labelKey: 'insights.tabPredictionLists', need: 'business' },
-  { value: 'stock', labelKey: 'insights.tabStock', need: 'business' },
-  { value: 'returns', labelKey: 'insights.tabReturns', need: 'business' },
+  // Prediction lists bring their own data (GET /insights/lists) and money gate
+  // (meta.money): owners see денари, admins/managers the same page counted.
+  { value: 'prediction-lists', labelKey: 'insights.tabPredictionLists', need: 'overview' },
+  // Stock and Returns bring their own data (GET /insights/stock, /insights/returns)
+  // and money gate (meta.money): owners see денари, admins/managers the same page counted.
+  { value: 'stock', labelKey: 'insights.tabStock', need: 'overview' },
+  { value: 'returns', labelKey: 'insights.tabReturns', need: 'overview' },
   { value: 'call-activity', labelKey: 'insights.tabCallActivity', need: 'calls' },
 ] as const;
 
 // Every tab that renders from the full (owners-only) aggregate.
 const MONEY_TABS = new Set<string>(TAB_DEFS.filter(d => d.need === 'business').map(d => d.value));
+// …except the owners-only tabs that fetch their own endpoint (still `business`,
+// still on the shared period bar).
+const OWN_DATA_MONEY_TABS = new Set<string>(['pure-profit', 'margin-lab']);
 
 // The tabs that count by the page's ONE period (InsightsFilterBar /
-// useInsightsPeriod). Agents and Payout still bring their own period controls
-// (Agents moves onto the shared period with its rebuild; Payout is deferred),
-// so the shared bar is not shown there — it would not drive them.
-const PERIOD_TABS = new Set<string>(['overview', ...MONEY_TABS, 'call-activity']);
+// useInsightsPeriod). Payout still brings its own period controls (deferred),
+// so the shared bar is not shown there — it would not drive it.
+const PERIOD_TABS = new Set<string>(['overview', ...MONEY_TABS, 'call-activity', 'prediction-lists', 'sales', 'agents', 'stock', 'returns']);
 
 export default function ManagementInsightsPage() {
   const { t } = useTranslation();
@@ -73,11 +78,12 @@ export default function ManagementInsightsPage() {
   // The default is always a tab this user can actually see.
   const requested = searchParams.get('tab');
   const activeTab = tabs.some(tab => tab.value === requested) ? requested! : (tabs[0]?.value ?? 'overview');
-  const moneyTab = MONEY_TABS.has(activeTab);
-  const onCalls = activeTab === 'call-activity';
+  // Owners-only tabs that bring their own data (Pure Profit + Margins read GET
+  // /insights/profit) never wait for the full aggregate.
+  const moneyTab = MONEY_TABS.has(activeTab) && !OWN_DATA_MONEY_TABS.has(activeTab);
 
-  // OWNERS: the full aggregate (money tabs + the Call Activity KPI block) —
-  // only on a tab that needs it, never while the operator sits on
+  // OWNERS: the full aggregate (money tabs) — Call Activity reads its own
+  // GET /insights/work — only on a tab that needs it, never while the operator sits on
   // Agents/Payout, which bring their own (also heavy) requests. The key
   // carries the login, so a cached owner response can never render for the
   // next person who signs in on this browser.
@@ -85,7 +91,7 @@ export default function ManagementInsightsPage() {
     queryKey: ['insights', user?.id, range.from, range.to],
     queryFn: ({ signal }) => apiGetManagementInsights({ from: range.from || undefined, to: range.to || undefined }, signal),
     staleTime: 5 * 60_000,
-    enabled: access.business && (moneyTab || onCalls),
+    enabled: access.business && moneyTab,
     // Keep the previous range's numbers on screen while the new ones load, instead
     // of blanking every tab to a spinner. On a wide range that spinner is the whole
     // wait. `retry` is 0 rather than the global 1 because retrying a heavy aggregate
@@ -94,32 +100,17 @@ export default function ManagementInsightsPage() {
     retry: 0,
   });
 
-  // NON-OWNERS on Call Activity: the calls-only slice (?scope=calls) — the
-  // one part of this endpoint the server gives them. Admin/manager only,
-  // mirroring the server gate; any other role granted call_activity keeps
-  // the timeline alone, exactly as before.
-  const canCallsSlice = !access.business && access.calls && !!(user?.isAdmin || user?.isManager);
-  const callsQ = useQuery<InsightsCallsResponse>({
-    queryKey: ['insights', 'calls', user?.id, range.from, range.to],
-    queryFn: ({ signal }) => apiGetInsightsCalls({ from: range.from || undefined, to: range.to || undefined }, signal),
-    staleTime: 5 * 60_000,
-    enabled: canCallsSlice && onCalls,
-    placeholderData: keepPreviousData,
-    retry: 0,
-  });
+  // Call Activity (the work tab) brings its own data: GET /insights/work for
+  // everyone holding call_activity — no money on it, so no owner split here.
 
-  const activeQ = access.business ? fullQ : callsQ;
   // Money only ever renders from the owner query, and only for an owner.
   const data = access.business ? fullQ.data : undefined;
-  const callsBlock = access.business ? fullQ.data?.calls : callsQ.data?.calls;
-  const callsError = access.business ? fullQ.error : callsQ.error;
   const errorText = (err: unknown) =>
     err instanceof Error && err.message === 'owners_only' ? t('insights.ownersOnly') : apiErrorText(err);
 
-  // The shared period bar shows on every tab it drives. On Call Activity that
-  // is the KPI block only (owners' aggregate / the admin-manager slice); the
-  // timeline below keeps its own day picker.
-  const showPeriodBar = PERIOD_TABS.has(activeTab) && (!onCalls || access.business || canCallsSlice);
+  // The shared period bar shows on every tab it drives (Call Activity included:
+  // its day-by-day swimlane steps through the days of this same period).
+  const showPeriodBar = PERIOD_TABS.has(activeTab);
 
   if (tabs.length === 0) {
     return (
@@ -152,14 +143,22 @@ export default function ManagementInsightsPage() {
               {access.overview && (
                 <TabsContent value="overview" className="mt-4"><OverviewTab /></TabsContent>
               )}
+              {access.overview && (
+                <TabsContent value="prediction-lists" className="mt-4"><PredictionListsTab /></TabsContent>
+              )}
+              {access.overview && (
+                <TabsContent value="sales" className="mt-4"><SalesTab /></TabsContent>
+              )}
 
-              {access.business && data && <>
-                <TabsContent value="sales" className="mt-4"><SalesTab data={data} /></TabsContent>
-                <TabsContent value="pure-profit" className="mt-4"><PureProfitTab data={data} range={range} canExport={access.business} /></TabsContent>
-                <TabsContent value="margin-lab" className="mt-4"><MarginLabTab data={data} /></TabsContent>
-                <TabsContent value="prediction-lists" className="mt-4"><PredictionListsTab data={data} /></TabsContent>
-                <TabsContent value="stock" className="mt-4"><StockTab data={data} /></TabsContent>
-                <TabsContent value="returns" className="mt-4"><ReturnsTab data={data} /></TabsContent>
+              {/* Pure Profit + Margins: owners only, GET /insights/profit (one shared query). */}
+              {access.business && <>
+                <TabsContent value="pure-profit" className="mt-4"><PureProfitTab /></TabsContent>
+                <TabsContent value="margin-lab" className="mt-4"><MarginLabTab /></TabsContent>
+              </>}
+
+              {access.overview && <>
+                <TabsContent value="stock" className="mt-4"><StockTab /></TabsContent>
+                <TabsContent value="returns" className="mt-4"><ReturnsTab /></TabsContent>
               </>}
 
               {access.agents && (
@@ -172,12 +171,7 @@ export default function ManagementInsightsPage() {
 
               {access.calls && (
                 <TabsContent value="call-activity" className="mt-4">
-                  <CallActivityTab
-                    calls={callsBlock}
-                    error={callsError}
-                    errorText={errorText}
-                    onRetry={() => { void activeQ.refetch(); }}
-                  />
+                  <CallActivityTab />
                 </TabsContent>
               )}
             </>

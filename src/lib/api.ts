@@ -17,7 +17,8 @@ async function getHeaders() {
 // endpoint today; tighten once the SQL engines land.
 const API_TIMEOUT_MS = 90_000;
 
-async function apiFetch<T = any>(path: string, options?: RequestInit): Promise<T> {
+// Exported for the per-tab Insights clients (src/lib/insightsApi/<tab>.ts).
+export async function apiFetch<T = any>(path: string, options?: RequestInit): Promise<T> {
   const headers = await getHeaders();
   const timeoutSignal = AbortSignal.timeout(API_TIMEOUT_MS);
   const signal = options?.signal

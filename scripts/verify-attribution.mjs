@@ -31,8 +31,9 @@
  *        confirmed, delivered cash) and Σ buckets = placed; lists delivered parcels whose order
  *        the Overview cannot book as delivered cash
  *   C2   MEX-only cash = Σ COD of delivered parcels no order owns (web shop vs teleshop split)
- *   C3   Prediction-lists tab (insights_orders_rollup) = the ElyonCRM prediction_list portion; the
- *        orders on one side only are listed (lost list attribution / dispositions)
+ *   C3   Prediction-lists tab (insights_lists, 20260941000400) = the cohort's ElyonCRM ·
+ *        prediction_list split, exactly (sale clock); the "list not recorded" rows are listed.
+ *        Before that migration: the old tab (insights_orders_rollup) vs the Overview's split
  *   C6   proven cash = Σ COD of linked delivered parcels; COD − price × 61.5 splits into exact /
  *        +150 delivery fee / listed mismatches
  *   C8a  a tracking id on 2+ live orders FAILs — except the owner-accepted pairs (owner decision
@@ -895,7 +896,58 @@ FROM u`);
   };
 }
 
+/** C3 since the rebuild (migration 20260941000400): the Prediction-lists tab reads THE sale
+ *  cohort (insights_lists over insights_sale_rows), so it must EQUAL the cohort's ElyonCRM ·
+ *  prediction_list split — sale clock, exact — and Σ its lists + "list not recorded" must be
+ *  its total. Every remaining row is explained (a sale whose list was not recorded, with the
+ *  original it was duplicated from). Until the migration is applied, the pre-rebuild
+ *  comparison below runs instead. */
 async function c3PredictionListsTab(ctx) {
+  const w = ctx.windows.range;
+  const [p] = await ctx.sql(`
+SELECT coalesce(has_function_privilege(to_regprocedure('public.insights_lists(timestamptz,timestamptz,timestamptz,timestamptz,boolean,integer)'), 'execute'), false) AS lists,
+       coalesce(has_function_privilege(to_regprocedure('public.insights_cohort(timestamptz,timestamptz,timestamptz,timestamptz,text[],boolean)'), 'execute'), false) AS cohort`);
+  if (!p.lists || !p.cohort) {
+    const legacy = await c3LegacyPredictionListsTab(ctx);
+    return { ...legacy, note: `${legacy.note ?? ''} [insights_lists (migration 20260941000400) not deployed or not executable by this role yet — the pre-rebuild tab is compared]`.trim() };
+  }
+  const from = lit(w.fromUtc);
+  const to = lit(inclusiveEnd(w.toUtc));
+  const [t] = await ctx.sql(`
+SELECT public.insights_lists(${from}, ${to}, NULL, NULL, true, 7) AS lists,
+       public.insights_cohort(${from}, ${to}, NULL, NULL, ARRAY['elyon_crm'], true) AS cohort`);
+  const L = typeof t.lists === 'string' ? JSON.parse(t.lists) : t.lists;
+  const C = typeof t.cohort === 'string' ? JSON.parse(t.cohort) : t.cohort;
+  const split = (C.by_source ?? []).find((s) => s.key === 'elyon_crm')?.splits?.find((s) => s.key === 'prediction_list') ?? {};
+  const card = (C.by_source ?? []).find((s) => s.key === 'elyon_crm')?.total ?? {};
+  const nr = L.not_recorded ?? { count: 0, value_mkd: 0, samples: [] };
+  const sumLists = (k) => (L.lists ?? []).reduce((a, l) => a + num(l[k]), 0);
+  const rows = [
+    tieRow('tab sales = Overview ElyonCRM · prediction_list', { tab: num(L.total?.count), overview: num(split.count) }, 0),
+    tieRow('tab денари = Overview ElyonCRM · prediction_list', { tab: num(L.total?.value_mkd), overview: num(split.value_mkd) }, 0),
+    tieRow('Σ lists + list not recorded = tab (sales)', { lists: sumLists('count') + num(nr.count), tab: num(L.total?.count) }, 0),
+    tieRow('Σ lists + list not recorded = tab (денари)', { lists: sumLists('value_mkd') + num(nr.value_mkd), tab: num(L.total?.value_mkd) }, 0),
+    tieRow('tab ElyonCRM footer = Overview ElyonCRM card', { tab: num(L.elyon_crm?.count), overview: num(card.count) }, 0),
+  ];
+  const bad = rows.filter((r) => !r.ok);
+  return {
+    status: bad.length ? 'FAIL' : 'PASS',
+    count: num(nr.count),
+    sample: (nr.samples ?? []).map((s) => ({
+      display_id: s.display_id,
+      why: `list not recorded — shown on the tab in its own row, inside the total${s.dup_of ? `; duplicate of ${s.dup_of}${s.dup_of_list ? ` (list "${s.dup_of_list}")` : ''}` : ''}`,
+    })),
+    note: `Prediction-lists tab (sale clock) ${fmtNum(L.total?.count)} sales / ${fmtNum(L.total?.value_mkd)} ден = Overview ElyonCRM · `
+      + `prediction_list ${fmtNum(split.count)} / ${fmtNum(split.value_mkd)} ден; ${fmtNum(nr.count)} of them carry no list `
+      + `("list not recorded" row — the /orders duplicate endpoint copies the list since 28.09.2026)`,
+    window: describeWindow(w),
+    breakdown: { tie_out: rows },
+  };
+}
+
+/** The pre-rebuild C3: the old tab (insights_orders_rollup, created day, list id) against the
+ *  Overview's ElyonCRM / prediction_list split — kept only until 20260941000400 is applied. */
+async function c3LegacyPredictionListsTab(ctx) {
   const w = ctx.windows.range;
   const skip = needOverview(ctx, w);
   if (skip) return skip;

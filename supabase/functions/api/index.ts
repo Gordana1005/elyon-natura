@@ -18,6 +18,27 @@ import * as IH from "./integrationsHealth.ts";
 // owner gate, money-strip whitelist and the /orders cohort twins (pure,
 // unit-tested in insightsCommon.test.ts).
 import * as IC from "./insightsCommon.ts";
+// Insights → Work (migration 20260941000600): access, the day param, teams /
+// rates / credited merge (pure, unit-tested in insightsWork.test.ts).
+import * as IW from "./insightsWork.ts";
+// Insights → Prediction lists (migration 20260941000400): the money-strip
+// whitelist and the response envelope (pure, unit-tested in insightsLists.test.ts).
+import * as ILS from "./insightsLists.ts";
+// Insights → Sales (migration 20260941000100): the part param, the money-strip
+// whitelist and the response envelope (pure, unit-tested in insightsSales.test.ts).
+import * as ISA from "./insightsSales.ts";
+// Insights → Agents (migration 20260941000200): access (owner / counts / self),
+// the money-strip whitelist, and the /agent-performance strip for non-owners
+// (pure, unit-tested in insightsPeople.test.ts).
+import * as IP from "./insightsPeople.ts";
+// Insights → Pure Profit + Margins (migration 20260941000300): the P&L of both
+// clocks, the commission gate, products, realized prices (pure, unit-tested in
+// insightsProfit.test.ts).
+import * as IPF from "./insightsProfit.ts";
+// Insights → Returns + Products & stock (migration 20260941000500): access,
+// the clock param, the money-strip whitelists and the response envelopes
+// (pure, unit-tested in insightsReturnsStock.test.ts).
+import * as IRS from "./insightsReturnsStock.ts";
 
 // ============================================================
 // INPUT VALIDATION SCHEMAS
@@ -7570,6 +7591,15 @@ async function handleRequest(req: Request): Promise<Response> {
           source_type: "manual",
           duplicated_from: src.id,
           duplicated_from_display: src.display_id,
+          // The re-issued sale keeps the list it was sold from (Insights →
+          // Prediction lists, 2026-09-28): without this the copy inherits
+          // elyon_crm / prediction_list from its source but no list, and the
+          // tab files it under "list not recorded" (ORD-92536 ← ORD-92231).
+          // A snapshot copy only — the bonus has no list gate.
+          prediction_list_id: src.prediction_list_id ?? null,
+          prediction_list_type: src.prediction_list_type ?? null,
+          prediction_list_name: src.prediction_list_name ?? null,
+          prediction_list_category: src.prediction_list_category ?? null,
         })
         .select()
         .single();
@@ -10357,6 +10387,14 @@ async function handleRequest(req: Request): Promise<Response> {
 
       results.sort((a: any, b: any) => b.paid_revenue - a.paid_revenue);
 
+      // Money is owners-only (2026-09-28). A non-owner gets the same rows
+      // without revenue / profit / AOV, sorted by paid count (the revenue
+      // order would leak the ranking); an agent keeps their own payout, an
+      // admin / manager does not see anyone's. The rows above — the bonus
+      // math included — are computed exactly as before.
+      if (!(await isBusinessOwner(user.id))) {
+        return json(IP.stripAgentPerformance(results, { keepPayout: isPersonalView }));
+      }
       return json(results);
     }
 
@@ -17154,6 +17192,301 @@ async function handleRequest(req: Request): Promise<Response> {
       });
       if (coErr) return json({ error: `insights_cohort: ${sanitizeDbError(coErr)}` }, 500);
       return json(IC.buildCohortResponse((coData ?? {}) as Record<string, unknown>, coWin, coOwner));
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // GET /api/insights/returns?from&to&compare=1&source=…&clock=sale|returned
+    // GET /api/insights/stock?from&to&compare=1&source=…
+    // Insights → Враќања / Производи и залихи (migration 20260941000500
+    // insights_returns / insights_stock). Returns on two clocks: sale (the
+    // cohort — ties to GET /insights/cohort's returned part) and returned
+    // (the MEX return day — ties to the parcel register). Stock: units per
+    // product (cohort item lines), the warehouse queue NOW, stock on hand only
+    // where tracked with a trust verdict, catalogue hygiene, valuation.
+    //   owner → with money · admin / manager (and, for stock, the warehouse
+    //   role) → the same, every *_mkd and the valuation ABSENT
+    //   (insightsReturnsStock.ts whitelists) · everyone else → 403
+    // The comparison is computed only for windows up to 93 days.
+    // ══════════════════════════════════════════════════════════════
+    if (req.method === "GET" && (path === "insights/returns" || path === "insights/stock")) {
+      const rsOwnerFlag = await isBusinessOwner(user.id);
+      const rsIsStock = path === "insights/stock";
+      const rsAccess = rsIsStock
+        ? IRS.stockAccess(rsOwnerFlag, isAdminOrManager, isWarehouse)
+        : IRS.returnsAccess(rsOwnerFlag, isAdminOrManager);
+      if (rsAccess === "forbidden") return json({ error: "Forbidden" }, 403);
+      const rsOwner = rsAccess === "owner";
+      const rsWin = IC.insightsWindows(
+        url.searchParams.get("from"), url.searchParams.get("to"),
+        url.searchParams.get("compare") === "1",
+      );
+      if ("error" in rsWin) return json({ error: rsWin.error }, 400);
+      const rsSources = IC.parseSourcesParam(url.searchParams.get("source"));
+      if (!rsSources.ok) return json({ error: `Invalid source: ${rsSources.bad}` }, 400);
+      if (rsIsStock) {
+        const { data: stData, error: stErr } = await adminClient.rpc("insights_stock", {
+          p_from: rsWin.fromIso, p_to_end: rsWin.toEndIso, ...IRS.prevArgs(rsWin),
+          p_sources: rsSources.values, p_money: rsOwner,
+        });
+        if (stErr) return json({ error: `insights_stock: ${sanitizeDbError(stErr)}` }, 500);
+        return json(IRS.buildStockResponse((stData ?? {}) as Record<string, unknown>, rsWin, rsOwner));
+      }
+      const rsClock = IRS.parseReturnsClock(url.searchParams.get("clock"));
+      if (!rsClock) return json({ error: "Invalid clock" }, 400);
+      const { data: rtData, error: rtErr } = await adminClient.rpc("insights_returns", {
+        p_from: rsWin.fromIso, p_to_end: rsWin.toEndIso, p_clock: rsClock, ...IRS.prevArgs(rsWin),
+        p_sources: rsSources.values, p_money: rsOwner,
+      });
+      if (rtErr) return json({ error: `insights_returns: ${sanitizeDbError(rtErr)}` }, 500);
+      return json(IRS.buildReturnsResponse((rtData ?? {}) as Record<string, unknown>, rsWin, rsOwner, rsClock));
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // GET /api/insights/profit?from=YYYY-MM-DD&to=YYYY-MM-DD&compare=1
+    // Insights → Pure Profit + Margins (migration 20260941000300
+    // insights_profit): the P&L on TWO clocks — the period's sales and what
+    // MEX collected on them (cohort), and the MEX money that landed in the
+    // period (cash) — by source, per product, per AlterCPA webmaster, with
+    // the realized price per package and the cost-coverage rail. VAT =
+    // VAT_RATE, courier = courier_rates 'mex' (loadCourierRates), commission
+    // = today's per-package bonus on paid orders, agents only (unchanged).
+    // Every figure is money → OWNERS ONLY (non-owner admin / manager →
+    // 403 owners_only, as the old Pure Profit tab). The four scans run in
+    // parallel; the previous period (compare) only up to 93 days.
+    // ══════════════════════════════════════════════════════════════
+    if (req.method === "GET" && path === "insights/profit") {
+      if (!(await isBusinessOwner(user.id))) {
+        return json({ error: isAdminOrManager ? "owners_only" : "Forbidden" }, 403);
+      }
+      const pfWin = IC.insightsWindows(
+        url.searchParams.get("from"), url.searchParams.get("to"),
+        url.searchParams.get("compare") === "1",
+      );
+      if ("error" in pfWin) return json({ error: pfWin.error }, 400);
+      const pfPrev = IPF.profitPrevWindow(pfWin);
+      const pfCall = (w: { fromIso: string; toEndIso: string }, clock: "cohort" | "cash", detail: boolean) =>
+        adminClient.rpc("insights_profit", {
+          p_from: w.fromIso, p_to_end: w.toEndIso, p_clock: clock, p_granularity: null, p_detail: detail,
+        });
+      const pfNone = Promise.resolve({ data: null, error: null });
+      const [pfCo, pfCa, pfPco, pfPca, pfRates, pfProfiles, pfRoles] = await Promise.all([
+        pfCall(pfWin, "cohort", true),
+        pfCall(pfWin, "cash", true),
+        pfPrev ? pfCall(pfPrev, "cohort", false) : pfNone,
+        pfPrev ? pfCall(pfPrev, "cash", false) : pfNone,
+        loadCourierRates(adminClient),
+        adminClient.from("profiles").select("user_id,full_name").range(0, 9999),
+        adminClient.from("user_roles").select("user_id, role")
+          .in("role", ["agent", "pending_agent", "prediction_agent", "admin", "manager"]).range(0, 9999),
+      ]);
+      if (pfCo.error) return json({ error: `insights_profit: ${sanitizeDbError(pfCo.error)}` }, 500);
+      if (pfCa.error) return json({ error: `insights_profit (cash): ${sanitizeDbError(pfCa.error)}` }, 500);
+      if (pfProfiles.error || pfRoles.error) return json({ error: "profit: agent list unavailable" }, 500);
+      // The comparison is additive: a failed previous-period scan shows no delta, never a wrong one.
+      if (pfPco.error) console.error("insights_profit (prev):", pfPco.error.message);
+      if (pfPca.error) console.error("insights_profit (prev cash):", pfPca.error.message);
+      return json(IPF.buildProfitResponse(
+        {
+          cohort: (pfCo.data ?? {}) as IPF.ProfitRpc,
+          cash: (pfCa.data ?? {}) as IPF.ProfitRpc,
+          prevCohort: pfPco.error ? null : (pfPco.data as IPF.ProfitRpc | null),
+          prevCash: pfPca.error ? null : (pfPca.data as IPF.ProfitRpc | null),
+        },
+        pfWin,
+        {
+          vatRate: VAT_RATE,
+          ...IPF.mexRate(pfRates.rates, pfRates.fallback),
+          agentNames: IPF.commissionAgentNames(pfProfiles.data ?? [], pfRoles.data ?? []),
+        },
+      ));
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // GET /api/insights/agents?from=YYYY-MM-DD&to=YYYY-MM-DD&compare=1[&person=<uuid>]
+    // Insights → Агенти (migration 20260941000200 insights_people): people and
+    // teams on the sale cohort — credited sales (orders.sold_by_person_id)
+    // with MEX-first buckets, the work ledger (v_sales_work), time on the CRM
+    // (agent_presence_days), team = primary membership on the event day, and
+    // "sales with no seller" by reason, so Σ people + no seller = the cohort.
+    // ?person= adds that person's day-by-day drill.
+    //   owner → with money · admin / manager → everyone, every *_mkd ABSENT
+    //   (insightsPeople.ts whitelist) · any other holder of Insights /
+    //   Performance (an agent) → their OWN person only, no money · else 403
+    // The bonus figures stay on GET /agent-performance, unchanged.
+    // ══════════════════════════════════════════════════════════════
+    if (req.method === "GET" && path === "insights/agents") {
+      const agAccess = IP.peopleAccess({
+        isOwner: await isBusinessOwner(user.id),
+        isAdminOrManager,
+        canViewTab: canViewModule("insights") || canViewModule("performance"),
+      });
+      if (agAccess === "forbidden") return json({ error: "Forbidden" }, 403);
+      const agWin = IC.insightsWindows(
+        url.searchParams.get("from"), url.searchParams.get("to"),
+        url.searchParams.get("compare") === "1",
+      );
+      if ("error" in agWin) return json({ error: agWin.error }, 400);
+      const agPerson = IP.parsePersonParam(url.searchParams.get("person"));
+      if (!agPerson.ok) return json({ error: "Invalid person" }, 400);
+      let agPersonId = agPerson.value;
+      if (agAccess === "self") {
+        // An agent sees only the sales person their login is (never ?person=).
+        const { data: spRow, error: spErr } = await adminClient
+          .from("sales_people").select("id").eq("user_id", user.id).maybeSingle();
+        if (spErr) return json({ error: sanitizeDbError(spErr) }, 500);
+        if (!spRow) return json(IP.buildPeopleResponse(null, agWin, "self", null));
+        agPersonId = spRow.id as string;
+      }
+      const { data: agData, error: agErr } = await adminClient.rpc("insights_people", {
+        p_from: agWin.fromIso,
+        p_to_end: agWin.toEndIso,
+        p_prev_from: agWin.prev?.fromIso ?? null,
+        p_prev_to_end: agWin.prev?.toEndIso ?? null,
+        p_person: agPersonId,
+      });
+      if (agErr) return json({ error: `insights_people: ${sanitizeDbError(agErr)}` }, 500);
+      return json(IP.buildPeopleResponse(
+        (agData ?? {}) as Record<string, unknown>, agWin, agAccess, agAccess === "self" ? agPersonId : null,
+      ));
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // GET /api/insights/sales?from=YYYY-MM-DD&to=YYYY-MM-DD&compare=1&part=core|detail
+    // Insights → Продажби (migration 20260941000100 insights_sales): THE sale
+    // cohort as "what did we sell". part=core (default) = the cohort block
+    // (= GET /insights/cohort for the window), trend by source, MEX account ×
+    // series, weekday × hour, quality — plus the previous period's totals,
+    // fetched in PARALLEL (if that fails the tab still answers, prev: null).
+    // part=detail = products, cities, buyers, basket (the heavy tables; the
+    // tab asks for both at once and draws the header first).
+    //   owner → with money · admin / manager → the same, every *_mkd ABSENT
+    //   (insightsSales.ts whitelist) · everyone else → 403
+    // ══════════════════════════════════════════════════════════════
+    if (req.method === "GET" && path === "insights/sales") {
+      const saAccess = IC.insightsAccess(await isBusinessOwner(user.id), isAdminOrManager);
+      if (saAccess === "forbidden") return json({ error: "Forbidden" }, 403);
+      const saOwner = saAccess === "owner";
+      const saWin = IC.insightsWindows(
+        url.searchParams.get("from"), url.searchParams.get("to"),
+        url.searchParams.get("compare") === "1",
+      );
+      if ("error" in saWin) return json({ error: saWin.error }, 400);
+      const saPart = ISA.parseSalesPart(url.searchParams.get("part"));
+      if (!saPart) return json({ error: "Invalid part" }, 400);
+      const [saRes, saPrevRes] = await Promise.all([
+        adminClient.rpc("insights_sales", {
+          p_from: saWin.fromIso, p_to_end: saWin.toEndIso, p_part: saPart, p_money: saOwner, p_top: ISA.SALES_TOP_N,
+        }),
+        saPart === "core" && saWin.prev
+          ? adminClient.rpc("insights_sales", {
+            p_from: saWin.prev.fromIso, p_to_end: saWin.prev.toEndIso, p_part: "summary", p_money: saOwner, p_top: ISA.SALES_TOP_N,
+          })
+          : Promise.resolve(null),
+      ]);
+      if (saRes.error) return json({ error: `insights_sales: ${sanitizeDbError(saRes.error)}` }, 500);
+      if (saPrevRes?.error) console.error("insights_sales (prev):", saPrevRes.error.message);
+      return json(ISA.buildSalesResponse(
+        (saRes.data ?? {}) as Record<string, unknown>,
+        saPrevRes && !saPrevRes.error ? saPrevRes.data : null,
+        saWin, saOwner, saPart,
+      ));
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // GET /api/insights/lists?from=YYYY-MM-DD&to=YYYY-MM-DD&compare=1
+    // Insights → Prediction lists (migration 20260941000400): the ElyonCRM
+    // prediction-list slice of the sale cohort per list — members now, worked
+    // decisions, sales, MEX-first buckets, MEX cash, stale to-pack, sellers,
+    // trend, quality. Σ lists + "list not recorded" = the Overview's ElyonCRM ·
+    // prediction_list split. The cash-flow line (insights_lists_cash, MEX
+    // delivery day) runs in PARALLEL; if it fails the tab still answers.
+    //   owner → with money · admin / manager → the same, every *_mkd ABSENT
+    //   (insightsLists.ts whitelist) · everyone else → 403
+    // ══════════════════════════════════════════════════════════════
+    if (req.method === "GET" && path === "insights/lists") {
+      const lsAccess = IC.insightsAccess(await isBusinessOwner(user.id), isAdminOrManager);
+      if (lsAccess === "forbidden") return json({ error: "Forbidden" }, 403);
+      const lsOwner = lsAccess === "owner";
+      const lsWin = IC.insightsWindows(
+        url.searchParams.get("from"), url.searchParams.get("to"),
+        url.searchParams.get("compare") === "1",
+      );
+      if ("error" in lsWin) return json({ error: lsWin.error }, 400);
+      const [lsRes, lsCashRes] = await Promise.all([
+        adminClient.rpc("insights_lists", {
+          p_from: lsWin.fromIso,
+          p_to_end: lsWin.toEndIso,
+          p_prev_from: lsWin.prev?.fromIso ?? null,
+          p_prev_to_end: lsWin.prev?.toEndIso ?? null,
+          p_money: lsOwner,
+          p_stale_days: ILS.LISTS_STALE_DAYS,
+        }),
+        adminClient.rpc("insights_lists_cash", { p_from: lsWin.fromIso, p_to_end: lsWin.toEndIso, p_money: lsOwner }),
+      ]);
+      if (lsRes.error) return json({ error: `insights_lists: ${sanitizeDbError(lsRes.error)}` }, 500);
+      if (lsCashRes.error) console.error("insights_lists_cash:", lsCashRes.error.message);
+      return json(ILS.buildListsResponse(
+        (lsRes.data ?? {}) as Record<string, unknown>,
+        lsCashRes.error ? null : (lsCashRes.data as Record<string, unknown> | null),
+        lsWin, lsOwner,
+      ));
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // GET /api/insights/work?from=YYYY-MM-DD&to=YYYY-MM-DD&compare=1
+    // GET /api/insights/work/day?day=YYYY-MM-DD
+    // Insights → Work ("Активност на повици", migration 20260941000600): who
+    // worked, how much, how well — decisions (v_sales_work, CRM + AlterCPA
+    // panel), agent-reported call logs, presence, breaks, cohort-credited
+    // sales, the call-again queues; /day is one Skopje day's swimlane.
+    // No money at all. Gate = the call_activity module, as the tab has
+    // always had (never widened): admins / managers / owners see everyone,
+    // any other holder only their own row. The cohort's credited sales run
+    // in parallel (the heavy scan), for this and the previous period.
+    // /management-insights?scope=calls keeps answering for older clients.
+    // ══════════════════════════════════════════════════════════════
+    if (req.method === "GET" && (path === "insights/work" || path === "insights/work/day")) {
+      const wkAccess = IW.workAccess({
+        canCallActivity: canViewModule("call_activity"),
+        isAdminOrManager,
+        isOwner: await isBusinessOwner(user.id),
+      });
+      if (wkAccess === "forbidden") return json({ error: "Forbidden" }, 403);
+      const wkSelf = wkAccess === "self" ? user.id : null;
+      if (path === "insights/work/day") {
+        const wkDay = IW.parseWorkDay(url.searchParams.get("day"));
+        if ("error" in wkDay) return json({ error: wkDay.error }, 400);
+        const { data: wdData, error: wdErr } = await adminClient.rpc("insights_work_day", {
+          p_from: wkDay.fromIso, p_to_end: wkDay.toEndIso, p_user_id: wkSelf,
+        });
+        if (wdErr) return json({ error: `insights_work_day: ${sanitizeDbError(wdErr)}` }, 500);
+        return json(IW.buildWorkDayResponse(wdData, wkDay, { self: !!wkSelf }));
+      }
+      const wkWin = IC.insightsWindows(
+        url.searchParams.get("from"), url.searchParams.get("to"),
+        url.searchParams.get("compare") === "1",
+      );
+      if ("error" in wkWin) return json({ error: wkWin.error }, 400);
+      const [wkRes, wkCr, wkPrevCr] = await Promise.all([
+        adminClient.rpc("insights_work", {
+          p_from: wkWin.fromIso,
+          p_to_end: wkWin.toEndIso,
+          p_prev_from: wkWin.prev?.fromIso ?? null,
+          p_prev_to_end: wkWin.prev?.toEndIso ?? null,
+          p_user_id: wkSelf,
+        }),
+        adminClient.rpc("insights_work_credited", { p_from: wkWin.fromIso, p_to_end: wkWin.toEndIso, p_user_id: wkSelf }),
+        wkWin.prev
+          ? adminClient.rpc("insights_work_credited", { p_from: wkWin.prev.fromIso, p_to_end: wkWin.prev.toEndIso, p_user_id: wkSelf })
+          : Promise.resolve({ data: null, error: null }),
+      ]);
+      if (wkRes.error) return json({ error: `insights_work: ${sanitizeDbError(wkRes.error)}` }, 500);
+      // Credited sales are additive: a failed cohort scan shows "—", never 0.
+      if (wkCr.error) console.error("insights_work_credited:", wkCr.error.message);
+      if (wkPrevCr.error) console.error("insights_work_credited (prev):", wkPrevCr.error.message);
+      return json(IW.buildWorkResponse(
+        wkRes.data, wkCr.error ? null : wkCr.data, wkPrevCr.error ? null : wkPrevCr.data, wkWin, { self: !!wkSelf },
+      ));
     }
 
     // GET /api/insights/pivot?from&to&by=source,team,person — the Overview's

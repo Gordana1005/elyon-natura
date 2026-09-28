@@ -1,327 +1,148 @@
-import i18n from '@/i18n';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertTriangle, Coins, Package, TrendingUp, Truck, Users } from 'lucide-react';
-import type { InsightsResponse } from '@/lib/api';
-import type { DateRange } from '@/components/DateRangePicker';
-import { formatMoney } from '@/lib/currency';
-import { KpiCard as Kpi } from '@/components/insights/KpiCard';
-import PureProfitExportDialog from '@/components/insights/PureProfitExportDialog';
-import ChannelPLCard from '@/components/insights/ChannelPLCard';
-import AffiliateBreakdownCard from '@/components/insights/AffiliateBreakdownCard';
+import { useMemo, useState } from 'react';
+import { AlertTriangle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/EmptyState';
+import { apiErrorText } from '@/i18n/apiErrors';
+import { cn } from '@/lib/utils';
+import { skopjeHm } from '@/lib/presence/state';
+import { OVERVIEW_COLOR_VARS } from '../overview/palette';
+import { CohortBar } from '../shared/CohortBar';
+import { useInsightsFormat } from '../shared/useInsightsFormat';
+import { AffiliateBreakdownCard } from './AffiliateBreakdownCard';
+import { ClockSwitch, type ClockKey } from './ClockSwitch';
+import { ProductPLTable } from './ProductPLTable';
+import { ProfitHero } from './ProfitHero';
+import { ProfitQualityRail } from './ProfitQualityRail';
+import { ProfitTrend } from './ProfitTrend';
+import { SourcePLTable } from './SourcePLTable';
+import { Waterfall } from './Waterfall';
+import PureProfitExportDialog from './PureProfitExportDialog';
+import { PROFIT_COLOR_VARS } from './profitPalette';
+import { stripRows } from './profitModel';
+import { useProfitQuery } from './useProfitQuery';
 
-// Insights → Pure Profit. Moved verbatim out of ManagementInsightsPage (WP0)
-// so the Profit package edits its own file.
+/**
+ * Insights → Чиста добивка (Pure Profit), owners only. GET /insights/profit
+ * for the page's one period: the P&L on two clocks — the SALES made in the
+ * period and what MEX collected on them (cohort, the default), and the MONEY
+ * that landed in the period (cash) — revenue → VAT → product cost (known +
+ * labelled estimate) → MEX courier → returns → today's commission → lead cost
+ * (not configured) → net, by source, per AlterCPA webmaster, per product, per
+ * day, with the cost-coverage rail. The previous render stays while a new
+ * period loads.
+ */
+export default function PureProfitTab() {
+  const f = useInsightsFormat();
+  const { t } = f;
+  const { q, period } = useProfitQuery();
+  const [clockKey, setClockKey] = useState<ClockKey>('cohort');
+  const data = q.data;
+  const clock = data ? (clockKey === 'cohort' ? data.cohort : data.cash) : null;
+  const rows = useMemo(() => (data ? stripRows(data.strip) : []), [data]);
 
-// Dual EUR/LEV money display (elyon-currency skill): EUR primary, LEV muted.
-function Money({ eur, className }: { eur: number; className?: string }) {
+  const clockLabel = t(clockKey === 'cohort' ? 'insights.profit.clock.cohortCaption' : 'insights.profit.clock.cashCaption', {
+    period: data ? f.period(data.meta.from, data.meta.to) : '',
+  });
+  const cutAt = data?.meta.partial && data.meta.prev_to_end ? skopjeHm(data.meta.prev_to_end) : '';
+  const prevLabel = data?.meta.prev_from && data.meta.prev_to
+    ? (cutAt
+      ? t('overview.kpi.vsPrevPartial', { period: f.period(data.meta.prev_from, data.meta.prev_to), time: cutAt })
+      : t('overview.kpi.vsPrev', { period: f.period(data.meta.prev_from, data.meta.prev_to) }))
+    : null;
+  const errorText = (err: unknown) =>
+    err instanceof Error && err.message === 'owners_only' ? t('insights.ownersOnly')
+      : err instanceof Error && /^HTTP 404$|not found/i.test(err.message) ? t('overview.notDeployed') : apiErrorText(err);
+
   return (
-    <span className={className}>
-      {formatMoney(eur)}{' '}
+    <div className={cn('space-y-6', OVERVIEW_COLOR_VARS, PROFIT_COLOR_VARS)}>
+      {!data || !clock ? (
+        q.isError ? (
+          <EmptyState
+            icon={<AlertTriangle className="h-5 w-5" />}
+            title={t('insights.loadFailed')}
+            description={errorText(q.error)}
+            size="sm"
+            action={<Button variant="outline" size="sm" onClick={() => { void q.refetch(); }}>{t('common.retry')}</Button>}
+          />
+        ) : <ProfitSkeleton />
+      ) : (
+        <div aria-busy={q.isFetching} className={cn('space-y-8 transition-opacity duration-200', q.isPlaceholderData && 'opacity-60')}>
+          {q.isError && (
+            <p role="alert" className="flex items-center gap-2 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
+              <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
+              {t('overview.staleError')} {errorText(q.error)}
+              <Button variant="ghost" size="sm" className="ml-auto h-6 px-2 text-xs" onClick={() => { void q.refetch(); }}>{t('common.retry')}</Button>
+            </p>
+          )}
 
-    </span>
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">
+                {t('insights.profit.intro')}
+                {period.compare && data.meta.prev_skipped && (
+                  <span className="block">{t('insights.profit.prevSkipped', { n: data.meta.prev_max_days })}</span>
+                )}
+              </p>
+              <PureProfitExportDialog data={data} />
+            </div>
+            <ClockSwitch value={clockKey} onChange={setClockKey} cohort={data.cohort} cash={data.cash} f={f} />
+          </div>
+
+          <ProfitHero clock={clock} meta={data.meta} prevLabel={prevLabel} f={f} />
+
+          {clockKey === 'cohort' && (
+            <CohortBar
+              title={t('insights.profit.strip.title', { period: f.period(data.meta.from, data.meta.to) })}
+              note={t('insights.profit.strip.note')}
+              total={data.strip.total}
+              buckets={data.strip.buckets}
+              outside={data.strip.outside}
+              money
+              rows={rows}
+              range={{ from: data.meta.from, to: data.meta.to }}
+              f={f}
+            />
+          )}
+
+          <div className="grid grid-cols-1 gap-6 2xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+            <Waterfall row={clock.total} meta={data.meta} clockLabel={clockLabel} f={f} />
+            <ProfitTrend points={clock.trend} granularity={data.meta.granularity} cohort={clockKey === 'cohort'} f={f} />
+          </div>
+
+          <SourcePLTable clockRows={clock.by_source} total={clock.total} meta={data.meta} clockLabel={clockLabel} f={f} />
+
+          <AffiliateBreakdownCard
+            rows={clock.affiliates}
+            altercpa={clock.by_source.find((r) => r.key === 'altercpa')}
+            cohort={clockKey === 'cohort'}
+            f={f}
+          />
+
+          <ProductPLTable rows={data.products} others={data.products_others} total={data.products_total} f={f} />
+
+          <ProfitQualityRail items={data.quality} f={f} />
+        </div>
+      )}
+    </div>
   );
 }
 
-const courierServiceLabel = (k: string): string => ({
-  econt_office: i18n.t('insights.econtOffice'), econt_door: i18n.t('insights.econtDoor'),
-  speedy_office: i18n.t('insights.speedyOffice'), speedy_door: i18n.t('insights.speedyDoor'),
-  mex_office: i18n.t('insights.mexOffice'), mex_door: i18n.t('insights.mexDoor'),
-  unknown: i18n.t('insights.courierNotRecorded'),
-}[k] || k);
-
-export default function PureProfitTab({ data, range, canExport }: { data: InsightsResponse; range: DateRange; canExport: boolean }) {
-  const pp = data.pure_profit;
-  const hasPureProfit = !!pp;
-
-  // Costs (new actuals fields, with safe fallbacks to the legacy keys).
-  const cash = pp?.cash_collected ?? 0;
-  const vat = pp?.vat ?? 0;
-  const vatPct = Math.round((pp?.vat_rate ?? 0.2) * 100);
-  const cogs = pp?.cogs ?? 0;
-  const commissions = pp?.agent_commissions ?? pp?.special_agent_commissions ?? 0;
-  const delivery = pp?.delivery_cost ?? 0;
-  const returnLoss = pp?.return_loss ?? 0;
-  const clear = pp?.clear_profit ?? 0;
-  const totalCosts = vat + cogs + commissions + delivery + returnLoss;
-  const costCoverage = pp?.cost_coverage ?? 1;
-  const missingCost = pp?.products_missing_cost ?? [];
-
-  const byProduct = pp?.by_product || [];
-  const paidOrders = pp?.paid_orders ?? 0;
-  const paidPackages = pp?.paid_packages ?? 0;
-  const packagesPerOrder = pp?.packages_per_order ?? 0;
-
-  const logistics = data.logistics || [];
-  const logiTotals = logistics.reduce(
-    (t, l) => ({
-      delivered: t.delivered + l.delivered, returned: t.returned + l.returned,
-      deliver_cost: t.deliver_cost + l.deliver_cost, return_cost: t.return_cost + l.return_cost,
-      total_cost: t.total_cost + l.total_cost,
-    }),
-    { delivered: 0, returned: 0, deliver_cost: 0, return_cost: 0, total_cost: 0 },
-  );
-
-  // Agents with payout data
-  const agentsWithPayout = (data.agents || []).filter((a: any) => (a.payout_earned ?? 0) > 0)
-    .sort((a: any, b: any) => (b.payout_earned ?? 0) - (a.payout_earned ?? 0));
-
+function ProfitSkeleton() {
   return (
-    <div className="space-y-4">
-      {/* The export carries the whole money picture — owners only. */}
-      {canExport && (
-        <div className="flex justify-end">
-          <PureProfitExportDialog data={data} range={range} />
-        </div>
-      )}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <Kpi
-          icon={Coins}
-          label={i18n.t('insights.kpiCash')}
-          value={hasPureProfit ? formatMoney(cash) : '—'}
-          tone="bg-emerald-100 text-emerald-700"
-        />
-        <Kpi
-          icon={Coins}
-          label={i18n.t('insights.kpiVat', { pct: vatPct })}
-          value={hasPureProfit ? `−${formatMoney(vat)}` : '—'}
-          tone="bg-rose-100 text-rose-700"
-        />
-        <Kpi
-          icon={Package}
-          label={i18n.t('insights.kpiCogs')}
-          value={hasPureProfit ? `−${formatMoney(cogs)}` : '—'}
-        />
-        <Kpi
-          icon={Truck}
-          label={i18n.t('insights.kpiDelivery')}
-          value={hasPureProfit ? `−${formatMoney(delivery + returnLoss)}` : '—'}
-          tone="bg-sky-100 text-sky-700"
-        />
-        <Kpi
-          icon={Users}
-          label={i18n.t('insights.kpiCommissions')}
-          value={hasPureProfit ? `−${formatMoney(commissions)}` : '—'}
-          tone="bg-amber-100 text-amber-700"
-        />
-        <Kpi
-          icon={TrendingUp}
-          label={i18n.t('insights.kpiClear')}
-          value={hasPureProfit ? formatMoney(clear) : '—'}
-          tone="bg-primary/10 text-primary"
-        />
+    <div className="space-y-5" aria-hidden>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <Skeleton variant="card" className="h-28" />
+        <Skeleton variant="card" className="h-28" />
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Coins className="h-4 w-4" /> Pure Profit Breakdown
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {!hasPureProfit ? (
-            <div className="text-sm text-muted-foreground">{i18n.t('insights.noPureProfit')}</div>
-          ) : (
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="font-medium text-emerald-700">{i18n.t('insights.cashCollected')}</span>
-                <Money eur={cash} className="font-semibold text-emerald-700" />
-              </div>
-              <div className="flex justify-between text-rose-600">
-                <span>{i18n.t('insights.vatLine', { pct: vatPct })}</span>
-                <span className="font-semibold">−<Money eur={vat} /></span>
-              </div>
-              <div className="flex justify-between text-muted-foreground">
-                <span>{i18n.t('insights.cogsLine')}</span>
-                <span className="font-semibold">−<Money eur={cogs} /></span>
-              </div>
-              <div className="flex justify-between text-muted-foreground">
-                <span>{i18n.t('insights.deliveryLine')}</span>
-                <span className="font-semibold">−<Money eur={delivery} /></span>
-              </div>
-              <div className="flex justify-between text-muted-foreground">
-                <span>{i18n.t('insights.returnLossLine')}</span>
-                <span className="font-semibold">−<Money eur={returnLoss} /></span>
-              </div>
-              <div className="flex justify-between text-amber-600">
-                <span>{i18n.t('insights.commissionsLine')}</span>
-                <span className="font-semibold">−<Money eur={commissions} /></span>
-              </div>
-              <div className="flex justify-between text-xs text-muted-foreground border-t pt-2">
-                <span>{i18n.t('insights.totalCosts')}</span>
-                <span>−{formatMoney(totalCosts)}</span>
-              </div>
-              <div className="border-t pt-2 flex justify-between font-bold text-lg">
-                <span>{i18n.t('insights.clearMoney')}</span>
-                <Money eur={clear} />
-              </div>
-              <div className="text-xs text-muted-foreground pt-1">
-                {i18n.t('insights.cashBasisNote')}
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {hasPureProfit && costCoverage < 1 && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 flex gap-2">
-          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-          <div>
-            <span className="font-semibold">{i18n.t('insights.coverageKnown', { pct: (costCoverage * 100).toFixed(1) })}</span>
-            {i18n.t('insights.coverageWarning')}<span className="font-medium">{missingCost.join(', ')}</span>
-          </div>
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[5fr_9fr]">
+        <Skeleton variant="card" className="h-48" />
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+          {Array.from({ length: 6 }, (_, i) => <Skeleton key={i} variant="card" className="h-24" />)}
         </div>
-      )}
-
-      {/* Where the money came from: the same waterfall split by channel, plus
-          the per-affiliator (webmaster) breakdown. Lead cost is 0 until
-          per-webmaster rates are injected. */}
-      {data.channel_pl && (
-        <ChannelPLCard data={data.channel_pl} vatPct={vatPct} rangeFrom={range?.from} />
-      )}
-      {data.channel_pl && <AffiliateBreakdownCard byAffiliate={data.channel_pl.by_affiliate} />}
-
-      {byProduct.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Package className="h-4 w-4" /> Product Breakdown (paid orders)
-            </CardTitle>
-            <div className="text-xs text-muted-foreground">
-              {paidOrders.toLocaleString()} paid orders · {paidPackages.toLocaleString()} packages ·{' '}
-              {packagesPerOrder.toFixed(1)} per order
-            </div>
-          </CardHeader>
-          <CardContent className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-[11px] uppercase tracking-wider text-muted-foreground">
-                  <th className="text-left py-2">{i18n.t('ordersPage.colProduct')}</th>
-                  <th className="text-right py-2">{i18n.t('insights.colPackages')}</th>
-                  <th className="text-right py-2">{i18n.t('insights.orders')}</th>
-                  <th className="text-right py-2">{i18n.t('insights.colUnitPrice')}</th>
-                  <th className="text-right py-2">{i18n.t('insights.colUnitCost')}</th>
-                  <th className="text-right py-2">{i18n.t('insights.revenue')}</th>
-                  <th className="text-right py-2">{i18n.t('insights.colNetRevenue')}</th>
-                  <th className="text-right py-2">{i18n.t('insights.colCost')}</th>
-                  <th className="text-right py-2">{i18n.t('insights.colProfit')}</th>
-                  <th className="text-right py-2">{i18n.t('insights.colNetProfit')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {byProduct.map((p) => (
-                  <tr key={p.product} className="border-b last:border-0">
-                    <td className="py-2 font-medium">
-                      {p.product}
-                      <span className="text-muted-foreground font-normal"> · {p.packages}×{formatMoney(p.unit_price)}</span>
-                    </td>
-                    <td className="py-2 text-right">{p.packages.toLocaleString()}</td>
-                    <td className="py-2 text-right">{p.orders.toLocaleString()}</td>
-                    <td className="py-2 text-right">{formatMoney(p.unit_price)}</td>
-                    <td className="py-2 text-right text-muted-foreground">{p.unit_cost > 0 ? formatMoney(p.unit_cost) : '—'}</td>
-                    <td className="py-2 text-right">{formatMoney(p.revenue)}</td>
-                    <td className="py-2 text-right text-muted-foreground">{formatMoney(p.net_revenue ?? p.revenue)}</td>
-                    <td className="py-2 text-right text-muted-foreground">{formatMoney(p.cogs)}</td>
-                    <td className="py-2 text-right font-semibold text-emerald-600">{formatMoney(p.profit)}</td>
-                    <td className="py-2 text-right font-semibold">{formatMoney(p.net_profit ?? p.profit)}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t-2 font-semibold">
-                  <td className="py-2">{i18n.t('insights.totalRow')}</td>
-                  <td className="py-2 text-right">{paidPackages.toLocaleString()}</td>
-                  <td className="py-2 text-right">{paidOrders.toLocaleString()}</td>
-                  <td className="py-2 text-right" colSpan={2}></td>
-                  <td className="py-2 text-right">{formatMoney(byProduct.reduce((s, p) => s + p.revenue, 0))}</td>
-                  <td className="py-2 text-right text-muted-foreground">{formatMoney(byProduct.reduce((s, p) => s + (p.net_revenue ?? p.revenue), 0))}</td>
-                  <td className="py-2 text-right text-muted-foreground">{formatMoney(byProduct.reduce((s, p) => s + p.cogs, 0))}</td>
-                  <td className="py-2 text-right text-emerald-600">{formatMoney(byProduct.reduce((s, p) => s + p.profit, 0))}</td>
-                  <td className="py-2 text-right">{formatMoney(byProduct.reduce((s, p) => s + (p.net_profit ?? p.profit), 0))}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </CardContent>
-        </Card>
-      )}
-
-      {logistics.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Truck className="h-4 w-4" /> Logistics Spend by Courier
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-[11px] uppercase tracking-wider text-muted-foreground">
-                  <th className="text-left py-2">{i18n.t('insights.courierService')}</th>
-                  <th className="text-right py-2">{i18n.t('insights.colDelivered')}</th>
-                  <th className="text-right py-2">{i18n.t('status.returned')}</th>
-                  <th className="text-right py-2">{i18n.t('insights.colDeliveryCost')}</th>
-                  <th className="text-right py-2">{i18n.t('insights.colReturnLoss')}</th>
-                  <th className="text-right py-2">{i18n.t('insights.totalRow')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {logistics.map((l) => {
-                  const key = `${l.courier}_${l.service}`;
-                  return (
-                    <tr key={key} className="border-b last:border-0">
-                      <td className="py-2 font-medium">{courierServiceLabel(key)}</td>
-                      <td className="py-2 text-right">{l.delivered.toLocaleString()}</td>
-                      <td className="py-2 text-right">{l.returned.toLocaleString()}</td>
-                      <td className="py-2 text-right">{formatMoney(l.deliver_cost)}</td>
-                      <td className="py-2 text-right text-pink-600">{formatMoney(l.return_cost)}</td>
-                      <td className="py-2 text-right font-semibold">{formatMoney(l.total_cost)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot>
-                <tr className="border-t-2 font-semibold">
-                  <td className="py-2">{i18n.t('insights.totalRow')}</td>
-                  <td className="py-2 text-right">{logiTotals.delivered.toLocaleString()}</td>
-                  <td className="py-2 text-right">{logiTotals.returned.toLocaleString()}</td>
-                  <td className="py-2 text-right">{formatMoney(logiTotals.deliver_cost)}</td>
-                  <td className="py-2 text-right text-pink-600">{formatMoney(logiTotals.return_cost)}</td>
-                  <td className="py-2 text-right"><Money eur={logiTotals.total_cost} /></td>
-                </tr>
-              </tfoot>
-            </table>
-          </CardContent>
-        </Card>
-      )}
-
-      {agentsWithPayout.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Users className="h-4 w-4" /> Agent Earnings (Payouts)
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-[11px] uppercase tracking-wider text-muted-foreground">
-                  <th className="text-left py-2">{i18n.t('search.colAgent')}</th>
-                  <th className="text-right py-2">{i18n.t('insights.payoutEarned')}</th>
-                  <th className="text-right py-2">{i18n.t('insights.packagesSold')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {agentsWithPayout.map((a: any) => (
-                  <tr key={a.name} className="border-b last:border-0">
-                    <td className="py-2 font-medium">{a.name}</td>
-                    <td className="py-2 text-right font-semibold text-emerald-600">{formatMoney(a.payout_earned || 0)}</td>
-                    <td className="py-2 text-right">{(a.packages_sold ?? a.units ?? 0).toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
-      )}
+      </div>
+      <Skeleton variant="card" className="h-72" />
+      <Skeleton variant="card" className="h-64" />
     </div>
   );
 }

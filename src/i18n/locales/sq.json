@@ -2620,6 +2620,770 @@
     "avgPerPkg": "Mes. / paketë"
   },
   "insights": {
+    "returns": {
+      "notDeployed": "Skeda Kthimet ende nuk është publikuar në server.",
+      "empty": "Nuk ka të dhëna për këtë periudhë.",
+      "emptyTitle": "Nuk ka kthime për të shfaqur",
+      "emptySale": "Nuk ka shitje në këtë periudhë për burimet e zgjedhura.",
+      "emptyMex": "MEX nuk ka dorëzuar e as kthyer asnjë pako në këtë periudhë për burimet e zgjedhura.",
+      "noLinkMexDay": "Lista e Porosive nuk mund të filtrojë sipas ditës kur MEX e ktheu pakon",
+      "smallBase": "Më pak se {{n}} — shkalla nuk është e besueshme",
+      "asTable": "Shfaq si tabelë",
+      "daysN": "{{n}} ditë",
+      "pp": "{{n}} p.p.",
+      "ppUp": "Shkalla është {{n}} pikë përqindjeje më e lartë se periudha e mëparshme",
+      "ppDown": "Shkalla është {{n}} pikë përqindjeje më e ulët se periudha e mëparshme",
+      "ppFlat": "Shkalla është e njëjtë me periudhën e mëparshme",
+      "clock": {
+        "label": "Si numërohen kthimet",
+        "sale": "Shitjet në periudhë",
+        "saleHint": "Shitjet e bëra në periudhë dhe sa prej tyre janë kthyer deri tani (kohortë)",
+        "returned": "Të kthyera në periudhë (MEX)",
+        "returnedHint": "Pakot që MEX i ktheu në periudhë, pavarësisht kur është bërë shitja"
+      },
+      "hero": {
+        "titleSale": "Të kthyera nga shitjet · {{period}}",
+        "titleMex": "Pako të kthyera · {{period}}",
+        "ofSales": "nga {{n}} shitje · {{pct}} deri tani",
+        "ofFinished": "nga {{n}} pako të përfunduara · {{pct}}",
+        "uncollected": "Pagesë në dorëzim e paarkëtuar",
+        "barLabel": "Çfarë ndodhi me shitjet",
+        "soFar": "{{n}} shitje ({{pct}}) ende nuk kanë përfunduar — te korrieri, të paketuara ose në magazinë. Shkalla është \"deri tani\" dhe do të rritet derisa të përfundojë çdo pako."
+      },
+      "part": {
+        "closedSale": "Të dorëzuara / të mbyllura",
+        "delivered": "Të dorëzuara",
+        "open": "Ende të hapura",
+        "returned": "Të kthyera"
+      },
+      "tile": {
+        "rateSale": "Shkalla e kthimit (deri tani)",
+        "rateMex": "Shkalla e kthimit",
+        "prevRate": "më parë {{pct}} · {{n}} të kthyera",
+        "uncollected": "Pagesë e paarkëtuar",
+        "uncollectedSub": "Pagesë që MEX nuk e arkëtoi — malli kthehet, nuk është humbje",
+        "parcels": "Pako të kthyera (MEX)",
+        "parcelsSub": "Me dëshmi nga MEX (statusi 7)",
+        "roundTrip": "Humbje nga dërgesa",
+        "roundTripSub": "Sipas tarifave: kthimi {{rate}} për pako · nëse MEX faturon edhe dërgesën ({{per}}): {{outbound}}",
+        "problem": "Te korrieri me problem",
+        "problemSplit": "refuzuara {{rejected}} · tentim dorëzimi {{attempted}} · problematike {{problematic}}",
+        "problemNow": "Tani, të gjitha shitjet: refuzuara {{rejected}} · tentim {{attempted}} · problem {{problematic}}",
+        "problemNowTitle": "Te korrieri me problem tani",
+        "cancelledAfter": "Të anuluara pas shitjes",
+        "trashedAfter": "në kosh pas shitjes {{n}}",
+        "cancelledSale": "Të shitura, pastaj të anuluara pa pako — nuk janë kthime",
+        "cancelledDecided": "Numëruar sipas ditës së anulimit — nuk janë kthime",
+        "daysToReturn": "Deri në kthim (mediana)",
+        "atCourier": "prej tyre te korrieri {{n}} ditë"
+      },
+      "source": {
+        "title": "Kthimet sipas burimit"
+      },
+      "col": {
+        "name": "Emri",
+        "sales": "Shitje",
+        "finished": "Të përfunduara",
+        "returned": "Të kthyera",
+        "rate": "Shkalla",
+        "open": "Të hapura",
+        "uncollected": "E paarkëtuar",
+        "soldUnits": "Copë të shitura",
+        "returnedUnits": "Copë të kthyera",
+        "day": "Dita"
+      },
+      "trend": {
+        "titleSale": "Shitjet sipas ditës dhe çfarë ndodhi me to",
+        "titleMex": "Pako të përfunduara sipas ditës",
+        "subSale": "Ditët e fundit janë ende të hapura — prandaj kanë më pak kthime"
+      },
+      "product": {
+        "title": "Kthimet sipas produktit",
+        "sub": "Copë nga rreshtat e porosive (pa pikë, shënime dhe dërgesë); dhuratat veçmas",
+        "notInCatalogue": "nuk është në katalog",
+        "notInCatalogueHint": "Emri nuk përputhet me asnjë produkt të katalogut — shiko \"Higjiena e katalogut\" te Produktet dhe stoku",
+        "others": "Produkte të tjera ({{n}})",
+        "mexOnlySale": "Pako MEX pa porosi (pa të dhëna për produktin): {{base}} shitje, {{returned}} të kthyera",
+        "mexOnlyMex": "Pako MEX pa porosi (pa të dhëna për produktin): {{base}} të përfunduara, {{returned}} të kthyera",
+        "free": "Copë falas (dhurata): {{returned}} të kthyera nga {{sold}}",
+        "notProducts": "Nuk numërohen: {{n}} rreshta pikësh / shënimesh / dërgese dhe {{bad}} copë me sasi të pamundur"
+      },
+      "city": {
+        "title": "Kthimet sipas qytetit",
+        "sub": "Qyteti i marrësit nga MEX, latinisht dhe cirilisht të bashkuara · {{n}} vende",
+        "others": "Vende të tjera ({{n}})"
+      },
+      "person": {
+        "title": "Kthimet sipas shitësit",
+        "sub": "Vetëm porositë — dyqani online dhe pakot MEX nuk kanë shitës",
+        "others": "Shitës të tjerë ({{n}})",
+        "none": "Pa shitës të regjistruar"
+      },
+      "list": {
+        "title": "Kthimet sipas listës së parashikimit",
+        "sub": "Shitjet ElyonCRM nga listat",
+        "empty": "Nuk ka shitje nga listat në këtë periudhë."
+      },
+      "dow": {
+        "title": "Shkalla sipas ditës së shitjes",
+        "sub": "Dita e javës kur është bërë shitja",
+        "d1": "E hënë",
+        "d2": "E martë",
+        "d3": "E mërkurë",
+        "d4": "E enjte",
+        "d5": "E premte",
+        "d6": "E shtunë",
+        "d7": "E diel"
+      },
+      "days": {
+        "title": "Ditë nga shitja deri në kthim",
+        "sub": "{{n}} kthime me ditë të njohur",
+        "bin": {
+          "0_3": "0–3 ditë",
+          "4_7": "4–7 ditë",
+          "8_14": "8–14 ditë",
+          "15_21": "15–21 ditë",
+          "22_30": "22–30 ditë",
+          "31_plus": "31+ ditë"
+        }
+      },
+      "account": {
+        "title": "Sipas llogarisë MEX",
+        "sub": "Llogaria nga e cila u dërgua pakoja",
+        "bio_natural": "BIO NATURAL (Elyon)",
+        "natura": "NATURA (teleshop, rrjete, web)",
+        "none": "Pa pako"
+      },
+      "reasons": {
+        "title": "Pse u anuluan pas shitjes",
+        "sub": "Të shitura, pastaj të anuluara ose në kosh pa pako — jashtë kthimeve",
+        "none": "Asgjë nuk u anulua pas shitjes në këtë periudhë.",
+        "unknown": "Pa arsye të regjistruar"
+      },
+      "repeat": {
+        "title": "Blerës që kthejnë shumë herë",
+        "sub": "{{phones}} telefona me 2+ pako të kthyera deri tani; prej tyre janë {{n}} nga kthimet e periudhës ({{pct}})",
+        "none": "Nuk ka kthime të përsëritura në këtë periudhë.",
+        "buyer": "Blerësi",
+        "returnedAll": "Të kthyera (gjithsej)",
+        "deliveredAll": "Të dorëzuara (gjithsej)",
+        "inWindow": "Në periudhë",
+        "last": "Kthimi i fundit",
+        "open": "Hap porositë e këtij telefoni"
+      },
+      "notes": {
+        "crmOnly": "Të kthyera në CRM pa pako MEX",
+        "crmOnlyHint": "CRM thotë \"e kthyer\", por MEX nuk ka pako për to — kontrollojini.",
+        "badQty": "Rreshta me sasi të pamundur",
+        "badQtyHint": "Një rresht me 100+ copë (p.sh. 1.000 × Adenofrin në një porosi prej 3.000 den) — gabim në të dhëna; copët nuk numërohen.",
+        "rejected": "Të refuzuara te dera — ende te korrieri",
+        "rejectedHint": "Statusi MEX 13: pakoja mbetet te korrieri derisa MEX ta kthejë (7). Më e vjetra është nga {{date}}.",
+        "reason": "Arsyeja e kthimit nuk regjistrohet",
+        "reasonHint": "MEX dërgon vetëm statusin aktual dhe askush nuk shënon arsye. Vendim i pronarit: të regjistrohet statusi i fundit para kthimit.",
+        "fee": "A e faturon MEX dërgesën për një pako të kthyer?",
+        "feeHint": "Tarifat thonë 0 den për kthim. Nëse MEX faturon edhe 150 den dërgesë, humbja është ajo që tregon \"Humbje nga dërgesa\". Konfirmoni dhe përditësoni tarifat."
+      }
+    },
+    "stock": {
+      "notDeployed": "Skeda Produktet dhe stoku ende nuk është publikuar në server.",
+      "empty": "Nuk ka produkte për të shfaqur.",
+      "unverified": "e paverifikuar",
+      "unverifiedHint": "Sasia në stok nuk është verifikuar — shiko paralajmërimin më lart",
+      "noCost": "pa çmim blerjeje",
+      "placeholder": "1.000?",
+      "placeholderHint": "Ende numri i përkohshëm 1.000 nga 06.08 — nuk është numërim fizik",
+      "trust": {
+        "ok": "Stoku u numërua më {{count}} dhe regjistri i ndjek dërgesat (zbritja e fundit {{deduction}}).",
+        "title": "Stoku nuk është verifikuar që nga {{date}}",
+        "body": "Zbritja e fundit nga stoku ishte më {{deduction}}; që atëherë MEX krijoi {{parcels}} pako që nuk u zbritën kurrë. {{placeholder}} produkte kanë ende numrin e përkohshëm 1.000. Numrat \"në stok\" janë të paverifikuar; ditët e mbulimit dhe vlera e stokut janë të fshehura.",
+        "window": "Në periudhë: {{parcels}} pako MEX, {{moves}} regjistrime në regjistër ({{out}} copë të zbritura).",
+        "fix": "Nevojitet: numërim fizik dhe zbritje e stokut për çdo pako MEX (vendim i pronarit)."
+      },
+      "tile": {
+        "units": "Copë të shitura",
+        "unitsSub": "{{n}} produkte · {{pct}} nga katalogu",
+        "free": "Copë falas",
+        "freeSub": "Dhurata — dalin nga magazina dhe nuk sjellin para",
+        "toPack": "Për paketim tani",
+        "toPackSub": "{{units}} copë · shitja më e vjetër {{date}}",
+        "label": "E paketuar, pret korrierin",
+        "labelSub": "{{units}} copë · më e vjetra {{date}}",
+        "returned": "Copë të kthyera (MEX)",
+        "returnedSub": "{{n}} pako të kthyera në periudhë · {{mex}} pa të dhëna për produktin",
+        "valuation": "Vlera e stokut (me kosto)",
+        "valuationSub": "me çmim shitjeje {{price}} · kosto e njohur për {{pct}} të copëve",
+        "tracked": "Produkte në regjistrin e stokut",
+        "trackedTrusted": "pa stok {{out}} · pak {{low}}",
+        "trackedHidden": "{{n}} nuk ndiqen në magazinë · \"pa stok\" fshihet derisa stoku të verifikohet",
+        "trackedHiddenOwner": "{{n}} nuk ndiqen në magazinë · vlera e stokut fshihet derisa stoku të verifikohet"
+      },
+      "queue": {
+        "title": "Çfarë pret në magazinë tani",
+        "sub": "E shitur, ende e padorëzuar te korrieri — sipas vjetërsisë së shitjes",
+        "products": "Produkte që presin (copë)",
+        "oldest": "më e vjetra {{date}}",
+        "units": "{{n}} copë",
+        "staleToPack": "{{n}} shitje presin më shumë se 2 javë — kontrolloni nëse ende vlejnë.",
+        "staleLabel": "{{n}} etiketa presin më shumë se 2 javë — ndoshta etiketa MEX të vdekura.",
+        "age": {
+          "0_2": "0–2 ditë",
+          "3_7": "3–7 ditë",
+          "8_14": "8–14 ditë",
+          "15_30": "15–30 ditë",
+          "31_plus": "31+ ditë"
+        }
+      },
+      "trend": {
+        "title": "Copë të shitura sipas ditës",
+        "sub": "Sipas burimit; pa pikë, shënime, dërgesë dhe dhurata"
+      },
+      "movers": {
+        "title": "Më të shiturat",
+        "sub": "Copë në periudhë, me ndryshimin ndaj periudhës së mëparshme"
+      },
+      "slow": {
+        "title": "Kanë stok, por nuk shiten",
+        "sub": "Produktet e ndjekura me më pak copë të shitura",
+        "none": "Nuk ka produkte me stok."
+      },
+      "table": {
+        "title": "Të gjitha produktet",
+        "sub": "{{n}} rreshta: çdo produkt aktiv i katalogut dhe emrat më të shitur jashtë tij",
+        "search": "Kërko produkt ose kod",
+        "sort": "Rendit sipas",
+        "onlyCatalogue": "vetëm katalogu",
+        "more": "Edhe {{n}} emra jashtë katalogut me gjithsej {{units}} copë nuk shfaqen."
+      },
+      "col": {
+        "product": "Produkti",
+        "units": "Të shitura",
+        "bySource": "Sipas burimit",
+        "free": "Falas",
+        "returned": "Të kthyera",
+        "queue": "Presin",
+        "toPack": "Për paketim",
+        "label": "Të paketuara",
+        "onHand": "Në stok",
+        "state": "Gjendja",
+        "cover": "Mbulimi",
+        "cost": "Kosto"
+      },
+      "state": {
+        "ok": "Në rregull",
+        "low": "Pak",
+        "out": "Nuk ka",
+        "not_tracked": "Nuk ndiqet"
+      },
+      "hygiene": {
+        "title": "Higjiena e katalogut",
+        "duplicates": "Dublikata të mundshme në katalog",
+        "duplicatesHint": "Produkte me të njëjtën fjalë të parë (latinisht dhe cirilisht të bashkuara). Pronari vendos cilat janë i njëjti produkt.",
+        "dupUnits": "{{n}} copë",
+        "unmapped": "Emra jashtë katalogut",
+        "unmappedHint": "{{units}} copë të shitura me emra që nuk janë në katalog — duhen lidhur (product_aliases).",
+        "noCost": "Shiten pa çmim blerjeje",
+        "noCostHint": "{{active}} produkte aktive nuk kanë çmim blerjeje; u shitën {{units}} copë prej tyre — fitimi i tyre nuk dihet.",
+        "notProducts": "Rreshta që nuk janë produkte",
+        "notProductsHint": "Pikë, shënime, fletëpalosje, dërgesë dhe sasi të pamundura — nuk numërohen si copë.",
+        "linesUnits": "{{lines}} rreshta · {{units}} copë",
+        "notTracked": "Nuk ndiqen në magazinë",
+        "notTrackedHint": "Produkte aktive pa regjistër stoku — nuk janë \"pa stok\". Ende me 1.000 të përkohshme: {{placeholder}}. Joaktive, por shiten: {{inactive}}."
+      },
+      "kind": {
+        "loyalty_point": "Pikë besnikërie",
+        "note": "Shënime",
+        "flyer": "Fletëpalosje",
+        "delivery": "Dërgesa",
+        "bad_quantity": "Sasi e pamundur",
+        "gift": "Dhuratë"
+      }
+    },
+    "sales": {
+      "notDeployed": "Raporti i shitjeve nuk është vendosur ende.",
+      "empty": "Nuk ka shitje në këtë periudhë.",
+      "detailLoading": "Po ngarkohen produktet, vendet dhe blerësit…",
+      "noLinkFolded": "Produktet dhe vendet janë bashkuar sipas katalogut dhe vendit — lista Porositë nuk ka një filtër të tillë, ndaj këto numra nuk kanë lidhje.",
+      "header": {
+        "title": "Shitur {{period}}",
+        "titleNoMoney": "Shitje {{period}}"
+      },
+      "kpi": {
+        "label": "Shitjet në numra",
+        "avg": "Shitja mesatare",
+        "avgHint": "vlera ÷ shitjet",
+        "paid": "Paguar",
+        "paidHint": "{{n}} nga {{of}} shitje",
+        "returns": "Kthime",
+        "returnsHint": "{{n}} nga {{of}} të mbyllura (paguar + kthyer)",
+        "inFlight": "Ende në proces",
+        "inFlightHint": "{{pct}} — te korrieri, të paketuara ose në magazinë",
+        "perSale": "Paketime për shitje",
+        "perSaleHint": "{{n}} paketime gjithsej (pa dhurata dhe pikë)",
+        "buyers": "Blerës",
+        "buyersHint": "{{new}} të rinj · {{returning}} të kthyer"
+      },
+      "sources": {
+        "title": "Sipas burimit",
+        "subtitle": "Çdo shitje e periudhës sipas burimit nga erdhi — të katër mblidhen në totalin.",
+        "salesN_one": "{{n}} shitje",
+        "salesN_other": "{{n}} shitje",
+        "share": "{{pct}} e totalit",
+        "avg": "Shitja mesatare",
+        "paid": "Paguar",
+        "returns": "Kthime (nga të mbyllurat)",
+        "inFlight": "Në proces",
+        "splits": "Nënkanale",
+        "noDetailLink": "Asnjë nënkanal sipas të cilit lista Porositë mund të filtrojë"
+      },
+      "trend": {
+        "title": "Shitjet në kohë",
+        "subtitleValue": "Vlera sipas burimit",
+        "subtitleCount": "Shitjet sipas burimit",
+        "gran": {
+          "day": "sipas ditëve",
+          "week": "sipas javëve (nga e hëna)",
+          "month": "sipas muajve"
+        },
+        "measureLabel": "Masa",
+        "byValue": "Denarë",
+        "byCount": "Shitje",
+        "weekOf": "java nga {{d}}",
+        "partial": "(e pjesshme)"
+      },
+      "products": {
+        "title": "Çfarë shitëm",
+        "subtitle": "{{products}} produkte · {{units}} paketime në {{sales}} shitje",
+        "search": "Kërko produkt",
+        "noMatch": "Asnjë produkt nuk përputhet me kërkimin.",
+        "colProduct": "Produkti",
+        "colSales": "Shitje",
+        "colUnits": "Paketime",
+        "colValue": "Vlera",
+        "colShare": "Pjesa",
+        "colPerUnit": "Për paketim",
+        "colPaid": "Paguar",
+        "colReturns": "Kthime",
+        "colSources": "Burimet",
+        "unmappedTag": "pa katalog",
+        "unmappedHint": "Emër që asnjë alias i rishikuar nuk e lidh me produkt nga katalogu — numërohet me emrin e vet.",
+        "others_one": "{{n}} produkt tjetër",
+        "others_other": "{{n}} produkte të tjera",
+        "kind": {
+          "gift": "Dhurata (rreshta falas)",
+          "loyalty_point": "Pikë besnikërie",
+          "delivery": "Dërgesa",
+          "note": "Shënime",
+          "flyer": "Fletëpalosje"
+        },
+        "notPackages_one": "{{n}} rresht — nuk është paketim",
+        "notPackages_other": "{{n}} rreshta — nuk janë paketime",
+        "noProduct": "Pa të dhëna për produktin",
+        "noProductHint_one": "{{n}} dërgesë MEX pa porosi — MEX nuk thotë çfarë ka brenda",
+        "noProductHint_other": "{{n}} dërgesa MEX pa porosi — MEX nuk thotë çfarë ka brenda",
+        "footer": "Produktet + rreshtat që nuk janë paketime + shitjet pa rresht = totali (vlera e shitjes ndahet mbi rreshtat sipas çmimit të tyre).",
+        "autoNote_one": "{{n}} rresht u njoh me rregull (POEN…, DOSTAVA, rresht falas), jo me alias të rishikuar.",
+        "autoNote_other": "{{n}} rreshta u njohën me rregull (POEN…, DOSTAVA, rresht falas), jo me alias të rishikuar.",
+        "unmappedNote_one": "{{n}} emër nuk është i lidhur me katalogun — bashkohet kur pronari t'i rishikojë aliaset.",
+        "unmappedNote_other": "{{n}} emra nuk janë të lidhur me katalogun — bashkohen kur pronari t'i rishikojë aliaset.",
+        "badQtyNote_one": "{{n}} rresht ka sasi që asnjë çmim nuk e justifikon (p.sh. 1.000) — vlera numërohet, paketimet jo.",
+        "badQtyNote_other": "{{n}} rreshta kanë sasi që asnjë çmim nuk e justifikon (p.sh. 1.000) — vlera numërohet, paketimet jo."
+      },
+      "cities": {
+        "title": "Ku shitëm",
+        "subtitle": "{{places}} vende ({{spellings}} shkrime të ndryshme të qytetit, të bashkuara — latinisht, cirilik dhe zonat MEX)",
+        "search": "Kërko vend",
+        "noMatch": "Asnjë vend nuk përputhet me kërkimin.",
+        "colCity": "Vendi",
+        "colSales": "Shitje",
+        "colValue": "Vlera",
+        "colAvg": "Mesatarja",
+        "colShare": "Pjesa",
+        "colPaid": "Paguar",
+        "colReturns": "Kthime",
+        "spellings_one": "{{n}} shkrim",
+        "spellings_other": "{{n}} shkrime të bashkuara",
+        "unknownPlace": "nuk është në regjistrin e vendeve",
+        "others_one": "{{n}} vend tjetër",
+        "others_other": "{{n}} vende të tjera",
+        "noCity": "Pa qytet",
+        "note": "Kur shitja ka dërgesë numërohet adresa e korrierit (MEX), përndryshe qyteti i porosisë."
+      },
+      "buyers": {
+        "title": "Kujt i shitëm",
+        "subtitle": "Blerës = një telefon (8 shifrat e fundit).",
+        "buyers": "Blerës",
+        "new": "Të rinj",
+        "returning": "Të kthyer",
+        "repeat": "Më shumë se një herë",
+        "perBuyer": "Shitje për blerës",
+        "repeatN": "{{n}} blenë më shumë se një herë në periudhë",
+        "valueNew": "Nga blerës të rinj",
+        "valueReturning": "Nga blerës të kthyer",
+        "avg": "mesatarja {{value}}",
+        "history": "„I kthyer“ = bleu para periudhës (porosi CRM, dërgesë MEX me pagesë ose porosi në web). Historia fillon më {{date}} — një blerës më i vjetër numërohet si i ri.",
+        "crossSource_one": "{{n}} blerës bleu nga dy ose më shumë burime — numërohet te secili.",
+        "crossSource_other": "{{n}} blerës blenë nga dy ose më shumë burime — numërohen te secili.",
+        "noPhone_one": "{{n}} shitje nuk ka telefon — nuk është blerës në këtë numërim.",
+        "noPhone_other": "{{n}} shitje nuk kanë telefon — nuk janë blerës në këtë numërim."
+      },
+      "basket": {
+        "title": "Shporta",
+        "subtitle": "Sa paketime mban një shitje (dhuratat, pikët dhe dërgesa nuk janë paketime).",
+        "distLabel": "Paketime për shitje",
+        "dist": {
+          "k1": "1 paketim",
+          "k2": "2 paketime",
+          "k3": "3 paketime",
+          "k4": "4 paketime",
+          "k5": "5 ose më shumë",
+          "knone": "Pa të dhëna (MEX)"
+        },
+        "perSale": "Paketime / shitje",
+        "avg": "Shitja mesatare",
+        "ofN": "nga {{n}}",
+        "note": "Dërgesat MEX pa porosi nuk kanë rreshta — janë te „Pa të dhëna“ dhe mbeten jashtë mesatares së paketimeve."
+      },
+      "timing": {
+        "title": "Kur shesim",
+        "subtitle": "Dita e javës × ora (ora e Shkupit) për {{n}} shitje me moment të vërtetë — vendim në AlterCPA / ElyonCRM ose porosi në web.",
+        "empty": "Nuk ka shitje me orë në këtë periudhë.",
+        "peak": "Më e ngarkuara: {{day}} në {{hour}}:00 — {{n}}",
+        "legendLow": "Pak",
+        "legendHigh": "Shumë (deri në {{n}})",
+        "untimed": "Jo në rrjetë (kanë vetëm datë): {{list}}.",
+        "weekdaysTitle": "Sipas ditës së javës",
+        "weekdaysHint": "Të gjitha shitjet, për ditë (shitjet ÷ sa ditë të tilla ka periudha).",
+        "weekdayTitle": "{{n}} shitje në {{days}} ditë",
+        "perDay": "në ditë",
+        "dow": {
+          "d1": "Hën",
+          "d2": "Mar",
+          "d3": "Mër",
+          "d4": "Enj",
+          "d5": "Pre",
+          "d6": "Sht",
+          "d7": "Die"
+        },
+        "dowLong": {
+          "d1": "e hënë",
+          "d2": "e martë",
+          "d3": "e mërkurë",
+          "d4": "e enjte",
+          "d5": "e premte",
+          "d6": "e shtunë",
+          "d7": "e diel"
+        }
+      },
+      "channels": {
+        "title": "Sipas llogarisë dhe serisë MEX",
+        "subtitle": "Kanali që tregon dërgesa. Shitjet ende pa dërgesë janë rreshti i fundit.",
+        "colSeries": "Seria",
+        "colAccount": "Llogaria",
+        "colCod": "Pagesa MEX",
+        "account": {
+          "bio_natural": "BIO NATURAL (Elyon)",
+          "natura": "NATURA",
+          "unknown": "E panjohur"
+        },
+        "series": {
+          "s9110": "9110 LEADS",
+          "s9103": "9103 LEADS-OUT",
+          "s9100": "9100 Teleshop",
+          "s9102": "9102 Teleshop",
+          "s9108": "9108 Rrjete sociale",
+          "ntmk": "NTMK — dyqani në web",
+          "m": "M… — dyqani i vjetër / tjetër",
+          "other": "Tjetër",
+          "none": "Ende pa dërgesë"
+        },
+        "note": "Porosia e ruan burimin e vet — shiriti tregon cilat burime dërgojnë përmes secilës seri."
+      },
+      "quality": {
+        "title": "Mbulimi i tabelave",
+        "kind": {
+          "unmapped_products": "Emra produktesh jashtë katalogut",
+          "bad_qty": "Sasi të pamundura",
+          "auto_lines": "Rreshta të njohur me rregull",
+          "unknown_places": "Vende jashtë regjistrit",
+          "no_city": "Shitje pa qytet",
+          "no_phone": "Shitje pa telefon"
+        },
+        "hint": {
+          "unmapped_products": "Numërohen me emrin e tyre derisa pronari t'i rishikojë aliaset (product_aliases). Vlera është e tyre.",
+          "bad_qty": "Sasi mbi 20 me më pak se 60 den për paketim (p.sh. 1.000 × Adenofrin) — vlera numërohet, paketimet jo. Korrigjoni porosinë.",
+          "auto_lines": "POEN…, DOSTAVA dhe rreshtat falas nuk numërohen si paketime — me rregull, derisa të rishikohen aliaset.",
+          "unknown_places": "Shkrime qyteti që nuk janë në regjistrin e vendeve — shfaqen siç janë shkruar.",
+          "no_city": "As dërgesa as porosia nuk kanë qytet.",
+          "no_phone": "Pa telefon shitja nuk mund të lidhet me një blerës."
+        }
+      }
+    },
+    "lists": {
+      "notDeployed": "Raporti i listave të parashikimit nuk është vendosur ende.",
+      "attributionNote": "Shitjet e mbajnë listën e tyre vetëm që nga {{date}}, kur CRM filloi ta regjistrojë në çdo porosi. Ditët para kësaj nuk mund të ndahen sipas listës.",
+      "footnote": "Si lexohet: shitje është një porosi nga lista që u konfirmua (pastaj u paketua, te korrieri, u pagua — ose u kthye); anulimet dhe koshi nuk janë kurrë shitje. Dita e shitjes = dita kur u shit (ora e Shkupit). Vlera = pagesa me para në dorë e dërgesës kur MEX e ka dërgesën, përndryshe çmimi. Vetëm MEX vendos çfarë është paguar dhe kthyer. Të punuara = thirrje që përfunduan me vendim. Anëtarët numërohen tani, jo për periudhën. Emrat e listave përkthehen në ekran; emrat në bazë nuk ndryshohen kurrë.",
+      "empty": {
+        "title": "Asnjë thirrje apo shitje nga listat në këtë periudhë",
+        "body": "Asnjë thirrje nga lista e parashikimit nuk përfundoi me vendim dhe nuk pati shitje nga lista në këto ditë.",
+        "beforeAttribution": "Listat regjistrohen nga {{date}} — zgjidhni një periudhë nga ajo ditë e tutje."
+      },
+      "cohort": {
+        "title": "Shitur nga listat e parashikimit · {{period}}",
+        "titleNoMoney": "Shitjet nga listat e parashikimit · {{period}}",
+        "tie": "= Përmbledhja · ElyonCRM · Listat e parashikimit: {{n}} · {{value}}",
+        "tieNoMoney": "= Përmbledhja · ElyonCRM · Listat e parashikimit: {{n}}"
+      },
+      "kpi": {
+        "title": "Shifrat kryesore të listave",
+        "cash": "Arkëtuar nga MEX",
+        "paid": "Paguar (dorëzuar nga MEX)",
+        "cashSub": "{{paid}} nga {{n}} shitje të paguara · {{pct}}",
+        "cashHint": "Paratë në dorë që MEX arkëtoi për shitjet e listave të periudhës (vërtetuar nga MEX).",
+        "conversion": "Konvertimi",
+        "conversionSub": "{{sales}} shitje nga {{worked}} thirrje të punuara",
+        "conversionHint": "Shitjet nga listat ÷ thirrjet që përfunduan me vendim (shitje, jo, kosh).",
+        "worked": "Thirrje të punuara",
+        "workedSub": "{{customers}} klientë · {{people}} agjentë · {{reach}} e numrave të thirrur u arritën",
+        "workedHint": "Thirrje te klientët e listave që përfunduan me vendim, sipas ditës së vendimit. Klikimet „nuk përgjigjet“ nuk janë vendime.",
+        "aov": "Shitja mesatare",
+        "aovSub": "{{units}} pako · {{per}} për shitje",
+        "units": "Pako të shitura",
+        "unitsSub": "{{per}} për shitje",
+        "aovHint": "Vlera e shitur ÷ shitjet (paratë në dorë të dërgesës kur MEX e ka dërgesën, përndryshe çmimi).",
+        "returnRate": "Norma e kthimit",
+        "returnRateSub": "{{returned}} të kthyera nga {{done}} të përfunduara nga MEX",
+        "returnRateHint": "Të kthyera ÷ (të paguara + të kthyera): nga dërgesat që MEX i përfundoi, sa u kthyen.",
+        "stale": "Të papaketuara > {{days}} ditë",
+        "staleNone": "asgjë nuk pret",
+        "staleWithParcel": "{{n}} me dërgesë MEX në të njëjtin numër",
+        "staleHint": "Shitje nga listat të konfirmuara para më shumë se {{days}} ditësh që ende nuk kanë dërgesë."
+      },
+      "work": {
+        "title": "Thirrje të punuara nga listat",
+        "became": "→ {{n}} shitje · {{pct}}",
+        "worked_sale": "Shitje",
+        "worked_no": "Jo (anuluar)",
+        "worked_trash": "Kosh",
+        "people": "{{customers}} klientë të ndryshëm · {{people}} agjentë",
+        "noAnswer": "Plus {{n}} klikime „nuk përgjigjet“ (nuk janë vendime): {{reach}} e numrave të thirrur përfunduan me vendim. Regjistrohen nën listën ku është numri tani, prandaj për listë janë të përafërta."
+      },
+      "ranking": {
+        "title": "Cilat lista sjellin para",
+        "subtitle": "{{n}} lista shitën në periudhë, renditur sipas vlerës së shitur — shiriti tregon ku janë tani shitjet",
+        "subtitleNoMoney": "{{n}} lista shitën në periudhë, renditur sipas shitjeve — shiriti tregon ku janë tani",
+        "sales": "{{n}} shitje",
+        "conv": "konv. {{pct}}",
+        "rest": "{{n}} listat e tjera: {{value}} ({{share}})"
+      },
+      "table": {
+        "title": "Të gjitha listat",
+        "subtitle": "Anëtarët tani · thirrjet dhe shitjet e periudhës · ku janë shitjet · arkëtimi nga MEX. Hapni një rresht për pjesët, shitësit dhe emrin e ruajtur.",
+        "groupBy": "Grupo",
+        "sortBy": "Rendit",
+        "group": {
+          "recency": "Sipas kohës",
+          "value": "Sipas brezit të vlerës",
+          "orders": "Sipas numrit të porosive",
+          "none": "Pa grupe"
+        },
+        "sort": {
+          "order": "Rendi i motorit",
+          "value": "Vlera e shitur",
+          "sales": "Shitjet",
+          "conversion": "Konvertimi",
+          "members": "Anëtarët tani"
+        },
+        "showQuiet": "Shfaq {{n}} lista bosh",
+        "col": {
+          "list": "Lista",
+          "members": "Anëtarët tani",
+          "worked": "Të punuara",
+          "sales": "Shitjet",
+          "conv": "Konv.",
+          "value": "Vlera",
+          "cash": "Arkëtuar MEX",
+          "paid": "Të paguara",
+          "returnRate": "Të kthyera",
+          "stale": "> {{days}} d. të papaketuara",
+          "aov": "Mesatarja",
+          "lastSale": "Shitja e fundit",
+          "trend": "Trendi"
+        },
+        "hint": {
+          "members": "Klientët në listë TANI që ende duhen thirrur — gjendje e çastit, jo periudha. Numri i vogël janë të gjithë anëtarët, përfshirë të thirrurit.",
+          "worked": "Thirrje që përfunduan me vendim (shitje / jo / kosh), sipas ditës së vendimit.",
+          "conv": "Shitjet ÷ thirrjet e punuara.",
+          "cash": "Paratë në dorë që MEX arkëtoi për këto shitje (pjesa e paguar).",
+          "returnRate": "Të kthyera ÷ (të paguara + të kthyera).",
+          "stale": "Shitje që ende presin paketimin më shumë se {{days}} ditë pas shitjes.",
+          "aov": "Vlera e shitur ÷ shitjet.",
+          "lastSale": "Shitja e fundit e listës ndonjëherë — jo vetëm në këtë periudhë.",
+          "noAnswer": "Klikime „nuk përgjigjet“, regjistruar nën listën ku është numri tani — të përafërta."
+        },
+        "empty": "Nuk ka lista për të shfaqur.",
+        "listsN": "{{n}} lista",
+        "ofAll": "nga {{n}}",
+        "noAnswerShort": "+{{n}} nuk përgjigjet",
+        "paidN": "{{n}} të paguara",
+        "nameChanged": "Porositë e kësaj liste mbajnë më shumë se një emër liste — nuk ka listë të saktë te Porositë.",
+        "badge": {
+          "deleted": "e fshirë",
+          "inactive": "joaktive",
+          "static": "statike"
+        },
+        "groupName": {
+          "recency": {
+            "newcomers": "Blerës të rinj (nën 21 ditë)",
+            "d21": "21–57 ditë nga porosia e fundit",
+            "d57": "57–120 ditë nga porosia e fundit",
+            "m4_6": "4–6 muaj nga porosia e fundit",
+            "m6_12": "6–12 muaj nga porosia e fundit",
+            "y1_2": "1–2 vjet nga porosia e fundit",
+            "y2plus": "Mbi 2 vjet nga porosia e fundit",
+            "pens": "Lista pritjeje dhe lista të veçanta",
+            "other": "Lista të tjera"
+          },
+          "value": {
+            "le": "Porosia e fundit deri në {{value}}",
+            "gt": "Porosia e fundit mbi {{value}}",
+            "newcomers": "Blerës të rinj (pa brez vlere)",
+            "pens": "Lista pritjeje dhe lista të veçanta",
+            "other": "Lista të tjera"
+          },
+          "orders": {
+            "o1_3": "1–3 porosi",
+            "o3": "3+ porosi",
+            "o5": "5+ porosi",
+            "o7": "7+ porosi",
+            "pens": "Lista pritjeje dhe lista të veçanta",
+            "other": "Lista të tjera"
+          },
+          "none": {
+            "all": "Të gjitha listat"
+          }
+        },
+        "foot": {
+          "lists": "Σ {{n}} lista",
+          "notRecorded": "Lista nuk është regjistruar (një dublikatë që e humbi listën)",
+          "slice": "= Të gjitha shitjet nga listat e parashikimit",
+          "tieOk": "= Përmbledhja · ElyonCRM · Listat e parashikimit",
+          "tieBad": "Nuk përputhet me totalin — ju lutemi raportojeni",
+          "other": "ElyonCRM · {{split}} (pa listë)",
+          "elyon": "= ElyonCRM gjithsej",
+          "elyonHint": "Karta ElyonCRM e Përmbledhjes: çdo shitje ElyonCRM, me ose pa listë."
+        }
+      },
+      "detail": {
+        "parts": "Ku janë shitjet",
+        "noSales": "Asnjë shitje në këtë periudhë.",
+        "sellers": "Shitësit më të mirë",
+        "sellerLine": "{{sales}} shitje · {{worked}} vendime · {{pct}}",
+        "work": "Puna",
+        "members": "Anëtarët",
+        "membersLine": "{{active}} për t'u thirrur · {{all}} gjithsej · {{assigned}} të caktuar",
+        "decisions": "Vendimet",
+        "decisionsLine": "{{sale}} shitje · {{no}} jo · {{trash}} kosh",
+        "customers": "Klientë me vendim",
+        "noAnswer": "Klikime „nuk përgjigjet“",
+        "reach": "{{pct}} u arritën",
+        "units": "Pako",
+        "perSale": "{{n}} për shitje",
+        "rawName": "Emri në bazë (nuk ndryshohet kurrë):"
+      },
+      "trend": {
+        "title": "Shitjet nga listat sipas ditëve",
+        "subtitleMoney": "Vlera e shitur, e ndarë sipas vendit ku është tani çdo shitje",
+        "subtitleCount": "Shitjet, të ndara sipas vendit ku është tani secila",
+        "extended": "nga {{from}}, që edhe një periudhë e shkurtër të ketë vijë",
+        "empty": "Asnjë shitje nga listat në këto ditë.",
+        "total": "Gjithsej {{value}}",
+        "colTotal": "Gjithsej"
+      },
+      "matrix": {
+        "title": "Koha × vlera",
+        "subtitle": "Listat me brez: koha nga porosia e fundit e paguar kundrejt çmimit të asaj porosie. Shitjet, një shirit për pjesën e qelizës më të mirë dhe konvertimi i thirrjeve.",
+        "recency": "Nga porosia e fundit",
+        "cell": "{{sales}} shitje · {{worked}} të punuara · {{pct}} · {{members}} për t'u thirrur"
+      },
+      "sellers": {
+        "title": "Kush shet nga listat",
+        "presenceNote": "Shitjet për orë aktive numërojnë vetëm ditët me të dhëna prezence (nga {{date}}).",
+        "noPresence": "Shitjet për orë shfaqen kur prezenca t'i mbulojë këto ditë (të dhënat e prezencës fillojnë {{date}}).",
+        "col": {
+          "name": "Shitësi",
+          "sales": "Shitjet",
+          "value": "Vlera",
+          "worked": "Të punuara",
+          "conv": "Konv.",
+          "trash": "Pjesa në kosh",
+          "returnRate": "Të kthyera",
+          "lists": "Lista",
+          "perHour": "Shitje / orë"
+        },
+        "hint": {
+          "trash": "Pjesa e vendimeve të shitësit që ishin kosh (numër i gabuar, i vrazhdë, i paarritshëm…). Një pjesë e lartë vlen të kontrollohet.",
+          "perHour": "Shitjet në ditët me prezencë ÷ orët aktive në ato ditë."
+        },
+        "cashLine": "{{value}} arkëtuar",
+        "showAll": "Shfaq të gjithë {{n}}",
+        "showTop": "Shfaq {{n}} e parët"
+      },
+      "quality": {
+        "title": "Cilësia e të dhënave — listat",
+        "withParcel": "{{n}} prej tyre kanë tashmë dërgesë MEX në të njëjtin numër — kontrolloni para paketimit",
+        "kind": {
+          "unproven_paid": "Paguar pa dëshmi nga MEX",
+          "stale_to_pack": "Të papaketuara për më shumë se {{days}} ditë",
+          "duplicate_original_open": "Origjinali mbetet i hapur ndërsa dublikata u dërgua",
+          "list_not_recorded": "Një shitje pa listën e saj",
+          "ghost_dispositions": "Rreshta thirrjesh (0 ден) me dërgesë ose status shitjeje",
+          "no_seller": "Shitje nga listat pa shitës",
+          "cancelled_but_moving": "Anuluar në CRM, por në lëvizje te MEX",
+          "zero_cod_parcels": "Dërgesa me pagesë 0 (zëvendësime)"
+        },
+        "hint": {
+          "unproven_paid": "Shënuar si të paguara, por MEX nuk ka dërgesë të dorëzuar. Duhet të jetë 0.",
+          "stale_to_pack": "Shitje të konfirmuara nga listat që {{days}} ditë më vonë ende nuk kanë dërgesë. Paketojini ose anulojini — deri atëherë e fryjnë vlerën e listës.",
+          "duplicate_original_open": "Origjinali mbetet i konfirmuar ndërsa dublikata e tij ka tashmë dërgesë — e njëjta shitje mund të numërohet dy herë. Mbylleni origjinalin.",
+          "list_not_recorded": "Një shitje nga lista, lista e së cilës nuk u regjistrua (dublikatë e bërë para rregullimit). Numërohet në total, jo në ndonjë listë.",
+          "ghost_dispositions": "Rreshta „jo“ nga thirrjet që mbajnë dërgesë MEX ose status shitjeje — zakonisht dërgesë e lidhur me rreshtin e gabuar. Nuk numërohen kurrë si shitje; kontrolloni lidhjen.",
+          "no_seller": "Shitje nga listat pa shitës të regjistruar.",
+          "cancelled_but_moving": "Anuluar në CRM, por dërgesa lëviz te MEX — numërohen sipas MEX (te korrieri).",
+          "zero_cod_parcels": "Dërgesa me 0 ose më pak për t'u arkëtuar — zëvendësime, jo shitje."
+        }
+      },
+      "name": {
+        "band": "{{recency}} · {{band}} · {{orders}}",
+        "bandLe": "deri në {{value}}",
+        "bandGt": "mbi {{value}}",
+        "newcomers": "Blerës të rinj · {{orders}}",
+        "recency": {
+          "newcomers": "Blerës të rinj",
+          "d21": "21–57 ditë",
+          "d57": "57–120 ditë",
+          "m4_6": "4–6 muaj",
+          "m6_12": "6–12 muaj",
+          "y1_2": "1–2 vjet",
+          "y2plus": "Mbi 2 vjet"
+        },
+        "orders": {
+          "o1_3": "1–3 porosi",
+          "o3": "3+ porosi",
+          "o5": "5+ porosi",
+          "o7": "7+ porosi"
+        },
+        "pen": {
+          "current_cancels": "Anulime të fundit (14 ditë)",
+          "current_returns": "Kthime të fundit",
+          "never_converted_recent": "Nuk blenë kurrë — të fundit",
+          "never_converted_old": "Nuk blenë kurrë — të vjetra",
+          "trash": "Koshi",
+          "cancelled_pendings": "Pendingje të anuluara",
+          "due_to_reorder": "Koha për porosi të re",
+          "monad": "Lista Monadon"
+        }
+      }
+    },
     "common": {
       "period": {
         "label": "Periudha",
@@ -2777,7 +3541,7 @@
     "tabSales": "Shitjet",
     "tabAgents": "Agjentët",
     "tabPayout": "Pagesat",
-    "tabPureProfit": "Pure Profit",
+    "tabPureProfit": "Fitimi i pastër",
     "tabMarginLab": "Marzhet",
     "tabPredictionLists": "Listat e parashikimit",
     "tabStock": "Produkte & Stok",
@@ -2917,7 +3681,219 @@
     "junkSub": "mbeturina / numër i gabuar",
     "noCalls": "Ende pa thirrje të regjistruara në këtë periudhë",
     "byOutcome": "Sipas rezultatit",
-    "calls": "Thirrje",
+    "calls": {
+      "title": "Puna dhe thirrjet",
+      "subtitle": "Kush punoi, sa dhe sa mirë — çdo vendim (në CRM dhe në panelin e AlterCPA), çdo klikim „Pa përgjigje“, koha në CRM, pushimet dhe shitjet që i atribuohen secilit person.",
+      "asOf": "Gjendja në {{time}}",
+      "notDeployed": "Raporti i punës nuk është ende aktiv (migrimi i bazës së të dhënave nuk është aplikuar).",
+      "staleError": "Nuk u rifreskua — po shfaqen shifrat e mëparshme.",
+      "caveat": {
+        "title": "Çfarë janë këto shifra",
+        "voip": "Telefonia nuk është lidhur ende: „Pa përgjigje“ është një klikim mbi butonin dhe thirrja me kohëmatës është Thirr / Mbyll e shtypur në CRM — e raportuar nga agjenti, jo provë se dikush është përgjigjur.",
+        "presence": "Koha në CRM (online, aktiv, pa aktivitet, pushim) matet nga {{date}}; ditët më të hershme tregojnë „—“, dhe normat për orë numërojnë vetëm ditët me kohë të matur.",
+        "presenceNone": "Koha në CRM nuk matet ende.",
+        "altercpa": "Operatorët e AlterCPA vendosin në panelin e vetë AlterCPA: vendimet e tyre numërohen këtu, por nuk kanë kohë në CRM."
+      },
+      "filter": {
+        "team": "Ekipi",
+        "all": "Të gjitha ekipet"
+      },
+      "team": {
+        "pending": "Në pritje (lead-e AlterCPA)",
+        "prediction": "Parashikim (ElyonCRM)",
+        "management": "Menaxhmenti",
+        "unassigned": "Ende pa ekip",
+        "teleshop": "Teleshop"
+      },
+      "kpi": {
+        "prevBeforeLedger": "Periudha e krahasimit arrin deri në fillimin e regjistrit të punës ({{date}}): është e paplotë, prandaj ndryshimet e zmadhojnë rritjen.",
+        "title": "Puna në periudhë",
+        "worked": "Vendime",
+        "sale": "Vendime shitjeje",
+        "credited": "Shitje të atribuuara (kohorta)",
+        "no_answer": "Pa përgjigje",
+        "people": "Persona që punuan",
+        "active": "Koha aktive",
+        "workedSub": "CRM {{crm}} · AlterCPA {{acpa}}",
+        "saleSub": "Konvertimi {{pct}}",
+        "creditedSub": "sipas ditës së shitjes, sipas kohortës",
+        "creditedFailed": "Nuk mund të numërohet tani",
+        "noAnswerSub": "Të arritur {{pct}}",
+        "peopleSub": "CRM {{crm}} · AlterCPA {{acpa}}",
+        "activeSub": "{{n}} vendime / orë aktive",
+        "onlineSub": "Online {{time}}",
+        "activeNone": "Matet nga {{date}}",
+        "filtered": "Ekipi: {{team}} — pa krahasim me periudhën e mëparshme",
+        "vsPrev": "krahasuar me {{period}}",
+        "timed": "Thirrje me kohëmatës (të raportuara nga agjenti): {{n}} · {{time}} · {{avg}} s për thirrje",
+        "timedNone": "Asnjë thirrje me kohëmatës (të raportuara nga agjenti)",
+        "breaks": "Pushime: {{n}} · {{time}}",
+        "idleAlerts": "Paralajmërime për mosaktivitet: {{n}}",
+        "hint": {
+          "worked": "Çdo vendim njerëzor në periudhë: konfirmim, anulim, kosh ose thirrje përsëri — në CRM ose në panelin e AlterCPA. Ndryshimet automatike (të sistemit) nuk numërohen.",
+          "sale": "Vendime që bënë shitje: konfirmime në CRM, miratime në AlterCPA dhe anulime „tjetër“ në AlterCPA (të regjistruara si të konfirmuara sipas rregullit të 11.08).",
+          "credited": "Shitje në kohortë (dita e shitjes në periudhë, jo të anuluara pas shitjes) shitësi i të cilave është ky person — i njëjti numër që tregojnë të gjitha skedat e shitjeve.",
+          "no_answer": "Klikime mbi „Pa përgjigje“ në /calls. Rezultat, jo thirrje e formuar: pa telefoni nuk ka provë se ka rënë zilja.",
+          "people": "Kushdo që vendosi ose regjistroi një thirrje në periudhë.",
+          "active": "Minuta me aktivitet në ekranin e CRM (ndjekja e pranisë). Pa aktivitet = i hapur, asgjë nuk bëhet; pushim = butoni i pushimit.",
+          "reach": "Vendimet në CRM ÷ (vendimet në CRM + klikimet „Pa përgjigje“): sa nga puna në CRM arriti te klienti.",
+          "perHour": "Vendime në ditët me kohë të matur ÷ orë aktive (vetëm me 30+ minuta aktive)."
+        }
+      },
+      "outcome": {
+        "sale": "Shitje",
+        "callback": "Thirr përsëri",
+        "no_answer": "Pa përgjigje",
+        "cancel": "E anuluar",
+        "trash": "Në kosh"
+      },
+      "daily": {
+        "title": "Si përfundoi puna",
+        "subtitle": "Vendime dhe klikime „Pa përgjigje“",
+        "byDay": "për ditë",
+        "byWeek": "për javë",
+        "weekOf": "Java nga {{date}}",
+        "viewLabel": "Pamja",
+        "chart": "Grafik",
+        "table": "Tabelë",
+        "mixTitle": "Përbërja në periudhë",
+        "mixNote": "„Pa përgjigje“ është klikim, jo vendim: qëndron pranë vendimeve që të shihet sa punë nuk arriti te klienti.",
+        "empty": "Asnjë punë në këtë periudhë.",
+        "tipPeople": "{{n}} persona · {{credited}} shitje të atribuuara",
+        "tipOpen": "Klikoni për ta hapur këtë ditë më poshtë",
+        "clickHint": "Klikoni një ditë për ta parë orë pas ore",
+        "colPeriod": "Dita",
+        "colWorked": "Vendime",
+        "colCredited": "Shitje të atribuuara",
+        "colPeople": "Persona",
+        "colActive": "Koha aktive"
+      },
+      "teams": {
+        "title": "Ekipet krah për krah",
+        "selfTitle": "Puna juaj",
+        "subtitle": "Çdo person numërohet një herë, në ekipin e tij për periudhën; menaxhmenti dhe personat pa ekip janë të përfshirë, kështu ekipet mblidhen në shifrat më lart.",
+        "worked": "vendime",
+        "people": "punuan {{active}} nga {{n}} persona",
+        "onlineNow": "{{n}} online",
+        "noTeamKind": "Ende pa u vendosur në ekip (Cilësimet → Ekipet)",
+        "teleshopKind": "Teleshop · collabBox",
+        "teleshopNote": "Ende nuk ka ekip Teleshop: shitësit e collabBox janë persona me shitje të atribuuara por pa ekip, prandaj shfaqen te „Ende pa ekip“. Ata telefonojnë jashtë CRM, kështu këtu nuk kanë vendime as kohë.",
+        "m": {
+          "sale": "Vendime shitjeje",
+          "conversion": "Konvertimi",
+          "credited": "Shitje të atribuuara",
+          "noAnswer": "Pa përgjigje",
+          "reach": "Të arritur",
+          "perPerson": "Vendime për person",
+          "active": "Koha aktive",
+          "perHour": "Vendime / orë aktive"
+        }
+      },
+      "people": {
+        "title": "Personat",
+        "col": {
+          "person": "Personi",
+          "worked": "Vendime",
+          "mix": "Përbërja",
+          "sale": "Shitje",
+          "conversion": "Konv.",
+          "credited": "Të atribuuara",
+          "noAnswer": "Pa përgjigje",
+          "reach": "Të arritur",
+          "days": "Orari i punës",
+          "online": "Online",
+          "perHour": "Vend. / orë",
+          "alerts": "Paralajmërime"
+        },
+        "showIdle": "Shfaq edhe {{n}} pa aktivitet",
+        "hideIdle": "Fshih ata pa aktivitet",
+        "manager": "menax.",
+        "noLogin": "pa hyrje në CRM",
+        "noLoginHint": "Pa hyrje në CRM: vendos në panelin e AlterCPA ose shet përmes collabBox (teleshop), kështu nuk ka kohë në CRM.",
+        "viaTitle": "CRM {{crm}} · AlterCPA {{acpa}}",
+        "creditedOpen": "Hapi këto shitje te Porositë",
+        "days_one": "{{n}} ditë",
+        "days_other": "{{n}} ditë",
+        "perDay": "{{n}} / ditë",
+        "groupSum": "{{worked}} vendime · {{sale}} shitje · {{n}} persona",
+        "empty": "Askush nuk punoi në këtë periudhë."
+      },
+      "heat": {
+        "title": "Kur bëhet puna",
+        "subtitle": "Ora e ditës (koha e Shkupit) × person",
+        "metricLabel": "Çfarë numërohet",
+        "metric": {
+          "all": "Vendime + thirrje",
+          "decisions": "Vendime"
+        },
+        "all": "Të gjithë",
+        "nobody": "Askush",
+        "hint": "Kaloni mbi një qelizë për ta lexuar",
+        "cell": "{{name}} · {{from}}–{{to}} · {{what}}",
+        "nAll_one": "{{n}} vendim ose thirrje",
+        "nAll_other": "{{n}} vendime dhe thirrje",
+        "nDecisions_one": "{{n}} vendim",
+        "nDecisions_other": "{{n}} vendime",
+        "legendLess": "Më pak",
+        "legendMore": "Më shumë",
+        "legendNote": "Grupet janë kuantile të këtij rrjeti",
+        "empty": "Asnjë aktivitet në këtë periudhë."
+      },
+      "day": {
+        "title": "Ditë pas dite: kush punoi kur",
+        "subtitle": "Një ditë e periudhës. Lart: vendimet; poshtë: klikimet „Pa përgjigje“ dhe thirrjet me kohëmatës (të raportuara nga agjenti). Shiriti gri: CRM i hapur.",
+        "prev": "Dita e mëparshme",
+        "next": "Dita tjetër",
+        "live": "Sot · drejtpërdrejt",
+        "fit": "Gjithë dita",
+        "zoomIn": "Zmadho",
+        "zoomOut": "Zvogëlo",
+        "timedCall": "Thirrje me kohëmatës (e raportuar nga agjenti)",
+        "timedCallTip": "Thirrje me kohëmatës {{time}} (e raportuar nga agjenti)",
+        "callLog": "Thirrje e regjistruar",
+        "presence": "CRM i hapur",
+        "presenceTip": "CRM i hapur {{from}}–{{to}} · online {{online}} · aktiv {{active}}",
+        "break": "Pushim",
+        "login": "Hyrje",
+        "rowSummary": "{{worked}} vend. · {{sale}} shitje · {{na}} p/p",
+        "empty": "Askush nuk la gjurmë në këtë ditë.",
+        "unattributed": "Në asnjë rresht: {{decisions}} vendime dhe {{calls}} thirrje pa person (shih Cilësia e të dhënave)."
+      },
+      "callbacks": {
+        "title": "Radhët për thirrje përsëri",
+        "subtitle": "Thirrjet përsëri të hapura tani; pas {{n}} ditësh thirrja kthehet në grupin e përbashkët.",
+        "leads": "Thirrje përsëri për lead-e (AlterCPA)",
+        "prediction": "Thirrje përsëri nga parashikimet",
+        "unassigned": "Askujt të caktuara",
+        "over24": "Presin mbi 24 orë",
+        "expiring": "Lirohen brenda 24 orësh",
+        "oldest": "Më e vjetra {{ago}}",
+        "none": "Asnjë e hapur",
+        "open": "Hapni Thirrjet e përsëritura te Caktuesi"
+      },
+      "quality": {
+        "title": "Cilësia e të dhënave",
+        "allClear": "Asgjë për të kontrolluar — çdo vendim ka person dhe koha është matur për gjithë periudhën.",
+        "kind": {
+          "noPerson": "Vendime pa person",
+          "unmappedCalls": "Thirrje të regjistruara pa person",
+          "noSeller": "Shitje ende pa shitës",
+          "creditedUnlisted": "Shitje të atribuuara pa rresht",
+          "presenceGap": "Ditë pune pa kohë të matur",
+          "beforePresence": "Ditë para matjes së kohës",
+          "noLogin": "Operatorë vetëm në AlterCPA"
+        },
+        "hint": {
+          "noPerson": "Identifikuesi i vendimmarrësit nuk është lidhur me një person — lidheni te Cilësimet → Ekipet. Numërohet në totale, në asnjë rresht.",
+          "unmappedCalls": "Të regjistruara nga {{n}} hyrje që nuk janë person shitjeje — lidhini te Cilësimet → Ekipet.",
+          "noSeller": "Shitje në kohortë të cilave ende nuk u është regjistruar shitësi (kryesisht miratime në AlterCPA që presin regjistrimin e vendimmarrësit) — deri atëherë nuk numërohen në shitjet e atribuuara të askujt.",
+          "creditedUnlisted": "Një shitje i atribuohet një personi pa gjurmë tjetër në periudhë (numërohet në totale).",
+          "presenceGap": "Ditë kur personi punoi pa sinjale prania që kur filloi ndjekja — version i vjetër i aplikacionit ose ndjekës i bllokuar. Normat e tij për orë i lënë jashtë ato ditë.",
+          "beforePresence": "Prania ekziston nga {{date}}: këto ditë të periudhës nuk kanë kohë online / aktive.",
+          "noLogin": "Vendosin në panelin e AlterCPA pa hyrje në CRM, kështu nuk mund të kenë kurrë kohë në CRM."
+        }
+      }
+    },
     "answerRate": "Norma e përgjigjes",
     "answeredSub": "{{count}} të përgjigjura",
     "talkTime": "Koha e bisedës",
@@ -2983,7 +3959,527 @@
     "moneyPerList": "Të ardhurat për çdo listë parashikimi",
     "listTypeCampaign": "fushatë",
     "listTypeSegment": "segment",
-    "listsFootnote": "Atribuimi regjistrohet kur krijohet porosia, ndaj kthimi për listë është i saktë nga nisja e tutje. Kthimet numërohen si rimbursime (para që u kthyen në këtë biznes me pagesë në dorëzim). Anëtarët tregon madhësinë aktuale të listës."
+    "listsFootnote": "Atribuimi regjistrohet kur krijohet porosia, ndaj kthimi për listë është i saktë nga nisja e tutje. Kthimet numërohen si rimbursime (para që u kthyen në këtë biznes me pagesë në dorëzim). Anëtarët tregon madhësinë aktuale të listës.",
+    "agents": {
+      "notDeployed": "Skeda Agjentët ende nuk është aktivizuar në server (insights_people).",
+      "kpi": {
+        "title": "Agjentët — përmbledhje",
+        "hero": "Shitje me shitës",
+        "heroMoney": "Shitur nga agjentët",
+        "salesN": "{{n}} shitje",
+        "ofTotal": "{{share}} e të gjitha {{total}} shitjeve në periudhë.",
+        "noSellerLink": "{{n}} pa shitës →",
+        "barLabel": "Ku janë tani shitjet e agjentëve",
+        "worked": "Të përpunuara",
+        "workedSub": "{{sale}} shitje · {{cancel}} të anuluara · {{trash}} në kosh",
+        "conversion": "Konvertimi",
+        "conversionSub": "Vendime shitjeje / të përpunuara",
+        "paid": "Paguar (MEX)",
+        "paidSub": "{{share}} e shitjeve me shitës",
+        "returnRate": "Kthime",
+        "returnRateSub": "{{n}} të kthyera nga {{closed}} të përfunduara",
+        "active": "Persona aktivë",
+        "activeSub": "{{online}} online tani",
+        "aov": "Shitja mesatare",
+        "aovSub": "Vlera / shitje me shitës",
+        "packages": "Pako",
+        "packagesSub": "Rreshta të paguar (pa dhurata e pikë)"
+      },
+      "notes": {
+        "presenceSince": "Koha online matet nga {{day}} — „—“ para kësaj.",
+        "presenceNone": "Koha online ende nuk matet.",
+        "stamped": "Shitësit janë caktuar deri në {{time}} (çdo 5 minuta).",
+        "teamRule": "Çdo shitje dhe vendim numërohet në ekipin ku ishte personi atë ditë."
+      },
+      "team": {
+        "byKey": {
+          "altercpa_leads": "Në pritje — lidet AlterCPA",
+          "crm_prediction": "Parashikime — ElyonCRM",
+          "management": "Menaxhmenti",
+          "teleshop": "Teleshop / collabBox",
+          "none": "Pa ekip"
+        }
+      },
+      "teams": {
+        "title": "Ekipet",
+        "subtitle": "Ekipet krah për krah: shitje, ku janë tani, vendime të përpunuara, konvertim dhe kohë.",
+        "empty": "Askush nuk punoi dhe nuk shiti në këtë periudhë.",
+        "people": "{{n}} persona",
+        "members": "Personat ({{n}})",
+        "noMembers": "Askush në këtë periudhë.",
+        "barLabel": "Ku janë tani shitjet e {{team}}",
+        "noLinkMoved": "Disa anëtarë shitën edhe jashtë ekipit në këtë periudhë — lista te Porositë do të ishte më e gjerë.",
+        "noLinkGroup": "Ky grup nuk është ekip në Cilësimet — nuk ka listë te Porositë sipas ekipit.",
+        "partOfPerson": "Një pjesë e shitjeve të këtij personi janë në ekip tjetër — hapni personin.",
+        "mode": {
+          "pending": "Lide nga AlterCPA",
+          "prediction": "Thirrje nga listat e parashikimit",
+          "none": "Shfaqet, nuk renditet"
+        },
+        "kind": {
+          "teleshop": "Autorë collabBox dhe shitje teleshop jashtë ekipit",
+          "none": "Aktivitet i personave jashtë ekipit"
+        }
+      },
+      "boards": {
+        "title": "Më të mirët në periudhë",
+        "sales": "Më shumë shitje",
+        "conversion": "Konvertimi më i mirë",
+        "paid": "Më shumë të paguara (MEX)",
+        "return_rate": "Më pak kthime",
+        "per_hour": "Shitje për orë aktive",
+        "value": "Vlera më e madhe",
+        "empty": "Askush ende nuk i plotëson kushtet.",
+        "perHourValue": "{{n}} / orë",
+        "hint": {
+          "sales": "Shitje sipas ditës së shitjes",
+          "conversion": "Vendime shitjeje / të përpunuara · të paktën {{n}} të përpunuara",
+          "paid": "Shitje që MEX i arkëtoi",
+          "return_rate": "Të kthyera / të përfunduara · të paktën {{n}} të përfunduara",
+          "per_hour": "Vetëm ditët me kohë të matur · të paktën {{n}} minuta aktive",
+          "value": "Vlera e shitjeve (denarë)"
+        }
+      },
+      "col": {
+        "person": "Personi",
+        "online": "Online",
+        "onlineHint": "Koha me Elyon CRM të hapur (aktiv · pa aktivitet · pushim)",
+        "worked": "Të përpunuara",
+        "workedHint": "Çdo vendim: shitje, anulim, kosh, thirrje përsëri (CRM dhe AlterCPA)",
+        "saleDecisions": "Vendime shitjeje",
+        "conversion": "Konv.",
+        "conversionHint": "Vendime shitjeje / të përpunuara",
+        "sales": "Shitje",
+        "salesHint": "Shitje që i atribuohen personit, sipas ditës së shitjes — njësoj si Pasqyra",
+        "sources": "Burimet",
+        "sourcesHint": "AlterCPA · ElyonCRM · Teleshop",
+        "paid": "Paguar",
+        "paidHint": "MEX e dorëzoi pakon dhe e arkëtoi",
+        "paidShare": "Paguar",
+        "open": "Në proces",
+        "openHint": "Te korrieri, e paketuar ose në pritje për paketim",
+        "returned": "Të kthyera",
+        "returnRate": "% kthime",
+        "returnRateHint": "Të kthyera / (të paguara + të kthyera)",
+        "cancelledAfter": "Anuluar pas shitjes",
+        "cancelledAfterHint": "Shitur, pastaj anuluar para pakos — jashtë totalit",
+        "packages": "Pako",
+        "packagesHint": "Njësi në rreshta të paguar (dhuratat, pikët dhe mostrat nuk janë pako)",
+        "perHour": "Shitje/orë akt.",
+        "perHourHint": "Vendime shitjeje / orë aktive, vetëm ditët me kohë të matur",
+        "value": "Vlera",
+        "valueHint": "Arkëtimi MEX kur ka pako, përndryshe çmimi × 61,5 (denarë)",
+        "aov": "Mesatarja",
+        "paidValue": "Paguar (den)",
+        "paidValueHint": "Vlera e shitjeve që MEX i arkëtoi",
+        "last": "Aktiviteti i fundit"
+      },
+      "people": {
+        "title": "Të gjithë",
+        "subtitle": "Çdo numër hap pikërisht ato porosi. Klikoni një emër për detajet sipas ditëve.",
+        "search": "Kërko person…",
+        "teamsLabel": "Ekipet",
+        "allTeams": "Të gjitha ekipet",
+        "showIdle": "Shfaq edhe pa aktivitet",
+        "empty": "Askush nuk përputhet me filtrat.",
+        "csv": "CSV",
+        "openDrill": "Detajet për {{name}}"
+      },
+      "csv": {
+        "file": "agjentet",
+        "team": "Ekipi",
+        "onlineMin": "Online (min)",
+        "activeMin": "Aktiv (min)",
+        "cancelDecisions": "Anuluar (vendime)",
+        "trashDecisions": "Në kosh (vendime)",
+        "conversionPct": "Konvertimi %",
+        "returnRatePct": "Kthime %",
+        "valueMkd": "Vlera (den)",
+        "paidMkd": "Paguar (den)",
+        "aovMkd": "Shitja mesatare (den)"
+      },
+      "badge": {
+        "altercpaOnly": "Vetëm AlterCPA",
+        "collabboxOnly": "Autor collabBox",
+        "noLogin": "Pa hyrje",
+        "noLoginHint": "Pa hyrje në Elyon CRM — pa kohë të matur",
+        "manager": "Menaxher",
+        "inactive": "Joaktiv"
+      },
+      "drill": {
+        "title": "Personi",
+        "subtitle": "{{period}}",
+        "openOrders": "Hap {{n}} shitjet",
+        "decisionsLine": "{{sale}} shitje · {{cancel}} të anuluara · {{trash}} në kosh",
+        "perSale": "{{n}} për shitje",
+        "aovLine": "mesatarisht {{v}}",
+        "whereNow": "Ku janë tani shitjet e tij/saj",
+        "paidValue": "Arkëtuar nga MEX: {{v}}",
+        "byDay": "Sipas ditëve",
+        "decisionsChart": "Vendime në ditë",
+        "salesChart": "Shitje në ditë",
+        "decision": {
+          "sale": "Shitje",
+          "callback": "Thirrje përsëri",
+          "cancel": "Anuluar",
+          "trash": "Në kosh"
+        },
+        "products": "Çfarë shet",
+        "identities": "Njihet si",
+        "memberships": "Ekipet",
+        "kind": {
+          "altercpa_user": "Operator AlterCPA",
+          "collabbox_author": "Autor collabBox",
+          "order_name": "emri në porosi"
+        },
+        "now": "sot",
+        "lead": "udhëheqës",
+        "notInPeriod": "Ky person nuk ka aktivitet në këtë periudhë."
+      },
+      "noSeller": {
+        "title": "Shitje pa shitës",
+        "subtitle": "Pse një pjesë e shitjeve nuk i atribuohen askujt — që agjentët + kjo të japin saktësisht sa Pasqyra.",
+        "tieOk": "Me shitës {{people}} + pa shitës {{none}} = {{total}}, njësoj si Pasqyra",
+        "tieBad": "Me shitës {{people}} + pa shitës {{none}} ≠ {{total}} — numrat nuk përputhen",
+        "rowBad": "Nuk përputhet",
+        "col": {
+          "source": "Burimi",
+          "people": "Me shitës",
+          "none": "Pa shitës",
+          "total": "Gjithsej",
+          "withSeller": "Pjesa me shitës"
+        },
+        "none": "Çdo shitje në periudhë ka shitës.",
+        "noLink": "Porositë nuk kanë listë vetëm për shitjet pa shitës",
+        "paidLine": "të paguara {{paid}} · në proces {{open}} · të kthyera {{returned}}",
+        "reason": {
+          "web_shop": "Dyqani në internet",
+          "mex_only": "Pako MEX pa porosi",
+          "altercpa_cancelled": "Anuluar në AlterCPA, dërguar nga MEX",
+          "awaiting_stamp": "Miratuar, shitësi po caktohet",
+          "unmapped": "Shitës i panjohur",
+          "no_decider": "Nuk ka shënim kush vendosi"
+        },
+        "hint": {
+          "web_shop": "Porositë nga interneti nuk kanë agjent nga natyra.",
+          "mex_only": "Pako që s'i mban asnjë porosi — teleshop, rrjete sociale, pako Elyon të palidhura.",
+          "altercpa_cancelled": "AlterCPA thotë anuluar ose kosh, prandaj askush nuk merr meritë — por MEX e mori pakon, pra është shitje.",
+          "awaiting_stamp": "Miratuar në AlterCPA; shitësi caktohet çdo 5 minuta.",
+          "unmapped": "Shitësi njihet vetëm me një emër ose numër që askush ende nuk e ka lidhur me person.",
+          "no_decider": "As CRM as AlterCPA nuk shënuan kush e bëri shitjen (histori e vjetër)."
+        },
+        "via": {
+          "crm": "CRM",
+          "crm_push": "CRM → AlterCPA",
+          "altercpa": "AlterCPA",
+          "collabbox": "collabBox",
+          "import": "import 08.2026",
+          "other": "tjetër"
+        },
+        "cancelledBy": {
+          "title": "Vendimin e kujt e anuloi MEX",
+          "hint": "Kush e mbylli lidin AlterCPA si të anuluar, ndërsa pakoja megjithatë u dërgua.",
+          "unnamed": "AlterCPA #{{id}}"
+        },
+        "handles": {
+          "title": "Emra që presin lidhje",
+          "hint": "Lidhini me një person dhe shitjet atribuohen vetë:",
+          "settings": "Cilësimet → Ekipet"
+        },
+        "unmappedWork": "{{n}} vendime pa person:"
+      },
+      "bonus": {
+        "title": "Bonusi (rregulli aktual)",
+        "totalLine": "gjithsej {{v}}",
+        "note": "Bonusi llogaritet si më parë — sipas konfirmuesit, me CRM të paguar dhe emrin e saktë — dhe nuk ndryshon derisa të vendosë pronari. Prandaj këta numra ndryshojnë nga shitjet më lart.",
+        "empty": "Nuk ka pako të paguara ose në pritje në periudhë.",
+        "historic": "Operator historik",
+        "col": {
+          "name": "Agjenti",
+          "packages": "Pako të paguara",
+          "packagesHint": "Njësi në porosi të paguara (baza e bonusit)",
+          "awaiting": "Në pritje",
+          "awaitingHint": "Konfirmuar, dërguar, ende pa pagesë",
+          "avg": "Mes. / pako",
+          "payout": "Pagesa"
+        }
+      },
+      "self": {
+        "title": "Performanca ime — {{name}}",
+        "empty": "Nuk keni aktivitet në këtë periudhë.",
+        "emptyHint": "Zgjidhni një periudhë tjetër më lart.",
+        "unlinked": "Hyrja juaj ende nuk është lidhur me një shitës.",
+        "unlinkedHint": "Pronari ju lidh te Cilësimet → Ekipet."
+      }
+    },
+    "profit": {
+      "intro": "Fitimi sipas dy orëve — zgjidhni njërën më poshtë. Vetëm për pronarët. Të gjitha shumat janë në denarë; TVSH-ja, korrieri dhe komisioni ndjekin rregullin e shënuar në çdo rresht.",
+      "prevSkipped": "Krahasimi me periudhën e mëparshme shfaqet për periudha deri në {{n}} ditë.",
+      "empty": "Asgjë në këtë periudhë.",
+      "clock": {
+        "label": "Sipas cilës orë numërohet fitimi",
+        "cohort": "Shitjet në periudhë",
+        "cohortHint": "Shitjet e bëra në periudhë dhe sa ka arkëtuar MEX prej tyre deri tani",
+        "cash": "Paratë që mbërritën",
+        "cashHint": "Pagesat e MEX për dërgesat e dorëzuara në periudhë (çdo ditë shitjeje) + pagesat me kartë",
+        "netOf": "neto · {{margin}} nga {{revenue}}",
+        "cohortCaption": "Shitjet e bëra {{period}} — të arkëtuara nga MEX (dita e shitjes, ora e Shkupit)",
+        "cashCaption": "Paratë që MEX dorëzoi {{period}} (dita e dorëzimit, ora e Shkupit)"
+      },
+      "hero": {
+        "titleCohort": "Fitimi neto nga shitjet e periudhës",
+        "titleCash": "Fitimi neto nga paratë që mbërritën",
+        "marginLine": "marzha {{margin}} · {{sales}} shitje",
+        "estimateNote": "Përfshin {{est}} kosto të vlerësuar produkti për paketat pa çmim blerjeje ({{share}} e të ardhurave të tyre). Nëse ato janë 0: {{upper}}."
+      },
+      "tile": {
+        "revenue": "Të ardhura të arkëtuara",
+        "revenueCohortSub": "{{n}} shitje të dorëzuara nga MEX",
+        "revenueCashSub": "{{n}} dërgesa të dorëzuara",
+        "cardPart": "prej tyre me kartë {{v}}",
+        "costs": "Të gjitha kostot",
+        "costsSub": "{{pct}} e të ardhurave",
+        "perSale": "Fitimi për shitje",
+        "aov": "shitja mesatare {{v}}",
+        "coverage": "Mbulimi me çmim blerjeje",
+        "coverageSub": "{{c}} nga {{n}} paketa kanë çmim blerjeje",
+        "coverageLow": "Fitimi mbështetet në vlerësime",
+        "open": "Ende për t'u arkëtuar",
+        "openSub": "{{n}} shitje te korrieri / të paketuara / për paketim",
+        "parcels": "Dërgesa të dorëzuara",
+        "parcelsSub": "{{r}} të kthyera nga MEX",
+        "returned": "Të kthyera",
+        "returnedSub": "{{n}} shitje · {{pct}} e të vendosurave",
+        "returnRate": "Norma e kthimit",
+        "returnRateSub": "tarifa e kthimit {{fee}} për dërgesë"
+      },
+      "strip": {
+        "title": "Çfarë ndodhi me shitjet e bëra {{period}}",
+        "note": "Fitimi numëron vetëm pjesën e arkëtuar; pjesa tjetër është ende e hapur ose u kthye."
+      },
+      "waterfall": {
+        "title": "Nga të ardhurat te fitimi neto",
+        "basisLabel": "Cilat paketa",
+        "basis": {
+          "estimated": "Të gjitha paketat",
+          "costed": "Vetëm me çmim blerjeje"
+        },
+        "basisHint": {
+          "estimated": "Çdo paketë; paketa pa çmim blerjeje vlerësohet sipas pjesës së kostos te paketat me çmim (me vija).",
+          "costed": "Vetëm paketat me çmim blerjeje: të ardhurat dhe kosto e tyre; korrieri, kthimet dhe komisioni ndahen sipas pjesës së tyre në të ardhura."
+        },
+        "upperNote": "Nëse paketat pa çmim blerjeje nuk kushtojnë asgjë, fitimi neto do të ishte {{upper}}. Marzha {{margin}}.",
+        "costedNote": "Të ardhurat e paketave me çmim blerjeje {{rev}} · marzha {{margin}}."
+      },
+      "step": {
+        "revenue": "Të ardhurat",
+        "vat": "TVSH {{pct}} (në çmim)",
+        "cogs_known": "Kosto e produktit (çmimi i blerjes)",
+        "cogs_est": "Kosto e produktit — e vlerësuar",
+        "courier": "Korrieri MEX ({{fee}} për dërgesë)",
+        "returns": "Kthimet ({{fee}} për dërgesë)",
+        "commission": "Komisioni i agjentëve",
+        "lead": "Kosto e lead-eve",
+        "net": "Fitimi neto"
+      },
+      "chip": {
+        "vatPending": "norma pret konfirmimin e kontabilistit",
+        "leadMissing": "nuk është vendosur",
+        "commissionRule": "rregulli aktual: për paketë, porosi të paguara, vetëm agjentë",
+        "returnFeePending": "0 në tarifat — për konfirmim",
+        "estimate": "vlerësim · {{share}} e të ardhurave",
+        "allocated": "e ndarë"
+      },
+      "table": {
+        "title": "Fitimi sipas burimit",
+        "line": "Rreshti",
+        "total": "Gjithsej",
+        "sales": "Shitje",
+        "revenue": "Të ardhurat",
+        "net": "Fitimi neto",
+        "margin": "Marzha",
+        "costedMargin": "Marzha e paketave me çmim blerjeje",
+        "notConfigured": "nuk është vendosur",
+        "unitSection": "Për shitje",
+        "aov": "Shitja mesatare",
+        "costPerSale": "Kosto për shitje",
+        "profitPerSale": "Fitimi për shitje",
+        "returnRate": "Norma e kthimit",
+        "packages": "Paketa",
+        "packagesVal": "{{n}} · falas {{free}} · {{per}}/shitje",
+        "coverage": "Mbulimi me çmim blerjeje",
+        "note": "Kolonat mblidhen në totalin. Teleshop / tjetër përfshin dërgesat MEX pa porosi (përmbajtja e tyre nuk dihet, prandaj kosto e tyre vlerësohet)."
+      },
+      "aff": {
+        "title": "AlterCPA sipas uebmasterit",
+        "subtitle": "Nën kolonën AlterCPA — rreshtat mblidhen në të.",
+        "partner": "Uebmasteri",
+        "sales": "Shitje",
+        "collected": "Të arkëtuara",
+        "parcels": "Dërgesa",
+        "returnRate": "Norma e kthimit",
+        "net": "Fitimi para kostos së lead-eve",
+        "sum": "Gjithsej AlterCPA",
+        "none": "Pa uebmaster në regjistër",
+        "unnamed": "WM {{id}}",
+        "openN": "{{n}} të hapura",
+        "leadNote": "Ende nuk ka çmime për lead sipas uebmasterit, prandaj çdo rresht është fitim para asaj që kushtojnë lead-et."
+      },
+      "trend": {
+        "title": "Fitimi neto me kalimin e kohës",
+        "byDay": "sipas ditës",
+        "byMonth": "sipas muajit",
+        "net": "Fitimi neto",
+        "loss": "Humbje",
+        "revenue": "Të ardhura të arkëtuara",
+        "salesN": "{{n}} shitje",
+        "viewLabel": "Pamja",
+        "chart": "Grafik",
+        "table": "Tabelë",
+        "colPeriod": "Periudha",
+        "cohortNote": "Ditët e fundit janë ende në rrugë: fitimi i tyre rritet ndërsa MEX dorëzon."
+      },
+      "prod": {
+        "title": "Fitimi sipas produktit",
+        "subtitle": "Shitjet e arkëtuara të periudhës, të gjitha burimet — {{n}} produkte dhe rreshta",
+        "search": "Kërko produkt",
+        "sortBy": "Rendit",
+        "sort": {
+          "revenue": "Të ardhurat",
+          "net": "Fitimi neto",
+          "margin": "Marzha",
+          "packages": "Paketa",
+          "returns": "Norma e kthimit"
+        },
+        "product": "Produkti",
+        "packages": "Paketa",
+        "perPackage": "Për paketë",
+        "unitCost": "Kosto / paketë",
+        "cogs": "Kosto e produktit",
+        "otherCosts": "TVSH + korrier + komision",
+        "returns": "Të kthyera",
+        "noCost": "pa çmim blerjeje",
+        "byName": "sipas emrit",
+        "kind": {
+          "product": "produkt",
+          "gift": "dhuratë",
+          "loyalty_point": "pikë besnikërie",
+          "delivery": "tarifë dërgese",
+          "note": "shënim",
+          "flyer": "fletushkë"
+        },
+        "contentsUnknown": "përmbajtje e panjohur",
+        "mexOnly": "Dërgesa MEX pa porosi",
+        "unknownLine": "Shitje pa rreshta",
+        "freeN": "falas {{n}}",
+        "estTip": "E vlerësuar: pa çmim blerjeje",
+        "none": "Asnjë produkt nuk përputhet.",
+        "note": "≈ = e vlerësuar (pa çmim blerjeje). Fitimi neto dhe marzha përdorin të njëjtat kosto si fitimi sipas burimit.",
+        "showAll": "Shfaq të gjitha {{n}}",
+        "showTop": "Shfaq {{n}} e para",
+        "setCosts": "Vendosni çmimet e blerjes te Produktet →"
+      },
+      "quality": {
+        "title": "Çfarë fitimi ende nuk mund ta garantojë",
+        "pendingSetting": "Cilësim në pritje",
+        "topLine": "{{n}} pak. · {{v}}",
+        "kind": {
+          "uncosted_packages": "Paketa pa çmim blerjeje",
+          "mex_only_contents": "Dërgesa MEX me përmbajtje të panjohur",
+          "unproven_paid": "E paguar pa provë nga MEX",
+          "non_product_lines": "Rreshta të njohur si jo-produkte sipas emrit",
+          "orders_without_lines": "Porosi pa rreshta produktesh",
+          "vat_unconfirmed": "Norma e TVSH-së nuk është konfirmuar",
+          "lead_cost_missing": "Kosto e lead-eve nuk është vendosur",
+          "return_fee_unconfirmed": "Tarifa e kthimit të MEX nuk është konfirmuar"
+        },
+        "hint": {
+          "uncosted_packages": "Kosto e tyre vlerësohet. Vendosni çmimin e blerjes te Produktet që fitimi të jetë i saktë.",
+          "mex_only_contents": "Dërgesa pa porosi në CRM — nuk dihet çfarë kishte brenda, prandaj kosto e tyre vlerësohet.",
+          "unproven_paid": "CRM thotë e paguar, por asnjë dërgesë MEX e dorëzuar nuk e provon — jashtë fitimit.",
+          "non_product_lines": "Pikët e besnikërisë, tarifat e dërgesës, shënimet dhe fletushkat nuk numërohen si paketa. Një alias produkti i shqyrtuar e ndryshon këtë.",
+          "orders_without_lines": "Vlera e tyre bartet nga produkti i vetë porosisë.",
+          "vat_unconfirmed": "18% për çdo shitje derisa kontabilisti të konfirmojë nëse suplementet hyjnë në normën 5% ose 10%.",
+          "lead_cost_missing": "Fitimi i AlterCPA është para asaj që kushtojnë lead-et: ende nuk ka çmim për lead.",
+          "return_fee_unconfirmed": "Tarifat e MEX japin 0 për një kthim. Konfirmoni nëse MEX e faturon dërgesën për dërgesat e kthyera."
+        }
+      },
+      "export": {
+        "summary": "Fitimi (të dyja orët)",
+        "summaryHint": "Çdo rresht sipas burimit, për shitjet në periudhë dhe për paratë që mbërritën",
+        "products": "Produktet",
+        "productsHint": "Fitimi sipas produktit, mbulimi me çmim dhe kthimet",
+        "affiliates": "Uebmasterët e AlterCPA",
+        "affiliatesHint": "Fitimi sipas uebmasterit para kostos së lead-eve"
+      }
+    },
+    "margins": {
+      "intro": "Sa shitet vërtet një paketë, sa sjell çdo produkt për paketë dhe cili çmim e arrin objektivin tuaj — pikërisht mbi kostot e Fitimit të pastër (shitjet e arkëtuara të periudhës, të gjitha burimet).",
+      "target": "Objektivi: neto për paketë",
+      "perPackage": "ден për paketë",
+      "kpi": {
+        "avg": "Mesatarja për paketë të paguar",
+        "paidPackages": "{{n}} paketa të paguara",
+        "median": "Mediana",
+        "iqr": "gjysma e mesme {{lo}} – {{hi}}",
+        "range": "Më i ulëti – më i larti",
+        "free": "Paketa falas",
+        "freeSub": "{{n}} nga {{of}} paketa",
+        "netPerPkg": "Neto për paketë",
+        "netPerPkgSub": "{{n}} paketa me çmim blerjeje",
+        "coverage": "Mbulimi me çmim blerjeje",
+        "coverageSub": "{{n}} paketa pa çmim blerjeje"
+      },
+      "bySource": {
+        "title": "Sipas burimit",
+        "avg": "Mesatarja / paketë",
+        "median": "Mediana / paketë",
+        "packages": "Paketa",
+        "free": "Falas",
+        "note": "Për paketë të paguar, vetëm produkte të vërteta (paketat falas, pikët dhe dërgesa nuk hyjnë në çmim)."
+      },
+      "floor": {
+        "title": "Çmimi minimal sipas produktit",
+        "help": "Minimumi = {{gross}} × (objektivi {{target}} + kosto + pjesa e korrierit + pjesa e komisionit), me TVSH në çmim.",
+        "realized": "Shitet për / pak.",
+        "vat": "TVSH / pak.",
+        "courier": "Korrier / pak.",
+        "commission": "Komision / pak.",
+        "net": "Neto / pak.",
+        "floor": "Minimumi",
+        "uplift": "kundrejt tani",
+        "status": "Statusi",
+        "note": "Produkti pa çmim blerjeje nuk ka minimum: vendosni çmimin e blerjes."
+      },
+      "status": {
+        "clears": "e arrin objektivin",
+        "below": "nën objektiv",
+        "no_cost": "pa çmim blerjeje"
+      },
+      "sim": {
+        "title": "Simulatori i paketës",
+        "help": "Një porosi: vendosni çmimin, paketat, koston dhe normën e pritur të kthimit; nis nga shifrat reale të produktit.",
+        "product": "Produkti",
+        "paid": "Paketa të paguara",
+        "bonus": "Paketa falas",
+        "price": "Çmimi i porosisë",
+        "cost": "Kosto / paketë",
+        "returnRate": "Norma e kthimit",
+        "delivery": "Korrier / dërgesë",
+        "commShare": "Pjesa me komision",
+        "lead": "Kosto e lead-it / porosi",
+        "actual": "Në periudhë: {{price}} për paketë mbi {{n}} paketa, kthime {{ret}}.",
+        "needCost": "Vendosni koston për paketë për të parë neton.",
+        "pass": "E arrin objektivin",
+        "fail": "Nën objektiv",
+        "perPackage": "{{n}} paketa · {{price}} për paketë",
+        "netDelivered": "Neto nga një porosi e dorëzuar",
+        "netExpected": "Neto e pritur për porosi (me {{pct}}% kthime)",
+        "netPerPkg": "Neto e pritur për paketë",
+        "targetIs": "objektivi {{v}}",
+        "needPrice": "Çmimi i nevojshëm: {{price}} ({{per}} për paketë)"
+      }
+    }
   },
   "agentsTab": {
     "today": "Sot",

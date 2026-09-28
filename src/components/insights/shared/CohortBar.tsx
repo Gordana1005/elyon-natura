@@ -65,6 +65,9 @@ export interface CohortBarProps {
   variant?: 'full' | 'bar';
   /** Accessible name of the bar (the 'bar' variant has no heading). */
   barLabel?: string;
+  /** A slice that is not a whole source (e.g. one prediction list): the tab
+   *  builds each part's exact /orders link itself. Overrides rows + range. */
+  drillFor?: (key: DrillKey | DrillKey[]) => CohortDrill;
   f: InsightsFormat;
   className?: string;
 }
@@ -80,7 +83,7 @@ export interface CohortBarProps {
  * part ("N во Нарачки") and says in its tooltip what no list holds.
  */
 export function CohortBar({
-  total, buckets, outside, money, rows = [], range, prev, prevLabel, spark, title, note, variant = 'full', barLabel, f, className,
+  total, buckets, outside, money, rows = [], range, prev, prevLabel, spark, title, note, variant = 'full', barLabel, drillFor, f, className,
 }: CohortBarProps) {
   const { t } = f;
   const titleId = useId();
@@ -94,7 +97,8 @@ export function CohortBar({
   if (!check.ok && import.meta.env.DEV) console.error('[cohort] parts do not add up to the total', check);
 
   const drill = (key: DrillKey | DrillKey[]): CohortDrill =>
-    range ? cohortDrill(rows, key, range) : { href: null, blocked: 'none', ordersHref: null, orders: 0, web: 0, mexOnly: 0 };
+    drillFor ? drillFor(key)
+      : range ? cohortDrill(rows, key, range) : { href: null, blocked: 'none', ordersHref: null, orders: 0, web: 0, mexOnly: 0 };
   const whyNoLink = (d: CohortDrill): string | undefined => cohortWhy(f, d);
 
   const share = (n: number) => f.share(n, tot.count);

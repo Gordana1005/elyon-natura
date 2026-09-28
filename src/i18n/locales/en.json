@@ -2620,6 +2620,770 @@
     "avgPerPkg": "Avg / pkg"
   },
   "insights": {
+    "returns": {
+      "notDeployed": "The Returns tab is not deployed on the server yet.",
+      "empty": "No data for this period.",
+      "emptyTitle": "No returns to show",
+      "emptySale": "No sales in this period for the selected sources.",
+      "emptyMex": "MEX neither delivered nor returned a parcel in this period for the selected sources.",
+      "noLinkMexDay": "The Orders list cannot filter by the day MEX returned a parcel",
+      "smallBase": "Fewer than {{n}} — the rate is not reliable",
+      "asTable": "Show as a table",
+      "daysN": "{{n}} days",
+      "pp": "{{n}} pp",
+      "ppUp": "The rate is {{n}} percentage points higher than the previous period",
+      "ppDown": "The rate is {{n}} percentage points lower than the previous period",
+      "ppFlat": "The rate is the same as the previous period",
+      "clock": {
+        "label": "How returns are counted",
+        "sale": "Sales in the period",
+        "saleHint": "The sales made in the period and how many of them came back so far (cohort)",
+        "returned": "Returned in the period (MEX)",
+        "returnedHint": "The parcels MEX returned in the period, whenever the sale was made"
+      },
+      "hero": {
+        "titleSale": "Returned from the sales · {{period}}",
+        "titleMex": "Returned parcels · {{period}}",
+        "ofSales": "of {{n}} sales · {{pct}} so far",
+        "ofFinished": "of {{n}} finished parcels · {{pct}}",
+        "uncollected": "Uncollected COD",
+        "barLabel": "What became of the sales",
+        "soFar": "{{n}} sales ({{pct}}) are not finished yet — at the courier, packed or in the warehouse. The rate is \"so far\" and will grow until every parcel finishes."
+      },
+      "part": {
+        "closedSale": "Delivered / closed",
+        "delivered": "Delivered",
+        "open": "Still open",
+        "returned": "Returned"
+      },
+      "tile": {
+        "rateSale": "Return rate (so far)",
+        "rateMex": "Return rate",
+        "prevRate": "previously {{pct}} · {{n}} returned",
+        "uncollected": "Uncollected COD",
+        "uncollectedSub": "COD that MEX did not collect — the goods come back, it is not a loss",
+        "parcels": "Returned parcels (MEX)",
+        "parcelsSub": "With MEX proof (status 7)",
+        "roundTrip": "Shipping loss",
+        "roundTripSub": "Per the rate card: return {{rate}} per parcel · if MEX also bills the delivery ({{per}}): {{outbound}}",
+        "problem": "At the courier with a problem",
+        "problemSplit": "rejected {{rejected}} · delivery attempted {{attempted}} · problematic {{problematic}}",
+        "problemNow": "Now, all sales: rejected {{rejected}} · attempted {{attempted}} · problem {{problematic}}",
+        "problemNowTitle": "At the courier with a problem now",
+        "cancelledAfter": "Cancelled after the sale",
+        "trashedAfter": "trashed after the sale {{n}}",
+        "cancelledSale": "Sold, then cancelled with no parcel — not returns",
+        "cancelledDecided": "Counted by the day of the cancellation — not returns",
+        "daysToReturn": "To return (median)",
+        "atCourier": "of which at the courier {{n}} days"
+      },
+      "source": {
+        "title": "Returns by source"
+      },
+      "col": {
+        "name": "Name",
+        "sales": "Sales",
+        "finished": "Finished",
+        "returned": "Returned",
+        "rate": "Rate",
+        "open": "Open",
+        "uncollected": "Uncollected",
+        "soldUnits": "Units sold",
+        "returnedUnits": "Units returned",
+        "day": "Day"
+      },
+      "trend": {
+        "titleSale": "Sales by day and what became of them",
+        "titleMex": "Finished parcels by day",
+        "subSale": "The latest days are still open — that is why they have fewer returns"
+      },
+      "product": {
+        "title": "Returns by product",
+        "sub": "Units from the order lines (no points, notes or delivery lines); gifts apart",
+        "notInCatalogue": "not in catalogue",
+        "notInCatalogueHint": "The name matches no catalogue product — see \"Catalogue hygiene\" under Products & stock",
+        "others": "Other products ({{n}})",
+        "mexOnlySale": "MEX parcels with no order (no product data): {{base}} sales, {{returned}} returned",
+        "mexOnlyMex": "MEX parcels with no order (no product data): {{base}} finished, {{returned}} returned",
+        "free": "Free units (gifts): {{returned}} returned of {{sold}}",
+        "notProducts": "Not counted: {{n}} point / note / delivery lines and {{bad}} units with an impossible quantity"
+      },
+      "city": {
+        "title": "Returns by city",
+        "sub": "The receiver's city from MEX, Latin and Cyrillic folded · {{n}} places",
+        "others": "Other places ({{n}})"
+      },
+      "person": {
+        "title": "Returns by seller",
+        "sub": "Orders only — web-shop orders and MEX parcels have no seller",
+        "others": "Other sellers ({{n}})",
+        "none": "No seller recorded"
+      },
+      "list": {
+        "title": "Returns by prediction list",
+        "sub": "ElyonCRM sales from the lists",
+        "empty": "No list sales in this period."
+      },
+      "dow": {
+        "title": "Rate by day of the sale",
+        "sub": "The weekday the sale was made",
+        "d1": "Monday",
+        "d2": "Tuesday",
+        "d3": "Wednesday",
+        "d4": "Thursday",
+        "d5": "Friday",
+        "d6": "Saturday",
+        "d7": "Sunday"
+      },
+      "days": {
+        "title": "Days from sale to return",
+        "sub": "{{n}} returns with a known day",
+        "bin": {
+          "0_3": "0–3 days",
+          "4_7": "4–7 days",
+          "8_14": "8–14 days",
+          "15_21": "15–21 days",
+          "22_30": "22–30 days",
+          "31_plus": "31+ days"
+        }
+      },
+      "account": {
+        "title": "By MEX account",
+        "sub": "The account the parcel was sent from",
+        "bio_natural": "BIO NATURAL (Elyon)",
+        "natura": "NATURA (teleshop, social, web)",
+        "none": "No parcel"
+      },
+      "reasons": {
+        "title": "Why they were cancelled after the sale",
+        "sub": "Sold, then cancelled or trashed with no parcel — outside the returns",
+        "none": "Nothing was cancelled after the sale in this period.",
+        "unknown": "No reason recorded"
+      },
+      "repeat": {
+        "title": "Buyers who return again and again",
+        "sub": "{{phones}} phones with 2+ returned parcels so far; they account for {{n}} of the period's returns ({{pct}})",
+        "none": "No repeat returns in this period.",
+        "buyer": "Buyer",
+        "returnedAll": "Returned (all time)",
+        "deliveredAll": "Delivered (all time)",
+        "inWindow": "In the period",
+        "last": "Last return",
+        "open": "Open the orders of this phone"
+      },
+      "notes": {
+        "crmOnly": "Returned in the CRM with no MEX parcel",
+        "crmOnlyHint": "The CRM says \"returned\", but MEX has no parcel for them — check them.",
+        "badQty": "Lines with an impossible quantity",
+        "badQtyHint": "A line with 100+ units (e.g. 1,000 × Adenofrin in one 3,000 den order) — a data error; the units are not counted.",
+        "rejected": "Rejected at the door — still at the courier",
+        "rejectedHint": "MEX status 13: the parcel stays at the courier until MEX returns it (7). The oldest is from {{date}}.",
+        "reason": "The reason for a return is not recorded",
+        "reasonHint": "MEX sends only the current status and nobody enters a reason. Owner decision: record the last status before the return.",
+        "fee": "Does MEX bill the delivery on a returned parcel?",
+        "feeHint": "The rate card says 0 den for a return. If MEX also bills the 150 den delivery, the loss is what \"Shipping loss\" shows. Confirm and update the rate card."
+      }
+    },
+    "stock": {
+      "notDeployed": "The Products & stock tab is not deployed on the server yet.",
+      "empty": "No products to show.",
+      "unverified": "unverified",
+      "unverifiedHint": "The stock count is not verified — see the warning above",
+      "noCost": "no cost price",
+      "placeholder": "1,000?",
+      "placeholderHint": "Still the temporary 1,000 from 06.08 — not a physical count",
+      "trust": {
+        "ok": "Stock was counted on {{count}} and the ledger follows the shipments (last deduction {{deduction}}).",
+        "title": "Stock not verified since {{date}}",
+        "body": "The last stock deduction was on {{deduction}}; since then MEX created {{parcels}} parcels that were never deducted. {{placeholder}} products still hold the temporary 1,000. The \"on hand\" numbers are unverified; days of cover and the stock value are hidden.",
+        "window": "In the period: {{parcels}} MEX parcels, {{moves}} ledger entries ({{out}} units deducted).",
+        "fix": "Needed: a physical count and a stock deduction for every MEX parcel (owner decision)."
+      },
+      "tile": {
+        "units": "Units sold",
+        "unitsSub": "{{n}} products · {{pct}} from the catalogue",
+        "free": "Free units",
+        "freeSub": "Gifts — they leave the warehouse and earn nothing",
+        "toPack": "To pack now",
+        "toPackSub": "{{units}} units · oldest sale {{date}}",
+        "label": "Packed, waiting for courier",
+        "labelSub": "{{units}} units · oldest {{date}}",
+        "returned": "Units returned (MEX)",
+        "returnedSub": "{{n}} parcels returned in the period · {{mex}} without product data",
+        "valuation": "Stock value (at cost)",
+        "valuationSub": "at price {{price}} · cost known for {{pct}} of the units",
+        "tracked": "Products in the stock ledger",
+        "trackedTrusted": "out of stock {{out}} · low {{low}}",
+        "trackedHidden": "{{n}} not tracked in the warehouse · \"out of stock\" is hidden until stock is verified",
+        "trackedHiddenOwner": "{{n}} not tracked in the warehouse · the stock value is hidden until stock is verified"
+      },
+      "queue": {
+        "title": "What waits in the warehouse now",
+        "sub": "Sold, not handed to the courier yet — by the age of the sale",
+        "products": "Products waiting (units)",
+        "oldest": "oldest {{date}}",
+        "units": "{{n}} units",
+        "staleToPack": "{{n}} sales have waited more than 2 weeks — check that they still stand.",
+        "staleLabel": "{{n}} labels have waited more than 2 weeks — probably dead MEX labels.",
+        "age": {
+          "0_2": "0–2 days",
+          "3_7": "3–7 days",
+          "8_14": "8–14 days",
+          "15_30": "15–30 days",
+          "31_plus": "31+ days"
+        }
+      },
+      "trend": {
+        "title": "Units sold by day",
+        "sub": "By source; no points, notes, delivery lines or gifts"
+      },
+      "movers": {
+        "title": "Best sellers",
+        "sub": "Units in the period, with the change against the previous period"
+      },
+      "slow": {
+        "title": "In stock, not selling",
+        "sub": "Tracked products with the fewest units sold",
+        "none": "No products with stock."
+      },
+      "table": {
+        "title": "All products",
+        "sub": "{{n}} rows: every active catalogue product and the best-selling names outside it",
+        "search": "Search a product or SKU",
+        "sort": "Sort by",
+        "onlyCatalogue": "catalogue only",
+        "more": "{{n}} more names outside the catalogue with {{units}} units in total are not shown."
+      },
+      "col": {
+        "product": "Product",
+        "units": "Sold",
+        "bySource": "By source",
+        "free": "Free",
+        "returned": "Returned",
+        "queue": "Waiting",
+        "toPack": "To pack",
+        "label": "Packed",
+        "onHand": "On hand",
+        "state": "State",
+        "cover": "Cover",
+        "cost": "Cost"
+      },
+      "state": {
+        "ok": "OK",
+        "low": "Low",
+        "out": "Out",
+        "not_tracked": "Not tracked"
+      },
+      "hygiene": {
+        "title": "Catalogue hygiene",
+        "duplicates": "Possible duplicates in the catalogue",
+        "duplicatesHint": "Products with the same first word (Latin and Cyrillic folded). The owner decides which are the same product.",
+        "dupUnits": "{{n}} units",
+        "unmapped": "Names outside the catalogue",
+        "unmappedHint": "{{units}} units sold under names that are not in the catalogue — they need mapping (product_aliases).",
+        "noCost": "Selling with no cost price",
+        "noCostHint": "{{active}} active products have no cost price; {{units}} units of them were sold — their profit is unknown.",
+        "notProducts": "Lines that are not products",
+        "notProductsHint": "Points, notes, flyers, delivery lines and impossible quantities — not counted as units.",
+        "linesUnits": "{{lines}} lines · {{units}} units",
+        "notTracked": "Not tracked in the warehouse",
+        "notTrackedHint": "Active products with no stock ledger — they are not \"out of stock\". Still at the temporary 1,000: {{placeholder}}. Inactive but selling: {{inactive}}."
+      },
+      "kind": {
+        "loyalty_point": "Loyalty points",
+        "note": "Notes",
+        "flyer": "Flyers",
+        "delivery": "Delivery",
+        "bad_quantity": "Impossible quantity",
+        "gift": "Gift"
+      }
+    },
+    "sales": {
+      "notDeployed": "The sales report is not deployed yet.",
+      "empty": "No sales in this period.",
+      "detailLoading": "Loading products, places and buyers…",
+      "noLinkFolded": "Products and places are folded by catalogue and by place — the Orders list has no such filter, so these numbers carry no link.",
+      "header": {
+        "title": "Sold {{period}}",
+        "titleNoMoney": "Sales {{period}}"
+      },
+      "kpi": {
+        "label": "The sales in numbers",
+        "avg": "Average sale",
+        "avgHint": "value ÷ sales",
+        "paid": "Paid",
+        "paidHint": "{{n}} of {{of}} sales",
+        "returns": "Returns",
+        "returnsHint": "{{n}} of {{of}} closed (paid + returned)",
+        "inFlight": "Still in flight",
+        "inFlightHint": "{{pct}} — at the courier, packed or in the warehouse",
+        "perSale": "Packages per sale",
+        "perSaleHint": "{{n}} packages in all (gifts and points excluded)",
+        "buyers": "Buyers",
+        "buyersHint": "{{new}} new · {{returning}} returning"
+      },
+      "sources": {
+        "title": "By source",
+        "subtitle": "Every sale of the period by the source it came from — the four add up to the total.",
+        "salesN_one": "{{n}} sale",
+        "salesN_other": "{{n}} sales",
+        "share": "{{pct}} of the total",
+        "avg": "Average sale",
+        "paid": "Paid",
+        "returns": "Returns (of closed)",
+        "inFlight": "In flight",
+        "splits": "Sub-channels",
+        "noDetailLink": "No sub-channel the Orders list can filter by"
+      },
+      "trend": {
+        "title": "Sales over time",
+        "subtitleValue": "Value by source",
+        "subtitleCount": "Sales by source",
+        "gran": {
+          "day": "by day",
+          "week": "by week (from Monday)",
+          "month": "by month"
+        },
+        "measureLabel": "Measure",
+        "byValue": "Denars",
+        "byCount": "Sales",
+        "weekOf": "week of {{d}}",
+        "partial": "(partial)"
+      },
+      "products": {
+        "title": "What we sold",
+        "subtitle": "{{products}} products · {{units}} packages in {{sales}} sales",
+        "search": "Search a product",
+        "noMatch": "No product matches the search.",
+        "colProduct": "Product",
+        "colSales": "Sales",
+        "colUnits": "Packages",
+        "colValue": "Value",
+        "colShare": "Share",
+        "colPerUnit": "Per package",
+        "colPaid": "Paid",
+        "colReturns": "Returns",
+        "colSources": "Sources",
+        "unmappedTag": "no catalogue",
+        "unmappedHint": "A name no reviewed alias links to a catalogue product — counted under its own name.",
+        "others_one": "{{n}} other product",
+        "others_other": "{{n}} other products",
+        "kind": {
+          "gift": "Gifts (free lines)",
+          "loyalty_point": "Loyalty points",
+          "delivery": "Delivery",
+          "note": "Notes",
+          "flyer": "Flyers"
+        },
+        "notPackages_one": "{{n}} line — not a package",
+        "notPackages_other": "{{n}} lines — not packages",
+        "noProduct": "No product data",
+        "noProductHint_one": "{{n}} MEX parcel with no order — MEX does not say what is inside",
+        "noProductHint_other": "{{n}} MEX parcels with no order — MEX does not say what is inside",
+        "footer": "Products + lines that are not packages + sales with no line = the total (a sale's value is spread over its lines by their price).",
+        "autoNote_one": "{{n}} line was recognised by rule (POEN…, DOSTAVA, a free line), not by a reviewed alias.",
+        "autoNote_other": "{{n}} lines were recognised by rule (POEN…, DOSTAVA, a free line), not by a reviewed alias.",
+        "unmappedNote_one": "{{n}} name is not linked to the catalogue — it folds once the owner reviews the aliases.",
+        "unmappedNote_other": "{{n}} names are not linked to the catalogue — they fold once the owner reviews the aliases.",
+        "badQtyNote_one": "{{n}} line has a quantity no price supports (e.g. 1,000) — its value counts, its packages do not.",
+        "badQtyNote_other": "{{n}} lines have a quantity no price supports (e.g. 1,000) — their value counts, their packages do not."
+      },
+      "cities": {
+        "title": "Where we sold",
+        "subtitle": "{{places}} places ({{spellings}} different city spellings folded — Latin, Cyrillic and MEX zones)",
+        "search": "Search a place",
+        "noMatch": "No place matches the search.",
+        "colCity": "Place",
+        "colSales": "Sales",
+        "colValue": "Value",
+        "colAvg": "Average",
+        "colShare": "Share",
+        "colPaid": "Paid",
+        "colReturns": "Returns",
+        "spellings_one": "{{n}} spelling",
+        "spellings_other": "{{n}} spellings folded",
+        "unknownPlace": "not in the place register",
+        "others_one": "{{n}} other place",
+        "others_other": "{{n}} other places",
+        "noCity": "No city",
+        "note": "When a sale has a parcel the courier's (MEX) address counts, otherwise the order's city."
+      },
+      "buyers": {
+        "title": "Who we sold to",
+        "subtitle": "A buyer = a phone (the last 8 digits).",
+        "buyers": "Buyers",
+        "new": "New",
+        "returning": "Returning",
+        "repeat": "More than once",
+        "perBuyer": "Sales per buyer",
+        "repeatN": "{{n}} bought more than once in the period",
+        "valueNew": "From new buyers",
+        "valueReturning": "From returning buyers",
+        "avg": "average {{value}}",
+        "history": "\"Returning\" = bought before the period (a CRM order, a MEX parcel with COD or a web order). History starts {{date}} — an older buyer reads as new.",
+        "crossSource_one": "{{n}} buyer bought from two or more sources — counted in each.",
+        "crossSource_other": "{{n}} buyers bought from two or more sources — counted in each.",
+        "noPhone_one": "{{n}} sale has no phone — not a buyer in this count.",
+        "noPhone_other": "{{n}} sales have no phone — not buyers in this count."
+      },
+      "basket": {
+        "title": "Basket",
+        "subtitle": "How many packages one sale carries (gifts, points and delivery are not packages).",
+        "distLabel": "Packages per sale",
+        "dist": {
+          "k1": "1 package",
+          "k2": "2 packages",
+          "k3": "3 packages",
+          "k4": "4 packages",
+          "k5": "5 or more",
+          "knone": "No data (MEX)"
+        },
+        "perSale": "Packages / sale",
+        "avg": "Average sale",
+        "ofN": "of {{n}}",
+        "note": "MEX parcels with no order carry no lines — they sit in \"No data\" and stay out of the packages average."
+      },
+      "timing": {
+        "title": "When we sell",
+        "subtitle": "Weekday × hour (Skopje time) of {{n}} sales with a real moment — an AlterCPA / ElyonCRM decision or a web checkout.",
+        "empty": "No timed sales in this period.",
+        "peak": "Busiest: {{day}} at {{hour}}:00 — {{n}}",
+        "legendLow": "Few",
+        "legendHigh": "Many (up to {{n}})",
+        "untimed": "Not in the grid (they carry a date only): {{list}}.",
+        "weekdaysTitle": "By weekday",
+        "weekdaysHint": "All sales, per day (sales ÷ how many such days the period has).",
+        "weekdayTitle": "{{n}} sales on {{days}} days",
+        "perDay": "a day",
+        "dow": {
+          "d1": "Mon",
+          "d2": "Tue",
+          "d3": "Wed",
+          "d4": "Thu",
+          "d5": "Fri",
+          "d6": "Sat",
+          "d7": "Sun"
+        },
+        "dowLong": {
+          "d1": "Monday",
+          "d2": "Tuesday",
+          "d3": "Wednesday",
+          "d4": "Thursday",
+          "d5": "Friday",
+          "d6": "Saturday",
+          "d7": "Sunday"
+        }
+      },
+      "channels": {
+        "title": "By MEX account and series",
+        "subtitle": "The channel a parcel names. Sales with no parcel yet are the last row.",
+        "colSeries": "Series",
+        "colAccount": "Account",
+        "colCod": "MEX COD",
+        "account": {
+          "bio_natural": "BIO NATURAL (Elyon)",
+          "natura": "NATURA",
+          "unknown": "Unknown"
+        },
+        "series": {
+          "s9110": "9110 LEADS",
+          "s9103": "9103 LEADS-OUT",
+          "s9100": "9100 Teleshop",
+          "s9102": "9102 Teleshop",
+          "s9108": "9108 Social media",
+          "ntmk": "NTMK — web shop",
+          "m": "M… — old web shop / other",
+          "other": "Other",
+          "none": "No parcel yet"
+        },
+        "note": "An order keeps its own source — the bar shows which sources ship through each series."
+      },
+      "quality": {
+        "title": "Table coverage",
+        "kind": {
+          "unmapped_products": "Product names outside the catalogue",
+          "bad_qty": "Impossible quantities",
+          "auto_lines": "Lines recognised by rule",
+          "unknown_places": "Places outside the register",
+          "no_city": "Sales with no city",
+          "no_phone": "Sales with no phone"
+        },
+        "hint": {
+          "unmapped_products": "Counted under their own name until the owner reviews the aliases (product_aliases). The value is theirs.",
+          "bad_qty": "A quantity above 20 at under 60 den a package (e.g. 1,000 × Adenofrin) — the value counts, the packages do not. Fix the order.",
+          "auto_lines": "POEN…, DOSTAVA and free lines are not counted as packages — by rule, until the aliases are reviewed.",
+          "unknown_places": "City spellings not in the place register — shown as written.",
+          "no_city": "Neither the parcel nor the order has a city.",
+          "no_phone": "With no phone the sale cannot be tied to a buyer."
+        }
+      }
+    },
+    "lists": {
+      "notDeployed": "The prediction-lists report is not deployed yet.",
+      "attributionNote": "Sales carry their list only since {{date}}, when the CRM started recording it on each order. Days before that cannot be split by list.",
+      "footnote": "How to read this tab: a sale is a list order that was confirmed (then packed, at the courier, paid — or returned); cancels and trash are never sales. Sale day = the day it was sold (Skopje time). Value = the parcel's cash on delivery when MEX has the parcel, else the price. MEX alone decides paid and returned. Worked = calls that ended in a decision. Members are counted now, not for the period. List names are translated on screen; the names in the database are never changed.",
+      "empty": {
+        "title": "No list calls or sales in this period",
+        "body": "No call from a prediction list ended in a decision and no list sale was made in these days.",
+        "beforeAttribution": "List attribution starts on {{date}} — choose a period from that day on."
+      },
+      "cohort": {
+        "title": "Sold from the prediction lists · {{period}}",
+        "titleNoMoney": "Sales from the prediction lists · {{period}}",
+        "tie": "= Overview · ElyonCRM · Prediction lists: {{n}} · {{value}}",
+        "tieNoMoney": "= Overview · ElyonCRM · Prediction lists: {{n}}"
+      },
+      "kpi": {
+        "title": "Key figures of the lists",
+        "cash": "Collected by MEX",
+        "paid": "Paid (delivered by MEX)",
+        "cashSub": "{{paid}} of {{n}} sales paid · {{pct}}",
+        "cashHint": "Cash on delivery MEX collected for this period's list sales (MEX-proven).",
+        "conversion": "Conversion",
+        "conversionSub": "{{sales}} sales from {{worked}} worked calls",
+        "conversionHint": "List sales ÷ calls that ended in a decision (sale, no, trash).",
+        "worked": "Worked calls",
+        "workedSub": "{{customers}} customers · {{people}} agents · {{reach}} of dialled numbers reached",
+        "workedHint": "Calls on list customers that ended in a decision, by decision day. No-answer clicks are not decisions.",
+        "aov": "Average sale",
+        "aovSub": "{{units}} packages · {{per}} per sale",
+        "units": "Packages sold",
+        "unitsSub": "{{per}} per sale",
+        "aovHint": "Sold value ÷ sales (the parcel's cash on delivery when MEX has the parcel, else the price).",
+        "returnRate": "Return rate",
+        "returnRateSub": "{{returned}} returned of {{done}} finished by MEX",
+        "returnRateHint": "Returned ÷ (paid + returned): of the parcels MEX has finished, how many came back.",
+        "stale": "Unpacked > {{days}} days",
+        "staleNone": "nothing waiting",
+        "staleWithParcel": "{{n}} with a MEX parcel on the same number",
+        "staleHint": "List sales confirmed more than {{days}} days ago that still have no parcel."
+      },
+      "work": {
+        "title": "Worked calls from the lists",
+        "became": "→ {{n}} sales · {{pct}}",
+        "worked_sale": "Sale",
+        "worked_no": "No (cancelled)",
+        "worked_trash": "Trash",
+        "people": "{{customers}} different customers · {{people}} agents",
+        "noAnswer": "Plus {{n}} no-answer clicks (not decisions): {{reach}} of dialled numbers ended in a decision. They are filed under the list the number is in now, so per list they are approximate."
+      },
+      "ranking": {
+        "title": "Which lists make money",
+        "subtitle": "{{n}} lists sold in the period, ranked by sold value — the bar shows where each list's sales are now",
+        "subtitleNoMoney": "{{n}} lists sold in the period, ranked by sales — the bar shows where they are now",
+        "sales": "{{n}} sales",
+        "conv": "conv. {{pct}}",
+        "rest": "The other {{n}} lists: {{value}} ({{share}})"
+      },
+      "table": {
+        "title": "Every list",
+        "subtitle": "Members now · the period's calls and sales · where the sales are · MEX cash. Open a row for its parts, sellers and stored name.",
+        "groupBy": "Group",
+        "sortBy": "Sort",
+        "group": {
+          "recency": "By recency",
+          "value": "By value band",
+          "orders": "By number of orders",
+          "none": "No groups"
+        },
+        "sort": {
+          "order": "Engine order",
+          "value": "Sold value",
+          "sales": "Sales",
+          "conversion": "Conversion",
+          "members": "Members now"
+        },
+        "showQuiet": "Show {{n}} empty lists",
+        "col": {
+          "list": "List",
+          "members": "Members now",
+          "worked": "Worked",
+          "sales": "Sales",
+          "conv": "Conv.",
+          "value": "Value",
+          "cash": "MEX cash",
+          "paid": "Paid",
+          "returnRate": "Returned",
+          "stale": "> {{days}} d. unpacked",
+          "aov": "Avg sale",
+          "lastSale": "Last sale",
+          "trend": "Trend"
+        },
+        "hint": {
+          "members": "Customers in the list NOW who are still to be called — a snapshot, not the period. The small number is every member, called ones included.",
+          "worked": "Calls that ended in a decision (sale / no / trash), by decision day.",
+          "conv": "Sales ÷ worked calls.",
+          "cash": "Cash on delivery MEX collected for these sales (the paid part).",
+          "returnRate": "Returned ÷ (paid + returned).",
+          "stale": "Sales still to pack more than {{days}} days after the sale.",
+          "aov": "Sold value ÷ sales.",
+          "lastSale": "The list's latest sale ever — not only in this period.",
+          "noAnswer": "No-answer clicks, filed under the list the number is in now — approximate."
+        },
+        "empty": "No lists to show.",
+        "listsN": "{{n}} lists",
+        "ofAll": "of {{n}}",
+        "noAnswerShort": "+{{n}} no answer",
+        "paidN": "{{n}} paid",
+        "nameChanged": "The orders of this list carry more than one list name — no exact list in Orders.",
+        "badge": {
+          "deleted": "deleted",
+          "inactive": "inactive",
+          "static": "static"
+        },
+        "groupName": {
+          "recency": {
+            "newcomers": "New buyers (under 21 days)",
+            "d21": "21–57 days since the last order",
+            "d57": "57–120 days since the last order",
+            "m4_6": "4–6 months since the last order",
+            "m6_12": "6–12 months since the last order",
+            "y1_2": "1–2 years since the last order",
+            "y2plus": "Over 2 years since the last order",
+            "pens": "Holding pens and special lists",
+            "other": "Other lists"
+          },
+          "value": {
+            "le": "Last order up to {{value}}",
+            "gt": "Last order over {{value}}",
+            "newcomers": "New buyers (no value band)",
+            "pens": "Holding pens and special lists",
+            "other": "Other lists"
+          },
+          "orders": {
+            "o1_3": "1–3 orders",
+            "o3": "3+ orders",
+            "o5": "5+ orders",
+            "o7": "7+ orders",
+            "pens": "Holding pens and special lists",
+            "other": "Other lists"
+          },
+          "none": {
+            "all": "All lists"
+          }
+        },
+        "foot": {
+          "lists": "Σ {{n}} lists",
+          "notRecorded": "List not recorded (a duplicate that lost its list)",
+          "slice": "= All prediction-list sales",
+          "tieOk": "= Overview · ElyonCRM · Prediction lists",
+          "tieBad": "Does not add up to the total — please report it",
+          "other": "ElyonCRM · {{split}} (no list)",
+          "elyon": "= ElyonCRM total",
+          "elyonHint": "The Overview's ElyonCRM card: every ElyonCRM sale, with or without a list."
+        }
+      },
+      "detail": {
+        "parts": "Where the sales are",
+        "noSales": "No sales in this period.",
+        "sellers": "Top sellers",
+        "sellerLine": "{{sales}} sales · {{worked}} decisions · {{pct}}",
+        "work": "Work",
+        "members": "Members",
+        "membersLine": "{{active}} to call · {{all}} in total · {{assigned}} assigned",
+        "decisions": "Decisions",
+        "decisionsLine": "{{sale}} sale · {{no}} no · {{trash}} trash",
+        "customers": "Customers decided",
+        "noAnswer": "No-answer clicks",
+        "reach": "{{pct}} reached",
+        "units": "Packages",
+        "perSale": "{{n}} per sale",
+        "rawName": "Name in the database (never renamed):"
+      },
+      "trend": {
+        "title": "List sales by day",
+        "subtitleMoney": "Sold value, split by where each sale is now",
+        "subtitleCount": "Sales, split by where each one is now",
+        "extended": "from {{from}}, so a short period still shows a line",
+        "empty": "No list sales in these days.",
+        "total": "Total {{value}}",
+        "colTotal": "Total"
+      },
+      "matrix": {
+        "title": "Recency × value",
+        "subtitle": "Band lists: time since the customer's last paid order against that order's price. Sales, a bar for the share of the best cell, and call conversion.",
+        "recency": "Since the last order",
+        "cell": "{{sales}} sales · {{worked}} worked · {{pct}} · {{members}} to call"
+      },
+      "sellers": {
+        "title": "Who sells from the lists",
+        "presenceNote": "Sales per active hour count only the days with presence data (from {{date}}).",
+        "noPresence": "Sales per hour appear once presence covers these days (presence data starts {{date}}).",
+        "col": {
+          "name": "Seller",
+          "sales": "Sales",
+          "value": "Value",
+          "worked": "Worked",
+          "conv": "Conv.",
+          "trash": "Trash share",
+          "returnRate": "Returned",
+          "lists": "Lists",
+          "perHour": "Sales / hour"
+        },
+        "hint": {
+          "trash": "Share of the seller's decisions that were trash (wrong number, rude, unreachable…). A high share is worth a look.",
+          "perHour": "Sales on days with presence ÷ active hours on those days."
+        },
+        "cashLine": "{{value}} collected",
+        "showAll": "Show all {{n}}",
+        "showTop": "Show the top {{n}}"
+      },
+      "quality": {
+        "title": "Data quality — lists",
+        "withParcel": "{{n}} of them already have a MEX parcel on the same number — check before packing",
+        "kind": {
+          "unproven_paid": "Paid without MEX proof",
+          "stale_to_pack": "Unpacked for more than {{days}} days",
+          "duplicate_original_open": "Original still open while its duplicate shipped",
+          "list_not_recorded": "A sale without its list",
+          "ghost_dispositions": "Call rows (0 ден) holding a parcel or a sold status",
+          "no_seller": "List sales without a seller",
+          "cancelled_but_moving": "Cancelled in the CRM, moving at MEX",
+          "zero_cod_parcels": "Parcels with 0 cash on delivery (replacements)"
+        },
+        "hint": {
+          "unproven_paid": "Marked paid but MEX has no delivered parcel. Must be 0.",
+          "stale_to_pack": "Confirmed list sales still without a parcel {{days}} days later. Either pack them or cancel them — they inflate the list's value until then.",
+          "duplicate_original_open": "The original stays confirmed while its duplicate already has a parcel — the same sale may be counted twice. Close the original.",
+          "list_not_recorded": "A list sale whose list was not recorded (a duplicate made before the fix). It counts in the total, not in any list.",
+          "ghost_dispositions": "\"No\" call rows that carry a MEX parcel or a sold status — usually a parcel matched to the wrong row. Never counted as sales; review the match.",
+          "no_seller": "List sales with no seller recorded.",
+          "cancelled_but_moving": "Cancelled in the CRM but the parcel is moving at MEX — counted by MEX (at the courier).",
+          "zero_cod_parcels": "Parcels with 0 or less to collect — replacements, not sales."
+        }
+      },
+      "name": {
+        "band": "{{recency}} · {{band}} · {{orders}}",
+        "bandLe": "up to {{value}}",
+        "bandGt": "over {{value}}",
+        "newcomers": "New buyers · {{orders}}",
+        "recency": {
+          "newcomers": "New buyers",
+          "d21": "21–57 days",
+          "d57": "57–120 days",
+          "m4_6": "4–6 months",
+          "m6_12": "6–12 months",
+          "y1_2": "1–2 years",
+          "y2plus": "Over 2 years"
+        },
+        "orders": {
+          "o1_3": "1–3 orders",
+          "o3": "3+ orders",
+          "o5": "5+ orders",
+          "o7": "7+ orders"
+        },
+        "pen": {
+          "current_cancels": "Recent cancels (14 days)",
+          "current_returns": "Recent returns",
+          "never_converted_recent": "Never bought — recent",
+          "never_converted_old": "Never bought — old",
+          "trash": "Trash list",
+          "cancelled_pendings": "Cancelled pendings",
+          "due_to_reorder": "Due to reorder",
+          "monad": "Monadon list"
+        }
+      }
+    },
     "common": {
       "period": {
         "label": "Period",
@@ -2917,7 +3681,219 @@
     "junkSub": "junk / wrong number",
     "noCalls": "No calls logged in this period yet",
     "byOutcome": "By outcome",
-    "calls": "Calls",
+    "calls": {
+      "title": "Work & calls",
+      "subtitle": "Who worked, how much and how well — every decision (in the CRM and in AlterCPA's panel), every no-answer click, time in the CRM, breaks and the sales credited to each person.",
+      "asOf": "As of {{time}}",
+      "notDeployed": "The work report is not live yet (the database migration has not been applied).",
+      "staleError": "Could not refresh — showing the previous numbers.",
+      "caveat": {
+        "title": "What these numbers are",
+        "voip": "Telephony is not connected yet: “No answer” is a click on the button and a timed call is Call / End pressed in the CRM — reported by the agent, not proof that anyone picked up.",
+        "presence": "Time in the CRM (online, active, idle, break) is measured from {{date}}; earlier days show “—”, and per-hour rates count only days with measured time.",
+        "presenceNone": "Time in the CRM is not measured yet.",
+        "altercpa": "AlterCPA operators decide in AlterCPA's own panel: their decisions are counted here, but they have no time in the CRM."
+      },
+      "filter": {
+        "team": "Team",
+        "all": "All teams"
+      },
+      "team": {
+        "pending": "Pending (AlterCPA leads)",
+        "prediction": "Prediction (ElyonCRM)",
+        "management": "Management",
+        "unassigned": "No team yet",
+        "teleshop": "Teleshop"
+      },
+      "kpi": {
+        "prevBeforeLedger": "The comparison period reaches back to the start of the work ledger ({{date}}): it is incomplete, so the changes overstate growth.",
+        "title": "Work in the period",
+        "worked": "Decisions",
+        "sale": "Sale decisions",
+        "credited": "Credited sales (cohort)",
+        "no_answer": "No answer",
+        "people": "People who worked",
+        "active": "Active time",
+        "workedSub": "CRM {{crm}} · AlterCPA {{acpa}}",
+        "saleSub": "Conversion {{pct}}",
+        "creditedSub": "by sale day, per the sales cohort",
+        "creditedFailed": "Could not be counted right now",
+        "noAnswerSub": "Reached {{pct}}",
+        "peopleSub": "CRM {{crm}} · AlterCPA {{acpa}}",
+        "activeSub": "{{n}} decisions / active hour",
+        "onlineSub": "Online {{time}}",
+        "activeNone": "Measured from {{date}}",
+        "filtered": "Team: {{team}} — no comparison with the previous period",
+        "vsPrev": "vs {{period}}",
+        "timed": "Timed calls (agent-reported): {{n}} · {{time}} · {{avg}} s per call",
+        "timedNone": "No timed calls (agent-reported)",
+        "breaks": "Breaks: {{n}} · {{time}}",
+        "idleAlerts": "Idle alerts: {{n}}",
+        "hint": {
+          "worked": "Every human decision in the period: confirm, cancel, trash or call again — in the CRM or in AlterCPA's panel. Automatic (system) changes are not counted.",
+          "sale": "Decisions that made a sale: CRM confirms, AlterCPA approvals and AlterCPA “other” cancels (booked as confirmed by the 11.08 rule).",
+          "credited": "Sales in the cohort (sale day in the period, not cancelled after the sale) whose seller is this person — the same number every sales tab shows.",
+          "no_answer": "Clicks on “No answer” in /calls. A disposition, not a dial: with telephony off there is no proof anything rang.",
+          "people": "Everyone who decided or logged a call in the period.",
+          "active": "Minutes with activity on the CRM screen (presence tracking). Idle = open, nothing done; break = the Break button.",
+          "reach": "CRM decisions ÷ (CRM decisions + no-answer clicks): how much of the CRM work reached a customer.",
+          "perHour": "Decisions on days with measured time ÷ active hours (only with 30+ active minutes)."
+        }
+      },
+      "outcome": {
+        "sale": "Sale",
+        "callback": "Call again",
+        "no_answer": "No answer",
+        "cancel": "Cancelled",
+        "trash": "Trash"
+      },
+      "daily": {
+        "title": "What the work ended in",
+        "subtitle": "Decisions and no-answer clicks",
+        "byDay": "per day",
+        "byWeek": "per week",
+        "weekOf": "Week of {{date}}",
+        "viewLabel": "View",
+        "chart": "Chart",
+        "table": "Table",
+        "mixTitle": "Mix in the period",
+        "mixNote": "“No answer” is a click, not a decision: it sits next to the decisions so you can see how much work never reached a customer.",
+        "empty": "No work in this period.",
+        "tipPeople": "{{n}} people · {{credited}} credited sales",
+        "tipOpen": "Click to open this day below",
+        "clickHint": "Click a day to see it hour by hour",
+        "colPeriod": "Day",
+        "colWorked": "Decisions",
+        "colCredited": "Credited sales",
+        "colPeople": "People",
+        "colActive": "Active time"
+      },
+      "teams": {
+        "title": "Teams side by side",
+        "selfTitle": "Your work",
+        "subtitle": "Each person counted once, in their team for the period; management and people without a team are included, so the teams add up to the tiles above.",
+        "worked": "decisions",
+        "people": "{{active}} of {{n}} people worked",
+        "onlineNow": "{{n}} online",
+        "noTeamKind": "Not placed in a team yet (Settings → Teams)",
+        "teleshopKind": "Teleshop · collabBox",
+        "teleshopNote": "There is no Teleshop team yet: collabBox sellers are people with credited sales but no team, so they appear under “No team yet”. They call outside the CRM, so no decisions or time exist for them here.",
+        "m": {
+          "sale": "Sale decisions",
+          "conversion": "Conversion",
+          "credited": "Credited sales",
+          "noAnswer": "No answer",
+          "reach": "Reached",
+          "perPerson": "Decisions per person",
+          "active": "Active time",
+          "perHour": "Decisions / active hour"
+        }
+      },
+      "people": {
+        "title": "People",
+        "col": {
+          "person": "Person",
+          "worked": "Decisions",
+          "mix": "Mix",
+          "sale": "Sales",
+          "conversion": "Conv.",
+          "credited": "Credited",
+          "noAnswer": "No answer",
+          "reach": "Reached",
+          "days": "Working hours",
+          "online": "Online",
+          "perHour": "Dec. / h",
+          "alerts": "Idle alerts"
+        },
+        "showIdle": "Show {{n}} more without activity",
+        "hideIdle": "Hide those without activity",
+        "manager": "mgmt",
+        "noLogin": "no CRM login",
+        "noLoginHint": "No CRM login: decides in AlterCPA's panel or sells through collabBox (teleshop), so there is no time in the CRM.",
+        "viaTitle": "CRM {{crm}} · AlterCPA {{acpa}}",
+        "creditedOpen": "Open these sales in Orders",
+        "days_one": "{{n}} day",
+        "days_other": "{{n}} days",
+        "perDay": "{{n}} / day",
+        "groupSum": "{{worked}} decisions · {{sale}} sales · {{n}} people",
+        "empty": "Nobody worked in this period."
+      },
+      "heat": {
+        "title": "When the work happens",
+        "subtitle": "Hour of the day (Skopje) × person",
+        "metricLabel": "What to count",
+        "metric": {
+          "all": "Decisions + calls",
+          "decisions": "Decisions"
+        },
+        "all": "Everyone",
+        "nobody": "Nobody",
+        "hint": "Hover a cell to read it",
+        "cell": "{{name}} · {{from}}–{{to}} · {{what}}",
+        "nAll_one": "{{n}} decision or call",
+        "nAll_other": "{{n}} decisions and calls",
+        "nDecisions_one": "{{n}} decision",
+        "nDecisions_other": "{{n}} decisions",
+        "legendLess": "Less",
+        "legendMore": "More",
+        "legendNote": "Bins are quantiles of this grid",
+        "empty": "No activity in this period."
+      },
+      "day": {
+        "title": "Day by day: who worked when",
+        "subtitle": "One day of the period. Upper lane: decisions; lower lane: no-answer clicks and timed calls (agent-reported). Grey band: CRM open.",
+        "prev": "Previous day",
+        "next": "Next day",
+        "live": "Today · live",
+        "fit": "Whole day",
+        "zoomIn": "Zoom in",
+        "zoomOut": "Zoom out",
+        "timedCall": "Timed call (agent-reported)",
+        "timedCallTip": "Timed call {{time}} (agent-reported)",
+        "callLog": "Logged call",
+        "presence": "CRM open",
+        "presenceTip": "CRM open {{from}}–{{to}} · online {{online}} · active {{active}}",
+        "break": "Break",
+        "login": "Login",
+        "rowSummary": "{{worked}} dec. · {{sale}} sales · {{na}} n/a",
+        "empty": "Nobody left a trace on this day.",
+        "unattributed": "Not on any row: {{decisions}} decisions and {{calls}} calls with no person (see Data quality)."
+      },
+      "callbacks": {
+        "title": "Call-again queues",
+        "subtitle": "Open callbacks right now; after {{n}} days a callback returns to the common pool.",
+        "leads": "Lead callbacks (AlterCPA)",
+        "prediction": "Prediction callbacks",
+        "unassigned": "Assigned to nobody",
+        "over24": "Waiting over 24 h",
+        "expiring": "Released within 24 h",
+        "oldest": "Oldest {{ago}}",
+        "none": "None open",
+        "open": "Open the Call Agains pool in the Assigner"
+      },
+      "quality": {
+        "title": "Data quality",
+        "allClear": "Nothing to check — every decision has a person and time is measured for the whole period.",
+        "kind": {
+          "noPerson": "Decisions with no person",
+          "unmappedCalls": "Logged calls with no person",
+          "noSeller": "Sales with no seller yet",
+          "creditedUnlisted": "Credited sales with no row",
+          "presenceGap": "Worked days with no measured time",
+          "beforePresence": "Days before time was measured",
+          "noLogin": "AlterCPA-only operators"
+        },
+        "hint": {
+          "noPerson": "The decider's handle is not linked to a person — link it in Settings → Teams. Counted in the totals, in no row.",
+          "unmappedCalls": "Logged by {{n}} login(s) that are not a sales person — link them in Settings → Teams.",
+          "noSeller": "Sales in the cohort whose seller is not stamped yet (mostly AlterCPA approvals waiting for the decider stamping) — they count in nobody's credited sales until then.",
+          "creditedUnlisted": "A sale is credited to a person with no other trace in the period (counted in the totals).",
+          "presenceGap": "Days a person worked with no presence beats since tracking began — an old app version or a blocked tracker. Their per-hour rates leave those days out.",
+          "beforePresence": "Presence exists from {{date}}: these days of the period have no online / active time.",
+          "noLogin": "They decide in AlterCPA's panel with no CRM login, so they can never have time in the CRM."
+        }
+      }
+    },
     "answerRate": "Answer rate",
     "answeredSub": "{{count}} answered",
     "talkTime": "Talk time",
@@ -2983,7 +3959,527 @@
     "moneyPerList": "Money generated per prediction list",
     "listTypeCampaign": "campaign",
     "listTypeSegment": "segment",
-    "listsFootnote": "Attribution is captured when an order is created, so list ROI is exact from launch forward. Returns count as refunds (money that came back in this COD business). Members shows current list size."
+    "listsFootnote": "Attribution is captured when an order is created, so list ROI is exact from launch forward. Returns count as refunds (money that came back in this COD business). Members shows current list size.",
+    "agents": {
+      "notDeployed": "The Agents tab is not enabled on the server yet (insights_people).",
+      "kpi": {
+        "title": "Agents — summary",
+        "hero": "Sales with a seller",
+        "heroMoney": "Sold by the agents",
+        "salesN": "{{n}} sales",
+        "ofTotal": "{{share}} of all {{total}} sales in the period.",
+        "noSellerLink": "{{n}} without a seller →",
+        "barLabel": "Where the agents' sales are now",
+        "worked": "Worked",
+        "workedSub": "{{sale}} sales · {{cancel}} cancelled · {{trash}} trashed",
+        "conversion": "Conversion",
+        "conversionSub": "Sale decisions / worked",
+        "paid": "Paid (MEX)",
+        "paidSub": "{{share}} of the sales with a seller",
+        "returnRate": "Returns",
+        "returnRateSub": "{{n}} returned of {{closed}} finished",
+        "active": "Active people",
+        "activeSub": "{{online}} online now",
+        "aov": "Average sale",
+        "aovSub": "Value / sales with a seller",
+        "packages": "Packages",
+        "packagesSub": "Paid lines (no gifts or points)"
+      },
+      "notes": {
+        "presenceSince": "Time online is measured from {{day}} — \"—\" before that.",
+        "presenceNone": "Time online is not measured yet.",
+        "stamped": "Sellers assigned up to {{time}} (every 5 minutes).",
+        "teamRule": "Every sale and decision counts in the team the person was in that day."
+      },
+      "team": {
+        "byKey": {
+          "altercpa_leads": "Pending — AlterCPA leads",
+          "crm_prediction": "Prediction — ElyonCRM",
+          "management": "Management",
+          "teleshop": "Teleshop / collabBox",
+          "none": "No team"
+        }
+      },
+      "teams": {
+        "title": "Teams",
+        "subtitle": "Teams side by side: sales, where they are now, decisions worked, conversion and time.",
+        "empty": "Nobody worked or sold in this period.",
+        "people": "{{n}} people",
+        "members": "People ({{n}})",
+        "noMembers": "Nobody in this period.",
+        "barLabel": "Where {{team}}'s sales are now",
+        "noLinkMoved": "Some members also sold outside the team in this period — the Orders list would be wider.",
+        "noLinkGroup": "This group is not a team in Settings — there is no Orders list by team.",
+        "partOfPerson": "Part of this person's sales are in another team — open the person.",
+        "mode": {
+          "pending": "Leads from AlterCPA",
+          "prediction": "Calls from the prediction lists",
+          "none": "Shown, not ranked"
+        },
+        "kind": {
+          "teleshop": "collabBox authors and teleshop sales outside a team",
+          "none": "Activity of people outside a team"
+        }
+      },
+      "boards": {
+        "title": "Best in the period",
+        "sales": "Most sales",
+        "conversion": "Best conversion",
+        "paid": "Most paid (MEX)",
+        "return_rate": "Fewest returns",
+        "per_hour": "Sales per active hour",
+        "value": "Highest value",
+        "empty": "Nobody meets the conditions yet.",
+        "perHourValue": "{{n}} / h",
+        "hint": {
+          "sales": "Sales by sale day",
+          "conversion": "Sale decisions / worked · at least {{n}} worked",
+          "paid": "Sales MEX collected",
+          "return_rate": "Returned / finished · at least {{n}} finished",
+          "per_hour": "Only days with measured time · at least {{n}} active minutes",
+          "value": "Value of the sales (denars)"
+        }
+      },
+      "col": {
+        "person": "Person",
+        "online": "Online",
+        "onlineHint": "Time with Elyon CRM open (active · idle · break)",
+        "worked": "Worked",
+        "workedHint": "Every decision: sale, cancel, trash, call again (CRM and AlterCPA)",
+        "saleDecisions": "Sale decisions",
+        "conversion": "Conv.",
+        "conversionHint": "Sale decisions / worked",
+        "sales": "Sales",
+        "salesHint": "Sales credited to the person, by sale day — the same as the Overview",
+        "sources": "Sources",
+        "sourcesHint": "AlterCPA · ElyonCRM · Teleshop",
+        "paid": "Paid",
+        "paidHint": "MEX delivered the parcel and collected the COD",
+        "paidShare": "Paid",
+        "open": "In progress",
+        "openHint": "At the courier, packed or waiting to be packed",
+        "returned": "Returned",
+        "returnRate": "Return %",
+        "returnRateHint": "Returned / (paid + returned)",
+        "cancelledAfter": "Cancelled after sale",
+        "cancelledAfterHint": "Sold, then cancelled before a parcel — outside the total",
+        "packages": "Packages",
+        "packagesHint": "Units on paid lines (gifts, points and samples are not packages)",
+        "perHour": "Sales/act. hour",
+        "perHourHint": "Sale decisions / active hours, only days with measured time",
+        "value": "Value",
+        "valueHint": "MEX COD when there is a parcel, else price × 61.5 (denars)",
+        "aov": "Average",
+        "paidValue": "Paid (MKD)",
+        "paidValueHint": "Value of the sales MEX collected",
+        "last": "Last activity"
+      },
+      "people": {
+        "title": "Everyone",
+        "subtitle": "Every number opens exactly those orders. Click a name for the day-by-day detail.",
+        "search": "Search a person…",
+        "teamsLabel": "Teams",
+        "allTeams": "All teams",
+        "showIdle": "Show people with no activity",
+        "empty": "Nobody matches the filters.",
+        "csv": "CSV",
+        "openDrill": "Details for {{name}}"
+      },
+      "csv": {
+        "file": "agents",
+        "team": "Team",
+        "onlineMin": "Online (min)",
+        "activeMin": "Active (min)",
+        "cancelDecisions": "Cancelled (decisions)",
+        "trashDecisions": "Trashed (decisions)",
+        "conversionPct": "Conversion %",
+        "returnRatePct": "Returns %",
+        "valueMkd": "Value (MKD)",
+        "paidMkd": "Paid (MKD)",
+        "aovMkd": "Average sale (MKD)"
+      },
+      "badge": {
+        "altercpaOnly": "AlterCPA only",
+        "collabboxOnly": "collabBox author",
+        "noLogin": "No login",
+        "noLoginHint": "No Elyon CRM login — no measured time",
+        "manager": "Manager",
+        "inactive": "Inactive"
+      },
+      "drill": {
+        "title": "Person",
+        "subtitle": "{{period}}",
+        "openOrders": "Open the {{n}} sales",
+        "decisionsLine": "{{sale}} sales · {{cancel}} cancelled · {{trash}} trashed",
+        "perSale": "{{n}} per sale",
+        "aovLine": "average {{v}}",
+        "whereNow": "Where their sales are now",
+        "paidValue": "Collected by MEX: {{v}}",
+        "byDay": "Day by day",
+        "decisionsChart": "Decisions per day",
+        "salesChart": "Sales per day",
+        "decision": {
+          "sale": "Sale",
+          "callback": "Call again",
+          "cancel": "Cancelled",
+          "trash": "Trashed"
+        },
+        "products": "What they sell",
+        "identities": "Known as",
+        "memberships": "Teams",
+        "kind": {
+          "altercpa_user": "AlterCPA operator",
+          "collabbox_author": "collabBox author",
+          "order_name": "name on orders"
+        },
+        "now": "today",
+        "lead": "lead",
+        "notInPeriod": "This person has no activity in this period."
+      },
+      "noSeller": {
+        "title": "Sales without a seller",
+        "subtitle": "Why part of the sales are credited to nobody — so the agents + this add up exactly to the Overview.",
+        "tieOk": "With a seller {{people}} + without {{none}} = {{total}}, the same as the Overview",
+        "tieBad": "With a seller {{people}} + without {{none}} ≠ {{total}} — the numbers do not tie",
+        "rowBad": "Does not tie",
+        "col": {
+          "source": "Source",
+          "people": "With a seller",
+          "none": "Without",
+          "total": "Total",
+          "withSeller": "Share with a seller"
+        },
+        "none": "Every sale in the period has a seller.",
+        "noLink": "Orders has no list of just the sales without a seller",
+        "paidLine": "paid {{paid}} · in progress {{open}} · returned {{returned}}",
+        "reason": {
+          "web_shop": "Web shop",
+          "mex_only": "MEX parcel with no order",
+          "altercpa_cancelled": "Cancelled in AlterCPA, shipped by MEX",
+          "awaiting_stamp": "Approved, seller being assigned",
+          "unmapped": "Unknown seller",
+          "no_decider": "No record of who decided"
+        },
+        "hint": {
+          "web_shop": "Web orders have no agent by nature.",
+          "mex_only": "Parcels no order holds — teleshop, social media, unlinked Elyon parcels.",
+          "altercpa_cancelled": "AlterCPA says cancelled or trash, so nobody is credited — but MEX took the parcel, so it is a sale.",
+          "awaiting_stamp": "Approved in AlterCPA; the seller is assigned every 5 minutes.",
+          "unmapped": "The seller is known only by a name or number nobody has linked to a person yet.",
+          "no_decider": "Neither the CRM nor AlterCPA recorded who made the sale (old history)."
+        },
+        "via": {
+          "crm": "CRM",
+          "crm_push": "CRM → AlterCPA",
+          "altercpa": "AlterCPA",
+          "collabbox": "collabBox",
+          "import": "import 08.2026",
+          "other": "other"
+        },
+        "cancelledBy": {
+          "title": "Whose decision MEX overruled",
+          "hint": "Who closed the AlterCPA lead as cancelled while the parcel still went out.",
+          "unnamed": "AlterCPA #{{id}}"
+        },
+        "handles": {
+          "title": "Names waiting to be linked",
+          "hint": "Link them to a person and their sales are credited automatically:",
+          "settings": "Settings → Teams"
+        },
+        "unmappedWork": "{{n}} decisions with no person:"
+      },
+      "bonus": {
+        "title": "Bonus (current rule)",
+        "totalLine": "total {{v}}",
+        "note": "The bonus is calculated as before — by the confirmer, on CRM paid and the exact name — and does not change until the owner decides. That is why these numbers differ from the sales above.",
+        "empty": "No paid or waiting packages in the period.",
+        "historic": "Historic operator",
+        "col": {
+          "name": "Agent",
+          "packages": "Paid packages",
+          "packagesHint": "Units on paid orders (the bonus basis)",
+          "awaiting": "Waiting",
+          "awaitingHint": "Confirmed, shipped, not paid yet",
+          "avg": "Avg / package",
+          "payout": "Payout"
+        }
+      },
+      "self": {
+        "title": "My performance — {{name}}",
+        "empty": "You have no activity in this period.",
+        "emptyHint": "Pick another period above.",
+        "unlinked": "Your login is not linked to a seller yet.",
+        "unlinkedHint": "The owner links you in Settings → Teams."
+      }
+    },
+    "profit": {
+      "intro": "Profit on two clocks — pick one below. Owners only. Every figure is in denars; VAT, courier and commission follow the rule named on each line.",
+      "prevSkipped": "The comparison with the previous period is shown for periods of up to {{n}} days.",
+      "empty": "Nothing in this period.",
+      "clock": {
+        "label": "Which clock the profit counts by",
+        "cohort": "Sales in the period",
+        "cohortHint": "Sales made in the period and what MEX has collected on them so far",
+        "cash": "Money that arrived",
+        "cashHint": "MEX payouts delivered in the period (any sale day) + card payments",
+        "netOf": "net · {{margin}} of {{revenue}}",
+        "cohortCaption": "Sales made {{period}} — collected by MEX (sale day, Skopje time)",
+        "cashCaption": "Money MEX delivered {{period}} (delivery day, Skopje time)"
+      },
+      "hero": {
+        "titleCohort": "Net profit on the period's sales",
+        "titleCash": "Net profit on the money that arrived",
+        "marginLine": "margin {{margin}} · {{sales}} sales",
+        "estimateNote": "Includes {{est}} of estimated product cost for packages without a cost price ({{share}} of their revenue). With those at 0: {{upper}}."
+      },
+      "tile": {
+        "revenue": "Revenue collected",
+        "revenueCohortSub": "{{n}} sales delivered by MEX",
+        "revenueCashSub": "{{n}} parcels delivered",
+        "cardPart": "of which by card {{v}}",
+        "costs": "All costs",
+        "costsSub": "{{pct}} of revenue",
+        "perSale": "Profit per sale",
+        "aov": "average sale {{v}}",
+        "coverage": "Cost coverage",
+        "coverageSub": "{{c}} of {{n}} packages have a cost price",
+        "coverageLow": "Profit leans on estimates",
+        "open": "Still to collect",
+        "openSub": "{{n}} sales at the courier / packed / to pack",
+        "parcels": "Parcels delivered",
+        "parcelsSub": "{{r}} returned by MEX",
+        "returned": "Returned",
+        "returnedSub": "{{n}} sales · {{pct}} of the decided ones",
+        "returnRate": "Return rate",
+        "returnRateSub": "return fee {{fee}} per parcel"
+      },
+      "strip": {
+        "title": "What became of the sales made {{period}}",
+        "note": "The profit counts only the collected part; the rest is still open or came back."
+      },
+      "waterfall": {
+        "title": "From revenue to net profit",
+        "basisLabel": "Which packages",
+        "basis": {
+          "estimated": "All packages",
+          "costed": "Costed only"
+        },
+        "basisHint": {
+          "estimated": "Every package; a package without a cost price is estimated at the cost share of the costed ones (hatched).",
+          "costed": "Only the packages with a cost price: their revenue and cost; courier, returns and commission allocated by their share of the revenue."
+        },
+        "upperNote": "If the packages without a cost price cost nothing, net profit would be {{upper}}. Margin {{margin}}.",
+        "costedNote": "Revenue of the costed packages {{rev}} · margin {{margin}}."
+      },
+      "step": {
+        "revenue": "Revenue",
+        "vat": "VAT {{pct}} (in the price)",
+        "cogs_known": "Product cost (cost price)",
+        "cogs_est": "Product cost — estimated",
+        "courier": "Courier MEX ({{fee}} per parcel)",
+        "returns": "Returns ({{fee}} per parcel)",
+        "commission": "Agent commission",
+        "lead": "Lead cost",
+        "net": "Net profit"
+      },
+      "chip": {
+        "vatPending": "rate awaits the accountant",
+        "leadMissing": "not configured",
+        "commissionRule": "current rule: per package, paid orders, agents only",
+        "returnFeePending": "0 on the rate card — to confirm",
+        "estimate": "estimate · {{share}} of revenue",
+        "allocated": "allocated"
+      },
+      "table": {
+        "title": "Profit by source",
+        "line": "Line",
+        "total": "Total",
+        "sales": "Sales",
+        "revenue": "Revenue",
+        "net": "Net profit",
+        "margin": "Margin",
+        "costedMargin": "Margin on costed packages",
+        "notConfigured": "not set",
+        "unitSection": "Per sale",
+        "aov": "Average sale",
+        "costPerSale": "Cost per sale",
+        "profitPerSale": "Profit per sale",
+        "returnRate": "Return rate",
+        "packages": "Packages",
+        "packagesVal": "{{n}} · free {{free}} · {{per}}/sale",
+        "coverage": "Cost coverage",
+        "note": "The columns add up to the total. Teleshop / other includes MEX parcels with no order (their contents are unknown, so their cost is estimated)."
+      },
+      "aff": {
+        "title": "AlterCPA by webmaster",
+        "subtitle": "Under the AlterCPA column — the rows add up to it.",
+        "partner": "Webmaster",
+        "sales": "Sales",
+        "collected": "Collected",
+        "parcels": "Parcels",
+        "returnRate": "Return rate",
+        "net": "Profit before lead cost",
+        "sum": "AlterCPA total",
+        "none": "No webmaster on file",
+        "unnamed": "WM {{id}}",
+        "openN": "{{n}} open",
+        "leadNote": "No lead prices per webmaster are entered yet, so each row is profit before what the leads cost."
+      },
+      "trend": {
+        "title": "Net profit over time",
+        "byDay": "by day",
+        "byMonth": "by month",
+        "net": "Net profit",
+        "loss": "Loss",
+        "revenue": "Revenue collected",
+        "salesN": "{{n}} sales",
+        "viewLabel": "View",
+        "chart": "Chart",
+        "table": "Table",
+        "colPeriod": "Period",
+        "cohortNote": "The latest days are still on their way: their profit grows as MEX delivers."
+      },
+      "prod": {
+        "title": "Profit by product",
+        "subtitle": "Collected sales of the period, all sources — {{n}} products and lines",
+        "search": "Search a product",
+        "sortBy": "Sort",
+        "sort": {
+          "revenue": "Revenue",
+          "net": "Net profit",
+          "margin": "Margin",
+          "packages": "Packages",
+          "returns": "Return rate"
+        },
+        "product": "Product",
+        "packages": "Packages",
+        "perPackage": "Per package",
+        "unitCost": "Cost / package",
+        "cogs": "Product cost",
+        "otherCosts": "VAT + courier + commission",
+        "returns": "Returned",
+        "noCost": "no cost price",
+        "byName": "by name",
+        "kind": {
+          "product": "product",
+          "gift": "gift",
+          "loyalty_point": "loyalty points",
+          "delivery": "delivery charge",
+          "note": "note",
+          "flyer": "flyer"
+        },
+        "contentsUnknown": "contents unknown",
+        "mexOnly": "MEX parcels with no order",
+        "unknownLine": "Sale without lines",
+        "freeN": "free {{n}}",
+        "estTip": "Estimated: no cost price",
+        "none": "No product matches.",
+        "note": "≈ = estimated (no cost price). Net profit and margin use the same costs as the profit by source.",
+        "showAll": "Show all {{n}}",
+        "showTop": "Show the top {{n}}",
+        "setCosts": "Enter cost prices in Products →"
+      },
+      "quality": {
+        "title": "What the profit cannot vouch for yet",
+        "pendingSetting": "Setting pending",
+        "topLine": "{{n}} pkg · {{v}}",
+        "kind": {
+          "uncosted_packages": "Packages without a cost price",
+          "mex_only_contents": "MEX parcels with unknown contents",
+          "unproven_paid": "Paid without MEX proof",
+          "non_product_lines": "Lines read as non-products by their name",
+          "orders_without_lines": "Orders without product lines",
+          "vat_unconfirmed": "VAT rate not confirmed",
+          "lead_cost_missing": "Lead cost not configured",
+          "return_fee_unconfirmed": "MEX return fee not confirmed"
+        },
+        "hint": {
+          "uncosted_packages": "Their product cost is estimated. Enter the cost price in Products to make the profit exact.",
+          "mex_only_contents": "Parcels with no order in the CRM — what was inside is unknown, so their cost is estimated.",
+          "unproven_paid": "The CRM says paid, but no delivered MEX parcel proves it — left out of the profit.",
+          "non_product_lines": "Loyalty points, delivery charges, notes and flyers are not counted as packages. A reviewed product alias overrides this.",
+          "orders_without_lines": "Their value is carried by the order's own product.",
+          "vat_unconfirmed": "18% on every sale until the accountant confirms whether supplements fall under the 5% or 10% rate.",
+          "lead_cost_missing": "AlterCPA profit is before what the leads cost: no price per lead is entered yet.",
+          "return_fee_unconfirmed": "The MEX rate card charges 0 for a return. Confirm whether MEX bills the delivery fee on returned parcels."
+        }
+      },
+      "export": {
+        "summary": "Profit (both clocks)",
+        "summaryHint": "Every line by source, for sales in the period and for money that arrived",
+        "products": "Products",
+        "productsHint": "Profit by product, cost coverage and returns",
+        "affiliates": "AlterCPA webmasters",
+        "affiliatesHint": "Profit per webmaster before lead cost"
+      }
+    },
+    "margins": {
+      "intro": "What a package really sells for, what each product nets per package and the price that clears your target — on exactly the Pure Profit costs (collected sales of the period, all sources).",
+      "target": "Target net per package",
+      "perPackage": "ден per package",
+      "kpi": {
+        "avg": "Average per paid package",
+        "paidPackages": "{{n}} paid packages",
+        "median": "Median",
+        "iqr": "middle half {{lo}} – {{hi}}",
+        "range": "Lowest – highest",
+        "free": "Free packages",
+        "freeSub": "{{n}} of {{of}} packages",
+        "netPerPkg": "Net per package",
+        "netPerPkgSub": "{{n}} packages with a cost price",
+        "coverage": "Cost coverage",
+        "coverageSub": "{{n}} packages without a cost price"
+      },
+      "bySource": {
+        "title": "By source",
+        "avg": "Average / package",
+        "median": "Median / package",
+        "packages": "Packages",
+        "free": "Free",
+        "note": "Per paid package, real products only (free packages, points and delivery charges are not in the price)."
+      },
+      "floor": {
+        "title": "Floor price per product",
+        "help": "Floor = {{gross}} × (target {{target}} + cost + courier share + commission share), VAT included in the price.",
+        "realized": "Sells for / pkg",
+        "vat": "VAT / pkg",
+        "courier": "Courier / pkg",
+        "commission": "Commission / pkg",
+        "net": "Net / pkg",
+        "floor": "Floor",
+        "uplift": "vs now",
+        "status": "Status",
+        "note": "A product without a cost price has no floor: enter its cost price."
+      },
+      "status": {
+        "clears": "clears the target",
+        "below": "below target",
+        "no_cost": "no cost price"
+      },
+      "sim": {
+        "title": "Bundle simulator",
+        "help": "One order: set the price, the packages, the cost and the expected return rate; it starts from the product's real numbers.",
+        "product": "Product",
+        "paid": "Paid packages",
+        "bonus": "Free packages",
+        "price": "Order price",
+        "cost": "Cost / package",
+        "returnRate": "Return rate",
+        "delivery": "Courier / parcel",
+        "commShare": "Commissionable share",
+        "lead": "Lead cost / order",
+        "actual": "In the period: {{price}} per package over {{n}} packages, returns {{ret}}.",
+        "needCost": "Enter a cost per package to see the net.",
+        "pass": "Clears the target",
+        "fail": "Below the target",
+        "perPackage": "{{n}} packages · {{price}} per package",
+        "netDelivered": "Net of a delivered order",
+        "netExpected": "Expected net per order (with {{pct}}% returns)",
+        "netPerPkg": "Expected net per package",
+        "targetIs": "target {{v}}",
+        "needPrice": "Price needed: {{price}} ({{per}} per package)"
+      }
+    }
   },
   "agentsTab": {
     "today": "Today",
