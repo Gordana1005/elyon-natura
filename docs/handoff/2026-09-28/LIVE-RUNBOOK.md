@@ -185,3 +185,50 @@ and the follow-ups in the Log.
   comment says the sync writes it (nothing does); chase-job comments still say "Sofia".
 - Agents tab shows bare EUR (`fmt()`) — part of the Insights tabs rebuild (WP2), payouts deferred.
 - Staff EUR displays outside the affiliate pages: `MirrorTab.tsx`, `LeadDistributionPage.tsx`.
+
+### Session 2 — 28.09.2026 (times UTC; Skopje = UTC+2)
+**§0 Setup (03:08)** — .env from the environment (6 keys: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
+SUPABASE_ACCESS_TOKEN, VITE_SUPABASE_URL, VITE_SUPABASE_PROJECT_ID, VITE_SUPABASE_PUBLISHABLE_KEY; no
+ALTERCPA_*), `npm ci`, tripwire → Target confirmed: Macedonia (105.496 orders, 0 on +359).
+
+**§1 Snapshot (03:09)** — as expected: latest applied `20260939000500`; no-parcel mode `apply`
+(days 7, hour 21, sources altercpa+affiliate, from 2026-08-01); last rule run 27.09 23:13 report:
+569 candidates / 522 to_cancel / 47 needs_linking. Every cron job in the last 24 h `succeeded`. AlterCPA
+nightly/weekly: every run since 24.09 `failed` "stale: still running after 10 minutes". Functions:
+api v68, altercpa-sync v28, mex-reconcile v12, web-sync v1, collabbox-sync v2.
+
+**§2 Stamping (03:09–03:14)** — `verify-stamp-parity`: unstamped fn 5.381 = script 5.381, all real
+sales 47.917 = 47.917, 0 row diffs; stored stamps 42.536, differ 0 → PARITY OK. Applied
+`20260939000300`; engine fixture intact. Dry run (14 d): 1.129 candidates, 0 resolvable, all
+unresolved (AlterCPA cancelled 1.061 / trashed 33 / open 3 with "System (mex)" as first sale, 32 with
+"System (repair)"). Cron `stamp-order-deciders` (`1-59/5`) first tick 03:11 succeeded,
+`order_decider_runs` id 1 logged (1.129 / 0 stamped); `stamp-order-deciders-full` = `23 2 * * *`.
+Orders sold+updated in the last 15 min via altercpa/crm_push: 0 (no `updated_at` bump).
+
+**§3 AlterCPA sweeps (03:10)** — applied `20260940000100`, deployed `altercpa-sync`.
+`altercpa-sync-continue` (`1-59/2`) listed and succeeding; rolling runs 03:06–03:14 all `ok`.
+
+**§4 Upsell revive (03:10)** — fingerprint `2e8e3881b2de77ac2b98dd4e29fb2cce` ✓. Dry run: revive 0
+parcels / 0 orders (to_paid/shipped/returned 0, with_linked_sibling 0, excluded_cod_0 0;
+no_parcel_7d cancels now 345). Applied `20260940000200` at 03:10, deployed `mex-reconcile`.
+
+**§5 Insights foundation (03:11–03:15)** — applied `20260939000700` + `20260940000000`; fixture intact.
+Sources (non-disposition): altercpa 89.670 · collabbox 8.207 · elyon_crm 734, no NULL. Exceptions
+22–28.09: 6 web claims, 0 ledger rows, test_orders [], phones 23123123/70123456.
+`verify-insights-ties` exit 0 on all three windows (T1–T5, D1, D2, D4–D6 PASS):
+| window | now | research 01:40 (old rules) |
+|---|---|---|
+| 22–28.09 (partial) | 1.321 · 3.247.209 ден (paid 704 · 1.685.032) | 1.343 · 3.239.584 (paid 723 · 1.685.032) |
+| 15–21.09 | 1.629 · 4.138.998 | 1.701 · 4.233.908 |
+| 01–27.09 | 7.176 · 17.968.541 | 7.666 · 18.659.256 |
+Causes: the contract puts "cancelled after sale" OUTSIDE the total (old totals included it: 0 / 60 ·
+113.410 / 421 · 728.490 → now 0 / 54 · 99.940 / 412 · 706.530) and COD ≤ 0 replacements outside
+(26 / 27 / 124, value 0 — same paid value 1.685.032 for the week with 19 fewer rows); 22 test-phone web
+orders out of 22–28.09 and 01–27.09; the rest = parcels that moved and COD updates since 01:40 (e.g.
+15–21.09 without cancels: 1.641 · 4.120.498 then vs 1.629 · 4.138.998 now, +0,4%). No unexplained diff.
+Gates 734/734 + build ✓ → deployed `api`; `/insights/cohort` without token → 401.
+
+**§6.1 C8a** — the 3 owner-accepted parcels (002-9110-158918/2026, …159096/2026, …161364/2026) in
+`scripts/data/c8a-accepted-duplicates.json` → C8a PASS. Same run (default range): C7 FAIL 132 (paid
+without MEX proof), C8b FAIL 56 (tracking id not in `mex_parcels`), C10 FAIL 90 (ghost parcels), C3 WARN 7,
+C6 WARN 470, C9 WARN 1.344 — pre-existing, not part of this pass; follow-up.

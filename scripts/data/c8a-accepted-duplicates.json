@@ -9,9 +9,40 @@
   ],
   "entry_shape": {
     "tracking_id": "the MEX tracking id both orders name (orders.mex_tracking_id)",
-    "orders": ["ORD-…", "ORD-…"],
+    "orders": [
+      "ORD-…",
+      "ORD-…"
+    ],
     "reason": "why the owner keeps both orders",
     "owner_date": "YYYY-MM-DD"
   },
-  "accepted": []
+  "accepted": [
+    {
+      "tracking_id": "002-9110-158918/2026",
+      "orders": [
+        "ORD-48624",
+        "ORD-55269"
+      ],
+      "reason": "Owner 28.09.2026: keep both orders — both accurate",
+      "owner_date": "2026-09-28"
+    },
+    {
+      "tracking_id": "002-9110-159096/2026",
+      "orders": [
+        "ORD-50072",
+        "ORD-58662"
+      ],
+      "reason": "Owner 28.09.2026: keep both orders — both accurate",
+      "owner_date": "2026-09-28"
+    },
+    {
+      "tracking_id": "002-9110-161364/2026",
+      "orders": [
+        "ORD-51069",
+        "ORD-62245"
+      ],
+      "reason": "Owner 28.09.2026: keep both orders — both accurate",
+      "owner_date": "2026-09-28"
+    }
+  ]
 }
