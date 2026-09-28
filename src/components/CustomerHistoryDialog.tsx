@@ -1,19 +1,25 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Phone, MapPin, Package, ChevronDown, ChevronUp, User, ArrowRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { StatusBadge } from '@/components/StatusBadge';
+import { CustomerTimeline } from '@/components/customer360/CustomerTimeline';
 import { useTranslation } from 'react-i18next';
 import { formatDate } from '@/i18n/dates';
 import { OrderStatus, statusLabel } from '@/types';
 import { formatOrderProducts } from '@/lib/monadonSubstitutes';
+import { formatMoney } from '@/lib/currency';
+import { cn } from '@/lib/utils';
 
 interface CustomerHistoryDialogProps {
   open: boolean;
   onClose: () => void;
   customerPhone: string;
   customerName: string;
+  /** Customer 360 tab: open an order in the host page's own modal. Without it the id links to /orders?search=. */
+  onOpenOrder?: (orderId: string, displayId: string) => void;
 }
 
 interface HistoryEntry {
@@ -55,8 +61,12 @@ interface HistoryLead {
   assigned_agent_name: string | null;
 }
 
-export function CustomerHistoryDialog({ open, onClose, customerPhone, customerName }: CustomerHistoryDialogProps) {
+export function CustomerHistoryDialog({ open, onClose, customerPhone, customerName, onOpenOrder }: CustomerHistoryDialogProps) {
   const { t } = useTranslation();
+  // The familiar History view stays the default; Customer 360 is one click away
+  // and is fetched only when that tab is opened.
+  const [tab, setTab] = useState<'history' | 'timeline'>('history');
+  useEffect(() => { if (open) setTab('history'); }, [open]);
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<HistoryOrder[]>([]);
   const [leads, setLeads] = useState<HistoryLead[]>([]);
@@ -146,7 +156,7 @@ export function CustomerHistoryDialog({ open, onClose, customerPhone, customerNa
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
+      <DialogContent className={cn('flex flex-col', tab === 'timeline' ? 'max-w-2xl max-h-[90vh]' : 'max-w-lg max-h-[80vh]')}>
         <DialogHeader>
           <DialogTitle>{t('historyDialog.title')}</DialogTitle>
           <div className="flex items-center gap-3 text-sm text-muted-foreground pt-1">
@@ -155,6 +165,17 @@ export function CustomerHistoryDialog({ open, onClose, customerPhone, customerNa
           </div>
         </DialogHeader>
 
+        <Tabs value={tab} onValueChange={(v) => setTab(v as 'history' | 'timeline')} className="flex min-h-0 flex-1 flex-col">
+          <TabsList className="w-full justify-start">
+            <TabsTrigger value="history">{t('customer360.historyTab')}</TabsTrigger>
+            <TabsTrigger value="timeline">{t('customer360.tab')}</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="timeline" className="min-h-0 flex-1 overflow-y-auto pr-1">
+            <CustomerTimeline phone={customerPhone} enabled={open && tab === 'timeline'} onOpenOrder={onOpenOrder} />
+          </TabsContent>
+
+          <TabsContent value="history" className="min-h-0 flex-1 flex flex-col">
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -201,7 +222,7 @@ export function CustomerHistoryDialog({ open, onClose, customerPhone, customerNa
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             <div className="text-right">
-                              <p className="font-bold text-primary text-sm">{Number(o.price).toFixed(2)}</p>
+                              <p className="font-bold text-primary text-sm">{formatMoney(o.price)}</p>
                               <p className="text-[10px] text-muted-foreground">{formatDate(new Date(o.created_at), 'MMM d, yyyy')}</p>
                             </div>
                             {hasDetails && (
@@ -300,6 +321,8 @@ export function CustomerHistoryDialog({ open, onClose, customerPhone, customerNa
             )}
           </div>
         )}
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );

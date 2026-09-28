@@ -233,22 +233,88 @@ export const apiDeleteUser = (userId: string) =>
 // The public board is fetched WITHOUT auth (token in the URL), so apiGetLeaderboard
 // bypasses apiFetch/getHeaders (which attach an empty Bearer). The admin config
 // endpoints use the normal authenticated apiFetch (admin/manager only).
+// Redesign 2026-09-28 (supabase/functions/api/leaderboard.ts): every team member
+// is on the board every day, with presence; the fields marked NEW are optional
+// only so a TV that loads the new page before the api is redeployed still works.
+export type LeaderboardPresenceState = 'online' | 'idle' | 'break' | 'offline' | 'n/a';
+export interface LeaderboardPresence {
+  state: LeaderboardPresenceState; // 'n/a' = no CRM login (decides in AlterCPA's panel)
+  online_min: number;        // = active + idle + break
+  active_min: number;
+  idle_min: number;
+  break_min: number;         // the break button — never counts as idle
+  first_seen: string | null;
+  last_seen: string | null;
+  first_active: string | null;
+  last_active: string | null;
+  idle_alerts: number;
+  idle_streak_min: number | null; // today, while idle right now
+  first_login: string | null;     // first CRM login that day (shift / admin log)
+}
 export interface LeaderboardRow {
-  user_id: string;
+  user_id: string | null;    // null for an AlterCPA-only operator (no CRM login)
   full_name: string;
   is_super: boolean;         // admin/manager — shown but earns €0
   rank: number;
-  confirmed_count: number;
+  confirmed_count: number;   // net of returns / cancels — what the bonus reads
   packages: number;
   avg_order_value: number;   // EUR
-  revenue: number;           // EUR — total confirmed revenue that day (prediction)
+  revenue: number;           // EUR — net revenue of this board's source that day
   target_pct: number;        // percent of the top revenue target (prediction)
-  sold_rate: number;         // percent — sales ÷ clients called (pending)
+  sold_rate: number;         // percent — sales ÷ calls logged in the CRM
   calls: number;
-  bonus: number;             // EUR (per-package + milestone/target bonus)
+  bonus: number;             // EUR (per-package + milestone/target bonus) — a projection, not payroll
   bonus_breakdown: Record<string, number>; // pending {package,volume,avg} | prediction {package,target}
+  // ── NEW (2026-09-28) ──
+  key?: string;              // stable row key: person_id (user_id when a roster extra has no person)
+  person_id?: string | null;
+  team_key?: string | null;  // primary team that day — the badge
+  team_name?: string | null;
+  is_member?: boolean;       // on this board's team that day
+  is_guest?: boolean;        // worked or sold this board's source from another team
+  is_extra?: boolean;        // added in Settings → Leaderboard
+  is_manager?: boolean;
+  earns_team_target?: boolean;
+  worked?: number;           // decisions that day (work ledger), this board's source
+  sales?: number;            // gross sales that day (incl. later returned / cancelled)
+  sold_value_eur?: number;
+  sale_decisions?: number;
+  cancelled?: number;
+  trashed?: number;
+  callbacks?: number;
+  conversion_pct?: number | null; // sale decisions ÷ worked
+  shipped?: number;
+  delivered?: number;
+  returned?: number;
+  lost?: number;
+  delivered_cash_mkd?: number;
+  live_credited?: number;
+  last_decision_at?: string | null;
+  presence?: LeaderboardPresence;
 }
 export type LeaderboardMode = 'prediction' | 'pending';
+export interface LeaderboardSummary {
+  people: number;
+  members: number;
+  guests: number;
+  extras: number;
+  managers: number;
+  online_now: number;        // online + idle right now (today only)
+  idle: number;
+  on_break: number;
+  offline: number;
+  no_login: number;          // AlterCPA-only people — presence cannot be seen
+  was_online: number;        // had presence minutes that day
+  zero_sale_people: number;
+  worked: number;
+  unmapped_decisions: number;
+  sales: number;
+  sold_value_eur: number;
+  unattributed_sales: number;
+  unattributed_value_eur: number;
+  live_credited_sales: number;
+  team_target_earners: number;
+}
 export interface LeaderboardResponse {
   generated_at: string;
   mode: LeaderboardMode;
@@ -259,6 +325,7 @@ export interface LeaderboardResponse {
   team_revenue: number;      // prediction: combined team revenue today (€)
   team_target_pct: number;   // prediction: team revenue as % of the top target
   team_target_bonus: number; // prediction: € bonus the team has unlocked so far
+  summary?: LeaderboardSummary; // NEW (2026-09-28)
   agents: LeaderboardRow[];
 }
 export const apiGetLeaderboard = async (key: string, day?: string, mode?: LeaderboardMode): Promise<LeaderboardResponse> => {
@@ -1065,6 +1132,126 @@ export interface CustomerHistoryResponse {
 }
 export const apiGetCustomerHistory = (phone: string): Promise<CustomerHistoryResponse> =>
   apiFetch(`customers/${encodeURIComponent(phone)}/history`);
+
+// ── Customer 360 (GET /api/customers/timeline, migration 20260939000100) ──
+// Money: `amount_eur` on an order event is the CRM price (EUR, every staff
+// role). Every other money key (cod_mkd, amount_mkd, price_eur,
+// lifetime_delivered_mkd, paid_orders_eur) is present for business owners
+// only — absent, not null, for everyone else. *_mkd are already denari
+// (formatDenari); *_eur are stored EUR (formatMoney).
+export type TimelineKind = 'order' | 'web_order' | 'altercpa_lead' | 'parcel' | 'call' | 'note' | 'list';
+export interface TimelineParcel {
+  tracking_id: string;
+  account?: 'bio_natural' | 'natura' | string;
+  series?: string;
+  channel?: 'web' | 'teleshop' | 'social' | 'leads_out' | 'leads' | 'crm' | 'other' | string;
+  status_id?: number;
+  status_name?: string;
+  created_at?: string;
+  delivered_at?: string;
+  returned_at?: string;
+  receiver_name?: string;
+  receiver_city?: string;
+  link_method?: string;
+  phone_match?: boolean;
+  from_order?: boolean;
+  cod_mkd?: number;
+}
+export interface TimelineLead {
+  altercpa_id: string;
+  geo?: string;
+  offer?: string;
+  webmaster?: string;
+  phase?: number;
+  lead_status?: number;
+  reason?: number;
+  decision?: 'approved' | 'cancel_other' | 'cancelled' | 'trashed' | string;
+  decided_by?: string;
+  decided_at?: string;
+  created_at?: string;
+  customer_name?: string;
+  city?: string;
+  quantity?: number;
+  skip_reason?: string;
+  price_eur?: number;
+}
+export interface TimelineEvent {
+  kind: TimelineKind;
+  key: string;
+  at: string;
+  status?: string;
+  source?: string;
+  source_detail?: string;
+  title?: string;
+  who?: string;
+  text?: string;
+  items?: { name: string; qty: number; variant?: string; gift?: boolean }[];
+  quantity?: number;
+  amount_eur?: number;
+  amount_mkd?: number;
+  shipping_mkd?: number;
+  disposition?: boolean;
+  sold_by?: string;
+  sold_at?: string;
+  confirmed_by?: string;
+  assigned_to?: string;
+  list?: string;
+  customer_name?: string;
+  city?: string;
+  cancellation_reason?: string;
+  cancellation_reason_notes?: string;
+  trash_reason?: string;
+  trash_reason_notes?: string;
+  return_reason?: string;
+  return_reason_notes?: string;
+  paid_at?: string;
+  shipped_at?: string;
+  returned_at?: string;
+  notes_count?: number;
+  system_notes_count?: number;
+  system_notes?: { at: string; who?: string; text?: string }[];
+  parcels?: TimelineParcel[];
+  parcel?: TimelineParcel;
+  lead?: TimelineLead;
+  linked_elsewhere?: boolean;
+  // web_order
+  legacy?: boolean;
+  shop_status?: string;
+  payment_method?: string;
+  // call
+  seconds?: number;
+  talk_seconds?: number;
+  connection_state?: string;
+  context_type?: string;
+  // list
+  category?: string;
+  product?: string;
+  last_call_at?: string;
+  last_call_outcome?: string;
+  refs?: { order_id?: string; display_id?: string; tracking_id?: string; web_number?: string; altercpa_id?: string };
+}
+export interface CustomerTimeline {
+  ok: boolean;
+  error?: string;
+  phone8?: string;
+  money?: boolean;
+  generated_at?: string;
+  customer?: { names: string[]; cities: string[]; first_seen?: string; last_seen?: string };
+  summary?: {
+    orders: number; sales: number; dispositions: number; delivered: number; returned: number;
+    cancelled: number; trashed: number; open: number; in_progress: number;
+    web_orders: number; web_delivered: number; altercpa_leads: number;
+    parcels: number; parcels_delivered: number; parcels_returned: number; parcels_mex_only: number;
+    calls: number; notes: number; system_notes: number; lists: string[];
+    lifetime_delivered_mkd?: number; paid_orders_eur?: number;
+  };
+  events?: TimelineEvent[];
+  total_events?: number;
+  kind_counts?: Partial<Record<TimelineKind, number>>;
+  truncated?: boolean;
+}
+export const apiGetCustomerTimeline = (phone: string): Promise<CustomerTimeline> =>
+  apiFetch(`customers/timeline?phone=${encodeURIComponent(phone)}`);
 
 // Active call views (TAKE status, heartbeat-based 2-min timeout)
 export interface ActiveCallView {
@@ -2107,6 +2294,134 @@ export const apiAddBusinessOwner = (user_id: string, note?: string): Promise<Bus
   apiFetch('business-owners', { method: 'POST', body: JSON.stringify({ user_id, ...(note ? { note } : {}) }) });
 export const apiRemoveBusinessOwner = (user_id: string): Promise<{ success: true; user_id: string }> =>
   apiFetch(`business-owners/${encodeURIComponent(user_id)}`, { method: 'DELETE' });
+
+// ── Settings → Teams (owners only, 2026-09-28; migration 20260939000200) ─────
+// Error bodies are codes (owners_only, person_not_found, identity_taken,
+// later_membership_exists, …), translated in TeamsTab via settings.teams.err.*.
+export type SalesIdentityKind = 'altercpa_user' | 'collabbox_author' | 'order_name';
+export interface SalesIdentity {
+  id: string; kind: SalesIdentityKind; account_id: string | null; value: string; note: string | null; created_at: string;
+}
+export interface SalesMembership {
+  id: string; team_key: string; valid_from: string; valid_to: string | null;
+  role: 'member' | 'lead'; is_primary: boolean; note: string | null; created_at: string;
+}
+export interface SalesPerson {
+  id: string; display_name: string; user_id: string | null;
+  login_name: string | null; login_email: string | null; login_active: boolean | null; login_roles: string[];
+  is_active: boolean; is_manager: boolean; notes: string | null; created_at: string;
+  last_activity_at: string | null; decisions_30d: number; sales_30d: number;
+  identities: SalesIdentity[]; memberships: SalesMembership[];
+}
+export interface SalesTeam { key: string; name: string; leaderboard_mode: 'prediction' | 'pending' | null }
+export interface SalesLogin {
+  user_id: string; full_name: string | null; email: string | null; is_active: boolean; roles: string[]; person_id: string | null;
+}
+export interface SalesTeamsOverview {
+  today: string;
+  teams: SalesTeam[];
+  accounts: { id: string; name: string; is_active: boolean }[];
+  people: SalesPerson[];
+  logins: SalesLogin[];
+}
+export interface SalesOrderRef { id: string; display_id: string }
+export interface SalesUnmapped {
+  days: number;
+  altercpa: { account_id: string; account_name: string | null; altercpa_user: number; decisions: number; sales: number;
+              first_at: string | null; last_at: string | null; sample: SalesOrderRef[] }[];
+  unnamed: { person_id: string; display_name: string; notes: string | null; altercpa_ids: string | null;
+             decisions: number; last_at: string | null }[];
+  logins: { user_id: string; full_name: string | null; email: string | null; is_active: boolean; roles: string[];
+            last_seen_at: string | null; last_work_at: string | null; is_test: boolean }[];
+  orders: { ext: string | null; sold_via: string | null; stamped: boolean; sale_source: string | null; n: number;
+            first_at: string | null; last_at: string | null; sample: SalesOrderRef[];
+            suggestion: { person_id: string; display_name: string; match: 'same' | 'near' } | null }[];
+}
+export interface SalesIdentityInput { kind: SalesIdentityKind; value: string; account_id?: string | null; note?: string | null }
+export interface SalesPersonCreate {
+  display_name: string; user_id?: string | null; is_manager?: boolean; notes?: string | null;
+  team_key?: string | null; team_from?: string | null; team_role?: 'member' | 'lead';
+  identities?: SalesIdentityInput[];
+}
+export interface SalesPersonPatch {
+  display_name?: string; is_active?: boolean; is_manager?: boolean; notes?: string | null; user_id?: string | null;
+}
+export const apiGetSalesTeams = (): Promise<SalesTeamsOverview> => apiFetch('sales-people');
+export const apiGetSalesUnmapped = (days = 90): Promise<SalesUnmapped> => apiFetch(`sales-people/unmapped?days=${days}`);
+export const apiCreateSalesPerson = (body: SalesPersonCreate): Promise<{ ok: true; person: { id: string }; backstamped: number }> =>
+  apiFetch('sales-people', { method: 'POST', body: JSON.stringify(body) });
+export const apiUpdateSalesPerson = (id: string, patch: SalesPersonPatch): Promise<{ ok: true; backstamped: number }> =>
+  apiFetch(`sales-people/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(patch) });
+export const apiAddSalesIdentity = (personId: string, body: SalesIdentityInput): Promise<{ ok: true; identity: SalesIdentity; backstamped: number }> =>
+  apiFetch(`sales-people/${encodeURIComponent(personId)}/identities`, { method: 'POST', body: JSON.stringify(body) });
+export const apiRemoveSalesIdentity = (identityId: string): Promise<{ ok: true; orders_keep_person: number }> =>
+  apiFetch(`sales-people/identities/${encodeURIComponent(identityId)}`, { method: 'DELETE' });
+export const apiMoveSalesPerson = (
+  personId: string, body: { team_key: string | null; from: string; role?: 'member' | 'lead'; note?: string | null },
+): Promise<{ ok: true }> =>
+  apiFetch(`sales-people/${encodeURIComponent(personId)}/move`, { method: 'POST', body: JSON.stringify(body) });
+export const apiDeleteSalesMembership = (membershipId: string): Promise<{ ok: true }> =>
+  apiFetch(`sales-people/memberships/${encodeURIComponent(membershipId)}`, { method: 'DELETE' });
+
+// ── Settings → Integrations health (owners only, 2026-09-28) ────────────────
+export type HealthStatus = 'ok' | 'stale' | 'failing' | 'n/a';
+export interface HealthDay { d: string; ok: number; failed: number; to_cancel?: number | null; cancelled?: number | null }
+export interface HealthJob {
+  job: string; expect: string; status: HealthStatus;
+  last_ok_at: string | null; last_run_at: string | null; last_run_status: 'ok' | 'failed' | null;
+  last_error: string | null; last_error_at: string | null;
+  runs_24h: number; failed_24h: number; rows_24h: number;
+}
+export type HealthFeedKey = 'altercpa' | 'mex_bio_natural' | 'mex_natura' | 'web' | 'collabbox';
+export interface HealthFeed {
+  key: HealthFeedKey; status: HealthStatus;
+  last_ok_at: string | null; last_run_at: string | null; data_through?: string | null;
+  /** English diagnostic (collabBox: collabbox_feed_state().detail) — shown as a tooltip only. */
+  detail?: string | null;
+  last_error: string | null; last_error_at: string | null;
+  runs_24h: number; failed_24h: number;
+  rows: Record<string, number>;
+  leads_today?: number;
+  jobs: HealthJob[];
+  /** null = the feed has no run log yet (collabBox until collabbox_sync_runs exists). */
+  days: HealthDay[] | null;
+}
+export interface HealthNoParcelRun {
+  id: string; run_day: string; ran_at: string; mode: 'report' | 'apply'; trigger_kind: 'cron' | 'manual'; days: number;
+  candidates: number; to_cancel: number; needs_linking: number; cancelled: number;
+  value_eur: number | string; cancelled_value_eur: number | string;
+}
+export interface HealthNoParcel {
+  key: 'no_parcel_rule'; status: HealthStatus; mode: 'report' | 'apply'; days_n: number; hour: number;
+  settings: Record<string, unknown>;
+  last_ok_at: string | null; last_cron_run_at: string | null; next_run_at: string | null;
+  last_run: HealthNoParcelRun | null;
+  cron_last_status: string | null; cron_last_at: string | null; last_error: string | null;
+  runs_24h: number; days: HealthDay[];
+}
+export interface HealthCronJob {
+  jobid: number; jobname: string; schedule: string; active: boolean; status: HealthStatus;
+  last_status: string | null; last_start: string | null; last_end: string | null; last_message: string | null;
+  last_error: string | null; last_error_at: string | null;
+  runs_24h: number; failed_24h: number; days: HealthDay[] | null;
+}
+export interface IntegrationsHealth {
+  generated_at: string; today: string;
+  feeds: HealthFeed[]; no_parcel: HealthNoParcel | null; cron: HealthCronJob[];
+}
+export interface NoParcelPreview { candidates: number; to_cancel: number; needs_linking: number; value_eur: number; mode: string; days: number }
+export interface NoParcelReportRow {
+  order_id: string; display_id: string | null; customer_name: string | null; customer_phone: string | null;
+  city: string | null; product: string | null; quantity: number | null; price_eur: number | string | null;
+  sold_at: string | null; days_waiting: number | null; seller: string | null; sale_source: string | null;
+  status_now: string | null; action: string; parcel: string | null; other_order: string | null;
+}
+export const apiGetIntegrationsHealth = (): Promise<IntegrationsHealth> => apiFetch('integrations/health');
+export const apiGetNoParcelPreview = (): Promise<NoParcelPreview> => apiFetch('integrations/no-parcel-rule/preview');
+export const apiSetNoParcelMode = (mode: 'report' | 'apply'): Promise<{ ok: true; mode: string; preview: NoParcelPreview | null }> =>
+  apiFetch('integrations/no-parcel-rule/mode', { method: 'POST', body: JSON.stringify({ mode }) });
+export const apiGetNoParcelReport = (runId?: string): Promise<{ run: HealthNoParcelRun; rows: NoParcelReportRow[] }> =>
+  apiFetch(`integrations/no-parcel-rule/report${runId ? `?run_id=${encodeURIComponent(runId)}` : ''}`);
 
 // Courier rate card (logistics cost per courier+service — editable in Settings)
 export interface CourierRate {

@@ -35,6 +35,12 @@
  *        +150 delivery fee / listed mismatches
  *   C12  orders.sale_source never NULL      C13  ≥ 99% of v_sales_work decisions have a person
  *   C14  insights_web_block = the shop's own classifier over web_orders (SKIP until web-sync lands)
+ * The TV leaderboard (migration 20260939000000) — C4/C5 call public.leaderboard_day for the last
+ * 7 Skopje days of the range and tie each board out per person per day:
+ *   C4   prediction board = ElyonCRM (elyon_crm) sales by sold_by_person_id + v_sales_work CRM
+ *        decisions; every crm_prediction member on the board; day total = the SOLD-clock count
+ *   C5   pending board = AlterCPA/affiliate sales + the AlterCPA ledger decisions (v_sales_work);
+ *        every altercpa_leads member on the board; day total incl. live-credited approvals
  * They SKIP while the objects they read are not deployed.
  *
  * Safety. Pinned to Macedonia: the ref is a constant and the run is refused unless
@@ -918,6 +924,152 @@ FROM v`);
   };
 }
 
+// ── C4 / C5 — the TV leaderboard (migration 20260939000000) ────────────────
+// public.leaderboard_day(day, mode) is called for each of the last LB_DAYS
+// Skopje days of the range and tied out, per person per day, against twins
+// written here independently of the function:
+//   stamped sales  board (confirmed − live_credited) = orders of the board's
+//                  source with sold_at in the day, by sold_by_person_id
+//   work           board worked / sale_decisions = v_sales_work rows of the day
+//                  in the board's scope (C4: CRM decisions on elyon_crm orders;
+//                  C5: AlterCPA ledger decisions + CRM decisions on lead orders)
+//   day total      board summary.sales = the board source's sales on the SOLD
+//                  clock (sold_at; unstamped: the AlterCPA approval, else
+//                  confirmed_at, else created_at)
+//   roster         every member of the board's team that day is on the board,
+//                  and so is everyone who sold or worked its source (guests)
+const LB_DAYS = 7;
+function boardWindow(ctx) {
+  const r = ctx.windows.range;
+  const to = r.to ?? ctx.today;
+  const back = addDays(to, -(LB_DAYS - 1));
+  return makeWindow(r.from && r.from > back ? r.from : back, to);
+}
+
+async function leaderboardTieOut(ctx, mode) {
+  const w = boardWindow(ctx);
+  const { board, canBoard } = ctx.schema.fns;
+  if (!board || !canBoard) {
+    return { status: board ? 'WARN' : 'SKIP', count: null, sample: [], window: describeWindow(w, 'sold'),
+             note: board
+               ? 'public.leaderboard_day exists but this read-only role may not EXECUTE it — the GRANT to supabase_read_only_user in migration 20260939000000 is missing'
+               : 'public.leaderboard_day is not deployed yet (migration 20260939000000)' };
+  }
+  const src = mode === 'prediction' ? `o.sale_source = 'elyon_crm'` : `o.sale_source IN ('altercpa', 'affiliate')`;
+  const work = mode === 'prediction'
+    ? `v.via = 'crm' AND v.sale_source = 'elyon_crm'`
+    : `(v.via = 'altercpa' OR v.sale_source IN ('altercpa', 'affiliate'))`;
+  const saleOrder = `${src} AND coalesce(o.sale_source_detail, '') <> 'disposition' AND ${NOT_MONADON('o')}
+    AND (o.sold_at IS NOT NULL OR o.status IN ${SALE_STATUSES_SQL})`;
+  const [t] = await ctx.sql(`
+WITH d AS (
+  SELECT g::date AS day FROM generate_series(${lit(w.from)}::date, ${lit(w.to)}::date, interval '1 day') g
+),
+b AS (SELECT d.day, public.leaderboard_day(d.day, ${lit(mode)}) AS j FROM d),
+br AS (
+  SELECT b.day, r ->> 'person_id' AS person_id, r ->> 'name' AS name,
+         (r ->> 'confirmed')::int - (r ->> 'live_credited')::int AS stamped_sales,
+         (r ->> 'worked')::int AS worked, (r ->> 'sale_decisions')::int AS sale_decisions
+  FROM b CROSS JOIN LATERAL jsonb_array_elements(b.j -> 'rows') r
+),
+ts AS (
+  SELECT (o.sold_at AT TIME ZONE 'Europe/Skopje')::date AS day, o.sold_by_person_id::text AS person_id, count(*)::int AS n
+  FROM public.orders o
+  WHERE ${saleOrder} AND o.sold_by_person_id IS NOT NULL AND ${within('o.sold_at', w)}
+  GROUP BY 1, 2
+),
+tw AS (
+  SELECT (v.at AT TIME ZONE 'Europe/Skopje')::date AS day, v.person_id::text AS person_id,
+         count(*)::int AS worked, (count(*) FILTER (WHERE v.outcome = 'sale'))::int AS sale_decisions
+  FROM public.v_sales_work v
+  WHERE ${within('v.at', w)} AND v.person_id IS NOT NULL AND ${work}
+  GROUP BY 1, 2
+),
+k AS (
+  SELECT day, person_id FROM br WHERE person_id IS NOT NULL
+  UNION SELECT day, person_id FROM ts UNION SELECT day, person_id FROM tw
+),
+cmp AS (
+  SELECT k.day, k.person_id, coalesce(br.name, sp.display_name, k.person_id) AS person,
+         (br.person_id IS NOT NULL) AS on_board,
+         coalesce(br.stamped_sales, 0) AS board_sales, coalesce(ts.n, 0) AS orders_sales,
+         coalesce(br.worked, 0) AS board_worked, coalesce(tw.worked, 0) AS ledger_worked,
+         coalesce(br.sale_decisions, 0) AS board_decisions, coalesce(tw.sale_decisions, 0) AS ledger_decisions
+  FROM k
+  LEFT JOIN br ON br.day = k.day AND br.person_id = k.person_id
+  LEFT JOIN ts ON ts.day = k.day AND ts.person_id = k.person_id
+  LEFT JOIN tw ON tw.day = k.day AND tw.person_id = k.person_id
+  LEFT JOIN public.sales_people sp ON sp.id::text = k.person_id
+),
+bad AS (
+  SELECT * FROM cmp
+  WHERE (on_board AND (board_sales <> orders_sales OR board_worked <> ledger_worked OR board_decisions <> ledger_decisions))
+     OR (NOT on_board AND (orders_sales > 0 OR ledger_worked > 0))
+),
+tm AS (
+  SELECT d.day, m.person_id::text AS person_id, sp.display_name AS name
+  FROM d
+  JOIN public.sales_team_members m ON m.valid_from <= d.day AND coalesce(m.valid_to, 'infinity'::date) >= d.day
+  JOIN public.sales_teams st ON st.key = m.team_key AND st.leaderboard_mode = ${lit(mode)}
+  JOIN public.sales_people sp ON sp.id = m.person_id AND (sp.is_active OR m.valid_to IS NOT NULL)
+),
+miss AS (SELECT DISTINCT tm.day, tm.name FROM tm WHERE NOT EXISTS (SELECT 1 FROM br WHERE br.day = tm.day AND br.person_id = tm.person_id)),
+cand AS (
+  SELECT o.id, o.sold_at, o.confirmed_at, o.created_at
+  FROM public.orders o
+  WHERE ${saleOrder}
+    AND (${within('o.sold_at', w)}
+         OR (o.sold_at IS NULL AND (${within('o.confirmed_at', w)} OR ${within('o.created_at', w)}
+             OR o.id IN (SELECT l.order_id FROM public.altercpa_leads l
+                          WHERE l.decision IN ('approved', 'cancel_other') AND ${within('l.decided_at', w)}))))
+),
+tot AS (
+  SELECT (x.sale_at AT TIME ZONE 'Europe/Skopje')::date AS day, count(*)::int AS n
+  FROM (SELECT CASE WHEN c.sold_at IS NOT NULL THEN c.sold_at
+                    ELSE coalesce((SELECT min(l.decided_at) FROM public.altercpa_leads l
+                                    WHERE l.order_id = c.id AND l.decision IN ('approved', 'cancel_other')
+                                      AND upper(coalesce(l.geo, '')) = 'MK' AND l.skip_reason IS DISTINCT FROM 'test_order'),
+                                  c.confirmed_at, c.created_at) END AS sale_at
+        FROM cand c) x
+  WHERE ${within('x.sale_at', w)}
+  GROUP BY 1
+),
+days AS (
+  SELECT to_char(b.day, 'YYYY-MM-DD') AS day,
+         (b.j #>> '{summary,people}')::int AS people, (b.j #>> '{summary,members}')::int AS members,
+         (b.j #>> '{summary,guests}')::int AS guests,
+         (b.j #>> '{summary,zero_sale_people}')::int AS zero_sale,
+         (b.j #>> '{summary,was_online}')::int AS were_online,
+         (b.j #>> '{summary,sales}')::int AS board_sales, coalesce(tot.n, 0) AS sql_sales,
+         (b.j #>> '{summary,live_credited_sales}')::int AS live_credited,
+         (b.j #>> '{summary,unattributed_sales}')::int AS unattributed
+  FROM b LEFT JOIN tot ON tot.day = b.day
+)
+SELECT (SELECT count(*)::int FROM bad) AS n_bad,
+       (SELECT count(*)::int FROM miss) AS n_missing,
+       (SELECT count(*)::int FROM days WHERE board_sales <> sql_sales) AS n_total_bad,
+       (SELECT coalesce(json_agg(s), '[]') FROM (
+          SELECT to_char(day, 'YYYY-MM-DD') AS day, person, on_board, board_sales, orders_sales,
+                 board_worked, ledger_worked, board_decisions, ledger_decisions
+          FROM bad ORDER BY day DESC, person LIMIT ${ctx.sampleN}) s) AS sample,
+       (SELECT coalesce(json_agg(s), '[]') FROM (
+          SELECT to_char(day, 'YYYY-MM-DD') AS day, name FROM miss ORDER BY day DESC, name LIMIT ${ctx.sampleN}) s) AS missing,
+       (SELECT coalesce(json_agg(x ORDER BY x.day), '[]') FROM days x) AS by_day`);
+  const failed = t.n_bad + t.n_missing + t.n_total_bad;
+  return {
+    status: failed ? 'FAIL' : 'PASS',
+    count: failed,
+    sample: t.sample.length ? t.sample : t.missing,
+    note: `${mode} board, last ${LB_DAYS} days: ${fmtNum(t.n_bad)} person-days disagree with the orders / work ledger, `
+      + `${fmtNum(t.n_missing)} team member-days missing from the board, ${fmtNum(t.n_total_bad)} days whose sales total differs`,
+    window: describeWindow(w, 'sold / decided'),
+    breakdown: { by_day: t.by_day, missing: t.missing },
+  };
+}
+
+const c4PredictionBoard = (ctx) => leaderboardTieOut(ctx, 'prediction');
+const c5PendingBoard = (ctx) => leaderboardTieOut(ctx, 'pending');
+
 async function c14WebBlockEqualsShop(ctx) {
   const w = ctx.windows.range;
   if (!ctx.schema.fns.webBlock || !ctx.schema.tables.webOrders) {
@@ -985,6 +1137,8 @@ export const CHECKS = [
   { id: 'C9', title: 'AlterCPA never writes money', run: c9AltercpaNeverWritesMoney },
   { id: 'C10', title: 'no ghost parcels', run: c10NoGhostParcels },
   { id: 'C12', title: 'sale_source never NULL', run: c12SaleSourceNeverNull },
+  { id: 'C4', title: 'Leaderboard: prediction board = ElyonCRM sales per person/day', run: c4PredictionBoard },
+  { id: 'C5', title: 'Leaderboard: pending board = AlterCPA ledger per person/day', run: c5PendingBoard },
   { id: 'C13', title: '≥ 99% of decisions have a person', run: c13DecisionsHavePerson },
   { id: 'C14', title: 'web block = the shop\'s own classifier', run: c14WebBlockEqualsShop },
   { id: 'BASELINE', title: 'paid / shipped / returned in range, claimed vs proven', run: baseline, informational: true },
@@ -1004,6 +1158,8 @@ SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'pub
   to_regprocedure('public.insights_web_block(text,text)') IS NOT NULL AS has_web_block,
   coalesce(has_function_privilege(to_regprocedure('public.insights_web_block(text,text)'), 'execute'), false) AS can_web_block,
   coalesce(has_function_privilege(to_regprocedure('public.insights_orders_rollup(text,text)'), 'execute'), false) AS can_rollup,
+  to_regprocedure('public.leaderboard_day(date,text)') IS NOT NULL AS has_board,
+  coalesce(has_function_privilege(to_regprocedure('public.leaderboard_day(date,text)'), 'execute'), false) AS can_board,
   to_regclass('public.web_orders') IS NOT NULL AS has_web_orders,
   to_regclass('public.v_sales_work') IS NOT NULL AS has_work`);
   const parcels = { exists: Boolean(row.has_parcels), cols: row.parcel_cols ?? {}, rows: null, linked: null, delivered: null };
@@ -1019,7 +1175,8 @@ SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'pub
     // exists / executable by the role read_only queries run as (supabase_read_only_user)
     fns: { overview: Boolean(row.has_overview), canOverview: Boolean(row.can_overview),
            webBlock: Boolean(row.has_web_block), canWebBlock: Boolean(row.can_web_block),
-           canRollup: Boolean(row.can_rollup) },
+           canRollup: Boolean(row.can_rollup),
+           board: Boolean(row.has_board), canBoard: Boolean(row.can_board) },
     tables: { webOrders: Boolean(row.has_web_orders), work: Boolean(row.has_work) },
   };
 }

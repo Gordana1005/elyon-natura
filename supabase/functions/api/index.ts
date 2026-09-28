@@ -4,6 +4,16 @@ import { z } from "https://esm.sh/zod@3.23.8";
 // Connected Overview: windows, the non-owner money strip, drill-down filters
 // (pure, unit-tested in overview.test.ts).
 import * as OV from "./overview.ts";
+// Customer 360: phone parsing + the per-caller money/provenance/name strip for
+// GET /api/customers/timeline (pure, unit-tested in customer360.test.ts).
+import * as C360 from "./customer360.ts";
+// TV leaderboard: maps leaderboard_day() + the bonus rules into the board
+// response (pure, unit-tested in leaderboard.test.ts).
+import * as LB from "./leaderboard.ts";
+// Settings → Teams / Integrations health (owners only): body parsing, error
+// codes, suggestions, the no-parcel switch (pure, unit-tested).
+import * as TA from "./teamsAdmin.ts";
+import * as IH from "./integrationsHealth.ts";
 
 // ============================================================
 // INPUT VALIDATION SCHEMAS
@@ -2791,8 +2801,12 @@ async function handleRequest(req: Request): Promise<Response> {
     // ── PUBLIC TV LEADERBOARD (token-gated, no Supabase auth) ──
     // Aggregates-only, no PII. Drives the always-on wall screen. The token is
     // validated server-side BEFORE the auth gate so a wall TV needs no login.
-    // Returns today's (Europe/Skopje) per-agent confirmed count, AVG order value,
-    // answer rate, and the computed daily game bonus + rank.
+    // Redesign 2026-09-28: WHO is on a board and WHAT they did comes from
+    // leaderboard_day() (migration 20260939000000) — every team member every
+    // day, sales or not, with presence minutes; guests who worked or sold this
+    // board's SOURCE (sale_source decides the board, the team is only the badge);
+    // Settings extras. leaderboard.ts maps it and projects the daily-game
+    // bonus with THIS file's packageBonusRate / tierBonus (formulas unchanged).
     if (req.method === "GET" && path === "leaderboard") {
       const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() || "unknown";
       if (!checkWebhookRateLimit(`leaderboard:${ip}`)) return json({ error: "Rate limit exceeded" }, 429);
@@ -2808,155 +2822,34 @@ async function handleRequest(req: Request): Promise<Response> {
       const mode = url.searchParams.get("mode") === "pending" ? "pending" : "prediction";
       // ?day=YYYY-MM-DD lets the TV page browse previous days; default = today (Skopje).
       const { day, today, startISO, endISO } = skopjeDayRange(url.searchParams.get("day") || "");
-      const isToday = day === today;
+      // Postgres rejects an impossible date (2026-02-31) that the regex lets through.
+      const lbDay = OV.isValidYmd(day) ? day : today;
 
-      // Roster + bonus rules are per-mode. Roster (if set) is an exact whitelist.
-      const { data: rosterRows } = await adminClient
-        .from("leaderboard_roster").select("agent_id").eq("roster_date", day).eq("mode", mode);
-      const rosterIds = new Set((rosterRows || []).map((r: any) => r.agent_id));
-
-      // Eligible call-agents; admins/managers are shown but never earn.
-      const { data: agentRoleRows } = await adminClient
-        .from("user_roles").select("user_id").in("role", ["agent", "pending_agent", "prediction_agent", "inbound_agent"]);
-      const agentRoleIds = new Set((agentRoleRows || []).map((r: any) => r.user_id));
-      const { data: superRoles } = await adminClient
-        .from("user_roles").select("user_id").in("role", ["admin", "manager"]);
-      const superIds = new Set((superRoles || []).map((r: any) => r.user_id));
-
-      const { data: ruleRows } = await adminClient
-        .from("leaderboard_bonus_rules").select("metric,tiers,is_active").eq("mode", mode);
-      const rules: Record<string, { tiers: any[]; is_active: boolean }> = {};
-      for (const r of ruleRows || []) rules[r.metric] = { tiers: r.tiers || [], is_active: !!r.is_active };
-
-      // Orders confirmed that day, scoped to the mode's source:
-      //  • prediction = cold lists (prediction_list_id or prediction_list_name set)
-      //  • pending    = the inbound lead sources — LEAD_SOURCE_TYPES, one
-      //                 definition shared with /calls and the agent dashboard
-      //
-      // Both filters were inherited from Bulgaria and matched NOTHING here
-      // (fixed 2026-08-19): `source_type='prediction_lead'` and
-      // 'inbound_lead'/'opencart' are all 0 rows in this database, so the
-      // pending board could never light up — Macedonian pendings arrive as
-      // source_type='altercpa' (2,299 orders). Do not narrow these back to a
-      // literal list; use the constant.
-      let oq = adminClient.from("orders")
-        .select("id,status,price,quantity,confirmed_by_agent_id,confirmed_by_name,assigned_agent_id,assigned_agent_name,confirmed_at,order_items(price_per_unit,quantity)")
-        .gte("confirmed_at", startISO).lt("confirmed_at", endISO)
-        .in("status", REAL_ORDER_STATUSES);
-      oq = mode === "prediction"
-        ? oq.or("prediction_list_id.not.is.null,prediction_list_name.not.is.null")
-        : oq.in("source_type", LEAD_SOURCE_TYPES);
-      const { data: orders } = await oq;
-
-      // Calls scoped to the motion via context_type.
-      const { data: calls } = await adminClient
-        .from("call_logs").select("agent_id")
-        .gte("created_at", startISO).lt("created_at", endISO)
-        .eq("context_type", mode === "prediction" ? "prediction_lead" : "order");
-
-      const { data: logins } = await adminClient
-        .from("shift_login_logs").select("user_id").eq("shift_date", day);
-
-      // Resolve a name-only confirm onto its real account before anything is
-      // counted. Only 202 of the 485 orders confirmed since 2026-08-01 carry
-      // confirmed_by_agent_id; the rest carry just the operator's name, and
-      // salesOwnerId() alone silently dropped every one of them off the board.
-      // `name:<key>` keys (an operator with no CRM account) are not user ids, so
-      // they never reach a roster or a bonus — they simply stop being counted as
-      // somebody else's.
-      const { data: lbProfiles } = await adminClient
-        .from("profiles").select("user_id, full_name").eq("is_active", true);
-      const lbIdByIdentity = buildAgentIdentityIndex(lbProfiles as any);
-      const lbOwner = (o: any): string | null => {
-        const k = agentOwnerKey(o, lbIdByIdentity);
-        return k && !k.startsWith("name:") ? k : null;
-      };
-
-      const activeIds = new Set<string>();
-      for (const o of orders || []) { const id = lbOwner(o); if (id) activeIds.add(id); }
-      for (const c of calls || []) { if (c.agent_id) activeIds.add(c.agent_id); }
-      for (const l of logins || []) { if (l.user_id) activeIds.add(l.user_id); }
-
-      let displayIds: string[];
-      if (rosterIds.size > 0) displayIds = [...rosterIds];
-      else displayIds = [...activeIds].filter((id) => agentRoleIds.has(id) || superIds.has(id));
-      const display = new Set(displayIds);
-
-      const nameById: Record<string, string> = {};
-      if (displayIds.length) {
-        const { data: profs } = await adminClient.from("profiles").select("user_id,full_name").in("user_id", displayIds);
-        for (const p of profs || []) nameById[p.user_id] = p.full_name;
+      // The board (leaderboard_day), the per-mode bonus rules and the day's calls
+      // (call_logs, scoped to the motion via context_type — the only per-user
+      // input the RPC does not carry) in one round-trip.
+      const [lbRes, ruleRes, callRes] = await Promise.all([
+        adminClient.rpc("leaderboard_day", { p_day: lbDay, p_mode: mode }),
+        adminClient.from("leaderboard_bonus_rules").select("metric,tiers,is_active").eq("mode", mode),
+        adminClient.from("call_logs").select("agent_id")
+          .gte("created_at", startISO).lt("created_at", endISO)
+          .eq("context_type", mode === "prediction" ? "prediction_lead" : "order"),
+      ]);
+      if (lbRes.error || !lbRes.data) {
+        console.error("leaderboard_day failed:", lbRes.error?.message);
+        return json({ error: "Leaderboard unavailable" }, 500);
       }
+      const callsByUser: Record<string, number> = {};
+      for (const c of callRes.data || []) if (c.agent_id) callsByUser[c.agent_id] = (callsByUser[c.agent_id] || 0) + 1;
 
-      type Agg = { user_id: string; full_name: string; confirmed_count: number; total_price: number; packages: number; package_bonus: number; calls: number };
-      const agg: Record<string, Agg> = {};
-      for (const id of displayIds) agg[id] = { user_id: id, full_name: nameById[id] || "Agent", confirmed_count: 0, total_price: 0, packages: 0, package_bonus: 0, calls: 0 };
-
-      for (const o of orders || []) {
-        const id = lbOwner(o);
-        if (!id || !display.has(id)) continue;
-        const a = agg[id];
-        if (a.full_name === "Agent") a.full_name = salesOwnerName(o) || a.full_name;
-        if (o.status === "returned") continue; // returns reverse themselves
-        a.confirmed_count++;
-        a.total_price += Number(o.price || 0);
-        const its = o.order_items || [];
-        a.packages += its.length ? its.reduce((s: number, it: any) => s + Number(it.quantity || 0), 0) : (Number(o.quantity || 0) || 1);
-        a.package_bonus += its.length
-          ? its.reduce((s: number, it: any) => s + packageBonusRate(Number(it.price_per_unit || 0)) * Number(it.quantity || 0), 0)
-          : packageBonusRate(Number(o.price || 0) / Math.max(1, Number(o.quantity || 0) || 1)) * (Number(o.quantity || 0) || 1);
-      }
-      for (const c of calls || []) { const id = c.agent_id; if (id && display.has(id)) agg[id].calls++; }
-
-      const tiersFor = (m: string) => (rules[m]?.is_active ? rules[m].tiers : []);
-      const targetTiers = tiersFor("revenue_target");
-      const topTarget = targetTiers.reduce((mx: number, t: any) => Math.max(mx, Number(t?.min) || 0), 0);
-
-      // PREDICTION targets are a TEAM total per day (not per-agent). Compute the
-      // team's combined revenue (non-super agents) once; the team-tier bonus is
-      // shared — every active agent earns it when the TEAM reaches a target.
-      let teamRevenueRaw = 0;
-      for (const a of Object.values(agg)) if (!superIds.has(a.user_id)) teamRevenueRaw += a.total_price;
-      const teamRevenue = Math.round(teamRevenueRaw * 100) / 100;
-      const teamTargetBonus = mode === "prediction" ? tierBonus(teamRevenue, targetTiers) : 0;
-      const teamTargetPct = topTarget > 0 ? Math.round((teamRevenue / topTarget) * 1000) / 10 : 0;
-
-      const agents = Object.values(agg).map((a) => {
-        const confirmed = a.confirmed_count; // net of returns
-        const avg = confirmed > 0 ? Math.round((a.total_price / confirmed) * 100) / 100 : 0;
-        const revenue = Math.round(a.total_price * 100) / 100;
-        const soldRate = a.calls > 0 ? Math.round((confirmed / a.calls) * 1000) / 10 : 0;
-        const pkg = Math.round(a.package_bonus * 100) / 100; // already reversed for returns
-        const isSuper = superIds.has(a.user_id);
-        let total = 0; let breakdown: Record<string, number>;
-        if (mode === "prediction") {
-          // Cold lists: per-package + a SHARED team-target bonus (the team total
-          // reaching €1500/€2500/€4000). No conversion/avg bonus on cold calls.
-          total = isSuper ? 0 : Math.round((pkg + teamTargetBonus) * 100) / 100;
-          breakdown = isSuper ? { package: 0, target: 0 } : { package: pkg, target: teamTargetBonus };
-        } else {
-          // Warm pendings: per-package + confirmed milestones + avg (10+ orders gate).
-          const volume = tierBonus(confirmed, tiersFor("confirmed_count"));
-          const avgBonus = confirmed >= 10 ? tierBonus(avg, tiersFor("avg_order_value")) : 0;
-          total = isSuper ? 0 : Math.round((pkg + volume + avgBonus) * 100) / 100;
-          breakdown = isSuper ? { package: 0, volume: 0, avg: 0 } : { package: pkg, volume, avg: avgBonus };
-        }
-        return {
-          user_id: a.user_id, full_name: a.full_name, is_super: isSuper,
-          confirmed_count: confirmed, packages: a.packages,
-          avg_order_value: avg, revenue, target_pct: teamTargetPct, sold_rate: soldRate, calls: a.calls,
-          bonus: total, bonus_breakdown: breakdown,
-        };
-      });
-      if (mode === "prediction") agents.sort((x, y) => y.revenue - x.revenue || y.bonus - x.bonus);
-      else agents.sort((x, y) => y.bonus - x.bonus || y.confirmed_count - x.confirmed_count || y.avg_order_value - x.avg_order_value);
-      const ranked = agents.map((a, i) => ({ ...a, rank: i + 1 }));
-
-      return json({
-        generated_at: new Date().toISOString(), mode, day, today, is_today: isToday,
-        target: topTarget, team_revenue: teamRevenue, team_target_pct: teamTargetPct, team_target_bonus: teamTargetBonus,
-        agents: ranked,
-      });
+      return json(LB.buildLeaderboardResponse({
+        rpc: lbRes.data as LB.LbRpc,
+        mode,
+        today,
+        rules: LB.bonusRulesFromRows(ruleRes.data as any),
+        callsByUser,
+        formulas: { packageBonusRate, tierBonus },
+      }));
     }
 
     // Verify auth using getClaims for signing-keys compatibility
@@ -4081,6 +3974,8 @@ async function handleRequest(req: Request): Promise<Response> {
       });
     }
 
+    // Since 2026-09-28 the roster only ADDS people to today's board (teams decide
+    // who is on it by default — leaderboard_day()); it can no longer hide anyone.
     if (path === "leaderboard/roster" && req.method === "POST") {
       if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
       let body: any; try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
@@ -12127,6 +12022,34 @@ async function handleRequest(req: Request): Promise<Response> {
       return json({ ok: true, orders_updated: (affected || []).length, new_phone: newPhone || body.phone });
     }
 
+    // GET /api/customers/timeline?phone=… — CUSTOMER 360
+    // One timeline per phone (last 8 digits): CRM orders with their MEX
+    // parcels + AlterCPA ledger row nested, web-shop orders, unmatched AlterCPA
+    // leads, MEX-only parcels, calls, human notes, current list memberships.
+    // Built by public.customer_timeline (migration 20260939000100).
+    // Access = the same audience as the customer dossier above/below
+    // (role_privacy.show_order_history; affiliate-only logins never reach
+    // here — the hard wall). Owner-only money, CPA provenance (webmaster) and
+    // customer names are then cut per caller in C360.shapeTimeline; the CRM
+    // order price stays for everyone, as on /orders.
+    if (req.method === "GET" && path === "customers/timeline") {
+      if (!showOrderHistory) return json({ error: "Forbidden" }, 403);
+      const tlPhone = C360.parseTimelinePhone(url.searchParams.get("phone"));
+      if ("error" in tlPhone) return json({ error: tlPhone.error }, 400);
+      const tlOwner = await isBusinessOwner(user.id);
+      const { data: tlData, error: tlErr } = await adminClient.rpc("customer_timeline", {
+        p_phone: tlPhone.phone8,
+        p_include_money: tlOwner,
+      });
+      if (tlErr) return json({ error: `customer_timeline: ${sanitizeDbError(tlErr)}` }, 500);
+      return json(C360.shapeTimeline(tlData, {
+        money: tlOwner,
+        cpaProvenance: isAdminOrManager,
+        showNames: piiFlags.name,
+        maskName: maskNameValue,
+      }));
+    }
+
     // GET /api/customers/:phone/history
     // Returns every order (regardless of status) + every call attempt by
     // every agent for the given customer phone, last-8-digits normalised.
@@ -16855,6 +16778,207 @@ async function handleRequest(req: Request): Promise<Response> {
         },
       });
       return json({ success: true, user_id: targetId });
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // SETTINGS → TEAMS — who works what (owners only, 2026-09-28; migration
+    // 20260939000200). Every write is ONE SQL function (atomic; a refusal comes
+    // back as {ok:false, error:<code>}) and one audit_log row. Admin does NOT
+    // bypass: isBusinessOwner() is the only gate.
+    // ══════════════════════════════════════════════════════════════
+    if (segments[0] === "sales-people") {
+      if (!(await isBusinessOwner(user.id))) return json({ error: "owners_only" }, 403);
+      const taFail = (res: any) => json({ ...res, error: res?.error || "failed" }, TA.statusForCode(res?.error));
+      const taBody = async (): Promise<any> => { try { return await req.json(); } catch { return undefined; } };
+
+      // GET /api/sales-people → teams, accounts, people (+identities,
+      // memberships, last activity), staff logins.
+      if (req.method === "GET" && segments.length === 1) {
+        const { data, error } = await adminClient.rpc("sales_teams_admin_overview");
+        if (error) return json({ error: `sales_teams_admin_overview: ${sanitizeDbError(error)}` }, 500);
+        return json(data ?? {});
+      }
+
+      // GET /api/sales-people/unmapped?days=90 → the work queue, each order
+      // group with a script-fold suggestion (a hint; never applied).
+      if (req.method === "GET" && segments.length === 2 && segments[1] === "unmapped") {
+        const days = TA.parseDays(url.searchParams.get("days"));
+        const [umRes, pplRes, idnRes] = await Promise.all([
+          adminClient.rpc("sales_teams_unmapped", { p_days: days }),
+          adminClient.from("sales_people").select("id, display_name, user_id"),
+          adminClient.from("sales_person_identities").select("person_id, kind, value"),
+        ]);
+        if (umRes.error) return json({ error: `sales_teams_unmapped: ${sanitizeDbError(umRes.error)}` }, 500);
+        const um = (umRes.data ?? {}) as Record<string, any>;
+        const idsBy = new Map<string, { kind: string; value: string }[]>();
+        for (const i of (idnRes.data || []) as any[]) {
+          const arr = idsBy.get(i.person_id) ?? [];
+          arr.push({ kind: i.kind, value: i.value });
+          idsBy.set(i.person_id, arr);
+        }
+        const people: TA.SuggestPerson[] = ((pplRes.data || []) as any[])
+          .map((p) => ({ id: p.id, display_name: p.display_name, identities: idsBy.get(p.id) ?? [] }));
+        return json({ ...um, orders: TA.withSuggestions((um.orders ?? []) as any[], people, agentIdentityKey) });
+      }
+
+      // POST /api/sales-people → create (+login, identities, first team).
+      if (req.method === "POST" && segments.length === 1) {
+        const p = TA.parseCreate(await taBody());
+        if (!p.ok) return json({ error: p.error }, TA.statusForCode(p.error));
+        const c = p.value;
+        const { data, error } = await adminClient.rpc("sales_person_create", {
+          p_display_name: c.display_name, p_user_id: c.user_id, p_is_manager: c.is_manager, p_notes: c.notes,
+          p_team_key: c.team_key, p_team_from: c.team_from, p_team_role: c.team_role, p_identities: c.identities,
+        });
+        if (error) {
+          const code = TA.codeFromRaise(error.message);
+          if (code) return json({ error: code }, TA.statusForCode(code));
+          return json({ error: sanitizeDbError(error) }, 400);
+        }
+        if (!(data as any)?.ok) return taFail(data);
+        await audit(adminClient, user.id, user.email, "sales_person.create", {
+          target_type: "sales_people", target_id: (data as any).person?.id, target_name: c.display_name,
+          payload: { person: (data as any).person, identities: (data as any).identities,
+                     membership: (data as any).membership, backstamped: (data as any).backstamped },
+        });
+        return json(data);
+      }
+
+      // PATCH /api/sales-people/:id { display_name?, is_active?, is_manager?, notes?, user_id? (null = unlink) }
+      if (req.method === "PATCH" && segments.length === 2 && TA.isUuid(segments[1])) {
+        const p = TA.parsePatch(await taBody());
+        if (!p.ok) return json({ error: p.error }, TA.statusForCode(p.error));
+        const { data, error } = await adminClient.rpc("sales_person_update", { p_person_id: segments[1], p_patch: p.value });
+        if (error) return json({ error: sanitizeDbError(error) }, 400);
+        if (!(data as any)?.ok) return taFail(data);
+        await audit(adminClient, user.id, user.email, "sales_person.update", {
+          target_type: "sales_people", target_id: segments[1], target_name: (data as any).after?.display_name ?? null,
+          payload: { patch: p.value, before: (data as any).before, after: (data as any).after,
+                     backstamped: (data as any).backstamped },
+        });
+        return json(data);
+      }
+
+      // POST /api/sales-people/:id/identities { kind, account_id?, value, note? }
+      if (req.method === "POST" && segments.length === 3 && TA.isUuid(segments[1]) && segments[2] === "identities") {
+        const p = TA.parseIdentity(await taBody());
+        if (!p.ok) return json({ error: p.error }, TA.statusForCode(p.error));
+        const { data, error } = await adminClient.rpc("sales_person_add_identity", {
+          p_person_id: segments[1], p_kind: p.value.kind, p_account_id: p.value.account_id,
+          p_value: p.value.value, p_note: p.value.note,
+        });
+        if (error) return json({ error: sanitizeDbError(error) }, 400);
+        if (!(data as any)?.ok) return taFail(data);
+        await audit(adminClient, user.id, user.email, "sales_person.identity_add", {
+          target_type: "sales_people", target_id: segments[1], target_name: `${p.value.kind}:${(data as any).identity?.value ?? p.value.value}`,
+          payload: { identity: (data as any).identity, backstamped: (data as any).backstamped },
+        });
+        return json(data);
+      }
+
+      // DELETE /api/sales-people/identities/:identityId — orders keep their person.
+      if (req.method === "DELETE" && segments.length === 3 && segments[1] === "identities" && TA.isUuid(segments[2])) {
+        const { data, error } = await adminClient.rpc("sales_person_remove_identity", { p_identity_id: segments[2] });
+        if (error) return json({ error: sanitizeDbError(error) }, 400);
+        if (!(data as any)?.ok) return taFail(data);
+        const idn = (data as any).identity ?? {};
+        await audit(adminClient, user.id, user.email, "sales_person.identity_remove", {
+          target_type: "sales_people", target_id: idn.person_id ?? null, target_name: `${idn.kind}:${idn.value}`,
+          payload: { identity: idn, orders_keep_person: (data as any).orders_keep_person },
+        });
+        return json(data);
+      }
+
+      // POST /api/sales-people/:id/move { team_key|null, from: YYYY-MM-DD, role?, note? }
+      if (req.method === "POST" && segments.length === 3 && TA.isUuid(segments[1]) && segments[2] === "move") {
+        const p = TA.parseMove(await taBody());
+        if (!p.ok) return json({ error: p.error }, TA.statusForCode(p.error));
+        const { data, error } = await adminClient.rpc("sales_person_move_team", {
+          p_person_id: segments[1], p_team_key: p.value.team_key, p_from: p.value.from,
+          p_role: p.value.role, p_note: p.value.note,
+        });
+        if (error) return json({ error: sanitizeDbError(error) }, 400);
+        if (!(data as any)?.ok) return taFail(data);
+        await audit(adminClient, user.id, user.email, "sales_person.team_move", {
+          target_type: "sales_people", target_id: segments[1], target_name: p.value.team_key ?? "(no team)",
+          payload: { request: p.value, closed: (data as any).closed, replaced: (data as any).replaced,
+                     opened: (data as any).opened },
+        });
+        return json(data);
+      }
+
+      // DELETE /api/sales-people/memberships/:membershipId — an owner correction.
+      if (req.method === "DELETE" && segments.length === 3 && segments[1] === "memberships" && TA.isUuid(segments[2])) {
+        const { data, error } = await adminClient.rpc("sales_membership_delete", { p_membership_id: segments[2] });
+        if (error) return json({ error: sanitizeDbError(error) }, 400);
+        if (!(data as any)?.ok) return taFail(data);
+        const m = (data as any).membership ?? {};
+        await audit(adminClient, user.id, user.email, "sales_person.membership_delete", {
+          target_type: "sales_people", target_id: m.person_id ?? null, target_name: m.team_key ?? null,
+          payload: { membership: m },
+        });
+        return json(data);
+      }
+
+      return json({ error: "Not found" }, 404);
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // SETTINGS → INTEGRATIONS HEALTH (owners only, 2026-09-28; migration
+    // 20260939000200): every feed's status on one screen, the 7-day
+    // no-parcel rule's Report ↔ Apply switch and its last report.
+    // ══════════════════════════════════════════════════════════════
+    if (segments[0] === "integrations") {
+      if (!(await isBusinessOwner(user.id))) return json({ error: "owners_only" }, 403);
+
+      // GET /api/integrations/health
+      if (req.method === "GET" && path === "integrations/health") {
+        const { data, error } = await adminClient.rpc("integrations_health");
+        if (error) return json({ error: `integrations_health: ${sanitizeDbError(error)}` }, 500);
+        return json(data ?? {});
+      }
+
+      // GET /api/integrations/no-parcel-rule/preview → what a run NOW would do
+      // (apply_no_parcel_rule's own dry run: writes nothing).
+      if (req.method === "GET" && path === "integrations/no-parcel-rule/preview") {
+        const { data, error } = await adminClient.rpc("apply_no_parcel_rule", { _force: false, _dry_run: true });
+        if (error) return json({ error: `apply_no_parcel_rule: ${sanitizeDbError(error)}` }, 500);
+        const preview = IH.normalizePreview(data);
+        if (!preview) return json({ error: "rule_not_installed" }, 503);
+        return json(preview);
+      }
+
+      // POST /api/integrations/no-parcel-rule/mode { mode: 'report' | 'apply' }
+      // The audit row carries the dry-run count the next run would cancel.
+      if (req.method === "POST" && path === "integrations/no-parcel-rule/mode") {
+        let body: any;
+        try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
+        const p = IH.parseModeBody(body);
+        if (!p.ok) return json({ error: p.error }, 400);
+        const { data: pv } = await adminClient.rpc("apply_no_parcel_rule", { _force: false, _dry_run: true });
+        const preview = IH.normalizePreview(pv);
+        const { data, error } = await adminClient.rpc("no_parcel_rule_set_mode", { p_mode: p.mode, p_actor: user.id });
+        if (error) return json({ error: sanitizeDbError(error) }, 400);
+        if (!(data as any)?.ok) return json({ error: (data as any)?.error || "failed" }, (data as any)?.error === "rule_not_installed" ? 503 : 400);
+        await audit(adminClient, user.id, user.email, "no_parcel_rule.mode", {
+          target_type: "app_settings", target_id: "no_parcel_rule", target_name: p.mode,
+          payload: { before: (data as any).before, after: (data as any).after, preview_at_switch: preview },
+        });
+        return json({ ok: true, mode: p.mode, settings: (data as any).after, preview });
+      }
+
+      // GET /api/integrations/no-parcel-rule/report?run_id= → one run's rows
+      // (default the latest) for the CSV the page builds.
+      if (req.method === "GET" && path === "integrations/no-parcel-rule/report") {
+        const rid = IH.parseRunId(url.searchParams.get("run_id"));
+        if (!rid.ok) return json({ error: "run_id must be a uuid" }, 400);
+        const { data, error } = await adminClient.rpc("no_parcel_rule_report", { p_run_id: rid.value });
+        if (error) return json({ error: `no_parcel_rule_report: ${sanitizeDbError(error)}` }, 500);
+        if (!data) return json({ error: "no_run" }, 404);
+        return json(data);
+      }
+
+      return json({ error: "Not found" }, 404);
     }
 
     // ══════════════════════════════════════════════════════════════

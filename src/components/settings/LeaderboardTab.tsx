@@ -1,5 +1,7 @@
 // Settings → Leaderboard (admin/manager). Three sections:
-//   1. Today's roster — who appears on the TV board today (hides non-working agents)
+//   1. Today's extras — people ADDED to today's board. Teams decide who is on a
+//      board by default (every member, every day, sales or not — the api's
+//      leaderboard_day()); since 2026-09-28 this list can no longer hide anyone.
 //   2. Bonus rules — tiered daily bonus per metric (confirmed / avg value / answer rate)
 //   3. TV access — the shareable /tv/leaderboard?key=… link + token rotation
 // The board itself is the separate daily game layer; it does NOT touch payroll.
@@ -49,10 +51,11 @@ export function LeaderboardTab() {
   const agentsQ = useQuery({ queryKey: ['lb-agents'], queryFn: apiGetAgents });
   const cfgQ = useQuery({ queryKey: ['lb-admin', mode], queryFn: () => apiGetLeaderboardAdmin(mode) });
 
-  // Only call-agents are eligible for the board (admins/managers never earn).
+  // Call-agents can be added (the same four roles the board has always counted;
+  // admins/managers are shown when they sell, and never earn).
   const agents: AgentRow[] = useMemo(
     () => (agentsQ.data || []).filter((a: AgentRow) =>
-      a.roles?.some((r) => ['agent', 'pending_agent', 'prediction_agent'].includes(r))),
+      a.roles?.some((r) => ['agent', 'pending_agent', 'prediction_agent', 'inbound_agent'].includes(r))),
     [agentsQ.data],
   );
   const invalidate = () => qc.invalidateQueries({ queryKey: ['lb-admin', mode] });

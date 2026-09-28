@@ -30,6 +30,10 @@ import {
 import { TelephonyTab } from '@/components/settings/TelephonyTab';
 import { LeaderboardTab } from '@/components/settings/LeaderboardTab';
 import { OwnersTab } from '@/components/settings/OwnersTab';
+// Teams + Integrations health: owners only, the same gate as Owners.
+import { TeamsTab } from '@/components/settings/TeamsTab';
+import { IntegrationsHealthTab } from '@/components/settings/IntegrationsHealthTab';
+import { Network as TeamsIcon, Activity as IntegrationsIcon } from 'lucide-react';
 import { PredictionEngineTab } from '@/components/settings/PredictionEngineTab';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
@@ -121,6 +125,16 @@ export default function SettingsPage() {
               <Briefcase className="h-4 w-4" /> {t('settings.tabOwners')}
             </TabsTrigger>
           )}
+          {canSeeBusiness && (
+            <TabsTrigger value="teams" className="rounded-lg gap-2 text-sm data-[state=active]:bg-card data-[state=active]:shadow-sm">
+              <TeamsIcon className="h-4 w-4" /> {t('settings.teams.tab')}
+            </TabsTrigger>
+          )}
+          {canSeeBusiness && (
+            <TabsTrigger value="integrations" className="rounded-lg gap-2 text-sm data-[state=active]:bg-card data-[state=active]:shadow-sm">
+              <IntegrationsIcon className="h-4 w-4" /> {t('settings.integrations.tab')}
+            </TabsTrigger>
+          )}
           {isAdmin && (
             <TabsTrigger value="modules" className="rounded-lg gap-2 text-sm data-[state=active]:bg-card data-[state=active]:shadow-sm">
               <Blocks className="h-4 w-4" /> {t('settings.tabModules')}
@@ -172,6 +186,8 @@ export default function SettingsPage() {
 
         <TabsContent value="users"><UsersTab /></TabsContent>
         {canSeeBusiness && <TabsContent value="owners"><OwnersTab /></TabsContent>}
+        {canSeeBusiness && <TabsContent value="teams"><TeamsTab /></TabsContent>}
+        {canSeeBusiness && <TabsContent value="integrations"><IntegrationsHealthTab /></TabsContent>}
         {isAdmin && <TabsContent value="modules"><ModuleManagerTab /></TabsContent>}
         {isAdmin && <TabsContent value="permissions"><RolePermissionsTab /></TabsContent>}
         {isAdmin && <TabsContent value="financial"><FinancialVisibilityTab /></TabsContent>}
