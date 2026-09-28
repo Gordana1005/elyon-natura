@@ -19,7 +19,7 @@ operation. It shares **nothing at runtime** with Bulgaria (own repo / own Supaba
 > How the system works now: **`docs/how-it-works.md`**. Steps still to do and what to check:
 > **`docs/handoff/2026-09-28/FINISH-FROM-VSCODE.md`**.
 
-- **Supabase:** 232 migrations applied, latest `20260940000200`. Applied 28.09:
+- **Supabase:** 243 migrations applied, latest `20260942000300` (teleshop import ledger). Applied 28.09:
   - stamping cron `20260939000300`;
   - test-phone list `…000700`;
   - Insights foundation `20260940000000`;
@@ -81,6 +81,61 @@ operation. It shares **nothing at runtime** with Bulgaria (own repo / own Supaba
   gap, 38 ambiguous, 27 other); 7 old AlterCPA leads that mex-reconcile reopened on a parcel
   created > 30 days after the lead (possible re-sales).
 - **Open:** `verify-attribution` C7 (132), C8b (56) and C10 (90) predate this release; the full list is in FINISH-FROM-VSCODE §E.
+- **28.09 evening — the whole teleshop history is in the CRM** (`scripts/import-teleshop-collabbox.mjs`,
+  run `8bb49e8e`, ledger migration `20260942000300`, applied 17:10–19:40 Skopje; the owner decided
+  every rule before the run):
+  - **247.001 orders** from the collabBox Нарачка in/out documents (series 9100/9102), 01.2023 → 27.09.2026,
+    `sale_source = collabbox / teleshop`, seller only in `sold_*` (no agent-facing fields):
+    - 214.700 **paid – history** (`paid_basis = legacy_import`, before MEX coverage). Insights shows them as
+      `paid_legacy`, never as MEX-proven.
+    - 28.577 paid with MEX proof, 3.311 returned, 413 in transit. These follow their MEX parcel;
+      32.301 parcels linked.
+  - Per year: 2023 67.794 · 2024 69.134 · 2025 63.660 · 2026 46.413.
+  - Customers:
+    - 56.699 new customers with a profile;
+    - 1.903 profiles created for existing CRM customers who had none;
+    - 6.763 existing profiles filled (empty fields only);
+    - 632 komitenti skipped (deceased, employees, companies, test/junk names, no valid phone). The 1.052
+      documents of deceased customers were never imported.
+  - Do-not-contact: **598 trash markers**, reason `other`, reversible. 584 are «Не се јавувај (collabBox)»
+    (imported with their orders); 14 are deceased customers already in the CRM. All 598 are in the
+    Trash List, 0 in a calling list.
+  - Other fixes in the run: 713 mislabelled `teleshop` orders relabelled; 117 existing collabBox
+    orders linked to their own parcel.
+  - Not created, for a reason in the ledger:
+    - 1.432 conflicts: a twin of a CRM sale, or a parcel held by another order. Never forced.
+    - 7.777 skipped: 5.515 zero-value replacements, stornos, 9103/9110/9108 series, no valid phone,
+      employees, companies.
+  - The disk was 2 GB (the DB went read-only at chunk 212) → **raised to 8 GB with the owner's OK**;
+    the apply resumed from the ledger with the dry-run hash check. DB is now ≈1,25 GB.
+  - After the run:
+    - segment queue drained (70.036 phones, 0 failed); memberships 54.145 → **112.148**;
+    - Pure Profit monthly cache refreshed by hand for 09.2024–08.2026.
+  - Checks after the run:
+    - `engine-fixture-mk` ✓;
+    - verify-insights-ties and all verify-tab-* ✓: 01–27.09, Pure Profit 09.2025–08.2026, Sales 2024;
+    - `verify-attribution` 01–27.09: C1–C5, C10, C12–C14 PASS. C7 37 and C8b 14 are AlterCPA
+      leftovers from before the run.
+  - `audit-segments-integrity` reports 230 out-of-band, 86 zero-price and 3 trash mismatches.
+    Only 1 of these involves a teleshop phone (an old 0-price AlterCPA row). The rest are day-boundary
+    drift since last night's recompute and 21-day parks that expired today; the 02:00 recompute
+    clears them.
+  - **Independent audit** (80-order stratified sample + sweeps over all 247.001 orders against the
+    crawl, items, komitenti registry and MEX): 0 mismatches in date, amount, phone, seller, lines and
+    status. Follow-ups (none fixed yet):
+    - 2 prices ≠ MEX COD (ORD-347575 is an exchange, COD 200 ден; ORD-335325 3.000 vs COD 3.660). They
+      are in the COD re-price dry run `8e059bfe`, 34 orders. That run is NOT applied: it also re-prices
+      10 LEADS-OUT orders from 03–04.2026 that differ by exactly +100 ден (an old delivery fee?) —
+      owner's call.
+    - 1 document (002-9102-177395/2026) moved after the dry run; the next run creates it.
+    - Article 600087 «Термос» is mapped to «МАТАЛКА ЗА НЕС» (1.581 gift lines, stock only).
+    - 57 twin conflicts from the MEX era leave their parcel unlinked. 9 AlterCPA twins are "paid"
+      while their parcel returned, and 8 are "confirmed" while their parcel moved. Linking needs a
+      decision, because some twins are 0-price rows.
+    - 10 do-not-contact phones were already permanently trashed and got no «Не се јавувај» note.
+    - 1 komitent has two parcel phones; the second phone has no profile.
+  - Rollback: `--rollback --run 8bb49e8e-…` deletes exactly what the run created and restores the
+    filled profiles.
 
 The sections below are the history up to 19.08.
 
