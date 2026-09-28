@@ -3,13 +3,24 @@
  *
  *   POST /functions/v1/altercpa-sync
  *   header: x-altercpa-sync-secret: <ALTERCPA_SYNC_SECRET>
- *   body:   { account?: string, kind?: 'rolling'|'nightly'|'weekly'|'backfill'|'manual'|'status',
+ *   body:   { account?: string,
+ *             kind?: 'rolling'|'nightly'|'weekly'|'backfill'|'manual'|'status'|'continue',
  *             from?: <ISO or epoch s>, to?: <ISO or epoch s>, dry?: boolean,
  *             limit?: number }   // status only: cap on candidates per run (default 2000)
  *
  * Called by pg_cron every 2 minutes (rolling), nightly and weekly (sweeps),
  * every 5 minutes 07:00–20:55 Skopje ('status' — resolves imported pendings
  * whose AlterCPA copy has been decided), and by an admin for backfills.
+ *
+ * ── Sweeps are resumable (2026-09-28) ───────────────────────────────────────
+ * 'nightly' (7 d) and 'weekly' (90 d) OPEN a sweep (altercpa_sweeps) and work
+ * it in day chunks for at most 100 s; 'continue' — posted by the
+ * altercpa-sync-continue cron only while a sweep is open and not leased —
+ * works the open one on from its cursor. Every invocation writes its own run
+ * row, ok once its chunks are written, until the cursor passes the window.
+ * The per-lead work is exactly the rolling kind's; only the reads are batched
+ * per page. A DRY nightly/weekly is still the one-shot preview. See sweep.ts
+ * and 20260940000100_altercpa_sweep_resume.sql.
  *
  * ── Why a separate function and not another route in api/index.ts ───────────
  * That file is ~15.500 lines and 784 KB and serves every interactive request in
@@ -41,11 +52,15 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   AlterCpaOrder, PHASE, REASON, STATUS_LABEL,
-  CRM_STATUS_RANK, CRM_TERMINAL, resolveRemoteOutcome, insertStatusFor,
+  CRM_STATUS_RANK, CRM_TERMINAL, resolveRemoteOutcome, forwardOutcome, insertStatusFor,
   outcomeColumns, cancelOtherConfirmedNote, guardedOutcomeNote,
   fetchByIds, fetchWindow, isTestOrder, normalizeMkGeo, normalizePhoneForGeo,
   productNameOf, quantityOf, toEur,
 } from "./altercpa.ts";
+import {
+  SWEEP_BUDGET_MS, SWEEP_DAYS, SWEEP_LEASE_SEC, SWEEP_MIN_CHUNK_MS, SweepIo, SweepRun, SweepStatus,
+  eachLimit, isSweepRequest, runSweep, sweepWindow,
+} from "./sweep.ts";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -58,11 +73,8 @@ const json = (body: unknown, status = 200) =>
  * previous run took its snapshot. */
 const ROLLING_OVERLAP_MIN = 45;
 
-const SWEEP_DAYS: Record<string, number> = {
-  rolling: 0,        // computed from last_synced_at
-  nightly: 7,
-  weekly: 90,
-};
+/** Ledger UPDATEs a sweep page sends at once (see flushLedgerWrites). */
+const SWEEP_WRITE_CONCURRENCY = 8;
 
 const s = (v: unknown, max = 300) => (v == null ? "" : String(v).trim().slice(0, max));
 const epoch = (v: unknown): number | null => {
@@ -98,6 +110,8 @@ async function broadcastBoardRefresh(payload: Record<string, unknown>): Promise<
 }
 
 serve(async (req: Request) => {
+  // A sweep's budget runs from here: the wall clock is per invocation.
+  const invokedMs = Date.now();
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
   const expected = Deno.env.get("ALTERCPA_SYNC_SECRET");
@@ -113,10 +127,13 @@ serve(async (req: Request) => {
   try { body = await req.json(); } catch { /* empty body = rolling, all accounts */ }
 
   const kind = s(body.kind, 20) || "rolling";
-  if (!["rolling", "nightly", "weekly", "backfill", "manual", "status"].includes(kind)) {
+  if (!["rolling", "nightly", "weekly", "backfill", "manual", "status", "continue"].includes(kind)) {
     return json({ error: `Unknown kind '${kind}'` }, 400);
   }
   const dry = body.dry === true;
+  if (kind === "continue" && dry) {
+    return json({ error: "kind 'continue' works an open sweep; there is nothing to preview" }, 400);
+  }
   const limitRaw = Number(body.limit);
   // Default 2000: the 500 cap + created_remote ASC starved every pending after
   // 2026-08-20 08:25 UTC — confirmed/shipped filled the window and never left
@@ -151,12 +168,15 @@ serve(async (req: Request) => {
   if (accErr) return json({ error: `accounts: ${accErr.message}` }, 500);
   if (!accounts?.length) return json({ error: "No active AlterCPA account matched" }, 404);
 
+  const sweep = isSweepRequest(kind, dry);
   const results = [];
   for (const account of accounts) {
     try {
       results.push(kind === "status"
         ? await syncStatusAccount(admin, account, dry, limit)
-        : await syncAccount(admin, account, kind, body, dry));
+        : sweep
+          ? await syncSweepAccount(admin, account, kind, body, invokedMs + SWEEP_BUDGET_MS)
+          : await syncAccount(admin, account, kind, body, dry));
     } catch (e) {
       console.error(`altercpa-sync: account ${account.name} failed:`, (e as Error).message);
       results.push({ account: account.name, status: "failed", error: (e as Error).message });
@@ -234,111 +254,12 @@ async function syncAccount(
     throw e;
   }
 
-  const callable = new Set<string>((account.callable_geos || []).map((g: string) => String(g).toUpperCase()));
-  const importScope = String(account.import_scope || "pending_only");
-  const stats = {
-    fetched: rows.length, ledger_new: 0, ledger_updated: 0,
-    orders_created: 0, orders_updated: 0,
-    skipped: {} as Record<string, number>,
-  };
-  const bump = (k: string) => { stats.skipped[k] = (stats.skipped[k] || 0) + 1; };
+  const leadRun = await openLeadRun(admin, account, rows.length);
+  const { stats, offerMap, newOfferSightings } = leadRun;
   const preview: unknown[] = [];
 
-  // Offer map, loaded once. Keyed the same way the unique index is: lowercased,
-  // trimmed — the historical map needed byte-identical names and a stray double
-  // space silently broke the link.
-  const { data: mapRows } = await admin
-    .from("altercpa_offer_map").select("*").eq("account_id", account.id);
-  const offerMap = new Map<string, any>();
-  for (const m of mapRows || []) {
-    offerMap.set(`${String(m.geo).toUpperCase()}|${String(m.offer_name).trim().toLowerCase()}`, m);
-  }
-  const newOfferSightings = new Map<string, { geo: string; name: string; n: number }>();
-  // Same idea for affiliates: their API has no directory endpoint, so an
-  // affiliate we have never seen would otherwise show up as a bare number on
-  // /orders with nothing anywhere prompting anyone to name it.
-  const newWebmasterSightings = new Map<string, number>();
-
   for (const o of rows) {
-    const geo = s(o.country, 8).toUpperCase();
-    const offerName = productNameOf(o) || "(blank)";
-    const offerKey = `${geo}|${offerName.trim().toLowerCase()}`;
-    const qty = quantityOf(o);
-    const priceEur = toEur(o.price, o.currency);
-    const phase = Number(o.phase) || null;
-
-    // Always resolve the number to ITS OWN country's E.164 — a Romanian lead
-    // must read +40…, never +389…. An unrecognised geo yields null and
-    // phone_raw carries the truth; nothing is ever prefixed with a country code
-    // that is not the lead's own.
-    const phoneE164 = normalizePhoneForGeo(o.phone, geo);
-
-    // Decide skip_reason; the ledger row is written either way.
-    let skip: string | null = null;
-    if (isTestOrder(o)) skip = "test_order";
-    else if (!callable.has(geo)) skip = "geo_not_callable";
-    // PENDINGS ONLY (the default). AlterCPA's own operators work their queue:
-    // an order already approved, cancelled or trashed there has been decided,
-    // and importing it would drop a finished order into our pipeline — for
-    // phase 3, a sale our agents never made, straight into the to-ship queue
-    // as confirmed (insertStatusFor; it can no longer arrive as paid). We take
-    // the leads that are still open and decide them ourselves. Everything else
-    // stays in the ledger, fully visible in reports, just not in the calling
-    // queue.
-    else if (importScope === "pending_only" && phase != null && phase !== 1 && phase !== 2) {
-      skip = "not_pending";
-    }
-    else if (!phoneE164) skip = "no_phone";
-
-    // Every sighting is counted, mapped or not, callable geo or not. seen_count
-    // is then the true volume per offer, which is both how an admin picks what
-    // to map first and how you see which offers a new country actually runs.
-    const seen = newOfferSightings.get(offerKey);
-    if (seen) seen.n++;
-    else newOfferSightings.set(offerKey, { geo, name: offerName, n: 1 });
-
-    if (o.wm != null) {
-      const wmKey = String(o.wm);
-      newWebmasterSightings.set(wmKey, (newWebmasterSightings.get(wmKey) || 0) + 1);
-    }
-
-    const mapping = offerMap.get(offerKey);
-    if (skip === null) {
-      // An offer with no row, an explicitly ignored one, and one still awaiting
-      // a product all mean the same thing here: mirror it, do not invent an
-      // order for it. Importing with product_id = NULL instead would make the
-      // order invisible to every product report and to stock, with nothing to
-      // surface the gap.
-      if (!mapping || mapping.is_ignored || !mapping.product_id) skip = "unmapped_offer";
-      else if (priceEur == null) skip = "no_fx_rate";
-    }
-
-    if (skip) bump(skip);
-
-    const ledgerRow = {
-      account_id: account.id,
-      altercpa_id: String(o.id),
-      geo: geo || null,
-      offer_name: offerName,
-      offer_ext_id: o.offer != null ? String(o.offer) : null,
-      product_id: mapping?.product_id ?? null,
-      webmaster: o.wm != null ? String(o.wm) : null,
-      phase,
-      status: Number(o.status) || null,
-      reason: Number(o.reason) || 0,
-      created_remote: o.time ? isoOf(Number(o.time)) : null,
-      phone_raw: s(o.phone, 60) || null,
-      phone_e164: phoneE164,
-      customer_name: s(o.name, 200) || null,
-      city: s(o.city, 200) || null,
-      price_raw: Number(o.price) || 0,
-      currency_raw: s(o.currency, 10).toLowerCase() || null,
-      price_eur: priceEur,
-      quantity: qty,
-      payload: o as unknown as Record<string, unknown>,
-      skip_reason: skip,
-      last_seen_at: new Date().toISOString(),
-    };
+    const { geo, offerName, phase, priceEur, skip, mapping, ledgerRow } = buildLead(leadRun, o);
 
     if (dry) {
       // Rows that WOULD be written come first and are never crowded out. A
@@ -365,36 +286,7 @@ async function syncAccount(
     else if (written === "updated") stats.ledger_updated++;
   }
 
-  // ── record newly-seen offers so the admin queue is self-populating ────────
-  // Via RPC rather than a PostgREST upsert: uniqueness is on a normalized key,
-  // and seen_count has to ACCUMULATE. An upsert with ignoreDuplicates would
-  // freeze the count at the first batch, and that count is what an admin sorts
-  // by to decide which unmapped offer to map first.
-  if (!dry && newOfferSightings.size) {
-    for (const v of newOfferSightings.values()) {
-      const { error: mapErr } = await admin.rpc("altercpa_record_offer_sighting", {
-        _account_id: account.id,
-        _geo: v.geo || "??",
-        _offer_name: v.name,
-        _n: v.n,
-      });
-      if (mapErr) console.error("altercpa-sync: offer sighting:", mapErr.message);
-    }
-  }
-
-  // ── and the affiliates, so the naming queue is self-populating too ────────
-  // A sighting never touches `name` — the sync discovers affiliates, humans name
-  // them, and a re-sighting must not undo an admin's correction.
-  if (!dry && newWebmasterSightings.size) {
-    for (const [wmId, n] of newWebmasterSightings) {
-      const { error: wmErr } = await admin.rpc("altercpa_record_webmaster_sighting", {
-        _account_id: account.id,
-        _wm_id: wmId,
-        _n: n,
-      });
-      if (wmErr) console.error("altercpa-sync: webmaster sighting:", wmErr.message);
-    }
-  }
+  if (!dry) await recordSightings(admin, leadRun);
 
   if (dry) {
     return {
@@ -409,8 +301,10 @@ async function syncAccount(
 
   // Advance the high-water mark ONLY on a clean rolling/sweep run. A backfill
   // must never move it forward — it looks at the past, and moving the cursor
-  // would skip everything between the backfill's end and now.
-  if (kind === "rolling" || kind === "nightly" || kind === "weekly") {
+  // would skip everything between the backfill's end and now. (A written
+  // nightly/weekly is a sweep now: syncSweepAccount moves it, forward only,
+  // when the sweep completes. Here they only ever arrive dry.)
+  if (kind === "rolling") {
     await admin.from("altercpa_accounts")
       .update({ last_synced_at: isoOf(to), last_cursor_to: isoOf(to) })
       .eq("id", account.id);
@@ -447,8 +341,191 @@ async function syncAccount(
 }
 
 /**
+ * What a windowed run carries from one lead to the next — a rolling, backfill
+ * or manual run, a dry preview, one invocation of a sweep: the account's rules,
+ * the offer map, the counters and the sighting tallies.
+ */
+interface LeadRun {
+  account: Record<string, any>;
+  callable: Set<string>;
+  importScope: string;
+  offerMap: Map<string, any>;
+  stats: {
+    fetched: number; ledger_new: number; ledger_updated: number;
+    orders_created: number; orders_updated: number;
+    skipped: Record<string, number>;
+  };
+  newOfferSightings: Map<string, { geo: string; name: string; n: number }>;
+  newWebmasterSightings: Map<string, number>;
+}
+
+async function openLeadRun(
+  admin: SupabaseClient,
+  account: Record<string, any>,
+  fetched: number,
+): Promise<LeadRun> {
+  // Offer map, loaded once. Keyed the same way the unique index is: lowercased,
+  // trimmed — the historical map needed byte-identical names and a stray double
+  // space silently broke the link.
+  const { data: mapRows } = await admin
+    .from("altercpa_offer_map").select("*").eq("account_id", account.id);
+  const offerMap = new Map<string, any>();
+  for (const m of mapRows || []) {
+    offerMap.set(`${String(m.geo).toUpperCase()}|${String(m.offer_name).trim().toLowerCase()}`, m);
+  }
+  return {
+    account,
+    callable: new Set<string>((account.callable_geos || []).map((g: string) => String(g).toUpperCase())),
+    importScope: String(account.import_scope || "pending_only"),
+    offerMap,
+    stats: {
+      fetched, ledger_new: 0, ledger_updated: 0,
+      orders_created: 0, orders_updated: 0,
+      skipped: {} as Record<string, number>,
+    },
+    newOfferSightings: new Map<string, { geo: string; name: string; n: number }>(),
+    // Same idea for affiliates: their API has no directory endpoint, so an
+    // affiliate we have never seen would otherwise show up as a bare number on
+    // /orders with nothing anywhere prompting anyone to name it.
+    newWebmasterSightings: new Map<string, number>(),
+  };
+}
+
+/**
+ * One AlterCPA record → its ledger row, and why it is NOT an order (skip null:
+ * it is, or should be). Decided here and nowhere else — every windowed kind
+ * calls it once per lead, a sweep page included — so a sweep writes exactly
+ * what the rolling kind would. Counts the skip and the offer/affiliate
+ * sightings.
+ */
+function buildLead(run: LeadRun, o: AlterCpaOrder) {
+  const { account, callable, importScope, offerMap, stats, newOfferSightings, newWebmasterSightings } = run;
+  const geo = s(o.country, 8).toUpperCase();
+  const offerName = productNameOf(o) || "(blank)";
+  const offerKey = `${geo}|${offerName.trim().toLowerCase()}`;
+  const qty = quantityOf(o);
+  const priceEur = toEur(o.price, o.currency);
+  const phase = Number(o.phase) || null;
+
+  // Always resolve the number to ITS OWN country's E.164 — a Romanian lead
+  // must read +40…, never +389…. An unrecognised geo yields null and
+  // phone_raw carries the truth; nothing is ever prefixed with a country code
+  // that is not the lead's own.
+  const phoneE164 = normalizePhoneForGeo(o.phone, geo);
+
+  // Decide skip_reason; the ledger row is written either way.
+  let skip: string | null = null;
+  if (isTestOrder(o)) skip = "test_order";
+  else if (!callable.has(geo)) skip = "geo_not_callable";
+  // PENDINGS ONLY (the default). AlterCPA's own operators work their queue:
+  // an order already approved, cancelled or trashed there has been decided,
+  // and importing it would drop a finished order into our pipeline — for
+  // phase 3, a sale our agents never made, straight into the to-ship queue
+  // as confirmed (insertStatusFor; it can no longer arrive as paid). We take
+  // the leads that are still open and decide them ourselves. Everything else
+  // stays in the ledger, fully visible in reports, just not in the calling
+  // queue.
+  else if (importScope === "pending_only" && phase != null && phase !== 1 && phase !== 2) {
+    skip = "not_pending";
+  }
+  else if (!phoneE164) skip = "no_phone";
+
+  // Every sighting is counted, mapped or not, callable geo or not. seen_count
+  // is then the true volume per offer, which is both how an admin picks what
+  // to map first and how you see which offers a new country actually runs.
+  const seen = newOfferSightings.get(offerKey);
+  if (seen) seen.n++;
+  else newOfferSightings.set(offerKey, { geo, name: offerName, n: 1 });
+
+  if (o.wm != null) {
+    const wmKey = String(o.wm);
+    newWebmasterSightings.set(wmKey, (newWebmasterSightings.get(wmKey) || 0) + 1);
+  }
+
+  const mapping = offerMap.get(offerKey);
+  if (skip === null) {
+    // An offer with no row, an explicitly ignored one, and one still awaiting
+    // a product all mean the same thing here: mirror it, do not invent an
+    // order for it. Importing with product_id = NULL instead would make the
+    // order invisible to every product report and to stock, with nothing to
+    // surface the gap.
+    if (!mapping || mapping.is_ignored || !mapping.product_id) skip = "unmapped_offer";
+    else if (priceEur == null) skip = "no_fx_rate";
+  }
+
+  if (skip) stats.skipped[skip] = (stats.skipped[skip] || 0) + 1;
+
+  const ledgerRow = {
+    account_id: account.id,
+    altercpa_id: String(o.id),
+    geo: geo || null,
+    offer_name: offerName,
+    offer_ext_id: o.offer != null ? String(o.offer) : null,
+    product_id: mapping?.product_id ?? null,
+    webmaster: o.wm != null ? String(o.wm) : null,
+    phase,
+    status: Number(o.status) || null,
+    reason: Number(o.reason) || 0,
+    created_remote: o.time ? isoOf(Number(o.time)) : null,
+    phone_raw: s(o.phone, 60) || null,
+    phone_e164: phoneE164,
+    customer_name: s(o.name, 200) || null,
+    city: s(o.city, 200) || null,
+    price_raw: Number(o.price) || 0,
+    currency_raw: s(o.currency, 10).toLowerCase() || null,
+    price_eur: priceEur,
+    quantity: qty,
+    payload: o as unknown as Record<string, unknown>,
+    skip_reason: skip,
+    last_seen_at: new Date().toISOString(),
+  };
+
+  return { geo, offerName, phase, priceEur, skip, mapping, ledgerRow };
+}
+
+async function recordSightings(admin: SupabaseClient, run: LeadRun) {
+  const { account, newOfferSightings, newWebmasterSightings } = run;
+
+  // ── record newly-seen offers so the admin queue is self-populating ────────
+  // Via RPC rather than a PostgREST upsert: uniqueness is on a normalized key,
+  // and seen_count has to ACCUMULATE. An upsert with ignoreDuplicates would
+  // freeze the count at the first batch, and that count is what an admin sorts
+  // by to decide which unmapped offer to map first.
+  if (newOfferSightings.size) {
+    for (const v of newOfferSightings.values()) {
+      const { error: mapErr } = await admin.rpc("altercpa_record_offer_sighting", {
+        _account_id: account.id,
+        _geo: v.geo || "??",
+        _offer_name: v.name,
+        _n: v.n,
+      });
+      if (mapErr) console.error("altercpa-sync: offer sighting:", mapErr.message);
+    }
+  }
+
+  // ── and the affiliates, so the naming queue is self-populating too ────────
+  // A sighting never touches `name` — the sync discovers affiliates, humans name
+  // them, and a re-sighting must not undo an admin's correction.
+  if (newWebmasterSightings.size) {
+    for (const [wmId, n] of newWebmasterSightings) {
+      const { error: wmErr } = await admin.rpc("altercpa_record_webmaster_sighting", {
+        _account_id: account.id,
+        _wm_id: wmId,
+        _n: n,
+      });
+      if (wmErr) console.error("altercpa-sync: webmaster sighting:", wmErr.message);
+    }
+  }
+}
+
+/**
  * Upsert the ledger row, then promote it to an order when it is callable.
  * Returns 'new' | 'updated'.
+ *
+ * `page` is a sweep's batched context (processSweepPage): the three reads
+ * below come from its prefetch instead of one round-trip each, and the ledger
+ * write is queued for flushLedgerWrites. Every decision is the same code either
+ * way; rolling, backfill and manual pass no page and run exactly as before.
  */
 async function upsertLead(
   admin: SupabaseClient,
@@ -457,13 +534,16 @@ async function upsertLead(
   o: AlterCpaOrder,
   mapping: any,
   stats: any,
+  page?: SweepPage,
 ): Promise<string> {
-  const { data: existing } = await admin
-    .from("altercpa_leads")
-    .select("id, order_id, phase, skip_reason")
-    .eq("account_id", account.id)
-    .eq("altercpa_id", row.altercpa_id)
-    .maybeSingle();
+  const { data: existing } = page
+    ? { data: page.ledger.get(row.altercpa_id) ?? null }
+    : await admin
+      .from("altercpa_leads")
+      .select("id, order_id, phase, skip_reason")
+      .eq("account_id", account.id)
+      .eq("altercpa_id", row.altercpa_id)
+      .maybeSingle();
 
   const phaseChanged = !existing || existing.phase !== row.phase;
   if (phaseChanged) row.phase_seen_at = new Date().toISOString();
@@ -487,13 +567,15 @@ async function upsertLead(
     // Matched on the same (external_source, external_order_id) key upsertOrder
     // uses. Scoping to external_source is load-bearing: opencart orders carry
     // external_order_id too, and a bare id match could adopt a stranger's row.
-    const { data: adopted } = await admin
-      .from("orders")
-      .select("id, cpa_webmaster_id, cpa_offer_id, cpa_offer_name, cpa_stream_id")
-      .eq("external_source", "altercpa")
-      .eq("external_order_id", row.altercpa_id)
-      .limit(1)
-      .maybeSingle();
+    const { data: adopted } = page
+      ? { data: page.adoptable.get(row.altercpa_id) ?? null }
+      : await admin
+        .from("orders")
+        .select("id, cpa_webmaster_id, cpa_offer_id, cpa_offer_name, cpa_stream_id")
+        .eq("external_source", "altercpa")
+        .eq("external_order_id", row.altercpa_id)
+        .limit(1)
+        .maybeSingle();
     if (adopted?.id) {
       orderId = adopted.id;
       // A skipped lead still knows who sent it. This is the only path that
@@ -508,12 +590,26 @@ async function upsertLead(
   // delegated to the status kind. When that kind is starved (2026-08-20) the
   // 45-minute window writes the truth and never applies it. Apply B′ here too.
   if (row.skip_reason === "not_pending" && orderId) {
-    await applyOutcomeToExistingOrder(admin, account, orderId, o, stats);
+    await applyOutcomeToExistingOrder(admin, account, orderId, o, stats,
+      page ? { knownStatus: page.orderStatus.get(orderId) } : {});
   }
   row.order_id = orderId;
 
-  if (existing) {
-    await admin.from("altercpa_leads").update(row).eq("id", existing.id);
+  if (page) {
+    page.writes.push({ row, existingId: existing?.id ?? null });
+    return existing ? "updated" : "new";
+  }
+  return writeLedgerRow(admin, row, existing?.id ?? null);
+}
+
+/** The ledger write at the end of upsertLead: 'new' | 'updated'. */
+async function writeLedgerRow(
+  admin: SupabaseClient,
+  row: Record<string, any>,
+  existingId: string | null,
+): Promise<string> {
+  if (existingId) {
+    await admin.from("altercpa_leads").update(row).eq("id", existingId);
     return "updated";
   }
   const { error } = await admin.from("altercpa_leads").insert(row);
@@ -846,7 +942,11 @@ async function fetchOpenLeads(
  *   - upsertOrder's existing-order branch (import_scope='all', or a sweep
  *     re-reading a lead), once per remote phase change, with noteIfGuarded.
  * Silent when there is nothing to do (still open, already matching, terminal,
- * would move backwards).
+ * would move backwards — forwardOutcome).
+ *
+ * `knownStatus` (a sweep page's one-read prefetch) may only SKIP the order
+ * read, when B′ has nothing to do from that status. Anything that might apply
+ * or be guarded is decided on the fresh read below, as on every other path.
  */
 async function applyOutcomeToExistingOrder(
   admin: SupabaseClient,
@@ -854,20 +954,19 @@ async function applyOutcomeToExistingOrder(
   orderId: string,
   o: AlterCpaOrder,
   stats: { orders_updated: number; skipped: Record<string, number> },
-  opts: { noteIfGuarded?: boolean } = {},
+  opts: { noteIfGuarded?: boolean; knownStatus?: string } = {},
 ) {
   const mode = String(account.status_mirror || "off");
   if (mode === "off") return;
+  if (opts.knownStatus !== undefined && forwardOutcome(o, opts.knownStatus) == null) return;
   const { data: order } = await admin.from("orders")
     .select("id, status, confirmed_at, quantity, price, call_again_since")
     .eq("id", orderId)
     .maybeSingle();
   if (!order) return;
   const cur = String(order.status);
-  const target = resolveRemoteOutcome(o, cur);
-  if (target == null || target === cur) return;
-  if (CRM_TERMINAL.has(cur)) return;
-  if ((CRM_STATUS_RANK[target] ?? 0) <= (CRM_STATUS_RANK[cur] ?? 0)) return;
+  const target = forwardOutcome(o, cur);
+  if (target == null) return;
   const untouched = !order.confirmed_at && cur !== "take";
   if (!(mode === "always" || untouched)) {
     stats.skipped.guarded = (stats.skipped.guarded || 0) + 1;
@@ -1225,4 +1324,300 @@ async function syncStatusAccount(
     ...(dry ? { preview } : {}),
     splits,
   };
+}
+
+// ── Resumable sweeps: nightly / weekly / continue (2026-09-28) ───────────────
+
+/**
+ * A sweep page's batched reads and its queued ledger writes — what upsertLead
+ * reads one round-trip at a time on every other path.
+ */
+interface SweepPage {
+  ledger: Map<string, { id: string; order_id: string | null; phase: number | null; skip_reason: string | null }>;
+  /** external_order_id → the order a skipped lead may adopt (+ its cpa columns). */
+  adoptable: Map<string, Record<string, any>>;
+  /** order id → status: a prefilter for the B′ apply, never a reason to write. */
+  orderStatus: Map<string, string>;
+  writes: Array<{ row: Record<string, any>; existingId: string | null }>;
+}
+
+const secOf = (iso: string) => Math.floor(new Date(iso).getTime() / 1000);
+
+/**
+ * kind 'nightly' | 'weekly' (a START — their crons, or an admin) or 'continue'
+ * (the altercpa-sync-continue cron): one bounded slice of a resumable sweep.
+ *
+ * altercpa_sweep_claim decides atomically what this invocation works on. A
+ * start opens a sweep over [now − 7 d | 90 d, now] when none is open; with one
+ * open it continues THAT one (the start is absorbed) — except that a weekly
+ * start closes an open nightly as 'superseded' and opens the weekly, whose 90
+ * days contain the rest of the nightly's 7. 'continue' never opens anything.
+ * The claim first closes a sweep past its limits, then takes a lease, so two
+ * invocations never work one sweep ('busy' otherwise).
+ *
+ * One run row per invocation — kind = the sweep's kind, sweep_id, window = the
+ * creation-time span this slice wrote — ok once its chunks are written, even
+ * while the sweep goes on. A throw marks the row failed and hands the error to
+ * the sweep; the next claim retries from the cursor.
+ */
+async function syncSweepAccount(
+  admin: SupabaseClient,
+  account: Record<string, any>,
+  kind: string,
+  body: Record<string, unknown>,
+  deadlineMs: number,
+) {
+  const startedMs = Date.now();
+
+  const token = Deno.env.get(account.token_secret_name);
+  if (!token) {
+    throw new Error(`Secret ${account.token_secret_name} is not set on this function`);
+  }
+  // An earlier account of this invocation spent the budget: claiming now would
+  // only hold the lease through a slice that cannot write anything.
+  if (deadlineMs - Date.now() < SWEEP_MIN_CHUNK_MS) {
+    return { account: account.name, status: "skipped", reason: "no_budget_left" };
+  }
+
+  const start = kind !== "continue";
+  const win = start
+    ? sweepWindow(kind, Math.floor(Date.now() / 1000), {
+      from: epoch(body.from), to: epoch(body.to), syncFrom: account.sync_from,
+    })
+    : null;
+
+  const { data: claim, error: claimErr } = await admin.rpc("altercpa_sweep_claim", {
+    p_account_id: account.id,
+    p_kind: start ? kind : null,
+    p_open: start,
+    p_window_from: win ? isoOf(win.from) : null,
+    p_window_to: win ? isoOf(win.to) : null,
+    p_lease_seconds: SWEEP_LEASE_SEC,
+  });
+  if (claimErr) {
+    // A start that cannot even claim still leaves a failed row — otherwise the
+    // nightly card keeps showing its last green run.
+    if (win) {
+      await admin.from("altercpa_sync_runs").insert({
+        account_id: account.id, kind, window_from: isoOf(win.from), window_to: isoOf(win.to),
+        status: "failed", error: `altercpa_sweep_claim: ${claimErr.message}`,
+        finished_at: new Date().toISOString(), duration_ms: Date.now() - startedMs,
+      });
+    }
+    throw new Error(`altercpa_sweep_claim: ${claimErr.message}`);
+  }
+  if (!claim?.claimed) {
+    // 'no_open_sweep' (a continue with nothing to do) or 'busy' (a slice is in
+    // flight). Nothing ran, so no run row.
+    return {
+      account: account.name, status: "skipped", reason: claim?.reason ?? "not_claimed",
+      closed: claim?.closed ?? [],
+    };
+  }
+
+  const sweep = claim.sweep as Record<string, any>;
+  const cursorFrom = secOf(sweep.cursor_at);
+  const windowTo = secOf(sweep.window_to);
+
+  const { data: runRow } = await admin.from("altercpa_sync_runs").insert({
+    account_id: account.id, kind: sweep.kind, sweep_id: sweep.id,
+    window_from: isoOf(cursorFrom), window_to: sweep.window_to, status: "running",
+  }).select("id").single();
+  const runId: string | null = runRow?.id ?? null;
+
+  const leadRun = await openLeadRun(admin, account, 0);
+  const { stats } = leadRun;
+  const splits: string[] = [];
+  // Where this slice got to, kept outside runSweep so a throw can report it.
+  const progress = { cursor: cursorFrom, fetched: 0 };
+
+  const io: SweepIo<AlterCpaOrder> = {
+    now: () => Date.now(),
+    fetch: async (c) => {
+      const rows = await fetchWindow(account.api_base, token, c.from, c.to, 0, (m) => splits.push(m));
+      progress.fetched += rows.length;
+      return rows;
+    },
+    processPage: (leads, deadline) => processSweepPage(admin, leadRun, leads, deadline),
+    advance: async (cursor) => {
+      const { data, error } = await admin.rpc("altercpa_sweep_advance", {
+        p_sweep_id: sweep.id, p_token: sweep.lease_token, p_cursor: isoOf(cursor),
+      });
+      if (error) throw new Error(`altercpa_sweep_advance: ${error.message}`);
+      const st: SweepStatus = data === "open" || data === "done" ? data : "lost";
+      if (st !== "lost") progress.cursor = cursor;
+      return st;
+    },
+  };
+
+  const runFields = () => {
+    stats.fetched = progress.fetched;
+    return {
+      fetched: stats.fetched,
+      ledger_new: stats.ledger_new,
+      ledger_updated: stats.ledger_updated,
+      orders_created: stats.orders_created,
+      orders_updated: stats.orders_updated,
+      skipped: stats.skipped,
+      // The creation-time span this slice wrote (none: where it stood).
+      window_to: isoOf(Math.max(cursorFrom, Math.min(progress.cursor - 1, windowTo))),
+      finished_at: new Date().toISOString(),
+      duration_ms: Date.now() - startedMs,
+    };
+  };
+
+  let res: SweepRun;
+  try {
+    res = await runSweep(io, { cursor: cursorFrom, windowTo }, deadlineMs);
+  } catch (e) {
+    const msg = (e as Error).message;
+    // Everything up to the last checkpoint stays written. The lease goes back
+    // with the error and a 5-minute pause, so a failing API is retried, not
+    // hammered; altercpa_sweeps_close_stale ends a sweep that keeps failing.
+    await recordSightings(admin, leadRun);
+    if (runId) {
+      await admin.from("altercpa_sync_runs").update({ status: "failed", error: msg, ...runFields() }).eq("id", runId);
+    }
+    const { error: relErr } = await admin.rpc("altercpa_sweep_release", {
+      p_sweep_id: sweep.id, p_token: sweep.lease_token, p_error: msg, p_retry_after_seconds: 300,
+    });
+    if (relErr) console.error("altercpa-sync: sweep release:", relErr.message);
+    throw e;
+  }
+
+  await recordSightings(admin, leadRun);
+
+  // Done: the rolling high-water mark follows the sweep's end — FORWARD ONLY.
+  // The one-shot sweep set it outright moments after its window closed; a
+  // resumable one may finish when rolling has long passed window_to, and
+  // setting it back would only make the next rolling run re-read that gap.
+  if (res.status === "done") {
+    const mark = { last_synced_at: sweep.window_to, last_cursor_to: sweep.window_to };
+    await admin.from("altercpa_accounts").update(mark).eq("id", account.id).is("last_synced_at", null);
+    await admin.from("altercpa_accounts").update(mark).eq("id", account.id).lt("last_synced_at", sweep.window_to);
+  }
+
+  if (res.status === "open" && res.budgetExhausted) stats.skipped.budget_exhausted = 1;
+  const fields = runFields();
+  if (runId) {
+    await admin.from("altercpa_sync_runs").update({
+      status: "ok",
+      ...fields,
+      error: res.status === "lost"
+        ? "sweep lease lost (re-claimed or closed meanwhile) — this slice stopped"
+        : splits.length ? `windows split: ${splits.length}` : null,
+    }).eq("id", runId);
+  }
+  // 'done' dropped the lease in the same statement; a 'lost' one is not ours.
+  if (res.status === "open") {
+    const { error: relErr } = await admin.rpc("altercpa_sweep_release", {
+      p_sweep_id: sweep.id, p_token: sweep.lease_token, p_error: null, p_retry_after_seconds: 0,
+    });
+    if (relErr) console.error("altercpa-sync: sweep release:", relErr.message);
+  }
+
+  if (stats.orders_created > 0 || stats.orders_updated > 0) {
+    await broadcastBoardRefresh({
+      source: "altercpa-sync", kind: sweep.kind,
+      orders_created: stats.orders_created, orders_updated: stats.orders_updated,
+    });
+  }
+
+  return {
+    account: account.name, status: "ok", kind: sweep.kind,
+    sweep: {
+      id: sweep.id, status: res.status, opened: claim.opened === true,
+      window: { from: sweep.window_from, to: sweep.window_to }, cursor: isoOf(progress.cursor),
+    },
+    window: { from: isoOf(cursorFrom), to: fields.window_to },
+    closed: claim.closed ?? [],
+    chunks: res.chunks, budget_exhausted: res.budgetExhausted,
+    splits, ...stats,
+    offers_seen: leadRun.newOfferSightings.size,
+  };
+}
+
+/**
+ * One page of a sweep chunk. The reads upsertLead makes per lead elsewhere are
+ * made once for the page — the ledger rows, the orders a skipped lead may
+ * adopt (same external key), the status of every linked order — then each
+ * lead goes through buildLead + upsertLead exactly as on the rolling path, and
+ * the page's ledger writes go out together. Stops between leads at the
+ * deadline; returns how many leads (a prefix of the page) are written.
+ */
+async function processSweepPage(
+  admin: SupabaseClient,
+  leadRun: LeadRun,
+  leads: AlterCpaOrder[],
+  deadlineMs: number,
+): Promise<number> {
+  const ids = leads.map((o) => String(o.id));
+  const page: SweepPage = { ledger: new Map(), adoptable: new Map(), orderStatus: new Map(), writes: [] };
+
+  // A failed read fails the page — reading it as "no row" would insert a
+  // duplicate ledger row. The sweep retries the page from the cursor.
+  const { data: ledgerRows, error: ledgerErr } = await admin.from("altercpa_leads")
+    .select("id, altercpa_id, order_id, phase, skip_reason")
+    .eq("account_id", leadRun.account.id)
+    .in("altercpa_id", ids);
+  if (ledgerErr) throw new Error(`sweep ledger read: ${ledgerErr.message}`);
+  for (const r of ledgerRows || []) page.ledger.set(String(r.altercpa_id), r);
+
+  const unlinked = ids.filter((id) => !page.ledger.get(id)?.order_id);
+  if (unlinked.length) {
+    const { data, error } = await admin.from("orders")
+      .select("id, external_order_id, status, cpa_webmaster_id, cpa_offer_id, cpa_offer_name, cpa_stream_id")
+      .eq("external_source", "altercpa")
+      .in("external_order_id", unlinked);
+    if (error) throw new Error(`sweep adopt read: ${error.message}`);
+    for (const r of data || []) {
+      const key = String(r.external_order_id);
+      if (!page.adoptable.has(key)) page.adoptable.set(key, r);
+      page.orderStatus.set(String(r.id), String(r.status));
+    }
+  }
+  const linked = [...new Set([...page.ledger.values()].map((r) => r.order_id).filter((id): id is string => !!id))];
+  if (linked.length) {
+    const { data, error } = await admin.from("orders").select("id, status").in("id", linked);
+    if (error) throw new Error(`sweep order read: ${error.message}`);
+    for (const r of data || []) page.orderStatus.set(String(r.id), String(r.status));
+  }
+
+  let n = 0;
+  for (const o of leads) {
+    if (Date.now() >= deadlineMs) break;
+    const { mapping, ledgerRow } = buildLead(leadRun, o);
+    await upsertLead(admin, leadRun.account, ledgerRow, o, mapping, leadRun.stats, page);
+    n++;
+  }
+  const written = await flushLedgerWrites(admin, page.writes);
+  leadRun.stats.ledger_new += written.new;
+  leadRun.stats.ledger_updated += written.updated;
+  return n;
+}
+
+/**
+ * A sweep page's ledger writes, each through the per-lead path's own
+ * writeLedgerRow. Updates of existing rows are independent — one row each,
+ * BEFORE-row triggers only — so a few go out at once. NEW rows are inserted one
+ * by one in lead order, as on the per-lead path: trg_altercpa_lead_rate counts
+ * the arrival cohort per inserted row, and a multi-row insert would show every
+ * row the same final count.
+ */
+async function flushLedgerWrites(
+  admin: SupabaseClient,
+  writes: SweepPage["writes"],
+): Promise<{ new: number; updated: number }> {
+  const out = { new: 0, updated: 0 };
+  const tally = (r: string) => {
+    if (r === "new") out.new++;
+    else if (r === "updated") out.updated++;
+  };
+  await eachLimit(writes.filter((w) => w.existingId), SWEEP_WRITE_CONCURRENCY, async (w) => {
+    tally(await writeLedgerRow(admin, w.row, w.existingId));
+  });
+  for (const w of writes) {
+    if (!w.existingId) tally(await writeLedgerRow(admin, w.row, null));
+  }
+  return out;
 }

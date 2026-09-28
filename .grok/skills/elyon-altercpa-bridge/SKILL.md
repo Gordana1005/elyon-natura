@@ -1,6 +1,6 @@
 ---
 name: elyon-altercpa-bridge
-description: The AlterCPA → Elyon lead mirror — ledger-first design, callable geos, offer mapping, status mirroring, why nothing flows back automatically, and the one manual exception (the CPA push button). Read before touching altercpa_* tables, the altercpa-sync edge function, /altercpa admin routes, the orders/:id/altercpa-push route, or anything that would put a foreign-geo lead into public.orders.
+description: The AlterCPA → Elyon lead mirror — ledger-first design, callable geos, offer mapping, status mirroring, the resumable nightly/weekly sweeps, why nothing flows back automatically, and the one manual exception (the CPA push button). Read before touching altercpa_* tables, the altercpa-sync edge function, /altercpa admin routes, the orders/:id/altercpa-push route, or anything that would put a foreign-geo lead into public.orders.
 ---
 
 # AlterCPA bridge — how the mirror works
@@ -307,6 +307,8 @@ date to get right**. Do not invent a new key.
   `payload` holds every competing webmaster's volumes and customer PII across every geo.
 - **Status-kind candidate selection must prefer the calling queue and rotate.** See the
   2026-08-20 starvation above. Never go back to `created_remote ASC` + 500.
+- **A sweep's run row being ok does not mean the sweep finished.** Sweeps span invocations
+  (2026-09-28): check `altercpa_sweeps.status = 'done'`, and the slices by `sweep_id`.
 
 ## The window is CREATION time (measured 2026-08-06)
 
@@ -319,6 +321,43 @@ fill gaps when the function was down, not to chase outcomes.
 
 Same probe measured creation→settlement: **p50 0.5d, p90 44d, p99 59d, max 129d**. Relevant if
 `import_scope` is ever set to `all`, where the weekly window must exceed the p99.
+
+## Sweeps are resumable (2026-09-28)
+
+From 18.09 to 28.09 no nightly (7 d) or weekly (90 d) sweep finished: ~88 ms of DB round-trips per
+lead in ONE invocation, killed by the edge wall clock (~150 s) before it wrote its end — every
+run row "stale: still running after 10 minutes". Now (`20260940000100`, `altercpa-sync/sweep.ts`):
+
+- A sweep is a row in **`altercpa_sweeps`**: window fixed at open (creation time, both ends
+  inclusive), `cursor_at` = every lead created before it is written, a lease, and how it ended
+  (`done` · `superseded` · `expired` · `failed`).
+- It is worked in **day chunks** (one `comp/list.json` call per day), leads in `(time, id)` order,
+  the cursor checkpointed after every page of 100, **100 s** of new work per invocation. The
+  cron **`altercpa-sync-continue`** (`1-59/2 * * * *`) POSTs `{kind:'continue'}` through
+  `invoke_altercpa_sync()` only while a sweep is open and unleased; otherwise it makes no HTTP
+  call. The nightly/weekly crons keep their schedules and now OPEN a sweep.
+- **One run row per invocation** (kind = the sweep's, `sweep_id`), ok once its chunks are written.
+  An ok row ≠ a finished sweep: read `altercpa_sweeps.status`.
+- **One open sweep per account.** A start while one is open continues it, except weekly-over-
+  nightly (the nightly closes `superseded`). A 240 s lease keeps two slices off one sweep; a slice
+  that lost it cannot move the cursor. A throwing slice pauses the sweep 5 min; a killed one is
+  retried when its lease runs out.
+- **Every sweep ends**: 20 h open → `expired`, 8 claims in a row without progress → `failed`, each
+  with a FAILED run row naming reason, days written, cursor and last error — that is what
+  `integrations_health()` shows as the failing nightly/weekly job.
+- A completed sweep moves `last_synced_at` **forward only**.
+
+⚠️ **Never make a sweep one-shot again** — the wall clock will kill it at any real volume.
+
+⚠️ **Never fork the per-lead logic for sweeps.** A sweep page calls the same `buildLead` +
+`upsertLead` as rolling; the page only batches READS. A prefetched order status may SKIP the
+per-order read (`forwardOutcome` says nothing to do) but never decides a write — that is always
+made on a fresh read. New ledger rows stay one INSERT each (`trg_altercpa_lead_rate` counts the
+arrival cohort per inserted row; a multi-row insert would show every row the same final count).
+
+⚠️ The cursor is a creation SECOND: a budget cut re-writes that second's written leads
+(idempotent). Progress needs one second's leads to fit in one invocation — true by orders of
+magnitude, but do not shrink the budget to nothing.
 
 ## Verify, don't trust the run log
 

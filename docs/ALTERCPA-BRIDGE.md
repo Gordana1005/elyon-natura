@@ -87,6 +87,7 @@ touches the affiliate drain.
 | Tables + RLS | `supabase/migrations/20260914000000_altercpa_bridge.sql` |
 | Offer-sighting RPC | `supabase/migrations/20260914000100_altercpa_offer_sighting.sql` |
 | Schedulers | `supabase/migrations/20260914000200_altercpa_sync_cron.sql` |
+| Resumable sweeps (2026-09-28) | `supabase/functions/altercpa-sync/sweep.ts` (+ `sweep.test.ts`) + `supabase/migrations/20260940000100_altercpa_sweep_resume.sql` — see **Sweeps** below |
 | Report rollups | `supabase/migrations/20260914000300_altercpa_summary.sql` |
 | Admin routes | `supabase/functions/api/index.ts` → `altercpa/*` |
 | Admin UI | `src/pages/AlterCpaPage.tsx`, `src/components/altercpa/` |
@@ -107,7 +108,10 @@ touches the affiliate drain.
   replayable without re-fetching. `skip_reason` says why a row is not an order.
 - **`altercpa_offer_map`** — `(account, geo, offer name) → product`. Self-populating: a new offer
   name is recorded on first sighting and appears in the admin queue.
-- **`altercpa_sync_runs`** — what each run fetched, created and skipped.
+- **`altercpa_sync_runs`** — what each run fetched, created and skipped. For a sweep: one row
+  per invocation ("slice"), `sweep_id` set.
+- **`altercpa_sweeps`** (2026-09-28) — one row per nightly/weekly sweep: its fixed window, the
+  cursor, the lease, and how it ended (`done` · `superseded` · `expired` · `failed`).
 
 ### AlterCPA vocabulary
 
@@ -183,8 +187,9 @@ Both secrets are recorded in `docs/VAULT.md` §2 (gitignored).
 | Job | Cron (UTC) | Window |
 |---|---|---|
 | `altercpa-sync-rolling` | `*/2 * * * *` | `last_synced_at − 45 min → now` |
-| `altercpa-sync-nightly` | `15 1 * * *` | last 7 days |
-| `altercpa-sync-weekly` | `45 2 * * 0` | last 90 days |
+| `altercpa-sync-nightly` | `15 1 * * *` | opens a sweep over the last 7 days |
+| `altercpa-sync-weekly` | `45 2 * * 0` | opens a sweep over the last 90 days |
+| `altercpa-sync-continue` | `1-59/2 * * * *` | works an open sweep on from its cursor; no HTTP at all while none is open (2026-09-28) |
 | `altercpa-sync-status` | `*/5 * * * *` | not a window — our open orders, by `oid` |
 | `mex-reconcile` | `7,37 * * * *` | MEX shipments by `updated_from`, both accounts (see below) |
 
@@ -238,6 +243,68 @@ kind's job; the sweeps exist to fill gaps when the function was down.
 
 The same probe measured creation→settlement: **p50 0.5d, p90 44d, p99 59d, max 129d** — relevant
 only if `import_scope` is ever set to `all`, where the weekly window must exceed the p99.
+
+## Sweeps: resumable (2026-09-28)
+
+From 18.09 to 28.09 not one nightly or weekly sweep finished. The function spent ~88 ms of DB
+round-trips per lead (+ ~0.5 s fixed) and worked the whole window in one invocation, so the edge
+wall clock (~150 s) killed it before it wrote the run's end: every run row ended
+"stale: still running after 10 minutes" (last complete nightly: 08-09). A sweep now outlives any
+one invocation — `20260940000100_altercpa_sweep_resume.sql`, `altercpa-sync/sweep.ts`:
+
+- **A sweep is a row** in `altercpa_sweeps`. Its window is FIXED when it opens (nightly
+  `now − 7 d → now`, weekly `now − 90 d → now`; AlterCPA creation time, both ends inclusive), and
+  `cursor_at` says how far it got: every lead created before it is written.
+- **Day chunks.** Each API call fetches `[cursor, cursor + 1 day − 1]`. Leads are written in
+  `(time, id)` order and the cursor is checkpointed after every page of 100, so a killed
+  invocation loses one page, never the sweep. A budget cut puts the cursor on the first unwritten
+  lead's second; that second's already-written leads are written again (every write is
+  idempotent), nothing is skipped. Progress needs one second's leads to fit in one invocation —
+  AlterCPA creates a handful a second at most.
+- **100 s per invocation.** A slice stops STARTING work 100 s in, then records the sightings, its
+  run row and releases its lease. The per-lead work is the rolling kind's own (`buildLead` +
+  `upsertLead`); only the READS are batched per page — the ledger rows, the orders a skipped lead
+  may adopt, the status of every linked order. That status is a **prefilter only**: it may skip
+  the per-order read when B′ has nothing to do from it (`forwardOutcome`), but every write is
+  decided on a fresh read, as before. Ledger updates go out 8 at a time; NEW ledger rows are
+  inserted one by one, in lead order (`trg_altercpa_lead_rate` counts the cohort per inserted row).
+- **The continuation cron** `altercpa-sync-continue` closes stale sweeps in SQL, then POSTs
+  `{kind:'continue'}` through `invoke_altercpa_sync()` — only while a sweep is open and unleased.
+  Otherwise it makes no HTTP call, which is its state for most of the day.
+- **One run row per invocation**: `kind` = the sweep's, `sweep_id` set, window = the
+  creation-time span that slice wrote. It ends `ok` once its chunks are written, while the sweep
+  goes on (`skipped.budget_exhausted = 1`: it stopped for the budget). **An ok row does not mean
+  the sweep finished — `altercpa_sweeps.status = 'done'` does.**
+- **Overlap.** One open sweep per account (`uq_altercpa_sweeps_open`). A start while one is open
+  continues THAT sweep (the start is absorbed) — except a weekly start meeting an open nightly:
+  the nightly closes `superseded` and the weekly opens, since its 90 days contain the nightly's
+  rest. A slice in flight holds a 240 s lease: a second caller gets `busy`, and a slice that lost
+  its lease can no longer move the cursor.
+- **Failures.** A slice that throws marks its row `failed` and pauses the sweep 5 minutes
+  (`paused`); the next tick retries from the cursor. A killed slice is retried once its lease runs
+  out (its row still reads `running`, then hung after 15 min in `integrations_health()`).
+- **Every sweep ends.** Open 20 h → `expired`; 8 claims in a row that moved nothing → `failed`.
+  Both write a FAILED run row (kind = the sweep's) whose error names the reason, the days written,
+  the cursor and the last error, so `integrations_health()` shows the job failing with the why.
+  A walked window closes `done` (`complete`).
+- **High-water mark.** A completed sweep moves `last_synced_at` to its `window_to` only if that is
+  later (forward only) — rolling has usually long passed it, and setting it back would only make
+  the next rolling run re-read the gap.
+- **Unchanged:** the nightly/weekly schedules, rolling, the status kind, `import_scope`, the B′
+  map and every money guard. A DRY nightly/weekly is still the one-shot preview; backfill and
+  manual are still one-shot.
+
+Check the last two days' sweeps (read-only):
+
+```sql
+SELECT s.kind, s.status, s.close_reason, s.opened_at, s.closed_at, s.claims,
+       s.cursor_at > s.window_to AS walked,
+       count(r.id) AS slices, count(r.id) FILTER (WHERE r.status = 'ok') AS slices_ok,
+       sum(r.fetched) AS fetched, sum(r.orders_created) AS created, sum(r.orders_updated) AS updated
+  FROM altercpa_sweeps s LEFT JOIN altercpa_sync_runs r ON r.sweep_id = s.id
+ WHERE s.opened_at > now() - interval '2 days'
+ GROUP BY s.id ORDER BY s.opened_at DESC;
+```
 
 ## Backfill
 
