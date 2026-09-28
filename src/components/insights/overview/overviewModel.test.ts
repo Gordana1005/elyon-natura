@@ -13,9 +13,9 @@ const fixture = () => structuredClone(sample) as unknown as OverviewResponse;
 
 describe('ranges (Skopje days — the shared /insights period, ../shared/period)', () => {
   const today = '2026-09-28'; // a Monday
-  it('calendar presets: today, this week from Monday, this month from the 1st, this year from 1 January', () => {
+  it('calendar presets: today, the last 7 days, this month from the 1st, this year from 1 January', () => {
     expect(presetRange('today', today)).toEqual({ from: today, to: today });
-    expect(presetRange('week', today)).toEqual({ from: '2026-09-28', to: today });
+    expect(presetRange('week', today)).toEqual({ from: '2026-09-22', to: today });
     expect(presetRange('week', '2026-09-27')).toEqual({ from: '2026-09-21', to: '2026-09-27' });
     expect(presetRange('month', today)).toEqual({ from: '2026-09-01', to: today });
     expect(presetRange('year', today)).toEqual({ from: '2026-01-01', to: today });
@@ -28,7 +28,7 @@ describe('ranges (Skopje days — the shared /insights period, ../shared/period)
     expect(MAX_SPAN_DAYS).toBe(400);
   });
   it('custom: an unreadable day falls back (to this week) instead of widening the range', () => {
-    expect(presetRange('custom', today, { from: 'garbage', to: '2026-13-45' })).toEqual({ from: '2026-09-28', to: today });
+    expect(presetRange('custom', today, { from: 'garbage', to: '2026-13-45' })).toEqual({ from: '2026-09-22', to: today });
   });
   it('compares against the equal-length span right before', () => {
     expect(previousRange({ from: '2026-09-22', to: '2026-09-28' })).toEqual({ from: '2026-09-15', to: '2026-09-21' });

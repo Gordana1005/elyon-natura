@@ -43,11 +43,11 @@ const period = () => screen.getByTestId('period').textContent;
 const preset = (k: string) => screen.getByRole('button', { name: i18n.t(`insights.common.period.${k}`) });
 
 describe('InsightsFilterBar', () => {
-  it('defaults to this week (Monday → today) with compare on, and keeps the tab', () => {
+  it('defaults to the last 7 days with compare on, and keeps the tab', () => {
     renderAt('/insights?tab=sales');
     expect(preset('week')).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('insights-period')).toHaveTextContent('28.09.2026');
-    expect(period()).toBe('2026-09-28|2026-09-28|cmp|2026-09-27|2026-09-27');
+    expect(screen.getByTestId('insights-period')).toHaveTextContent('22.09 – 28.09.2026');
+    expect(period()).toBe('2026-09-22|2026-09-28|cmp|2026-09-15|2026-09-21');
   });
 
   it('presets are calendar periods and live in the URL beside the other params', () => {
@@ -99,6 +99,6 @@ describe('InsightsFilterBar', () => {
     renderAt('/insights?tab=overview');
     fireEvent.click(screen.getByRole('switch', { name: i18n.t('insights.common.period.compare') }));
     expect(search().get('compare')).toBe('0');
-    expect(period()).toBe('2026-09-28|2026-09-28|no-cmp|');
+    expect(period()).toBe('2026-09-22|2026-09-28|no-cmp|');
   });
 });

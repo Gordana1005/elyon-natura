@@ -8,16 +8,16 @@ import {
 const today = '2026-09-28';
 
 describe('calendar presets (Skopje days, owner rule 2026-09-28)', () => {
-  it('today · this week from Monday · this month from the 1st · this year from 1 January', () => {
+  it('today · the last 7 days · this month from the 1st · this year from 1 January', () => {
     expect(presetRange('today', today)).toEqual({ from: today, to: today });
-    expect(presetRange('week', today)).toEqual({ from: '2026-09-28', to: today });
+    expect(presetRange('week', today)).toEqual({ from: '2026-09-22', to: today });
     expect(presetRange('week', '2026-09-27')).toEqual({ from: '2026-09-21', to: '2026-09-27' }); // a Sunday
-    expect(presetRange('week', '2026-10-01')).toEqual({ from: '2026-09-28', to: '2026-10-01' }); // across a month end
+    expect(presetRange('week', '2026-10-01')).toEqual({ from: '2026-09-25', to: '2026-10-01' }); // across a month end
     expect(presetRange('month', today)).toEqual({ from: '2026-09-01', to: today });
     expect(presetRange('year', today)).toEqual({ from: '2026-01-01', to: today });
   });
-  it('the first day of a year: the week reaches back into December', () => {
-    expect(presetRange('week', '2026-01-01')).toEqual({ from: '2025-12-29', to: '2026-01-01' });
+  it('the first day of a year: the last 7 days reach back into December', () => {
+    expect(presetRange('week', '2026-01-01')).toEqual({ from: '2025-12-26', to: '2026-01-01' });
     expect(presetRange('month', '2026-01-01')).toEqual({ from: '2026-01-01', to: '2026-01-01' });
     expect(presetRange('year', '2026-01-01')).toEqual({ from: '2026-01-01', to: '2026-01-01' });
   });
@@ -34,8 +34,8 @@ describe('calendar presets (Skopje days, owner rule 2026-09-28)', () => {
     expect(spanDays(wide)).toBe(MAX_SPAN_DAYS + 1);
   });
   it('custom: an unreadable day falls back to this week instead of widening the range', () => {
-    expect(presetRange('custom', today, { from: 'garbage', to: '2026-13-45' })).toEqual({ from: '2026-09-28', to: today });
-    expect(presetRange('custom', today, { from: '2026-02-30', to: today })).toEqual({ from: '2026-09-28', to: today });
+    expect(presetRange('custom', today, { from: 'garbage', to: '2026-13-45' })).toEqual({ from: '2026-09-22', to: today });
+    expect(presetRange('custom', today, { from: '2026-02-30', to: today })).toEqual({ from: '2026-09-22', to: today });
   });
   it('compare = the equal-length span right before', () => {
     expect(previousRange({ from: '2026-09-01', to: '2026-09-28' })).toEqual({ from: '2026-08-04', to: '2026-08-31' });
@@ -79,7 +79,7 @@ describe('dd.mm.yyyy — the only way a day is written', () => {
 describe('the period in the /insights URL', () => {
   it('defaults: this week, compare on — and defaults stay out of the URL', () => {
     expect(parsePeriodParams(new URLSearchParams('tab=sales'), today))
-      .toEqual({ preset: 'week', range: { from: '2026-09-28', to: today }, compare: true });
+      .toEqual({ preset: 'week', range: { from: '2026-09-22', to: today }, compare: true });
     const sp = writePeriodParams(new URLSearchParams('tab=sales&range=month&compare=0'), { preset: 'week', compare: true });
     expect(sp.toString()).toBe('tab=sales');
   });

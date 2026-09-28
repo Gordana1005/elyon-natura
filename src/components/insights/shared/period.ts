@@ -1,8 +1,9 @@
 /**
  * The ONE period every /insights tab counts by (owner rule 2026-09-28).
  *
- * Presets are CALENDAR periods on Skopje days — Денес · Оваа недела (Monday →
- * today) · Овој месец (1st → today) · Оваа година (1 Jan → today) · Прилагодено —
+ * Presets are Skopje days — Денес · Последни 7 дена (today and the six days
+ * before it) · Овој месец (1st → today) · Оваа година (1 Jan → today) ·
+ * Прилагодено —
  * and "compare" is the equal-length span right before (the server's
  * overviewWindows() uses the same rule and cuts a partial day at the same
  * elapsed time).
@@ -73,8 +74,10 @@ export function mondayOf(day: string): string {
 }
 
 /**
- * A preset's days, inclusive, on the calendar: this week = Monday → today,
- * this month = the 1st → today, this year = 1 January → today. Custom: a
+ * A preset's days, inclusive, on the calendar: the week button is the last 7
+ * days (today and the six before it — a Monday-to-today week is only today on
+ * Monday, so it came out smaller than yesterday). This month = the 1st → today,
+ * this year = 1 January → today. Custom: a
  * reversed pair is swapped (a slip, not a question), days after today are
  * pulled back to today, an unreadable day falls back to this week, and the
  * span is capped at MAX_SPAN_DAYS (the start moves, never the end).
@@ -82,7 +85,7 @@ export function mondayOf(day: string): string {
 export function presetRange(preset: PeriodPreset, today: string, custom?: Partial<DayRange>): DayRange {
   switch (preset) {
     case 'today': return { from: today, to: today };
-    case 'week': return { from: mondayOf(today), to: today };
+    case 'week': return { from: addDays(today, -6), to: today };
     case 'month': return { from: `${today.slice(0, 7)}-01`, to: today };
     case 'year': return { from: `${today.slice(0, 4)}-01-01`, to: today };
     case 'custom': {

@@ -2563,7 +2563,7 @@
       "period": {
         "label": "Period",
         "today": "Today",
-        "week": "This week",
+        "week": "Last 7 days",
         "month": "This month",
         "year": "This year",
         "custom": "Custom",

@@ -19,7 +19,7 @@ const EARLIEST_YEARS = 3;
 /**
  * THE period filter of /insights — mounted once by the page, above whichever
  * tab is open, so every tab counts the same Skopje days and a tab switch keeps
- * them. Presets are calendar periods (this week = Monday → today); custom days
+ * them. Presets: today, the last 7 days, this month, this year; custom days
  * are written dd.mm.yyyy; compare = the equal span right before.
  *
  * The loading indicator follows every query whose key starts with 'insights'
