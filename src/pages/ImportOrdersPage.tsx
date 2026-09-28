@@ -6,6 +6,7 @@ import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { formatMoney } from '@/lib/currency';
 import { isValidPhone } from '@/lib/validation';
 import { apiErrorText } from '@/i18n/apiErrors';
 import { apiImportOrders, apiGetProducts, type ImportOrderRow, type ImportOrdersResult } from '@/lib/api';
@@ -80,6 +81,14 @@ const HEADER_MAP: Record<keyof PreviewRow, string[]> = {
 
 const VALID_STATUSES = ['pending', 'confirmed', 'shipped', 'delivered', 'paid', 'cancelled', 'returned', 'trashed', 'call_again'];
 const CHUNK = 200;
+
+// The file's price column is EUR (the stored unit — importOrders.help); the
+// preview shows what the CRM will display, in денари. A denar figure typed
+// into the file by mistake therefore shows up here 61.5× too large.
+function previewPrice(raw: string): string {
+  const n = Number(raw.replace(',', '.'));
+  return raw.trim() && Number.isFinite(n) ? formatMoney(n) : raw;
+}
 
 function pick(row: Record<string, string>, candidates: string[]): string {
   for (const [k, v] of Object.entries(row)) {
@@ -344,7 +353,7 @@ export default function ImportOrdersPage() {
                       <td className={cn('px-3 py-1.5 font-mono', !row.customer_phone.trim() && 'italic text-destructive')}>{row.customer_phone || t('importOrders.empty')}</td>
                       <td className={cn('px-3 py-1.5', !row.product_name.trim() && 'italic text-destructive')}>{row.product_name || t('importOrders.empty')}</td>
                       <td className="px-3 py-1.5">{row.quantity}</td>
-                      <td className="px-3 py-1.5">{row.price}</td>
+                      <td className="px-3 py-1.5">{previewPrice(row.price)}</td>
                       <td className="px-3 py-1.5">{row.status}</td>
                       <td className="px-3 py-1.5">{row.customer_city}</td>
                       <td className="px-3 py-1.5">

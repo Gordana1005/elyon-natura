@@ -32,7 +32,8 @@ export function normalizePreview(raw: unknown): NoParcelPreview | null {
     needs_linking: n(r.needs_linking),
     value_eur: n(r.value_eur),
     mode: typeof r.mode === "string" ? r.mode : "report",
-    days: n(r.days) || 7,
+    // the rule's own answer (no_parcel_rule_days(), 20260940000300); 10 is its default
+    days: n(r.days) || 10,
   };
 }
 

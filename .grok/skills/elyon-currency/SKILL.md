@@ -54,7 +54,8 @@ test-guarded:** `supabase/functions/api/index.ts` (webhook FX ~2245, AlterCPA pu
 ~7744), `supabase/functions/altercpa-sync/altercpa.ts` (`MKD_PER_EUR`, ~286),
 `supabase/functions/mex-reconcile/match.ts` (`MKD_PER_EUR`, ~17 — the COD-fit match),
 SQL literals in `20260936000000_insights_overview.sql` (and the WIP
-`20260940000000_insights_foundation.sql`), and scripts (`reprice-catalogue-mk.mjs`,
+`20260940000000_insights_foundation.sql`), the `order_paid` bell
+(`20260940000400_denari_notifications.sql` `tg_notify_order_paid`), and scripts (`reprice-catalogue-mk.mjs`,
 `scripts/lib/altercpa.mjs`, `scripts/lib/repair-kit.mjs`, `verify-attribution.mjs`, …).
 Another reason not to touch any of them.
 
@@ -118,12 +119,18 @@ parcels carry a negative COD — money flowing back; 20260934000100 keeps the si
 contracts; their payouts are a real euro obligation, not Macedonian retail pricing. Leave those
 surfaces alone — converting them would misstate what the partner is owed.
 
-Everything else in the product is denar-only. ⚠️ Three EUR displays outside affiliates exist in
-the code today (the code wins; do not add more): `src/components/altercpa/MirrorTab.tsx` (~254,
-a foreign-geo AlterCPA lead's EUR equivalent via `formatEurExact`),
-`src/pages/LeadDistributionPage.tsx` (~366, the high-value threshold, compared against the EUR
-`orders.price`), and the `order_paid` notification text (`'€' || price`,
-`20260934000200_money_guards.sql` `tg_notify_order_paid`).
+Everything else in the product is denar-only — owner order 2026-09-28: *"everywhere Денари
+instead of euro"*. The three old EUR displays outside affiliates are gone: `MirrorTab.tsx` shows a
+foreign lead's raw amount in its own currency plus `≈ formatMoney(...)`; the `order_paid` bell
+prints денари and carries `meta.amountMkd` (`20260940000400`; pre-migration `€NN.NN` rows are
+re-rendered in денари by `NotificationsDropdown`). The LeadDistribution high-value threshold and
+the affiliate offer **sell price** are денари inputs that store EUR through
+`denInputToEur(text, storedEur)` — an untouched field saves the stored EUR exactly (a plain
+round trip is not exact: 34.90 € → 2.146 ден → 34.89 €). Only affiliate PAYOUT (payout,
+override, partner-portal catalogue) stays EUR. Chart axes on EUR series use `moneyAxis()`
+(`insights/shared/tabFormat.ts`). Segment list names keep their EUR band ("57d ≤26 (3+ orders)"
+— the engine matches by exact name); `predictionListLabel()` shows "≤ 1.599 ден" on screen only.
+`orders.price` / `prediction_leads.price` are ORDER TOTALS — never × quantity (`orderTotal()`).
 
 ## Red flags (stop and correct)
 

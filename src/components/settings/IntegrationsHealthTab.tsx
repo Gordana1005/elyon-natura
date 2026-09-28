@@ -24,6 +24,8 @@ import { apiErrorText } from '@/i18n/apiErrors';
 import i18n from '@/i18n';
 import { cn } from '@/lib/utils';
 import { formatMoney } from '@/lib/currency';
+import { noParcelDaysOr } from '@/lib/noParcelRule';
+import { ordersHref } from '@/components/insights/overview/model';
 import {
   apiGetIntegrationsHealth, apiGetNoParcelPreview, apiGetNoParcelReport, apiSetNoParcelMode,
   type HealthCronJob, type HealthDay, type HealthFeed, type HealthJob, type HealthNoParcel, type HealthStatus,
@@ -282,7 +284,7 @@ function FeedCard({ feed, now }: { feed: HealthFeed; now: number }) {
   );
 }
 
-// ── the 7-day no-parcel rule ───────────────────────────────────────────────
+// ── the no-parcel rule (window from no_parcel_rule_days(), default 10) ───────────────────────────────────────────────
 function NoParcelCard({ np, now }: { np: HealthNoParcel; now: number }) {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -302,13 +304,17 @@ function NoParcelCard({ np, now }: { np: HealthNoParcel; now: number }) {
   const run = np.last_run;
   const nextTime = skopjeDateTime(np.next_run_at);
   const modeWord = (m: string) => (m === 'apply' ? t('settings.integrations.np.modeApply') : t('settings.integrations.np.modeReport'));
+  // The rule's window from the payload (no_parcel_rule_days(), default 10) — never a hardcoded 7.
+  const days = noParcelDaysOr(np.days_n);
+  const ordersLink = ordersHref({ attention: 'approved_no_parcel_7d' }, t('overview.attention.kind.approved_no_parcel_7d', { days }))
+    ?? '/orders?attention=approved_no_parcel_7d';
 
   const confirm = async () => {
     if (!pending) return;
     setSwitching(true);
     try {
       await apiSetNoParcelMode(pending);
-      toast({ title: t('settings.integrations.np.switched', { mode: modeWord(pending) }) });
+      toast({ title: t('settings.integrations.np.switched', { mode: modeWord(pending), days }) });
       setPending(null);
       await qc.invalidateQueries({ queryKey: ['integrations-health'] });
     } catch (err) {
@@ -351,13 +357,13 @@ function NoParcelCard({ np, now }: { np: HealthNoParcel; now: number }) {
   const preview = previewQ.data;
 
   return (
-    <section className={cn('space-y-3 rounded-xl border bg-card p-4 shadow-sm', s.border)} aria-label={t('settings.integrations.feed.no_parcel_rule')}>
+    <section className={cn('space-y-3 rounded-xl border bg-card p-4 shadow-sm', s.border)} aria-label={t('settings.integrations.feed.no_parcel_rule', { days })}>
       <header className="space-y-0.5">
         <div className="flex items-center justify-between gap-2">
-          <h3 className="font-semibold">{t('settings.integrations.feed.no_parcel_rule')}</h3>
+          <h3 className="font-semibold">{t('settings.integrations.feed.no_parcel_rule', { days })}</h3>
           <StatusChip status={np.status} />
         </div>
-        <p className="text-xs text-muted-foreground">{t('settings.integrations.feedDesc.no_parcel_rule', { days: np.days_n, hour: np.hour })}</p>
+        <p className="text-xs text-muted-foreground">{t('settings.integrations.feedDesc.no_parcel_rule', { days, hour: np.hour })}</p>
       </header>
 
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2">
@@ -375,7 +381,7 @@ function NoParcelCard({ np, now }: { np: HealthNoParcel; now: number }) {
         </label>
       </div>
       <p className="text-xs text-muted-foreground">
-        {np.mode === 'apply' ? t('settings.integrations.np.hintApply') : t('settings.integrations.np.hintReport')}
+        {np.mode === 'apply' ? t('settings.integrations.np.hintApply', { days }) : t('settings.integrations.np.hintReport')}
       </p>
 
       <div className="text-sm">
@@ -402,7 +408,7 @@ function NoParcelCard({ np, now }: { np: HealthNoParcel; now: number }) {
 
       <div className="flex flex-wrap gap-2">
         <Button asChild variant="outline" size="sm" className="h-8">
-          <Link to="/orders?attention=approved_no_parcel_7d">
+          <Link to={ordersLink}>
             <ExternalLink className="h-3.5 w-3.5 mr-1" /> {t('settings.integrations.np.openOrders')}
           </Link>
         </Button>
@@ -419,7 +425,7 @@ function NoParcelCard({ np, now }: { np: HealthNoParcel; now: number }) {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {pending === 'apply' ? t('settings.integrations.np.confirmApplyTitle') : t('settings.integrations.np.confirmReportTitle')}
+              {pending === 'apply' ? t('settings.integrations.np.confirmApplyTitle', { days }) : t('settings.integrations.np.confirmReportTitle', { days })}
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="text-sm text-muted-foreground">

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { MKD_PER_EUR, eurToDen, denToEur, formatMoney, formatDenari, formatEurExact, formatPriceInline, codFor } from './currency';
+import { MKD_PER_EUR, eurToDen, denToEur, denInputToEur, formatMoney, formatDenari, formatEurExact, formatPriceInline, codFor } from './currency';
 
 // These tests exist to make two specific, expensive mistakes impossible to ship.
 //
@@ -69,6 +69,27 @@ describe('formatting', () => {
     expect(formatDenari(null)).toBe('0 ден');
     expect(formatDenari('abc')).toBe('0 ден');
     expect(formatDenari(-150)).toBe('-150 ден');
+  });
+});
+
+describe('denInputToEur — a денари input over a stored-EUR value', () => {
+  it('an untouched field saves the stored EUR exactly (no 1-cent drift)', () => {
+    expect(denInputToEur(String(eurToDen(34.9)), 34.9)).toBe(34.9);   // 2146 ден, not 34.89 €
+    expect(denInputToEur(String(eurToDen(48.78)), '48.78')).toBe(48.78);
+    expect(denInputToEur('30750', 500)).toBe(500);
+  });
+
+  it('a typed figure converts at the frozen peg, 2 dp', () => {
+    expect(denInputToEur('3000', 34.9)).toBe(48.78);
+    expect(denInputToEur('3000')).toBe(48.78);
+    expect(eurToDen(denInputToEur('3000')!)).toBe(3000);                // renders back unchanged
+    expect(denInputToEur('1600', null)).toBe(26.02);
+  });
+
+  it('empty or garbage → null', () => {
+    expect(denInputToEur('')).toBeNull();
+    expect(denInputToEur('  ')).toBeNull();
+    expect(denInputToEur('abc', 10)).toBeNull();
   });
 });
 

@@ -9,7 +9,8 @@ import type { InsightsResponse } from '@/lib/api';
 import { formatMoney } from '@/lib/currency';
 import { EmptyState } from '@/components/EmptyState';
 import { KpiCard as Kpi } from '@/components/insights/KpiCard';
-import { moneyTip, pct } from '@/components/insights/shared/tabFormat';
+import { moneyAxis, moneyTip, pct } from '@/components/insights/shared/tabFormat';
+import { predictionListLabel } from '@/lib/predictionListLabel';
 
 // Insights → Prediction lists. Moved verbatim out of ManagementInsightsPage
 // (WP0) so the Lists package edits its own file.
@@ -46,7 +47,7 @@ export default function PredictionListsTab({ data }: { data: InsightsResponse })
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2"><ListChecks className="h-4 w-4" /> Money generated per prediction list</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2"><ListChecks className="h-4 w-4" /> {i18n.t('insights.moneyPerList')}</CardTitle>
         </CardHeader>
         <CardContent className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -69,8 +70,8 @@ export default function PredictionListsTab({ data }: { data: InsightsResponse })
                 <tr key={l.list_id} className="border-b last:border-0 hover:bg-muted/30">
                   <td className="py-2 px-2 font-medium">
                     <span className="flex items-center gap-2">
-                      {l.name}
-                      <Badge variant="outline" className="text-[10px]">{l.type === 'uploaded' ? 'campaign' : 'segment'}</Badge>
+                      {predictionListLabel(l.name)}
+                      <Badge variant="outline" className="text-[10px]">{l.type === 'uploaded' ? i18n.t('insights.listTypeCampaign') : i18n.t('insights.listTypeSegment')}</Badge>
                     </span>
                   </td>
                   <td className="py-2 px-2 text-right tabular-nums text-muted-foreground">{l.members.toLocaleString()}</td>
@@ -107,18 +108,18 @@ export default function PredictionListsTab({ data }: { data: InsightsResponse })
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={lists.filter(l => l.revenue > 0).slice(0, 15)}>
               <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-              <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-25} textAnchor="end" height={70} />
-              <YAxis tick={{ fontSize: 11 }} />
+              <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-25} textAnchor="end" height={70} tickFormatter={(n: string) => predictionListLabel(n)} />
+              {/* revenue is stored EUR: axis + tooltip show денари. */}
+              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => moneyAxis(Number(v))} width={80} />
               <Tooltip formatter={(v: any) => moneyTip(Number(v))} />
-              <Bar dataKey="revenue" fill="hsl(142,76%,36%)" name="revenue" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="revenue" fill="hsl(142,76%,36%)" name={i18n.t('insights.revenue')} radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
 
       <p className="text-xs text-muted-foreground px-1">
-        Attribution is captured when an order is created, so list ROI is exact from launch forward.
-        Returns count as refunds (money that came back in this COD business). Members shows current list size.
+        {i18n.t('insights.listsFootnote')}
       </p>
     </div>
   );

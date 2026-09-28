@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { AppLayout } from '@/layouts/AppLayout';
 import { apiGetAffiliatePortalOffers } from '@/lib/api';
-import { formatMoney } from '@/lib/currency';
+import { formatEurExact } from '@/lib/currency';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,7 +11,9 @@ import { Copy, Loader2, Package } from 'lucide-react';
 import { EmptyState } from '@/components/EmptyState';
 
 /** Offers this affiliate is approved to run — payout shown is THEIR payout
- *  (override-aware, EUR-only). The offer_id is what they put in the API call. */
+ *  (override-aware), in EUR via formatEurExact: a euro debt to a foreign
+ *  webmaster, the documented exception to the денари-only UI (elyon-currency,
+ *  same as the portal dashboard). The offer_id is what they put in the API call. */
 export default function AffiliateOffersCataloguePage() {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -50,7 +52,7 @@ export default function AffiliateOffersCataloguePage() {
               </CardHeader>
               <CardContent className="space-y-3">
                 <div>
-                  <p className="text-2xl font-bold text-[hsl(var(--success))]">{formatMoney(o.payout_eur)}</p>
+                  <p className="text-2xl font-bold text-[hsl(var(--success))]">{formatEurExact(o.payout_eur)}</p>
                   <p className="text-xs text-muted-foreground">{t('affiliate.payoutPerBuyout')}</p>
                 </div>
                 {o.description && <p className="text-sm text-muted-foreground">{o.description}</p>}

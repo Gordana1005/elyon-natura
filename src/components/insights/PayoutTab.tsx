@@ -29,6 +29,15 @@ import {
   type AgentPayoutPreview,
 } from '@/lib/api';
 import { formatMoney, formatPriceInline, eurToDen, denToEur } from '@/lib/currency';
+import { formatDate } from '@/i18n/dates';
+
+// DISPLAY ONLY — the payout maths (earned / settled / unpaid, the settlement
+// amount) is untouched and stays in the stored EUR; every figure on screen and
+// in the printed report is денари via formatMoney.
+
+/** A YYYY-MM-DD (or timestamp) day as dd.mm.yyyy; '—' when missing. */
+const dmy = (v: string | null | undefined) =>
+  v ? String(v).slice(0, 10).split('-').reverse().join('.') : '—';
 
 export default function PayoutTab() {
   const { t } = useTranslation();
@@ -257,6 +266,12 @@ export default function PayoutTab() {
     String(v ?? '').replace(/[&<>"']/g, (c) =>
       ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
 
+  // Stored method codes ('cash' / 'bank' / 'other') → the reader's language;
+  // anything else (older free text) is shown as saved.
+  const methodLabel = (m: string | null | undefined) =>
+    m === 'cash' ? t('payout.methodCash') : m === 'bank' ? t('payout.methodBank')
+      : m === 'other' ? t('payout.methodOther') : (m || '—');
+
   const printReport = async (id: string) => {
     try {
       const report = await apiGetAgentPayoutReport(id);
@@ -264,11 +279,11 @@ export default function PayoutTab() {
       const lines = (s.items || []).map((it: any) =>
         `<tr>
           <td style="padding:4px 8px;border-bottom:1px solid #eee">${esc(it.display_id || it.order_id?.slice(0, 8) || '—')}</td>
-          <td style="padding:4px 8px;border-bottom:1px solid #eee">${it.paid_at ? esc(String(it.paid_at).slice(0, 10)) : '—'}</td>
+          <td style="padding:4px 8px;border-bottom:1px solid #eee">${it.paid_at ? esc(dmy(it.paid_at)) : '—'}</td>
           <td style="padding:4px 8px;border-bottom:1px solid #eee;text-align:right">${Number(it.package_units)}</td>
           <td style="padding:4px 8px;border-bottom:1px solid #eee;text-align:right">${formatMoney(it.bonus_eur)}</td>
         </tr>`).join('');
-      const html = `<!DOCTYPE html><html><head><title>${esc(report.report_title)}</title>
+      const html = `<!DOCTYPE html><html><head><title>${esc(t('payout.reportTitle'))}</title>
         <style>
           body{font-family:system-ui,sans-serif;padding:32px;color:#111;max-width:800px;margin:0 auto}
           h1{font-size:20px;margin:0 0 4px} h2{font-size:14px;color:#555;font-weight:500;margin:0 0 24px}
@@ -283,11 +298,11 @@ export default function PayoutTab() {
         <h1>${esc(t('payout.reportTitle'))}</h1>
         <h2>${esc(s.agent_name || '')} · ${esc(s.status === 'voided' ? t('payout.statusVoided') : t('payout.statusPaid'))}</h2>
         <div class="meta">
-          <div><b>${esc(t('payout.colPeriod'))}</b> ${esc(String(s.period_from).slice(0, 10))} → ${esc(String(s.period_to).slice(0, 10))}</div>
-          <div><b>${esc(t('payout.paidOn'))}</b> ${esc(s.paid_on)}</div>
+          <div><b>${esc(t('payout.colPeriod'))}</b> ${esc(dmy(s.period_from))} → ${esc(dmy(s.period_to))}</div>
+          <div><b>${esc(t('payout.paidOn'))}</b> ${esc(dmy(s.paid_on))}</div>
           <div><b>${esc(t('payout.colPackages'))}</b> ${Number(s.packages_count)}</div>
           <div><b>${esc(t('payout.colAmount'))}</b> ${formatMoney(s.amount_eur)}</div>
-          <div><b>${esc(t('payout.method'))}</b> ${esc(s.method || '—')}</div>
+          <div><b>${esc(t('payout.method'))}</b> ${esc(methodLabel(s.method))}</div>
           <div><b>${esc(t('payout.notes'))}</b> ${esc(s.notes || '—')}</div>
           ${s.amount_source === 'manual' ? `
           <div style="grid-column:1/-1"><b>${esc(t('payout.adjustedLabel'))}</b> ${esc(t('payout.adjustedDetail', {
@@ -303,7 +318,7 @@ export default function PayoutTab() {
             amount: `${formatMoney(s.amount_eur)}`,
           }))}</strong>
         </div>
-        <p class="footer">${esc(report.currency_note || '')}<br/>${esc(t('payout.generatedAt', { at: report.generated_at }))}<br/>${esc(t('payout.commissionLegend'))}</p>
+        <p class="footer">${esc(t('payout.currencyNote'))}<br/>${esc(t('payout.generatedAt', { at: report.generated_at ? formatDate(report.generated_at, 'dd.MM.yyyy HH:mm') : '' }))}<br/>${esc(t('payout.commissionLegend'))}</p>
         <p class="noprint"><button onclick="window.print()">${esc(t('payout.printSavePdf'))}</button></p>
         <script>setTimeout(function(){window.print()},400)</script>
         </body></html>`;
@@ -405,7 +420,7 @@ export default function PayoutTab() {
                   <td className="px-3 py-3 text-right">{formatMoney(r.payout_earned)}</td>
                   <td className="px-3 py-3 text-right text-muted-foreground">{formatMoney(r.payout_settled)}</td>
                   <td className="px-3 py-3 text-right font-semibold text-emerald-600">{formatMoney(r.payout_unpaid)}</td>
-                  <td className="px-3 py-3 text-right text-xs">{r.last_paid_on || '—'}</td>
+                  <td className="px-3 py-3 text-right text-xs">{dmy(r.last_paid_on)}</td>
                   <td className="px-3 py-3 text-right">
                     <Button
                       size="sm"
@@ -454,7 +469,7 @@ export default function PayoutTab() {
                     <tr key={h.id} className="border-b last:border-0">
                       <td className="py-2">{h.agent_name || h.agent_user_id.slice(0, 8)}</td>
                       <td className="py-2 text-xs text-muted-foreground">
-                        {String(h.period_from).slice(0, 10)} → {String(h.period_to).slice(0, 10)}
+                        {dmy(h.period_from)} → {dmy(h.period_to)}
                       </td>
                       <td className="py-2 text-right">{h.packages_count}</td>
                       <td className="py-2 text-right font-semibold whitespace-nowrap">
@@ -470,8 +485,8 @@ export default function PayoutTab() {
                           </span>
                         )}
                       </td>
-                      <td className="py-2 text-right text-xs">{h.paid_on}</td>
-                      <td className="py-2 pl-3 text-xs text-muted-foreground">{h.method || '—'}</td>
+                      <td className="py-2 text-right text-xs">{dmy(h.paid_on)}</td>
+                      <td className="py-2 pl-3 text-xs text-muted-foreground">{methodLabel(h.method)}</td>
                       <td className="py-2 text-xs text-muted-foreground max-w-[220px]">
                         <span className="block truncate" title={h.notes || undefined}>
                           {h.notes || '—'}

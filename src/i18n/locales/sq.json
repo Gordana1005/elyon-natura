@@ -216,7 +216,7 @@
     "family_refused": "Burri / gruaja refuzoi",
     "wrong_product": "Produkt i gabuar",
     "duplicate_order": "Porosi e dyfishtë",
-    "no_parcel_7d": "Asnjë pako brenda 7 ditëve",
+    "no_parcel_7d": "Asnjë pako MEX në afat",
     "other": "Tjetër"
   },
   "cancelPicker": {
@@ -682,7 +682,7 @@
     "statSkipped": "Pa telefon",
     "statFailed": "Të dështuara",
     "reset": "Importo një skedar tjetër",
-    "help": "Shumat lexohen si EUR. Numrat e telefonit normalizohen në +389 dhe përputhen sipas 8 shifrave të fundit. Datat pranojnë VVVV-MM-DD ose DD.MM.VVVV. Ringarkimi i të njëjtit skedar është i sigurt — porositë deduplikohen sipas numrit të porosisë."
+    "help": "Çmimet në skedar lexohen si EUR (njësia në të cilën ruhen) — pamja paraprake dhe CRM i shfaqin në denarë. Numrat e telefonit normalizohen në +389 dhe përputhen sipas 8 shifrave të fundit. Datat pranojnë VVVV-MM-DD ose DD.MM.VVVV. Ringarkimi i të njëjtit skedar është i sigurt — porositë deduplikohen sipas numrit të porosisë."
   },
   "callHist": {
     "sourceOrder": "Porosi",
@@ -713,7 +713,8 @@
     "loadingAudio": "Po ngarkohet audio…",
     "loadRecording": "Ngarko regjistrimin",
     "noRecordsDesc": "Historiku i thirrjeve do të shfaqet këtu ndërsa agjentët bëjnë thirrje.",
-    "when": "Kur"
+    "when": "Kur",
+    "productsCount": "Produkte ({{n}})"
   },
   "orderCalls": {
     "title": "Telefonatat",
@@ -879,6 +880,35 @@
       "colPrediction": "Lista parashikuese",
       "colTotal": "Totali",
       "footnote": "Realizimi = lead-e të punuara që ende qëndrojnë të konfirmuara, të dërguara ose të paguara. Totali përfshin edhe porositë më të vjetra të importuara para se të ekzistonte ndarja."
+    },
+    "vsYesterday": "krahasuar me dje",
+    "chartCalls": "Thirrje",
+    "statLost": "humbur",
+    "statCalls": "thirrje",
+    "revenuePaidSeries": "Të ardhura (të paguara)",
+    "rankByPaidRevenue": "#{{rank}} sipas të ardhurave të paguara",
+    "rankPaid": "të paguara",
+    "rankConv": "konv.",
+    "alert": {
+      "return_rate": "Norma e kthimeve është {{pct}}% (mbi 20%)",
+      "conversion": "Norma e konvertimit është {{pct}}% (nën 10%)",
+      "outstanding": "Shuma e papaguar ({{amount}}) është shumë e lartë",
+      "pending": "{{n}} porosi ende në pritje"
+    },
+    "profit": "Fitimi",
+    "feed": {
+      "statusChange": "Ndryshoi porosinë {{order}} nga {{from}} në {{to}}",
+      "call": "Bëri një thirrje: {{outcome}} ({{context}})",
+      "note": "Shtoi një shënim te {{order}}: „{{text}}“",
+      "newOrder": "e re",
+      "anOrder": "një porosi",
+      "system": "Sistemi",
+      "agent": "Agjent",
+      "context": {
+        "order": "porosi",
+        "prediction_lead": "lead parashikimi",
+        "standalone": "thirrje e drejtpërdrejtë"
+      }
     }
   },
   "products": {
@@ -1001,8 +1031,8 @@
     "configuration": "Cilësimet",
     "maxLeads": "Maksimum lide të hapura për agjent",
     "maxLeadsDesc": "Një agjent që mban kaq lide të hapura nuk merr të reja derisa të mbarojë disa prej tyre",
-    "highValue": "Pragu i vlerës së lartë (EUR)",
-    "highValueDesc": "Porositë me {{value}} ose më shumë shkojnë te agjenti më i lirë. Çmimet ruhen në euro — një porosi tipike është 20-40 EUR.",
+    "highValue": "Pragu i vlerës së lartë (ден)",
+    "highValueDesc": "Porositë me {{value}} ose më shumë shkojnë te agjenti më pak i ngarkuar. Një porosi tipike është rreth 1.200–2.500 ден.",
     "waitingCallAgains": "Thirrje të përsëritura në pritje",
     "waitingCallAgainsSub": "Callback pending të pacaktuara — pas lideve të reja",
     "offlineReleaseMinutes": "Liro callback nëse agjenti është offline (minuta)",
@@ -1070,7 +1100,9 @@
     "view": "Shiko",
     "open": "Hap",
     "orderTaken": "Porosia u mor",
-    "noLeads": "Nuk u gjetën lead-e"
+    "noLeads": "Nuk u gjetën lead-e",
+    "productCount_one": "{{count}} produkt",
+    "productCount_other": "{{count}} produkte"
   },
   "predDetail": {
     "failedLoadList": "Ngarkimi i listës dështoi",
@@ -1248,7 +1280,8 @@
     "unpaidDigest": {
       "title": "Dërgesa të papaguara",
       "body": "{{total}} porosi të dërguara janë të papaguara mbi {{days}} ditë ({{new}} të reja sot). Më e vjetra: {{oldestOrder}} — {{oldestDays}} ditë.",
-      "staleSync": "Sinkronizimi i fundit me BigArena ishte {{syncAgeHours}} orë më parë — disa mund të jenë paguar tashmë."
+      "staleSync": "Sinkronizimi i fundit me BigArena ishte {{syncAgeHours}} orë më parë — disa mund të jenë paguar tashmë.",
+      "staleMex": "Sinkronizimi i fundit me MEX ishte {{mexSyncAgeHours}} orë më parë — disa mund të jenë paguar tashmë."
     },
     "leadsAssigned": {
       "title": "Ju janë caktuar lide të reja",
@@ -1277,6 +1310,28 @@
     "inactivitySelf": {
       "title": "Pa aktivitet për {{minutes}} minuta",
       "body": "Në ekran nuk është bërë asgjë prej {{minutes}} minutash. Nëse je në pushim, shtyp 'Bëj pushim'."
+    },
+    "orderPaid": {
+      "title": "Porosia u pagua",
+      "body": "Porosia {{order}} ({{customer}}) u pagua — {{amount}}."
+    },
+    "affiliateLead": {
+      "title": "Lead i ri nga partneri",
+      "body": "{{order}} nga {{affiliate}} ({{code}}) — {{offer}}. {{customer}} · {{phone}}"
+    },
+    "ordersAssigned": {
+      "title": "Ju janë caktuar porosi të reja",
+      "body_one": "Porosi të caktuara: {{count}} — hap „Caktuar mua“.",
+      "body_other": "Porosi të caktuara: {{count}} — hap „Caktuar mua“."
+    },
+    "orderAssigned": {
+      "title": "Ju është caktuar një porosi e re",
+      "body": "Ju është caktuar një porosi — hap „Caktuar mua“ për të filluar."
+    },
+    "predictionLeadsAssigned": {
+      "title": "Ju janë caktuar lead-e të reja parashikimi",
+      "body_one": "Lead-e të reja: {{count}} — hap „Lead-et e parashikimit“ për të filluar thirrjet.",
+      "body_other": "Lead-e të reja: {{count}} — hap „Lead-et e parashikimit“ për të filluar thirrjet."
     }
   },
   "bigArenaStock": {
@@ -1576,7 +1631,13 @@
     "exportCapped": "{{count}} porosi u shkruan — eksporti ndalon në {{cap}} rreshta. Ngushtoni intervalin e datave ose zgjidhni një interval më të vogël faqesh për pjesën tjetër.",
     "exportNothingMatched": "Asnjë porosi nuk përputhet me intervalin e zgjedhur.",
     "mexOffice": "Tërheqje MEX",
-    "fieldMexCity": "Zona e dërgesës MEX"
+    "fieldMexCity": "Zona e dërgesës MEX",
+    "exportPostponedPast": "{{n}} të shtyra pas {{date}}",
+    "exportedShippedDesc_one": "{{count}} porosi → {{file}} · statusi u vendos I dërguar",
+    "exportedShippedDesc_other": "{{count}} porosi → {{file}} · statusi u vendos I dërguar",
+    "exportedStatusFailedDesc": "CSV u shkarkua; porositë janë ende të konfirmuara.",
+    "exportedDesc_one": "{{count}} porosi → {{file}}",
+    "exportedDesc_other": "{{count}} porosi → {{file}}"
   },
   "intel": {
     "title": "Inteligjenca e klientit",
@@ -2138,7 +2199,7 @@
         "mex_natura": "MEX · NATURA",
         "web": "Dyqani online",
         "collabbox": "collabBox",
-        "no_parcel_rule": "Rregulli 7 ditë pa pako"
+        "no_parcel_rule": "Rregulli {{days}} ditë pa pako"
       },
       "feedDesc": {
         "altercpa": "Pasqyra e lead-eve — lead-e të reja çdo 2 min, rezultatet çdo 5 min (07:00–20:55)",
@@ -2206,7 +2267,7 @@
         "modeReport": "Raport",
         "modeApply": "Zbato",
         "hintReport": "Raport: ekzekutimi i natës vetëm i rendit porositë; asgjë nuk anulohet.",
-        "hintApply": "Zbato: ekzekutimi i natës i anulon (arsyeja: pa pako pas 7 ditësh).",
+        "hintApply": "Zbato: ekzekutimi i natës i anulon (arsyeja: pa pako pas {{days}} ditësh).",
         "switchLabel": "Anulo automatikisht",
         "lastRun": "Ekzekutimi i fundit {{time}}",
         "trigger": {
@@ -2223,15 +2284,15 @@
         "openOrders": "Hap këto porosi",
         "download": "Shkarko raportin e fundit (CSV)",
         "downloadEmpty": "Ende nuk ka ekzekutim për të shkarkuar.",
-        "confirmApplyTitle": "Të kalohet rregulli 7 ditë në Zbato?",
+        "confirmApplyTitle": "Të kalohet rregulli {{days}} ditë në Zbato?",
         "confirmApplyBody": "Në ekzekutimin e radhës — {{time}} ora e Shkupit — rregulli do t'i ANULOJË shitjet AlterCPA që ende nuk kanë pako MEX. Nëse do të ekzekutohej tani, do të anulonte {{count}} porosi ({{value}}). Edhe {{linking}} kanë një pako të palidhur në të njëjtin telefon dhe nuk anulohen kurrë. Një pako që shfaqet më vonë e rihap porosinë.",
-        "confirmReportTitle": "Të kthehet rregulli 7 ditë në Raport?",
+        "confirmReportTitle": "Të kthehet rregulli {{days}} ditë në Raport?",
         "confirmReportBody": "Nga ekzekutimi i radhës ({{time}} ora e Shkupit) rregulli vetëm shkruan raportin; asgjë nuk anulohet.",
         "confirmApply": "Po, kalo në Zbato",
         "confirmReport": "Kalo në Raport",
         "previewLoading": "Duke numëruar sa do të anulonte ekzekutimi i radhës…",
         "previewFailed": "Porositë nuk mund të numëroheshin — provo përsëri.",
-        "switched": "Rregulli 7 ditë: {{mode}}"
+        "switched": "Rregulli {{days}} ditë: {{mode}}"
       },
       "cron": {
         "title": "Detyrat e planifikuara (pg_cron)",
@@ -2247,7 +2308,7 @@
       },
       "err": {
         "owners_only": "Vetëm pronarët e biznesit e shohin gjendjen e integrimeve.",
-        "rule_not_installed": "Rregulli 7 ditë ende nuk është instaluar.",
+        "rule_not_installed": "Rregulli pa pako ende nuk është instaluar.",
         "no_run": "Ende nuk ka ekzekutim për të shkarkuar.",
         "bad_mode": "Mënyrë e panjohur."
       },
@@ -2916,7 +2977,13 @@
     "ownersOnly": "Vetëm pronarët e biznesit i shohin këto shifra.",
     "loadFailed": "Shifrat nuk u ngarkuan",
     "noAccess": "Asnjë pjesë e Vështrimeve nuk është e qasshme për ju",
-    "noAccessDesc": "Kërkoni qasje nga një administrator."
+    "noAccessDesc": "Kërkoni qasje nga një administrator.",
+    "topProductsByRevenue": "Produktet kryesore sipas të ardhurave",
+    "bySourceNote": "Porositë historike janë kryesisht importe 'manual'; detajet e burimit rriten me ardhjen e porosive nga webhook/lidet.",
+    "moneyPerList": "Të ardhurat për çdo listë parashikimi",
+    "listTypeCampaign": "fushatë",
+    "listTypeSegment": "segment",
+    "listsFootnote": "Atribuimi regjistrohet kur krijohet porosia, ndaj kthimi për listë është i saktë nga nisja e tutje. Kthimet numërohen si rimbursime (para që u kthyen në këtë biznes me pagesë në dorëzim). Anëtarët tregon madhësinë aktuale të listës."
   },
   "agentsTab": {
     "today": "Sot",
@@ -3001,7 +3068,13 @@
     "start": "Fillimi",
     "noDataDesc": "Të dhënat e performancës do të shfaqen ndërsa agjentët punojnë.",
     "altercpa": "AlterCPA (pending)",
-    "imported": "Historik i importuar"
+    "imported": "Historik i importuar",
+    "rangeTo": "deri",
+    "salesActivity": "Aktiviteti i shitjeve",
+    "salesQuality": "Cilësia e shitjeve",
+    "financialImpact": "Ndikimi financiar",
+    "pkgCount_one": "{{count}} pako",
+    "pkgCount_other": "{{count}} pako"
   },
   "payout": {
     "unpaidOnly": "Vetëm të papaguara",
@@ -3067,14 +3140,29 @@
     "generatedAt": "Gjeneruar {{at}}",
     "commissionLegend": "Komisioni: për paketë të paguar — <1.540 ден→60 ден, 1.540–2.150 ден→120 ден, ≥2.150 ден→185 ден",
     "printSavePdf": "Printo / Ruaj PDF",
-    "andMore": "+{{n}} të tjera…"
+    "andMore": "+{{n}} të tjera…",
+    "currencyNote": "Të gjitha shumat janë në denarë (MKD)."
   },
   "ppExport": {
     "title": "Eksporto raportin Pure Profit",
     "sheetPerSection": "Një fletë për çdo seksion",
     "forImports": "Për importe / mjete të tjera",
     "exporting": "Po eksportohet…",
-    "exportBtn": "Eksporto {{fmt}}"
+    "exportBtn": "Eksporto {{fmt}}",
+    "openBtn": "Eksporto",
+    "period": "Periudha: {{range}}",
+    "today": "sot",
+    "allTime": "gjithë kohën",
+    "section": {
+      "summary": "Përmbledhje",
+      "summaryHint": "Para të arkëtuara, TVSH, kosto e mallit, transporti, komisionet, fitimi i pastër",
+      "products": "Sipas produktit",
+      "productsHint": "Paketa, të ardhura, kosto dhe fitim për produkt",
+      "logistics": "Kostot e transportit sipas korrierit",
+      "logisticsHint": "Numri i të dorëzuarave/kthyerave dhe shpenzimi",
+      "commissions": "Komisionet e agjentëve",
+      "commissionsHint": "Pagesat dhe paketat e shitura për agjent"
+    }
   },
   "callTimeline": {
     "today": "Sot",
@@ -3251,7 +3339,7 @@
     "createCampaign": "Krijo fushatë",
     "campaignName": "Emri i fushatës",
     "platform": "Platforma",
-    "budgetUsd": "Buxheti ($)",
+    "budgetUsd": "Buxheti (ден)",
     "notes": "Shënime",
     "notesPh": "Detajet e fushatës...",
     "create": "Krijo",
@@ -3497,7 +3585,10 @@
     "shadowOn": "Motori i pamjes u nis (natën në 03:30).",
     "shadowOff": "Motori i pamjes u ndal. Listat aktive vazhdojnë të punojnë.",
     "recomputedLive": "Listat aktive u rillogaritën ({{n}} klientë).",
-    "recomputedPreview": "Pamja u rindërtua."
+    "recomputedPreview": "Pamja u rindërtua.",
+    "cronAtSkopje": "{{time}} Shkup",
+    "cronOff": "fikur",
+    "cronStopped": "ndalur"
   },
   "affiliatesAdmin": {
     "tabDashboard": "Paneli",
@@ -3590,7 +3681,7 @@
     "fieldProduct": "Produkti",
     "fieldProductHint": "Produkti i katalogut në të cilin kthehet lead-i i kësaj oferte.",
     "fieldPayout": "Komisioni (€)",
-    "fieldSellPrice": "Çmimi i shitjes (€)",
+    "fieldSellPrice": "Çmimi i shitjes (ден)",
     "sellPriceHint": "Lëreni bosh për të përdorur çmimin e vetë produktit",
     "fieldDescription": "Përshkrimi",
     "fieldTerms": "Kushtet",
@@ -3830,7 +3921,7 @@
     "searchPlaceholder": "Emri ose telefoni…",
     "noLeads": "Nuk ka rezultate",
     "noLeadsHint": "Zgjeroni filtrat ose nisni një sinkronizim.",
-    "noRate": "pa kurs në euro",
+    "noRate": "pa kurs këmbimi",
     "phase_1": "Në përpunim",
     "phase_2": "Në pritje",
     "phase_3": "E miratuar",
@@ -3841,7 +3932,7 @@
     "skip_unmapped_offer": "Oferta ende e palidhur",
     "skip_test_order": "Porosi provë",
     "skip_no_phone": "Pa telefon të përdorshëm",
-    "skip_no_fx_rate": "Valuta nuk ka kurs në euro",
+    "skip_no_fx_rate": "Valuta nuk ka kurs këmbimi",
     "colDate": "Data",
     "colGeo": "Shteti",
     "colOffer": "Oferta",
@@ -4275,7 +4366,7 @@
         "critical": "Kritike"
       },
       "kind": {
-        "approved_no_parcel_7d": "Të miratuara, pa dërgesë pas 7 ditësh",
+        "approved_no_parcel_7d": "Të miratuara, pa dërgesë pas {{days}} ditësh",
         "mex_problem": "Probleme në MEX — problematike, tentativë dorëzimi, e refuzuar",
         "cod_mismatch": "Pagesa në dorëzim ≠ çmimi i porosisë",
         "unlinked_parcels": "Dërgesa në MEX pa porosi",

@@ -6,9 +6,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { apiGetOperationsCenter, apiGetActiveCallViews } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { formatMoney } from '@/lib/currency';
 import { EmptyState } from '@/components/EmptyState';
 import {
-  Activity, Users, ShoppingCart, Truck, RotateCcw, DollarSign,
+  Activity, Users, ShoppingCart, Truck, RotateCcw, Banknote,
   RefreshCw, Loader2, Circle, CheckCircle2, TrendingUp, Eye, Phone,
 } from 'lucide-react';
 
@@ -99,9 +100,9 @@ export default function OperationsPage() {
     { label: t('ops.ordersToday'), value: kpi?.total_orders_today || 0, icon: ShoppingCart, color: 'bg-primary/10 text-primary' },
     { label: t('status.confirmed'), value: kpi?.confirmed_today || 0, icon: CheckCircle2, color: 'bg-emerald-500/10 text-emerald-600' },
     { label: t('status.shipped'), value: kpi?.shipped_today || 0, icon: Truck, color: 'bg-blue-500/10 text-blue-600' },
-    { label: t('status.paid'), value: kpi?.paid_today || 0, icon: DollarSign, color: 'bg-violet-500/10 text-violet-600' },
+    { label: t('status.paid'), value: kpi?.paid_today || 0, icon: Banknote, color: 'bg-violet-500/10 text-violet-600' },
     { label: t('ops.returns'), value: kpi?.returned_today || 0, icon: RotateCcw, color: (kpi?.returned_today || 0) > 0 ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground' },
-    { label: t('ops.todaysRevenue'), value: `$${(kpi?.revenue_today || 0).toLocaleString()}`, icon: TrendingUp, color: 'bg-emerald-500/10 text-emerald-600' },
+    { label: t('ops.todaysRevenue'), value: formatMoney(kpi?.revenue_today || 0), icon: TrendingUp, color: 'bg-emerald-500/10 text-emerald-600' },
   ];
 
   return (

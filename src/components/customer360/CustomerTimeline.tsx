@@ -21,6 +21,7 @@ import { apiErrorText } from '@/i18n/apiErrors';
 import { formatDenari, formatMoney } from '@/lib/currency';
 import { orderReasonText } from '@/lib/orderReason';
 import { cleanNoteForDisplay } from '@/lib/notes';
+import { predictionListLabel } from '@/lib/predictionListLabel';
 import { formatProductWithQuantity, cn } from '@/lib/utils';
 import type { OrderStatus } from '@/types';
 import {
@@ -414,7 +415,7 @@ function Header({ tl }: { tl: TimelineData }) {
       {s.lists.length > 0 && (
         <div className="flex flex-wrap items-center gap-1 text-xs">
           <span className="text-muted-foreground">{t('customer360.listsNow')}:</span>
-          {s.lists.map((l) => <Badge key={l} variant="outline" className="px-1.5 py-0 text-[10px]">{l}</Badge>)}
+          {s.lists.map((l) => <Badge key={l} variant="outline" className="px-1.5 py-0 text-[10px]" title={l}>{predictionListLabel(l)}</Badge>)}
         </div>
       )}
     </div>

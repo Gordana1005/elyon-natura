@@ -48,7 +48,7 @@ import { cancelReasonRequiresNote } from '@/lib/cancellationReasons';
 import { isTrashSelectionValid } from '@/lib/trashReasons';
 import type { CancellationReason, TrashReason } from '@/lib/api';
 import { format } from 'date-fns'; // machine 'yyyy-MM-dd' payloads only
-import { formatDate } from '@/i18n/dates';
+import { formatDate, formatDayDmy } from '@/i18n/dates';
 
 export type CallOutcome =
   | 'no_answer' | 'interested' | 'not_interested' | 'wrong_number' | 'call_again'
@@ -744,7 +744,7 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
                 <span className="font-semibold text-muted-foreground">{t('orderModal.confirmedBy')}</span>
                 <span className="font-medium">{fullOrderData.confirmed_by_name || fullOrderData.assigned_agent_name}</span>
                 {fullOrderData.confirmed_at && (
-                  <span className="text-muted-foreground">({new Date(fullOrderData.confirmed_at).toLocaleDateString()})</span>
+                  <span className="text-muted-foreground">({formatDayDmy(fullOrderData.confirmed_at)})</span>
                 )}
                 <span className="ml-auto text-[10px] text-muted-foreground" title={t('orderModal.immutableTitle')}>
                   {t('orderModal.immutable')}
@@ -1069,12 +1069,15 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
                         </div>
                         <div>
                           <label className="mb-1 block text-[10px] uppercase tracking-wide text-muted-foreground">{t('orderModal.colPrice')}</label>
-                          <Input
-                            type="number" min={0} step="1" value={eurToDen(item.price_per_unit)}
-                            onChange={e => updateItem(idx, 'price_per_unit', denToEur(Math.max(0, parseFloat(e.target.value) || 0)))}
-                            className="h-8 text-sm text-right tabular-nums"
-                            disabled={!isEditable}
-                          />
+                          <div className="relative">
+                            <Input
+                              type="number" min={0} step="1" value={eurToDen(item.price_per_unit)}
+                              onChange={e => updateItem(idx, 'price_per_unit', denToEur(Math.max(0, parseFloat(e.target.value) || 0)))}
+                              className="h-8 pr-9 text-sm text-right tabular-nums"
+                              disabled={!isEditable}
+                            />
+                            <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">ден</span>
+                          </div>
                         </div>
                         <div>
                           <label className="mb-1 block text-[10px] uppercase tracking-wide text-muted-foreground">{t('orderModal.colTotal')}</label>
@@ -1174,14 +1177,19 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
 
                 <div className="flex items-center gap-2 pt-1">
                   <span className="text-xs text-muted-foreground shrink-0">{t('orderModal.amountPaid')}</span>
-                  <Input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={amountPaid}
-                    onChange={e => setAmountPaid(Math.max(0, parseFloat(e.target.value) || 0))}
-                    className="h-7 w-28 text-xs text-right ml-auto"
-                  />
+                  {/* Typed in денари; the state stays EUR like finalTotal, so the
+                      remaining-balance maths is unchanged. Local only — never sent. */}
+                  <div className="relative ml-auto">
+                    <Input
+                      type="number"
+                      min={0}
+                      step="1"
+                      value={eurToDen(amountPaid)}
+                      onChange={e => setAmountPaid(denToEur(Math.max(0, parseFloat(e.target.value) || 0)))}
+                      className="h-7 w-28 pr-8 text-xs text-right"
+                    />
+                    <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">ден</span>
+                  </div>
                 </div>
                 {amountPaid > 0 && (
                   <div className="flex justify-between text-xs">
@@ -1277,7 +1285,7 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
                         <span className="font-medium text-[10px] uppercase tracking-wide text-amber-800 dark:text-amber-300">
                           {n.author_name || t('orderModal.system')}
                         </span>
-                        <span className="text-muted-foreground text-[10px]">{new Date(n.created_at).toLocaleDateString()}</span>
+                        <span className="text-muted-foreground text-[10px]">{formatDayDmy(n.created_at)}</span>
                       </div>
                       <p className="text-muted-foreground whitespace-pre-wrap break-words">{cleanNoteForDisplay(n.text)}</p>
                     </div>

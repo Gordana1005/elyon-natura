@@ -10,6 +10,7 @@ import {
   PREDICTION_LEAD_COLORS,
 } from '@/types';
 import { cn } from '@/lib/utils';
+import { formatMoney } from '@/lib/currency';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -63,7 +64,9 @@ function getLeadDisplayTotal(lead: LeadRow): number {
   if (items.length > 0) {
     return items.reduce((sum, i) => sum + calcRowTotal(i.quantity, i.price_per_unit), 0);
   }
-  return (lead.quantity || 1) * (lead.price || 0);
+  // prediction_leads.price is the lead's TOTAL, like orders.price (the api copies
+  // it straight into orders.price on conversion) — never × quantity.
+  return Number(lead.price || 0);
 }
 
 function leadToModalData(lead: LeadRow): OrderModalData {
@@ -406,10 +409,10 @@ export default function PredictionLeadsPage() {
                   </td>
                   <td className="px-4 py-3 text-muted-foreground hidden sm:table-cell">{lead.city || '—'}</td>
                   <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">
-                    {hasItems ? `${items.length} product${items.length > 1 ? 's' : ''}` : lead.product || '—'}
+                    {hasItems ? t('predLeads.productCount', { count: items.length }) : lead.product || '—'}
                   </td>
                   <td className="px-4 py-3 text-right font-bold font-mono tabular-nums text-primary">
-                    {displayTotal.toFixed(2)}
+                    {formatMoney(displayTotal)}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5">

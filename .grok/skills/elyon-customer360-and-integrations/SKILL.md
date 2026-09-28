@@ -117,7 +117,14 @@ Overview says `failed` where this page says `failing`.
 - **The rule** (20260938000000): `apply_no_parcel_rule()`, cron `no-parcel-rule` at :10 every
   hour, self-gated to `settings.hour` (21 → 21:10 Skopje), one scheduled run per Skopje day.
   Settings `app_settings.no_parcel_rule` = `{mode, days (never < 3), sources, from_date, hour}`,
-  seeded `report`; HANDOFF §2 records the owner flipping it to `apply` on 28.09. Report mode
+  seeded `report`; HANDOFF §2 records the owner flipping it to `apply` on 28.09. **The days have
+  ONE reader** since 20260940000300: `public.no_parcel_rule_days()` (default 10, floor 3) —
+  `apply_no_parcel_rule()`, `integrations_health().no_parcel.days_n`, `insights_overview`'s
+  attention `anp` (the item carries `days`) and `GET /orders?attention=approved_no_parcel_7d`
+  (`overview.ts attentionFilter(kind, now, {days, excludedPhone8s, testOrderIds})`, fed by the
+  api from that RPC; both also drop the owner's test phones). Never hardcode 7 (or 10) again;
+  the codes `no_parcel_7d` / `approved_no_parcel_7d` / `System (no-parcel-7d)` keep their names.
+  Report mode
   writes only the ledger (`no_parcel_rule_runs` / `_items`, owners-only RLS); apply mode cancels
   (`cancellation_reason = 'no_parcel_7d'`, history as `System (no-parcel-7d)`, a note,
   `elyon.bulk_repair` on). An order with an unlinked parcel on the same phone is `needs_linking`

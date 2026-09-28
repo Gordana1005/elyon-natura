@@ -611,6 +611,8 @@ export interface AltercpaPushPreview {
   params: Record<string, string>;
   url: string;
   remote: { phase: number | null; status: number | null; reason: number | null } | null;
+  /** Currency of params.base (the lead's own, lower-case: 'mkd' | 'eur' | …). Absent on an older api. */
+  base_currency?: string;
   warning?: string;
 }
 // verified: true = read-back confirmed every sent field applied on their side;
@@ -1369,7 +1371,7 @@ export interface PromoConfig {
   price_eur: number | null;
   /** Extra € the agent earns per qualifying ORDER (once, not per unit). */
   bonus_eur: number | null;
-  /** YYYY-MM-DD — the banner hides itself after this Sofia day. Null = until switched off. */
+  /** YYYY-MM-DD — the banner hides itself after this Skopje day. Null = until switched off. */
   expires_on: string | null;
   note: string;
   /**
@@ -2217,6 +2219,8 @@ export interface OverviewAttention {
   kind: OverviewAttentionKind;
   severity: 'warning' | 'critical';
   count: number;
+  /** approved_no_parcel_7d only: the rule's window in days (no_parcel_rule_days(), 20260940000300). */
+  days?: number | null;
   value_eur?: number | null;
   by_person?: { person_id: string; name: string; count: number }[] | null;
   by_status?: { status_id: number; status_name: string; count: number }[] | null;

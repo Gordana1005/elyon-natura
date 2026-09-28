@@ -54,12 +54,20 @@ export function fullAddress(o: any): string {
   return parts.join(', ');
 }
 
+/**
+ * An order's total in stored EUR: the sum of its lines, or — for an order with
+ * no order_items rows — `orders.price`, which IS the order total (not a unit
+ * price; verified 2026-09-28: on 17.692 of 21.996 multi-unit orders with lines,
+ * price = Σ order_items.total_price, and price × quantity matched only 87). The
+ * import sets total_price = price; the server's call history and lead→order
+ * conversion read it the same way. Never multiply it by `quantity`.
+ */
 export function orderTotal(o: any): number {
-  const items = o.order_items || [];
+  const items = o?.order_items || [];
   if (items.length > 0) {
     return items.reduce((s: number, i: any) => s + Number(i.total_price || 0), 0);
   }
-  return Number(o.price || 0) * Number(o.quantity || 1);
+  return Number(o?.price || 0);
 }
 
 export interface CustomerSummary {

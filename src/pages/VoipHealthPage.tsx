@@ -18,6 +18,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { KpiCard } from '@/components/insights/KpiCard';
 import { CHART_COLORS, fmtDuration } from '@/lib/design-utils';
+import { formatDayDmy } from '@/i18n/dates';
 import {
   apiGetVoipHealth, apiGetVoipHealthHistory, apiGetRecordingCoverage, apiGetVoipMinutes,
 } from '@/lib/api';
@@ -437,8 +438,8 @@ export default function VoipHealthPage() {
                       </div>
                       <span className="text-sm text-muted-foreground">
                         {t('voipHealth.minutes.cycleRange', {
-                          start: new Date(cycle.start).toLocaleDateString(),
-                          end: new Date(cycle.end).toLocaleDateString(),
+                          start: formatDayDmy(cycle.start),
+                          end: formatDayDmy(cycle.end),
                         })}
                         {' · '}
                         {t('voipHealth.minutes.daysRemaining', { days: cycle.days_remaining })}

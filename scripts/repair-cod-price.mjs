@@ -30,6 +30,11 @@
  *   node scripts/repair-cod-price.mjs [--since YYYY-MM-DD] [--until YYYY-MM-DD] [--hold ORD-1,…] [--expect candidates=N,…]
  *   node scripts/repair-cod-price.mjs --apply --run <id> [same --since/--until/--hold] [--actor mile@elyon.com] [--chunk 200]
  *        [--outside-quiet-window]
+ *   --include-zero-price  (opt-in, recorded in the run's options — the apply must repeat it) also re-price a
+ *        REAL product order whose price is exactly 0 and whose OWN parcel (register-agreed, one holder, its
+ *        channel) has COD > 0: owner rule 28.09.2026 "MEX is always right". Never a synthetic / "No prior
+ *        product on file" row, never an order without order_items lines, never COD 0 (a replacement).
+ *        See zeroPriceQualifies in scripts/lib/cod-price.mjs.
  *
  * --since/--until narrow by order creation (Skopje days, inclusive); default: all time.
  * An apply refuses: before migration 20260939000300 (keep_updated_at guard), outside the quiet
@@ -153,12 +158,12 @@ export function paidLine(candidates) {
 }
 
 // ─── main ───────────────────────────────────────────────────────────────────
-const USAGE = `usage: node scripts/repair-cod-price.mjs [--since YYYY-MM-DD] [--until YYYY-MM-DD] [--hold ORD-1,…] [--expect candidates=N,…]
-       node scripts/repair-cod-price.mjs --apply --run <id> [--since …] [--until …] [--hold …] [--actor <email>] [--chunk 200] [--outside-quiet-window]`;
+const USAGE = `usage: node scripts/repair-cod-price.mjs [--since YYYY-MM-DD] [--until YYYY-MM-DD] [--hold ORD-1,…] [--include-zero-price] [--expect candidates=N,…]
+       node scripts/repair-cod-price.mjs --apply --run <id> [--since …] [--until …] [--hold …] [--include-zero-price] [--actor <email>] [--chunk 200] [--outside-quiet-window]`;
 
 async function main() {
   const args = parseArgs(process.argv.slice(2), {
-    flags: ['apply', 'outside-quiet-window', 'help'],
+    flags: ['apply', 'outside-quiet-window', 'include-zero-price', 'help'],
     values: ['run', 'expect', 'actor', 'chunk', 'hold', 'since', 'until'],
   });
   if (args.help) { console.log(USAGE); return; }
@@ -171,7 +176,9 @@ async function main() {
   await requireRepairSchema({ forApply: APPLY });
   await requireKeepUpdatedAt({ forApply: APPLY });
   const hold = new Set(String(args.hold || '').split(',').map((s) => s.trim()).filter(Boolean));
-  const options = { since: args.since || null, until: args.until || null, hold: [...hold].sort() };
+  const includeZeroPrice = !!args['include-zero-price'];
+  // the flag is recorded only when set, so a default run's options (and its apply) are unchanged
+  const options = { since: args.since || null, until: args.until || null, hold: [...hold].sort(), ...(includeZeroPrice ? { include_zero_price: true } : {}) };
 
   // 1. load
   const acc = loadAcceptedDuplicates();
@@ -186,7 +193,14 @@ async function main() {
   // 2. classify
   const runTag = APPLY ? String(args.run).slice(0, 8) : 'dry-run';
   const today = fmtSkopje(Date.now()).slice(0, 10);
-  const plan = classifyCodPrice({ rows, items, payout, hold, accepted, runTag, today });
+  const plan = classifyCodPrice({ rows, items, payout, hold, accepted, runTag, today, includeZeroPrice });
+  if (includeZeroPrice) {
+    const zc = plan.candidates.filter((r) => r.rule === 'reprice_zero_price');
+    const zx = plan.excluded.filter((r) => r.rule === 'zero_price' || /(^| | )zero_price:/.test(r.why));
+    console.log(bold(`
+--include-zero-price: ${zc.length} real product order(s) at 0 ден take their own parcel's COD`) + ` · ${zx.length} price-0 row(s) still excluded`);
+    for (const r of zc) console.log(`  ${r.order.padEnd(11)} ${r.status.padEnd(9)} ${String(r.product).slice(0, 24).padEnd(24)} ${r.tracking} ${r.parcel_status} → ${r.new_price_eur} € (COD ${fmtMkd(r.cod_mkd)} ден)${r.detail === 'disposition' ? '  [sale_source_detail stays "disposition" — write-once]' : ''}`);
+  }
   const { candidates, excluded } = plan;
   const paid = paidLine(candidates);
 
@@ -261,7 +275,7 @@ async function main() {
     console.log(bold(`\nDry run recorded: ${green(id)}`) + `  (hash ${hash.slice(0, 12)}…, ${plan.lines.length} orders)`);
     console.log('Nothing was written to orders. After the owner has seen the CSVs, in the quiet window (after 20:55 Skopje):');
     console.log('  node scripts/assert-mk-target.mjs');
-    const same = `${options.since ? ` --since ${options.since}` : ''}${options.until ? ` --until ${options.until}` : ''}${options.hold.length ? ` --hold ${options.hold.join(',')}` : ''}`;
+    const same = `${options.since ? ` --since ${options.since}` : ''}${options.until ? ` --until ${options.until}` : ''}${options.hold.length ? ` --hold ${options.hold.join(',')}` : ''}${includeZeroPrice ? ' --include-zero-price' : ''}`;
     console.log(`  node scripts/repair-cod-price.mjs --apply --run ${id}${same}\n`);
     return;
   }

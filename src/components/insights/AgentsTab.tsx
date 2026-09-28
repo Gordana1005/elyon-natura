@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { EmptyState } from '@/components/EmptyState';
 import { apiGetAgentFilterOptions, apiGetAgentPerformance, type AgentFilterOption, type AgentPerformanceRow } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { eurToDen, formatMoney } from '@/lib/currency';
 
 // ── Agents tab (formerly the standalone "Performance" page) ──
 // Lives inside the Insights hub now; brings its own filters/date controls and
@@ -31,12 +32,17 @@ function getDateRange(preset: FilterPreset): { from: string; to: string } | null
   return null;
 }
 
-const fmt = (n: number | undefined | null) => { const v = n ?? 0; return v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v.toFixed(2); };
+// Every money field on this tab is stored EUR (gross/paid/outstanding revenue,
+// returned value, profit, AOV, per-package average, payout) — shown in денари.
+const fmt = (n: number | undefined | null) => formatMoney(n ?? 0);
 
 function exportCSV(data: AgentPerformanceRow[]) {
-  const header = 'Agent,Leads,Confirmed,Shipped,Paid,PackagesSold,PackagesAwaiting,Avg/Pkg,Payout,ReturnedOrders,ReturnedPackages,Cancelled,Trashed,Conv%,Ship%,Collect%,Ret%,Gross Rev,Paid Rev,Outstanding,Returned Val,Profit,AOV,Rev/Lead,Profit/Lead';
+  // Money columns in whole денари (MKD), converted from the stored EUR at the
+  // frozen peg — the header names the currency (elyon-currency rule 4).
+  const den = (v: number | undefined | null) => eurToDen(v ?? 0);
+  const header = 'Agent,Leads,Confirmed,Shipped,Paid,PackagesSold,PackagesAwaiting,Avg/Pkg (MKD),Payout (MKD),ReturnedOrders,ReturnedPackages,Cancelled,Trashed,Conv%,Ship%,Collect%,Ret%,Gross Rev (MKD),Paid Rev (MKD),Outstanding (MKD),Returned Val (MKD),Profit (MKD),AOV (MKD),Rev/Lead (MKD),Profit/Lead (MKD)';
   const rows = data.map(a =>
-    `"${a.full_name}",${a.leads_assigned},${a.total_confirmed},${a.total_shipped},${a.total_paid},${a.packages_sold ?? 0},${a.packages_awaiting ?? 0},${(a.avg_per_package ?? 0).toFixed(2)},${a.payout_earned ?? 0},${a.total_returned},${a.packages_returned ?? 0},${a.total_cancelled},${a.total_trashed},${a.conversion_rate},${a.shipment_rate},${a.collection_rate},${a.return_rate},${(a.gross_revenue ?? 0).toFixed(2)},${(a.paid_revenue ?? 0).toFixed(2)},${(a.outstanding_revenue ?? 0).toFixed(2)},${(a.returned_value ?? 0).toFixed(2)},${(a.total_profit ?? 0).toFixed(2)},${(a.avg_order_value ?? 0).toFixed(2)},${(a.revenue_per_lead ?? 0).toFixed(2)},${(a.profit_per_lead ?? 0).toFixed(2)}`
+    `"${a.full_name}",${a.leads_assigned},${a.total_confirmed},${a.total_shipped},${a.total_paid},${a.packages_sold ?? 0},${a.packages_awaiting ?? 0},${den(a.avg_per_package)},${den(a.payout_earned)},${a.total_returned},${a.packages_returned ?? 0},${a.total_cancelled},${a.total_trashed},${a.conversion_rate},${a.shipment_rate},${a.collection_rate},${a.return_rate},${den(a.gross_revenue)},${den(a.paid_revenue)},${den(a.outstanding_revenue)},${den(a.returned_value)},${den(a.total_profit)},${den(a.avg_order_value)},${den(a.revenue_per_lead)},${den(a.profit_per_lead)}`
   );
   const csv = [header, ...rows].join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
@@ -209,7 +215,7 @@ export default function AgentsTab() {
         {filter === 'custom' && (
           <div className="flex items-center gap-2">
             <Input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)} className="h-8 w-auto text-xs" />
-            <span className="text-muted-foreground text-xs">to</span>
+            <span className="text-muted-foreground text-xs">{t('agentsTab.rangeTo')}</span>
             <Input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)} className="h-8 w-auto text-xs" />
           </div>
         )}
@@ -295,7 +301,7 @@ export default function AgentsTab() {
         <Button size="sm" className="h-8 text-xs" onClick={applyFilters}>{t('agentsTab.apply')}</Button>
         {hasActiveFilters && (
           <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground" onClick={clearFilters}>
-            <X className="h-3 w-3 mr-1" /> Clear
+            <X className="h-3 w-3 mr-1" /> {t('common.clear')}
           </Button>
         )}
 
@@ -317,7 +323,7 @@ export default function AgentsTab() {
       <Card className="border-none shadow-sm">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-semibold text-card-foreground flex items-center gap-2">
-            <Users className="h-4 w-4 text-primary" /> Sales Activity
+            <Users className="h-4 w-4 text-primary" /> {t('agentsTab.salesActivity')}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -337,7 +343,7 @@ export default function AgentsTab() {
       <Card className="border-none shadow-sm">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-semibold text-card-foreground flex items-center gap-2">
-            <Target className="h-4 w-4 text-primary" /> Sales Quality
+            <Target className="h-4 w-4 text-primary" /> {t('agentsTab.salesQuality')}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -354,7 +360,7 @@ export default function AgentsTab() {
       <Card className="border-none shadow-sm">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-semibold text-card-foreground flex items-center gap-2">
-            <BarChart3 className="h-4 w-4 text-primary" /> Financial Impact
+            <BarChart3 className="h-4 w-4 text-primary" /> {t('agentsTab.financialImpact')}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -366,8 +372,8 @@ export default function AgentsTab() {
             {canSeeFinance && <SummaryCard label={t('agentsTab.profit')} value={fmt(totals.profit)} accent desc={t('agentsTab.paidMinusCost')} />}
             {canSeeFinance && <SummaryCard label={t('agentsTab.netContrib')} value={fmt(totals.netContribution)} accent={totals.netContribution > 0} negative={totals.netContribution < 0} desc={t('agentsTab.netContribDesc')} />}
             <SummaryCard label={t('agentsTab.avgOrder')} value={fmt(totals.aov)} desc={t('agentsTab.aovDesc')} />
-            {canSeeFinance && <SummaryCard label={t('agentsTab.revPerLead')} value={totals.leads > 0 ? fmt(totals.paidRevenue / totals.leads) : '0'} desc={t('agentsTab.revLeadDesc')} />}
-            {canSeeFinance && <SummaryCard label={t('agentsTab.profitPerLead')} value={totals.leads > 0 ? fmt(totals.profit / totals.leads) : '0'} desc={t('agentsTab.profitLeadDesc')} />}
+            {canSeeFinance && <SummaryCard label={t('agentsTab.revPerLead')} value={fmt(totals.leads > 0 ? totals.paidRevenue / totals.leads : 0)} desc={t('agentsTab.revLeadDesc')} />}
+            {canSeeFinance && <SummaryCard label={t('agentsTab.profitPerLead')} value={fmt(totals.leads > 0 ? totals.profit / totals.leads : 0)} desc={t('agentsTab.profitLeadDesc')} />}
           </div>
         </CardContent>
       </Card>
@@ -462,7 +468,7 @@ export default function AgentsTab() {
                     <td className="px-3 py-3 text-right text-destructive">
                       {a.total_returned}
                       {(a.packages_returned ?? 0) > 0 && (
-                        <span className="text-xs text-muted-foreground ml-1">({a.packages_returned} pkg)</span>
+                        <span className="text-xs text-muted-foreground ml-1">({t('agentsTab.pkgCount', { count: a.packages_returned })})</span>
                       )}
                     </td>
                     <td className="px-3 py-3 text-right text-muted-foreground">{a.total_cancelled}</td>

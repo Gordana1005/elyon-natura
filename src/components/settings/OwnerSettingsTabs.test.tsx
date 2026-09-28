@@ -152,11 +152,15 @@ describe('Settings → Integrations health', () => {
     expect(screen.getByText(i18n.t('settings.integrations.issues', { count: 2 }))).toBeInTheDocument();
   }, 30_000);
 
-  it('switching the 7-day rule to Apply states the exact count first, then switches', async () => {
+  it('switching the no-parcel rule to Apply states the exact count first, then switches', async () => {
     wrap(<IntegrationsHealthTab />);
-    const np = await screen.findByRole('region', { name: i18n.t('settings.integrations.feed.no_parcel_rule') }, { timeout: 10_000 });
-    expect(within(np).getByRole('link', { name: i18n.t('settings.integrations.np.openOrders') }).getAttribute('href'))
-      .toBe('/orders?attention=approved_no_parcel_7d');
+    // The card's window comes from the payload (days_n), never a hardcoded 7.
+    const np = await screen.findByRole('region', { name: i18n.t('settings.integrations.feed.no_parcel_rule', { days: 7 }) }, { timeout: 10_000 });
+    const href = within(np).getByRole('link', { name: i18n.t('settings.integrations.np.openOrders') }).getAttribute('href') ?? '';
+    const sp = new URLSearchParams(href.split('?')[1]);
+    expect(href.startsWith('/orders?')).toBe(true);
+    expect(sp.get('attention')).toBe('approved_no_parcel_7d');
+    expect(sp.get('lbl')).toBe(i18n.t('overview.attention.kind.approved_no_parcel_7d', { days: 7 }));
     fireEvent.click(within(np).getByRole('switch'));
     const body = await screen.findByText((t) => t.includes('522') && t.includes(formatMoney(14295.13)));
     expect(body.textContent).toContain('21:10');

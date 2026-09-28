@@ -19,9 +19,11 @@ import { apiGetCallHistory, apiGetAgents, apiGetRecordingAudioUrl } from '@/lib/
 import { useListenedMark } from '@/hooks/useListenedMark';
 import { AppLayout } from '@/layouts/AppLayout';
 import { cn } from '@/lib/utils';
+import { formatMoney } from '@/lib/currency';
 import { EmptyState } from '@/components/EmptyState';
 import { MobileCard, MobileCardHeader, MobileCardField, MobileCardActions } from '@/components/ui/mobile-card';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { predictionListLabel } from '@/lib/predictionListLabel';
 
 // The Result filter offers EVERY value the Result column can display, so "what
 // you filter == what you see". These are the canonical result tokens computed by
@@ -428,7 +430,7 @@ export default function CallHistoryPage() {
                       </div>
                     </TableCell>
                     <TableCell className="text-right font-mono text-xs tabular-nums font-medium">
-                      {log.total_price ? Number(log.total_price).toLocaleString() : <span className="text-muted-foreground">—</span>}
+                      {log.total_price ? formatMoney(log.total_price) : <span className="text-muted-foreground">—</span>}
                     </TableCell>
                     <TableCell className="text-right font-mono text-xs tabular-nums">
                       {(() => {
@@ -508,7 +510,7 @@ export default function CallHistoryPage() {
                 <div>
                   <span className="text-[10px] uppercase tracking-wider text-muted-foreground block">{t('ordersPage.colSource')}</span>
                   <span className="capitalize">{(log.order_source || log.source || '').replace(/_/g, ' ')}</span>
-                  {log.list_name && <span className="block text-[11px] text-muted-foreground">{log.list_name}</span>}
+                  {log.list_name && <span className="block text-[11px] text-muted-foreground" title={log.list_name}>{predictionListLabel(log.list_name)}</span>}
                 </div>
                 <div>
                   <span className="text-[10px] uppercase tracking-wider text-muted-foreground block">{t('callHist.reference')}</span>
@@ -536,7 +538,7 @@ export default function CallHistoryPage() {
               {log.product_items?.length > 0 && (
                 <div>
                   <h4 className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5 flex items-center gap-1">
-                    <ShoppingCart className="h-3 w-3" /> Products ({log.product_items.length})
+                    <ShoppingCart className="h-3 w-3" /> {t('callHist.productsCount', { n: log.product_items.length })}
                   </h4>
                   <div className="rounded-md border bg-card overflow-hidden">
                     <table className="w-full text-xs">
@@ -553,14 +555,14 @@ export default function CallHistoryPage() {
                           <tr key={idx} className="border-b last:border-0">
                             <td className="px-3 py-1.5 font-medium">{item.product_name}</td>
                             <td className="px-3 py-1.5 text-center tabular-nums">{item.quantity}</td>
-                            <td className="px-3 py-1.5 text-right tabular-nums font-mono">{Number(item.price_per_unit).toLocaleString()}</td>
-                            <td className="px-3 py-1.5 text-right tabular-nums font-mono font-medium">{Number(item.total_price).toLocaleString()}</td>
+                            <td className="px-3 py-1.5 text-right tabular-nums font-mono">{formatMoney(item.price_per_unit)}</td>
+                            <td className="px-3 py-1.5 text-right tabular-nums font-mono font-medium">{formatMoney(item.total_price)}</td>
                           </tr>
                         ))}
                         <tr className="bg-muted/30">
                           <td colSpan={3} className="px-3 py-1.5 text-right font-semibold">{t('createOrder.total')}</td>
                           <td className="px-3 py-1.5 text-right tabular-nums font-mono font-bold text-primary">
-                            {Number(log.total_price || 0).toLocaleString()}
+                            {formatMoney(log.total_price || 0)}
                           </td>
                         </tr>
                       </tbody>
@@ -654,7 +656,7 @@ export default function CallHistoryPage() {
                     ? log.product_items.map((i: any) => `${i.product_name} x${i.quantity}`).join(', ')
                     : (log.product_name || '—')}
                 />
-                {log.total_price ? <MobileCardField label={t('createOrder.total')} value={Number(log.total_price).toLocaleString()} /> : null}
+                {log.total_price ? <MobileCardField label={t('createOrder.total')} value={formatMoney(log.total_price)} /> : null}
                 {log.recording_file && (
                   <MobileCardActions>
                     {isListened(log) && (

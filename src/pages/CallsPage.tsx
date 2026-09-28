@@ -26,6 +26,7 @@ import { hoverLift } from '@/lib/design-utils';
 import { isSyntheticProductName } from '@/lib/utils';
 import { EmptyState } from '@/components/EmptyState';
 import { sortPendingQueue, pickNextPending as pickNextFromSorted } from '@/lib/pendingQueue';
+import { predictionListLabel } from '@/lib/predictionListLabel';
 
 // Link the call only to an order a call outcome can legitimately act on
 // (pending → confirm/cancel, etc.). Finished orders — paid, shipped, delivered,
@@ -1159,7 +1160,7 @@ export default function CallsPage() {
                         }`}
                         onClick={() => { switchToList(q.list_id); setListPickerOpen(false); }}
                       >
-                        <span className="truncate">{q.list_name}</span>
+                        <span className="truncate" title={q.list_name}>{predictionListLabel(q.list_name)}</span>
                         <span className="shrink-0 text-xs opacity-80">
                           {q.is_pendings
                             ? t('callsPage.queueCountPendings', { left: q.remaining, talked: q.talked ?? 0 })
@@ -1214,8 +1215,8 @@ export default function CallsPage() {
                   {/* Pendings read "left (N talked)" — leads have no fixed list
                       size, so "talked today" is the meaningful second number. */}
                   {q.is_pendings
-                    ? `${q.list_name} — ${t('callsPage.queueCountPendings', { left: q.remaining, talked: q.talked ?? 0 })}`
-                    : `${q.list_name} — ${q.remaining} (${q.total})`}
+                    ? `${predictionListLabel(q.list_name)} — ${t('callsPage.queueCountPendings', { left: q.remaining, talked: q.talked ?? 0 })}`
+                    : `${predictionListLabel(q.list_name)} — ${q.remaining} (${q.total})`}
                 </SelectItem>
               ))}
             </SelectContent>

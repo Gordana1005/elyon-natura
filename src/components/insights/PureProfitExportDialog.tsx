@@ -24,11 +24,10 @@ const n2 = (v: number | undefined | null) => Math.round((Number(v) || 0) * 100) 
 type SectionKey = 'summary' | 'products' | 'logistics' | 'commissions';
 type Section = { name: string; rows: Record<string, unknown>[]; widths: number[] };
 
-const SECTIONS: { key: SectionKey; label: string; hint: string }[] = [
-  { key: 'summary', label: 'Summary', hint: 'Cash, VAT, COGS, shipping, commissions, clear profit' },
-  { key: 'products', label: 'Product breakdown', hint: 'Per-product packages, revenue, cost, profit' },
-  { key: 'logistics', label: 'Shipping costs by courier', hint: 'Delivered/returned counts and spend' },
-  { key: 'commissions', label: 'Agent commissions', hint: 'Per-agent payouts and packages sold' },
+// Dialog labels are translated (ppExport.section.*); the FILE's sheet names and
+// column headers stay English on purpose (elyon-i18n: export file content).
+const SECTIONS: { key: SectionKey }[] = [
+  { key: 'summary' }, { key: 'products' }, { key: 'logistics' }, { key: 'commissions' },
 ];
 
 export default function PureProfitExportDialog({ data, range }: { data: InsightsResponse; range: DateRange }) {
@@ -54,8 +53,10 @@ export default function PureProfitExportDialog({ data, range }: { data: Insights
       // Denars only. The figures are stored in EUR but this report goes to
       // Macedonian readers, and a two-currency sheet invites someone to quote
       // the wrong column.
+      // Money rows fill 'MKD'; the count / percentage rows below fill their
+      // own column, so the MKD header never labels a count.
       const money = (metric: string, eur: number) => ({
-        'Metric': metric, 'MKD': eurToDen(eur),
+        'Metric': metric, 'MKD': eurToDen(eur), 'Count / %': '',
       });
       // Unchecked topics disappear from the Summary too (e.g. a report shared
       // without commission info must not carry the commissions line). Clear
@@ -63,7 +64,7 @@ export default function PureProfitExportDialog({ data, range }: { data: Insights
       // exactly — never show a total whose hidden parts can be derived.
       const commissions = pp.agent_commissions ?? pp.special_agent_commissions ?? 0;
       const shipping = (pp.delivery_cost ?? 0) + (pp.return_loss ?? 0);
-      const rows = [
+      const rows: Record<string, unknown>[] = [
         money('Cash collected (paid orders)', pp.cash_collected ?? 0),
         money(`VAT (${vatPct}% included in price)`, -(pp.vat ?? 0)),
         money('Product cost (COGS)', -(pp.cogs ?? 0)),
@@ -82,12 +83,12 @@ export default function PureProfitExportDialog({ data, range }: { data: Insights
         + (picked.commissions ? 0 : commissions);
       rows.push(money(excluded.length ? `Clear profit (excl. ${excluded.join(' & ')})` : 'Clear profit', clear));
       rows.push(
-        // Counts and percentages, not money — they share the value column.
-        { 'Metric': 'Paid orders', 'MKD': pp.paid_orders ?? 0 },
-        { 'Metric': 'Paid packages', 'MKD': pp.paid_packages ?? 0 },
-        { 'Metric': 'Cost coverage %', 'MKD': n2((pp.cost_coverage ?? 1) * 100) },
+        // Counts and percentages, not money — their own column.
+        { 'Metric': 'Paid orders', 'MKD': '', 'Count / %': pp.paid_orders ?? 0 },
+        { 'Metric': 'Paid packages', 'MKD': '', 'Count / %': pp.paid_packages ?? 0 },
+        { 'Metric': 'Cost coverage %', 'MKD': '', 'Count / %': n2((pp.cost_coverage ?? 1) * 100) },
       );
-      out.push({ name: 'Summary', widths: [40, 16], rows });
+      out.push({ name: 'Summary', widths: [40, 16, 12], rows });
     }
 
     if (picked.products && pp?.by_product?.length) {
@@ -182,7 +183,7 @@ export default function PureProfitExportDialog({ data, range }: { data: Insights
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="gap-2">
-          <Download className="h-4 w-4" /> Export
+          <Download className="h-4 w-4" /> {t('ppExport.openBtn')}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
@@ -190,7 +191,11 @@ export default function PureProfitExportDialog({ data, range }: { data: Insights
           <DialogTitle>{t('ppExport.title')}</DialogTitle>
         </DialogHeader>
         <div className="text-xs text-muted-foreground -mt-2">
-          Period: {range.from || range.to ? `${range.from || '…'} → ${range.to || 'today'}` : 'all time'}
+          {t('ppExport.period', {
+            range: range.from || range.to
+              ? `${range.from ? range.from.split('-').reverse().join('.') : '…'} → ${range.to ? range.to.split('-').reverse().join('.') : t('ppExport.today')}`
+              : t('ppExport.allTime'),
+          })}
         </div>
         <div className="grid grid-cols-2 gap-2 pt-1">
           <button
@@ -226,8 +231,8 @@ export default function PureProfitExportDialog({ data, range }: { data: Insights
                 className="mt-0.5"
               />
               <Label htmlFor={`exp-${s.key}`} className="font-normal cursor-pointer">
-                <span className="font-medium">{s.label}</span>
-                <span className="block text-xs text-muted-foreground">{s.hint}</span>
+                <span className="font-medium">{t(`ppExport.section.${s.key}`)}</span>
+                <span className="block text-xs text-muted-foreground">{t(`ppExport.section.${s.key}Hint`)}</span>
               </Label>
             </div>
           ))}

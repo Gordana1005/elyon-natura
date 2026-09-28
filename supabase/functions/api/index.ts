@@ -2692,6 +2692,12 @@ async function handleRequest(req: Request): Promise<Response> {
           title: "New affiliate lead",
           message: `${order.display_id} from ${aff.name} (${aff.code}) — ${offer.name}. ${s(body.name, 120) || "—"} · ${phone}`,
           link: "/assigner",
+          // Staff bell only (all admins). English above is the fallback; the
+          // reader's locale comes from notif.affiliateLead.* (all four).
+          meta: {
+            i18n: "notif.affiliateLead", order: order.display_id, affiliate: aff.name, code: aff.code,
+            offer: offer.name, customer: s(body.name, 120) || "—", phone,
+          },
         });
       } catch (_) { /* notifications must never fail the intake */ }
 
@@ -5592,7 +5598,23 @@ async function handleRequest(req: Request): Promise<Response> {
       const ovTeam = url.searchParams.get("team_key") || null;
       if (ovTeam && !/^[a-z][a-z0-9_]{0,40}$/.test(ovTeam)) return json({ error: "Invalid team_key" }, 400);
       const ovAttention = url.searchParams.get("attention") || null;
-      const ovAttentionF = ovAttention ? OV.attentionFilter(ovAttention) : null;
+      let ovAttentionF: OV.AttentionFilter | null = null;
+      if (ovAttention && (OV.LISTABLE_ATTENTION as readonly string[]).includes(ovAttention)) {
+        // The rail's twins (20260940000300): the no-parcel rule's days from
+        // app_settings, and never an order of the owner's test phones. The
+        // exceptions RPC is asked for an empty window (only its test-phone
+        // lists are used). Either missing → 10 days / no exclusion.
+        const [npRes, exRes] = await Promise.all([
+          adminClient.rpc("no_parcel_rule_days"),
+          adminClient.rpc("insights_cohort_order_exceptions", { p_from: "1970-01-01T00:00:00Z", p_to_end: "1970-01-01T00:00:00Z" }),
+        ]);
+        const ex = OV.parseAttentionExclusions(exRes.data);
+        ovAttentionF = OV.attentionFilter(ovAttention, new Date(), {
+          days: OV.noParcelDays(npRes.error ? null : npRes.data),
+          excludedPhone8s: ex?.excludedPhone8s ?? [],
+          testOrderIds: ex?.testOrderIds ?? [],
+        });
+      }
       if (ovAttention && !ovAttentionF) {
         return json({ error: "attention_not_listable", detail: `attention=${ovAttention} is not a filter over orders; open its samples instead` }, 400);
       }
@@ -5687,6 +5709,7 @@ async function handleRequest(req: Request): Promise<Response> {
         for (const [col, v] of Object.entries(ovAttentionF.in)) query = query.in(col, v);
         for (const col of ovAttentionF.isNull) query = query.is(col, null);
         for (const expr of ovAttentionF.or) query = query.or(expr);
+        if (ovAttentionF.notIds.length) query = query.not("id", "in", `(${ovAttentionF.notIds.join(",")})`);
       }
       const dateField = url.searchParams.get("date_field") || "event";
       if (from || to) {
@@ -5982,6 +6005,7 @@ async function handleRequest(req: Request): Promise<Response> {
           title: "New orders assigned to you",
           message: `${order_ids.length} order${order_ids.length === 1 ? "" : "s"} assigned to you — open Assigned to Me.`,
           link: "/assigned",
+          meta: { i18n: "notif.ordersAssigned", count: order_ids.length },
         });
       }
 
@@ -7744,8 +7768,12 @@ async function handleRequest(req: Request): Promise<Response> {
       // else mkd/missing → the frozen 61.5 peg. Any other currency → OMIT base
       // rather than invent an FX rate (bridge doctrine).
       let pushWarning: string | undefined;
+      // The currency `base` is in — the preview dialog shows it (денари for
+      // mkd, never a bare number). Display only; nothing below reads it.
+      let pushBaseCurrency: string | undefined;
       {
         const cur = String(pushLead?.currency_raw ?? "mkd").toLowerCase();
+        pushBaseCurrency = cur;
         const total = Number(order.price);
         let rate: number | null = null;
         if (cur === "eur") rate = 1;
@@ -7831,6 +7859,7 @@ async function handleRequest(req: Request): Promise<Response> {
           sequence: pushCalls.map((c) => ({ [c.kind]: c.params.toString() })),
           url: `POST ×${pushCalls.length} ${pushBase}/comp/edit.json?id=<${pushWriteSecret}>`,
           remote: pushLead ? { phase: pushLead.phase, status: pushLead.status, reason: pushLead.reason } : null,
+          ...(p.has("base") && pushBaseCurrency ? { base_currency: pushBaseCurrency } : {}),
           ...(pushWarning ? { warning: pushWarning } : {}),
         });
       }
@@ -8086,6 +8115,7 @@ async function handleRequest(req: Request): Promise<Response> {
           title: "New order assigned to you",
           message: "An order was assigned to you — open Assigned to Me to start.",
           link: "/assigned",
+          meta: { i18n: "notif.orderAssigned" },
         });
       }
 
@@ -9005,17 +9035,20 @@ async function handleRequest(req: Request): Promise<Response> {
         }));
 
       // === 5. RISK ALERTS ===
-      const alerts: { type: string; level: string; message: string }[] = [];
+      // `message` is the English fallback; the Dashboard renders the reader's
+      // locale from the structured fields (dashboard.alert.*). `amount_eur` is
+      // the stored-EUR figure — the UI shows it in денари, never as raw euro.
+      const alerts: { type: string; level: string; message: string; pct?: number; count?: number; amount_eur?: number }[] = [];
       const totalShippedForAlerts = financialOrders.filter((o: any) => ["shipped", "delivered", "returned", "paid"].includes(o.status)).length;
       const totalReturnedForAlerts = financialOrders.filter((o: any) => o.status === "returned").length;
       const totalTakenForAlerts = financialOrders.filter((o: any) => ["take", "call_again", "confirmed", "shipped", "delivered", "returned", "paid"].includes(o.status)).length;
       const overallReturnRate = totalShippedForAlerts > 0 ? Math.round((totalReturnedForAlerts / totalShippedForAlerts) * 10000) / 100 : 0;
       const overallConversionRate = totalTakenForAlerts > 0 ? Math.round((paidCount / totalTakenForAlerts) * 10000) / 100 : 0;
       const totalPending = financialOrders.filter((o: any) => o.status === "pending").length;
-      if (overallReturnRate > 20) alerts.push({ type: "return_rate", level: "red", message: `Return rate is ${overallReturnRate}% (above 20%)` });
-      if (overallConversionRate < 10 && totalTakenForAlerts > 5) alerts.push({ type: "conversion", level: "red", message: `Conversion rate is ${overallConversionRate}% (below 10%)` });
-      if (outstanding > revenue * 2 && outstanding > 0) alerts.push({ type: "outstanding", level: "yellow", message: `Outstanding balance (${outstanding.toFixed(2)}) is very high` });
-      if (totalPending > totalTakenForAlerts * 0.5 && totalPending > 10) alerts.push({ type: "pending", level: "yellow", message: `${totalPending} orders still pending` });
+      if (overallReturnRate > 20) alerts.push({ type: "return_rate", level: "red", message: `Return rate is ${overallReturnRate}% (above 20%)`, pct: overallReturnRate });
+      if (overallConversionRate < 10 && totalTakenForAlerts > 5) alerts.push({ type: "conversion", level: "red", message: `Conversion rate is ${overallConversionRate}% (below 10%)`, pct: overallConversionRate });
+      if (outstanding > revenue * 2 && outstanding > 0) alerts.push({ type: "outstanding", level: "yellow", message: "Outstanding balance is very high (over 2× revenue)", amount_eur: Math.round(outstanding * 100) / 100 });
+      if (totalPending > totalTakenForAlerts * 0.5 && totalPending > 10) alerts.push({ type: "pending", level: "yellow", message: `${totalPending} orders still pending`, count: totalPending });
 
       // === 6. TODAY SNAPSHOT (orders with status *transitions* recorded today) ===
       // Precise "daily operational activity": counts orders that had a real transition
@@ -14727,17 +14760,21 @@ async function handleRequest(req: Request): Promise<Response> {
         }
       }
 
-      // Merge into unified activity feed
+      // Merge into unified activity feed. No sentences are built here: each row
+      // carries an i18n key (dashboard.feed.*) plus its structured fields, and
+      // the Dashboard renders it in the reader's language (enum values —
+      // statuses, call outcomes, context types — are translated there too).
+      // `actor` is null when unknown; the client supplies "System"/"Agent".
       const activities: any[] = [];
 
       for (const s of statusChanges || []) {
         activities.push({
           id: s.id,
           type: "status_change",
-          actor: s.changed_by_name || "System",
-          description: `Changed order ${orderDisplayMap[s.order_id] || "?"} from ${s.from_status || "new"} to ${s.to_status}`,
+          i18n: "dashboard.feed.statusChange",
+          actor: s.changed_by_name || null,
           order_id: s.order_id,
-          display_id: orderDisplayMap[s.order_id],
+          display_id: orderDisplayMap[s.order_id] ?? null,
           metadata: { from: s.from_status, to: s.to_status },
           timestamp: s.changed_at,
         });
@@ -14747,8 +14784,8 @@ async function handleRequest(req: Request): Promise<Response> {
         activities.push({
           id: c.id,
           type: "call",
-          actor: agentNameMap[c.agent_id] || "Agent",
-          description: `Made a ${c.outcome} call (${c.context_type})`,
+          i18n: "dashboard.feed.call",
+          actor: agentNameMap[c.agent_id] || null,
           metadata: { outcome: c.outcome, context_type: c.context_type, notes: c.notes },
           timestamp: c.created_at,
         });
@@ -14759,10 +14796,12 @@ async function handleRequest(req: Request): Promise<Response> {
         activities.push({
           id: n.id,
           type: "note",
-          actor: n.author_name,
-          description: `Added note on ${orderDisplayMap[n.order_id] || "order"}: "${noteText.substring(0, 60)}${noteText.length > 60 ? "..." : ""}"`,
+          i18n: "dashboard.feed.note",
+          actor: n.author_name || null,
           order_id: n.order_id,
-          display_id: orderDisplayMap[n.order_id],
+          display_id: orderDisplayMap[n.order_id] ?? null,
+          // The note itself is data (never translated), cut to 60 characters.
+          note_excerpt: noteText.length > 60 ? `${noteText.substring(0, 60)}…` : noteText,
           timestamp: n.created_at,
         });
       }
@@ -15853,6 +15892,7 @@ async function handleRequest(req: Request): Promise<Response> {
             title: "New prediction leads assigned to you",
             message: `${cnt} new lead${cnt === 1 ? "" : "s"} assigned to you — open Prediction Leads to start calling.`,
             link: "/prediction-leads",
+            meta: { i18n: "notif.predictionLeadsAssigned", count: cnt },
           });
         }
       }

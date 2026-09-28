@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
 // Orders are stored in EUR; the warehouse export reports denars.
-import { eurToDen } from '@/lib/currency';
+import { eurToDen, formatMoney } from '@/lib/currency';
 import { usePermissions } from '@/contexts/PermissionsContext';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -46,7 +46,7 @@ import {
   Archive,
   Boxes,
   TrendingDown,
-  DollarSign,
+  Banknote,
   ShoppingCart,
 } from 'lucide-react';
 import { format, isToday, parseISO, subDays } from 'date-fns';
@@ -470,7 +470,7 @@ function PackingTab() {
                                   ))
                                   : <span className="font-medium">{formatProductWithQuantity(o.product_name, o.quantity)}</span>}
                               </td>
-                              <td className="px-4 py-2.5 font-semibold text-primary text-xs">{o.price ? Number(o.price).toFixed(2) : '—'}</td>
+                              <td className="px-4 py-2.5 font-semibold text-primary text-xs">{o.price ? formatMoney(o.price) : '—'}</td>
                               <td className="px-4 py-2.5 text-muted-foreground text-xs">{o.assigned_agent_name || '—'}</td>
                               <td className="px-4 py-2.5 text-xs">
                                 <Badge variant={isFromLead ? 'secondary' : 'default'} className="text-[10px]">{isFromLead ? t('wh.lead') : t('wh.order')}</Badge>
@@ -790,8 +790,8 @@ function InventoryTab() {
                   <td className="px-4 py-3 text-muted-foreground">{p.sku || '—'}</td>
                   <td className="px-4 py-3 text-muted-foreground">{p.category || '—'}</td>
                   <td className="px-4 py-3 text-muted-foreground">{p.suppliers?.name || '—'}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{Number(p.cost_price || 0).toFixed(2)}</td>
-                  <td className="px-4 py-3 font-semibold text-primary">{Number(p.price).toFixed(2)}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{formatMoney(p.cost_price || 0)}</td>
+                  <td className="px-4 py-3 font-semibold text-primary">{formatMoney(p.price)}</td>
                   <td className="px-4 py-3 min-w-[160px]">
                     <div className="space-y-1">
                       <div className="flex items-center justify-between text-xs">
@@ -1124,7 +1124,7 @@ export default function WarehousePage() {
   const kpiCards = [
     { labelKey: 'wh.kpiTotalProducts', value: totalProducts, icon: Boxes, color: 'bg-primary/10 text-primary' },
     { labelKey: 'wh.kpiLowStock', value: lowStockCount, icon: TrendingDown, color: lowStockCount > 0 ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground' },
-    { labelKey: 'wh.kpiStockValue', value: `$${totalStockValue.toLocaleString()}`, icon: DollarSign, color: 'bg-emerald-500/10 text-emerald-600' },
+    { labelKey: 'wh.kpiStockValue', value: formatMoney(totalStockValue), icon: Banknote, color: 'bg-emerald-500/10 text-emerald-600' },
     ...(canIncoming ? [{ labelKey: 'wh.kpiPendingOrders', value: pendingOrders, icon: ShoppingCart, color: pendingOrders > 0 ? 'bg-amber-500/10 text-amber-600' : 'bg-muted text-muted-foreground' }] : []),
   ];
 

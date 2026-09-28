@@ -14,6 +14,7 @@ import {
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { formatDate } from '@/i18n/dates';
+import { predictionListLabel } from '@/lib/predictionListLabel';
 import {
   Dialog,
   DialogContent,
@@ -230,7 +231,7 @@ function SegmentCard({ list }: { list: SegmentList }) {
         <CardContent className="p-4 space-y-2">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
-              <div className="text-sm font-bold text-card-foreground truncate">{list.name}</div>
+              <div className="text-sm font-bold text-card-foreground truncate" title={list.name}>{predictionListLabel(list.name)}</div>
               <div className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">{list.description}</div>
             </div>
             <ChevronRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-primary transition-colors shrink-0 mt-0.5" />

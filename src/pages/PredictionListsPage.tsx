@@ -16,6 +16,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { formatDayDmy } from '@/i18n/dates';
 import { EmptyState } from '@/components/EmptyState';
 import {
   isValidPhone,
@@ -186,7 +187,7 @@ export default function PredictionListsPage() {
                     {list.name}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-muted-foreground">{new Date(list.uploaded_at).toLocaleDateString()}</td>
+                <td className="px-4 py-3 text-muted-foreground">{formatDayDmy(list.uploaded_at)}</td>
                 <td className="px-4 py-3 font-semibold">{list.total_records}</td>
                 <td className="px-4 py-3">
                   <span className={cn('text-sm font-medium', list.assigned_count === list.total_records && list.total_records > 0 ? 'text-green-600' : 'text-muted-foreground')}>

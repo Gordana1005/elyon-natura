@@ -16,11 +16,12 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn, formatProductWithQuantity, buildProductNameLookups, isSyntheticProductName } from '@/lib/utils';
 import { format, addDays } from 'date-fns'; // raw format: fulfilment CSV + machine payloads only
-import { formatDate } from '@/i18n/dates';
+import { formatDate, formatDayDmy } from '@/i18n/dates';
+import { apiErrorText } from '@/i18n/apiErrors';
 import { planExportWindow, clampPageRange, estimateExportRows } from '@/lib/exportPageRange';
 import {
   Download, ChevronLeft, ChevronRight, ChevronDown, Filter, Search, Loader2,
-  CalendarIcon, X, User, Users, Plus, MoreVertical, History, Lock, Copy, CopyPlus, Euro, Package, Send, Waypoints,
+  CalendarIcon, X, User, Users, Plus, MoreVertical, History, Lock, Copy, CopyPlus, Banknote, Package, Send, Waypoints,
 } from 'lucide-react';
 import { Check } from 'lucide-react';
 import { MobileCard, MobileCardHeader, MobileCardField, MobileCardActions } from '@/components/ui/mobile-card';
@@ -39,7 +40,7 @@ import { Trash2, Ban } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 // The price filter talks EUR to the API (orders are stored in EUR) but the
 // operator picks and types denari — convert at the boundary, show ден only.
-import { formatMoney, eurToDen, denToEur } from '@/lib/currency';
+import { formatMoney, formatDenari, eurToDen, denToEur, codFor } from '@/lib/currency';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { buildMexImportColumns } from '@/lib/mexImportCsv';
 import { validateOrderForFulfilment } from '@/lib/fulfilmentValidation';
@@ -128,6 +129,17 @@ interface ApiOrder {
 
 // Filter chips + dropdown use the same canonical palette as the table badges.
 const STATUS_CHIP_COLORS: Record<OrderStatus, string> = { ...STATUS_COLORS };
+
+// The CPA push preview's unit price is in the LEAD's own currency (the api
+// computes it for AlterCPA). Денари when it is mkd — every lead that reaches
+// orders today — shown with formatDenari, never ×61.5 again; another
+// currency keeps its own code; an older api without the currency: as sent.
+function cpaBaseText(base: string | undefined, currency: string | undefined): string | undefined {
+  if (base === undefined || base === '') return base;
+  const cur = (currency || '').toLowerCase();
+  if (cur === 'mkd') return formatDenari(base);
+  return cur ? `${base} ${cur.toUpperCase()}` : base;
+}
 
 function orderToModalData(order: ApiOrder): OrderModalData {
   return {
@@ -751,7 +763,9 @@ export default function Orders() {
     // Two kinds of held-back orders never leave: postponed (ship_after_date in
     // the future) and incomplete (failed pre-export validation). Both stay
     // confirmed and re-surface for a clean re-export.
-    const postponedSuffix = heldBackPostponed > 0 ? ` · ${heldBackPostponed} postponed past ${readyByStr}` : '';
+    const postponedSuffix = heldBackPostponed > 0
+      ? ` · ${t('ordersPage.exportPostponedPast', { n: heldBackPostponed, date: readyByStr ? readyByStr.split('-').reverse().join('.') : '' })}`
+      : '';
     const invalidSuffix = heldBackInvalid > 0 ? ` · ${t('ordersPage.exportedWithHeldBack', { held: heldBackInvalid })}` : '';
     const heldBackSuffix = `${postponedSuffix}${invalidSuffix}`;
     // Flip → shipped: in range mode the order set is the chosen 'confirmed'
@@ -765,21 +779,21 @@ export default function Orders() {
         await apiBulkStatusUpdate(flipIds, 'shipped');
         toast({
           title: t('ordersPage.exportedShipped'),
-          description: `${flipIds.length} order${flipIds.length !== 1 ? 's' : ''} → ${fname} · status set to shipped${heldBackSuffix}`,
+          description: `${t('ordersPage.exportedShippedDesc', { count: flipIds.length, file: fname })}${heldBackSuffix}`,
         });
         if (isSelected) clearExportSelect();
         fetchOrders();
       } catch (flipErr: any) {
         toast({
           title: t('ordersPage.exportedStatusFailed'),
-          description: flipErr?.message || 'CSV downloaded; orders are still in confirmed.',
+          description: flipErr?.message ? apiErrorText(flipErr) : t('ordersPage.exportedStatusFailedDesc'),
           variant: 'destructive',
         });
       }
     } else {
       toast({
         title: t('ordersPage.exported'),
-        description: `${orders.length} order${orders.length !== 1 ? 's' : ''} → ${fname}${heldBackSuffix}`,
+        description: `${t('ordersPage.exportedDesc', { count: orders.length, file: fname })}${heldBackSuffix}`,
       });
       if (isSelected) clearExportSelect();
     }
@@ -964,7 +978,9 @@ export default function Orders() {
         'PHONE': o.customer_phone || '',
         'CITY': o.customer_city || '',
         'ADDRESS': o.customer_address || '',
-        'COD AMOUNT': Number(o.price),
+        // Денари, the same whole-10 figure the MEX file's Otkup carries (codFor)
+        // — orders.price is stored EUR and must never reach a COD column raw.
+        'COD AMOUNT (MKD)': codFor(o.price || 0).amount,
         'PRODUCT': items,
         'CONFIRMED BY': o.confirmed_by_name || o.last_action_by || o.assigned_agent_name || '',
         'SOURCE': sourceLabel(t, o.source_type),
@@ -973,7 +989,7 @@ export default function Orders() {
         'AFFILIATE': o.cpa_webmaster_id ? affiliateLabel(o.cpa_webmaster_id, webmasterNames) : '',
         'OFFER': o.cpa_offer_name || (o.cpa_offer_id ? `#${o.cpa_offer_id}` : ''),
         'PUBLISHER': o.cpa_stream_id || '',
-        'DATE': new Date(o.created_at).toLocaleDateString(),
+        'DATE': formatDayDmy(o.created_at),
       };
     });
     const ws = XLSX.utils.json_to_sheet(rows);
@@ -1216,7 +1232,7 @@ export default function Orders() {
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-lg text-sm font-normal">
-                  <Euro className="h-3.5 w-3.5" />
+                  <Banknote className="h-3.5 w-3.5" />
                   {priceLabel || t('ordersPage.price')}
                 </Button>
               </PopoverTrigger>
@@ -1713,7 +1729,7 @@ export default function Orders() {
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
                     <div className="leading-tight">
-                      <div>{new Date(order.confirmed_at || order.cancelled_at || order.trashed_at || order.created_at).toLocaleDateString()}</div>
+                      <div>{formatDayDmy(order.confirmed_at || order.cancelled_at || order.trashed_at || order.created_at)}</div>
                       <div className="text-xs text-muted-foreground/70 tabular-nums">{new Date(order.confirmed_at || order.cancelled_at || order.trashed_at || order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                     </div>
                   </td>
@@ -1771,7 +1787,7 @@ export default function Orders() {
                           <div>
                             <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">{t('ordersPage.orderInfoSection')}</div>
                             <div className="space-y-0.5 text-sm">
-                              <div><span className="text-muted-foreground">{t('ordersPage.created')}</span> {new Date(order.created_at).toLocaleString()}</div>
+                              <div><span className="text-muted-foreground">{t('ordersPage.created')}</span> {formatDayDmy(order.created_at)} {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                               <div><span className="text-muted-foreground">{t('ordersPage.statusField')}</span> <span className="font-medium">{statusLabel(order.status)}</span></div>
                               {order.source_type && (
                                 <div><span className="text-muted-foreground">{t('ordersPage.sourceField')}</span> {sourceLabel(t, order.source_type)}</div>
@@ -1797,7 +1813,7 @@ export default function Orders() {
                                 </div>
                               )}
                               {order.ship_after_date && (
-                                <div><span className="text-muted-foreground">{t('ordersPage.shipAfterField')}</span> {new Date(order.ship_after_date).toLocaleDateString()}</div>
+                                <div><span className="text-muted-foreground">{t('ordersPage.shipAfterField')}</span> {formatDayDmy(order.ship_after_date)}</div>
                               )}
                             </div>
                           </div>
@@ -1993,7 +2009,7 @@ export default function Orders() {
               {order.cpa_stream_id && (
                 <MobileCardField label={t('ordersPage.colPublisher')} value={<span className="font-mono text-xs">{order.cpa_stream_id}</span>} />
               )}
-              <MobileCardField label={t('ordersPage.colDate')} value={`${new Date(order.created_at).toLocaleDateString()}, ${new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`} />
+              <MobileCardField label={t('ordersPage.colDate')} value={`${formatDayDmy(order.created_at)}, ${new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`} />
               <MobileCardActions>
                 <Button size="sm" variant="outline" className="gap-1.5" onClick={() => tryOpenOrder(order)}>
                   <Lock className="h-3.5 w-3.5" /> {t('ordersPage.openOrder')}
@@ -2020,9 +2036,9 @@ export default function Orders() {
                       {order.customer_city}{order.postal_code ? `, ${order.postal_code}` : ''}
                     </div>
                   </div>
-                  <div className="text-xs"><span className="text-muted-foreground">{t('ordersPage.created')}</span> {new Date(order.created_at).toLocaleString()}</div>
+                  <div className="text-xs"><span className="text-muted-foreground">{t('ordersPage.created')}</span> {formatDayDmy(order.created_at)} {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                   {(order as any).ship_after_date && (
-                    <div className="text-xs"><span className="text-muted-foreground">{t('ordersPage.shipAfterField')}</span> {new Date((order as any).ship_after_date).toLocaleDateString()}</div>
+                    <div className="text-xs"><span className="text-muted-foreground">{t('ordersPage.shipAfterField')}</span> {formatDayDmy((order as any).ship_after_date)}</div>
                   )}
                   {(order.status === 'cancelled' || order.status === 'trashed') && orderReasonText(order) && (
                     <div className="text-xs bg-rose-50 dark:bg-rose-950/30 p-2 rounded-md border border-rose-200 dark:border-rose-900 whitespace-pre-line">
@@ -2097,7 +2113,7 @@ export default function Orders() {
               [t('ordersPage.cpaFieldAddress'), p.addr],
               [t('ordersPage.cpaFieldPostal'), p.index],
               [t('ordersPage.cpaFieldQty'), p.count],
-              [t('ordersPage.cpaFieldUnitPrice'), p.base],
+              [t('ordersPage.cpaFieldUnitPrice'), cpaBaseText(p.base, cpaPreview.preview.base_currency)],
               [t('ordersPage.cpaFieldComment'), p.comment],
             ];
             const remote = cpaPreview.preview.remote;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   addDaysYmd, attentionFilter, buildOverviewResponse, cashWindowOrFilter, daysInclusive, isSafeText, isUuid, isValidYmd, outcomeOrFilter,
-  overviewWindows, parseCsvParam, parseDetailParam, parsePivotBy, SALE_SOURCES,
+  NO_PARCEL_DEFAULT_DAYS, noParcelDays, overviewWindows, parseAttentionExclusions, parseCsvParam, parseDetailParam, parsePivotBy, SALE_SOURCES,
   skopjeDayEndIso, skopjeMidnightIso, skopjeTodayYmd, soldWindowOrFilter, stripOverviewMoney,
 } from "./overview.ts";
 import type { OverviewWindow } from "./overview.ts";
@@ -237,16 +237,57 @@ describe("drill-down filters", () => {
 
   it("attention filters: only the two kinds that are an orders filter", () => {
     const now = new Date("2026-09-28T08:00:00Z");
+    // no days given → the rule's default, 10 (owner 28.09: 7 → 10)
     const a = attentionFilter("approved_no_parcel_7d", now)!;
+    expect(NO_PARCEL_DEFAULT_DAYS).toBe(10);
     expect(a.eq).toEqual({ status: "confirmed" });
     expect(a.in).toEqual({ sale_source: ["altercpa", "affiliate"] });
     expect(a.isNull).toEqual(["mex_tracking_id"]);
-    expect(a.or[0]).toContain("sold_at.lt.2026-09-21T08:00:00.000Z");
+    expect(a.or[0]).toContain("sold_at.lt.2026-09-18T08:00:00.000Z");
     expect(a.or[1]).toBe("ship_after_date.is.null,ship_after_date.lte.2026-09-28");
-    expect(attentionFilter("mex_problem", now)).toEqual({ eq: {}, in: { mex_status_id: [3, 9, 13] }, isNull: [], or: [] });
+    expect(a.or).toHaveLength(2);
+    expect(a.notIds).toEqual([]);
+    expect(attentionFilter("mex_problem", now)).toEqual({ eq: {}, in: { mex_status_id: [3, 9, 13] }, isNull: [], or: [], notIds: [] });
     expect(attentionFilter("night_approvals", now)).toBeNull();
     expect(isSafeText("Alpha Male cps 30")).toBe(true);
     expect(isSafeText("x\u0000y")).toBe(false);
+  });
+
+  it("attention: the rule's days follow the setting (no_parcel_rule_days twin)", () => {
+    const now = new Date("2026-09-28T08:00:00Z");
+    const cutOf = (days: unknown) => attentionFilter("approved_no_parcel_7d", now, { days: noParcelDays(days) })!.or[0];
+    // every branch of the sale instant moves together
+    expect(cutOf(7)).toBe("and(sold_at.not.is.null,sold_at.lt.2026-09-21T08:00:00.000Z),"
+      + "and(sold_at.is.null,confirmed_at.not.is.null,confirmed_at.lt.2026-09-21T08:00:00.000Z),"
+      + "and(sold_at.is.null,confirmed_at.is.null,created_at.lt.2026-09-21T08:00:00.000Z)");
+    expect(cutOf(10)).toContain("created_at.lt.2026-09-18T08:00:00.000Z");
+    expect(noParcelDays(10)).toBe(10);
+    expect(noParcelDays("12")).toBe(12);
+    expect(noParcelDays(2)).toBe(3);          // never below 3, like the SQL
+    expect(noParcelDays(null)).toBe(10);      // RPC missing / failed
+    expect(noParcelDays("x")).toBe(10);
+    expect(noParcelDays(7.5)).toBe(10);
+    // the attention kind keeps its stored name
+    expect(attentionFilter("approved_no_parcel_10d", now)).toBeNull();
+  });
+
+  it("attention: never an order of the owner's test phones (the Overview's xto twin)", () => {
+    const now = new Date("2026-09-28T08:00:00Z");
+    const ids = ["11111111-1111-4111-8111-111111111111"];
+    const opts = { days: 10, excludedPhone8s: ["70123456", "23123123", "bad"], testOrderIds: [...ids, "nope"] };
+    const phone = "customer_phone.is.null,and(customer_phone.not.like.*70123456,customer_phone.not.like.*23123123)";
+    const a = attentionFilter("approved_no_parcel_7d", now, opts)!;
+    expect(a.or).toEqual([expect.any(String), expect.any(String), phone]);
+    expect(a.notIds).toEqual(ids);
+    expect(attentionFilter("mex_problem", now, opts)).toEqual({ eq: {}, in: { mex_status_id: [3, 9, 13] }, isNull: [], or: [phone], notIds: ids });
+
+    expect(parseAttentionExclusions({ web_claimed: [], ledger: [], excluded_phone8s: ["70123456"], test_orders: ids }))
+      .toEqual({ excludedPhone8s: ["70123456"], testOrderIds: ids });
+    expect(parseAttentionExclusions({ web_claimed: [] })).toEqual({ excludedPhone8s: [], testOrderIds: [] });
+    expect(parseAttentionExclusions({ excluded_phone8s: ["7012345"] })).toBeNull();      // not 8 digits: refused
+    expect(parseAttentionExclusions({ test_orders: ["x) or (1=1"] })).toBeNull();
+    expect(parseAttentionExclusions(null)).toBeNull();
+    expect(parseAttentionExclusions([])).toBeNull();
   });
 
   it("pivot dimensions: 1 to 4 known ones", () => {

@@ -87,7 +87,7 @@ describe('Overview — owner', () => {
     expect(screen.getByRole('heading', { name: 'Pending — AlterCPA' })).toBeInTheDocument();
     expect(screen.getAllByRole('columnheader', { name: i18n.t('overview.teams.col.sold') }).length).toBeGreaterThan(0);
     expect(screen.getByRole('heading', { name: i18n.t('overview.pivot.title') })).toBeInTheDocument();
-    expect(screen.getByText(i18n.t('overview.attention.kind.approved_no_parcel_7d'))).toBeInTheDocument();
+    expect(screen.getByText(i18n.t('overview.attention.kind.approved_no_parcel_7d', { days: 10 }))).toBeInTheDocument();
   }, 30_000);
 });
 
@@ -117,13 +117,14 @@ describe('Overview — admin/manager without money', () => {
 describe('Overview — attention links', () => {
   it('only the kinds /orders can list link to it; the rest show their breakdown inline', async () => {
     renderWith(owner());
-    const card = (kind: string) => screen.getByText(i18n.t(`overview.attention.kind.${kind}`)).closest('li')!;
-    await screen.findByText(i18n.t('overview.attention.kind.approved_no_parcel_7d'), {}, { timeout: 10_000 });
+    // No `days` in the fixture → the rule's default window (10) in the label.
+    const card = (kind: string) => screen.getByText(i18n.t(`overview.attention.kind.${kind}`, { days: 10 })).closest('li')!;
+    await screen.findByText(i18n.t('overview.attention.kind.approved_no_parcel_7d', { days: 10 }), {}, { timeout: 10_000 });
     const href = within(card('approved_no_parcel_7d')).getByRole('link', { name: '38' }).getAttribute('href')!;
     const sp = new URLSearchParams(href.split('?')[1]);
     expect(href.startsWith('/orders?')).toBe(true);
     expect(sp.get('attention')).toBe('approved_no_parcel_7d');
-    expect(sp.get('lbl')).toBe(i18n.t('overview.attention.kind.approved_no_parcel_7d'));
+    expect(sp.get('lbl')).toBe(i18n.t('overview.attention.kind.approved_no_parcel_7d', { days: 10 }));
     for (const kind of ['cod_mismatch', 'night_approvals', 'burst_approvals']) {
       const links = within(card(kind)).queryAllByRole('link').map((a) => a.getAttribute('href') ?? '');
       expect(links.filter((h) => h.includes('attention='))).toEqual([]);

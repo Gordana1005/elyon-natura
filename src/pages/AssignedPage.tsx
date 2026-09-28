@@ -7,6 +7,8 @@ import { EmptyState } from '@/components/EmptyState';
 // Button removed - rows are clickable
 import { apiGetOrders } from '@/lib/api';
 import { formatProductWithQuantity } from '@/lib/utils';
+import { formatMoney } from '@/lib/currency';
+import { formatDayDmy } from '@/i18n/dates';
 import { useAuth } from '@/contexts/AuthContext';
 import { OrderModal, OrderModalData } from '@/components/OrderModal';
 import { MobileCard, MobileCardHeader, MobileCardField } from '@/components/ui/mobile-card';
@@ -89,8 +91,8 @@ export default function AssignedPage() {
                     : order.product_name || '—'}
                 </td>
                 <td className="px-4 py-3 text-center">{order.quantity || 1}</td>
-                <td className="px-4 py-3 font-bold text-primary">{Number(order.price).toFixed(2)}</td>
-                <td className="px-4 py-3 text-muted-foreground">{new Date(order.created_at).toLocaleDateString()}</td>
+                <td className="px-4 py-3 font-bold text-primary">{formatMoney(order.price)}</td>
+                <td className="px-4 py-3 text-muted-foreground">{formatDayDmy(order.created_at)}</td>
               </tr>
             ))}
             {myOrders.length === 0 && (
@@ -132,8 +134,8 @@ export default function AssignedPage() {
                 : order.product_name || '—'}
             />
             <MobileCardField label={t('ordersPage.colQty')} value={order.quantity || 1} />
-            <MobileCardField label={t('createOrder.total')} value={<span className="font-bold text-primary">{Number(order.price).toFixed(2)}</span>} />
-            <MobileCardField label={t('ordersPage.colDate')} value={new Date(order.created_at).toLocaleDateString()} />
+            <MobileCardField label={t('createOrder.total')} value={<span className="font-bold text-primary">{formatMoney(order.price)}</span>} />
+            <MobileCardField label={t('ordersPage.colDate')} value={formatDayDmy(order.created_at)} />
           </MobileCard>
         ))}
       </div>

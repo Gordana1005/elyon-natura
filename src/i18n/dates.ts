@@ -24,5 +24,17 @@ export function formatDistanceToNow(
   return dfFormatDistanceToNow(d, { ...options, locale: localeFor() });
 }
 
+/**
+ * A user-visible calendar day as dd.MM.yyyy (Macedonian day-first order), the
+ * same in every UI language and browser — `toLocaleDateString()` follows the
+ * reader's machine instead (e.g. 9/28/2026). '—' for a missing/invalid value,
+ * where date-fns `format` would throw.
+ */
+export function formatDayDmy(date: Date | number | string | null | undefined): string {
+  if (date == null || date === '') return '—';
+  const d = date instanceof Date ? date : new Date(date);
+  return Number.isNaN(d.getTime()) ? '—' : dfFormat(d, 'dd.MM.yyyy');
+}
+
 /** Pass to react-day-picker (ui/calendar.tsx) so pickers localize month/weekday names. */
 export const dayPickerLocale = localeFor;

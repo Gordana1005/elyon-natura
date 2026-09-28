@@ -15,6 +15,7 @@ import { formatOrderProducts } from '@/lib/monadonSubstitutes';
 import { EmptyState } from '@/components/EmptyState';
 import { hoverLift } from '@/lib/design-utils';
 import { cancelReasonLabel } from '@/lib/cancellationReasons';
+import { orderTotal } from '@/lib/searchFormat';
 import { CallScriptsPanel } from './CallScriptsPanel';
 
 interface Props {
@@ -139,10 +140,9 @@ function OrdersTable({ orders, onOpenOrder }: { orders: any[]; onOpenOrder?: (id
           </thead>
           <tbody>
             {orders.slice(0, 50).map(o => {
-              const items = o.order_items || [];
               const productLabel = formatOrderProducts(o);
-              const total = items.reduce((s: number, i: any) => s + Number(i.total_price || 0), 0)
-                || Number(o.price || 0) * Number(o.quantity || 1);
+              // orders.price is the order TOTAL — never × quantity (orderTotal).
+              const total = orderTotal(o);
               const reasonLabel = o.cancellation_reason
                 ? cancelReasonLabel(o.cancellation_reason)
                 : o.return_reason

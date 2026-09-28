@@ -8,6 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { apiErrorText } from '@/i18n/apiErrors';
+import { predictionListLabel } from '@/lib/predictionListLabel';
 // Value brackets are stored in EUR, set in denari.
 import { eurToDen, denToEur } from '@/lib/currency';
 import {
@@ -16,7 +17,7 @@ import {
   type SegmentEngineConfig, type SegmentEngineConfigRow, type SegmentEngineDiff, type SegmentEngineControls,
 } from '@/lib/api';
 import {
-  Loader2, Plus, Trash2, Save, Clock, DollarSign, Repeat, Package,
+  Loader2, Plus, Trash2, Save, Clock, Banknote, Repeat, Package,
   GitCompareArrows, AlertTriangle, Info, RefreshCw, Power, Play,
 } from 'lucide-react';
 
@@ -38,9 +39,27 @@ function NumOrNull({ value, onChange, placeholder }: { value: number | null; onC
 
 function deepClone<T>(o: T): T { return JSON.parse(JSON.stringify(o)); }
 
+/**
+ * A plain daily pg_cron schedule ("M H * * *" — pg_cron runs in UTC) as the
+ * Skopje wall-clock time it fires today, DST-aware ("0 0 * * *" → "02:00" in
+ * summer, "01:00" in winter). null for anything else.
+ */
+function cronSkopjeTime(schedule: string | null | undefined): string | null {
+  const m = /^(\d{1,2}) (\d{1,2}) \* \* \*$/.exec(String(schedule ?? '').trim());
+  if (!m) return null;
+  const d = new Date();
+  d.setUTCHours(Number(m[2]), Number(m[1]), 0, 0);
+  return new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Skopje', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(d);
+}
+
 export function PredictionEngineTab() {
   const { t } = useTranslation();
   const { toast } = useToast();
+  // "0 0 * * * (02:00 Скопје)"; a schedule that is not plain daily keeps (UTC).
+  const cronText = (schedule: string | null | undefined) => {
+    const at = cronSkopjeTime(schedule);
+    return `${schedule ?? ''} (${at ? t('predEngine.cronAtSkopje', { time: at }) : 'UTC'})`;
+  };
   const [row, setRow] = useState<SegmentEngineConfigRow | null>(null);
   const [cfg, setCfg] = useState<SegmentEngineConfig | null>(null);
   const [diff, setDiff] = useState<SegmentEngineDiff | null>(null);
@@ -192,10 +211,10 @@ export function PredictionEngineTab() {
               </div>
               <div className="flex flex-wrap gap-2 text-xs">
                 <Badge variant={controls.live_cron_active ? 'outline' : 'secondary'}>
-                  {t('predEngine.liveCron', { defaultValue: 'Live nightly: {{s}}', s: controls.live_cron_active ? `${controls.live_cron_schedule} (03:00 Sofia)` : 'off' })}
+                  {t('predEngine.liveCron', { defaultValue: 'Live nightly: {{s}}', s: controls.live_cron_active ? cronText(controls.live_cron_schedule) : t('predEngine.cronOff') })}
                 </Badge>
                 <Badge variant={controls.shadow_cron_active ? 'outline' : 'secondary'}>
-                  {t('predEngine.shadowCron', { defaultValue: 'Preview nightly: {{s}}', s: controls.shadow_cron_active ? `${controls.shadow_cron_schedule} (03:30 Sofia)` : 'stopped' })}
+                  {t('predEngine.shadowCron', { defaultValue: 'Preview nightly: {{s}}', s: controls.shadow_cron_active ? cronText(controls.shadow_cron_schedule) : t('predEngine.cronStopped') })}
                 </Badge>
               </div>
             </>
@@ -235,7 +254,7 @@ export function PredictionEngineTab() {
       {/* Value bands */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2"><DollarSign className="h-4 w-4" /> {t('predEngine.valueTitle', { defaultValue: 'Value brackets (last paid order price, ден)' })}</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2"><Banknote className="h-4 w-4" /> {t('predEngine.valueTitle', { defaultValue: 'Value brackets (last paid order price, ден)' })}</CardTitle>
           <p className="text-sm text-muted-foreground">{t('predEngine.valueDesc', { defaultValue: 'Splits each non-holding-pen band by order price. Last bracket must be open-ended.' })}</p>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -388,7 +407,7 @@ export function PredictionEngineTab() {
                     return (
                       <tr key={l.list_id} className="border-b border-border/50">
                         <td className="py-1.5 pr-4">
-                          {l.name}
+                          <span title={l.name}>{predictionListLabel(l.name)}</span>
                           {l.is_static && <Badge variant="outline" className="ml-2 text-[10px]">{t('predEngine.static', { defaultValue: 'static' })}</Badge>}
                           {!l.is_active && <Badge variant="secondary" className="ml-2 text-[10px]">{t('predEngine.inactive', { defaultValue: 'inactive' })}</Badge>}
                         </td>

@@ -31,6 +31,24 @@ export function denToEur(den: number | string): number {
   return Math.round((n / MKD_PER_EUR) * 100) / 100;
 }
 
+/**
+ * A денари INPUT over a stored-EUR value: the EUR to save. When the field still
+ * shows exactly what `eurToDen(storedEur)` put in it, the stored value comes back
+ * untouched — a plain round trip is not exact for every euro amount (34.90 € →
+ * 2.146 ден → 34.89 €), and opening a form and pressing Save must never re-price
+ * anything. Otherwise the typed denars convert with `denToEur` (2 dp, the
+ * precision of every EUR money column). Empty / not a number → null.
+ */
+export function denInputToEur(denText: string, storedEur?: number | string | null): number | null {
+  const s = String(denText ?? '').trim();
+  if (s === '') return null;
+  const n = Number(s.replace(',', '.'));
+  if (!Number.isFinite(n)) return null;
+  if (storedEur != null && storedEur !== '' && Number.isFinite(Number(storedEur))
+      && n === eurToDen(storedEur)) return Number(storedEur);
+  return denToEur(n);
+}
+
 // Macedonian grouping uses "." for thousands. Done manually rather than via
 // toLocaleString('mk-MK') so the output is identical in every browser and in
 // Node during tests — locale data for mk-MK is not universally present.

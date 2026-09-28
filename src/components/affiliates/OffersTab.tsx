@@ -5,7 +5,7 @@ import { apiGetOffers, apiCreateOffer, apiUpdateOffer, apiGetProducts, OfferAdmi
 import { useToast } from '@/hooks/use-toast';
 import { apiErrorText } from '@/i18n/apiErrors';
 import { useAuth } from '@/contexts/AuthContext';
-import { formatMoney, formatEurExact } from '@/lib/currency';
+import { formatMoney, formatEurExact, eurToDen, denInputToEur } from '@/lib/currency';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -37,8 +37,12 @@ export function OffersTab() {
   // which silently stamped every offer created here as Bulgarian.
   const [fGeo, setFGeo] = useState('MK');
   const [fPayout, setFPayout] = useState('');
-  // Customer price per package for THIS offer. Empty = inherit the product's
-  // own price, so other channels are never repriced by an affiliate deal.
+  // Customer price per package for THIS offer, TYPED IN ДЕНАРИ (a Macedonian
+  // selling price, owner 2026-09-28) and saved as EUR in offers.price_eur via
+  // denInputToEur — an untouched field saves the stored EUR exactly. Empty =
+  // inherit the product's own price, so other channels are never repriced by an
+  // affiliate deal. (The payout beside it stays EUR: a debt to a foreign
+  // webmaster — the documented exception.)
   const [fPrice, setFPrice] = useState('');
   const [fDesc, setFDesc] = useState('');
   const [fTerms, setFTerms] = useState('');
@@ -66,7 +70,7 @@ export function OffersTab() {
   const openEdit = (o: OfferAdmin) => {
     setEditOffer(o); setFName(o.name); setFProductId(o.product_id);
     setFGeo(o.geo); setFPayout(String(o.payout_eur));
-    setFPrice(o.price_eur == null ? '' : String(o.price_eur));
+    setFPrice(o.price_eur == null ? '' : String(eurToDen(o.price_eur)));
     setFDesc(o.description || ''); setFTerms(o.terms || ''); setFActive(o.is_active);
     setDialogOpen(true);
   };
@@ -78,7 +82,7 @@ export function OffersTab() {
         product_id: fProductId,
         geo: (fGeo.trim() || 'MK').toUpperCase(),
         payout_eur: Number(fPayout),
-        price_eur: fPrice.trim() === '' ? null : Number(fPrice),
+        price_eur: denInputToEur(fPrice, editOffer?.price_eur),
         description: fDesc.trim(),
         terms: fTerms.trim(),
         is_active: fActive,
@@ -94,7 +98,7 @@ export function OffersTab() {
 
   const payoutNum = Number(fPayout);
   const payoutValid = Number.isFinite(payoutNum) && payoutNum >= 0;
-  const priceNum = Number(fPrice);
+  const priceNum = Number(fPrice);  // денари
   const priceValid = fPrice.trim() === '' || (Number.isFinite(priceNum) && priceNum >= 0);
   // Shown as the placeholder so it is obvious what "leave empty" inherits.
   const selectedProductPrice = products.find((p: any) => p.id === fProductId)?.price ?? null;
@@ -153,7 +157,7 @@ export function OffersTab() {
                       {o.is_active ? t('affiliatesAdmin.offerActive') : t('affiliatesAdmin.offerRetired')}
                     </Badge>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground text-xs">{format(new Date(o.created_at), 'MMM d, yyyy')}</td>
+                  <td className="px-4 py-3 text-muted-foreground text-xs">{format(new Date(o.created_at), 'dd.MM.yyyy')}</td>
                   {isAdmin && (
                     <td className="px-4 py-3 text-right">
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(o)}>
@@ -215,15 +219,20 @@ export function OffersTab() {
               </div>
               <div className="space-y-1.5">
                 <Label>{t('affiliatesAdmin.fieldSellPrice')}</Label>
-                <Input
-                  type="number" step="0.01" min="0" value={fPrice}
-                  onChange={(e) => setFPrice(e.target.value)}
-                  placeholder={selectedProductPrice != null ? String(selectedProductPrice) : '34.90'}
-                />
-                {priceValid && fPrice !== '' ? (
-                  <p className="text-xs text-muted-foreground">&asymp; {formatMoney(priceNum)}</p>
-                ) : (
-                  <p className="text-xs text-muted-foreground">{t('affiliatesAdmin.sellPriceHint')}</p>
+                <div className="relative">
+                  <Input
+                    type="number" step="1" min="0" value={fPrice}
+                    onChange={(e) => setFPrice(e.target.value)}
+                    placeholder={selectedProductPrice != null ? String(eurToDen(selectedProductPrice)) : '2146'}
+                    className="pr-10"
+                  />
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">ден</span>
+                </div>
+                {fPrice.trim() === '' && (
+                  <p className="text-xs text-muted-foreground">
+                    {t('affiliatesAdmin.sellPriceHint')}
+                    {selectedProductPrice != null && ` (${formatMoney(selectedProductPrice)})`}
+                  </p>
                 )}
               </div>
             </div>

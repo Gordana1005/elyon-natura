@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { apiGetSegment, apiAssignSegmentMembers, apiGetAgents } from '@/lib/api';
 import { ArrowLeft, Users, Loader2, UserPlus, UserX } from 'lucide-react';
 import { SegmentMemberTable, type SegmentMember as Member } from '@/components/assigner/SegmentMemberTable';
+import { predictionListLabel } from '@/lib/predictionListLabel';
 
 interface SegmentList {
   id: string;
@@ -121,7 +122,7 @@ export default function SegmentDetailPage() {
   }
 
   return (
-    <AppLayout title={list?.name || t('titles.predictionList')}>
+    <AppLayout title={list?.name ? predictionListLabel(list.name) : t('titles.predictionList')}>
       <div className="space-y-4">
         <div>
           <Link to="/segments" className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1">

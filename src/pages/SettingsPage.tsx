@@ -8,6 +8,7 @@ import { AppLayout } from '@/layouts/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { apiErrorText } from '@/i18n/apiErrors';
+import { formatDayDmy } from '@/i18n/dates';
 import { usePermissions } from '@/contexts/PermissionsContext';
 import { EmptyState } from '@/components/EmptyState';
 // Courier rates are stored in EUR but entered in denari — convert at the input.
@@ -25,7 +26,7 @@ import {
   Sun, Moon, Eye, EyeOff, Bell, ChevronDown, ChevronRight, Languages,
   AlertTriangle, Mail, Lock, User as UserIcon,
   Crown, Clock, TrendingUp, Megaphone, ArrowUpDown,
-  Blocks, KeyRound, DollarSign, LockKeyhole, Check, X, Phone, Truck, Trophy, Briefcase,
+  Blocks, KeyRound, Banknote, LockKeyhole, Check, X, Phone, Truck, Trophy, Briefcase,
 } from 'lucide-react';
 import { TelephonyTab } from '@/components/settings/TelephonyTab';
 import { LeaderboardTab } from '@/components/settings/LeaderboardTab';
@@ -147,7 +148,7 @@ export default function SettingsPage() {
           )}
           {isAdmin && (
             <TabsTrigger value="financial" className="rounded-lg gap-2 text-sm data-[state=active]:bg-card data-[state=active]:shadow-sm">
-              <DollarSign className="h-4 w-4" /> {t('settings.tabFinancial')}
+              <Banknote className="h-4 w-4" /> {t('settings.tabFinancial')}
             </TabsTrigger>
           )}
           {isAdmin && (
@@ -488,7 +489,7 @@ function UsersTab() {
                   </td>
                   <td className="px-4 py-3 font-semibold tabular-nums">{u.orders_processed}</td>
                   <td className="px-4 py-3 font-semibold tabular-nums">{u.leads_processed}</td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(u.created_at).toLocaleDateString()}</td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">{formatDayDmy(u.created_at)}</td>
                   <td className="px-4 py-3">
                     {!isSelf(u.user_id) && (
                       <Tooltip>
@@ -1526,7 +1527,7 @@ function FinancialVisibilityTab() {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-lg font-semibold flex items-center gap-2"><DollarSign className="h-5 w-5 text-primary" /> {t('settings.finVisTitle')}</h2>
+        <h2 className="text-lg font-semibold flex items-center gap-2"><Banknote className="h-5 w-5 text-primary" /> {t('settings.finVisTitle')}</h2>
         <p className="text-sm text-muted-foreground">{t('settings.finVisDesc')}</p>
       </div>
 

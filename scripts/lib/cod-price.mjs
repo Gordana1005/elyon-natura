@@ -19,7 +19,10 @@
  *   disposition        synthetic product name / sale_source_detail 'disposition' — a 0 ден
  *                      call-outcome row holding a parcel is a ghost link, not a sale
  *   zero_price         price 0/NULL on a real product — nothing to compare the COD with; the
- *                      classic ghost signature (repair B lists these for a human)
+ *                      classic ghost signature (repair B lists these for a human). With the
+ *                      opt-in --include-zero-price a price of exactly 0 on a REAL product (real
+ *                      name + ≥ 1 order_items line) whose own parcel has COD > 0 is re-priced
+ *                      instead (rule reprice_zero_price; see zeroPriceQualifies)
  *   link_not_agreed    the order names the parcel but the register links it elsewhere / not
  *   double_held        the tracking id is named by 2+ live orders (owner: keep both orders;
  *                      the owner-accepted pairs of scripts/data/c8a-accepted-duplicates.json
@@ -257,8 +260,23 @@ export function orderPackageBonus(status, price, quantity, items) {
  * @param accepted  owner-accepted double claims (parseAcceptedDuplicates().entries)
  * @returns {{ candidates, excluded, lines, units, counts }}
  */
+/**
+ * --include-zero-price (owner rule 28.09.2026 "MEX is always right"; opt-in, default OFF): a REAL
+ * product order with price exactly 0 whose own parcel carries COD > 0 takes the COD as its price
+ * instead of being listed as zero_price. "Real" = a non-synthetic product name AND ≥ 1 order_items
+ * line (a /calls disposition row has "No prior product on file" and no lines). Its
+ * sale_source_detail may read 'disposition' only because the insert classifier stamps every
+ * price-0 row so — that label alone does not exclude it; a synthetic name still does. Every other
+ * exclusion (register link, double claim, wrong channel, non-sale status, payout, test phone,
+ * unscalable lines) still applies; COD 0 (a replacement) never reaches the classifier.
+ */
+export function zeroPriceQualifies(r, its) {
+  const raw = r.price === null || r.price === undefined ? '' : String(r.price).trim();
+  return raw !== '' && toCents(raw) === 0 && !isSyntheticProductName(r.product_name) && (its?.length || 0) > 0;
+}
+
 export function classifyCodPrice({ rows, items = new Map(), payout = new Set(), hold = new Set(), accepted = [],
-  runTag = 'dry-run', today = '' }) {
+  runTag = 'dry-run', today = '', includeZeroPrice = false }) {
   const acceptedBy = new Map(accepted.map((e) => [e.tracking_id, e]));
   const candidates = [], excluded = [], lines = [], units = [];
   const counts = { mismatches: 0, candidates: 0, quantity_changes: 0 };
@@ -276,11 +294,12 @@ export function classifyCodPrice({ rows, items = new Map(), payout = new Set(), 
     const acc = holders.length > 1 ? acceptedBy.get(r.tracking_id) : null;
     const ownerAccepted = !!acc && acc.key === holdersKey(holders);
     const suspicion = linkSuspicion(r, r);
+    const zeroOk = includeZeroPrice && zeroPriceQualifies(r, its);
     const reasons = [];
     if (hold.has(r.display_id)) reasons.push(['held', 'held back with --hold']);
     if (isTestPhone(r.customer_phone)) reasons.push(['test_phone', 'a test number — its orders are deleted by repair-test-phones.mjs']);
-    if (isSyntheticProductName(r.product_name) || detail === 'disposition') reasons.push(['disposition', 'a disposition (0 ден call-outcome) row holding a parcel — a ghost link, not a sale']);
-    if (!(priceCents > 0)) reasons.push(['zero_price', 'price 0 — nothing to compare the COD with (ghost signature; for a human)']);
+    if (isSyntheticProductName(r.product_name) || (detail === 'disposition' && !zeroOk)) reasons.push(['disposition', 'a disposition (0 ден call-outcome) row holding a parcel — a ghost link, not a sale']);
+    if (!(priceCents > 0) && !zeroOk) reasons.push(['zero_price', 'price 0 — nothing to compare the COD with (ghost signature; for a human)']);
     if (r.reg_order_id !== r.id) reasons.push(['link_not_agreed', r.reg_order_id ? 'the register links this parcel to another order' : 'the register does not link this parcel to the order']);
     if (holders.length > 1) reasons.push(['double_held', `tracking id named by ${holders.join(', ')}${ownerAccepted ? ' (owner-accepted: both orders kept)' : ''}`]);
     if (suspicion) reasons.push(['suspect_link', suspicion]);
@@ -296,6 +315,12 @@ export function classifyCodPrice({ rows, items = new Map(), payout = new Set(), 
     const cpaCount = altercpaCount(r.cpa_count);
     const cpaMkd = altercpaMkd(r.cpa_price, r.cpa_currency);
     const ex = explainCod({ priceCents, cod, qty, unitCents, cpaCount, cpaMkd });
+    if (zeroOk) {
+      // no price to scale from: the COD is the only price there is (never a quantity change)
+      ex.newQty = null;
+      ex.explained = `zero_price_real_product: the CRM had no price (0 ден) on a real product order (${r.product_name}, ${its.length} line(s)); its own parcel's COD is the price` +
+        (ex.cpaFits === 'exact' || ex.cpaFits === '+150' ? ` — AlterCPA's own total agrees (${fmtMkd(cpaMkd)} ден)` : '');
+    }
     const newCents = codToCents(cod);
     const plan = planItems(its, newCents, { newQty: ex.newQty });
     if (!reasons.length && !plan.ok) reasons.push(['items_unscalable', plan.why]);
@@ -306,7 +331,7 @@ export function classifyCodPrice({ rows, items = new Map(), payout = new Set(), 
     const crmMkd = expectedCodMkd(priceCents / 100);
     const row = {
       decision: reasons.length ? 'excluded' : 'reprice',
-      rule: reasons.length ? reasons[0][0] : (newQty ? 'reprice_qty' : 'reprice'),
+      rule: reasons.length ? reasons[0][0] : zeroOk ? 'reprice_zero_price' : (newQty ? 'reprice_qty' : 'reprice'),
       why: reasons.map(([k, w]) => `${k}: ${w}`).join(' | '),
       explained: ex.explained,
       order: r.display_id, status: r.status, source, detail, created: fmtSkopje(r.created_at),
@@ -337,6 +362,7 @@ export function classifyCodPrice({ rows, items = new Map(), payout = new Set(), 
       ` ${fmtEur(newCents)} (the COD / 61,5)` +
       (newQty ? `, quantity ${qty} → ${newQty} (AlterCPA's own record: ${cpaCount} packs × ${fmtEur(unitCents)} = the COD)` : '') +
       (its.length ? `; order_items kept consistent (Σ ${fmtEur(newCents)})` : '') +
+      (zeroOk ? '. The order had no price at all — a real product order and its own parcel, re-priced with --include-zero-price' : '') +
       `. ${ex.explained ? `Why it differed: ${ex.explained.split(': ').slice(1).join(': ') || ex.explained}. ` : ''}` +
       `No stock movement is written; payout/commission math is unchanged (deferred)${today ? `; ${today}` : ''}.`;
     units.push({

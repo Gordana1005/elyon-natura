@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { SmartPagination } from '@/components/SmartPagination';
 import { EmptyState } from '@/components/EmptyState';
-import { formatMoney, formatEurExact } from '@/lib/currency';
+import { formatMoney, formatDenari } from '@/lib/currency';
+import { fmtNum } from '@/components/insights/overview/model';
 import { Globe, Loader2, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { affiliateLabel } from '@/lib/orderSource';
@@ -40,8 +41,14 @@ const phaseBadge: Record<number, string> = {
  * Romanian lei figure printed with a "ден" suffix is a number nobody can act
  * on. So the customer-facing денар figure is shown only for MK, and every other
  * row shows the raw amount in the currency AlterCPA actually recorded, with the
- * EUR conversion alongside where we have a rate.
+ * денари equivalent (stored EUR × the frozen peg) alongside where we have a
+ * rate — never a euro figure (owner, 28.09: денари everywhere for staff).
  */
+
+/** A raw partner amount in its own currency, Macedonian grouping: 1.234,5 RON. */
+function rawAmount(n: number): string {
+  return fmtNum(n, 'mk', Number.isInteger(n) ? 0 : 2);
+}
 export function MirrorTab() {
   const { t } = useTranslation();
 
@@ -247,11 +254,14 @@ function LeadRow({ lead }: { lead: AlterCpaLead }) {
         ) : (
           <>
             <div className="font-mono text-xs">
-              {Number(lead.price_raw ?? 0).toLocaleString()} {(lead.currency_raw || '').toUpperCase()}
+              {(lead.currency_raw || '').toLowerCase() === 'mkd'
+                // Already denari as AlterCPA recorded them — never ×61.5 again.
+                ? formatDenari(lead.price_raw ?? 0)
+                : `${rawAmount(Number(lead.price_raw ?? 0))} ${(lead.currency_raw || '').toUpperCase()}`}
             </div>
             <div className="text-xs text-muted-foreground">
               {lead.price_eur != null
-                ? formatEurExact(Number(lead.price_eur) * lead.quantity)
+                ? `≈ ${formatMoney(Number(lead.price_eur) * lead.quantity)}`
                 : t('altercpa.noRate')}
             </div>
           </>

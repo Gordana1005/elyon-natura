@@ -18,7 +18,7 @@ import {
   apiAutoAssignCallAgains,
   type LeadDistConfig, type LeadDistResult, type LeadDistProductRule, type LeadDistParticipant,
 } from '@/lib/api';
-import { formatEurExact } from '@/lib/currency';
+import { formatMoney, eurToDen, denInputToEur } from '@/lib/currency';
 import { AgentPickerChips } from '@/components/assigner/AgentPickerChips';
 import { cn } from '@/lib/utils';
 import { EmptyState } from '@/components/EmptyState';
@@ -50,7 +50,10 @@ export default function LeadDistributionPage() {
   // Local form state for the settings that need a Save.
   const [strategy, setStrategy] = useState<LeadDistConfig['strategy']>('round_robin');
   const [maxLeads, setMaxLeads] = useState('50');
-  const [priorityThreshold, setPriorityThreshold] = useState('500');
+  // High-value threshold, TYPED IN ДЕНАРИ; saved as EUR (lead_distribution_config.
+  // priority_threshold is compared against the EUR orders.price). '30750' = the
+  // column default of 500 €.
+  const [priorityThreshold, setPriorityThreshold] = useState('30750');
   const [respectOnline, setRespectOnline] = useState(true);
   const [includePredictionLoad, setIncludePredictionLoad] = useState(false);
   const [workingHoursOnly, setWorkingHoursOnly] = useState(false);
@@ -65,7 +68,7 @@ export default function LeadDistributionPage() {
     setConfig(cfg);
     setStrategy(cfg.strategy);
     setMaxLeads(String(cfg.max_leads_per_agent));
-    setPriorityThreshold(String(cfg.priority_threshold));
+    setPriorityThreshold(String(eurToDen(cfg.priority_threshold)));
     setRespectOnline(cfg.respect_online);
     setIncludePredictionLoad(cfg.include_prediction_load);
     setWorkingHoursOnly(cfg.working_hours_only);
@@ -105,7 +108,8 @@ export default function LeadDistributionPage() {
       await apiUpdateLeadDistributionConfig({
         strategy,
         max_leads_per_agent: parseInt(maxLeads) || 50,
-        priority_threshold: parseFloat(priorityThreshold) || 0,
+        // Untouched field → the stored EUR exactly (denInputToEur); typed → ден / 61.5.
+        priority_threshold: denInputToEur(priorityThreshold, config?.priority_threshold) ?? 0,
         respect_online: respectOnline,
         include_prediction_load: includePredictionLoad,
         working_hours_only: workingHoursOnly,
@@ -359,11 +363,16 @@ export default function LeadDistributionPage() {
                   {strategy === 'priority' && (
                     <div>
                       <Label className="text-xs">{t('leadDist.highValue')}</Label>
-                      <Input type="number" value={priorityThreshold} onChange={e => setPriorityThreshold(e.target.value)} min="0" step="1" className="mt-1" />
                       {/* The threshold is compared against orders.price, which is
-                          stored in EUR — never denars. See elyon-currency. */}
+                          stored in EUR. The field takes денари and is converted at
+                          the edges (eurToDen in, denInputToEur out) — see
+                          elyon-currency rule 2. */}
+                      <div className="relative mt-1">
+                        <Input type="number" value={priorityThreshold} onChange={e => setPriorityThreshold(e.target.value)} min="0" step="1" className="pr-10" />
+                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">ден</span>
+                      </div>
                       <p className="text-[10px] text-muted-foreground mt-1">
-                        {t('leadDist.highValueDesc', { value: formatEurExact(parseFloat(priorityThreshold) || 0) })}
+                        {t('leadDist.highValueDesc', { value: formatMoney(denInputToEur(priorityThreshold, config?.priority_threshold) ?? 0) })}
                       </p>
                     </div>
                   )}

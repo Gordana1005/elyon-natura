@@ -6,6 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { type AgentChip } from './AgentPickerChips';
 import { AgentPickerPopover } from './AgentPickerPopover';
 import { cn } from '@/lib/utils';
+import { predictionListLabel } from '@/lib/predictionListLabel';
 
 export interface BasketItem {
   key: string;        // `${listId}|${phone}`
@@ -63,7 +64,7 @@ export function CrossListBasketBar({ items, agents, busy, onAssign, onUnassign, 
                 <div key={it.key} className="group flex items-center justify-between gap-2 px-3 py-1.5 hover:bg-muted/50">
                   <div className="min-w-0">
                     <div className="text-xs font-medium truncate">{it.name || it.phone}</div>
-                    <div className="text-[10px] text-muted-foreground truncate">{it.phone} · {it.listName}</div>
+                    <div className="text-[10px] text-muted-foreground truncate">{it.phone} · {predictionListLabel(it.listName)}</div>
                   </div>
                   <button onClick={() => onRemove(it.key)} className="p-1 rounded hover:bg-rose-100 text-rose-600 shrink-0" title={t('assigner.basket.remove')}>
                     <X className="h-3 w-3" />

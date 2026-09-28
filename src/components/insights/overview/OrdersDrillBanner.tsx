@@ -4,6 +4,7 @@ import { ArrowLeft, Filter, X } from 'lucide-react';
 import type { OrdersDrillParams } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { dm } from './useOverviewFormat';
+import { NO_PARCEL_DEFAULT_DAYS } from '@/lib/noParcelRule';
 
 /** outcome param → the label the Overview showed next to that number. */
 const OUTCOME_LABEL: Record<string, string> = {
@@ -42,7 +43,9 @@ export function OrdersDrillBanner({ drill, label, onClear }: { drill: OrdersDril
       ? t(`overview.bucket.${known}`)
       : drill.outcome.split(',').map((o) => t(`overview.bucket.${o}`, { defaultValue: o })).join(' + '));
   }
-  if (drill.attention && !label) parts.push(t(`overview.attention.kind.${drill.attention}`, { defaultValue: drill.attention }));
+  // Opened from the Overview / Settings the label (with the rule's real days) is
+  // in the URL; a bare /orders?attention=… link falls back to the default window.
+  if (drill.attention && !label) parts.push(t(`overview.attention.kind.${drill.attention}`, { days: NO_PARCEL_DEFAULT_DAYS, defaultValue: drill.attention }));
   if (drill.paid_basis) parts.push(t('overview.drill.paidBasis', { basis: drill.paid_basis }));
   if (drill.created_from || drill.created_to) parts.push(t('overview.drill.created', { period: range(drill.created_from, drill.created_to) }));
   if (drill.sold_from || drill.sold_to) {

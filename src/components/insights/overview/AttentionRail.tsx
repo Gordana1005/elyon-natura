@@ -6,6 +6,7 @@ import { ClockCaption } from '../shared/ClockCaption';
 import { TONE_TEXT } from './palette';
 import { ordersHref } from './model';
 import type { OverviewFormat } from './useOverviewFormat';
+import { noParcelDaysOr } from '@/lib/noParcelRule';
 
 /** The kinds GET /orders?attention= can list (the api answers 400
  *  attention_not_listable for the rest) — only these open the filtered list. */
@@ -56,7 +57,10 @@ export function AttentionRail({
             const Icon = critical ? OctagonAlert : AlertTriangle;
             const base = LISTABLE.has(a.kind) ? { attention: a.kind } : null;
             const orderSamples = ORDER_SAMPLES.has(a.kind);
-            const href = a.kind === 'stale_feed' ? '#overview-freshness' : ordersHref(base, t(`overview.attention.kind.${a.kind}`));
+            // approved_no_parcel_7d carries the rule's own window (`days`, default 10);
+            // the "7d" in the kind is only its stored name.
+            const kindLabel = t(`overview.attention.kind.${a.kind}`, { days: noParcelDaysOr(a.days) });
+            const href = a.kind === 'stale_feed' ? '#overview-freshness' : ordersHref(base, kindLabel);
             const people = (a.by_person ?? []).filter((p) => !teamPeople || teamPeople.has(p.person_id)).slice(0, 3);
             return (
               <li key={a.kind}
@@ -66,7 +70,7 @@ export function AttentionRail({
                   critical ? TONE_TEXT.critical : TONE_TEXT.warning)}>
                   <Icon className="h-3.5 w-3.5" aria-hidden />{t(`overview.attention.severity.${a.severity}`)}
                 </span>
-                <h3 className="mt-1 text-sm font-medium leading-snug">{t(`overview.attention.kind.${a.kind}`)}</h3>
+                <h3 className="mt-1 text-sm font-medium leading-snug">{kindLabel}</h3>
                 <div className="mt-1 flex flex-wrap items-baseline gap-x-2">
                   {href?.startsWith('#') ? (
                     <a href={href} className="text-2xl font-semibold tabular-nums hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{f.int(a.count)}</a>

@@ -31,6 +31,7 @@ import { AgentPickerChips } from '@/components/assigner/AgentPickerChips';
 import { CrossListBasketBar, type BasketItem } from '@/components/assigner/CrossListBasketBar';
 import { BulkUnassignPanel } from '@/components/assigner/BulkUnassignPanel';
 import { CallAgainsPanel } from '@/components/assigner/CallAgainsPanel';
+import { predictionListLabel } from '@/lib/predictionListLabel';
 
 interface UnassignedOrder {
   id: string;
@@ -778,7 +779,7 @@ function PredictionListRow({ list, agents, isInBasket, toggleBasketMember, setBa
         className="w-full flex items-center gap-4 px-4 py-3 hover:bg-muted/30 transition-colors text-left">
         <ChevronRight className={cn('h-4 w-4 text-muted-foreground transition-transform', expanded && 'rotate-90')} />
         <div className="flex-1 min-w-0">
-          <div className="font-semibold text-sm truncate">{list.name}</div>
+          <div className="font-semibold text-sm truncate" title={list.name}>{predictionListLabel(list.name)}</div>
           <div className="text-xs text-muted-foreground truncate">{list.description}</div>
         </div>
         <div className="flex items-center gap-2 text-xs shrink-0">

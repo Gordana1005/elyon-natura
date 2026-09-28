@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { ChevronLeft, ChevronRight, Loader2, UserX } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { predictionListLabel } from '@/lib/predictionListLabel';
 
 const PAGE_SIZE = 50;
 
@@ -77,7 +78,7 @@ export function AgentListMembersRow({ agentId, list, busy, onUnassignList, onMut
           aria-label={expanded ? t('assigner.hideClients') : t('assigner.showClients')}
         >
           <ChevronRight className={cn('h-3.5 w-3.5 text-muted-foreground transition-transform shrink-0', expanded && 'rotate-90')} />
-          <span className="flex-1 min-w-0 text-sm truncate">{list.list_name}</span>
+          <span className="flex-1 min-w-0 text-sm truncate" title={list.list_name}>{predictionListLabel(list.list_name)}</span>
         </button>
         {list.open > 0 && (
           <span className="text-xs text-amber-700 dark:text-amber-400 shrink-0">

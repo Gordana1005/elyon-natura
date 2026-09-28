@@ -37,24 +37,28 @@ because a browser tab was closed.
 |---|---|---|
 | `missed_call` | trigger on `missed_calls` (20260604130000 / 20260614120000) | last agent who called that number + all admins |
 | `order_returned` | trigger on `orders` status → `returned` (re-emitted 20260934000200) | sale owner + all admins |
-| `order_paid` | trigger on `orders` status → `paid` (20260604140000, re-emitted 20260934000200) | sale owner + all admins |
+| `order_paid` | trigger on `orders` status → `paid` (20260604140000, re-emitted 20260934000200, денари + meta 20260940000400) | sale owner + all admins |
 | `low_stock` | trigger on `products.stock_quantity` **downward crossing** | admins + warehouse |
 | `shipped_unpaid` | `notify_unpaid_shipped_orders()` job (20260905000100) | sale owner only |
-| `unpaid_digest` | same job, once after the loop | one per active admin per day |
+| `unpaid_digest` | same job, once after the loop (MEX age since 20260940000400) | one per active admin per day |
 | `altercpa_rate` | triggers on `altercpa_leads` (every STEP-th lead) and on orders (every STEP-th confirm of a cohort) — 20260922000000, re-emitted 20260934000200 | active admins + managers, one copy each |
 | `altercpa_rate_below` | cron `altercpa-rate-verdicts` (hourly :05; acts at 23:xx and 10:xx local) | active admins + managers |
 | `inactivity` | `presence_record_beat()` via `presence_heartbeat()` (20260935000200) | the idle person (`meta.self`) + the `presence_idle_alert_recipients` (default owners) |
-| `assignment` | api `notifyUsers()`: bulk assign, single assign, Call Agains assign (`meta notif.callAgainsAssigned`), prediction-list distribution, manual lead-distribution run (`meta notif.leadsAssigned`) | the agent who received the work (never yourself) |
-| `affiliate_lead` | api `notifyUsers()` on `POST /cpa/lead` | all admins |
+| `assignment` | api `notifyUsers()`: bulk assign (`meta notif.ordersAssigned`), single assign (`notif.orderAssigned`), Call Agains assign (`notif.callAgainsAssigned`), prediction-list distribution (`notif.predictionLeadsAssigned`), manual lead-distribution run (`notif.leadsAssigned`) | the agent who received the work (never yourself) |
+| `affiliate_lead` | api `notifyUsers()` on `POST /cpa/lead` (`meta notif.affiliateLead`) | all admins |
 
 **UI maps.** A type needs **five** entries in `NotificationsDropdown.tsx`: `typeIcons`,
 `typeColors`, `getUnreadMoodClass`, `getUnreadTitleClass`, `toastSeverity`. Miss one and the row
-renders with the grey default. Today `inactivity` has all five; `assignment` has only an icon and
-a colour; `altercpa_rate`, `altercpa_rate_below` and `affiliate_lead` are in none of the maps
-(they render as the grey `Info` default).
+renders with the grey default. `inactivity`, `altercpa_rate` (sky), `altercpa_rate_below`
+(amber, warning toast) and `affiliate_lead` (violet) have all five (2026-09-28); `assignment` has
+only an icon and a colour.
 
-`order_paid` / `order_returned` rows carry **no `meta`** (English only), and the `order_paid`
-message prints the price as `€NN.NN` from the EUR column — a leftover against `elyon-currency`.
+**Money in a bell is денари** (owner, 2026-09-28). `order_paid` (20260940000400) writes
+`message` "… was paid — 2.490 ден." and `meta {i18n:'notif.orderPaid', order, customer,
+amountMkd}`; `localizeNotification()` turns `amountMkd` into `{{amount}}` with `formatDenari`
+(never ×61.5 again). The 65k rows written before it (meta NULL, `€NN.NN`) are parsed by
+`legacyOrderPaidMeta()` and re-rendered through the same key with `formatMoney` — their stored
+English is never shown. `order_returned` still carries no `meta` (English only).
 
 ## Rule 1 — the owner of a sale is the CONFIRMER
 
@@ -80,8 +84,10 @@ rendered verbatim. Add every new key to **all four** locale files (`en`, `bg`, `
 `npm test` enforces parity). Interpolated values are DB data (order id, customer name, counts)
 and are never translated — see [elyon-i18n](../elyon-i18n/SKILL.md).
 
-Keys in use: `notif.shippedUnpaid`, `notif.unpaidDigest` (+ `.staleSync`),
-`notif.callAgainsAssigned`, `notif.leadsAssigned`, `notif.altercpaRate{Leads,Confirms,BelowDay,BelowFinal}`,
+Keys in use: `notif.shippedUnpaid`, `notif.unpaidDigest` (+ `.staleMex`; `.staleSync` is the
+dead BigArena sentence, no longer rendered), `notif.orderPaid`, `notif.affiliateLead`,
+`notif.callAgainsAssigned`, `notif.leadsAssigned`, `notif.ordersAssigned`, `notif.orderAssigned`,
+`notif.predictionLeadsAssigned`, `notif.altercpaRate{Leads,Confirms,BelowDay,BelowFinal}`,
 `notif.inactivity`, `notif.inactivitySelf`.
 
 ⚠️ Inside `renderNotificationToast` and the custom toast components, `t` is the **sonner toast
@@ -145,8 +151,8 @@ calls, the courier sends it back and we pay shipping both ways. When it was buil
 orders in `shipped`, **20 of them unpaid for 3+ days**, oldest 27 days.
 
 **How**: `notify_unpaid_shipped_orders(_force, _dry_run)`, cron `unpaid-delivery-chase` hourly at
-:00, self-gated to hours 09–11 **Europe/Skopje** (the code computes Skopje time; comments in the
-migration still say "Sofia"). A missed 09:00 heals at 10:00; the ledger PK stops double-sends.
+:00, self-gated to hours 09–11 **Europe/Skopje**. A missed 09:00 heals at 10:00; the ledger PK
+stops double-sends.
 
 - **Candidates**: `status IN ('shipped','delivered')`, `shipped_at IS NOT NULL`,
   `duplicated_from IS NULL`, `source_type <> 'monadon_legacy'`, age in `[unpaid_chase_days,
@@ -158,13 +164,11 @@ migration still say "Sofia"). A missed 09:00 heals at 10:00; the ledger PK stops
 - **Digest counts the full problem** (every order unpaid ≥ threshold, no upper bound), not just
   what pinged today — otherwise orders aged past the stop threshold would silently vanish from
   oversight, which is the exact blind spot the feature exists to remove.
-- **`syncAgeHours`** in the digest = hours since the last `order.bigarena_status_sync`
-  audit entry. ⚠️ Stale on MK: the BigArena status-upload button was removed 2026-08-18 (the
-  `POST /orders/bigarena-sync` route still exists, nothing in the UI calls it) and courier
-  outcomes now come from the `mex-reconcile` cron, which writes no such audit row. So this age
-  no longer measures the data behind the digest, and the `staleSync` sentence (shown from 36 h)
-  says nothing about MEX. Judge MEX freshness in Settings → Integrations health. Do **not** mute
-  alerts on staleness — muting hides real returns.
+- **`mexSyncAgeHours`** in the digest (20260940000400) = hours since the last `mex_sync_runs`
+  row with `status = 'ok'` (`finished_at`) — the `mex-reconcile` cron is where courier outcomes
+  come from. From 36 h the bell appends `notif.unpaidDigest.staleMex`. Older rows carry
+  `syncAgeHours` (hours since the removed BigArena upload, which only ever grew); the bell
+  ignores that key on purpose. Do **not** mute alerts on staleness — muting hides real returns.
 
 `unpaid_chase_stop_days` is the only place alerts go quiet. Raise it to 999 to chase forever.
 

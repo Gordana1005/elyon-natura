@@ -19,7 +19,7 @@ import {
   Target, Download, ArrowUpRight, ArrowDownRight,
   Activity,
   X, MessageSquare, Phone, ArrowRightLeft, FileText,
-  DollarSign, AlertTriangle, Trophy, Zap, Shield, ChevronRight,
+  AlertTriangle, Trophy, Zap, Shield, ChevronRight,
   ChevronLeft, Trash2, Banknote, Clock,
   PhoneForwarded, ListChecks,
 } from 'lucide-react';
@@ -103,7 +103,8 @@ function exportCSV(data: DashStats, period: string, label?: string) {
     ['Leads Created', String(data.lead_count)],
     ['Deals Won', String(data.deals_won)],
     ['Deals Lost', String(data.deals_lost)],
-    ['Total Value', String(data.total_value)],
+    // total_value is stored EUR — the file carries whole денари, currency in the label.
+    ['Total Value (MKD)', String(eurToDen(data.total_value || 0))],
     ['Calls Completed', String(data.tasks_completed)],
     ['Total Orders', String(data.total_orders)],
     ['', ''],
@@ -276,7 +277,7 @@ function MetricCard({ title, value, icon: Icon, trend, trendLabel, color, subtit
             {trend !== undefined && (
               <div className={`inline-flex items-center gap-1 text-xs font-medium mt-1 ${isPositive ? 'text-[hsl(var(--success))]' : 'text-destructive'}`}>
                 {isPositive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-                {Math.abs(trend)}% <span className="text-muted-foreground/70">vs yesterday</span>
+                {Math.abs(trend)}% <span className="text-muted-foreground/70">{i18n.t('dashboard.vsYesterday')}</span>
               </div>
             )}
 
@@ -314,13 +315,35 @@ const chartTooltipStyle = {
 };
 
 import { cn } from '@/lib/utils';
-import { formatMoney } from '@/lib/currency';
+import { eurToDen, formatMoney } from '@/lib/currency';
+import { moneyAxis } from '@/components/insights/shared/tabFormat';
+import { activityActor, activityText } from '@/lib/activityFeed';
 import { CHART_COLORS, hoverLift } from '@/lib/design-utils';
 import { EmptyState } from '@/components/EmptyState';
 
 // Macedonia shows denars only. Routed through the shared helper so this page
 // can never drift from the rest of the app's money formatting.
 const fmtCurrency = (n: number) => formatMoney(n);
+
+/** "2026-09-28" → "28.09" for the chart axes (Macedonian day-first order). */
+const ddmm = (ymd: string) => (ymd && ymd.length >= 10 ? `${ymd.slice(8, 10)}.${ymd.slice(5, 7)}` : ymd);
+
+/**
+ * A CEO risk alert in the reader's language. The api sends English `message`
+ * (kept as the fallback for an older api) plus structured `pct` / `count` /
+ * `amount_eur`; the outstanding balance is stored EUR and shown in денари.
+ */
+function alertText(a: { type?: string; message?: string; pct?: number; count?: number; amount_eur?: number }): string {
+  const vars: Record<string, unknown> = { pct: a.pct, n: a.count };
+  if (a.amount_eur != null) vars.amount = formatMoney(a.amount_eur);
+  // Only when the api sent the field the sentence needs (an older api sends
+  // English `message` alone) — never a sentence with a blank number in it.
+  const known = ((a.type === 'return_rate' || a.type === 'conversion') && a.pct != null)
+    || (a.type === 'pending' && a.count != null)
+    || (a.type === 'outstanding' && a.amount_eur != null);
+  if (!known) return a.message ?? '';
+  return i18n.t(`dashboard.alert.${a.type}`, { ...vars, defaultValue: a.message ?? '' });
+}
 
 export default function Dashboard() {
   const { t } = useTranslation(); // subscribes status labels to language switches
@@ -468,7 +491,7 @@ export default function Dashboard() {
     return Object.entries(ceoStats.dailyRevenue)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, v]: [string, any]) => ({
-        date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        date: ddmm(date),
         revenue: v.revenue,
         orders: v.orders,
         leads: v.leads,
@@ -542,7 +565,7 @@ export default function Dashboard() {
     const trend = Object.entries(stats?.daily || {})
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, v]) => ({
-        date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        date: ddmm(date),
         sales: v.deals_won, calls: v.calls,
       }));
     const periodLabel =
@@ -683,7 +706,7 @@ export default function Dashboard() {
           <MetricCard
             title={t('dashboard.paidRevenue')}
             value={formatMoney(paidRevenue)}
-            icon={DollarSign}
+            icon={Banknote}
             color="bg-[hsl(var(--info))]"
             subtitle={t('dashboard.paidRevenueSub')}
           />
@@ -744,8 +767,8 @@ export default function Dashboard() {
                     <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
                     <Tooltip contentStyle={chartTooltipStyle} />
-                    <Area type="monotone" dataKey="sales" stroke="hsl(142, 76%, 36%)" strokeWidth={2} fill="url(#agSales)" name="Sales" />
-                    <Area type="monotone" dataKey="calls" stroke="hsl(27, 95%, 48%)" strokeWidth={2} fillOpacity={0} name="Calls" />
+                    <Area type="monotone" dataKey="sales" stroke="hsl(142, 76%, 36%)" strokeWidth={2} fill="url(#agSales)" name={t('dashboard.sales')} />
+                    <Area type="monotone" dataKey="calls" stroke="hsl(27, 95%, 48%)" strokeWidth={2} fillOpacity={0} name={t('dashboard.chartCalls')} />
                   </AreaChart>
                 </ResponsiveContainer>
               )}
@@ -816,7 +839,7 @@ export default function Dashboard() {
                           <IconComp className="h-3.5 w-3.5" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs text-muted-foreground truncate">{item.description}</p>
+                          <p className="text-xs text-muted-foreground truncate">{activityText(item)}</p>
                         </div>
                         <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0 mt-0.5">{getTimeAgo(item.timestamp)}</span>
                       </div>
@@ -914,7 +937,7 @@ export default function Dashboard() {
                 {/* Paid */}
                 <div className="flex items-center gap-3 rounded-xl border border-border/50 bg-muted/30 p-3">
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[hsl(var(--success))]">
-                    <DollarSign className="h-4.5 w-4.5 text-primary-foreground" />
+                    <Banknote className="h-4.5 w-4.5 text-primary-foreground" />
                   </div>
                   <div>
                     <div className="text-2xl font-semibold tabular-nums">{ceoStats.paidCount || 0}</div>
@@ -984,7 +1007,7 @@ export default function Dashboard() {
         <Card className={`mb-6 border border-border/60 bg-card ${hoverLift}`}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold text-card-foreground flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-primary" />
+              <Banknote className="h-4 w-4 text-primary" />
               {t('dashboard.financialOverview')}
             </CardTitle>
           </CardHeader>
@@ -1011,7 +1034,7 @@ export default function Dashboard() {
               {/* Profit (highlighted) */}
               <div className="rounded-xl border border-border/50 bg-primary/5 p-4">
                 <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1">
-                  Profit <TrendingUp className="h-3 w-3" />
+                  {t('dashboard.profit')} <TrendingUp className="h-3 w-3" />
                 </div>
                 <div className="text-3xl font-semibold tabular-nums tracking-tighter text-[hsl(var(--success))]">
                   {fmtCurrency(ceoStats.profit || 0)}
@@ -1068,8 +1091,8 @@ export default function Dashboard() {
             <div className="flex gap-6 text-sm">
               <span><strong className="text-card-foreground">{personalToday.total_orders}</strong> <span className="text-muted-foreground">{t('dashboard.statOrders')}</span></span>
               <span><strong className="text-[hsl(var(--success))]">{personalToday.deals_won}</strong> <span className="text-muted-foreground">{t('dashboard.statWon')}</span></span>
-              <span><strong className="text-destructive">{personalToday.deals_lost}</strong> <span className="text-muted-foreground">lost</span></span>
-              <span><strong className="text-[hsl(var(--info))]">{personalToday.tasks_completed}</strong> <span className="text-muted-foreground">calls</span></span>
+              <span><strong className="text-destructive">{personalToday.deals_lost}</strong> <span className="text-muted-foreground">{t('dashboard.statLost')}</span></span>
+              <span><strong className="text-[hsl(var(--info))]">{personalToday.tasks_completed}</strong> <span className="text-muted-foreground">{t('dashboard.statCalls')}</span></span>
             </div>
           </CardContent>
         </Card>
@@ -1118,16 +1141,20 @@ export default function Dashboard() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                   <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{ ...chartTooltipStyle, borderRadius: '8px' }} />
+                  {/* `revenue` is stored EUR — the axis and tooltip show денари. */}
+                  <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false}
+                    width={chartView === 'revenue' ? 84 : 60}
+                    tickFormatter={chartView === 'revenue' ? (v: number) => moneyAxis(Number(v)) : undefined} />
+                  <Tooltip contentStyle={{ ...chartTooltipStyle, borderRadius: '8px' }}
+                    formatter={chartView === 'revenue' ? (v: any) => fmtCurrency(Number(v)) : undefined} />
                   {chartView === 'revenue' && (
-                    <Area type="monotone" dataKey="revenue" stroke={CHART_COLORS.primary} strokeWidth={2} fill="url(#gradRevenue)" name="Revenue (Paid)" />
+                    <Area type="monotone" dataKey="revenue" stroke={CHART_COLORS.primary} strokeWidth={2} fill="url(#gradRevenue)" name={t('dashboard.revenuePaidSeries')} />
                   )}
                   {chartView === 'orders' && (
-                    <Area type="monotone" dataKey="orders" stroke={CHART_COLORS.secondary} strokeWidth={2} fill="url(#gradOrders)" />
+                    <Area type="monotone" dataKey="orders" stroke={CHART_COLORS.secondary} strokeWidth={2} fill="url(#gradOrders)" name={t('dashboard.tabOrders')} />
                   )}
                   {chartView === 'leads' && (
-                    <Area type="monotone" dataKey="leads" stroke={CHART_COLORS.info} strokeWidth={2} fill="url(#gradLeads)" />
+                    <Area type="monotone" dataKey="leads" stroke={CHART_COLORS.info} strokeWidth={2} fill="url(#gradLeads)" name={t('dashboard.tabLeads')} />
                   )}
                 </AreaChart>
               </ResponsiveContainer>
@@ -1153,7 +1180,7 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <p className="text-sm font-bold text-card-foreground">{topAgent.name}</p>
-                    <p className="text-xs text-muted-foreground">#{1} by paid revenue</p>
+                    <p className="text-xs text-muted-foreground">{t('dashboard.rankByPaidRevenue', { rank: 1 })}</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 pt-2">
@@ -1200,7 +1227,7 @@ export default function Dashboard() {
                         a.level === 'red' ? 'bg-destructive/10 text-destructive' : 'bg-[hsl(var(--warning))]/10 text-[hsl(var(--warning))]'
                       }`}>
                         <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                        <span className="min-w-0 break-words">{a.message}</span>
+                        <span className="min-w-0 break-words">{alertText(a)}</span>
                       </div>
                     ))}
                   </div>
@@ -1248,21 +1275,21 @@ export default function Dashboard() {
                             {a.name}
                             {idx === 0 && <Trophy className="h-3.5 w-3.5 text-[hsl(var(--warning))] shrink-0" />}
                           </p>
-                          <p className="text-[11px] text-muted-foreground">#{idx + 1} by paid revenue</p>
+                          <p className="text-[11px] text-muted-foreground">{t('dashboard.rankByPaidRevenue', { rank: idx + 1 })}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-4 text-right shrink-0">
                         <div>
                           <p className="text-sm font-bold text-[hsl(var(--success))] tabular-nums">{fmtCurrency(a.paidRevenue)}</p>
-                          <p className="text-[10px] text-muted-foreground">revenue</p>
+                          <p className="text-[10px] text-muted-foreground">{t('dashboard.snapRevenue')}</p>
                         </div>
                         <div className="hidden sm:block">
                           <p className="text-sm font-bold tabular-nums">{a.paidCount}</p>
-                          <p className="text-[10px] text-muted-foreground">paid</p>
+                          <p className="text-[10px] text-muted-foreground">{t('dashboard.rankPaid')}</p>
                         </div>
                         <div className="hidden sm:block">
                           <p className="text-sm font-bold tabular-nums">{a.conversionPct}%</p>
-                          <p className="text-[10px] text-muted-foreground">conv.</p>
+                          <p className="text-[10px] text-muted-foreground">{t('dashboard.rankConv')}</p>
                         </div>
                       </div>
                     </div>
@@ -1389,7 +1416,7 @@ export default function Dashboard() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-0.5">
-                              <span className="text-xs font-semibold text-card-foreground">{item.actor}</span>
+                              <span className="text-xs font-semibold text-card-foreground">{activityActor(item)}</span>
                               {item.type === 'status_change' && item.metadata?.to && (
                                 <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
                                   item.metadata.to === 'confirmed' ? 'bg-[hsl(var(--success))]/15 text-[hsl(var(--success))]' :
@@ -1406,11 +1433,11 @@ export default function Dashboard() {
                                   item.metadata.outcome === 'no_answer' ? 'bg-[hsl(var(--warning))]/15 text-[hsl(var(--warning))]' :
                                   'bg-muted text-muted-foreground'
                                 }`}>
-                                  {item.metadata.outcome}
+                                  {t(`outcome.${item.metadata.outcome}`, { defaultValue: String(item.metadata.outcome).replace(/_/g, ' ') })}
                                 </span>
                               )}
                             </div>
-                            <p className="text-xs text-muted-foreground truncate">{item.description}</p>
+                            <p className="text-xs text-muted-foreground truncate">{activityText(item)}</p>
                           </div>
                           <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0 mt-0.5">{timeAgo}</span>
                         </div>

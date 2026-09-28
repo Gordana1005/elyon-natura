@@ -139,6 +139,24 @@ mirrored, so `collected_mkd` is GROSS; the block reports `partially_refunded_cou
   page; at the end of an incremental run for every live order of the last 60 days that is
   unlinked or whose waybill no longer matches its link (a parcel often reaches the register
   after the order reached us); at the end of a sweep for all of them, any age.
+- **The phone link** (`web_link_mex_parcels_by_phone` + read-only `web_phone_link_candidates`,
+  20260940000300) — for what carries NO reference: the OpenCart-era (OC-…) orders shipped under
+  bare NATURA `M<digits>` waybills (series NULL) the shop never recorded, so every such sale
+  counted twice (web `paid_legacy` + a MEX-only `mex_other` parcel). A link needs ALL of: parcel
+  `natura` · `^M[0-9]+$` · no series · held by no CRM order · claimed by no web order; order
+  live · unlinked · **no waybill of its own** · total > 0 · not `card_unpaid`; same `phone8`;
+  parcel created 1 h before → 10 days after the order; COD = round(total) ±1 (or total +
+  shipping), or COD 0 with the shop's payment PAID/PARTIALLY_REFUNDED (prepaid); **exactly one
+  candidate on both sides** (pass 1 ≤ 5 days, pass 2 ≤ 10 days over the rest). Method
+  `phone_amount`; it YIELDS — released when a deterministic web claim, a CRM order or the
+  order's own waybill appears. web-sync runs it after `web_link_mex_parcels` (incremental: last
+  60 days; sweep: all) as best-effort (a failure is the run's `warning`). One-off:
+  `scripts/backfill-web-parcel-links.mjs` (dry run default; `--apply --expect N`). Dry run
+  28.09: 2.751 links (2.422 COD = total, 322 prepaid COD 0, 7 pass 2) — Mar–Aug cohort −2.428
+  double counts; 01–27.09 sales unchanged (the OC history ends 18.08). Never linked: 198 COD-0
+  parcels to the company's own stores / dm branches (B2B), 60 after the OC history gap
+  (18.08 → 04.09, no web order mirrored), 38 ambiguous (same customer, same amount, twice),
+  101 with no web order on the phone, the rest amount/window misses.
 - **A claim** = a live web order's `mex_tracking_id`. Claims decide ownership of a parcel in:
   `insights_overview` (a delivered MEX-only parcel is `web` when `NTMK…` or claimed, else
   `teleshop_other`), `insights_web_block.mex_only` (NTMK parcels no web order claims and the CRM
@@ -155,14 +173,16 @@ mirrored, so `collected_mkd` is GROSS; the block reports `partially_refunded_cou
   legitimately differ for these orders. Never "fix" one to the other.
 - WIP cohort (20260940000000, unapplied): `card_mkd = shop total − COD` for a PAID web order
   whose parcel was delivered; a web order's replacement test uses the SHOP total, not the COD;
-  but an UNCLAIMED parcel with COD ≤ 0 counts as a free replacement. Open question (HANDOFF §4.5):
-  are the 3.176 NATURA `M…` COD-0 parcels card-paid web orders? Compare by phone/date/payment
-  before trusting any COD-0 figure.
+  but an UNCLAIMED parcel with COD ≤ 0 counts as a free replacement. Answered 28.09 (HANDOFF
+  §4.5): the NATURA `M…` COD-0 parcels are NOT card-paid — 322 are OC orders the shop marks
+  COD/PAID (prepaid; now phone-linked, see above), 198 are B2B shipments to the own stores / dm.
 
-## Owner rules not yet in code
+## Test phones (owner, HANDOFF §3)
 
-- Test phones 070123456 and 23123123: their web orders must be excluded from all reports
-  (HANDOFF §3) — nothing filters them yet, and the shop cannot be touched to delete them.
+- 070123456 and 23123123 (`public.report_excluded_phones`): their web orders (by `phone8`, or
+  linked to a test-phone parcel) and parcels are excluded from `insights_web_block` (placed,
+  buckets, money, `mex_only`) and every cohort / Overview figure since 20260940000300 — the shop
+  cannot be touched to delete them. `sync.live_orders` (mirror size) still counts them.
 
 ## Red flags
 

@@ -25,11 +25,13 @@ import {
 } from '@/components/ui/alert-dialog';
 import {
   Plus, Copy, Pencil, Trash2, Loader2, Webhook, CheckCircle2, XCircle, Globe,
-  Megaphone, Play, Pause, DollarSign, MousePointerClick, Target, Search,
+  Megaphone, Play, Pause, Banknote, MousePointerClick, Target, Search,
   ChevronDown, ChevronRight, BarChart3,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { formatDayDmy } from '@/i18n/dates';
+import { denToEur, formatMoney } from '@/lib/currency';
 import { EmptyState } from '@/components/EmptyState';
 
 /* ── Types ── */
@@ -301,7 +303,7 @@ function AdsTab() {
     { labelKey: 'webhooks.totalCampaigns', value: totalCampaigns, icon: Megaphone, color: 'text-primary' },
     { labelKey: 'webhooks.summaryActive', value: activeCampaigns, icon: Play, color: 'text-emerald-500' },
     { labelKey: 'webhooks.paused', value: pausedCampaigns, icon: Pause, color: 'text-amber-500' },
-    { labelKey: 'webhooks.totalSpend', value: totalSpend.toLocaleString(), icon: DollarSign, color: 'text-blue-500' },
+    { labelKey: 'webhooks.totalSpend', value: formatMoney(totalSpend), icon: Banknote, color: 'text-blue-500' },
     { labelKey: 'webhooks.totalClicks', value: totalClicks.toLocaleString(), icon: MousePointerClick, color: 'text-violet-500' },
     { labelKey: 'webhooks.conversions', value: totalConversions.toLocaleString(), icon: Target, color: 'text-rose-500' },
   ];
@@ -326,12 +328,12 @@ function AdsTab() {
             <div className="space-y-4 py-2">
               <div><Label>{t('webhooks.campaignName')}</Label><Input value={form.campaign_name} onChange={e => setForm(f => ({ ...f, campaign_name: e.target.value }))} placeholder="Spring Sale 2026" /></div>
               <div><Label>{t('webhooks.platform')}</Label><Select value={form.platform} onValueChange={v => setForm(f => ({ ...f, platform: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{PLATFORMS.map(p => <SelectItem key={p} value={p} className="capitalize">{p.charAt(0).toUpperCase() + p.slice(1)}</SelectItem>)}</SelectContent></Select></div>
-              <div><Label>{t('webhooks.budgetUsd')}</Label><Input type="number" value={form.budget} onChange={e => setForm(f => ({ ...f, budget: e.target.value }))} placeholder="1000" /></div>
+              <div><Label>{t('webhooks.budgetUsd')}</Label><Input type="number" min={0} step="1" value={form.budget} onChange={e => setForm(f => ({ ...f, budget: e.target.value }))} placeholder="60000" /></div>
               <div><Label>{t('webhooks.notes')}</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder={t('webhooks.notesPh')} /></div>
             </div>
             <DialogFooter>
               <DialogClose asChild><Button variant="outline">{t('common.cancel')}</Button></DialogClose>
-              <Button onClick={() => createMutation.mutate({ campaign_name: form.campaign_name, platform: form.platform, budget: Number(form.budget) || 0, notes: form.notes })} disabled={!form.campaign_name || createMutation.isPending}>{t('webhooks.create')}</Button>
+              <Button onClick={() => createMutation.mutate({ campaign_name: form.campaign_name, platform: form.platform, budget: denToEur(Number(form.budget) || 0), notes: form.notes })} disabled={!form.campaign_name || createMutation.isPending}>{t('webhooks.create')}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -409,8 +411,8 @@ function AdsTab() {
                         <td className="p-3 font-medium text-foreground">{c.campaign_name}</td>
                         <td className="p-3"><Badge variant="outline" className={`capitalize text-[11px] ${platformColors[c.platform] || ''}`}>{c.platform}</Badge></td>
                         <td className="p-3"><Badge variant="outline" className={`capitalize text-[11px] ${statusColors[c.status] || ''}`}>{t('webhooks.cs.' + c.status)}</Badge></td>
-                        <td className="p-3 text-right font-mono">{Number(c.budget).toLocaleString()}</td>
-                        <td className="p-3 text-right font-mono">{Number(c.spent).toLocaleString()}</td>
+                        <td className="p-3 text-right font-mono">{formatMoney(c.budget)}</td>
+                        <td className="p-3 text-right font-mono">{formatMoney(c.spent)}</td>
                         <td className="p-3 text-right font-mono">{c.clicks.toLocaleString()}</td>
                         <td className="p-3 text-right font-mono">{c.conversions.toLocaleString()}</td>
                         <td className="p-3 text-right font-mono">{ctr}%</td>
@@ -435,16 +437,16 @@ function AdsTab() {
                                   <div className="flex justify-between"><span className="text-muted-foreground">{t('webhooks.impressions')}</span><span className="font-mono">{c.impressions.toLocaleString()}</span></div>
                                   <div className="flex justify-between"><span className="text-muted-foreground">{t('webhooks.clicks')}</span><span className="font-mono">{c.clicks.toLocaleString()}</span></div>
                                   <div className="flex justify-between"><span className="text-muted-foreground">{t('webhooks.conversions')}</span><span className="font-mono">{c.conversions.toLocaleString()}</span></div>
-                                  <div className="flex justify-between"><span className="text-muted-foreground">CTR</span><span className="font-mono">{ctr}%</span></div>
-                                  <div className="flex justify-between"><span className="text-muted-foreground">CPC</span><span className="font-mono">{c.clicks > 0 ? (Number(c.spent) / c.clicks).toFixed(2) : '0.00'}</span></div>
+                                  <div className="flex justify-between"><span className="text-muted-foreground">{t('webhooks.colCtr')}</span><span className="font-mono">{ctr}%</span></div>
+                                  <div className="flex justify-between"><span className="text-muted-foreground">{t('webhooks.cpc')}</span><span className="font-mono">{formatMoney(c.clicks > 0 ? Number(c.spent) / c.clicks : 0)}</span></div>
                                 </div>
                               </div>
                               <div className="space-y-2">
                                 <h4 className="text-xs font-semibold uppercase text-muted-foreground">{t('webhooks.budget')}</h4>
                                 <div className="space-y-1 text-sm">
-                                  <div className="flex justify-between"><span className="text-muted-foreground">{t('webhooks.totalBudget')}</span><span className="font-mono">{Number(c.budget).toLocaleString()}</span></div>
-                                  <div className="flex justify-between"><span className="text-muted-foreground">{t('webhooks.spent')}</span><span className="font-mono">{Number(c.spent).toLocaleString()}</span></div>
-                                  <div className="flex justify-between"><span className="text-muted-foreground">{t('webhooks.remaining')}</span><span className="font-mono">{(Number(c.budget) - Number(c.spent)).toLocaleString()}</span></div>
+                                  <div className="flex justify-between"><span className="text-muted-foreground">{t('webhooks.totalBudget')}</span><span className="font-mono">{formatMoney(c.budget)}</span></div>
+                                  <div className="flex justify-between"><span className="text-muted-foreground">{t('webhooks.spent')}</span><span className="font-mono">{formatMoney(c.spent)}</span></div>
+                                  <div className="flex justify-between"><span className="text-muted-foreground">{t('webhooks.remaining')}</span><span className="font-mono">{formatMoney(Number(c.budget) - Number(c.spent))}</span></div>
                                 </div>
                                 <div className="mt-2">
                                   <div className="h-2 rounded-full bg-muted overflow-hidden"><div className="h-full rounded-full bg-primary transition-all" style={{ width: `${Math.min((Number(c.spent) / Math.max(Number(c.budget), 1)) * 100, 100)}%` }} /></div>
@@ -454,7 +456,7 @@ function AdsTab() {
                               <div className="space-y-2">
                                 <h4 className="text-xs font-semibold uppercase text-muted-foreground">{t('webhooks.notes')}</h4>
                                 <p className="text-sm text-muted-foreground">{c.notes || t('webhooks.noNotes')}</p>
-                                <p className="text-xs text-muted-foreground mt-2">{t('webhooks.createdAt', { date: new Date(c.created_at).toLocaleDateString() })}</p>
+                                <p className="text-xs text-muted-foreground mt-2">{t('webhooks.createdAt', { date: formatDayDmy(c.created_at) })}</p>
                               </div>
                             </div>
                           </td>

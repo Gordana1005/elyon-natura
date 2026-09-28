@@ -295,17 +295,17 @@ const parcelsGone = (parcels, missing) => (parcels.exists
 
 // ── checks ──────────────────────────────────────────────────────────────────
 
-async function c7PaidWithoutProof(ctx) {
-  const { parcels, orderCols } = ctx.schema;
-  const w = ctx.windows.range;
-  const missing = parcels.exists ? missingCols(parcels, ['order_id', 'status_id', 'tracking_id']) : ['(table)'];
-  const ledger = parcels.exists && !missing.length;
-  const exempt = 'paid_basis' in orderCols;
-  // Parcels are aggregated once and hash-joined — never probed per order — so this
-  // stays fast whatever indexes the migration gives mex_parcels.
-  const [r] = await ctx.sql(`
-WITH pl AS (
-  ${ledger ? `SELECT mp.order_id, bool_or(${deliveredSql('mp', parcels)}) AS delivered,
+/**
+ * C7's population as the two CTEs `pl` (delivered-parcel proof per order) and `x` (the paid
+ * orders created in window `w` with no DELIVERED MEX parcel linked; paid_basis
+ * operator_ruling / legacy_import exempt). The check below and
+ * scripts/repair-altercpa-catchup-paid.mjs --population unproven-paid share this text, so the
+ * repair selects EXACTLY the orders C7 counts. `ledger` / `exempt` / `delivered` are the
+ * check's schema fallbacks; a repair always runs on the deployed ledger (the defaults).
+ */
+export function c7PopulationCtes({ w, ledger = true, exempt = true, delivered = `mp.status_id = ${MEX_DELIVERED}` }) {
+  return `pl AS (
+  ${ledger ? `SELECT mp.order_id, bool_or(${delivered}) AS delivered,
          string_agg(mp.tracking_id || ':' || mp.status_id::text, ', ' ORDER BY mp.tracking_id) AS parcels
   FROM public.mex_parcels mp WHERE mp.order_id IS NOT NULL GROUP BY mp.order_id`
     : 'SELECT NULL::uuid AS order_id, false AS delivered, NULL::text AS parcels WHERE false'}
@@ -315,7 +315,29 @@ WITH pl AS (
   WHERE o.status = 'paid' AND ${within('o.created_at', w)}
     ${exempt ? `AND (o.paid_basis IS NULL OR o.paid_basis::text NOT IN (${PAID_BASIS_EXEMPT.map(lit).join(', ')}))` : ''}
     AND ${ledger ? 'pl.delivered IS NOT TRUE' : 'o.mex_tracking_id IS NULL'}
-), last_paid AS (
+)`;
+}
+
+/**
+ * The ids C7 FAILs on with its default window (created PROOF_FROM .. today, Skopje) — one
+ * read-only SELECT (`id`, `display_id`). `from`/`to` are Skopje days, as --from/--to.
+ */
+export function c7PopulationSql({ from = null, to = null } = {}) {
+  const w = makeWindow(from ?? PROOF_FROM, to ?? skopjeToday());
+  return `WITH ${c7PopulationCtes({ w })}
+SELECT x.id, x.display_id FROM x`;
+}
+
+async function c7PaidWithoutProof(ctx) {
+  const { parcels, orderCols } = ctx.schema;
+  const w = ctx.windows.range;
+  const missing = parcels.exists ? missingCols(parcels, ['order_id', 'status_id', 'tracking_id']) : ['(table)'];
+  const ledger = parcels.exists && !missing.length;
+  const exempt = 'paid_basis' in orderCols;
+  // Parcels are aggregated once and hash-joined — never probed per order — so this
+  // stays fast whatever indexes the migration gives mex_parcels.
+  const [r] = await ctx.sql(`
+WITH ${c7PopulationCtes({ w, ledger, exempt, delivered: ledger ? deliveredSql('mp', parcels) : undefined })}, last_paid AS (
   SELECT DISTINCT ON (h.order_id) h.order_id, h.changed_by_name
   FROM public.order_history h JOIN x ON x.id = h.order_id
   WHERE h.to_status = 'paid'
@@ -578,8 +600,19 @@ SELECT (SELECT count(*) FROM b)::int AS n,
   };
 }
 
+/**
+ * C10 — no ghost parcels. An order holding a MEX tracking id with price 0/NULL or a synthetic
+ * product name FAILs, EXCEPT a consistent replacement (owner ruling 28.09.2026 — a free
+ * replacement shipment is "not an order"): price 0/NULL on a REAL product name AND the parcel
+ * it names is in mex_parcels with COD 0. Nothing was claimed and nothing was collected, so no
+ * money can be misattributed; those read INFO. A synthetic 0 ден disposition row never
+ * qualifies (a COD-0 parcel on it is still someone else's — e.g. a card-paid web order), nor
+ * does a tracking id missing from the register (its COD is unknown).
+ */
 async function c10NoGhostParcels(ctx) {
   const w = ctx.windows.invariant;
+  const { parcels } = ctx.schema;
+  const register = parcels.exists && !missingCols(parcels, ['tracking_id', 'cod_mkd']).length;
   const [r] = await ctx.sql(`
 WITH g AS (
   SELECT o.display_id, o.status::text AS status, o.created_at, o.price, o.product_name, o.mex_tracking_id,
@@ -588,19 +621,26 @@ WITH g AS (
          ${syntheticSql('o.product_name')} AS synthetic
   FROM public.orders o
   WHERE o.mex_tracking_id IS NOT NULL AND ${within('o.created_at', w)}
-), x AS (
+), y AS (
   SELECT g.*, CASE WHEN zero_price AND synthetic THEN 'zero price + synthetic name'
-                   WHEN zero_price THEN 'zero price' ELSE 'synthetic name' END AS reason
+                   WHEN zero_price THEN 'zero price' ELSE 'synthetic name' END AS reason,
+         ${register ? `(SELECT ${codSql('mp', parcels)} FROM public.mex_parcels mp WHERE mp.tracking_id = g.mex_tracking_id)` : 'NULL::numeric'} AS parcel_cod
   FROM g WHERE zero_price OR synthetic
-)
+), z AS (
+  SELECT y.*, coalesce(zero_price AND NOT synthetic AND parcel_cod = 0, false) AS replacement FROM y
+), x AS (SELECT * FROM z WHERE NOT replacement
+), ok AS (SELECT * FROM z WHERE replacement)
 SELECT (SELECT count(*) FROM x)::int AS n,
   (SELECT count(*) FROM x WHERE status = 'paid')::int AS paid,
+  (SELECT count(*) FROM ok)::int AS replacements,
   ${kv('x', 'reason', { eur: false })} AS by_reason,
   ${kv('x', 'status', { eur: false })} AS by_status,
   ${kv('x', 'source', { eur: false })} AS by_source,
+  ${kv('ok', 'source', { eur: false })} AS replacements_by_source,
   (SELECT coalesce(json_agg(s), '[]') FROM (
      SELECT display_id, status, ${skDay('created_at')} AS created, source, ${eur2('price')} AS eur,
-            coalesce(left(product_name, 40), '(null)') AS product, mex_tracking_id AS tracking
+            coalesce(left(product_name, 40), '(null)') AS product, mex_tracking_id AS tracking,
+            coalesce(parcel_cod::text, 'not in register') AS parcel_cod_mkd
      FROM x ORDER BY created_at DESC, display_id LIMIT ${ctx.sampleN}) s) AS sample`);
   return {
     status: r.n > 0 ? 'FAIL' : 'PASS',
@@ -608,9 +648,12 @@ SELECT (SELECT count(*) FROM x)::int AS n,
     sample: r.sample,
     note: `orders holding a MEX tracking id with price 0/NULL or a synthetic product name (isSyntheticProductName mirror); `
       + `${fmtNum(r.paid)} of them are 'paid'. Such an order cannot be what the courier collected COD for, so the parcel is `
-      + 'most likely misattributed and the order it belongs to is left unproven',
+      + 'most likely misattributed and the order it belongs to is left unproven; '
+      + `INFO: ${fmtNum(r.replacements)} consistent replacement(s) — price 0 on a real product and parcel COD 0 `
+      + `(owner ruling 28.09.2026: a free replacement shipment is not an order) — not a failure`
+      + (register ? '' : '; mex_parcels.cod_mkd not deployed — no replacement can be recognised'),
     window: describeWindow(w),
-    breakdown: { by_reason: r.by_reason, by_status: r.by_status, by_source: r.by_source },
+    breakdown: { by_reason: r.by_reason, by_status: r.by_status, by_source: r.by_source, replacements_by_source: r.replacements_by_source },
   };
 }
 
@@ -693,6 +736,18 @@ const OV_MKD_TOL = 4;      // Σ of per-source figures, each rounded to the dena
 const SALE_STATUSES_SQL = `('confirmed', 'shipped', 'delivered', 'paid', 'returned')`;
 const SOLD_STATUSES_SQL = `('confirmed', 'shipped', 'delivered', 'paid')`;
 const NOT_MONADON = (a) => `(${a}.source_type IS NULL OR ${a}.source_type <> 'monadon_legacy')`;
+// The owner's test phones (public.report_excluded_phones, 20260939000700). Since
+// 20260940000300 the Overview (insights_overview / insights_web_block) leaves out an order
+// on such a phone (last 8 digits) or holding such a parcel, a web order on such a phone or
+// linked to such a parcel, and such a parcel — so its SQL twins here do the same, once that
+// migration is in (ctx.schema.fns.testPhonesOut; no_parcel_rule_days() is its marker).
+const XP = '(SELECT public.report_excluded_phone8s())::text[]';
+const TEST_ORDER = (a) => `(right(regexp_replace(coalesce(${a}.customer_phone, ''), '[^0-9]', '', 'g'), 8) = ANY (${XP})
+      OR coalesce(${a}.mex_tracking_id IN (SELECT xp.tracking_id FROM public.mex_parcels xp WHERE xp.phone8 = ANY (${XP})), false))`;
+const notTestOrder = (ctx, a) => (ctx.schema.fns.testPhonesOut ? `NOT ${TEST_ORDER(a)}` : 'true');
+const notTestOrderId = (ctx, col) => (ctx.schema.fns.testPhonesOut
+  ? `NOT coalesce(${col} IN (SELECT xo.id FROM public.orders xo WHERE ${TEST_ORDER('xo')}), false)` : 'true');
+const notTestParcel = (ctx, a) => (ctx.schema.fns.testPhonesOut ? `NOT coalesce(${a}.phone8 = ANY (${XP}), false)` : 'true');
 /** [fromUtc, toUtc) → the inclusive µs end the api hands the RPC. */
 const inclusiveEnd = (iso) => new Date(Date.parse(iso) - 1).toISOString().replace(/Z$/, '999Z');
 
@@ -738,21 +793,22 @@ async function c1SourcesTieOut(ctx) {
   const [t] = await ctx.sql(`
 WITH placed AS (
   SELECT count(*)::int AS n, coalesce(sum(o.price), 0) AS eur
-  FROM public.orders o WHERE ${within('o.created_at', w)} AND ${NOT_MONADON('o')}
+  FROM public.orders o WHERE ${within('o.created_at', w)} AND ${NOT_MONADON('o')} AND ${notTestOrder(ctx, 'o')}
 ), conf AS (
   SELECT count(*)::int AS n, coalesce(sum(o.price), 0) AS eur
   FROM public.orders o
   WHERE ${NOT_MONADON('o')} AND coalesce(o.sale_source_detail, '') <> 'disposition'
     AND (o.sold_at IS NOT NULL OR o.status::text IN ${SALE_STATUSES_SQL})
-    AND ${within('coalesce(o.sold_at, o.confirmed_at, o.created_at)', w)}
+    AND ${within('coalesce(o.sold_at, o.confirmed_at, o.created_at)', w)} AND ${notTestOrder(ctx, 'o')}
 ), parcels AS (
   SELECT count(*)::int AS n, coalesce(sum(p.cod_mkd), 0)::bigint AS mkd
   FROM public.mex_parcels p WHERE p.status_id = ${MEX_DELIVERED} AND ${within('p.delivered_at', w)}
+    AND ${notTestParcel(ctx, 'p')} AND ${notTestOrderId(ctx, 'p.order_id')}
 ), unproven AS (
   SELECT count(*)::int AS n, coalesce(sum(round(coalesce(o.price, 0) * ${MKD_PER_EUR})), 0)::bigint AS mkd
   FROM public.orders o
   WHERE o.status::text IN ('paid', 'delivered') AND o.mex_delivered_at IS NULL AND ${NOT_MONADON('o')}
-    AND ${within('coalesce(o.paid_at, o.created_at)', w)}
+    AND ${within('coalesce(o.paid_at, o.created_at)', w)} AND ${notTestOrder(ctx, 'o')}
 ), odd AS (
   -- delivered parcels whose order the overview cannot book as delivered cash
   SELECT p.tracking_id, o.display_id, o.status::text AS order_status, p.cod_mkd,
@@ -763,6 +819,7 @@ WITH placed AS (
   WHERE p.status_id = ${MEX_DELIVERED} AND ${within('p.delivered_at', w)}
     AND (o.status::text NOT IN ('paid', 'delivered') OR o.mex_tracking_id IS DISTINCT FROM p.tracking_id
          OR o.mex_delivered_at IS NULL)
+    AND ${notTestParcel(ctx, 'p')} AND ${notTestOrder(ctx, 'o')}
 )
 SELECT (SELECT n FROM placed) + ${Number(shop.count) || 0} AS placed_n,
        round((SELECT eur FROM placed) + ${Number(shop.value_mkd) || 0} / ${MKD_PER_EUR}, 2) AS placed_eur,
@@ -812,6 +869,7 @@ WITH u AS (
          (coalesce(p.sender_reference, '') ~ '^NTMK' OR p.tracking_id ~ '^NTMK' OR ${claimed}) AS web
   FROM public.mex_parcels p
   WHERE p.status_id = ${MEX_DELIVERED} AND p.order_id IS NULL AND ${within('p.delivered_at', w)}
+    AND ${notTestParcel(ctx, 'p')}
 )
 SELECT count(*)::int AS n, coalesce(sum(cod), 0)::bigint AS mkd,
        count(*) FILTER (WHERE web)::int AS web_n, coalesce(sum(cod) FILTER (WHERE web), 0)::bigint AS web_mkd,
@@ -858,7 +916,7 @@ WITH tab AS (      -- the Prediction-lists tab: list-attributed orders still sol
   FROM public.orders o
   WHERE o.sale_source = 'elyon_crm' AND o.sale_source_detail = 'prediction_list'
     AND ${within('o.created_at', w)} AND ${NOT_MONADON('o')}
-    AND o.status::text IN ${SOLD_STATUSES_SQL}
+    AND o.status::text IN ${SOLD_STATUSES_SQL} AND ${notTestOrder(ctx, 'o')}
 ), only_tab AS (SELECT * FROM tab WHERE id NOT IN (SELECT id FROM ovr)),
    only_ovr AS (SELECT * FROM ovr WHERE id NOT IN (SELECT id FROM tab))
 SELECT (SELECT count(*) FROM tab)::int AS tab_n, (SELECT ${eur2('sum(price)')} FROM tab) AS tab_eur,
@@ -908,6 +966,7 @@ WITH lp AS (
           AND o.mex_delivered_at IS NOT NULL) AS booked
   FROM public.mex_parcels p JOIN public.orders o ON o.id = p.order_id
   WHERE p.status_id = ${MEX_DELIVERED} AND ${within('p.delivered_at', w)}
+    AND ${notTestParcel(ctx, 'p')} AND ${notTestOrder(ctx, 'o')}
 ), c AS (
   SELECT lp.*, CASE WHEN abs(d) <= 3 THEN 'exact' WHEN abs(d - 150) <= 3 THEN 'fee_150' ELSE 'mismatch' END AS cls
   FROM lp
@@ -1165,7 +1224,9 @@ w AS (
            ELSE 'awaiting' END AS bucket,
          o.total
   FROM public.web_orders o
-  WHERE o.deleted_in_shop_at IS NULL AND ${within('o.created_at', w)}
+  WHERE o.deleted_in_shop_at IS NULL AND ${within('o.created_at', w)} AND ${notTestParcel(ctx, 'o')}
+    AND ${ctx.schema.fns.testPhonesOut ? `NOT EXISTS (SELECT 1 FROM public.mex_parcels tp
+                     WHERE tp.tracking_id = o.mex_tracking_id AND tp.phone8 = ANY (${XP}))` : 'true'}
 ), p AS (SELECT * FROM w WHERE bucket <> 'card_unpaid')
 SELECT (SELECT count(*) FROM p)::int AS placed_n, (SELECT round(coalesce(sum(total), 0), 2) FROM p) AS placed_mkd,
        (SELECT (j #>> '{placed,count}')::numeric FROM b) AS block_n,
@@ -1228,7 +1289,8 @@ SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'pub
   to_regprocedure('public.leaderboard_day(date,text)') IS NOT NULL AS has_board,
   coalesce(has_function_privilege(to_regprocedure('public.leaderboard_day(date,text)'), 'execute'), false) AS can_board,
   to_regclass('public.web_orders') IS NOT NULL AS has_web_orders,
-  to_regclass('public.v_sales_work') IS NOT NULL AS has_work`);
+  to_regclass('public.v_sales_work') IS NOT NULL AS has_work,
+  to_regprocedure('public.no_parcel_rule_days()') IS NOT NULL AS test_phones_out`);
   const parcels = { exists: Boolean(row.has_parcels), cols: row.parcel_cols ?? {}, rows: null, linked: null, delivered: null };
   if (parcels.exists) {
     const has = (c) => c in parcels.cols;
@@ -1243,7 +1305,9 @@ SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'pub
     fns: { overview: Boolean(row.has_overview), canOverview: Boolean(row.can_overview),
            webBlock: Boolean(row.has_web_block), canWebBlock: Boolean(row.can_web_block),
            canRollup: Boolean(row.can_rollup),
-           board: Boolean(row.has_board), canBoard: Boolean(row.can_board) },
+           board: Boolean(row.has_board), canBoard: Boolean(row.can_board),
+           // 20260940000300 is in: the Overview leaves the owner's test phones out
+           testPhonesOut: Boolean(row.test_phones_out) },
     tables: { webOrders: Boolean(row.has_web_orders), work: Boolean(row.has_work) },
   };
 }

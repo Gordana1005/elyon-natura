@@ -108,7 +108,7 @@ describe('Overview on the sales cohort — owner', () => {
     expect(container.textContent).toMatch(DENARS);
     // Teams, pivot and the attention rail still render.
     expect(screen.getByRole('heading', { name: i18n.t('overview.pivot.title') })).toBeInTheDocument();
-    expect(screen.getByText(i18n.t('overview.attention.kind.approved_no_parcel_7d'))).toBeInTheDocument();
+    expect(screen.getByText(i18n.t('overview.attention.kind.approved_no_parcel_7d', { days: 10 }))).toBeInTheDocument();
   }, 30_000);
 
   it('every number that is all orders opens exactly its sales; a mixed one opens its order part', async () => {

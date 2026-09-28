@@ -51,8 +51,15 @@
  * ── MEX ─────────────────────────────────────────────────────────────────────
  * After each page, and for every unlinked order of the last 60 days at the
  * end of a run, web_link_mex_parcels() links web orders to their parcel in
- * public.mex_parcels (tracking > sender_reference > order number). It reads
- * the register and writes only web_orders — mex_parcels is never touched.
+ * public.mex_parcels (tracking > sender_reference > order number). Then, at
+ * the end of a run, web_link_mex_parcels_by_phone() (20260940000300) links
+ * what carries no reference at all — the OpenCart-era NATURA "M…" waybills —
+ * by phone + time + amount, only when exactly one candidate exists on both
+ * sides, and releases a phone link that stronger evidence has overtaken
+ * (incremental: orders of the last 60 days; sweep: every order). Both read
+ * the register and write only web_orders — mex_parcels is never touched. The
+ * phone pass is best-effort: its failure is a run WARNING, never a failed
+ * sync (orders keep flowing; the next run retries).
  *
  * Secrets: WEB_SYNC_SECRET (this header), WEB_SHOP_DB_URL (the reader's
  * pooler URL), optional WEB_SHOP_DB_CA (PEM; only needed if the runtime does
@@ -291,22 +298,25 @@ serve(async (req: Request) => {
   const stats = {
     read_orders: 0, read_items: 0, written: 0, new: 0, changed: 0, stale: 0, retired: 0,
     items_upserted: 0, items_deleted: 0, rejected: 0, mex_linked: 0, pages: 0,
+    mex_phone_linked: 0, mex_phone_released: 0,
   };
   const rejectedSample: string[] = [];
   let cursorTo: Cursor | null = prevCursor;
   let done = false;
   let probe: { n: number; max_updated_at: string | null } | null = null;
   const extra: Record<string, unknown> = {};
+  let phoneLinkWarning: string | null = null;
 
   const rejectWarning = () => stats.rejected
     ? `${stats.rejected} shop rows not mirrored (order number not OC-…/NTMK…): ${rejectedSample.slice(0, 5).join(", ")}`
     : null;
+  const runWarning = () => [rejectWarning(), phoneLinkWarning].filter(Boolean).join("; ") || null;
 
   const finish = async (status: string, error: string | null, more: Record<string, unknown> = {}) => {
     if (!runId) return;
     await admin.from("web_sync_runs").update({
       status, error: error ? error.slice(0, 500) : null,
-      warning: rejectWarning()?.slice(0, 500) ?? null,
+      warning: runWarning()?.slice(0, 500) ?? null,
       read_orders: stats.read_orders, read_items: stats.read_items,
       new_orders: stats.new, changed_orders: stats.changed, rejected: stats.rejected,
       mex_linked: stats.mex_linked,
@@ -321,6 +331,23 @@ serve(async (req: Request) => {
     const { data, error } = await admin.rpc(fn, args);
     if (error) throw new Error(`${fn}: ${error.message}`);
     return (data ?? {}) as Record<string, number | string>;
+  };
+
+  // The OpenCart-era "M…" parcels by phone + time + amount (see the header).
+  // Best-effort: a failure (e.g. the function's migration not applied yet) is
+  // recorded as the run's warning and never fails the sync.
+  const linkByPhone = async (recentDays: number | null) => {
+    try {
+      const r = await rpc("web_link_mex_parcels_by_phone", {
+        p_ids: null, p_recent_days: recentDays, p_dry_run: false,
+      });
+      stats.mex_phone_linked += Number(r.linked) || 0;
+      stats.mex_phone_released += Number(r.released) || 0;
+      stats.mex_linked += Number(r.linked) || 0;
+      extra.link_phone = r;
+    } catch (e) {
+      phoneLinkWarning = `phone link skipped: ${(e as Error).message || String(e)}`.slice(0, 300);
+    }
   };
 
   const shop = new Client(shopOpts);
@@ -452,6 +479,7 @@ serve(async (req: Request) => {
       const link = await rpc("web_link_mex_parcels", { p_ids: null, p_recent_days: null });
       stats.mex_linked += Number(link.linked) || 0;
       extra.link_all = link;
+      await linkByPhone(null);
 
       // Session-wide rejects (earlier chunks of this sweep included).
       const { data: sess } = await admin.from("web_sync_runs").select("rejected")
@@ -476,7 +504,7 @@ serve(async (req: Request) => {
       });
       return json({
         ok: !guardError, kind, done: true, run_id: runId, session, error: guardError ?? undefined,
-        warning: rejectWarning() ?? undefined, session_rejected: sessionRejected,
+        warning: runWarning() ?? undefined, session_rejected: sessionRejected,
         shop: probe, marked_deleted: mark, ...stats, rejected_sample: rejectedSample,
       });
     }
@@ -486,6 +514,7 @@ serve(async (req: Request) => {
     const link = await rpc("web_link_mex_parcels", { p_ids: null, p_recent_days: LINK_RECENT_DAYS });
     stats.mex_linked += Number(link.linked) || 0;
     extra.link_recent = link;
+    await linkByPhone(LINK_RECENT_DAYS);
 
     // Rejected rows never hold the cursor back (see the header).
     const status = done ? "ok" : "partial";
@@ -495,7 +524,7 @@ serve(async (req: Request) => {
     return json({
       ok: true, kind, status, run_id: runId, done,
       cursor: { from: cursorFrom, to: cursorTo }, shop: probe, ...stats,
-      rejected_sample: rejectedSample, warning: rejectWarning() ?? undefined,
+      rejected_sample: rejectedSample, warning: runWarning() ?? undefined,
     });
   } catch (e) {
     const msg = (e as Error).message || String(e);

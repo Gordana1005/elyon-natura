@@ -30,7 +30,7 @@ const breakStripes = (strong: number, soft: number, px: number) =>
 const BREAK_TRACK = breakStripes(0.85, 0.45, 5);
 const BREAK_SWATCH = breakStripes(0.95, 0.5, 3);
 
-/** Minutes to ADD to UTC to get Sofia local time at `at` (+120 / +180, DST-aware). */
+/** Minutes to ADD to UTC to get Skopje local time at `at` (+60 / +120, DST-aware). */
 function skopjeOffsetMinutes(at: Date): number {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: TZ, hour12: false,
@@ -70,7 +70,7 @@ export function AgentTimeline({ data, isToday }: AgentTimelineProps) {
   const [zoomIdx, setZoomIdx] = useState(DEFAULT_ZOOM_IDX);
   const [fit, setFit] = useState(false);
 
-  // Sofia-midnight epoch for the selected day — lets us map any instant to
+  // Skopje-midnight epoch for the selected day — lets us map any instant to
   // minutes-of-day (handles a call that spills past midnight, and "now").
   const [yy, mm, dd] = date.split('-').map(Number);
   const off = skopjeOffsetMinutes(new Date(Date.UTC(yy, mm - 1, dd, 12, 0, 0)));

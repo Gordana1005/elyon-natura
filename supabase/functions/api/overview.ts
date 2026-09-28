@@ -332,17 +332,73 @@ export function isSafeText(v: unknown): v is string {
  *  tables, or are not orders at all — the rail shows their samples instead. */
 export const LISTABLE_ATTENTION = ["approved_no_parcel_7d", "mex_problem"] as const;
 
+/** The no-parcel rule's days when app_settings holds nothing usable, and its
+ *  floor — the twin of public.no_parcel_rule_days() (20260940000300). The
+ *  stored codes (`no_parcel_7d`, `approved_no_parcel_7d`) keep their names;
+ *  only the number of days follows the setting (owner 28.09: 7 → 10). */
+export const NO_PARCEL_DEFAULT_DAYS = 10;
+export const NO_PARCEL_MIN_DAYS = 3;
+
+/** no_parcel_rule_days()'s answer → an integer ≥ 3; anything unusable (the
+ *  RPC missing, an error, a non-integer) → the default. */
+export function noParcelDays(raw: unknown): number {
+  const n = typeof raw === "number" ? raw
+    : typeof raw === "string" && /^\s*\d{1,4}\s*$/.test(raw) ? Number(raw) : NaN;
+  return Number.isInteger(n) ? Math.max(n, NO_PARCEL_MIN_DAYS) : NO_PARCEL_DEFAULT_DAYS;
+}
+
+export interface AttentionOptions {
+  /** The no-parcel rule's days (public.no_parcel_rule_days()). Default 10. */
+  days?: number;
+  /** The owner's test phones, last 8 digits (report_excluded_phone8s()). */
+  excludedPhone8s?: readonly string[];
+  /** Test-phone orders the phone text cannot show (the digits end in a test
+   *  phone but the text does not, or the order holds a test-phone parcel) —
+   *  insights_cohort_order_exceptions().test_orders. */
+  testOrderIds?: readonly string[];
+}
+
 export interface AttentionFilter {
   eq: Record<string, string>;
   in: Record<string, (string | number)[]>;
   isNull: string[];
   or: string[];
+  /** Orders never listed (`id=not.in.(…)`): the test-phone orders. */
+  notIds: string[];
 }
 
-/** The PostgREST twin of insights_overview's `anp` / `mp` CTEs ("as of now"). */
-export function attentionFilter(kind: string, now: Date = new Date()): AttentionFilter | null {
+const PHONE8_RE = /^\d{8}$/;
+const UUID_RE_ = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** insights_cohort_order_exceptions() → just the test-phone lists the rail's
+ *  twins need (its other lists are the cohort drill's). Malformed → null. */
+export function parseAttentionExclusions(raw: unknown): { excludedPhone8s: string[]; testOrderIds: string[] } | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const r = raw as Record<string, unknown>;
+  const phones = r.excluded_phone8s ?? [];
+  const tests = r.test_orders ?? [];
+  if (!Array.isArray(phones) || !Array.isArray(tests)) return null;
+  if (!phones.every((p) => typeof p === "string" && PHONE8_RE.test(p))) return null;
+  if (!tests.every((x) => typeof x === "string" && UUID_RE_.test(x))) return null;
+  if (phones.length + tests.length > 300) return null;
+  return { excludedPhone8s: phones as string[], testOrderIds: tests as string[] };
+}
+
+/** The PostgREST twin of insights_overview's `anp` / `mp` CTEs ("as of now"):
+ *  the rule's days from the setting and — like the Overview since
+ *  20260940000300 — never an order of the owner's test phones (the SQL's
+ *  `xto`: phone text ending in a test phone, plus the ids the text cannot
+ *  show). Change them together. */
+export function attentionFilter(kind: string, now: Date = new Date(), opts: AttentionOptions = {}): AttentionFilter | null {
+  const phones = (opts.excludedPhone8s ?? []).filter((p) => PHONE8_RE.test(p));
+  // the same clause as insightsCommon.cohortExcludedPhoneOr (not imported: that module imports this one)
+  const notTestPhone = phones.length
+    ? [`customer_phone.is.null,and(${phones.map((p) => `customer_phone.not.like.*${p}`).join(",")})`]
+    : [];
+  const notIds = (opts.testOrderIds ?? []).filter((x) => UUID_RE_.test(x));
   if (kind === "approved_no_parcel_7d") {
-    const cut = new Date(now.getTime() - 7 * 86_400_000).toISOString();
+    const days = noParcelDays(opts.days ?? NO_PARCEL_DEFAULT_DAYS);
+    const cut = new Date(now.getTime() - days * 86_400_000).toISOString();
     return {
       eq: { status: "confirmed" },
       in: { sale_source: ["altercpa", "affiliate"] },
@@ -352,11 +408,13 @@ export function attentionFilter(kind: string, now: Date = new Date()): Attention
          `and(sold_at.is.null,confirmed_at.not.is.null,confirmed_at.lt.${cut})`,
          `and(sold_at.is.null,confirmed_at.is.null,created_at.lt.${cut})`].join(","),
         `ship_after_date.is.null,ship_after_date.lte.${skopjeTodayYmd(now)}`,
+        ...notTestPhone,
       ],
+      notIds,
     };
   }
   if (kind === "mex_problem") {
-    return { eq: {}, in: { mex_status_id: [3, 9, 13] }, isNull: [], or: [] };
+    return { eq: {}, in: { mex_status_id: [3, 9, 13] }, isNull: [], or: notTestPhone, notIds };
   }
   return null;
 }

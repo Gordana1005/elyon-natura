@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bell, CheckCheck, Clock, AlertTriangle, Info, Package, PhoneMissed, RotateCcw, PackageX, UserPlus, BadgeCheck, Copy, Truck as TruckIcon, PackageSearch, Hourglass } from 'lucide-react';
+import { Bell, CheckCheck, Clock, AlertTriangle, Info, Package, PhoneMissed, RotateCcw, PackageX, UserPlus, BadgeCheck, Copy, Truck as TruckIcon, PackageSearch, Hourglass, TrendingUp, TrendingDown, Handshake } from 'lucide-react';
 import { openPresencePanel, showIdleSelfToast } from '@/lib/presence/ui';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import i18n from '@/i18n';
 import { formatDistanceToNow } from '@/i18n/dates';
 import { cn } from '@/lib/utils';
+import { formatDenari, formatMoney } from '@/lib/currency';
 
 interface Notification {
   id: string;
@@ -31,6 +32,18 @@ interface Notification {
   meta?: Record<string, any> | null;
 }
 
+// An `order_paid` row written before 20260940000400 has no meta and prints the
+// stored EUR price as '€NN.NN'. Re-read it into the same vars the new rows
+// carry, so every paid bell shows денари (and the reader's language).
+const LEGACY_ORDER_PAID = /^Order (.+?) \((.*)\) was paid — €(\d+(?:\.\d+)?)\.$/;
+
+function legacyOrderPaidMeta(n: Notification): Record<string, any> | null {
+  if (n.type !== 'order_paid' || n.meta?.i18n) return null;
+  const m = LEGACY_ORDER_PAID.exec(n.message ?? '');
+  if (!m) return null;
+  return { i18n: 'notif.orderPaid', order: m[1], customer: m[2], amountEur: Number(m[3]) };
+}
+
 // Render a notification in the READER's language.
 //
 // The DB cannot know which language the reader picked, so triggers/jobs write
@@ -43,18 +56,28 @@ interface Notification {
 // Module-level on purpose → uses `i18n.t`, never `t`. Inside the custom toast
 // renderers below `t` is the sonner toast instance, and inside the component the
 // useTranslation() subscription already re-renders on a language switch.
-function localizeNotification(n: Notification): { title: string; message: string } {
-  const key = n.meta?.i18n;
+export function localizeNotification(n: Notification): { title: string; message: string } {
+  const meta = n.meta?.i18n ? n.meta : legacyOrderPaidMeta(n);
+  const key = meta?.i18n;
   if (!key) return { title: n.title, message: n.message };
   // Spread the payload FIRST so `defaultValue` (and any other i18next control
   // option) always wins over the stored data. meta is row data, and row data
   // must never steer the translator.
-  const vars = { ...n.meta };
-  let message = i18n.t(`${key}.body`, { ...vars, defaultValue: n.message });
-  // The digest carries how stale the manual BigArena upload is. Say so when it
-  // is over a day and a half old — the counts are only as fresh as that sync.
-  if (n.type === 'unpaid_digest' && Number(n.meta?.syncAgeHours) >= 36) {
-    message += ' ' + i18n.t(`${key}.staleSync`, { ...vars, defaultValue: '' });
+  const vars: Record<string, any> = { ...meta };
+  // Money reaches the text as денари only: amountMkd is already denari
+  // (formatDenari, never ×61.5 again); a legacy row's amountEur is the stored
+  // EUR price (formatMoney).
+  if (vars.amountMkd != null) vars.amount = formatDenari(vars.amountMkd);
+  else if (vars.amountEur != null) vars.amount = formatMoney(vars.amountEur);
+  // A legacy row's stored English still has the euro figure — never fall back to it.
+  const fallback = meta === n.meta ? n.message : '';
+  let message = i18n.t(`${key}.body`, { ...vars, defaultValue: fallback });
+  // The digest carries how long ago MEX last reported courier outcomes (the
+  // mex-reconcile cron). Say so when it is over a day and a half old — the
+  // counts are only as fresh as that sync. `syncAgeHours` on older rows
+  // measured the removed BigArena upload and is deliberately ignored.
+  if (n.type === 'unpaid_digest' && vars.mexSyncAgeHours != null && Number(vars.mexSyncAgeHours) >= 36) {
+    message += ' ' + i18n.t(`${key}.staleMex`, { ...vars, defaultValue: '' });
   }
   return { title: i18n.t(`${key}.title`, { ...vars, defaultValue: n.title }), message };
 }
@@ -91,6 +114,11 @@ const typeIcons: Record<string, typeof Info> = {
   shipped_unpaid: TruckIcon,
   unpaid_digest: PackageSearch,
   inactivity: Hourglass,
+  // AlterCPA confirm-rate milestones / below-guarantee verdicts (20260922000000)
+  // and a partner's new lead via POST /cpa/lead.
+  altercpa_rate: TrendingUp,
+  altercpa_rate_below: TrendingDown,
+  affiliate_lead: Handshake,
 };
 
 const typeColors: Record<string, string> = {
@@ -108,6 +136,10 @@ const typeColors: Record<string, string> = {
   unpaid_digest: 'text-amber-500',
   // 30+ minutes with the CRM open and nothing done (migration 20260935000200).
   inactivity: 'text-amber-500',
+  altercpa_rate: 'text-sky-500',
+  // Under the partner's guarantee — act on the cohort (same weight as low stock).
+  altercpa_rate_below: 'text-amber-500',
+  affiliate_lead: 'text-violet-500',
 };
 
 // Per-type "mood" styling for unread items in the dropdown.
@@ -127,7 +159,12 @@ const getUnreadMoodClass = (type: string): string => {
     case 'shipped_unpaid':
     case 'unpaid_digest':
     case 'inactivity':
+    case 'altercpa_rate_below':
       return 'bg-amber-500/10 border-l-2 border-amber-500 data-[highlighted]:bg-amber-500/15 focus:bg-amber-500/15';
+    case 'altercpa_rate':
+      return 'bg-sky-500/10 border-l-2 border-sky-500 data-[highlighted]:bg-sky-500/15 focus:bg-sky-500/15';
+    case 'affiliate_lead':
+      return 'bg-violet-500/10 border-l-2 border-violet-500 data-[highlighted]:bg-violet-500/15 focus:bg-violet-500/15';
     default:
       return 'bg-red-500/5 border-l-2 border-red-500 data-[highlighted]:bg-red-500/15 focus:bg-red-500/15';
   }
@@ -145,7 +182,12 @@ const getUnreadTitleClass = (type: string): string => {
     case 'shipped_unpaid':
     case 'unpaid_digest':
     case 'inactivity':
+    case 'altercpa_rate_below':
       return 'font-semibold text-amber-600 dark:text-amber-400';
+    case 'altercpa_rate':
+      return 'font-semibold text-sky-600 dark:text-sky-400';
+    case 'affiliate_lead':
+      return 'font-semibold text-violet-600 dark:text-violet-400';
     default:
       return 'font-semibold text-foreground';
   }
@@ -160,6 +202,9 @@ const toastSeverity: Record<string, 'error' | 'warning' | 'success' | 'default'>
   shipped_unpaid: 'warning',
   unpaid_digest: 'warning',
   inactivity: 'warning',
+  altercpa_rate: 'default',
+  altercpa_rate_below: 'warning',
+  affiliate_lead: 'default',
 };
 
 export function NotificationsDropdown() {
