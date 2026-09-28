@@ -21,6 +21,32 @@
 --   update_updated_at_column()      honours elyon.keep_updated_at = 'on'
 --   pg_cron 'stamp-order-deciders'  every 5 minutes (at :01, :06, … — one
 --                                   minute after altercpa-sync-status)
+--   pg_cron 'stamp-order-deciders-full'  nightly 02:23 UTC, the whole book
+--   order_decider_runs              one row per applied run (the jsonb pg_cron
+--                                   throws away), kept 30 days
+--   sales_backstamp_orders()        (20260939000200) re-created on the same
+--                                   elyon.keep_updated_at switch
+--
+-- ── REVISION after the adversarial review (stamp-review.md, 2026-09-28) ─────
+--   1. Only an APPROVAL push counts (payload params.accept = '1'). Callback
+--      (status 3) and cancel (status 5) pushes never make anyone the seller.
+--      crm_push_only credits the agent the push NAMES ("Agent: <name> — …",
+--      the comment the push always writes) through the order_name identity —
+--      never the manager who pressed the button. An approval push that names
+--      nobody is reported (bucket), not stamped. The fill no longer resolves a
+--      crm_push stamp through the pusher's profile name.
+--   2. FOR NO KEY UPDATE (not FOR UPDATE): the FK checks of the eleven tables
+--      that reference orders(id) take KEY SHARE and no longer wait on a stamp.
+--      Default p_limit 1000 (still 12k rows an hour).
+--   3. A nightly full sweep catches what the 14-day window cannot see (writes
+--      that kept updated_at, late ledger links, a long cron outage).
+--   4. Each applied run is logged; a run that cannot take the lock FAILS
+--      (cron.job_run_details says so) instead of "succeeding" as skipped.
+--   5. sales_backstamp_orders() keeps updated_at through elyon.keep_updated_at
+--      (its set_config('session_replication_role') is refused on MK and
+--      silently fell back to bumping updated_at).
+-- Live impact of 1–5 on the rows stamped so far: none (0 crm_push_only rows;
+-- all 31 crm_decided_pushed rows came from approval pushes).
 --
 -- ── THE RULES — a faithful port of scripts/backfill-order-deciders.mjs ──────
 -- (planPageSql, 2026-09-27). KEEP IN STEP: a rule change goes into BOTH.
@@ -40,13 +66,16 @@
 --   crm_decided        the FIRST transition into a sale status in
 --                      order_history was made by a person (not 'System (…)',
 --                      not an annotated '… — …' row)              via crm
---   crm_decided_pushed …and a real (non-noop) audit_log order.altercpa_push
---                      landed 15 min before … 5 min after AlterCPA's approval
+--   crm_decided_pushed …and a real (non-noop) APPROVAL push (audit_log
+--                      order.altercpa_push, params.accept = '1') landed 15 min
+--                      before … 5 min after AlterCPA's approval
 --                      (approved | cancel_other): AlterCPA's approval is the
 --                      MIRROR of the CRM decision            via crm_push
---   crm_push_only      AlterCPA-sourced, approved/cancel_other, a push in that
---                      window but no human CRM transition → the pushing CRM
---                      user                                  via crm_push
+--   crm_push_only      AlterCPA-sourced, approved/cancel_other, an approval
+--                      push in that window but no human CRM transition → the
+--                      agent the push's comment names ("Agent: <name> — …"),
+--                      resolved through the order_name identity; a push that
+--                      names nobody is reported, not stamped   via crm_push
 --   altercpa_ledger    AlterCPA-sourced, approved/cancel_other → the ledger's
 --                      decided_by_altercpa_user, resolved through
 --                      sales_person_identities kind altercpa_user of THAT
@@ -78,10 +107,11 @@
 --   altercpa   altercpa_user identity of the order's (latest) ledger account
 --   collabbox  collabbox_author, else order_name
 --   import     order_name, else collabbox_author
---   crm / crm_push   the login that carried exactly that name on this order
---              (ext is a user id · the confirmer whose name it is · the first
---              sale transition's changed_by · the non-noop pusher whose profile
---              name it is), else the order_name identity
+--   crm        the login that carried exactly that name on this order (ext is
+--              a user id · the confirmer whose name it is · the first sale
+--              transition's changed_by), else the order_name identity
+--   crm_push   ext is a user id · the first sale transition's changed_by ·
+--              the order_name identity — never the pusher (review defect 1)
 -- No time window for fills: an identity added today may name months of
 -- orders; p_limit caps one run and the next run continues.
 --
@@ -120,9 +150,11 @@
 --   * Guarded by sold_at IS NULL (stamp) / sold_by_person_id IS NULL AND the
 --     same sold_via + sold_by_ext (fill): idempotent, never overwrites the live
 --     trigger's stamp or anything set.
---   * Rows another writer holds are SKIPPED (FOR UPDATE SKIP LOCKED) and taken
---     next run — the cron never waits on altercpa-sync or an agent.
---   * One run at a time (transaction advisory lock).
+--   * Rows another writer holds are SKIPPED (FOR NO KEY UPDATE SKIP LOCKED)
+--     and taken next run — the cron never waits on altercpa-sync or an agent,
+--     and inserts into tables that reference orders(id) never wait on it.
+--   * One run at a time (transaction advisory lock); a run that cannot take it
+--     raises, so pg_cron records the tick as failed.
 --   * Dry run = SELECTs only: callable read-only (supabase_read_only_user,
 --     for verification). Apply refuses a read-only session outright.
 --   * SECURITY DEFINER (the people tables are owners-only under RLS),
@@ -241,13 +273,19 @@ WITH o AS (
     JOIN o ON o.id = l.order_id
    ORDER BY l.order_id, l.last_seen_at DESC, l.id
 ), push AS (
-  -- a real CRM push of this order landing around AlterCPA's decision
-  SELECT DISTINCT ON (led.order_id) led.order_id, a.actor_id, a.created_at, p.full_name AS actor_name
+  -- a real CRM APPROVAL push of this order (params.accept = '1' — a callback
+  -- or cancel push never makes a sale) landing around AlterCPA's decision,
+  -- and the agent its comment names ("Agent: <name> — <reason>"; the push
+  -- always writes it, because AlterCPA has no operator-name param)
+  SELECT DISTINCT ON (led.order_id) led.order_id, a.actor_id, a.created_at, p.full_name AS actor_name,
+         nullif(btrim(split_part(substring(a.payload -> 'params' ->> 'comment' FROM '^Agent: (.*)$'), ' — ', 1)), '')
+           AS agent_name
     FROM led
     JOIN public.audit_log a
       ON a.target_type = 'order' AND a.target_id = led.order_id::text
      AND a.action = 'order.altercpa_push'
      AND (a.payload ->> 'noop') IS DISTINCT FROM 'true'
+     AND a.payload -> 'params' ->> 'accept' = '1'
      AND a.created_at BETWEEN led.decided_at - interval '15 minutes' AND led.decided_at + interval '5 minutes'
     LEFT JOIN public.profiles p ON p.user_id = a.actor_id
    WHERE led.decided_at IS NOT NULL
@@ -258,7 +296,7 @@ WITH o AS (
          fr.changed_at AS fr_at, fr.changed_by AS fr_by, fr.changed_by_name AS fr_name,
          (led.order_id IS NOT NULL) AS has_led, led.account_id, led.decision,
          led.decided_by_altercpa_user AS alt_user, led.decided_at,
-         push.actor_id AS push_by, push.actor_name AS push_name,
+         push.actor_id AS push_by, push.actor_name AS push_name, push.agent_name AS push_agent,
          CASE WHEN lower(btrim(coalesce(o.confirmed_by_name, ''))) IN ('', 'import', 'system')
               THEN nullif(btrim(o.assigned_agent_name), '')
               ELSE o.confirmed_by_name END AS hist_name
@@ -275,8 +313,12 @@ WITH o AS (
       WHEN x.src = 'altercpa' AND x.det = 'history' AND x.duplicated_from IS NULL AND x.hist_name IS NOT NULL THEN 'history_import'
       WHEN x.fr_human THEN CASE WHEN x.push_by IS NOT NULL AND x.decision IN ('approved', 'cancel_other')
                                 THEN 'crm_decided_pushed' ELSE 'crm_decided' END
+      -- An approval push that names no agent leaves the order unresolved: the
+      -- manager who pressed it is not the seller, and AlterCPA's ledger user
+      -- for a pushed approval is the push token's account.
       WHEN x.src = 'altercpa' AND x.decision IN ('approved', 'cancel_other')
-        THEN CASE WHEN x.push_by IS NOT NULL THEN 'crm_push_only' ELSE 'altercpa_ledger' END
+        THEN CASE WHEN x.push_by IS NULL THEN 'altercpa_ledger'
+                  WHEN x.push_agent IS NOT NULL THEN 'crm_push_only' END
       -- Pre-history rows only, and never an AlterCPA order: a confirmer recorded
       -- on those can be whoever moved the parcel on, not who sold it.
       WHEN NOT x.has_fr AND x.src <> 'altercpa' AND x.confirmed_by_agent_id IS NOT NULL THEN 'crm_confirmer'
@@ -326,7 +368,8 @@ WITH o AS (
         (SELECT i.person_id FROM public.sales_person_identities i
           WHERE i.account_id IS NULL AND i.value = r.fr_name AND i.kind = 'order_name' LIMIT 1))
       WHEN 'crm_push_only' THEN
-        (SELECT sp.id FROM public.sales_people sp WHERE sp.user_id = r.push_by)
+        (SELECT i.person_id FROM public.sales_person_identities i
+          WHERE i.account_id IS NULL AND i.value = r.push_agent AND i.kind = 'order_name' LIMIT 1)
       WHEN 'altercpa_ledger' THEN
         (SELECT i.person_id FROM public.sales_person_identities i
           WHERE i.kind = 'altercpa_user' AND i.account_id = r.account_id
@@ -341,7 +384,7 @@ WITH o AS (
       WHEN 'history_import'     THEN r.hist_name
       WHEN 'crm_decided'        THEN coalesce(r.fr_name, r.fr_by::text)
       WHEN 'crm_decided_pushed' THEN coalesce(r.fr_name, r.fr_by::text)
-      WHEN 'crm_push_only'      THEN coalesce(r.push_name, r.push_by::text)
+      WHEN 'crm_push_only'      THEN r.push_agent
       WHEN 'altercpa_ledger'    THEN r.alt_user::text
       WHEN 'crm_confirmer'      THEN coalesce(nullif(btrim(r.confirmed_by_name), ''), r.confirmed_by_agent_id::text)
     END AS ext,
@@ -350,6 +393,7 @@ WITH o AS (
       'AlterCPA ' || coalesce(r.decision, CASE WHEN r.has_led THEN 'open' ELSE 'no ledger row' END),
       CASE WHEN r.src = 'collabbox' OR (r.src = 'altercpa' AND r.det = 'history' AND r.duplicated_from IS NULL)
            THEN 'no operator name on the import' END,
+      CASE WHEN r.push_by IS NOT NULL AND r.push_agent IS NULL THEN 'approval pushed naming no agent' END,
       'first sale by ' || CASE WHEN NOT r.has_fr THEN 'nobody on record'
                                ELSE regexp_replace(coalesce(r.fr_name, '?'), '^System \(([^:)]*).*$', 'System (\1)') END)
     END AS bucket
@@ -396,6 +440,8 @@ WITH o AS (
           ORDER BY h.changed_at, h.id LIMIT 1),
         (SELECT i.person_id FROM public.sales_person_identities i
           WHERE i.account_id IS NULL AND i.value = fo.sold_by_ext AND i.kind = 'order_name' LIMIT 1))
+      -- never through the pusher (review defect 1): a crm_push ext is the
+      -- deciding agent's name, not the manager who pressed the button
       WHEN 'crm_push' THEN coalesce(
         CASE WHEN fo.sold_by_ext ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
              THEN (SELECT sp.id FROM public.sales_people sp WHERE sp.user_id = fo.sold_by_ext::uuid) END,
@@ -405,14 +451,6 @@ WITH o AS (
             AND h.to_status::text IN ('confirmed', 'shipped', 'delivered', 'paid', 'returned')
             AND (h.from_status IS NULL OR h.from_status::text NOT IN ('confirmed', 'shipped', 'delivered', 'paid', 'returned'))
           ORDER BY h.changed_at, h.id LIMIT 1),
-        (SELECT sp.id FROM public.audit_log a
-           JOIN public.profiles p ON p.user_id = a.actor_id
-           JOIN public.sales_people sp ON sp.user_id = a.actor_id
-          WHERE a.target_type = 'order' AND a.target_id = fo.id::text
-            AND a.action = 'order.altercpa_push'
-            AND (a.payload ->> 'noop') IS DISTINCT FROM 'true'
-            AND p.full_name = fo.sold_by_ext
-          ORDER BY a.created_at LIMIT 1),
         (SELECT i.person_id FROM public.sales_person_identities i
           WHERE i.account_id IS NULL AND i.value = fo.sold_by_ext AND i.kind = 'order_name' LIMIT 1))
     END AS person_id
@@ -432,11 +470,39 @@ $fn$;
 COMMENT ON FUNCTION public.order_decider_plan(interval) IS
   '2026-09-28: read-only plan of stamp_order_deciders() — a faithful SQL port of scripts/backfill-order-deciders.mjs planPageSql (keep in step). One row per in-scope order: action stamp | no_time | unresolved (bucket says why) | fill_person (already stamped, sold_by_ext now resolves to a person). Pure SQL, no temp tables: runs in a read-only transaction.';
 
--- ── 3. Plan + apply ─────────────────────────────────────────────────────────
+-- ── 3. The run log ──────────────────────────────────────────────────────────
+-- pg_cron keeps only succeeded/failed; the jsonb a run returns (what it
+-- stamped, what stays unresolved and why, deciders without a person) is kept
+-- here, one row per APPLIED run (dry runs write nothing), for 30 days.
+CREATE TABLE IF NOT EXISTS public.order_decider_runs (
+  id             bigserial   PRIMARY KEY,
+  started_at     timestamptz NOT NULL,
+  finished_at    timestamptz NOT NULL DEFAULT clock_timestamp(),
+  since          interval    NOT NULL,
+  row_limit      integer     NOT NULL,
+  candidates     integer     NOT NULL,
+  stamped        integer     NOT NULL,
+  person_filled  integer     NOT NULL,
+  unresolved     integer     NOT NULL,
+  ms             integer     NOT NULL,
+  result         jsonb       NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_order_decider_runs_started
+  ON public.order_decider_runs (started_at DESC);
+
+ALTER TABLE public.order_decider_runs ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.order_decider_runs FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON public.order_decider_runs TO service_role;
+
+COMMENT ON TABLE public.order_decider_runs IS
+  '2026-09-28: one row per applied stamp_order_deciders() run (cron every 5 min + the nightly full sweep): counts plus the full result jsonb (by_rule, unresolved_by_bucket, decider_without_person). Kept 30 days. A tick that could not take the run lock is NOT here — it raised, so cron.job_run_details shows it as failed.';
+
+-- ── 4. Plan + apply ─────────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION public.stamp_order_deciders(
   p_since   interval DEFAULT interval '14 days',
   p_dry_run boolean  DEFAULT false,
-  p_limit   integer  DEFAULT 5000
+  p_limit   integer  DEFAULT 1000
 )
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -446,13 +512,14 @@ AS $fn$
 DECLARE
   _t0       timestamptz := clock_timestamp();
   _since    interval    := coalesce(p_since, interval '14 days');
-  _limit    integer     := least(greatest(coalesce(p_limit, 5000), 1), 50000);
+  _limit    integer     := least(greatest(coalesce(p_limit, 1000), 1), 50000);
   _summary  jsonb;
   _todo     jsonb;
   _stamped  integer := 0;
   _st_rule  jsonb   := '{}'::jsonb;
   _filled   integer := 0;
   _plan_ms  integer;
+  _out      jsonb;
 BEGIN
   IF _since <= interval '0' THEN
     RAISE EXCEPTION 'stamp_order_deciders: p_since must be positive (got %)', _since
@@ -466,9 +533,13 @@ BEGIN
       RAISE EXCEPTION 'stamp_order_deciders: apply needs a read-write session — call it with p_dry_run => true here'
         USING ERRCODE = '25006';
     END IF;
-    -- One run at a time: a slow run is never overlapped by the next tick.
+    -- One run at a time: a slow run is never overlapped by the next tick. A
+    -- tick that cannot take the lock FAILS rather than "succeeding" with
+    -- nothing done — a session left idle in a transaction holding it would
+    -- otherwise hide every run forever (review defect 4).
     IF NOT pg_try_advisory_xact_lock(hashtext('public.stamp_order_deciders')) THEN
-      RETURN jsonb_build_object('ok', true, 'skipped', 'another run is in progress');
+      RAISE EXCEPTION 'stamp_order_deciders: another run holds the run lock — this tick did nothing'
+        USING ERRCODE = '55P03';
     END IF;
   END IF;
 
@@ -538,7 +609,9 @@ BEGIN
     --                own values (the write-once trigger keeps them anyway)
     -- Person ids are re-checked (a person deleted mid-run skips the row
     -- instead of failing the batch on the FK). Rows another writer holds are
-    -- skipped and taken next run.
+    -- skipped and taken next run. NO KEY UPDATE: no key column changes, so the
+    -- KEY SHARE locks of FK checks into orders(id) (order_history,
+    -- order_items, mex_parcels, altercpa_leads, …) never wait on this.
     WITH v AS (
       SELECT * FROM jsonb_to_recordset(_todo)
                AS v(order_id uuid, action text, rule text, via text, sold_at timestamptz, person_id uuid, ext text)
@@ -547,7 +620,7 @@ BEGIN
        WHERE (v.action = 'stamp' AND o.sold_at IS NULL)
           OR (v.action = 'fill_person' AND o.sold_by_person_id IS NULL)
        ORDER BY o.id
-         FOR UPDATE OF o SKIP LOCKED
+         FOR NO KEY UPDATE OF o SKIP LOCKED
     ), upd AS (
       UPDATE public.orders o
          SET sold_at           = CASE WHEN v.action = 'stamp' THEN v.sold_at ELSE o.sold_at     END,
@@ -582,7 +655,7 @@ BEGIN
     PERFORM set_config('elyon.keep_updated_at', '', true);
   END IF;
 
-  RETURN _summary || jsonb_build_object(
+  _out := _summary || jsonb_build_object(
     'ok',             true,
     'dry_run',        coalesce(p_dry_run, false),
     'since',          _since::text,
@@ -593,13 +666,116 @@ BEGIN
     'person_filled',  _filled,
     'plan_ms',        _plan_ms,
     'ms',             (extract(epoch FROM clock_timestamp() - _t0) * 1000)::int);
+
+  IF NOT coalesce(p_dry_run, false) THEN
+    INSERT INTO public.order_decider_runs
+           (started_at, since, row_limit, candidates, stamped, person_filled, unresolved, ms, result)
+    VALUES (_t0, _since, _limit, (_out ->> 'candidates')::int, _stamped, _filled,
+            (_out ->> 'unresolved')::int, (_out ->> 'ms')::int, _out);
+    DELETE FROM public.order_decider_runs WHERE started_at < now() - interval '30 days';
+  END IF;
+
+  RETURN _out;
 END;
 $fn$;
 
 COMMENT ON FUNCTION public.stamp_order_deciders(interval, boolean, integer) IS
-  '2026-09-28: stamps orders.sold_* (who made the sale) for every real sale in the window that has none — AlterCPA approvals, collabBox and history imports, CRM decisions — by the rules of scripts/backfill-order-deciders.mjs (order_decider_plan), and fills sold_by_person_id where sold_by_ext now resolves. Write-once guarded, SKIP LOCKED, keeps updated_at (elyon.keep_updated_at). Cron stamp-order-deciders every 5 min. p_dry_run => true writes nothing (read-only safe). Returns {candidates, stamped, by_rule, unresolved_by_bucket, …}.';
+  '2026-09-28: stamps orders.sold_* (who made the sale) for every real sale in the window that has none — AlterCPA approvals, collabBox and history imports, CRM decisions — by the rules of scripts/backfill-order-deciders.mjs (order_decider_plan), and fills sold_by_person_id where sold_by_ext now resolves. Write-once guarded, FOR NO KEY UPDATE SKIP LOCKED, keeps updated_at (elyon.keep_updated_at), logs every applied run to order_decider_runs; a tick that cannot take the run lock raises. Crons: stamp-order-deciders every 5 min (14 days, 1000 rows) + stamp-order-deciders-full nightly (whole book). p_dry_run => true writes nothing (read-only safe). Returns {candidates, stamped, by_rule, unresolved_by_bucket, …}.';
 
--- ── 4. Privileges ───────────────────────────────────────────────────────────
+-- ── 5. Settings → Teams back-stamping keeps updated_at too ──────────────────
+-- Same function as 20260939000200 (signature, security, grants); only the
+-- updated_at switch changes. Its set_config('session_replication_role', …)
+-- is refused on MK (postgres holds no SET grant on it and supautils lifts only
+-- SET statements), so it fell back to triggers on and bumped updated_at — the
+-- last_call_at of GET /call-agains — on every order it back-stamped.
+CREATE OR REPLACE FUNCTION public.sales_backstamp_orders(
+  p_person  uuid,
+  p_kind    text,
+  p_account uuid,
+  p_value   text
+)
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $fn$
+DECLARE
+  _n    integer := 0;
+  _prev text := coalesce(current_setting('elyon.keep_updated_at', true), '');
+  _uid  uuid;
+BEGIN
+  IF p_person IS NULL OR nullif(p_value, '') IS NULL THEN
+    RETURN 0;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.sales_people sp WHERE sp.id = p_person) THEN
+    RETURN 0;
+  END IF;
+
+  -- a bookkeeping write: keep updated_at (update_updated_at_column, above)
+  PERFORM set_config('elyon.keep_updated_at', 'on', true);
+
+  IF p_kind = 'altercpa_user' THEN
+    UPDATE public.orders o
+       SET sold_by_person_id = p_person
+     WHERE o.sold_by_person_id IS NULL
+       AND o.sold_at IS NOT NULL
+       AND o.sold_via = 'altercpa'
+       AND o.sold_by_ext = p_value
+       AND EXISTS (SELECT 1 FROM public.altercpa_leads l
+                    WHERE l.order_id = o.id AND l.account_id = p_account);
+    GET DIAGNOSTICS _n = ROW_COUNT;
+
+  ELSIF p_kind = 'order_name' THEN
+    UPDATE public.orders o
+       SET sold_by_person_id = p_person
+     WHERE o.sold_by_person_id IS NULL
+       AND o.sold_at IS NOT NULL
+       AND o.sold_by_ext = p_value
+       AND (o.sold_via IN ('crm', 'crm_push', 'import')
+            OR (o.sold_via = 'collabbox'
+                AND NOT EXISTS (SELECT 1 FROM public.sales_person_identities i
+                                 WHERE i.kind = 'collabbox_author' AND i.account_id IS NULL
+                                   AND i.value = p_value AND i.person_id <> p_person)));
+    GET DIAGNOSTICS _n = ROW_COUNT;
+
+  ELSIF p_kind = 'collabbox_author' THEN
+    UPDATE public.orders o
+       SET sold_by_person_id = p_person
+     WHERE o.sold_by_person_id IS NULL
+       AND o.sold_at IS NOT NULL
+       AND o.sold_by_ext = p_value
+       AND (o.sold_via = 'collabbox'
+            OR (o.sold_via = 'import'
+                AND NOT EXISTS (SELECT 1 FROM public.sales_person_identities i
+                                 WHERE i.kind = 'order_name' AND i.account_id IS NULL
+                                   AND i.value = p_value AND i.person_id <> p_person)));
+    GET DIAGNOSTICS _n = ROW_COUNT;
+
+  ELSIF p_kind = 'login' AND p_value ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
+    _uid := p_value::uuid;
+    UPDATE public.orders o
+       SET sold_by_person_id = p_person
+     WHERE o.sold_by_person_id IS NULL
+       AND o.sold_at IS NOT NULL
+       AND o.sold_via IN ('crm', 'crm_push')
+       AND (o.sold_by_ext = p_value
+            OR (o.sold_via = 'crm'
+                AND o.confirmed_by_agent_id = _uid
+                AND o.sold_by_ext = nullif(btrim(o.confirmed_by_name), '')));
+    GET DIAGNOSTICS _n = ROW_COUNT;
+  END IF;
+
+  PERFORM set_config('elyon.keep_updated_at', _prev, true);
+  RETURN _n;
+END;
+$fn$;
+
+COMMENT ON FUNCTION public.sales_backstamp_orders(uuid, text, uuid, text) IS
+  'Internal (Settings → Teams, 2026-09-28): fill orders.sold_by_person_id where it IS NULL and sold_by_ext is exactly the handle (altercpa_user | order_name | collabbox_author | login). Never restamps; never touches sold_at/sold_via/sold_by_ext; keeps updated_at (elyon.keep_updated_at, 20260939000300). Called only by the sales_person_* definer functions.';
+
+REVOKE ALL ON FUNCTION public.sales_backstamp_orders(uuid, text, uuid, text) FROM PUBLIC, anon, authenticated, service_role;
+
+-- ── 6. Privileges ───────────────────────────────────────────────────────────
 REVOKE ALL ON FUNCTION public.order_decider_plan(interval)                      FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.stamp_order_deciders(interval, boolean, integer)  FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.order_decider_plan(interval)                     TO service_role;
@@ -613,15 +789,23 @@ BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'supabase_read_only_user') THEN
     GRANT EXECUTE ON FUNCTION public.order_decider_plan(interval)                     TO supabase_read_only_user;
     GRANT EXECUTE ON FUNCTION public.stamp_order_deciders(interval, boolean, integer) TO supabase_read_only_user;
+    GRANT SELECT ON public.order_decider_runs                                         TO supabase_read_only_user;
   END IF;
 END
 $grant$;
 
--- ── 5. Schedule — every 5 minutes, one minute after altercpa-sync-status ────
+-- ── 7. Schedules ────────────────────────────────────────────────────────────
+-- every 5 minutes, one minute after altercpa-sync-status: the last 14 days,
+-- up to 1000 rows a tick; and nightly at 02:23 UTC (04:23 / 03:23 Skopje —
+-- nobody works, the segment recompute ran at 00:00 UTC) the WHOLE book, up to
+-- 5000 rows. The run lock keeps the two apart.
 DO $cron$
 BEGIN
   IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'stamp-order-deciders') THEN
     PERFORM cron.unschedule('stamp-order-deciders');
+  END IF;
+  IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'stamp-order-deciders-full') THEN
+    PERFORM cron.unschedule('stamp-order-deciders-full');
   END IF;
 END
 $cron$;
@@ -630,4 +814,10 @@ SELECT cron.schedule(
   'stamp-order-deciders',
   '1-59/5 * * * *',
   $job$SELECT public.stamp_order_deciders();$job$
+);
+
+SELECT cron.schedule(
+  'stamp-order-deciders-full',
+  '23 2 * * *',
+  $job$SELECT public.stamp_order_deciders(interval '10 years', false, 5000);$job$
 );

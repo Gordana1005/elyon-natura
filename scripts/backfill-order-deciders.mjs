@@ -33,15 +33,18 @@
  *   crm_decided        the order's FIRST transition into a sale status in
  *                      order_history was made by a person (not 'System (…)')
  *                      → that person                                  sold_via crm
- *                      …and when a real (non-noop) CRM push to AlterCPA lands
- *                      within 15 min before / 5 min after AlterCPA's approval,
- *                      AlterCPA's approval is the MIRROR of this CRM decision
+ *                      …and when a real (non-noop) CRM APPROVAL push to
+ *                      AlterCPA (params.accept = '1') lands within 15 min
+ *                      before / 5 min after AlterCPA's approval, AlterCPA's
+ *                      approval is the MIRROR of this CRM decision
  *                                                                      sold_via crm_push
  *   altercpa_ledger    otherwise, an AlterCPA-sourced order their operator
  *                      approved (approved | cancel_other) → the ledger's
  *                      decided_by_altercpa_user                        sold_via altercpa
- *                      …with a push in that window but no CRM decision row
- *                      → the pushing CRM user                          sold_via crm_push
+ *                      …with an approval push in that window but no CRM
+ *                      decision row → the agent the push's comment names
+ *                      ("Agent: <name> — …"), by the order_name identity;
+ *                      a push naming nobody is reported     sold_via crm_push
  *   crm_confirmer      no order_history at all (pre-history rows), not an
  *                      AlterCPA order → the recorded confirmer (id, else
  *                      exact name)                                     sold_via crm
@@ -53,7 +56,10 @@
  * AlterCPA-approved order to `shipped` (the status PATCH then fills
  * confirmed_by_*) from being credited with the sale. Pushes are made by admins;
  * the push rule credits the CRM agent who decided, not the admin who pressed it
- * (their comment reads "Agent: <name>" for exactly that reason).
+ * (their comment reads "Agent: <name>" for exactly that reason). Callback and
+ * cancel pushes never count (stamp review 2026-09-28, defect 1).
+ * KEEP IN STEP with order_decider_plan() in
+ * supabase/migrations/20260939000300_stamp_deciders_cron.sql (the cron's copy).
  *
  * sold_by_ext keeps the raw key (AlterCPA user id, operator name, collabBox
  * author) even when no person matches, so once the owner names e.g. AlterCPA
@@ -211,13 +217,17 @@ WITH o AS (
     JOIN o ON o.id = l.order_id
    ORDER BY l.order_id, l.last_seen_at DESC
 ), push AS (
-  -- a real CRM push of this order landing around AlterCPA's decision
-  SELECT DISTINCT ON (led.order_id) led.order_id, a.actor_id, a.created_at, p.full_name AS actor_name
+  -- a real CRM APPROVAL push of this order (params.accept = '1') landing
+  -- around AlterCPA's decision, and the agent its comment names
+  SELECT DISTINCT ON (led.order_id) led.order_id, a.actor_id, a.created_at, p.full_name AS actor_name,
+         nullif(btrim(split_part(substring(a.payload -> 'params' ->> 'comment' FROM '^Agent: (.*)$'), ' — ', 1)), '')
+           AS agent_name
     FROM led
     JOIN public.audit_log a
       ON a.target_type = 'order' AND a.target_id = led.order_id::text
      AND a.action = 'order.altercpa_push'
      AND (a.payload ->> 'noop') IS DISTINCT FROM 'true'
+     AND a.payload -> 'params' ->> 'accept' = '1'
      AND a.created_at BETWEEN led.decided_at - interval '15 minutes' AND led.decided_at + interval '5 minutes'
     LEFT JOIN public.profiles p ON p.user_id = a.actor_id
    WHERE led.decided_at IS NOT NULL
@@ -228,7 +238,7 @@ WITH o AS (
          fr.changed_at AS fr_at, fr.changed_by AS fr_by, fr.changed_by_name AS fr_name,
          (led.order_id IS NOT NULL) AS has_led, led.account_id, led.decision,
          led.decided_by_altercpa_user AS alt_user, led.decided_at,
-         push.actor_id AS push_by, push.actor_name AS push_name,
+         push.actor_id AS push_by, push.actor_name AS push_name, push.agent_name AS push_agent,
          CASE WHEN lower(btrim(coalesce(o.confirmed_by_name, ''))) IN ('', 'import', 'system')
               THEN nullif(btrim(o.assigned_agent_name), '')
               ELSE o.confirmed_by_name END AS hist_name
@@ -245,8 +255,11 @@ WITH o AS (
       WHEN src = 'altercpa' AND det = 'history' AND duplicated_from IS NULL AND hist_name IS NOT NULL THEN 'history_import'
       WHEN fr_human THEN CASE WHEN push_by IS NOT NULL AND decision IN ('approved', 'cancel_other')
                               THEN 'crm_decided_pushed' ELSE 'crm_decided' END
+      -- An approval push naming no agent stays unresolved: the manager who
+      -- pressed it is not the seller.
       WHEN src = 'altercpa' AND decision IN ('approved', 'cancel_other')
-        THEN CASE WHEN push_by IS NOT NULL THEN 'crm_push_only' ELSE 'altercpa_ledger' END
+        THEN CASE WHEN push_by IS NULL THEN 'altercpa_ledger'
+                  WHEN push_agent IS NOT NULL THEN 'crm_push_only' END
       -- Pre-history rows only, and never an AlterCPA order: a confirmer recorded
       -- on those can be whoever moved the parcel on, not who sold it.
       WHEN NOT has_fr AND src <> 'altercpa' AND confirmed_by_agent_id IS NOT NULL THEN 'crm_confirmer'
@@ -279,7 +292,7 @@ WITH o AS (
       WHEN 'history_import'     THEN ${byName(['order_name', 'collabbox_author'], 'r.hist_name')}
       WHEN 'crm_decided'        THEN coalesce(${byUser('r.fr_by')}, ${byName(['order_name'], 'r.fr_name')})
       WHEN 'crm_decided_pushed' THEN coalesce(${byUser('r.fr_by')}, ${byName(['order_name'], 'r.fr_name')})
-      WHEN 'crm_push_only'      THEN ${byUser('r.push_by')}
+      WHEN 'crm_push_only'      THEN ${byName(['order_name'], 'r.push_agent')}
       WHEN 'altercpa_ledger'    THEN (SELECT i.person_id FROM public.sales_person_identities i
                                        WHERE i.kind = 'altercpa_user' AND i.account_id = r.account_id
                                          AND i.value = r.alt_user::text)
@@ -290,7 +303,7 @@ WITH o AS (
       WHEN 'history_import'     THEN r.hist_name
       WHEN 'crm_decided'        THEN coalesce(r.fr_name, r.fr_by::text)
       WHEN 'crm_decided_pushed' THEN coalesce(r.fr_name, r.fr_by::text)
-      WHEN 'crm_push_only'      THEN coalesce(r.push_name, r.push_by::text)
+      WHEN 'crm_push_only'      THEN r.push_agent
       WHEN 'altercpa_ledger'    THEN r.alt_user::text
       WHEN 'crm_confirmer'      THEN coalesce(nullif(btrim(r.confirmed_by_name), ''), r.confirmed_by_agent_id::text)
     END AS ext,
@@ -299,6 +312,7 @@ WITH o AS (
       'AlterCPA ' || coalesce(r.decision, CASE WHEN r.has_led THEN 'open' ELSE 'no ledger row' END),
       CASE WHEN r.src = 'collabbox' OR (r.src = 'altercpa' AND r.det = 'history' AND r.duplicated_from IS NULL)
            THEN 'no operator name on the import' END,
+      CASE WHEN r.push_by IS NOT NULL AND r.push_agent IS NULL THEN 'approval pushed naming no agent' END,
       'first sale by ' || CASE WHEN NOT r.has_fr THEN 'nobody on record'
                                ELSE regexp_replace(coalesce(r.fr_name, '?'), '^System \\(([^:)]*).*$', 'System (\\1)') END)
     END AS bucket
