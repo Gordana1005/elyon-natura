@@ -158,6 +158,26 @@ export function resolveRemoteOutcome(o: AlterCpaOrder, currentCrmStatus: string)
 }
 
 /**
+ * The forward-only B′ step for an order that is `cur` here: the status to move
+ * it to, or null when there is nothing to do — their lead is still open, the
+ * order is already there, it is terminal here, or the move would go backwards
+ * (CRM_STATUS_RANK). The ownership guard is NOT part of this: it needs a fresh
+ * read of the order, and a guarded step is still a step (a note, a count).
+ *
+ * applyOutcomeToExistingOrder decides with it on the order it just read; a
+ * sweep page also uses it to skip that read when the status it prefetched
+ * already says null. The status kind keeps its own spelled-out checks, one
+ * count per reason.
+ */
+export function forwardOutcome(o: AlterCpaOrder, cur: string): string | null {
+  const target = resolveRemoteOutcome(o, cur);
+  if (target == null || target === cur) return null;
+  if (CRM_TERMINAL.has(cur)) return null;
+  if ((CRM_STATUS_RANK[target] ?? 0) <= (CRM_STATUS_RANK[cur] ?? 0)) return null;
+  return target;
+}
+
+/**
  * The only statuses the bridge may CREATE an order in. Everything physical —
  * shipped, delivered, paid, returned — is MEX's alone (mex-reconcile), so an
  * insert that resolves to anything else is a bug upstream, never data: it

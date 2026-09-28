@@ -17,8 +17,8 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  AlterCpaOrder, CANCEL_REASON_TO_CRM, INSERT_STATUSES,
-  assertInsertStatus, cancelOtherConfirmedNote, crmReasonFor, guardedOutcomeNote,
+  AlterCpaOrder, CANCEL_REASON_TO_CRM, CRM_STATUS_RANK, CRM_TERMINAL, INSERT_STATUSES,
+  assertInsertStatus, cancelOtherConfirmedNote, crmReasonFor, forwardOutcome, guardedOutcomeNote,
   insertStatusFor, outcomeColumns, resolveRemoteOutcome,
 } from "./altercpa.ts";
 
@@ -253,6 +253,53 @@ describe("order notes", () => {
     expect(guardedOutcomeNote(rec(3))).toBe(
       'AlterCPA moved this to "approved" — not applied, this order is already being worked here.',
     );
+  });
+});
+
+describe("forwardOutcome — the forward-only B′ step (2026-09-28)", () => {
+  // The four checks applyOutcomeToExistingOrder spelled out inline until the
+  // resumable sweeps needed them as a prefilter too (the status kind still
+  // spells them out, one count per reason). Pinned here verbatim.
+  const inline = (o: AlterCpaOrder, cur: string): string | null => {
+    const target = resolveRemoteOutcome(o, cur);
+    if (target == null || target === cur) return null;
+    if (CRM_TERMINAL.has(cur)) return null;
+    if ((CRM_STATUS_RANK[target] ?? 0) <= (CRM_STATUS_RANK[cur] ?? 0)) return null;
+    return target;
+  };
+  const ALL = [...CRM_STATUSES, "duplicated"];
+
+  it("is exactly the checks it replaced — every phase × status × reason × CRM status", () => {
+    const bad: string[] = [];
+    let combos = 0;
+    for (const o of everyRecord()) {
+      for (const cur of ALL) {
+        combos++;
+        if (forwardOutcome(o, cur) !== inline(o, cur)) bad.push(`${label(o)} @ ${cur}: ${forwardOutcome(o, cur)} ≠ ${inline(o, cur)}`);
+      }
+    }
+    expect(bad).toEqual([]);
+    expect(combos).toBe(5 * 12 * 20 * 2 * 11);
+  });
+
+  it("only ever moves an open order UP to confirmed, cancelled or trashed", () => {
+    for (const o of everyRecord()) {
+      for (const cur of ALL) {
+        const t = forwardOutcome(o, cur);
+        if (t === null) continue;
+        expect(REMOTE_OUTCOMES.has(t)).toBe(true);
+        expect(CRM_TERMINAL.has(cur)).toBe(false);
+        expect(CRM_STATUS_RANK[t]).toBeGreaterThan(CRM_STATUS_RANK[cur]);
+      }
+    }
+  });
+
+  it("is null for every terminal status, so a sweep page skips the order read for those", () => {
+    for (const o of everyRecord()) {
+      for (const cur of ["paid", "returned", "cancelled", "trashed", "duplicated"]) {
+        expect(forwardOutcome(o, cur)).toBeNull();
+      }
+    }
   });
 });
 
