@@ -4,7 +4,7 @@
  * No React, no network: returnsModel.test.ts covers it.
  */
 import { cohortHref, type DrillKey } from '../shared/cohortModel';
-import { COHORT_SALE_SOURCES, COHORT_SOURCES, type CohortSourceKey } from '../shared/cohortTypes';
+import { COHORT_SOURCES } from '../shared/cohortTypes';
 import type { DayRange } from '../shared/period';
 import type {
   QueueAgeKey, ReturnsClock, ReturnsResponse, StockProductRow, StockQueueStage,
@@ -29,11 +29,10 @@ export interface RsDrill {
   blocked: RsBlock | null;
 }
 
-/** /orders sale_source values for the selected cohort sources (none = all four). */
-export const saleSourcesOf = (sources: readonly string[] | null | undefined): string[] => {
-  const keys = (sources && sources.length ? sources : COHORT_SOURCES) as CohortSourceKey[];
-  return [...new Set(keys.flatMap((k) => COHORT_SALE_SOURCES[k] ?? []))];
-};
+/** The cohort sources a drill covers: the selected ones (none selected = all
+ *  five — the link then sends no cohort_source). */
+export const drillSourcesOf = (sources: readonly string[] | null | undefined): readonly string[] =>
+  sources && sources.length ? sources : COHORT_SOURCES;
 
 /**
  * The link behind a returns / queue number. `bucket` is the cohort part the
@@ -58,7 +57,7 @@ export function rsDrill(opts: {
   const web = num(comp?.web);
   const mex = num(comp?.mex_only);
   if (orders <= 0) return { ...none, blocked: web > 0 && mex > 0 ? 'mixed' : web > 0 ? 'web' : 'mex_only' };
-  let href = cohortHref(bucket, saleSourcesOf(sources), range);
+  let href = cohortHref(bucket, drillSourcesOf(sources), range);
   const sp = new URLSearchParams();
   for (const [k, v] of Object.entries(extra ?? {})) if (v) sp.set(k, v);
   if ([...sp.keys()].length) href += `&${sp.toString()}`;

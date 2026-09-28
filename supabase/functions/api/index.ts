@@ -5574,6 +5574,10 @@ async function handleRequest(req: Request): Promise<Response> {
       // from the same helper the RPC's bounds do (overview.ts).
       //   sale_source         csv of orders.sale_source
       //   sale_source_detail  csv of orders.sale_source_detail
+      //   cohort_source       csv of the five Insights sources (altercpa|elyon_crm|
+      //                       teleshop_other|social|web) — IC.cohortSourceOrFilter,
+      //                       the twin of cohort_order_source(sale_source, detail):
+      //                       collabBox is two sources (migration 20260942000500)
       //   outcome             csv of awaiting|preparing|packed|courier|delivered|
       //                       returned|cancelled|trashed (+ to_collect, lost,
       //                       cancelled_after_confirm)
@@ -5584,6 +5588,9 @@ async function handleRequest(req: Request): Promise<Response> {
       if (!ovSource.ok) return json({ error: `Invalid sale_source: ${ovSource.bad}` }, 400);
       const ovDetail = OV.parseDetailParam(url.searchParams.get("sale_source_detail"));
       if (!ovDetail.ok) return json({ error: `Invalid sale_source_detail: ${ovDetail.bad}` }, 400);
+      const ovCohortSource = IC.parseCohortSourceParam(url.searchParams.get("cohort_source"));
+      if (!ovCohortSource.ok) return json({ error: `Invalid cohort_source: ${ovCohortSource.bad}` }, 400);
+      const ovCohortSourceOr = IC.cohortSourceOrFilter(ovCohortSource.values);
       const ovOutcome = OV.parseCsvParam(url.searchParams.get("outcome"), OV.OUTCOMES);
       if (!ovOutcome.ok) return json({ error: `Invalid outcome: ${ovOutcome.bad}` }, 400);
       const ovPerson = url.searchParams.get("sold_by_person_id") || null;
@@ -5694,7 +5701,7 @@ async function handleRequest(req: Request): Promise<Response> {
         search || readyOnly || leadOnly ||
         (cpaWebmaster && cpaWebmaster !== "all") || (cpaOffer && cpaOffer !== "all") ||
         (cpaStream && cpaStream !== "all") ||
-        ovSource.values.length || ovDetail.values.length || ovOutcomeOr || ovPerson ||
+        ovSource.values.length || ovDetail.values.length || ovCohortSourceOr || ovOutcomeOr || ovPerson ||
         ovCreatedFrom || ovCreatedTo || ovSoldFrom || ovCashFrom || ovProof || ovPaidBasis ||
         Object.values(ovText).some(Boolean) || ovTeam || ovAttention || ovCohort.values.length,
       );
@@ -5723,6 +5730,7 @@ async function handleRequest(req: Request): Promise<Response> {
       // Overview drill-down (see the block above `isFiltered`).
       if (ovSource.values.length) query = query.in("sale_source", ovSource.values);
       if (ovDetail.values.length) query = query.in("sale_source_detail", ovDetail.values);
+      if (ovCohortSourceOr) query = query.or(ovCohortSourceOr);
       if (ovOutcomeOr) query = query.or(ovOutcomeOr);
       if (ovPerson) query = query.eq("sold_by_person_id", ovPerson);
       if (ovCreatedFrom) query = query.gte("created_at", OV.skopjeMidnightIso(ovCreatedFrom));
@@ -17253,7 +17261,7 @@ async function handleRequest(req: Request): Promise<Response> {
       );
       if ("error" in ovWin) return json({ error: ovWin.error }, 400);
       // The Overview, the sale cohort (migration 20260940000000 — the same
-      // window, all four sources) and THE collabBox freshness, in parallel.
+      // window, all five sources) and THE collabBox freshness, in parallel.
       // The cohort and the collabBox entry are additive: if either RPC is
       // missing or fails, the Overview still answers (cohort: null / the
       // Overview's own collabBox entry).
@@ -17288,7 +17296,7 @@ async function handleRequest(req: Request): Promise<Response> {
 
     // ══════════════════════════════════════════════════════════════
     // GET /api/insights/cohort?from=YYYY-MM-DD&to=YYYY-MM-DD&compare=1
-    //                         &source=altercpa,elyon_crm,web,teleshop_other
+    //                         &source=altercpa,elyon_crm,teleshop_other,social,web
     // The sale cohort every /insights tab counts from (owner rules
     // 2026-09-28, migration 20260940000000 insights_cohort): the sales made
     // in the window (sale day, Skopje), MEX-first buckets that sum exactly to
@@ -17298,7 +17306,7 @@ async function handleRequest(req: Request): Promise<Response> {
     //   non-owner admin / manager      → the same payload, every *_mkd key
     //                                    ABSENT (insightsCommon.ts whitelist)
     //   everyone else                  → 403
-    // Drill links point at GET /orders?cohort_bucket&sale_source&sold_from&
+    // Drill links point at GET /orders?cohort_bucket&cohort_source&sold_from&
     // sold_to, which lists exactly the order part of a number.
     // ══════════════════════════════════════════════════════════════
     if (req.method === "GET" && path === "insights/cohort") {

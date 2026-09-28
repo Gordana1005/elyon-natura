@@ -94,6 +94,22 @@ describe("stripOverviewMoney", () => {
     expect(out.freshness[0]).toEqual({ feed: "altercpa", last_ok_at: "2026-09-27T22:28:02Z", status: "ok", detail: "rolling" });
   });
 
+  it("Social media (the fifth source): its trend series and its cohort_source drill survive, its money does not", () => {
+    const p = sample();
+    p.sources.push({
+      ...p.sources[0], key: "social",
+      splits: [{ ...p.sources[0].splits[0], key: "social", drill: { sale_source: ["collabbox"], detail: ["social"] } }],
+      drill: { sale_source: ["collabbox"], cohort_source: ["social"] } as never,
+    });
+    (p.trend.points[0].by_source as Record<string, unknown>).social =
+      { placed_count: 12, placed_value_eur: 480, delivered_count: 4, delivered_cash_mkd: 9200 };
+    const out = stripOverviewMoney(p) as any;
+    expect(out.sources[1].drill).toEqual({ sale_source: ["collabbox"], cohort_source: ["social"] });
+    expect(out.sources[1].splits[0].drill).toEqual({ sale_source: ["collabbox"], detail: ["social"] });
+    expect(out.trend.points[0].by_source.social).toEqual({ placed_count: 12, delivered_count: 4 });
+    expect(moneyKeys(out)).toEqual([]);
+  });
+
   it("drops keys it does not know (fail closed for future fields)", () => {
     const out = stripOverviewMoney(sample()) as any;
     expect(out.a_future_money_field).toBeUndefined();
@@ -245,7 +261,9 @@ describe("drill-down filters", () => {
     expect(a.isNull).toEqual(["mex_tracking_id"]);
     expect(a.or[0]).toContain("sold_at.lt.2026-09-18T08:00:00.000Z");
     expect(a.or[1]).toBe("ship_after_date.is.null,ship_after_date.lte.2026-09-28");
-    expect(a.or).toHaveLength(2);
+    // a CRM sale of an AlterCPA-team agent counts in AlterCPA but is never the rule's (20260942000700)
+    expect(a.or[2]).toBe("sale_source_detail.is.null,sale_source_detail.neq.team_prediction");
+    expect(a.or).toHaveLength(3);
     expect(a.notIds).toEqual([]);
     expect(attentionFilter("mex_problem", now)).toEqual({ eq: {}, in: { mex_status_id: [3, 9, 13] }, isNull: [], or: [], notIds: [] });
     expect(attentionFilter("night_approvals", now)).toBeNull();
@@ -277,7 +295,7 @@ describe("drill-down filters", () => {
     const opts = { days: 10, excludedPhone8s: ["70123456", "23123123", "bad"], testOrderIds: [...ids, "nope"] };
     const phone = "customer_phone.is.null,and(customer_phone.not.like.*70123456,customer_phone.not.like.*23123123)";
     const a = attentionFilter("approved_no_parcel_7d", now, opts)!;
-    expect(a.or).toEqual([expect.any(String), expect.any(String), phone]);
+    expect(a.or).toEqual([expect.any(String), expect.any(String), expect.any(String), phone]);
     expect(a.notIds).toEqual(ids);
     expect(attentionFilter("mex_problem", now, opts)).toEqual({ eq: {}, in: { mex_status_id: [3, 9, 13] }, isNull: [], or: [phone], notIds: ids });
 

@@ -23,9 +23,10 @@ describe('tiles', () => {
   });
   it('a courier tile opens both buckets; the web mirror and MEX-only sources never link', () => {
     expect(cohortDrill([row('altercpa')], tileBuckets('courier'), range, true).href)
-      .toBe(`/orders?cohort_bucket=courier%2Ccourier_problem&sale_source=altercpa%2Caffiliate&${WIN}`);
+      .toBe(`/orders?cohort_bucket=courier%2Ccourier_problem&cohort_source=altercpa&${WIN}`);
     expect(cohortDrill([row('web')], 'paid', range, true)).toMatchObject({ href: null, blocked: 'web' });
     expect(cohortDrill([row('teleshop_other')], 'paid', range, true)).toMatchObject({ href: null, blocked: 'mex_only' });
+    expect(cohortDrill([row('social')], 'paid', range, true)).toMatchObject({ href: null, blocked: 'mex_only' });
     // Until /orders knows cohort_bucket, nothing links — a wider list would be worse than none.
     expect(cohortDrill([row('altercpa')], 'paid', range, false)).toMatchObject({ href: null, blocked: 'unsupported' });
   });
@@ -36,18 +37,28 @@ describe('split chips', () => {
     const elyon = row('elyon_crm');
     const pl = elyon.splits.find((s) => s.key === 'prediction_list')!;
     expect(splitDrill(elyon, pl, range, true).href)
-      .toBe(`/orders?cohort_bucket=total&sale_source=elyon_crm&sale_source_detail=prediction_list&${WIN}`);
+      .toBe(`/orders?cohort_bucket=total&cohort_source=elyon_crm&sale_source_detail=prediction_list&${WIN}`);
     expect(splitDrill(elyon, pl, range, false)).toEqual({ href: null, blocked: 'unsupported' });
     const bridge = row('altercpa').splits.find((s) => s.key === 'bridge')!;
     expect(splitDrill(row('altercpa'), bridge, range, true).href)
-      .toBe(`/orders?cohort_bucket=total&sale_source=altercpa%2Caffiliate&sale_source_detail=bridge&${WIN}`);
+      .toBe(`/orders?cohort_bucket=total&cohort_source=altercpa&sale_source_detail=bridge&${WIN}`);
     // the api's own link for the chip says the same
-    expect(bridge.drill).toBe(`/orders?cohort_bucket=total&sale_source=altercpa,affiliate&sale_source_detail=bridge&${WIN}`);
+    expect(bridge.drill).toBe(`/orders?cohort_bucket=total&cohort_source=altercpa&sale_source_detail=bridge&${WIN}`);
+    // Social media's collabBox documents and Lead out's collabBox "out" documents: their own chips
+    const soc = { key: 'social', kind: 'order' as const, count: 12 };
+    expect(splitDrill(row('social'), soc, range, true).href)
+      .toBe(`/orders?cohort_bucket=total&cohort_source=social&sale_source_detail=social&${WIN}`);
+    const out = { key: 'collabbox_out', kind: 'order' as const, count: 7 };
+    expect(splitDrill(row('elyon_crm'), out, range, true).href)
+      .toBe(`/orders?cohort_bucket=total&cohort_source=elyon_crm&sale_source_detail=collabbox_out&${WIN}`);
   });
   it('parcels, the web mirror, empty, unnamed and unknown splits never link — each says why', () => {
     const tele = row('teleshop_other');
-    expect(splitDrill(tele, tele.splits.find((s) => s.key === 'elyon_unlinked')!, range, true)).toEqual({ href: null, blocked: 'mex_only' });
-    expect(splitDrill(tele, { key: 'mex_teleshop', kind: 'mex', count: 639 }, range, true).blocked).toBe('mex_only');
+    expect(splitDrill(tele, tele.splits.find((s) => s.key === 'mex_other')!, range, true)).toEqual({ href: null, blocked: 'mex_only' });
+    expect(splitDrill(tele, { key: 'mex_in', kind: 'mex', count: 639 }, range, true).blocked).toBe('mex_only');
+    // parcels with no order credited by series (AlterCPA's 9110, Lead out's 9102 / 9103) never link either
+    expect(splitDrill(row('altercpa'), { key: 'mex_leads', kind: 'mex', count: 3 }, range, true).blocked).toBe('mex_only');
+    expect(splitDrill(row('elyon_crm'), { key: 'mex_out', kind: 'mex', count: 3 }, range, true).blocked).toBe('mex_only');
     expect(splitDrill(row('web'), { key: 'cod', kind: 'web', count: 84 }, range, true).blocked).toBe('web');
     expect(splitDrill(tele, { key: 'teleshop', kind: 'order', count: 0 }, range, true).blocked).toBe('none');
     expect(splitDrill(row('altercpa'), { key: 'none', kind: 'order', count: 5 }, range, true).blocked).toBe('not_orders');

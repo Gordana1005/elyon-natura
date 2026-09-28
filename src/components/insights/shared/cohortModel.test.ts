@@ -7,9 +7,10 @@ import {
 import { COHORT_BUCKETS, type Cohort } from './cohortTypes';
 
 // The week fixture is insights_cohort()'s exact shape for 22–28.09.2026 under
-// HANDOFF §3: AlterCPA and ElyonCRM are orders only, the web shop is its mirror,
-// Teleshop/Other is every MEX parcel with no order (teleshop, social and the
-// neutral "Elyon account — unlinked").
+// the five sources of 28.09.2026 (20260942000500), in the owner's order: AlterCPA and
+// Lead out (elyon_crm) are orders only this week, Lead in (teleshop_other) is its MEX
+// parcels with no order of series 9100 (mex_in) and none (mex_other), Social media its
+// 9108 parcels (mex_social), the web shop its mirror.
 const fixture = () => structuredClone(sample) as unknown as Cohort;
 const range = { from: '2026-09-22', to: '2026-09-28' };
 const row = (c: Cohort, k: string) => c.by_source.find((r) => r.key === k)!;
@@ -58,8 +59,9 @@ describe('the source filter re-sums from by_source', () => {
     expect(v.filtered).toBe(false);
     expect(v.total.count).toBe(1337);
     expect(v.buckets).toBe(c.buckets);
-    expect(cohortView(c, ['altercpa', 'elyon_crm', 'web', 'teleshop_other']).filtered).toBe(false);
-    expect(v.rows.map((r) => r.key)).toEqual(['altercpa', 'elyon_crm', 'web', 'teleshop_other']);
+    expect(cohortView(c, ['altercpa', 'elyon_crm', 'teleshop_other', 'social', 'web']).filtered).toBe(false);
+    expect(cohortView(c, ['altercpa', 'elyon_crm', 'teleshop_other', 'web']).filtered).toBe(true);
+    expect(v.rows.map((r) => r.key)).toEqual(['altercpa', 'elyon_crm', 'teleshop_other', 'social', 'web']);
   });
   it('a subset: the header equals Σ of the rows shown, parts and composition still add up', () => {
     const c = fixture();
@@ -106,24 +108,24 @@ describe('drill links: a number opens /orders only when the list holds exactly i
     const c = fixture();
     const d = cohortDrill([row(c, 'altercpa'), row(c, 'elyon_crm')], 'paid', range, true);
     expect(d).toMatchObject({ blocked: null, ordersHref: null, orders: 121, web: 0, mexOnly: 0 });
-    expect(d.href).toBe(`/orders?cohort_bucket=paid&sale_source=altercpa%2Caffiliate%2Celyon_crm&${WIN}`);
+    expect(d.href).toBe(`/orders?cohort_bucket=paid&cohort_source=altercpa%2Celyon_crm&${WIN}`);
     expect(cohortDrill([row(c, 'elyon_crm')], ['courier', 'courier_problem'], range, true).href)
-      .toBe(`/orders?cohort_bucket=courier%2Ccourier_problem&sale_source=elyon_crm&${WIN}`);
+      .toBe(`/orders?cohort_bucket=courier%2Ccourier_problem&cohort_source=elyon_crm&${WIN}`);
     expect(cohortDrill([row(c, 'altercpa')], 'total', range, true).href)
-      .toBe(`/orders?cohort_bucket=total&sale_source=altercpa%2Caffiliate&${WIN}`);
+      .toBe(`/orders?cohort_bucket=total&cohort_source=altercpa&${WIN}`);
   });
   it('partly orders → no link on the number; its order part gets its own exact link', () => {
     const c = fixture();
     const d = cohortDrill(c.by_source, 'paid', range, true);
     expect(d).toMatchObject({ href: null, blocked: 'mixed', orders: 121, web: 46, mexOnly: 550 });
-    // every source at once: no sale_source (the api's own links do the same)
+    // every source at once: no cohort_source (the api's own links do the same)
     expect(d.ordersHref).toBe(`/orders?cohort_bucket=paid&${WIN}`);
     const total = cohortDrill(c.by_source, 'total', range, true);
     expect(total).toMatchObject({ href: null, orders: 507, ordersHref: `/orders?cohort_bucket=total&${WIN}` });
     // AlterCPA + Teleshop/Other: the parcels have no order → only the AlterCPA part opens
     const at = cohortDrill([row(c, 'altercpa'), row(c, 'teleshop_other')], 'label', range, true);
-    expect(at).toMatchObject({ href: null, blocked: 'mex_only', orders: 30, mexOnly: 36 });
-    expect(at.ordersHref).toBe(`/orders?cohort_bucket=label&sale_source=altercpa%2Caffiliate%2Ccollabbox%2Clegacy&${WIN}`);
+    expect(at).toMatchObject({ href: null, blocked: 'mex_only', orders: 30, mexOnly: 34 });
+    expect(at.ordersHref).toBe(`/orders?cohort_bucket=label&cohort_source=altercpa%2Cteleshop_other&${WIN}`);
   });
   it('no orders behind a number → no link and no part link; each says why', () => {
     const c = fixture();
@@ -136,13 +138,30 @@ describe('drill links: a number opens /orders only when the list holds exactly i
     for (const b of bare.by_source[0].buckets) { delete b.orders; delete b.web; delete b.mex_only; }
     expect(cohortDrill([bare.by_source[0]], 'paid', range, true)).toMatchObject({ href: null, blocked: 'unknown' });
   });
+  it('Social media is its own card: its parcels never link, its collabBox orders open by cohort_source', () => {
+    const c = fixture();
+    expect(cohortDrill([row(c, 'social')], 'paid', range, true)).toMatchObject({ href: null, ordersHref: null, blocked: 'mex_only', mexOnly: 22 });
+    // a week with social orders too: the order part opens cohort_source=social
+    const soc = row(c, 'social');
+    const withOrders = { ...soc, buckets: soc.buckets.map((b) => (b.key === 'paid' ? { ...b, count: b.count + 5, orders: 5 } : b)) };
+    const d = cohortDrill([withOrders], 'paid', range, true);
+    expect(d).toMatchObject({ href: null, blocked: 'mex_only', orders: 5, mexOnly: 22 });
+    expect(d.ordersHref).toBe(`/orders?cohort_bucket=paid&cohort_source=social&${WIN}`);
+    // Social + Teleshop together: one list, both sources
+    const both = cohortDrill([withOrders, row(c, 'teleshop_other')], 'paid', range, true);
+    expect(both.ordersHref).toBe(`/orders?cohort_bucket=paid&cohort_source=teleshop_other%2Csocial&${WIN}`);
+  });
   it('cohortHref: several parts = any of them; total is the eight in-total buckets', () => {
-    expect(cohortHref('total', ['elyon_crm'], range)).toBe(`/orders?cohort_bucket=total&sale_source=elyon_crm&${WIN}`);
+    expect(cohortHref('total', ['elyon_crm'], range)).toBe(`/orders?cohort_bucket=total&cohort_source=elyon_crm&${WIN}`);
     expect(cohortHref(['paid', 'label'], [], range)).toBe(`/orders?cohort_bucket=paid%2Clabel&${WIN}`);
+    // the sources in display order; all five = no filter; an unknown key is never sent
+    expect(cohortHref('total', ['social', 'teleshop_other'], range)).toBe(`/orders?cohort_bucket=total&cohort_source=teleshop_other%2Csocial&${WIN}`);
+    expect(cohortHref('total', ['web', 'social', 'teleshop_other', 'elyon_crm', 'altercpa'], range)).toBe(`/orders?cohort_bucket=total&${WIN}`);
   });
   it('MEX-only splits and counts come from the api’s kinds', () => {
     const c = fixture();
-    expect(mexOnlyCount(row(c, 'teleshop_other'))).toBe(740);
+    expect(mexOnlyCount(row(c, 'teleshop_other'))).toBe(709);
+    expect(mexOnlyCount(row(c, 'social'))).toBe(31);
     expect(mexOnlyCount(row(c, 'altercpa'))).toBe(0);
     expect(isMexOnlySplit({ key: 'elyon_unlinked', kind: 'mex' })).toBe(true);
     expect(isMexOnlySplit({ key: 'bridge', kind: 'order' })).toBe(false);

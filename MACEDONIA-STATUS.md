@@ -136,6 +136,60 @@ operation. It shares **nothing at runtime** with Bulgaria (own repo / own Supaba
     - 1 komitent has two parcel phones; the second phone has no profile.
   - Rollback: `--rollback --run 8bb49e8e-…` deletes exactly what the run created and restores the
     filled profiles.
+- **28.09 late evening — sale sources are the DEPARTMENTS, every sale once** (owner rulings
+  ~21:00–23:30, whole history approved). Migrations `20260942000500` (five sources), `…0600`,
+  `…0700`; `scripts/reclass-department-sources.mjs` moved 168.564 history rows (log in
+  `sale_source_reclass`, `--rollback`):
+  - **AlterCPA**: affiliate leads, collabBox 9110 LEADS, and EVERY sale an AlterCPA-team agent makes
+    (team_prediction / team_collabbox_*): "their prediction stays counted in AlterCPA".
+  - **Телешоп – Lead out** (key `elyon_crm`): CRM sales + collabBox 9102 "Нарачка out" + 9103
+    LEADS-OUT, whoever booked them.
+  - **Телешоп – Lead in** (key `teleshop_other`): only collabBox 9100 "Нарачка in" (the TV lead-in).
+  - **Социјални мрежи**: its own department (9108 / 1300).
+  - **Web** is unchanged.
+  - MEX parcels with no order go by series (9110 → AlterCPA, 9102/9103 → Lead out, 9100 → Lead in,
+    9108 → Social); the neutral "Elyon account — unlinked" split is gone.
+  - The 10-day no-parcel rule keeps its population (team_prediction excluded in its three twins).
+  - The evidence the owner overruled (in/out trace, 01–27.09):
+    - 9102 buyers are teleshop's own repeat customers (98,6% repeat, 73% never Elyon), booked by 16
+      CRM agents in the same shift as their CRM work;
+    - 9100 is the TV lead-in (noon peak, Sundays, 39% new), mostly booked by 3 people without a login;
+    - neither goes through AlterCPA (1,2–1,5% incidental).
+  - Who works in the CRM is recorded in `sales_people.crm_since` / `crm_until` (information, not a
+    gate). A login but no CRM work: Sofija Kuculovska, Verica Kostovska, Milijana Todorovska. No
+    login: Milјana Todorovska н., Valentina Bogdanovska н., Mirjana Stefanovski, Vesna Filipovska.
+  - **LEADS-OUT booked only in collabBox:** `scripts/import-leads-out-collabbox.mjs` (run `954707fd`)
+    created 64 orders from the fresh collabBox fetch; re-running it picks up the remaining authors.
+  - September 01–27 before the history move: Lead out 2.260 sales / 5.583.535 ден (was 687 / 1,93M). The
+    final per-department numbers are in the report of 28.09 night.
+  - Every CRM-made sale counts (`20260942000400`):
+    - a call-outcome (disposition) row that becomes a real sale, or a duplicate of one, is now a sale
+      (ORD-109265);
+    - the admin attribution correction re-points `sold_by` for CRM sales (6 fixed).
+  - Double counts removed / links made (all repair-kit runs with rollback):
+    - `crm-collabbox-twins` 3c32f8d3: 6 CRM orders take their collabBox copy's parcel; the copies are
+      marked duplicated;
+    - `teleshop-twin-links` c8dc9345: 57 MEX-era teleshop twins linked to their AlterCPA/CRM order;
+    - `link-elyon-parcels` 8db253cc: 141 BIO NATURAL parcels linked. 55 are AlterCPA cancel-then-ship
+      (43 fit only the lead price edited in AlterCPA), 10 are open orders with malformed phones, 76 are
+      re-shipments after a return; 17 are listed for a human.
+  - **Prices follow the MEX COD** (owner: "Поправи"):
+    - runs 8e059bfe (34) and f29eb4dd (325);
+    - `cod-price` now trusts a teleshop parcel on an AlterCPA order when the collabBox document with
+      that DocNumber names the order (`collab_twin`).
+  - **Sellers:**
+    - 40 former teleshop authors (2023–2024) added as people;
+    - 40.702 history orders filled by the stamping function;
+    - `backfill-sellers-collabbox` 5b29ca75 credited 506 more from the fresh September fetch
+      (`exports/collabbox/merged-2026-09-28`).
+  - The Overview's teleshop card no longer shows a lead funnel (every collabBox document is a sale).
+  - Open for the owner:
+    - 10 new AlterCPA offers unmapped since 17.09 (GlucoCare 202 leads, MenCare, ProstaCare,
+      NeuroCare, Arthriva, Collagen Peptides, Neurofix 1+1, Prostafix 1+1, Urofix thrush) — their leads
+      never enter the CRM;
+    - the process "every lead out in the CRM first" (then nothing needs importing);
+    - live counting of today's lead out needs either that or a daily collabBox import (the sync is
+      paused).
 
 The sections below are the history up to 19.08.
 

@@ -39,6 +39,8 @@ export interface PeopleOutside {
 export interface PeopleBySource {
   altercpa: number;
   elyon_crm: number;
+  /** Social media — collabBox social documents (+ their MEX-only parcels), migration 20260942000500. */
+  social: number;
   teleshop_other: number;
   web: number;
 }
@@ -103,7 +105,9 @@ export interface PeopleMember extends PeopleMeasures {
   person_id: string;
 }
 
-export type TeamKind = 'team' | 'teleshop' | 'none';
+/** social / teleshop: the pseudo-groups of sellers with no team whose sales are Social media /
+ *  Teleshop (collabBox authors); none: anyone else outside a team. */
+export type TeamKind = 'team' | 'social' | 'teleshop' | 'none';
 
 export interface PeopleTeam extends PeopleMeasures {
   key: string;
@@ -125,7 +129,7 @@ export type NoSellerReason =
 
 export interface NoSellerRow {
   reason: NoSellerReason;
-  source: 'altercpa' | 'elyon_crm' | 'web' | 'teleshop_other';
+  source: 'altercpa' | 'elyon_crm' | 'web' | 'social' | 'teleshop_other';
   /** web: cod | card · mex_only: the channel split · unmapped: sold_via. */
   detail: string | null;
   count: number;
@@ -143,7 +147,7 @@ export interface PeopleTotals {
   with_person_mkd?: number;
   without_person: number;
   without_person_mkd?: number;
-  by_source: { key: 'altercpa' | 'elyon_crm' | 'web' | 'teleshop_other'; sales: number; with_person: number; value_mkd?: number; with_person_mkd?: number }[];
+  by_source: { key: 'altercpa' | 'elyon_crm' | 'web' | 'social' | 'teleshop_other'; sales: number; with_person: number; value_mkd?: number; with_person_mkd?: number }[];
   worked: number;
   sale_decisions: number;
   cancel_decisions: number;

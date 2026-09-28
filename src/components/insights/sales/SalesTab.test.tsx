@@ -68,9 +68,9 @@ describe('Sales — owner', () => {
     expect(await screen.findByText(title, {}, { timeout: 10_000 })).toBeInTheDocument();
     expect(h.sales).toHaveBeenCalledWith({ from: '2026-09-01', to: '2026-09-27', compare: true, part: 'core' }, expect.anything());
     expect(h.sales).toHaveBeenCalledWith({ from: '2026-09-01', to: '2026-09-27', part: 'detail' }, expect.anything());
-    // 7.170 sales · 17.951.201 ден — the Overview's cohort for 01–27.09
-    expect(screen.getAllByText(formatDenari(17951201)).length).toBeGreaterThan(0);
-    expect(screen.getByText(i18n.t('insights.common.cohort.sumOk', { total: '7.170' }))).toBeInTheDocument();
+    // 7.254 sales · 18.171.088 ден — the Overview's cohort for 01–27.09 (five sources, re-cut 28.09)
+    expect(screen.getAllByText(formatDenari(18171088)).length).toBeGreaterThan(0);
+    expect(screen.getByText(i18n.t('insights.common.cohort.sumOk', { total: '7.254' }))).toBeInTheDocument();
   }, 30_000);
 
   it('draws every section, the products and cities from the detail part', async () => {
@@ -121,6 +121,6 @@ describe('Sales — admin / manager (counts only)', () => {
     expect(screen.queryByText(i18n.t('insights.sales.kpi.avg'))).toBeNull();
     expect(screen.getAllByText(i18n.t('insights.sales.kpi.buyers')).length).toBeGreaterThan(0);
     // the counts are all there
-    expect(screen.getByText(i18n.t('insights.common.cohort.sumOk', { total: '7.170' }))).toBeInTheDocument();
+    expect(screen.getByText(i18n.t('insights.common.cohort.sumOk', { total: '7.254' }))).toBeInTheDocument();
   }, 30_000);
 });

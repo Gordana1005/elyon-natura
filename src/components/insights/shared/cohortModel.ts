@@ -4,7 +4,7 @@
  */
 import { ORDERS_DRILL_KEYS } from '@/lib/api';
 import {
-  ALL_SALE_SOURCES, COHORT_BUCKETS, COHORT_OUTSIDE, COHORT_SALE_SOURCES, COHORT_SOURCES,
+  COHORT_BUCKETS, COHORT_OUTSIDE, COHORT_SOURCE_PARAM, COHORT_SOURCES, cohortSourceParam,
   type Cohort, type CohortBucket, type CohortBucketKey, type CohortComposition, type CohortLeadsIn, type CohortOutside,
   type CohortOutsideKey, type CohortQuality, type CohortQualityKind, type CohortSourceKey, type CohortSourceRow,
   type CohortSplit,
@@ -197,8 +197,10 @@ export const ordersSupportsCohortDrill = (keys: readonly string[] = ORDERS_DRILL
   keys.includes(COHORT_DRILL_PARAM);
 
 /**
- * A split made of MEX parcels with no order (the api's kind 'mex': mex_teleshop,
- * mex_social, mex_web, elyon_unlinked, mex_other). It never links to /orders.
+ * A split made of MEX parcels with no order (the api's kind 'mex', by series:
+ * mex_leads · mex_out · mex_in · mex_social · mex_web · mex_other — and the
+ * pre-28.09 mex_teleshop / elyon_unlinked of an older payload). It never links
+ * to /orders.
  */
 export const isMexOnlySplit = (s: Pick<CohortSplit, 'key' | 'kind'> | string) => {
   const sp = typeof s === 'string' ? { key: s } : s;
@@ -236,14 +238,16 @@ const partIn = (row: CohortSourceRow, key: DrillKey): Part => {
   return partOf(row.buckets?.find((b) => b.key === key));
 };
 
-/** `/orders?cohort_bucket=…&sale_source=…&sold_from=…&sold_to=…` — several parts
- *  = any of them (comma list); 'total' = the eight in-total buckets. Every
- *  sale_source at once is sent as none (as the api's own links do). */
-export function cohortHref(key: DrillKey | DrillKey[], saleSources: string[], range: DayRange): string {
+/** `/orders?cohort_bucket=…&cohort_source=…&sold_from=…&sold_to=…` — several
+ *  parts = any of them (comma list); 'total' = the eight in-total buckets;
+ *  `sources` = the cohort sources (keys) the number is made of. Every source
+ *  at once is sent as none (as the api's own links do). */
+export function cohortHref(key: DrillKey | DrillKey[], sources: readonly string[], range: DayRange): string {
   const keys = Array.isArray(key) ? key : [key];
   const sp = new URLSearchParams();
   sp.set(COHORT_DRILL_PARAM, keys.includes('total') ? 'total' : keys.join(','));
-  if (saleSources.length && !ALL_SALE_SOURCES.every((s) => saleSources.includes(s))) sp.set('sale_source', saleSources.join(','));
+  const cs = cohortSourceParam(sources);
+  if (cs) sp.set(COHORT_SOURCE_PARAM, cs);
   sp.set('sold_from', range.from);
   sp.set('sold_to', range.to);
   return `/orders?${sp.toString()}`;
@@ -269,8 +273,8 @@ export function cohortDrill(
   if (s.orders == null || s.web == null || s.mex_only == null) return { ...none, blocked: 'unknown' };
   const made = { orders: s.orders, web: s.web, mexOnly: s.mex_only };
   if (!supported) return { href: null, ordersHref: null, ...made, blocked: 'unsupported' };
-  const saleSources = [...new Set(inPlay.flatMap((x) => COHORT_SALE_SOURCES[x.r.key] ?? []))];
-  const href = s.orders > 0 ? cohortHref(key, saleSources, range) : null;
+  const sources = [...new Set(inPlay.map((x) => x.r.key))];
+  const href = s.orders > 0 ? cohortHref(key, sources, range) : null;
   if (s.web === 0 && s.mex_only === 0) return { href, ordersHref: null, ...made, blocked: href ? null : 'none' };
   return {
     href: null, ordersHref: href, ...made,

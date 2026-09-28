@@ -12,7 +12,7 @@ import { sortProducts, type ProductSort } from './profitModel';
 const TOP = 20;
 
 /**
- * The product P&L (cohort clock, collected sales, all four sources, folded by
+ * The product P&L (cohort clock, collected sales, all five sources, folded by
  * product key): packages (of which free), revenue, cost per package, net and
  * margin on the same cost basis as the P&L, returns. A product without a
  * catalogue cost reads "no cost" — its net carries the labelled estimate,

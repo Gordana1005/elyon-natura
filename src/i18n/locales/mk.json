@@ -2677,7 +2677,7 @@
       },
       "list": {
         "title": "Враќања по листа за предвидување",
-        "sub": "ElyonCRM продажби од листите",
+        "sub": "Телешоп – Lead out продажби од листите",
         "empty": "Нема продажби од листи во овој период."
       },
       "dow": {
@@ -3090,8 +3090,8 @@
       "cohort": {
         "title": "Продадено од прогнозните листи · {{period}}",
         "titleNoMoney": "Продажби од прогнозните листи · {{period}}",
-        "tie": "= Преглед · ElyonCRM · Прогнозни листи: {{n}} · {{value}}",
-        "tieNoMoney": "= Преглед · ElyonCRM · Прогнозни листи: {{n}}"
+        "tie": "= Преглед · Телешоп – Lead out · Прогнозни листи: {{n}} · {{value}}",
+        "tieNoMoney": "= Преглед · Телешоп – Lead out · Прогнозни листи: {{n}}"
       },
       "kpi": {
         "title": "Клучни бројки за листите",
@@ -3226,11 +3226,11 @@
           "lists": "Σ {{n}} листи",
           "notRecorded": "Листата не е запишана (дупликат што ја изгубил листата)",
           "slice": "= Сите продажби од прогнозните листи",
-          "tieOk": "= Преглед · ElyonCRM · Прогнозни листи",
+          "tieOk": "= Преглед · Телешоп – Lead out · Прогнозни листи",
           "tieBad": "Не се собира до вкупното — пријавете го",
-          "other": "ElyonCRM · {{split}} (без листа)",
-          "elyon": "= ElyonCRM вкупно",
-          "elyonHint": "Картичката ElyonCRM на Прегледот: секоја продажба од ElyonCRM, со или без листа."
+          "other": "Телешоп – Lead out · {{split}} (без листа)",
+          "elyon": "= Телешоп – Lead out вкупно",
+          "elyonHint": "Картичката Телешоп – Lead out на Прегледот: секоја продажба од Телешоп – Lead out, со или без листа."
         }
       },
       "detail": {
@@ -3366,9 +3366,10 @@
       },
       "source": {
         "altercpa": "AlterCPA",
-        "elyon_crm": "ElyonCRM",
+        "elyon_crm": "Телешоп – Lead out",
         "web": "Веб-продавница",
-        "teleshopOther": "Телешоп / друго"
+        "social": "Социјални мрежи",
+        "teleshopOther": "Телешоп – Lead in"
       },
       "bucket": {
         "paid": "Наплатено",
@@ -3389,14 +3390,23 @@
       "split": {
         "prediction_list": "Листи за предвидување",
         "direct": "Директно",
+        "collabbox_out": "Телешоп out (collabBox)",
+        "collabbox_leads_out": "LEADS-OUT (collabBox)",
         "mex_teleshop": "Телешоп (MEX)",
         "mex_social": "Социјални мрежи (MEX)",
+        "mex_leads": "Неповрзани пратки (LEADS)",
+        "mex_out": "Неповрзани пратки (out / LEADS-OUT)",
+        "mex_in": "Неповрзани пратки (in)",
         "mexOther": "Друго (MEX)",
         "cod": "Плаќање при достава",
         "card": "Картичка",
         "bridge": "Жив мост",
         "history": "Увоз 08.2026",
         "partner": "Партнери (афилијејт)",
+        "team_prediction": "Предикција на AlterCPA агенти",
+        "team_collabbox_out": "Lead out (collabBox) на AlterCPA агенти",
+        "team_collabbox_leads_out": "LEADS-OUT (collabBox) на AlterCPA агенти",
+        "collabbox_leads": "LEADS (collabBox)",
         "teleshop": "Телешоп",
         "social": "Социјални мрежи",
         "leads": "LEADS (9110)",
@@ -3956,7 +3966,8 @@
           "altercpa_leads": "На чекање — AlterCPA лидови",
           "crm_prediction": "Прогнози — ElyonCRM",
           "management": "Менаџмент",
-          "teleshop": "Телешоп / collabBox",
+          "social": "Социјални мрежи / collabBox",
+          "teleshop": "Телешоп – Lead in / collabBox",
           "none": "Без тим"
         }
       },
@@ -3977,7 +3988,8 @@
           "none": "Се прикажува, не се рангира"
         },
         "kind": {
-          "teleshop": "collabBox автори и телешоп продажби надвор од тим",
+          "social": "collabBox автори на продажби од социјалните мрежи надвор од тим",
+          "teleshop": "collabBox автори на Lead in продажби надвор од тим",
           "none": "Активност на лица надвор од тим"
         }
       },
@@ -4012,7 +4024,7 @@
         "sales": "Продажби",
         "salesHint": "Продажби доделени на лицето, по денот на продажбата — исто како Прегледот",
         "sources": "Извори",
-        "sourcesHint": "AlterCPA · ElyonCRM · Телешоп",
+        "sourcesHint": "AlterCPA · Телешоп – Lead out · Телешоп – Lead in · Социјални мрежи",
         "paid": "Наплатено",
         "paidHint": "MEX ја достави пратката и го наплати откупот",
         "paidShare": "Наплатено",
@@ -4122,7 +4134,7 @@
         },
         "hint": {
           "web_shop": "Веб-нарачките немаат агент по природа.",
-          "mex_only": "Пратки што никоја нарачка не ги држи — телешоп, социјални мрежи, неповрзани Elyon пратки.",
+          "mex_only": "Пратки што никоја нарачка не ги држи — се бројат кај изворот што го именува нивната серија (LEADS, out, in, социјални мрежи, веб).",
           "altercpa_cancelled": "AlterCPA вели откажано или корпа, па никој не е заслужен — но MEX ја однел пратката, значи тоа е продажба.",
           "awaiting_stamp": "Одобрено во AlterCPA; продавачот се доделува на секои 5 минути.",
           "unmapped": "Продавачот е познат само по име или број што уште никој не го поврзал со лице.",
@@ -4268,7 +4280,7 @@
         "packages": "Пакети",
         "packagesVal": "{{n}} · бесплатни {{free}} · {{per}}/продажба",
         "coverage": "Покриеност со набавна цена",
-        "note": "Колоните се собираат во вкупното. Телешоп / друго ги вклучува MEX пратките без нарачка (нивната содржина е непозната, па трошокот им е проценет)."
+        "note": "Колоните се собираат во вкупното. Секој извор ги вклучува MEX пратките без нарачка од својата серија (нивната содржина е непозната, па трошокот им е проценет)."
       },
       "aff": {
         "title": "AlterCPA по вебмастер",
@@ -5745,13 +5757,14 @@
     },
     "source": {
       "altercpa": "AlterCPA",
-      "elyon_crm": "ElyonCRM",
+      "elyon_crm": "Телешоп – Lead out",
       "web": "Веб-продавница",
-      "teleshopOther": "Телешоп / друго"
+      "social": "Социјални мрежи",
+      "teleshopOther": "Телешоп – Lead in"
     },
     "saleSource": {
       "altercpa": "AlterCPA",
-      "elyon_crm": "ElyonCRM",
+      "elyon_crm": "Телешоп – Lead out",
       "collabbox": "collabBox",
       "web": "Веб",
       "affiliate": "Афилијејт",
@@ -5764,6 +5777,8 @@
       "returning": "Постојни клиенти",
       "prediction_list": "Прогнозни списоци",
       "direct": "Директно",
+      "collabbox_out": "Телешоп out (collabBox)",
+      "collabbox_leads_out": "LEADS-OUT (collabBox)",
       "disposition": "Исходи од повици",
       "teleshop": "Телешоп",
       "social": "Социјални мрежи",
@@ -5922,6 +5937,8 @@
         "cameIn": "Дојдоа",
         "worked": "Обработени",
         "conversion": "Конверзија",
+        "noFunnel": "Телешоп нема лидови: секој collabBox документ е веќе продажба.",
+        "noFunnelSocial": "Социјалните мрежи немаат лидови: секој collabBox документ е веќе продажба.",
         "none": "Нема лидови во периодот"
       },
       "sources": {

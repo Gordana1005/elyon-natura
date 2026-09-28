@@ -21,8 +21,10 @@ type Section = { name: string; rows: Record<string, unknown>[]; widths: number[]
 const SECTIONS: SectionKey[] = ['summary', 'products', 'affiliates'];
 const pct = (x: number | null | undefined) => (x == null ? '' : Math.round(x * 1000) / 10);
 
+// the owner's source names (28.09.2026) — the export's columns stay English
 const SOURCE_NAME: Record<string, string> = {
-  altercpa: 'AlterCPA', elyon_crm: 'ElyonCRM', web: 'Web shop', teleshop_other: 'Teleshop / other', total: 'Total',
+  altercpa: 'AlterCPA', elyon_crm: 'Teleshop – Lead out', teleshop_other: 'Teleshop – Lead in', social: 'Social media',
+  web: 'Web shop', total: 'Total',
 };
 
 function plLines(clock: string, rows: PLRow[]): Record<string, unknown>[] {

@@ -23,7 +23,7 @@ const TOP = 25;
 /**
  * Insights → Маржи (Margin Lab), owners only — on EXACTLY the Pure Profit
  * basis (the same GET /insights/profit answer): the period's collected sales
- * (cohort clock), all four sources, VAT, known product cost, the MEX courier
+ * (cohort clock), all five sources, VAT, known product cost, the MEX courier
  * share, today's commission as the P&L charges it. What a package really
  * sells for, what each product nets per package, the price that would clear
  * the target, and a bundle simulator in денари (price, cost, return rate). A

@@ -88,6 +88,8 @@ describe('channel families — which parcel belongs to which source', () => {
     expect(linkSuspicion(alter, { tracking_id: '002-9100-1/2026', series: '9100', account: 'natura' })).toMatch(/NATURA/);
     expect(linkSuspicion(alter, { tracking_id: '002-9108-1/2026', series: '9108', account: 'natura' })).toMatch(/NATURA/);
     expect(linkSuspicion(alter, { tracking_id: '002-9110-1/2026', series: '9110', account: 'bio_natural' })).toBeNull();
+    // the teleshop team confirms in AlterCPA and books in collabBox (owner 28.09): the document proves the link
+    expect(linkSuspicion({ ...alter, collab_twin: true }, { tracking_id: '002-9102-1/2026', series: '9102', account: 'natura' })).toBeNull();
     expect(linkSuspicion({ sale_source: 'elyon_crm', display_id: 'ORD-2' }, { tracking_id: '002-9102-1/2026', series: '9102' })).toMatch(/NATURA/);
     const tele = { sale_source: 'collabbox', sale_source_detail: 'teleshop', external_source: 'collabbox', external_order_id: '002-9102-5/2025', display_id: 'ORD-3' };
     expect(linkSuspicion(tele, { tracking_id: '002-9102-5/2025', series: '9102' })).toBeNull();          // its own DocNumber

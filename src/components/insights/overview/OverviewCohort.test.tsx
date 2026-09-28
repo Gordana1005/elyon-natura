@@ -87,17 +87,25 @@ describe('Overview on the sales cohort — owner', () => {
     expect(within(alter).getByText(i18n.t('insights.common.leads.cancelled'))).toBeInTheDocument();
     // Its sub-channels are its orders' own (the live bridge, partners) — no parcels credited to it.
     expect(within(alter).getByText(i18n.t('insights.common.split.bridge'))).toBeInTheDocument();
-    expect(within(alter).queryByText(i18n.t('insights.common.split.elyon_unlinked'))).toBeNull();
+    expect(within(alter).queryByText(i18n.t('insights.common.split.mex_leads'))).toBeNull();
 
-    // ElyonCRM: its sales are 142; its 1.638 "no" calls are decisions, said apart, never sales.
-    const elyon = card('ElyonCRM');
+    // Lead out (elyon_crm): its sales are 142; its 1.638 "no" calls are decisions, said apart, never sales.
+    const elyon = card(i18n.t('insights.common.source.elyon_crm'));
     expect(within(elyon).getByText(i18n.t('overview.cohort.sources.header', { n: '142', count: 142, value: formatDenari(390802) }))).toBeInTheDocument();
     expect(within(elyon).getByText(i18n.t('insights.common.leads.dispositionNote', { n: '1.638', count: 1638 }))).toBeInTheDocument();
-    // Teleshop/Other holds every MEX parcel with no order — the unlinked Elyon account parcels as their own, neutral split.
+    // Lead in (teleshop_other) holds its series' parcels with no order: 9100 (mex_in) and none (mex_other).
     const tele = card(i18n.t('insights.common.source.teleshopOther'));
-    expect(within(tele).getByText(i18n.t('insights.common.split.elyon_unlinked'))).toBeInTheDocument();
-    expect(within(tele).getByText(i18n.t('overview.cohort.sources.mexOnlyNote', { n: '740', count: 740 }))).toBeInTheDocument();
+    expect(within(tele).getByText(i18n.t('insights.common.split.mex_in'))).toBeInTheDocument();
+    expect(within(tele).getByText(i18n.t('insights.common.split.mexOther'))).toBeInTheDocument();
+    expect(within(tele).getByText(i18n.t('overview.cohort.sources.mexOnlyNote', { n: '709', count: 709 }))).toBeInTheDocument();
+    expect(within(tele).queryByText(i18n.t('insights.common.split.mex_social'))).toBeNull();
     expect(within(tele).queryAllByRole('link')).toHaveLength(0);
+    // Social media is its own card (owner 28.09.2026): its 9108 parcels, no lead funnel, no links.
+    const soc = card(i18n.t('insights.common.source.social'));
+    expect(within(soc).getByText(i18n.t('insights.common.split.mex_social'))).toBeInTheDocument();
+    expect(within(soc).getByText(i18n.t('overview.cohort.sources.mexOnlyNote', { n: '31', count: 31 }))).toBeInTheDocument();
+    expect(within(soc).getByText(i18n.t('overview.cohort.leads.noFunnelSocial'))).toBeInTheDocument();
+    expect(within(soc).queryAllByRole('link')).toHaveLength(0);
     // The web card is the shop mirror: counted, said in words, no links.
     const web = card(i18n.t('insights.common.source.web'));
     expect(within(web).getByText(i18n.t('overview.cohort.sources.webNote'))).toBeInTheDocument();
@@ -116,15 +124,15 @@ describe('Overview on the sales cohort — owner', () => {
     await screen.findByText(i18n.t('overview.cohort.title', { period: PERIOD }), {}, { timeout: 10_000 });
     const alter = card('AlterCPA');
     const paid = within(alter).getByRole('link', { name: `AlterCPA · ${i18n.t('insights.common.bucket.paid')}: 70` });
-    expect(paid.getAttribute('href')).toBe(`/orders?cohort_bucket=paid&sale_source=altercpa%2Caffiliate&${WIN}`);
+    expect(paid.getAttribute('href')).toBe(`/orders?cohort_bucket=paid&cohort_source=altercpa&${WIN}`);
     expect(paid.getAttribute('title')).toBeNull();
     const courier = within(alter).getByRole('link', { name: `AlterCPA · ${i18n.t('insights.common.bucket.courier')}: 56` });
     expect(courier.getAttribute('href')).toContain('cohort_bucket=courier%2Ccourier_problem');
     // A split that IS orders links to itself through the cohort filter; parcels without an order never do.
-    const elyon = card('ElyonCRM');
+    const elyon = card(i18n.t('insights.common.source.elyon_crm'));
     const pl = within(elyon).getByText(i18n.t('insights.common.split.prediction_list')).closest('a')!;
     expect(pl.getAttribute('href'))
-      .toBe(`/orders?cohort_bucket=total&sale_source=elyon_crm&sale_source_detail=prediction_list&${WIN}`);
+      .toBe(`/orders?cohort_bucket=total&cohort_source=elyon_crm&sale_source_detail=prediction_list&${WIN}`);
     // The header: 717 paid are 121 orders + 46 web + 550 parcels — the number stays text, its order part links.
     const bar = screen.getByRole('region', { name: i18n.t('overview.cohort.title', { period: PERIOD }) });
     const paidTile = within(bar).getByTitle(i18n.t('insights.common.bucket.paid')).closest('li')!;

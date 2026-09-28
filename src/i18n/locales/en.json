@@ -2721,7 +2721,7 @@
       },
       "list": {
         "title": "Returns by prediction list",
-        "sub": "ElyonCRM sales from the lists",
+        "sub": "Teleshop – Lead out sales from the lists",
         "empty": "No list sales in this period."
       },
       "dow": {
@@ -3134,8 +3134,8 @@
       "cohort": {
         "title": "Sold from the prediction lists · {{period}}",
         "titleNoMoney": "Sales from the prediction lists · {{period}}",
-        "tie": "= Overview · ElyonCRM · Prediction lists: {{n}} · {{value}}",
-        "tieNoMoney": "= Overview · ElyonCRM · Prediction lists: {{n}}"
+        "tie": "= Overview · Teleshop – Lead out · Prediction lists: {{n}} · {{value}}",
+        "tieNoMoney": "= Overview · Teleshop – Lead out · Prediction lists: {{n}}"
       },
       "kpi": {
         "title": "Key figures of the lists",
@@ -3270,11 +3270,11 @@
           "lists": "Σ {{n}} lists",
           "notRecorded": "List not recorded (a duplicate that lost its list)",
           "slice": "= All prediction-list sales",
-          "tieOk": "= Overview · ElyonCRM · Prediction lists",
+          "tieOk": "= Overview · Teleshop – Lead out · Prediction lists",
           "tieBad": "Does not add up to the total — please report it",
-          "other": "ElyonCRM · {{split}} (no list)",
-          "elyon": "= ElyonCRM total",
-          "elyonHint": "The Overview's ElyonCRM card: every ElyonCRM sale, with or without a list."
+          "other": "Teleshop – Lead out · {{split}} (no list)",
+          "elyon": "= Teleshop – Lead out total",
+          "elyonHint": "The Overview's Teleshop – Lead out card: every Teleshop – Lead out sale, with or without a list."
         }
       },
       "detail": {
@@ -3410,9 +3410,10 @@
       },
       "source": {
         "altercpa": "AlterCPA",
-        "elyon_crm": "ElyonCRM",
+        "elyon_crm": "Teleshop – Lead out",
         "web": "Web shop",
-        "teleshopOther": "Teleshop / other"
+        "social": "Social media",
+        "teleshopOther": "Teleshop – Lead in"
       },
       "bucket": {
         "paid": "Collected",
@@ -3433,14 +3434,23 @@
       "split": {
         "prediction_list": "Prediction lists",
         "direct": "Direct",
+        "collabbox_out": "Teleshop out (collabBox)",
+        "collabbox_leads_out": "LEADS-OUT (collabBox)",
         "mex_teleshop": "Teleshop (MEX)",
         "mex_social": "Social media (MEX)",
+        "mex_leads": "Unlinked parcels (LEADS)",
+        "mex_out": "Unlinked parcels (out / LEADS-OUT)",
+        "mex_in": "Unlinked parcels (in)",
         "mexOther": "Other (MEX)",
         "cod": "Cash on delivery",
         "card": "Card",
         "bridge": "Live bridge",
         "history": "Import 08.2026",
         "partner": "Partners (affiliate)",
+        "team_prediction": "Prediction by AlterCPA agents",
+        "team_collabbox_out": "Lead out (collabBox) by AlterCPA agents",
+        "team_collabbox_leads_out": "LEADS-OUT (collabBox) by AlterCPA agents",
+        "collabbox_leads": "LEADS (collabBox)",
         "teleshop": "Teleshop",
         "social": "Social media",
         "leads": "LEADS (9110)",
@@ -4000,7 +4010,8 @@
           "altercpa_leads": "Pending — AlterCPA leads",
           "crm_prediction": "Prediction — ElyonCRM",
           "management": "Management",
-          "teleshop": "Teleshop / collabBox",
+          "social": "Social media / collabBox",
+          "teleshop": "Teleshop – Lead in / collabBox",
           "none": "No team"
         }
       },
@@ -4021,7 +4032,8 @@
           "none": "Shown, not ranked"
         },
         "kind": {
-          "teleshop": "collabBox authors and teleshop sales outside a team",
+          "social": "collabBox authors of social-media sales outside a team",
+          "teleshop": "collabBox authors of Lead in sales outside a team",
           "none": "Activity of people outside a team"
         }
       },
@@ -4056,7 +4068,7 @@
         "sales": "Sales",
         "salesHint": "Sales credited to the person, by sale day — the same as the Overview",
         "sources": "Sources",
-        "sourcesHint": "AlterCPA · ElyonCRM · Teleshop",
+        "sourcesHint": "AlterCPA · Teleshop – Lead out · Teleshop – Lead in · Social media",
         "paid": "Paid",
         "paidHint": "MEX delivered the parcel and collected the COD",
         "paidShare": "Paid",
@@ -4166,7 +4178,7 @@
         },
         "hint": {
           "web_shop": "Web orders have no agent by nature.",
-          "mex_only": "Parcels no order holds — teleshop, social media, unlinked Elyon parcels.",
+          "mex_only": "Parcels no order holds — counted under the source their series names (LEADS, out, in, social media, web shop).",
           "altercpa_cancelled": "AlterCPA says cancelled or trash, so nobody is credited — but MEX took the parcel, so it is a sale.",
           "awaiting_stamp": "Approved in AlterCPA; the seller is assigned every 5 minutes.",
           "unmapped": "The seller is known only by a name or number nobody has linked to a person yet.",
@@ -4312,7 +4324,7 @@
         "packages": "Packages",
         "packagesVal": "{{n}} · free {{free}} · {{per}}/sale",
         "coverage": "Cost coverage",
-        "note": "The columns add up to the total. Teleshop / other includes MEX parcels with no order (their contents are unknown, so their cost is estimated)."
+        "note": "The columns add up to the total. Each source includes the MEX parcels with no order of its own series (their contents are unknown, so their cost is estimated)."
       },
       "aff": {
         "title": "AlterCPA by webmaster",
@@ -5745,13 +5757,14 @@
     },
     "source": {
       "altercpa": "AlterCPA",
-      "elyon_crm": "ElyonCRM",
+      "elyon_crm": "Teleshop – Lead out",
       "web": "Web shop",
-      "teleshopOther": "Teleshop / other"
+      "social": "Social media",
+      "teleshopOther": "Teleshop – Lead in"
     },
     "saleSource": {
       "altercpa": "AlterCPA",
-      "elyon_crm": "ElyonCRM",
+      "elyon_crm": "Teleshop – Lead out",
       "collabbox": "collabBox",
       "web": "Web",
       "affiliate": "Affiliate",
@@ -5764,6 +5777,8 @@
       "returning": "Returning customers",
       "prediction_list": "Prediction lists",
       "direct": "Direct",
+      "collabbox_out": "Teleshop out (collabBox)",
+      "collabbox_leads_out": "LEADS-OUT (collabBox)",
       "disposition": "Call outcomes",
       "teleshop": "Teleshop",
       "social": "Social media",
@@ -5922,6 +5937,8 @@
         "cameIn": "Came in",
         "worked": "Worked",
         "conversion": "Conversion",
+        "noFunnel": "Teleshop has no leads: every collabBox document is already a sale.",
+        "noFunnelSocial": "Social media have no leads: every collabBox document is already a sale.",
         "none": "No leads in the period"
       },
       "sources": {

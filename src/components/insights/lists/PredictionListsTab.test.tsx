@@ -75,6 +75,27 @@ describe('Prediction lists — owner', () => {
     expect(link.getAttribute('title')).toContain('57d 26+ (1-3 orders)');
   });
 
+  it('Lead out\'s other parts: its collabBox "out" documents link, its parcels with no order never do', async () => {
+    const p = payload();
+    // owner 28.09: collabBox "out" documents of CRM agents are Lead out (elyon_crm) sales, and the
+    // 9102 / 9103 parcels no order holds are credited to it by series
+    p.elyon_crm.splits.push({ key: 'collabbox_out', count: 9, value_mkd: 21000, cash_mkd: 9000 } as never,
+      { key: 'mex_out', count: 4, value_mkd: 8000, cash_mkd: 4000 } as never);
+    p.elyon_crm.count += 13;
+    p.elyon_crm.value_mkd = (p.elyon_crm.value_mkd ?? 0) + 29000;
+    renderWith(p);
+    await screen.findByText(title(), {}, { timeout: 10_000 });
+    const out = screen.getByText(i18n.t('insights.lists.table.foot.other', { split: i18n.t('insights.common.split.collabbox_out') }));
+    expect(within(out.closest('tr')!).getByRole('link').getAttribute('href')).toContain('sale_source_detail=collabbox_out');
+    const mex = screen.getByText(i18n.t('insights.lists.table.foot.other', { split: i18n.t('insights.common.split.mex_out') }));
+    expect(within(mex.closest('tr')!).queryByRole('link')).toBeNull();
+    // the Lead out total now holds parcels no list can show: it is said, not linked
+    const total = screen.getByText(i18n.t('insights.lists.table.foot.elyon'));
+    expect(within(total.closest('tr')!).queryByRole('link')).toBeNull();
+    // the list slice itself is untouched: still only prediction_list
+    expect(screen.getByText(i18n.t('insights.lists.table.foot.tieOk'))).toBeInTheDocument();
+  });
+
   it('opens a list: its parts, its sellers, the stored name', async () => {
     renderWith(payload());
     await screen.findByText(title(), {}, { timeout: 10_000 });

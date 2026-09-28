@@ -9,540 +9,645 @@
   "generated_at": "2026-09-28T08:00:00.000Z"
  },
  "total": {
-  "web": 364,
-  "count": 7170,
+  "web": 411,
+  "count": 7254,
   "drill": "/orders?cohort_bucket=total&sold_from=2026-09-01&sold_to=2026-09-27",
-  "orders": 5368,
-  "cod_mkd": 16751563,
-  "mex_only": 1438,
-  "value_mkd": 17951201
+  "orders": 6579,
+  "cod_mkd": 17305620,
+  "mex_only": 264,
+  "value_mkd": 18171088
  },
  "trend": {
   "points": [
    {
     "d": "2026-09-01",
-    "count": 579,
+    "count": 347,
     "by_source": [
      {
       "key": "altercpa",
-      "count": 85,
-      "value_mkd": 252158
+      "count": 83,
+      "value_mkd": 251018
      },
      {
       "key": "elyon_crm",
-      "count": 0,
-      "value_mkd": 0
-     },
-     {
-      "key": "web",
-      "count": 0,
-      "value_mkd": 0
+      "count": 5,
+      "value_mkd": 14200
      },
      {
       "key": "teleshop_other",
-      "count": 494,
-      "value_mkd": 1093015
+      "count": 228,
+      "value_mkd": 490980
+     },
+     {
+      "key": "social",
+      "count": 20,
+      "value_mkd": 41350
+     },
+     {
+      "key": "web",
+      "count": 11,
+      "value_mkd": 20105
      }
     ],
-    "value_mkd": 1345173
+    "value_mkd": 817653
    },
    {
     "d": "2026-09-02",
+    "count": 350,
+    "by_source": [
+     {
+      "key": "altercpa",
+      "count": 82,
+      "value_mkd": 248878
+     },
+     {
+      "key": "elyon_crm",
+      "count": 47,
+      "value_mkd": 123290
+     },
+     {
+      "key": "teleshop_other",
+      "count": 208,
+      "value_mkd": 455351
+     },
+     {
+      "key": "social",
+      "count": 10,
+      "value_mkd": 17150
+     },
+     {
+      "key": "web",
+      "count": 3,
+      "value_mkd": 4360
+     }
+    ],
+    "value_mkd": 849029
+   },
+   {
+    "d": "2026-09-03",
     "count": 363,
     "by_source": [
      {
       "key": "altercpa",
-      "count": 85,
-      "value_mkd": 271098
+      "count": 115,
+      "value_mkd": 388279
      },
      {
       "key": "elyon_crm",
-      "count": 14,
-      "value_mkd": 44580
-     },
-     {
-      "key": "web",
-      "count": 0,
-      "value_mkd": 0
-     },
-     {
-      "key": "teleshop_other",
-      "count": 264,
-      "value_mkd": 586591
-     }
-    ],
-    "value_mkd": 902269
-   },
-   {
-    "d": "2026-09-03",
-    "count": 359,
-    "by_source": [
-     {
-      "key": "altercpa",
-      "count": 106,
-      "value_mkd": 348919
-     },
-     {
-      "key": "elyon_crm",
-      "count": 19,
-      "value_mkd": 58050
-     },
-     {
-      "key": "web",
-      "count": 0,
-      "value_mkd": 0
-     },
-     {
-      "key": "teleshop_other",
-      "count": 234,
-      "value_mkd": 515847
-     }
-    ],
-    "value_mkd": 922816
-   },
-   {
-    "d": "2026-09-04",
-    "count": 314,
-    "by_source": [
-     {
-      "key": "altercpa",
       "count": 96,
-      "value_mkd": 283629
+      "value_mkd": 243250
      },
      {
-      "key": "elyon_crm",
-      "count": 32,
-      "value_mkd": 84840
+      "key": "teleshop_other",
+      "count": 133,
+      "value_mkd": 276750
+     },
+     {
+      "key": "social",
+      "count": 14,
+      "value_mkd": 24310
      },
      {
       "key": "web",
       "count": 5,
-      "value_mkd": 9250
-     },
-     {
-      "key": "teleshop_other",
-      "count": 181,
-      "value_mkd": 412939
+      "value_mkd": 8637
      }
     ],
-    "value_mkd": 790658
+    "value_mkd": 941226
    },
    {
-    "d": "2026-09-05",
-    "count": 166,
+    "d": "2026-09-04",
+    "count": 306,
     "by_source": [
      {
       "key": "altercpa",
-      "count": 97,
-      "value_mkd": 282350
+      "count": 96,
+      "value_mkd": 299609
      },
      {
       "key": "elyon_crm",
-      "count": 0,
-      "value_mkd": 0
+      "count": 125,
+      "value_mkd": 304160
+     },
+     {
+      "key": "teleshop_other",
+      "count": 68,
+      "value_mkd": 140660
+     },
+     {
+      "key": "social",
+      "count": 7,
+      "value_mkd": 13600
+     },
+     {
+      "key": "web",
+      "count": 10,
+      "value_mkd": 19219
+     }
+    ],
+    "value_mkd": 777248
+   },
+   {
+    "d": "2026-09-05",
+    "count": 165,
+    "by_source": [
+     {
+      "key": "altercpa",
+      "count": 96,
+      "value_mkd": 273270
+     },
+     {
+      "key": "elyon_crm",
+      "count": 29,
+      "value_mkd": 67350
+     },
+     {
+      "key": "teleshop_other",
+      "count": 33,
+      "value_mkd": 72280
+     },
+     {
+      "key": "social",
+      "count": 1,
+      "value_mkd": 2000
      },
      {
       "key": "web",
       "count": 6,
       "value_mkd": 17965
-     },
-     {
-      "key": "teleshop_other",
-      "count": 63,
-      "value_mkd": 141630
      }
     ],
-    "value_mkd": 441945
+    "value_mkd": 432865
    },
    {
     "d": "2026-09-06",
-    "count": 147,
+    "count": 140,
     "by_source": [
      {
       "key": "altercpa",
-      "count": 105,
-      "value_mkd": 331070
+      "count": 97,
+      "value_mkd": 308790
      },
      {
       "key": "elyon_crm",
-      "count": 0,
-      "value_mkd": 0
+      "count": 1,
+      "value_mkd": 3000
+     },
+     {
+      "key": "teleshop_other",
+      "count": 31,
+      "value_mkd": 64400
+     },
+     {
+      "key": "social",
+      "count": 6,
+      "value_mkd": 13000
      },
      {
       "key": "web",
       "count": 5,
       "value_mkd": 8140
-     },
-     {
-      "key": "teleshop_other",
-      "count": 37,
-      "value_mkd": 77400
      }
     ],
-    "value_mkd": 416610
+    "value_mkd": 397330
    },
    {
     "d": "2026-09-07",
-    "count": 307,
+    "count": 310,
     "by_source": [
      {
       "key": "altercpa",
-      "count": 71,
-      "value_mkd": 198000
+      "count": 96,
+      "value_mkd": 278000
      },
      {
       "key": "elyon_crm",
-      "count": 34,
-      "value_mkd": 93530
+      "count": 122,
+      "value_mkd": 310950
+     },
+     {
+      "key": "teleshop_other",
+      "count": 72,
+      "value_mkd": 159380
+     },
+     {
+      "key": "social",
+      "count": 13,
+      "value_mkd": 24130
      },
      {
       "key": "web",
       "count": 7,
       "value_mkd": 15060
-     },
-     {
-      "key": "teleshop_other",
-      "count": 195,
-      "value_mkd": 464140
      }
     ],
-    "value_mkd": 770730
+    "value_mkd": 787520
    },
    {
     "d": "2026-09-08",
-    "count": 182,
+    "count": 183,
     "by_source": [
      {
       "key": "altercpa",
-      "count": 79,
-      "value_mkd": 256959
+      "count": 80,
+      "value_mkd": 254469
      },
      {
       "key": "elyon_crm",
       "count": 0,
       "value_mkd": 0
+     },
+     {
+      "key": "teleshop_other",
+      "count": 86,
+      "value_mkd": 172550
+     },
+     {
+      "key": "social",
+      "count": 15,
+      "value_mkd": 25530
      },
      {
       "key": "web",
       "count": 2,
       "value_mkd": 3350
-     },
-     {
-      "key": "teleshop_other",
-      "count": 101,
-      "value_mkd": 198080
      }
     ],
-    "value_mkd": 458389
+    "value_mkd": 455899
    },
    {
     "d": "2026-09-09",
-    "count": 337,
+    "count": 332,
     "by_source": [
      {
       "key": "altercpa",
-      "count": 81,
-      "value_mkd": 239130
+      "count": 93,
+      "value_mkd": 272460
      },
      {
       "key": "elyon_crm",
-      "count": 37,
-      "value_mkd": 102540
+      "count": 148,
+      "value_mkd": 368282
+     },
+     {
+      "key": "teleshop_other",
+      "count": 72,
+      "value_mkd": 154670
+     },
+     {
+      "key": "social",
+      "count": 12,
+      "value_mkd": 21810
      },
      {
       "key": "web",
       "count": 7,
       "value_mkd": 12200
-     },
-     {
-      "key": "teleshop_other",
-      "count": 212,
-      "value_mkd": 484912
      }
     ],
-    "value_mkd": 838782
+    "value_mkd": 829422
    },
    {
     "d": "2026-09-10",
-    "count": 353,
+    "count": 346,
     "by_source": [
      {
       "key": "altercpa",
-      "count": 69,
-      "value_mkd": 204160
+      "count": 73,
+      "value_mkd": 220160
      },
      {
       "key": "elyon_crm",
-      "count": 56,
-      "value_mkd": 156390
+      "count": 148,
+      "value_mkd": 373140
+     },
+     {
+      "key": "teleshop_other",
+      "count": 103,
+      "value_mkd": 211040
+     },
+     {
+      "key": "social",
+      "count": 13,
+      "value_mkd": 22330
      },
      {
       "key": "web",
       "count": 9,
       "value_mkd": 21300
-     },
-     {
-      "key": "teleshop_other",
-      "count": 219,
-      "value_mkd": 487620
      }
     ],
-    "value_mkd": 869470
+    "value_mkd": 847970
    },
    {
     "d": "2026-09-11",
-    "count": 415,
+    "count": 399,
     "by_source": [
      {
       "key": "altercpa",
-      "count": 135,
-      "value_mkd": 411440
+      "count": 127,
+      "value_mkd": 395660
      },
      {
       "key": "elyon_crm",
-      "count": 53,
-      "value_mkd": 155309
+      "count": 148,
+      "value_mkd": 382019
+     },
+     {
+      "key": "teleshop_other",
+      "count": 91,
+      "value_mkd": 189270
+     },
+     {
+      "key": "social",
+      "count": 10,
+      "value_mkd": 22400
      },
      {
       "key": "web",
       "count": 23,
       "value_mkd": 39530
-     },
-     {
-      "key": "teleshop_other",
-      "count": 204,
-      "value_mkd": 469680
      }
     ],
-    "value_mkd": 1075959
+    "value_mkd": 1028879
    },
    {
     "d": "2026-09-12",
-    "count": 229,
+    "count": 236,
     "by_source": [
      {
       "key": "altercpa",
-      "count": 97,
-      "value_mkd": 273820
+      "count": 103,
+      "value_mkd": 294820
      },
      {
       "key": "elyon_crm",
-      "count": 18,
-      "value_mkd": 44050
+      "count": 69,
+      "value_mkd": 153280
+     },
+     {
+      "key": "teleshop_other",
+      "count": 39,
+      "value_mkd": 77990
+     },
+     {
+      "key": "social",
+      "count": 7,
+      "value_mkd": 11200
      },
      {
       "key": "web",
       "count": 18,
       "value_mkd": 37880
-     },
-     {
-      "key": "teleshop_other",
-      "count": 96,
-      "value_mkd": 195420
      }
     ],
-    "value_mkd": 551170
+    "value_mkd": 575170
    },
    {
     "d": "2026-09-13",
-    "count": 146,
+    "count": 141,
     "by_source": [
      {
       "key": "altercpa",
-      "count": 96,
-      "value_mkd": 272430
+      "count": 91,
+      "value_mkd": 256430
      },
      {
       "key": "elyon_crm",
       "count": 0,
       "value_mkd": 0
+     },
+     {
+      "key": "teleshop_other",
+      "count": 29,
+      "value_mkd": 58000
+     },
+     {
+      "key": "social",
+      "count": 4,
+      "value_mkd": 8000
      },
      {
       "key": "web",
       "count": 17,
       "value_mkd": 30079
-     },
-     {
-      "key": "teleshop_other",
-      "count": 33,
-      "value_mkd": 66000
      }
     ],
-    "value_mkd": 368509
+    "value_mkd": 352509
    },
    {
     "d": "2026-09-14",
-    "count": 327,
+    "count": 339,
     "by_source": [
      {
       "key": "altercpa",
-      "count": 73,
-      "value_mkd": 226440
+      "count": 95,
+      "value_mkd": 289640
      },
      {
       "key": "elyon_crm",
-      "count": 54,
-      "value_mkd": 150250
+      "count": 149,
+      "value_mkd": 367100
+     },
+     {
+      "key": "teleshop_other",
+      "count": 58,
+      "value_mkd": 125990
+     },
+     {
+      "key": "social",
+      "count": 5,
+      "value_mkd": 9500
      },
      {
       "key": "web",
       "count": 32,
       "value_mkd": 66934
-     },
-     {
-      "key": "teleshop_other",
-      "count": 168,
-      "value_mkd": 380380
      }
     ],
-    "value_mkd": 824004
+    "value_mkd": 859164
    },
    {
     "d": "2026-09-15",
-    "count": 333,
+    "count": 334,
     "by_source": [
      {
       "key": "altercpa",
-      "count": 79,
-      "value_mkd": 247260
+      "count": 88,
+      "value_mkd": 261910
      },
      {
       "key": "elyon_crm",
-      "count": 50,
-      "value_mkd": 139640
+      "count": 139,
+      "value_mkd": 349840
+     },
+     {
+      "key": "teleshop_other",
+      "count": 78,
+      "value_mkd": 166440
+     },
+     {
+      "key": "social",
+      "count": 6,
+      "value_mkd": 10800
      },
      {
       "key": "web",
       "count": 23,
       "value_mkd": 51286
-     },
-     {
-      "key": "teleshop_other",
-      "count": 181,
-      "value_mkd": 412530
      }
     ],
-    "value_mkd": 850716
+    "value_mkd": 840276
    },
    {
     "d": "2026-09-16",
-    "count": 337,
+    "count": 333,
     "by_source": [
      {
       "key": "altercpa",
-      "count": 82,
-      "value_mkd": 264849
+      "count": 83,
+      "value_mkd": 279940
      },
      {
       "key": "elyon_crm",
-      "count": 43,
-      "value_mkd": 123750
+      "count": 129,
+      "value_mkd": 322730
+     },
+     {
+      "key": "teleshop_other",
+      "count": 97,
+      "value_mkd": 196625
+     },
+     {
+      "key": "social",
+      "count": 8,
+      "value_mkd": 16200
      },
      {
       "key": "web",
       "count": 16,
       "value_mkd": 30140
-     },
-     {
-      "key": "teleshop_other",
-      "count": 196,
-      "value_mkd": 424425
      }
     ],
-    "value_mkd": 843164
+    "value_mkd": 845635
    },
    {
     "d": "2026-09-17",
-    "count": 263,
+    "count": 287,
     "by_source": [
      {
       "key": "altercpa",
-      "count": 42,
-      "value_mkd": 136650
+      "count": 56,
+      "value_mkd": 171560
      },
      {
       "key": "elyon_crm",
-      "count": 51,
-      "value_mkd": 153300
+      "count": 143,
+      "value_mkd": 364650
+     },
+     {
+      "key": "teleshop_other",
+      "count": 55,
+      "value_mkd": 116010
+     },
+     {
+      "key": "social",
+      "count": 4,
+      "value_mkd": 7200
      },
      {
       "key": "web",
       "count": 29,
       "value_mkd": 63747
-     },
-     {
-      "key": "teleshop_other",
-      "count": 141,
-      "value_mkd": 326200
      }
     ],
-    "value_mkd": 679897
+    "value_mkd": 723167
    },
    {
     "d": "2026-09-18",
-    "count": 165,
+    "count": 256,
     "by_source": [
      {
       "key": "altercpa",
-      "count": 51,
-      "value_mkd": 160000
+      "count": 43,
+      "value_mkd": 167838
      },
      {
       "key": "elyon_crm",
-      "count": 35,
-      "value_mkd": 96950
+      "count": 118,
+      "value_mkd": 289510
+     },
+     {
+      "key": "teleshop_other",
+      "count": 75,
+      "value_mkd": 164900
+     },
+     {
+      "key": "social",
+      "count": 4,
+      "value_mkd": 8800
      },
      {
       "key": "web",
       "count": 16,
       "value_mkd": 34080
-     },
-     {
-      "key": "teleshop_other",
-      "count": 63,
-      "value_mkd": 140669
      }
     ],
-    "value_mkd": 431699
+    "value_mkd": 665128
    },
    {
     "d": "2026-09-19",
-    "count": 87,
+    "count": 145,
     "by_source": [
      {
       "key": "altercpa",
-      "count": 58,
-      "value_mkd": 157030
+      "count": 62,
+      "value_mkd": 168820
      },
      {
       "key": "elyon_crm",
-      "count": 11,
-      "value_mkd": 31700
+      "count": 42,
+      "value_mkd": 100200
+     },
+     {
+      "key": "teleshop_other",
+      "count": 23,
+      "value_mkd": 45470
+     },
+     {
+      "key": "social",
+      "count": 0,
+      "value_mkd": 0
      },
      {
       "key": "web",
       "count": 18,
       "value_mkd": 36035
-     },
-     {
-      "key": "teleshop_other",
-      "count": 0,
-      "value_mkd": 0
      }
     ],
-    "value_mkd": 224765
+    "value_mkd": 350525
    },
    {
     "d": "2026-09-20",
-    "count": 76,
+    "count": 96,
     "by_source": [
      {
       "key": "altercpa",
-      "count": 61,
-      "value_mkd": 169940
+      "count": 64,
+      "value_mkd": 180440
      },
      {
       "key": "elyon_crm",
+      "count": 0,
+      "value_mkd": 0
+     },
+     {
+      "key": "teleshop_other",
+      "count": 17,
+      "value_mkd": 34400
+     },
+     {
+      "key": "social",
       "count": 0,
       "value_mkd": 0
      },
@@ -550,185 +655,210 @@
       "key": "web",
       "count": 15,
       "value_mkd": 34087
-     },
-     {
-      "key": "teleshop_other",
-      "count": 0,
-      "value_mkd": 0
      }
     ],
-    "value_mkd": 204027
+    "value_mkd": 248927
    },
    {
     "d": "2026-09-21",
-    "count": 366,
+    "count": 296,
     "by_source": [
      {
       "key": "altercpa",
-      "count": 65,
-      "value_mkd": 182905
+      "count": 74,
+      "value_mkd": 212370
      },
      {
       "key": "elyon_crm",
-      "count": 38,
-      "value_mkd": 108100
+      "count": 127,
+      "value_mkd": 314935
+     },
+     {
+      "key": "teleshop_other",
+      "count": 54,
+      "value_mkd": 118310
+     },
+     {
+      "key": "social",
+      "count": 15,
+      "value_mkd": 24550
      },
      {
       "key": "web",
       "count": 26,
       "value_mkd": 56216
-     },
-     {
-      "key": "teleshop_other",
-      "count": 237,
-      "value_mkd": 548999
      }
     ],
-    "value_mkd": 896220
+    "value_mkd": 726381
    },
    {
     "d": "2026-09-22",
-    "count": 297,
+    "count": 311,
     "by_source": [
      {
       "key": "altercpa",
-      "count": 74,
-      "value_mkd": 221750
+      "count": 79,
+      "value_mkd": 232270
      },
      {
       "key": "elyon_crm",
-      "count": 37,
-      "value_mkd": 104100
+      "count": 123,
+      "value_mkd": 317840
+     },
+     {
+      "key": "teleshop_other",
+      "count": 71,
+      "value_mkd": 153850
+     },
+     {
+      "key": "social",
+      "count": 6,
+      "value_mkd": 13800
      },
      {
       "key": "web",
       "count": 32,
       "value_mkd": 66417
-     },
-     {
-      "key": "teleshop_other",
-      "count": 154,
-      "value_mkd": 350975
      }
     ],
-    "value_mkd": 743242
+    "value_mkd": 784177
    },
    {
     "d": "2026-09-23",
-    "count": 310,
+    "count": 369,
     "by_source": [
      {
       "key": "altercpa",
-      "count": 70,
-      "value_mkd": 198220
+      "count": 80,
+      "value_mkd": 225530
      },
      {
       "key": "elyon_crm",
-      "count": 42,
-      "value_mkd": 113700
+      "count": 137,
+      "value_mkd": 337035
+     },
+     {
+      "key": "teleshop_other",
+      "count": 123,
+      "value_mkd": 258470
+     },
+     {
+      "key": "social",
+      "count": 10,
+      "value_mkd": 21600
      },
      {
       "key": "web",
       "count": 19,
       "value_mkd": 40490
-     },
-     {
-      "key": "teleshop_other",
-      "count": 179,
-      "value_mkd": 422885
      }
     ],
-    "value_mkd": 775295
+    "value_mkd": 883125
    },
    {
     "d": "2026-09-24",
-    "count": 371,
+    "count": 291,
     "by_source": [
      {
       "key": "altercpa",
-      "count": 74,
-      "value_mkd": 214040
+      "count": 82,
+      "value_mkd": 234950
      },
      {
       "key": "elyon_crm",
-      "count": 34,
-      "value_mkd": 98201
+      "count": 115,
+      "value_mkd": 292091
+     },
+     {
+      "key": "teleshop_other",
+      "count": 62,
+      "value_mkd": 135250
+     },
+     {
+      "key": "social",
+      "count": 9,
+      "value_mkd": 14700
      },
      {
       "key": "web",
       "count": 23,
       "value_mkd": 61230
-     },
-     {
-      "key": "teleshop_other",
-      "count": 240,
-      "value_mkd": 534950
      }
     ],
-    "value_mkd": 908421
+    "value_mkd": 738221
    },
    {
     "d": "2026-09-25",
-    "count": 225,
+    "count": 277,
     "by_source": [
      {
       "key": "altercpa",
-      "count": 41,
-      "value_mkd": 101790
+      "count": 64,
+      "value_mkd": 176640
      },
      {
       "key": "elyon_crm",
-      "count": 24,
-      "value_mkd": 60301
-     },
-     {
-      "key": "web",
-      "count": 10,
-      "value_mkd": 18415
+      "count": 119,
+      "value_mkd": 282461
      },
      {
       "key": "teleshop_other",
-      "count": 150,
-      "value_mkd": 352080
+      "count": 63,
+      "value_mkd": 139070
+     },
+     {
+      "key": "social",
+      "count": 6,
+      "value_mkd": 11500
+     },
+     {
+      "key": "web",
+      "count": 25,
+      "value_mkd": 58835
      }
     ],
-    "value_mkd": 532586
+    "value_mkd": 668506
    },
    {
     "d": "2026-09-26",
-    "count": 54,
+    "count": 180,
     "by_source": [
      {
       "key": "altercpa",
-      "count": 45,
-      "value_mkd": 120990
+      "count": 70,
+      "value_mkd": 202940
      },
      {
       "key": "elyon_crm",
-      "count": 5,
-      "value_mkd": 14500
-     },
-     {
-      "key": "web",
-      "count": 4,
-      "value_mkd": 9730
+      "count": 54,
+      "value_mkd": 124600
      },
      {
       "key": "teleshop_other",
+      "count": 29,
+      "value_mkd": 72430
+     },
+     {
+      "key": "social",
       "count": 0,
       "value_mkd": 0
+     },
+     {
+      "key": "web",
+      "count": 27,
+      "value_mkd": 56771
      }
     ],
-    "value_mkd": 145220
+    "value_mkd": 456741
    },
    {
     "d": "2026-09-27",
-    "count": 62,
+    "count": 122,
     "by_source": [
      {
       "key": "altercpa",
-      "count": 60,
-      "value_mkd": 134550
+      "count": 87,
+      "value_mkd": 215030
      },
      {
       "key": "elyon_crm",
@@ -736,17 +866,22 @@
       "value_mkd": 0
      },
      {
-      "key": "web",
-      "count": 2,
-      "value_mkd": 4915
+      "key": "teleshop_other",
+      "count": 24,
+      "value_mkd": 54400
      },
      {
-      "key": "teleshop_other",
+      "key": "social",
       "count": 0,
       "value_mkd": 0
+     },
+     {
+      "key": "web",
+      "count": 11,
+      "value_mkd": 18965
      }
     ],
-    "value_mkd": 139465
+    "value_mkd": 288395
    }
   ],
   "granularity": "day"
@@ -756,434 +891,386 @@
    {
     "dow": 1,
     "hour": 0,
-    "count": 9,
-    "value_mkd": 26500
+    "count": 5,
+    "value_mkd": 13360
    },
    {
     "dow": 1,
     "hour": 1,
-    "count": 2,
-    "value_mkd": 6422
-   },
-   {
-    "dow": 1,
-    "hour": 2,
     "count": 1,
-    "value_mkd": 3000
-   },
-   {
-    "dow": 1,
-    "hour": 3,
-    "count": 1,
-    "value_mkd": 1640
-   },
-   {
-    "dow": 1,
-    "hour": 5,
-    "count": 1,
-    "value_mkd": 3000
+    "value_mkd": 3422
    },
    {
     "dow": 1,
     "hour": 6,
-    "count": 4,
-    "value_mkd": 14000
-   },
-   {
-    "dow": 1,
-    "hour": 7,
-    "count": 7,
-    "value_mkd": 22000
-   },
-   {
-    "dow": 1,
-    "hour": 8,
-    "count": 39,
-    "value_mkd": 91780
-   },
-   {
-    "dow": 1,
-    "hour": 9,
-    "count": 26,
-    "value_mkd": 74850
-   },
-   {
-    "dow": 1,
-    "hour": 10,
-    "count": 20,
-    "value_mkd": 60962
-   },
-   {
-    "dow": 1,
-    "hour": 11,
-    "count": 38,
-    "value_mkd": 108155
-   },
-   {
-    "dow": 1,
-    "hour": 12,
-    "count": 27,
-    "value_mkd": 79300
-   },
-   {
-    "dow": 1,
-    "hour": 13,
-    "count": 33,
-    "value_mkd": 89970
-   },
-   {
-    "dow": 1,
-    "hour": 14,
-    "count": 23,
-    "value_mkd": 64770
-   },
-   {
-    "dow": 1,
-    "hour": 15,
-    "count": 23,
-    "value_mkd": 65030
-   },
-   {
-    "dow": 1,
-    "hour": 16,
-    "count": 26,
-    "value_mkd": 69390
-   },
-   {
-    "dow": 1,
-    "hour": 17,
-    "count": 21,
-    "value_mkd": 68696
-   },
-   {
-    "dow": 1,
-    "hour": 18,
-    "count": 25,
-    "value_mkd": 63630
-   },
-   {
-    "dow": 1,
-    "hour": 19,
-    "count": 35,
-    "value_mkd": 94510
-   },
-   {
-    "dow": 1,
-    "hour": 20,
-    "count": 16,
-    "value_mkd": 38670
-   },
-   {
-    "dow": 1,
-    "hour": 21,
-    "count": 14,
-    "value_mkd": 34370
-   },
-   {
-    "dow": 1,
-    "hour": 22,
-    "count": 5,
-    "value_mkd": 11150
-   },
-   {
-    "dow": 1,
-    "hour": 23,
-    "count": 4,
-    "value_mkd": 5640
-   },
-   {
-    "dow": 2,
-    "hour": 0,
-    "count": 4,
-    "value_mkd": 9320
-   },
-   {
-    "dow": 2,
-    "hour": 1,
-    "count": 3,
-    "value_mkd": 6280
-   },
-   {
-    "dow": 2,
-    "hour": 2,
-    "count": 4,
-    "value_mkd": 13990
-   },
-   {
-    "dow": 2,
-    "hour": 3,
-    "count": 3,
-    "value_mkd": 7670
-   },
-   {
-    "dow": 2,
-    "hour": 4,
     "count": 2,
-    "value_mkd": 4725
-   },
-   {
-    "dow": 2,
-    "hour": 5,
-    "count": 5,
-    "value_mkd": 10640
-   },
-   {
-    "dow": 2,
-    "hour": 6,
-    "count": 6,
-    "value_mkd": 20000
-   },
-   {
-    "dow": 2,
-    "hour": 7,
-    "count": 16,
-    "value_mkd": 43370
-   },
-   {
-    "dow": 2,
-    "hour": 8,
-    "count": 56,
-    "value_mkd": 150119
-   },
-   {
-    "dow": 2,
-    "hour": 9,
-    "count": 36,
-    "value_mkd": 115270
-   },
-   {
-    "dow": 2,
-    "hour": 10,
-    "count": 28,
-    "value_mkd": 92615
-   },
-   {
-    "dow": 2,
-    "hour": 11,
-    "count": 33,
-    "value_mkd": 100930
-   },
-   {
-    "dow": 2,
-    "hour": 12,
-    "count": 32,
-    "value_mkd": 96046
-   },
-   {
-    "dow": 2,
-    "hour": 13,
-    "count": 31,
-    "value_mkd": 78830
-   },
-   {
-    "dow": 2,
-    "hour": 14,
-    "count": 24,
-    "value_mkd": 73840
-   },
-   {
-    "dow": 2,
-    "hour": 15,
-    "count": 25,
-    "value_mkd": 74380
-   },
-   {
-    "dow": 2,
-    "hour": 16,
-    "count": 21,
-    "value_mkd": 64340
-   },
-   {
-    "dow": 2,
-    "hour": 17,
-    "count": 33,
-    "value_mkd": 95520
-   },
-   {
-    "dow": 2,
-    "hour": 18,
-    "count": 32,
-    "value_mkd": 89730
-   },
-   {
-    "dow": 2,
-    "hour": 19,
-    "count": 24,
-    "value_mkd": 72849
-   },
-   {
-    "dow": 2,
-    "hour": 20,
-    "count": 10,
-    "value_mkd": 27640
-   },
-   {
-    "dow": 2,
-    "hour": 21,
-    "count": 14,
-    "value_mkd": 40241
-   },
-   {
-    "dow": 2,
-    "hour": 22,
-    "count": 10,
-    "value_mkd": 33435
-   },
-   {
-    "dow": 2,
-    "hour": 23,
-    "count": 9,
-    "value_mkd": 21140
-   },
-   {
-    "dow": 3,
-    "hour": 0,
-    "count": 22,
-    "value_mkd": 51510
-   },
-   {
-    "dow": 3,
-    "hour": 1,
-    "count": 7,
-    "value_mkd": 20530
-   },
-   {
-    "dow": 3,
-    "hour": 2,
-    "count": 3,
-    "value_mkd": 6560
-   },
-   {
-    "dow": 3,
-    "hour": 3,
-    "count": 3,
-    "value_mkd": 8640
-   },
-   {
-    "dow": 3,
-    "hour": 4,
-    "count": 1,
     "value_mkd": 6000
    },
    {
-    "dow": 3,
-    "hour": 5,
+    "dow": 1,
+    "hour": 7,
+    "count": 1,
+    "value_mkd": 2000
+   },
+   {
+    "dow": 1,
+    "hour": 8,
+    "count": 30,
+    "value_mkd": 66860
+   },
+   {
+    "dow": 1,
+    "hour": 9,
+    "count": 22,
+    "value_mkd": 65570
+   },
+   {
+    "dow": 1,
+    "hour": 10,
+    "count": 16,
+    "value_mkd": 45972
+   },
+   {
+    "dow": 1,
+    "hour": 11,
+    "count": 32,
+    "value_mkd": 89155
+   },
+   {
+    "dow": 1,
+    "hour": 12,
+    "count": 25,
+    "value_mkd": 78670
+   },
+   {
+    "dow": 1,
+    "hour": 13,
+    "count": 86,
+    "value_mkd": 251570
+   },
+   {
+    "dow": 1,
+    "hour": 14,
+    "count": 42,
+    "value_mkd": 118250
+   },
+   {
+    "dow": 1,
+    "hour": 15,
+    "count": 22,
+    "value_mkd": 63390
+   },
+   {
+    "dow": 1,
+    "hour": 16,
+    "count": 26,
+    "value_mkd": 72110
+   },
+   {
+    "dow": 1,
+    "hour": 17,
+    "count": 16,
+    "value_mkd": 53981
+   },
+   {
+    "dow": 1,
+    "hour": 18,
+    "count": 27,
+    "value_mkd": 69270
+   },
+   {
+    "dow": 1,
+    "hour": 19,
+    "count": 48,
+    "value_mkd": 126710
+   },
+   {
+    "dow": 1,
+    "hour": 20,
+    "count": 15,
+    "value_mkd": 34810
+   },
+   {
+    "dow": 1,
+    "hour": 21,
+    "count": 7,
+    "value_mkd": 15450
+   },
+   {
+    "dow": 1,
+    "hour": 22,
+    "count": 1,
+    "value_mkd": 2230
+   },
+   {
+    "dow": 1,
+    "hour": 23,
     "count": 3,
-    "value_mkd": 7640
+    "value_mkd": 4000
+   },
+   {
+    "dow": 2,
+    "hour": 2,
+    "count": 2,
+    "value_mkd": 5990
+   },
+   {
+    "dow": 2,
+    "hour": 3,
+    "count": 1,
+    "value_mkd": 3030
+   },
+   {
+    "dow": 2,
+    "hour": 4,
+    "count": 1,
+    "value_mkd": 1725
+   },
+   {
+    "dow": 2,
+    "hour": 5,
+    "count": 2,
+    "value_mkd": 3000
+   },
+   {
+    "dow": 2,
+    "hour": 7,
+    "count": 4,
+    "value_mkd": 8450
+   },
+   {
+    "dow": 2,
+    "hour": 8,
+    "count": 47,
+    "value_mkd": 118480
+   },
+   {
+    "dow": 2,
+    "hour": 9,
+    "count": 30,
+    "value_mkd": 88870
+   },
+   {
+    "dow": 2,
+    "hour": 10,
+    "count": 20,
+    "value_mkd": 61975
+   },
+   {
+    "dow": 2,
+    "hour": 11,
+    "count": 26,
+    "value_mkd": 79290
+   },
+   {
+    "dow": 2,
+    "hour": 12,
+    "count": 27,
+    "value_mkd": 79406
+   },
+   {
+    "dow": 2,
+    "hour": 13,
+    "count": 64,
+    "value_mkd": 184389
+   },
+   {
+    "dow": 2,
+    "hour": 14,
+    "count": 51,
+    "value_mkd": 152090
+   },
+   {
+    "dow": 2,
+    "hour": 15,
+    "count": 25,
+    "value_mkd": 77380
+   },
+   {
+    "dow": 2,
+    "hour": 16,
+    "count": 18,
+    "value_mkd": 57700
+   },
+   {
+    "dow": 2,
+    "hour": 17,
+    "count": 38,
+    "value_mkd": 107300
+   },
+   {
+    "dow": 2,
+    "hour": 18,
+    "count": 27,
+    "value_mkd": 71730
+   },
+   {
+    "dow": 2,
+    "hour": 19,
+    "count": 32,
+    "value_mkd": 99129
+   },
+   {
+    "dow": 2,
+    "hour": 20,
+    "count": 22,
+    "value_mkd": 61390
+   },
+   {
+    "dow": 2,
+    "hour": 21,
+    "count": 8,
+    "value_mkd": 19331
+   },
+   {
+    "dow": 2,
+    "hour": 22,
+    "count": 8,
+    "value_mkd": 24795
+   },
+   {
+    "dow": 2,
+    "hour": 23,
+    "count": 5,
+    "value_mkd": 8140
+   },
+   {
+    "dow": 3,
+    "hour": 0,
+    "count": 16,
+    "value_mkd": 30870
+   },
+   {
+    "dow": 3,
+    "hour": 1,
+    "count": 5,
+    "value_mkd": 14530
+   },
+   {
+    "dow": 3,
+    "hour": 2,
+    "count": 2,
+    "value_mkd": 3560
+   },
+   {
+    "dow": 3,
+    "hour": 3,
+    "count": 1,
+    "value_mkd": 3000
    },
    {
     "dow": 3,
     "hour": 6,
-    "count": 3,
-    "value_mkd": 8000
+    "count": 2,
+    "value_mkd": 5000
    },
    {
     "dow": 3,
     "hour": 7,
-    "count": 6,
-    "value_mkd": 17039
+    "count": 1,
+    "value_mkd": 2400
    },
    {
     "dow": 3,
     "hour": 8,
-    "count": 26,
-    "value_mkd": 71510
+    "count": 21,
+    "value_mkd": 59230
    },
    {
     "dow": 3,
     "hour": 9,
-    "count": 26,
-    "value_mkd": 81060
+    "count": 23,
+    "value_mkd": 69060
    },
    {
     "dow": 3,
     "hour": 10,
-    "count": 24,
-    "value_mkd": 70340
+    "count": 20,
+    "value_mkd": 62420
    },
    {
     "dow": 3,
     "hour": 11,
-    "count": 45,
-    "value_mkd": 128215
+    "count": 32,
+    "value_mkd": 89305
    },
    {
     "dow": 3,
     "hour": 12,
-    "count": 33,
-    "value_mkd": 90589
+    "count": 31,
+    "value_mkd": 82640
    },
    {
     "dow": 3,
     "hour": 13,
-    "count": 38,
-    "value_mkd": 106944
+    "count": 76,
+    "value_mkd": 222703
    },
    {
     "dow": 3,
     "hour": 14,
-    "count": 26,
-    "value_mkd": 79910
+    "count": 36,
+    "value_mkd": 116260
    },
    {
     "dow": 3,
     "hour": 15,
-    "count": 32,
-    "value_mkd": 99340
+    "count": 30,
+    "value_mkd": 92700
    },
    {
     "dow": 3,
     "hour": 16,
-    "count": 29,
-    "value_mkd": 84610
+    "count": 25,
+    "value_mkd": 70110
    },
    {
     "dow": 3,
     "hour": 17,
     "count": 40,
-    "value_mkd": 122910
+    "value_mkd": 121270
    },
    {
     "dow": 3,
     "hour": 18,
-    "count": 46,
-    "value_mkd": 133540
+    "count": 41,
+    "value_mkd": 112180
    },
    {
     "dow": 3,
     "hour": 19,
-    "count": 39,
-    "value_mkd": 112795
+    "count": 36,
+    "value_mkd": 99195
    },
    {
     "dow": 3,
     "hour": 20,
-    "count": 16,
-    "value_mkd": 48060
+    "count": 31,
+    "value_mkd": 103200
    },
    {
     "dow": 3,
     "hour": 21,
-    "count": 9,
-    "value_mkd": 28850
+    "count": 14,
+    "value_mkd": 39490
    },
    {
     "dow": 3,
     "hour": 22,
-    "count": 11,
-    "value_mkd": 36260
+    "count": 2,
+    "value_mkd": 8980
    },
    {
     "dow": 3,
     "hour": 23,
-    "count": 8,
-    "value_mkd": 19845
+    "count": 2,
+    "value_mkd": 3215
    },
    {
     "dow": 4,
     "hour": 0,
-    "count": 7,
-    "value_mkd": 24980
+    "count": 2,
+    "value_mkd": 7980
    },
    {
     "dow": 4,
@@ -1193,279 +1280,231 @@
    },
    {
     "dow": 4,
-    "hour": 2,
-    "count": 3,
-    "value_mkd": 7280
-   },
-   {
-    "dow": 4,
-    "hour": 3,
-    "count": 2,
-    "value_mkd": 7640
-   },
-   {
-    "dow": 4,
-    "hour": 4,
-    "count": 2,
-    "value_mkd": 3280
-   },
-   {
-    "dow": 4,
     "hour": 5,
-    "count": 2,
-    "value_mkd": 6620
-   },
-   {
-    "dow": 4,
-    "hour": 6,
-    "count": 6,
-    "value_mkd": 21000
+    "count": 1,
+    "value_mkd": 4980
    },
    {
     "dow": 4,
     "hour": 7,
-    "count": 14,
-    "value_mkd": 41280
+    "count": 3,
+    "value_mkd": 6000
    },
    {
     "dow": 4,
     "hour": 8,
-    "count": 49,
-    "value_mkd": 143300
+    "count": 42,
+    "value_mkd": 122660
    },
    {
     "dow": 4,
     "hour": 9,
-    "count": 29,
-    "value_mkd": 87300
+    "count": 32,
+    "value_mkd": 88210
    },
    {
     "dow": 4,
     "hour": 10,
-    "count": 38,
-    "value_mkd": 118640
+    "count": 35,
+    "value_mkd": 110500
    },
    {
     "dow": 4,
     "hour": 11,
-    "count": 31,
-    "value_mkd": 83150
+    "count": 24,
+    "value_mkd": 61510
    },
    {
     "dow": 4,
     "hour": 12,
-    "count": 33,
-    "value_mkd": 110050
+    "count": 28,
+    "value_mkd": 91410
    },
    {
     "dow": 4,
     "hour": 13,
-    "count": 51,
-    "value_mkd": 158369
+    "count": 94,
+    "value_mkd": 290769
    },
    {
     "dow": 4,
     "hour": 14,
-    "count": 31,
-    "value_mkd": 83645
+    "count": 46,
+    "value_mkd": 137785
    },
    {
     "dow": 4,
     "hour": 15,
-    "count": 35,
-    "value_mkd": 105170
+    "count": 31,
+    "value_mkd": 91810
    },
    {
     "dow": 4,
     "hour": 16,
-    "count": 31,
-    "value_mkd": 88100
+    "count": 21,
+    "value_mkd": 55820
    },
    {
     "dow": 4,
     "hour": 17,
     "count": 42,
-    "value_mkd": 120213
+    "value_mkd": 122933
    },
    {
     "dow": 4,
     "hour": 18,
-    "count": 43,
-    "value_mkd": 125900
+    "count": 44,
+    "value_mkd": 135260
    },
    {
     "dow": 4,
     "hour": 19,
-    "count": 28,
-    "value_mkd": 75860
+    "count": 42,
+    "value_mkd": 114420
    },
    {
     "dow": 4,
     "hour": 20,
-    "count": 10,
-    "value_mkd": 28850
+    "count": 22,
+    "value_mkd": 62910
    },
    {
     "dow": 4,
     "hour": 21,
-    "count": 11,
-    "value_mkd": 26150
+    "count": 13,
+    "value_mkd": 38510
    },
    {
     "dow": 4,
     "hour": 22,
-    "count": 4,
-    "value_mkd": 9640
+    "count": 1,
+    "value_mkd": 1000
    },
    {
     "dow": 4,
     "hour": 23,
-    "count": 8,
-    "value_mkd": 32530
+    "count": 3,
+    "value_mkd": 6890
    },
    {
     "dow": 5,
     "hour": 0,
-    "count": 21,
-    "value_mkd": 37380
-   },
-   {
-    "dow": 5,
-    "hour": 1,
-    "count": 2,
-    "value_mkd": 4640
-   },
-   {
-    "dow": 5,
-    "hour": 3,
-    "count": 1,
-    "value_mkd": 4000
-   },
-   {
-    "dow": 5,
-    "hour": 4,
-    "count": 3,
-    "value_mkd": 7640
-   },
-   {
-    "dow": 5,
-    "hour": 5,
-    "count": 2,
-    "value_mkd": 6000
+    "count": 18,
+    "value_mkd": 29740
    },
    {
     "dow": 5,
     "hour": 6,
-    "count": 5,
-    "value_mkd": 13400
+    "count": 2,
+    "value_mkd": 3400
    },
    {
     "dow": 5,
     "hour": 7,
-    "count": 9,
-    "value_mkd": 24850
+    "count": 2,
+    "value_mkd": 4250
    },
    {
     "dow": 5,
     "hour": 8,
-    "count": 46,
-    "value_mkd": 144410
+    "count": 30,
+    "value_mkd": 110010
    },
    {
     "dow": 5,
     "hour": 9,
-    "count": 34,
-    "value_mkd": 106035
+    "count": 38,
+    "value_mkd": 122394
    },
    {
     "dow": 5,
     "hour": 10,
-    "count": 37,
-    "value_mkd": 101420
+    "count": 34,
+    "value_mkd": 94430
    },
    {
     "dow": 5,
     "hour": 11,
-    "count": 30,
-    "value_mkd": 91771
+    "count": 26,
+    "value_mkd": 82131
    },
    {
     "dow": 5,
     "hour": 12,
-    "count": 42,
-    "value_mkd": 110778
+    "count": 34,
+    "value_mkd": 89159
    },
    {
     "dow": 5,
     "hour": 13,
-    "count": 45,
-    "value_mkd": 126290
+    "count": 93,
+    "value_mkd": 271669
    },
    {
     "dow": 5,
     "hour": 14,
-    "count": 31,
-    "value_mkd": 83600
+    "count": 56,
+    "value_mkd": 162940
    },
    {
     "dow": 5,
     "hour": 15,
-    "count": 35,
-    "value_mkd": 106640
+    "count": 27,
+    "value_mkd": 80430
    },
    {
     "dow": 5,
     "hour": 16,
-    "count": 33,
-    "value_mkd": 84150
+    "count": 30,
+    "value_mkd": 75150
    },
    {
     "dow": 5,
     "hour": 17,
-    "count": 26,
-    "value_mkd": 76210
+    "count": 21,
+    "value_mkd": 60720
    },
    {
     "dow": 5,
     "hour": 18,
-    "count": 35,
-    "value_mkd": 101940
+    "count": 37,
+    "value_mkd": 107100
    },
    {
     "dow": 5,
     "hour": 19,
-    "count": 37,
-    "value_mkd": 100550
+    "count": 38,
+    "value_mkd": 106670
    },
    {
     "dow": 5,
     "hour": 20,
-    "count": 18,
-    "value_mkd": 49560
+    "count": 23,
+    "value_mkd": 65560
    },
    {
     "dow": 5,
     "hour": 21,
-    "count": 14,
-    "value_mkd": 36560
+    "count": 4,
+    "value_mkd": 10000
    },
    {
     "dow": 5,
     "hour": 22,
-    "count": 8,
-    "value_mkd": 20570
+    "count": 14,
+    "value_mkd": 42090
    },
    {
     "dow": 5,
     "hour": 23,
-    "count": 7,
-    "value_mkd": 17140
+    "count": 3,
+    "value_mkd": 5500
    },
    {
     "dow": 6,
     "hour": 0,
-    "count": 6,
-    "value_mkd": 13410
+    "count": 1,
+    "value_mkd": 1490
    },
    {
     "dow": 6,
@@ -1475,141 +1514,123 @@
    },
    {
     "dow": 6,
-    "hour": 2,
-    "count": 1,
-    "value_mkd": 3000
-   },
-   {
-    "dow": 6,
-    "hour": 6,
+    "hour": 4,
     "count": 1,
     "value_mkd": 1640
    },
    {
     "dow": 6,
     "hour": 7,
-    "count": 11,
-    "value_mkd": 26840
+    "count": 2,
+    "value_mkd": 3775
    },
    {
     "dow": 6,
     "hour": 8,
-    "count": 38,
-    "value_mkd": 86790
+    "count": 35,
+    "value_mkd": 74940
    },
    {
     "dow": 6,
     "hour": 9,
-    "count": 28,
-    "value_mkd": 82810
+    "count": 26,
+    "value_mkd": 82330
    },
    {
     "dow": 6,
     "hour": 10,
-    "count": 38,
-    "value_mkd": 106225
+    "count": 33,
+    "value_mkd": 93095
    },
    {
     "dow": 6,
     "hour": 11,
     "count": 40,
-    "value_mkd": 115800
+    "value_mkd": 118800
    },
    {
     "dow": 6,
     "hour": 12,
-    "count": 38,
-    "value_mkd": 100900
+    "count": 39,
+    "value_mkd": 108400
    },
    {
     "dow": 6,
     "hour": 13,
-    "count": 24,
-    "value_mkd": 54620
+    "count": 34,
+    "value_mkd": 81690
    },
    {
     "dow": 6,
     "hour": 14,
-    "count": 27,
-    "value_mkd": 76490
+    "count": 44,
+    "value_mkd": 127410
    },
    {
     "dow": 6,
     "hour": 15,
-    "count": 19,
-    "value_mkd": 58420
+    "count": 38,
+    "value_mkd": 106540
    },
    {
     "dow": 6,
     "hour": 16,
-    "count": 19,
-    "value_mkd": 52835
+    "count": 13,
+    "value_mkd": 34195
    },
    {
     "dow": 6,
     "hour": 17,
-    "count": 14,
-    "value_mkd": 43130
+    "count": 11,
+    "value_mkd": 30220
    },
    {
     "dow": 6,
     "hour": 18,
-    "count": 19,
-    "value_mkd": 58650
+    "count": 26,
+    "value_mkd": 72410
    },
    {
     "dow": 6,
     "hour": 19,
-    "count": 15,
-    "value_mkd": 43690
+    "count": 28,
+    "value_mkd": 73960
    },
    {
     "dow": 6,
     "hour": 20,
-    "count": 8,
-    "value_mkd": 22480
+    "count": 37,
+    "value_mkd": 107510
    },
    {
     "dow": 6,
     "hour": 21,
-    "count": 6,
-    "value_mkd": 17400
+    "count": 8,
+    "value_mkd": 17470
    },
    {
     "dow": 6,
     "hour": 22,
-    "count": 11,
-    "value_mkd": 25355
+    "count": 6,
+    "value_mkd": 14021
    },
    {
     "dow": 6,
     "hour": 23,
-    "count": 7,
-    "value_mkd": 17945
-   },
-   {
-    "dow": 7,
-    "hour": 0,
-    "count": 4,
-    "value_mkd": 10640
+    "count": 5,
+    "value_mkd": 11235
    },
    {
     "dow": 7,
     "hour": 1,
-    "count": 2,
-    "value_mkd": 6480
+    "count": 1,
+    "value_mkd": 3480
    },
    {
     "dow": 7,
-    "hour": 4,
+    "hour": 3,
     "count": 1,
-    "value_mkd": 1640
-   },
-   {
-    "dow": 7,
-    "hour": 5,
-    "count": 1,
-    "value_mkd": 4000
+    "value_mkd": 1000
    },
    {
     "dow": 7,
@@ -1620,174 +1641,204 @@
    {
     "dow": 7,
     "hour": 7,
-    "count": 8,
-    "value_mkd": 23640
+    "count": 2,
+    "value_mkd": 5000
    },
    {
     "dow": 7,
     "hour": 8,
-    "count": 67,
-    "value_mkd": 149550
+    "count": 62,
+    "value_mkd": 140020
    },
    {
     "dow": 7,
     "hour": 9,
-    "count": 34,
-    "value_mkd": 97710
+    "count": 27,
+    "value_mkd": 74220
    },
    {
     "dow": 7,
     "hour": 10,
-    "count": 27,
-    "value_mkd": 66109
+    "count": 23,
+    "value_mkd": 53359
    },
    {
     "dow": 7,
     "hour": 11,
-    "count": 24,
-    "value_mkd": 69293
+    "count": 27,
+    "value_mkd": 72343
    },
    {
     "dow": 7,
     "hour": 12,
-    "count": 18,
-    "value_mkd": 52240
+    "count": 21,
+    "value_mkd": 65510
    },
    {
     "dow": 7,
     "hour": 13,
-    "count": 27,
-    "value_mkd": 88645
+    "count": 33,
+    "value_mkd": 104575
    },
    {
     "dow": 7,
     "hour": 14,
-    "count": 18,
-    "value_mkd": 50734
+    "count": 46,
+    "value_mkd": 132084
    },
    {
     "dow": 7,
     "hour": 15,
-    "count": 25,
-    "value_mkd": 69160
+    "count": 21,
+    "value_mkd": 59740
    },
    {
     "dow": 7,
     "hour": 16,
-    "count": 19,
-    "value_mkd": 58180
+    "count": 15,
+    "value_mkd": 43180
    },
    {
     "dow": 7,
     "hour": 17,
-    "count": 13,
-    "value_mkd": 41130
+    "count": 10,
+    "value_mkd": 28770
    },
    {
     "dow": 7,
     "hour": 18,
-    "count": 12,
-    "value_mkd": 39460
+    "count": 10,
+    "value_mkd": 35820
    },
    {
     "dow": 7,
     "hour": 19,
-    "count": 17,
-    "value_mkd": 45550
+    "count": 27,
+    "value_mkd": 81410
    },
    {
     "dow": 7,
     "hour": 20,
-    "count": 13,
-    "value_mkd": 34750
+    "count": 41,
+    "value_mkd": 108150
    },
    {
     "dow": 7,
     "hour": 21,
     "count": 11,
-    "value_mkd": 29280
+    "value_mkd": 26200
    },
    {
     "dow": 7,
     "hour": 22,
-    "count": 11,
-    "value_mkd": 28600
+    "count": 3,
+    "value_mkd": 6320
    },
    {
     "dow": 7,
     "hour": 23,
-    "count": 8,
-    "value_mkd": 15720
+    "count": 5,
+    "value_mkd": 8080
    }
   ],
-  "timed": 3128,
+  "timed": 3251,
   "untimed": [
    {
     "key": "teleshop_other",
     "kind": "order",
-    "count": 2604
+    "count": 2020
+   },
+   {
+    "key": "elyon_crm",
+    "kind": "order",
+    "count": 1573
+   },
+   {
+    "key": "social",
+    "kind": "order",
+    "count": 146
+   },
+   {
+    "key": "altercpa",
+    "kind": "mex",
+    "count": 106
+   },
+   {
+    "key": "elyon_crm",
+    "kind": "mex",
+    "count": 73
+   },
+   {
+    "key": "social",
+    "kind": "mex",
+    "count": 59
+   },
+   {
+    "key": "web",
+    "kind": "mex",
+    "count": 24
    },
    {
     "key": "teleshop_other",
     "kind": "mex",
-    "count": 1438
+    "count": 2
    }
   ],
   "weekdays": [
    {
     "dow": 1,
     "days": 3,
-    "count": 1000,
-    "value_mkd": 2490954
+    "count": 945,
+    "value_mkd": 2373065
    },
    {
     "dow": 2,
     "days": 4,
-    "count": 1391,
-    "value_mkd": 3397520
+    "count": 1175,
+    "value_mkd": 2898005
    },
    {
     "dow": 3,
     "days": 4,
-    "count": 1347,
-    "value_mkd": 3359510
+    "count": 1384,
+    "value_mkd": 3407211
    },
    {
     "dow": 4,
     "days": 4,
-    "count": 1346,
-    "value_mkd": 3380604
+    "count": 1287,
+    "value_mkd": 3250584
    },
    {
     "dow": 5,
     "days": 4,
-    "count": 1119,
-    "value_mkd": 2830902
+    "count": 1238,
+    "value_mkd": 3139761
    },
    {
     "dow": 6,
     "days": 4,
-    "count": 536,
-    "value_mkd": 1363100
+    "count": 726,
+    "value_mkd": 1815301
    },
    {
     "dow": 7,
     "days": 4,
-    "count": 431,
-    "value_mkd": 1128611
+    "count": 499,
+    "value_mkd": 1287161
    }
   ]
  },
  "buckets": [
   {
    "key": "paid",
-   "web": 283,
-   "count": 5440,
+   "web": 287,
+   "count": 5324,
    "drill": "/orders?cohort_bucket=paid&sold_from=2026-09-01&sold_to=2026-09-27",
-   "orders": 4070,
-   "cod_mkd": 13350060,
-   "mex_only": 1087,
-   "value_mkd": 13449891
+   "orders": 4840,
+   "cod_mkd": 13108220,
+   "mex_only": 197,
+   "value_mkd": 13210051
   },
   {
    "key": "paid_unproven",
@@ -1811,64 +1862,64 @@
   },
   {
    "key": "courier",
-   "web": 3,
-   "count": 144,
+   "web": 85,
+   "count": 622,
    "drill": "/orders?cohort_bucket=courier&sold_from=2026-09-01&sold_to=2026-09-27",
-   "orders": 63,
-   "cod_mkd": 367640,
-   "mex_only": 78,
-   "value_mkd": 375830
+   "orders": 527,
+   "cod_mkd": 1564556,
+   "mex_only": 10,
+   "value_mkd": 1604911
   },
   {
    "key": "courier_problem",
-   "web": 10,
-   "count": 163,
+   "web": 2,
+   "count": 74,
    "drill": "/orders?cohort_bucket=courier_problem&sold_from=2026-09-01&sold_to=2026-09-27",
-   "orders": 80,
-   "cod_mkd": 426794,
-   "mex_only": 73,
-   "value_mkd": 428794
+   "orders": 70,
+   "cod_mkd": 201820,
+   "mex_only": 2,
+   "value_mkd": 201820
   },
   {
    "key": "label",
-   "web": 39,
-   "count": 250,
+   "web": 12,
+   "count": 178,
    "drill": "/orders?cohort_bucket=label&sold_from=2026-09-01&sold_to=2026-09-27",
-   "orders": 133,
-   "cod_mkd": 640510,
-   "mex_only": 78,
-   "value_mkd": 656780
+   "orders": 158,
+   "cod_mkd": 448420,
+   "mex_only": 8,
+   "value_mkd": 448420
   },
   {
    "key": "to_pack",
-   "web": 7,
-   "count": 401,
+   "web": 0,
+   "count": 274,
    "drill": "/orders?cohort_bucket=to_pack&sold_from=2026-09-01&sold_to=2026-09-27",
-   "orders": 394,
+   "orders": 274,
    "cod_mkd": 0,
    "mex_only": 0,
-   "value_mkd": 973417
+   "value_mkd": 625352
   },
   {
    "key": "returned",
-   "web": 21,
-   "count": 730,
+   "web": 24,
+   "count": 740,
    "drill": "/orders?cohort_bucket=returned&sold_from=2026-09-01&sold_to=2026-09-27",
-   "orders": 587,
-   "cod_mkd": 1966559,
-   "mex_only": 122,
-   "value_mkd": 1968559
+   "orders": 669,
+   "cod_mkd": 1982604,
+   "mex_only": 47,
+   "value_mkd": 1982604
   }
  ],
  "outside": [
   {
    "key": "cancelled_after_sale",
    "web": 0,
-   "count": 414,
+   "count": 428,
    "drill": "/orders?cohort_bucket=cancelled_after_sale&sold_from=2026-09-01&sold_to=2026-09-27",
-   "orders": 414,
+   "orders": 428,
    "mex_only": 0,
-   "value_mkd": 711620
+   "value_mkd": 737000
   },
   {
    "key": "trashed_after_sale",
@@ -1902,150 +1953,142 @@
   },
   {
    "kind": "double_count_candidates",
-   "count": 19,
-   "value_mkd": 58065
+   "count": 6,
+   "value_mkd": 21040
   },
   {
    "kind": "no_seller",
-   "count": 882,
-   "value_mkd": 2647264
+   "count": 79,
+   "value_mkd": 252279
   },
   {
    "kind": "cancelled_but_moving",
-   "count": 38,
-   "value_mkd": 122840
+   "count": 22,
+   "value_mkd": 72640
   }
  ],
  "channels": [
   {
-   "paid": 1862,
-   "count": 2144,
+   "paid": 1786,
+   "count": 2168,
    "series": "9102",
    "account": "natura",
-   "cod_mkd": 4926571,
-   "courier": 139,
+   "cod_mkd": 4975821,
+   "courier": 246,
    "to_pack": 0,
-   "returned": 143,
+   "returned": 136,
    "by_source": [
     {
      "key": "altercpa",
-     "count": 7
+     "count": 9
     },
     {
      "key": "elyon_crm",
-     "count": 3
+     "count": 1523
     },
     {
      "key": "teleshop_other",
-     "count": 2134
+     "count": 636
     }
    ],
-   "value_mkd": 4926571
+   "value_mkd": 4975821
   },
   {
-   "paid": 1380,
-   "count": 1900,
+   "paid": 1389,
+   "count": 2000,
    "series": "9110",
    "account": "bio_natural",
-   "cod_mkd": 5919855,
-   "courier": 184,
+   "cod_mkd": 6223281,
+   "courier": 280,
    "to_pack": 0,
-   "returned": 336,
+   "returned": 331,
    "by_source": [
     {
      "key": "altercpa",
-     "count": 1729
+     "count": 1992
     },
     {
      "key": "elyon_crm",
      "count": 8
-    },
-    {
-     "key": "teleshop_other",
-     "count": 163
     }
    ],
-   "value_mkd": 5919855
+   "value_mkd": 6223281
   },
   {
-   "paid": 1151,
-   "count": 1380,
+   "paid": 1087,
+   "count": 1387,
    "series": "9100",
    "account": "natura",
-   "cod_mkd": 2834895,
-   "courier": 94,
+   "cod_mkd": 2863965,
+   "courier": 161,
    "to_pack": 0,
-   "returned": 135,
+   "returned": 139,
    "by_source": [
     {
      "key": "altercpa",
-     "count": 4
+     "count": 5
     },
     {
      "key": "teleshop_other",
-     "count": 1376
+     "count": 1382
     }
    ],
-   "value_mkd": 2834895
+   "value_mkd": 2863965
   },
   {
-   "paid": 549,
-   "count": 704,
+   "paid": 558,
+   "count": 730,
    "series": "9103",
    "account": "bio_natural",
-   "cod_mkd": 1979881,
-   "courier": 73,
+   "cod_mkd": 2048681,
+   "courier": 75,
    "to_pack": 0,
-   "returned": 82,
+   "returned": 97,
    "by_source": [
     {
      "key": "altercpa",
-     "count": 16
+     "count": 21
     },
     {
      "key": "elyon_crm",
-     "count": 556
-    },
-    {
-     "key": "teleshop_other",
-     "count": 132
+     "count": 709
     }
    ],
-   "value_mkd": 1979881
+   "value_mkd": 2048681
   },
   {
-   "paid": 283,
-   "count": 356,
+   "paid": 287,
+   "count": 410,
    "series": "ntmk",
    "account": "natura",
-   "cod_mkd": 632730,
-   "courier": 52,
+   "cod_mkd": 734241,
+   "courier": 99,
    "to_pack": 0,
-   "returned": 21,
+   "returned": 24,
    "by_source": [
     {
      "key": "web",
-     "count": 356
+     "count": 410
     }
    ],
-   "value_mkd": 750831
+   "value_mkd": 868237
   },
   {
-   "paid": 183,
+   "paid": 185,
    "count": 205,
    "series": "9108",
    "account": "natura",
    "cod_mkd": 385060,
-   "courier": 10,
+   "courier": 7,
    "to_pack": 0,
-   "returned": 12,
+   "returned": 13,
    "by_source": [
     {
      "key": "altercpa",
      "count": 1
     },
     {
-     "key": "teleshop_other",
+     "key": "social",
      "count": 204
     }
    ],
@@ -2062,7 +2105,7 @@
    "returned": 0,
    "by_source": [
     {
-     "key": "teleshop_other",
+     "key": "web",
      "count": 24
     }
    ],
@@ -2070,11 +2113,11 @@
   },
   {
    "paid": 8,
-   "count": 8,
+   "count": 9,
    "series": "9102",
    "account": "bio_natural",
-   "cod_mkd": 26500,
-   "courier": 0,
+   "cod_mkd": 28500,
+   "courier": 1,
    "to_pack": 0,
    "returned": 0,
    "by_source": [
@@ -2084,14 +2127,10 @@
     },
     {
      "key": "elyon_crm",
-     "count": 5
-    },
-    {
-     "key": "teleshop_other",
-     "count": 1
+     "count": 7
     }
    ],
-   "value_mkd": 26500
+   "value_mkd": 28500
   },
   {
    "paid": 1,
@@ -2112,32 +2151,36 @@
   },
   {
    "paid": 42,
-   "count": 448,
+   "count": 320,
    "series": "none",
    "account": null,
    "cod_mkd": 0,
    "courier": 4,
-   "to_pack": 401,
-   "returned": 1,
+   "to_pack": 274,
+   "returned": 0,
    "by_source": [
     {
      "key": "altercpa",
-     "count": 318
+     "count": 229
     },
     {
      "key": "elyon_crm",
-     "count": 114
-    },
-    {
-     "key": "web",
-     "count": 8
+     "count": 85
     },
     {
      "key": "teleshop_other",
-     "count": 8
+     "count": 4
+    },
+    {
+     "key": "social",
+     "count": 1
+    },
+    {
+     "key": "web",
+     "count": 1
     }
    ],
-   "value_mkd": 1081537
+   "value_mkd": 731472
   }
  ],
  "by_source": [
@@ -2145,26 +2188,33 @@
    "key": "altercpa",
    "total": {
     "web": 0,
-    "count": 2077,
-    "drill": "/orders?cohort_bucket=total&sale_source=altercpa,affiliate&sold_from=2026-09-01&sold_to=2026-09-27",
-    "orders": 2077,
-    "cod_mkd": 5443307,
-    "mex_only": 0,
-    "value_mkd": 6161577
+    "count": 2259,
+    "drill": "/orders?cohort_bucket=total&cohort_source=altercpa&sold_from=2026-09-01&sold_to=2026-09-27",
+    "orders": 2153,
+    "cod_mkd": 6292121,
+    "mex_only": 106,
+    "value_mkd": 6761721
    },
    "splits": [
     {
      "key": "bridge",
      "kind": "order",
-     "count": 2076,
-     "drill": "/orders?cohort_bucket=total&sale_source=altercpa,affiliate&sale_source_detail=bridge&sold_from=2026-09-01&sold_to=2026-09-27",
-     "value_mkd": 6159177
+     "count": 2152,
+     "drill": "/orders?cohort_bucket=total&cohort_source=altercpa&sale_source_detail=bridge&sold_from=2026-09-01&sold_to=2026-09-27",
+     "value_mkd": 6416072
+    },
+    {
+     "key": "mex_leads",
+     "kind": "mex",
+     "count": 106,
+     "drill": null,
+     "value_mkd": 343249
     },
     {
      "key": "history",
      "kind": "order",
      "count": 1,
-     "drill": "/orders?cohort_bucket=total&sale_source=altercpa,affiliate&sale_source_detail=history&sold_from=2026-09-01&sold_to=2026-09-27",
+     "drill": "/orders?cohort_bucket=total&cohort_source=altercpa&sale_source_detail=history&sold_from=2026-09-01&sold_to=2026-09-27",
      "value_mkd": 2400
     }
    ],
@@ -2172,18 +2222,18 @@
     {
      "key": "paid",
      "web": 0,
-     "count": 1295,
-     "drill": "/orders?cohort_bucket=paid&sale_source=altercpa,affiliate&sold_from=2026-09-01&sold_to=2026-09-27",
-     "orders": 1295,
-     "cod_mkd": 3996214,
-     "mex_only": 0,
-     "value_mkd": 3996214
+     "count": 1406,
+     "drill": "/orders?cohort_bucket=paid&cohort_source=altercpa&sold_from=2026-09-01&sold_to=2026-09-27",
+     "orders": 1341,
+     "cod_mkd": 4346074,
+     "mex_only": 65,
+     "value_mkd": 4346074
     },
     {
      "key": "paid_unproven",
      "web": 0,
      "count": 41,
-     "drill": "/orders?cohort_bucket=paid_unproven&sale_source=altercpa,affiliate&sold_from=2026-09-01&sold_to=2026-09-27",
+     "drill": "/orders?cohort_bucket=paid_unproven&cohort_source=altercpa&sold_from=2026-09-01&sold_to=2026-09-27",
      "orders": 41,
      "cod_mkd": 0,
      "mex_only": 0,
@@ -2202,69 +2252,69 @@
     {
      "key": "courier",
      "web": 0,
-     "count": 44,
-     "drill": "/orders?cohort_bucket=courier&sale_source=altercpa,affiliate&sold_from=2026-09-01&sold_to=2026-09-27",
-     "orders": 44,
-     "cod_mkd": 132070,
-     "mex_only": 0,
-     "value_mkd": 133560
+     "count": 213,
+     "drill": "/orders?cohort_bucket=courier&cohort_source=altercpa&sold_from=2026-09-01&sold_to=2026-09-27",
+     "orders": 210,
+     "cod_mkd": 648840,
+     "mex_only": 3,
+     "value_mkd": 650330
     },
     {
      "key": "courier_problem",
      "web": 0,
-     "count": 51,
-     "drill": "/orders?cohort_bucket=courier_problem&sale_source=altercpa,affiliate&sold_from=2026-09-01&sold_to=2026-09-27",
-     "orders": 51,
-     "cod_mkd": 164950,
+     "count": 27,
+     "drill": "/orders?cohort_bucket=courier_problem&cohort_source=altercpa&sold_from=2026-09-01&sold_to=2026-09-27",
+     "orders": 27,
+     "cod_mkd": 84950,
      "mex_only": 0,
-     "value_mkd": 164950
+     "value_mkd": 84950
     },
     {
      "key": "label",
      "web": 0,
-     "count": 77,
-     "drill": "/orders?cohort_bucket=label&sale_source=altercpa,affiliate&sold_from=2026-09-01&sold_to=2026-09-27",
-     "orders": 77,
-     "cod_mkd": 236585,
-     "mex_only": 0,
-     "value_mkd": 236585
+     "count": 50,
+     "drill": "/orders?cohort_bucket=label&cohort_source=altercpa&sold_from=2026-09-01&sold_to=2026-09-27",
+     "orders": 45,
+     "cod_mkd": 160890,
+     "mex_only": 5,
+     "value_mkd": 160890
     },
     {
      "key": "to_pack",
      "web": 0,
-     "count": 276,
-     "drill": "/orders?cohort_bucket=to_pack&sale_source=altercpa,affiliate&sold_from=2026-09-01&sold_to=2026-09-27",
-     "orders": 276,
+     "count": 187,
+     "drill": "/orders?cohort_bucket=to_pack&cohort_source=altercpa&sold_from=2026-09-01&sold_to=2026-09-27",
+     "orders": 187,
      "cod_mkd": 0,
      "mex_only": 0,
-     "value_mkd": 620600
+     "value_mkd": 371930
     },
     {
      "key": "returned",
      "web": 0,
-     "count": 293,
-     "drill": "/orders?cohort_bucket=returned&sale_source=altercpa,affiliate&sold_from=2026-09-01&sold_to=2026-09-27",
-     "orders": 293,
-     "cod_mkd": 913488,
-     "mex_only": 0,
-     "value_mkd": 913488
+     "count": 335,
+     "drill": "/orders?cohort_bucket=returned&cohort_source=altercpa&sold_from=2026-09-01&sold_to=2026-09-27",
+     "orders": 302,
+     "cod_mkd": 1051367,
+     "mex_only": 33,
+     "value_mkd": 1051367
     }
    ],
    "outside": [
     {
      "key": "cancelled_after_sale",
      "web": 0,
-     "count": 412,
-     "drill": "/orders?cohort_bucket=cancelled_after_sale&sale_source=altercpa,affiliate&sold_from=2026-09-01&sold_to=2026-09-27",
-     "orders": 412,
+     "count": 426,
+     "drill": "/orders?cohort_bucket=cancelled_after_sale&cohort_source=altercpa&sold_from=2026-09-01&sold_to=2026-09-27",
+     "orders": 426,
      "mex_only": 0,
-     "value_mkd": 706120
+     "value_mkd": 731500
     },
     {
      "key": "trashed_after_sale",
      "web": 0,
      "count": 1,
-     "drill": "/orders?cohort_bucket=trashed_after_sale&sale_source=altercpa,affiliate&sold_from=2026-09-01&sold_to=2026-09-27",
+     "drill": "/orders?cohort_bucket=trashed_after_sale&cohort_source=altercpa&sold_from=2026-09-01&sold_to=2026-09-27",
      "orders": 1,
      "mex_only": 0,
      "value_mkd": 2400
@@ -2272,10 +2322,10 @@
     {
      "key": "replacement",
      "web": 0,
-     "count": 2,
-     "drill": "/orders?cohort_bucket=replacement&sale_source=altercpa,affiliate&sold_from=2026-09-01&sold_to=2026-09-27",
+     "count": 11,
+     "drill": "/orders?cohort_bucket=replacement&cohort_source=altercpa&sold_from=2026-09-01&sold_to=2026-09-27",
      "orders": 2,
-     "mex_only": 0,
+     "mex_only": 9,
      "value_mkd": 0
     }
    ]
@@ -2284,26 +2334,47 @@
    "key": "elyon_crm",
    "total": {
     "web": 0,
-    "count": 687,
-    "drill": "/orders?cohort_bucket=total&sale_source=elyon_crm&sold_from=2026-09-01&sold_to=2026-09-27",
-    "orders": 687,
-    "cod_mkd": 1604859,
-    "mex_only": 0,
-    "value_mkd": 1933781
+    "count": 2333,
+    "drill": "/orders?cohort_bucket=total&cohort_source=elyon_crm&sold_from=2026-09-01&sold_to=2026-09-27",
+    "orders": 2260,
+    "cod_mkd": 5555791,
+    "mex_only": 73,
+    "value_mkd": 5805913
    },
    "splits": [
+    {
+     "key": "collabbox_out",
+     "kind": "order",
+     "count": 1510,
+     "drill": "/orders?cohort_bucket=total&cohort_source=elyon_crm&sale_source_detail=collabbox_out&sold_from=2026-09-01&sold_to=2026-09-27",
+     "value_mkd": 3475390
+    },
     {
      "key": "prediction_list",
      "kind": "order",
      "count": 686,
-     "drill": "/orders?cohort_bucket=total&sale_source=elyon_crm&sale_source_detail=prediction_list&sold_from=2026-09-01&sold_to=2026-09-27",
-     "value_mkd": 1929281
+     "drill": "/orders?cohort_bucket=total&cohort_source=elyon_crm&sale_source_detail=prediction_list&sold_from=2026-09-01&sold_to=2026-09-27",
+     "value_mkd": 1927181
+    },
+    {
+     "key": "mex_out",
+     "kind": "mex",
+     "count": 73,
+     "drill": null,
+     "value_mkd": 222377
+    },
+    {
+     "key": "collabbox_leads_out",
+     "kind": "order",
+     "count": 63,
+     "drill": "/orders?cohort_bucket=total&cohort_source=elyon_crm&sale_source_detail=collabbox_leads_out&sold_from=2026-09-01&sold_to=2026-09-27",
+     "value_mkd": 176465
     },
     {
      "key": "direct",
      "kind": "order",
      "count": 1,
-     "drill": "/orders?cohort_bucket=total&sale_source=elyon_crm&sale_source_detail=direct&sold_from=2026-09-01&sold_to=2026-09-27",
+     "drill": "/orders?cohort_bucket=total&cohort_source=elyon_crm&sale_source_detail=direct&sold_from=2026-09-01&sold_to=2026-09-27",
      "value_mkd": 4500
     }
    ],
@@ -2311,12 +2382,12 @@
     {
      "key": "paid",
      "web": 0,
-     "count": 448,
-     "drill": "/orders?cohort_bucket=paid&sale_source=elyon_crm&sold_from=2026-09-01&sold_to=2026-09-27",
-     "orders": 448,
-     "cod_mkd": 1249939,
-     "mex_only": 0,
-     "value_mkd": 1249939
+     "count": 1772,
+     "drill": "/orders?cohort_bucket=paid&cohort_source=elyon_crm&sold_from=2026-09-01&sold_to=2026-09-27",
+     "orders": 1713,
+     "cod_mkd": 4379386,
+     "mex_only": 59,
+     "value_mkd": 4379386
     },
     {
      "key": "paid_unproven",
@@ -2341,52 +2412,52 @@
     {
      "key": "courier",
      "web": 0,
-     "count": 14,
-     "drill": "/orders?cohort_bucket=courier&sale_source=elyon_crm&sold_from=2026-09-01&sold_to=2026-09-27",
-     "orders": 14,
-     "cod_mkd": 42000,
-     "mex_only": 0,
-     "value_mkd": 42000
+     "count": 193,
+     "drill": "/orders?cohort_bucket=courier&cohort_source=elyon_crm&sold_from=2026-09-01&sold_to=2026-09-27",
+     "orders": 190,
+     "cod_mkd": 462460,
+     "mex_only": 3,
+     "value_mkd": 467160
     },
     {
      "key": "courier_problem",
      "web": 0,
-     "count": 22,
-     "drill": "/orders?cohort_bucket=courier_problem&sale_source=elyon_crm&sold_from=2026-09-01&sold_to=2026-09-27",
-     "orders": 22,
-     "cod_mkd": 59050,
-     "mex_only": 0,
-     "value_mkd": 59050
+     "count": 29,
+     "drill": "/orders?cohort_bucket=courier_problem&cohort_source=elyon_crm&sold_from=2026-09-01&sold_to=2026-09-27",
+     "orders": 28,
+     "cod_mkd": 74900,
+     "mex_only": 1,
+     "value_mkd": 74900
     },
     {
      "key": "label",
      "web": 0,
-     "count": 23,
-     "drill": "/orders?cohort_bucket=label&sale_source=elyon_crm&sold_from=2026-09-01&sold_to=2026-09-27",
-     "orders": 23,
-     "cod_mkd": 66400,
+     "count": 57,
+     "drill": "/orders?cohort_bucket=label&cohort_source=elyon_crm&sold_from=2026-09-01&sold_to=2026-09-27",
+     "orders": 57,
+     "cod_mkd": 127550,
      "mex_only": 0,
-     "value_mkd": 66400
+     "value_mkd": 127550
     },
     {
      "key": "to_pack",
      "web": 0,
-     "count": 113,
-     "drill": "/orders?cohort_bucket=to_pack&sale_source=elyon_crm&sold_from=2026-09-01&sold_to=2026-09-27",
-     "orders": 113,
+     "count": 83,
+     "drill": "/orders?cohort_bucket=to_pack&cohort_source=elyon_crm&sold_from=2026-09-01&sold_to=2026-09-27",
+     "orders": 83,
      "cod_mkd": 0,
      "mex_only": 0,
-     "value_mkd": 326922
+     "value_mkd": 245422
     },
     {
      "key": "returned",
      "web": 0,
-     "count": 67,
-     "drill": "/orders?cohort_bucket=returned&sale_source=elyon_crm&sold_from=2026-09-01&sold_to=2026-09-27",
-     "orders": 67,
-     "cod_mkd": 187470,
-     "mex_only": 0,
-     "value_mkd": 189470
+     "count": 199,
+     "drill": "/orders?cohort_bucket=returned&cohort_source=elyon_crm&sold_from=2026-09-01&sold_to=2026-09-27",
+     "orders": 189,
+     "cod_mkd": 511495,
+     "mex_only": 10,
+     "value_mkd": 511495
     }
    ],
    "outside": [
@@ -2394,7 +2465,7 @@
      "key": "cancelled_after_sale",
      "web": 0,
      "count": 2,
-     "drill": "/orders?cohort_bucket=cancelled_after_sale&sale_source=elyon_crm&sold_from=2026-09-01&sold_to=2026-09-27",
+     "drill": "/orders?cohort_bucket=cancelled_after_sale&cohort_source=elyon_crm&sold_from=2026-09-01&sold_to=2026-09-27",
      "orders": 2,
      "mex_only": 0,
      "value_mkd": 5500
@@ -2411,10 +2482,288 @@
     {
      "key": "replacement",
      "web": 0,
+     "count": 12,
+     "drill": null,
+     "orders": 0,
+     "mex_only": 12,
+     "value_mkd": 0
+    }
+   ]
+  },
+  {
+   "key": "teleshop_other",
+   "total": {
+    "web": 0,
+    "count": 2022,
+    "drill": "/orders?cohort_bucket=total&cohort_source=teleshop_other&sold_from=2026-09-01&sold_to=2026-09-27",
+    "orders": 2020,
+    "cod_mkd": 4296936,
+    "mex_only": 2,
+    "value_mkd": 4304936
+   },
+   "splits": [
+    {
+     "key": "teleshop",
+     "kind": "order",
+     "count": 2020,
+     "drill": "/orders?cohort_bucket=total&cohort_source=teleshop_other&sale_source_detail=teleshop&sold_from=2026-09-01&sold_to=2026-09-27",
+     "value_mkd": 4300936
+    },
+    {
+     "key": "mex_in",
+     "kind": "mex",
+     "count": 2,
+     "drill": null,
+     "value_mkd": 4000
+    }
+   ],
+   "buckets": [
+    {
+     "key": "paid",
+     "web": 0,
+     "count": 1652,
+     "drill": "/orders?cohort_bucket=paid&cohort_source=teleshop_other&sold_from=2026-09-01&sold_to=2026-09-27",
+     "orders": 1651,
+     "cod_mkd": 3503576,
+     "mex_only": 1,
+     "value_mkd": 3503576
+    },
+    {
+     "key": "paid_unproven",
+     "web": 0,
+     "count": 0,
+     "drill": null,
+     "orders": 0,
+     "cod_mkd": 0,
+     "mex_only": 0,
+     "value_mkd": 0
+    },
+    {
+     "key": "paid_legacy",
+     "web": 0,
+     "count": 0,
+     "drill": null,
+     "orders": 0,
+     "cod_mkd": 0,
+     "mex_only": 0,
+     "value_mkd": 0
+    },
+    {
+     "key": "courier",
+     "web": 0,
+     "count": 127,
+     "drill": "/orders?cohort_bucket=courier&cohort_source=teleshop_other&sold_from=2026-09-01&sold_to=2026-09-27",
+     "orders": 127,
+     "cod_mkd": 287400,
+     "mex_only": 0,
+     "value_mkd": 289400
+    },
+    {
+     "key": "courier_problem",
+     "web": 0,
+     "count": 15,
+     "drill": "/orders?cohort_bucket=courier_problem&cohort_source=teleshop_other&sold_from=2026-09-01&sold_to=2026-09-27",
+     "orders": 15,
+     "cod_mkd": 29600,
+     "mex_only": 0,
+     "value_mkd": 29600
+    },
+    {
+     "key": "label",
+     "web": 0,
+     "count": 56,
+     "drill": "/orders?cohort_bucket=label&cohort_source=teleshop_other&sold_from=2026-09-01&sold_to=2026-09-27",
+     "orders": 56,
+     "cod_mkd": 130690,
+     "mex_only": 0,
+     "value_mkd": 130690
+    },
+    {
+     "key": "to_pack",
+     "web": 0,
+     "count": 3,
+     "drill": "/orders?cohort_bucket=to_pack&cohort_source=teleshop_other&sold_from=2026-09-01&sold_to=2026-09-27",
+     "orders": 3,
+     "cod_mkd": 0,
+     "mex_only": 0,
+     "value_mkd": 6000
+    },
+    {
+     "key": "returned",
+     "web": 0,
+     "count": 169,
+     "drill": "/orders?cohort_bucket=returned&cohort_source=teleshop_other&sold_from=2026-09-01&sold_to=2026-09-27",
+     "orders": 168,
+     "cod_mkd": 345670,
+     "mex_only": 1,
+     "value_mkd": 345670
+    }
+   ],
+   "outside": [
+    {
+     "key": "cancelled_after_sale",
+     "web": 0,
      "count": 0,
      "drill": null,
      "orders": 0,
      "mex_only": 0,
+     "value_mkd": 0
+    },
+    {
+     "key": "trashed_after_sale",
+     "web": 0,
+     "count": 0,
+     "drill": null,
+     "orders": 0,
+     "mex_only": 0,
+     "value_mkd": 0
+    },
+    {
+     "key": "replacement",
+     "web": 0,
+     "count": 60,
+     "drill": "/orders?cohort_bucket=replacement&cohort_source=teleshop_other&sold_from=2026-09-01&sold_to=2026-09-27",
+     "orders": 39,
+     "mex_only": 21,
+     "value_mkd": 0
+    }
+   ]
+  },
+  {
+   "key": "social",
+   "total": {
+    "web": 0,
+    "count": 205,
+    "drill": "/orders?cohort_bucket=total&cohort_source=social&sold_from=2026-09-01&sold_to=2026-09-27",
+    "orders": 146,
+    "cod_mkd": 383460,
+    "mex_only": 59,
+    "value_mkd": 385460
+   },
+   "splits": [
+    {
+     "key": "social",
+     "kind": "order",
+     "count": 146,
+     "drill": "/orders?cohort_bucket=total&cohort_source=social&sale_source_detail=social&sold_from=2026-09-01&sold_to=2026-09-27",
+     "value_mkd": 272860
+    },
+    {
+     "key": "mex_social",
+     "kind": "mex",
+     "count": 59,
+     "drill": null,
+     "value_mkd": 112600
+    }
+   ],
+   "buckets": [
+    {
+     "key": "paid",
+     "web": 0,
+     "count": 184,
+     "drill": "/orders?cohort_bucket=paid&cohort_source=social&sold_from=2026-09-01&sold_to=2026-09-27",
+     "orders": 135,
+     "cod_mkd": 348360,
+     "mex_only": 49,
+     "value_mkd": 348360
+    },
+    {
+     "key": "paid_unproven",
+     "web": 0,
+     "count": 0,
+     "drill": null,
+     "orders": 0,
+     "cod_mkd": 0,
+     "mex_only": 0,
+     "value_mkd": 0
+    },
+    {
+     "key": "paid_legacy",
+     "web": 0,
+     "count": 0,
+     "drill": null,
+     "orders": 0,
+     "cod_mkd": 0,
+     "mex_only": 0,
+     "value_mkd": 0
+    },
+    {
+     "key": "courier",
+     "web": 0,
+     "count": 4,
+     "drill": null,
+     "orders": 0,
+     "cod_mkd": 8300,
+     "mex_only": 4,
+     "value_mkd": 8300
+    },
+    {
+     "key": "courier_problem",
+     "web": 0,
+     "count": 1,
+     "drill": null,
+     "orders": 0,
+     "cod_mkd": 2000,
+     "mex_only": 1,
+     "value_mkd": 2000
+    },
+    {
+     "key": "label",
+     "web": 0,
+     "count": 2,
+     "drill": null,
+     "orders": 0,
+     "cod_mkd": 4500,
+     "mex_only": 2,
+     "value_mkd": 4500
+    },
+    {
+     "key": "to_pack",
+     "web": 0,
+     "count": 1,
+     "drill": "/orders?cohort_bucket=to_pack&cohort_source=social&sold_from=2026-09-01&sold_to=2026-09-27",
+     "orders": 1,
+     "cod_mkd": 0,
+     "mex_only": 0,
+     "value_mkd": 2000
+    },
+    {
+     "key": "returned",
+     "web": 0,
+     "count": 13,
+     "drill": "/orders?cohort_bucket=returned&cohort_source=social&sold_from=2026-09-01&sold_to=2026-09-27",
+     "orders": 10,
+     "cod_mkd": 20300,
+     "mex_only": 3,
+     "value_mkd": 20300
+    }
+   ],
+   "outside": [
+    {
+     "key": "cancelled_after_sale",
+     "web": 0,
+     "count": 0,
+     "drill": null,
+     "orders": 0,
+     "mex_only": 0,
+     "value_mkd": 0
+    },
+    {
+     "key": "trashed_after_sale",
+     "web": 0,
+     "count": 0,
+     "drill": null,
+     "orders": 0,
+     "mex_only": 0,
+     "value_mkd": 0
+    },
+    {
+     "key": "replacement",
+     "web": 0,
+     "count": 2,
+     "drill": "/orders?cohort_bucket=replacement&cohort_source=social&sold_from=2026-09-01&sold_to=2026-09-27",
+     "orders": 1,
+     "mex_only": 1,
      "value_mkd": 0
     }
    ]
@@ -2422,21 +2771,21 @@
   {
    "key": "web",
    "total": {
-    "web": 364,
-    "count": 364,
+    "web": 411,
+    "count": 435,
     "drill": null,
     "orders": 0,
-    "cod_mkd": 632730,
-    "mex_only": 0,
-    "value_mkd": 768476
+    "cod_mkd": 777312,
+    "mex_only": 24,
+    "value_mkd": 913058
    },
    "splits": [
     {
      "key": "cod",
      "kind": "web",
-     "count": 299,
+     "count": 346,
      "drill": null,
-     "value_mkd": 618860
+     "value_mkd": 720371
     },
     {
      "key": "card",
@@ -2444,18 +2793,25 @@
      "count": 65,
      "drill": null,
      "value_mkd": 149616
+    },
+    {
+     "key": "mex_web",
+     "kind": "mex",
+     "count": 24,
+     "drill": null,
+     "value_mkd": 43071
     }
    ],
    "buckets": [
     {
      "key": "paid",
-     "web": 283,
-     "count": 283,
+     "web": 287,
+     "count": 310,
      "drill": null,
      "orders": 0,
-     "cod_mkd": 484593,
-     "mex_only": 0,
-     "value_mkd": 584424
+     "cod_mkd": 530824,
+     "mex_only": 23,
+     "value_mkd": 632655
     },
     {
      "key": "paid_unproven",
@@ -2479,53 +2835,53 @@
     },
     {
      "key": "courier",
-     "web": 3,
-     "count": 3,
+     "web": 85,
+     "count": 85,
      "drill": null,
      "orders": 0,
-     "cod_mkd": 7980,
+     "cod_mkd": 157556,
      "mex_only": 0,
-     "value_mkd": 7980
+     "value_mkd": 189721
     },
     {
      "key": "courier_problem",
-     "web": 10,
-     "count": 10,
+     "web": 2,
+     "count": 2,
      "drill": null,
      "orders": 0,
-     "cod_mkd": 22280,
+     "cod_mkd": 10370,
      "mex_only": 0,
-     "value_mkd": 24280
+     "value_mkd": 10370
     },
     {
      "key": "label",
-     "web": 39,
-     "count": 39,
+     "web": 12,
+     "count": 13,
      "drill": null,
      "orders": 0,
-     "cod_mkd": 73085,
-     "mex_only": 0,
-     "value_mkd": 89355
+     "cod_mkd": 24790,
+     "mex_only": 1,
+     "value_mkd": 24790
     },
     {
      "key": "to_pack",
-     "web": 7,
-     "count": 7,
+     "web": 0,
+     "count": 0,
      "drill": null,
      "orders": 0,
      "cod_mkd": 0,
      "mex_only": 0,
-     "value_mkd": 15895
+     "value_mkd": 0
     },
     {
      "key": "returned",
-     "web": 21,
-     "count": 21,
+     "web": 24,
+     "count": 24,
      "drill": null,
      "orders": 0,
-     "cod_mkd": 44792,
+     "cod_mkd": 53772,
      "mex_only": 0,
-     "value_mkd": 44792
+     "value_mkd": 53772
     }
    ],
    "outside": [
@@ -2550,177 +2906,10 @@
     {
      "key": "replacement",
      "web": 1,
-     "count": 1,
+     "count": 39,
      "drill": null,
      "orders": 0,
-     "mex_only": 0,
-     "value_mkd": 0
-    }
-   ]
-  },
-  {
-   "key": "teleshop_other",
-   "total": {
-    "web": 0,
-    "count": 4042,
-    "drill": "/orders?cohort_bucket=total&sale_source=collabbox,legacy&sold_from=2026-09-01&sold_to=2026-09-27",
-    "orders": 2604,
-    "cod_mkd": 9070667,
-    "mex_only": 1438,
-    "value_mkd": 9087367
-   },
-   "splits": [
-    {
-     "key": "teleshop",
-     "kind": "order",
-     "count": 2458,
-     "drill": "/orders?cohort_bucket=total&sale_source=collabbox,legacy&sale_source_detail=teleshop&sold_from=2026-09-01&sold_to=2026-09-27",
-     "value_mkd": 5378906
-    },
-    {
-     "key": "mex_teleshop",
-     "kind": "mex",
-     "count": 1060,
-     "drill": null,
-     "value_mkd": 2370100
-    },
-    {
-     "key": "elyon_unlinked",
-     "kind": "mex",
-     "count": 295,
-     "drill": null,
-     "value_mkd": 909830
-    },
-    {
-     "key": "social",
-     "kind": "order",
-     "count": 146,
-     "drill": "/orders?cohort_bucket=total&sale_source=collabbox,legacy&sale_source_detail=social&sold_from=2026-09-01&sold_to=2026-09-27",
-     "value_mkd": 272860
-    },
-    {
-     "key": "mex_social",
-     "kind": "mex",
-     "count": 59,
-     "drill": null,
-     "value_mkd": 112600
-    },
-    {
-     "key": "mex_other",
-     "kind": "mex",
-     "count": 24,
-     "drill": null,
-     "value_mkd": 43071
-    }
-   ],
-   "buckets": [
-    {
-     "key": "paid",
-     "web": 0,
-     "count": 3414,
-     "drill": "/orders?cohort_bucket=paid&sale_source=collabbox,legacy&sold_from=2026-09-01&sold_to=2026-09-27",
-     "orders": 2327,
-     "cod_mkd": 7619314,
-     "mex_only": 1087,
-     "value_mkd": 7619314
-    },
-    {
-     "key": "paid_unproven",
-     "web": 0,
-     "count": 0,
-     "drill": null,
-     "orders": 0,
-     "cod_mkd": 0,
-     "mex_only": 0,
-     "value_mkd": 0
-    },
-    {
-     "key": "paid_legacy",
-     "web": 0,
-     "count": 0,
-     "drill": null,
-     "orders": 0,
-     "cod_mkd": 0,
-     "mex_only": 0,
-     "value_mkd": 0
-    },
-    {
-     "key": "courier",
-     "web": 0,
-     "count": 83,
-     "drill": "/orders?cohort_bucket=courier&sale_source=collabbox,legacy&sold_from=2026-09-01&sold_to=2026-09-27",
-     "orders": 5,
-     "cod_mkd": 185590,
-     "mex_only": 78,
-     "value_mkd": 192290
-    },
-    {
-     "key": "courier_problem",
-     "web": 0,
-     "count": 80,
-     "drill": "/orders?cohort_bucket=courier_problem&sale_source=collabbox,legacy&sold_from=2026-09-01&sold_to=2026-09-27",
-     "orders": 7,
-     "cod_mkd": 180514,
-     "mex_only": 73,
-     "value_mkd": 180514
-    },
-    {
-     "key": "label",
-     "web": 0,
-     "count": 111,
-     "drill": "/orders?cohort_bucket=label&sale_source=collabbox,legacy&sold_from=2026-09-01&sold_to=2026-09-27",
-     "orders": 33,
-     "cod_mkd": 264440,
-     "mex_only": 78,
-     "value_mkd": 264440
-    },
-    {
-     "key": "to_pack",
-     "web": 0,
-     "count": 5,
-     "drill": "/orders?cohort_bucket=to_pack&sale_source=collabbox,legacy&sold_from=2026-09-01&sold_to=2026-09-27",
-     "orders": 5,
-     "cod_mkd": 0,
-     "mex_only": 0,
-     "value_mkd": 10000
-    },
-    {
-     "key": "returned",
-     "web": 0,
-     "count": 349,
-     "drill": "/orders?cohort_bucket=returned&sale_source=collabbox,legacy&sold_from=2026-09-01&sold_to=2026-09-27",
-     "orders": 227,
-     "cod_mkd": 820809,
-     "mex_only": 122,
-     "value_mkd": 820809
-    }
-   ],
-   "outside": [
-    {
-     "key": "cancelled_after_sale",
-     "web": 0,
-     "count": 0,
-     "drill": null,
-     "orders": 0,
-     "mex_only": 0,
-     "value_mkd": 0
-    },
-    {
-     "key": "trashed_after_sale",
-     "web": 0,
-     "count": 0,
-     "drill": null,
-     "orders": 0,
-     "mex_only": 0,
-     "value_mkd": 0
-    },
-    {
-     "key": "replacement",
-     "web": 0,
-     "count": 121,
-     "drill": "/orders?cohort_bucket=replacement&sale_source=collabbox,legacy&sold_from=2026-09-01&sold_to=2026-09-27",
-     "orders": 40,
-     "mex_only": 81,
+     "mex_only": 38,
      "value_mkd": 0
     }
    ]

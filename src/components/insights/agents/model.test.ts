@@ -9,7 +9,7 @@ import {
 const data = sample as unknown as PeopleResponse;
 const range = { from: '2026-09-22', to: '2026-09-28' };
 const BUCKETS = ['paid', 'paid_legacy', 'paid_unproven', 'courier', 'courier_problem', 'label', 'to_pack', 'returned'] as const;
-const SOURCES = ['altercpa', 'elyon_crm', 'teleshop_other', 'web'] as const;
+const SOURCES = ['altercpa', 'elyon_crm', 'teleshop_other', 'social', 'web'] as const;
 
 describe('the payload adds up (live-shaped fixture, 22–28.09.2026)', () => {
   it('every person: buckets and sources each sum to their sales', () => {
@@ -81,6 +81,7 @@ describe('links', () => {
     expect(teamHref({ key: 'crm_prediction', kind: 'team', drill_exact: true }, 'total', range)).toContain('team_key=crm_prediction');
     expect(teamHref({ key: 'crm_prediction', kind: 'team', drill_exact: false }, 'total', range)).toBeNull();
     expect(teamHref({ key: 'teleshop', kind: 'teleshop', drill_exact: true }, 'total', range)).toBeNull();
+    expect(teamHref({ key: 'social', kind: 'social', drill_exact: true }, 'total', range)).toBeNull();
   });
   it('a member row links to the person only when it is their whole period', () => {
     const t = data.teams!.find((x) => x.members.length > 0)!;
@@ -118,6 +119,12 @@ describe('sorting and filtering', () => {
     const keys = sortTeams(data.teams!).map((t) => t.key);
     expect(keys[0]).toBe('altercpa_leads');
     expect(keys[keys.length - 1]).toBe('none');
+    // the pseudo-groups: Teleshop (Lead in) before Social media (the source order), both before management
+    const g = sortTeams([
+      { ...data.teams![0], key: 'management' }, { ...data.teams![0], key: 'teleshop' },
+      { ...data.teams![0], key: 'social' }, { ...data.teams![0], key: 'crm_prediction' },
+    ]).map((t) => t.key);
+    expect(g).toEqual(['crm_prediction', 'teleshop', 'social', 'management']);
   });
 });
 
@@ -137,7 +144,7 @@ describe('leaderboards', () => {
 describe('no seller + CSV', () => {
   it('groups by source in the fixed order', () => {
     const g = noSellerBySource(data.no_seller!.reasons);
-    expect(g.map((x) => x.source)).toEqual(['altercpa', 'web', 'teleshop_other']);
+    expect(g.map((x) => x.source)).toEqual(['altercpa', 'teleshop_other', 'social', 'web']);
     expect(g.reduce((a, x) => a + x.count, 0)).toBe(data.no_seller!.count);
   });
   it('money columns only with money; cells quoted when needed', () => {

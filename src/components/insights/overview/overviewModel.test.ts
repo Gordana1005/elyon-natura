@@ -65,8 +65,11 @@ describe('drill-down links: bucket → /orders', () => {
   it('a bucket opens exactly that source, outcome and created window', () => {
     expect(ordersHref(sourceDrill(byKey('altercpa'), range, { outcome: 'delivered' })))
       .toBe('/orders?sale_source=altercpa%2Caffiliate&outcome=delivered&created_from=2026-09-22&created_to=2026-09-28');
+    // collabBox is two sources: the row's cohort_source tells Lead in from Social media
     expect(ordersHref(sourceDrill(byKey('teleshop_other'), range, { outcome: 'courier' })))
-      .toBe('/orders?sale_source=collabbox%2Clegacy&outcome=courier&created_from=2026-09-22&created_to=2026-09-28');
+      .toBe('/orders?sale_source=collabbox%2Clegacy&outcome=courier&created_from=2026-09-22&created_to=2026-09-28&cohort_source=teleshop_other');
+    expect(ordersHref(sourceDrill(byKey('social'), range, { outcome: 'delivered' })))
+      .toBe('/orders?sale_source=collabbox&outcome=delivered&created_from=2026-09-22&created_to=2026-09-28&cohort_source=social');
     // the shop panel's "being prepared" = to pack + packed
     expect(ordersHref(sourceDrill(byKey('elyon_crm'), range, { outcome: OUTCOME.preparingAll })))
       .toBe('/orders?sale_source=elyon_crm&outcome=preparing%2Cpacked&created_from=2026-09-22&created_to=2026-09-28');
@@ -83,7 +86,9 @@ describe('drill-down links: bucket → /orders', () => {
     expect(ordersHref(splitDrill(elyon, elyon.splits.find((x) => x.key === 'prediction_list')!, range)))
       .toBe('/orders?sale_source=elyon_crm&sale_source_detail=prediction_list&created_from=2026-09-22&created_to=2026-09-28');
     const tele = byKey('teleshop_other');
-    expect(ordersHref(splitDrill(tele, tele.splits.find((x) => x.key === 'social')!, range)))
+    const soc = byKey('social');
+    expect(tele.splits.find((x) => x.key === 'social')).toBeUndefined();   // Social media is a row of its own
+    expect(ordersHref(splitDrill(soc, soc.splits.find((x) => x.key === 'social')!, range)))
       .toBe('/orders?sale_source=collabbox&sale_source_detail=social&created_from=2026-09-22&created_to=2026-09-28');
     expect(splitDrill(byKey('altercpa'), byKey('altercpa').splits[0], range)).toBeNull();            // new vs returning
     expect(splitDrill(tele, tele.splits.find((x) => x.key === 'mex_only_unlinked')!, range)).toBeNull(); // parcels, no order
@@ -145,10 +150,13 @@ describe('numbers', () => {
     const noPlaced = { ...a, placed: null };
     expect(placedOf(noPlaced)).toEqual({ count: 1262, value_eur: expect.closeTo(51488.87, 2) }); // Σ buckets
     expect(preparingOf(a)).toEqual({ count: 173, value_eur: expect.closeTo(7066.05, 2), packed: 64, toPack: 109 });
-    const tele = fixture().sources[3];
-    expect(tele.buckets.mex_only?.count).toBe(86);
-    expect(placedOf(tele).count).toBe(598);
-    expect(placedOf({ ...tele, placed: null }).count).toBe(598);
+    const tele = fixture().sources.find((s) => s.key === 'teleshop_other')!;
+    expect(tele.buckets.mex_only?.count).toBe(66);
+    expect(placedOf(tele).count).toBe(480);
+    expect(placedOf({ ...tele, placed: null }).count).toBe(480);
+    const soc = fixture().sources.find((s) => s.key === 'social')!;
+    expect(soc.buckets.mex_only?.count).toBe(20);
+    expect(placedOf({ ...soc, placed: null }).count).toBe(118);
   });
   it('Σ sources = the KPI tiles, each on its own clock (C1)', () => {
     const d = fixture();
@@ -168,7 +176,8 @@ describe('numbers', () => {
     expect(derived.lost.count).toBeNull();                 // not split by source
     expect(derived.unproven_paid.count).toBe(d.kpis.unproven_paid.count);
     expect(derived.unproven_paid.cod_mkd).toBe(d.kpis.unproven_paid.cod_mkd);
-    const cash = seriesFromTrend(d.trend.points, ['altercpa', 'elyon_crm', 'web', 'teleshop_other'], 'delivered_cash_mkd');
+    expect(d.sources.map((s) => s.key)).toEqual(['altercpa', 'elyon_crm', 'teleshop_other', 'social', 'web']);
+    const cash = seriesFromTrend(d.trend.points, ['altercpa', 'elyon_crm', 'teleshop_other', 'social', 'web'], 'delivered_cash_mkd');
     expect(cash.reduce((a, p) => a + p.v, 0)).toBe(d.kpis.delivered.cod_mkd);
     expect(cash.map((p) => p.v)).toEqual(d.kpis.spark!.delivered_cash_mkd!.map((p) => p.v));
   });

@@ -97,6 +97,7 @@ export function PeopleTable({ people, teams, range, money, filter, onFilter, onP
       { header: f.sourceLabel('altercpa'), get: (p) => p.by_source.altercpa },
       { header: f.sourceLabel('elyon_crm'), get: (p) => p.by_source.elyon_crm },
       { header: f.sourceLabel('teleshop_other'), get: (p) => p.by_source.teleshop_other },
+      { header: f.sourceLabel('social'), get: (p) => p.by_source.social ?? 0 },
       { header: f.bucketLabel('paid'), get: (p) => p.buckets.paid },
       { header: f.bucketLabel('paid_legacy'), get: (p) => p.buckets.paid_legacy },
       { header: f.bucketLabel('paid_unproven'), get: (p) => p.buckets.paid_unproven },

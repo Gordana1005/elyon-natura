@@ -11,7 +11,7 @@ import { CohortBar } from '../shared/CohortBar';
 import { cohortWhy } from '../shared/CohortLinks';
 import { ClockCaption } from '../shared/ClockCaption';
 import { COHORT_TONE, OUTSIDE_TONE, STATUS_TEXT } from '../shared/cohortPalette';
-import { ordersSupportsCohortDrill, type CohortDrill, type DrillKey } from '../shared/cohortModel';
+import { isMexOnlySplit, ordersSupportsCohortDrill, type CohortDrill, type DrillKey } from '../shared/cohortModel';
 import type { CohortBucket, CohortBucketKey, CohortOutsideKey } from '../shared/cohortTypes';
 import type { DayRange } from '../shared/period';
 import type { InsightsFormat } from '../shared/useInsightsFormat';
@@ -64,6 +64,9 @@ export function ListsTable({ data, rows, range, money, f }: {
   const tieCount = allLists.count + nr.count === data.total.count;
   const tieValue = !money || (allLists.value_mkd ?? 0) + (nr.value_mkd ?? 0) === (data.total.value_mkd ?? 0);
   const otherSplits = data.elyon_crm.splits.filter((s) => s.key !== 'prediction_list' && s.count > 0);
+  // Lead out (elyon_crm) also holds its series' parcels with no order (9102 / 9103, owner 28.09):
+  // they are in no /orders list, so neither they nor a total that includes them link
+  const elyonMexOnly = otherSplits.some((s) => isMexOnlySplit(s.key));
 
   const cols = money ? 13 : 11;
 
@@ -214,7 +217,7 @@ export function ListsTable({ data, rows, range, money, f }: {
                 <td />
                 <td />
                 <td className="px-3 py-2 text-right tabular-nums">
-                  <DrillLink href={supported && /^[a-z0-9_.-]{1,40}$/i.test(s.key) && s.key !== 'none'
+                  <DrillLink href={supported && /^[a-z0-9_.-]{1,40}$/i.test(s.key) && s.key !== 'none' && !isMexOnlySplit(s.key)
                     ? `/orders?cohort_bucket=total&sale_source=elyon_crm&sale_source_detail=${s.key}&sold_from=${range.from}&sold_to=${range.to}` : null}>
                     {f.int(s.count)}
                   </DrillLink>
@@ -229,7 +232,7 @@ export function ListsTable({ data, rows, range, money, f }: {
               <td />
               <td />
               <td className="px-3 py-2 text-right tabular-nums">
-                <DrillLink href={supported && data.elyon_crm.count > 0 ? `/orders?cohort_bucket=total&sale_source=elyon_crm&sold_from=${range.from}&sold_to=${range.to}` : null}>
+                <DrillLink href={supported && data.elyon_crm.count > 0 && !elyonMexOnly ? `/orders?cohort_bucket=total&sale_source=elyon_crm&sold_from=${range.from}&sold_to=${range.to}` : null}>
                   {f.int(data.elyon_crm.count)}
                 </DrillLink>
               </td>

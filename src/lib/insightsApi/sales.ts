@@ -4,7 +4,7 @@
  * supabase/functions/api/insightsSales.ts).
  *
  * THE sale cohort (insights_sale_rows) as "what did we sell": sale day
- * (Skopje), four sources, MEX-first buckets that add up exactly to the total.
+ * (Skopje), five sources, MEX-first buckets that add up exactly to the total.
  * Values are денари (`*_mkd`: parcel COD, else price × 61,5, web = the shop
  * total) — render them with formatDenari, never convert again.
  *

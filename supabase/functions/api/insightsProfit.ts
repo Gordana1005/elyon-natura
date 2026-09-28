@@ -43,7 +43,10 @@ export const VAT_CONFIRMED = true;
  *  amount (cost price, bonus, rate card) in денари, never to re-price. */
 export const MKD_PER_EUR = 61.5;
 
-export const PROFIT_SOURCES = ["altercpa", "elyon_crm", "web", "teleshop_other"] as const;
+/** The five sources in the owner's display order (28.09.2026 — migration
+ *  20260942000500, which also bumps insights_profit_cache_version so no cached month
+ *  built with four sources is merged). */
+export const PROFIT_SOURCES = ["altercpa", "elyon_crm", "teleshop_other", "social", "web"] as const;
 export type ProfitSource = (typeof PROFIT_SOURCES)[number];
 
 /** The previous-period comparison runs only up to this many days: it is a

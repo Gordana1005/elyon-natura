@@ -100,7 +100,13 @@ export function sourceDrill(
   const ss = src.drill?.sale_source ?? [];
   // web_block: the row's numbers come from the shop mirror, which is not `orders`.
   if (!ss.length || src.web_block === true) return null;
-  return { sale_source: ss.join(','), created_from: range.from, created_to: range.to, ...extra };
+  // collabBox is two sources (Social media, Teleshop – Lead in): the api then also sends the
+  // cohort_source that tells them apart (GET /orders ANDs the two).
+  const cs = src.drill?.cohort_source ?? [];
+  return {
+    sale_source: ss.join(','), ...(cs.length ? { cohort_source: cs.join(',') } : {}),
+    created_from: range.from, created_to: range.to, ...extra,
+  };
 }
 
 /**
@@ -117,6 +123,7 @@ export function splitDrill(src: OverviewSource, split: OverviewSplit | string, r
     return {
       sale_source: d.sale_source.join(','),
       ...((d.detail ?? []).length ? { sale_source_detail: d.detail!.join(',') } : {}),
+      ...((d.cohort_source ?? []).length ? { cohort_source: d.cohort_source!.join(',') } : {}),
       created_from: range.from, created_to: range.to,
     };
   }

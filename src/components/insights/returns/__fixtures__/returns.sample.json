@@ -2,79 +2,79 @@
  "now": {
   "oldest": "2026-07-13",
   "rejected": {
-   "count": 32,
-   "value_mkd": 89539
+   "count": 31,
+   "value_mkd": 77040
   },
   "attempted": {
-   "count": 56,
-   "value_mkd": 150870
+   "count": 46,
+   "value_mkd": 126710
   },
   "problematic": {
-   "count": 1,
-   "value_mkd": 3000
+   "count": 5,
+   "value_mkd": 13000
   }
  },
  "kpis": {
   "base": {
    "web": 411,
-   "count": 7263,
-   "orders": 5414,
-   "mex_only": 1438,
-   "value_mkd": 18182432
+   "count": 7254,
+   "orders": 6579,
+   "mex_only": 264,
+   "value_mkd": 18171088
   },
   "open": {
-   "count": 931,
-   "share": 0.1282,
-   "value_mkd": 2363637
+   "count": 1148,
+   "share": 0.1583,
+   "value_mkd": 2880503
   },
   "paid": {
-   "count": 5536,
-   "value_mkd": 13681641
+   "count": 5366,
+   "value_mkd": 13307981
   },
   "prev": {
-   "base": 7564,
-   "rate": 0.1441,
-   "returned": 1090,
-   "value_mkd": 2844120
+   "base": 7438,
+   "rate": 0.1428,
+   "returned": 1062,
+   "value_mkd": 2767840
   },
-  "rate": 0.1096,
+  "rate": 0.102,
   "problem": {
    "web": 2,
-   "count": 81,
-   "orders": 41,
-   "mex_only": 38,
-   "rejected": 29,
-   "attempted": 51,
-   "value_mkd": 228479,
-   "problematic": 1
+   "count": 74,
+   "orders": 70,
+   "mex_only": 2,
+   "rejected": 28,
+   "attempted": 42,
+   "value_mkd": 201820,
+   "problematic": 4
   },
   "returned": {
    "web": 24,
-   "count": 796,
-   "orders": 623,
-   "cod_mkd": 2135154,
-   "parcels": 795,
-   "mex_only": 149,
-   "value_mkd": 2137154
+   "count": 740,
+   "orders": 669,
+   "cod_mkd": 1982604,
+   "parcels": 740,
+   "mex_only": 47,
+   "value_mkd": 1982604
   },
   "round_trip": {
-   "parcels": 795,
+   "parcels": 740,
    "loss_mkd": 0,
    "return_cost_mkd": 0,
    "deliver_cost_mkd": 150,
-   "outbound_if_billed_mkd": 119250
+   "outbound_if_billed_mkd": 111000
   },
   "crm_only_returned": {
-   "count": 1,
-   "value_mkd": 2000
+   "count": 0,
+   "value_mkd": 0
   },
   "trashed_after_sale": {
    "count": 1,
    "value_mkd": 2400
   },
   "cancelled_after_sale": {
-   "count": 414,
-   "value_mkd": 711620
+   "count": 428,
+   "value_mkd": 737000
   }
  },
  "meta": {
@@ -83,8 +83,9 @@
   "sources": [
    "altercpa",
    "elyon_crm",
-   "web",
-   "teleshop_other"
+   "teleshop_other",
+   "social",
+   "web"
   ],
   "granularity": "day",
   "from": "2026-09-01",
@@ -100,190 +101,190 @@
  "trend": [
   {
    "d": "2026-09-01",
-   "base": 579,
-   "open": 4,
-   "returned": 69,
-   "value_mkd": 174000
+   "base": 347,
+   "open": 2,
+   "returned": 36,
+   "value_mkd": 88250
   },
   {
    "d": "2026-09-02",
-   "base": 363,
-   "open": 4,
-   "returned": 53,
-   "value_mkd": 157039
+   "base": 350,
+   "open": 3,
+   "returned": 46,
+   "value_mkd": 130299
   },
   {
    "d": "2026-09-03",
-   "base": 360,
-   "open": 6,
-   "returned": 39,
-   "value_mkd": 110240
+   "base": 363,
+   "open": 3,
+   "returned": 40,
+   "value_mkd": 116240
   },
   {
    "d": "2026-09-04",
-   "base": 314,
-   "open": 7,
-   "returned": 51,
-   "value_mkd": 121050
+   "base": 306,
+   "open": 6,
+   "returned": 50,
+   "value_mkd": 124190
   },
   {
    "d": "2026-09-05",
-   "base": 166,
+   "base": 165,
    "open": 2,
-   "returned": 30,
-   "value_mkd": 81650
+   "returned": 29,
+   "value_mkd": 78650
   },
   {
    "d": "2026-09-06",
-   "base": 147,
+   "base": 140,
    "open": 1,
-   "returned": 25,
-   "value_mkd": 73280
+   "returned": 19,
+   "value_mkd": 55280
   },
   {
    "d": "2026-09-07",
-   "base": 307,
-   "open": 7,
-   "returned": 45,
-   "value_mkd": 121630
+   "base": 310,
+   "open": 6,
+   "returned": 47,
+   "value_mkd": 126880
   },
   {
    "d": "2026-09-08",
-   "base": 182,
+   "base": 183,
    "open": 1,
-   "returned": 31,
-   "value_mkd": 71090
+   "returned": 29,
+   "value_mkd": 63730
   },
   {
    "d": "2026-09-09",
-   "base": 337,
-   "open": 8,
-   "returned": 42,
-   "value_mkd": 109940
+   "base": 332,
+   "open": 7,
+   "returned": 39,
+   "value_mkd": 109650
   },
   {
    "d": "2026-09-10",
-   "base": 353,
-   "open": 13,
-   "returned": 39,
-   "value_mkd": 103000
+   "base": 346,
+   "open": 12,
+   "returned": 36,
+   "value_mkd": 96500
   },
   {
    "d": "2026-09-11",
-   "base": 415,
-   "open": 18,
-   "returned": 59,
-   "value_mkd": 167320
+   "base": 399,
+   "open": 17,
+   "returned": 58,
+   "value_mkd": 162960
   },
   {
    "d": "2026-09-12",
-   "base": 229,
-   "open": 2,
-   "returned": 37,
-   "value_mkd": 96150
+   "base": 236,
+   "open": 4,
+   "returned": 36,
+   "value_mkd": 93150
   },
   {
    "d": "2026-09-13",
-   "base": 146,
-   "open": 3,
-   "returned": 17,
-   "value_mkd": 46020
+   "base": 141,
+   "open": 2,
+   "returned": 15,
+   "value_mkd": 36660
   },
   {
    "d": "2026-09-14",
-   "base": 327,
+   "base": 339,
    "open": 15,
-   "returned": 31,
-   "value_mkd": 79090
+   "returned": 37,
+   "value_mkd": 96930
   },
   {
    "d": "2026-09-15",
-   "base": 333,
+   "base": 334,
    "open": 7,
-   "returned": 38,
-   "value_mkd": 101910
+   "returned": 34,
+   "value_mkd": 88910
   },
   {
    "d": "2026-09-16",
-   "base": 337,
-   "open": 19,
-   "returned": 34,
-   "value_mkd": 95249
+   "base": 333,
+   "open": 21,
+   "returned": 31,
+   "value_mkd": 87410
   },
   {
    "d": "2026-09-17",
-   "base": 263,
-   "open": 42,
-   "returned": 31,
-   "value_mkd": 84642
+   "base": 287,
+   "open": 47,
+   "returned": 32,
+   "value_mkd": 80622
   },
   {
    "d": "2026-09-18",
-   "base": 165,
-   "open": 31,
-   "returned": 30,
-   "value_mkd": 106510
+   "base": 256,
+   "open": 41,
+   "returned": 39,
+   "value_mkd": 129668
   },
   {
    "d": "2026-09-19",
-   "base": 87,
-   "open": 23,
-   "returned": 3,
-   "value_mkd": 6790
+   "base": 145,
+   "open": 25,
+   "returned": 6,
+   "value_mkd": 12070
   },
   {
    "d": "2026-09-20",
-   "base": 76,
-   "open": 24,
-   "returned": 6,
-   "value_mkd": 19640
+   "base": 96,
+   "open": 28,
+   "returned": 7,
+   "value_mkd": 17640
   },
   {
    "d": "2026-09-21",
-   "base": 366,
-   "open": 95,
-   "returned": 27,
-   "value_mkd": 64059
+   "base": 296,
+   "open": 59,
+   "returned": 25,
+   "value_mkd": 64465
   },
   {
    "d": "2026-09-22",
-   "base": 297,
-   "open": 72,
-   "returned": 26,
-   "value_mkd": 62145
+   "base": 311,
+   "open": 68,
+   "returned": 22,
+   "value_mkd": 50340
   },
   {
    "d": "2026-09-23",
-   "base": 311,
-   "open": 78,
-   "returned": 15,
-   "value_mkd": 37590
+   "base": 369,
+   "open": 88,
+   "returned": 17,
+   "value_mkd": 43940
   },
   {
    "d": "2026-09-24",
-   "base": 377,
-   "open": 131,
-   "returned": 14,
-   "value_mkd": 38920
+   "base": 291,
+   "open": 112,
+   "returned": 10,
+   "value_mkd": 28170
   },
   {
    "d": "2026-09-25",
-   "base": 250,
-   "open": 143,
-   "returned": 4,
-   "value_mkd": 8200
+   "base": 277,
+   "open": 270,
+   "returned": 0,
+   "value_mkd": 0
   },
   {
    "d": "2026-09-26",
-   "base": 92,
-   "open": 91,
+   "base": 180,
+   "open": 179,
    "returned": 0,
    "value_mkd": 0
   },
   {
    "d": "2026-09-27",
-   "base": 84,
-   "open": 84,
+   "base": 122,
+   "open": 122,
    "returned": 0,
    "value_mkd": 0
   }
@@ -373,49 +374,49 @@
    {
     "name": "Купувач 11",
     "phone8": "70000011",
-    "in_window": 2,
-    "returned_all": 7,
-    "delivered_all": 0,
-    "last_returned": "2026-09-09"
-   },
-   {
-    "name": "Купувач 12",
-    "phone8": "70000012",
     "in_window": 1,
     "returned_all": 7,
     "delivered_all": 1,
     "last_returned": "2026-09-17"
    },
    {
-    "name": "Купувач 13",
-    "phone8": "70000013",
+    "name": "Купувач 12",
+    "phone8": "70000012",
     "in_window": 1,
     "returned_all": 7,
     "delivered_all": 9,
     "last_returned": "2026-09-15"
    },
    {
-    "name": "Купувач 14",
-    "phone8": "70000014",
-    "in_window": 2,
-    "returned_all": 6,
-    "delivered_all": 2,
-    "last_returned": "2026-09-21"
+    "name": "Купувач 13",
+    "phone8": "70000013",
+    "in_window": 1,
+    "returned_all": 7,
+    "delivered_all": 0,
+    "last_returned": "2026-09-09"
    },
    {
-    "name": "Купувач 15",
-    "phone8": "70000015",
+    "name": "Купувач 14",
+    "phone8": "70000014",
     "in_window": 2,
     "returned_all": 6,
     "delivered_all": 13,
     "last_returned": "2026-09-18"
    },
    {
+    "name": "Купувач 15",
+    "phone8": "70000015",
+    "in_window": 1,
+    "returned_all": 6,
+    "delivered_all": 3,
+    "last_returned": "2026-09-25"
+   },
+   {
     "name": "Купувач 16",
     "phone8": "70000016",
     "in_window": 1,
     "returned_all": 6,
-    "delivered_all": 3,
+    "delivered_all": 0,
     "last_returned": "2026-09-25"
    },
    {
@@ -423,8 +424,8 @@
     "phone8": "70000017",
     "in_window": 1,
     "returned_all": 6,
-    "delivered_all": 0,
-    "last_returned": "2026-09-25"
+    "delivered_all": 2,
+    "last_returned": "2026-09-21"
    },
    {
     "name": "Купувач 18",
@@ -451,66 +452,66 @@
     "last_returned": "2026-09-17"
    }
   ],
-  "phones": 222,
-  "returns_in_window": 279
+  "phones": 206,
+  "returns_in_window": 253
  },
  "by_city": {
   "rows": [
    {
     "key": "skopje",
-    "base": 2546,
+    "base": 2525,
     "name": "Скопје",
-    "rate": 0.1351,
+    "rate": 0.1244,
     "name_sq": "Shkup",
     "name_lat": "Skopje",
-    "returned": 344,
-    "value_mkd": 895732
+    "returned": 314,
+    "value_mkd": 810412
    },
    {
     "key": "bitola",
-    "base": 559,
+    "base": 557,
     "name": "Битола",
-    "rate": 0.0984,
+    "rate": 0.0862,
     "name_sq": "Manastir",
     "name_lat": "Bitola",
-    "returned": 55,
-    "value_mkd": 166459
+    "returned": 48,
+    "value_mkd": 144560
    },
    {
     "key": "ohrid",
-    "base": 287,
+    "base": 289,
     "name": "Охрид",
-    "rate": 0.1568,
+    "rate": 0.1419,
     "name_sq": "Ohër",
     "name_lat": "Ohrid",
-    "returned": 45,
-    "value_mkd": 121714
-   },
-   {
-    "key": "strumica",
-    "base": 365,
-    "name": "Струмица",
-    "rate": 0.1178,
-    "name_sq": "Strumica",
-    "name_lat": "Strumica",
-    "returned": 43,
-    "value_mkd": 112140
+    "returned": 41,
+    "value_mkd": 110714
    },
    {
     "key": "prilep",
-    "base": 393,
+    "base": 397,
     "name": "Прилеп",
-    "rate": 0.1069,
+    "rate": 0.1008,
     "name_sq": "Përlepi",
     "name_lat": "Prilep",
-    "returned": 42,
-    "value_mkd": 107020
+    "returned": 40,
+    "value_mkd": 101770
+   },
+   {
+    "key": "strumica",
+    "base": 359,
+    "name": "Струмица",
+    "rate": 0.1114,
+    "name_sq": "Strumica",
+    "name_lat": "Strumica",
+    "returned": 40,
+    "value_mkd": 102540
    },
    {
     "key": "veles",
-    "base": 301,
+    "base": 310,
     "name": "Велес",
-    "rate": 0.0997,
+    "rate": 0.0968,
     "name_sq": "Velesi",
     "name_lat": "Veles",
     "returned": 30,
@@ -518,104 +519,104 @@
    },
    {
     "key": "kumanovo",
-    "base": 295,
+    "base": 296,
     "name": "Куманово",
-    "rate": 0.0881,
+    "rate": 0.0845,
     "name_sq": "Kumanovë",
     "name_lat": "Kumanovo",
-    "returned": 26,
-    "value_mkd": 65490
+    "returned": 25,
+    "value_mkd": 62490
    },
    {
     "key": "tetovo",
-    "base": 258,
+    "base": 264,
     "name": "Тетово",
-    "rate": 0.0891,
+    "rate": 0.0833,
     "name_sq": "Tetovë",
     "name_lat": "Tetovo",
-    "returned": 23,
-    "value_mkd": 63310
-   },
-   {
-    "key": "struga",
-    "base": 143,
-    "name": "Струга",
-    "rate": 0.1399,
-    "name_sq": "Strugë",
-    "name_lat": "Struga",
-    "returned": 20,
-    "value_mkd": 56280
+    "returned": 22,
+    "value_mkd": 60110
    },
    {
     "key": "kocani",
-    "base": 158,
+    "base": 161,
     "name": "Кочани",
-    "rate": 0.1203,
+    "rate": 0.1366,
     "name_sq": "Koçani",
     "name_lat": "Kochani",
-    "returned": 19,
-    "value_mkd": 56879
+    "returned": 22,
+    "value_mkd": 63019
+   },
+   {
+    "key": "struga",
+    "base": 145,
+    "name": "Струга",
+    "rate": 0.1241,
+    "name_sq": "Strugë",
+    "name_lat": "Struga",
+    "returned": 18,
+    "value_mkd": 52640
    },
    {
     "key": "kicevo",
-    "base": 134,
+    "base": 133,
     "name": "Кичево",
-    "rate": 0.1269,
+    "rate": 0.1203,
     "name_sq": "Kërçovë",
     "name_lat": "Kičevo",
-    "returned": 17,
-    "value_mkd": 46060
+    "returned": 16,
+    "value_mkd": 43060
    },
    {
     "key": "gostivar",
-    "base": 179,
+    "base": 173,
     "name": "Гостивар",
-    "rate": 0.0894,
+    "rate": 0.0809,
     "name_sq": "Gostivar",
     "name_lat": "Gostivar",
-    "returned": 16,
-    "value_mkd": 45150
-   },
-   {
-    "key": "stip",
-    "base": 182,
-    "name": "Штип",
-    "rate": 0.0659,
-    "name_sq": "Shtip",
-    "name_lat": "Štip",
-    "returned": 12,
-    "value_mkd": 36780
-   },
-   {
-    "key": "krivapalanka",
-    "base": 111,
-    "name": "Крива Паланка",
-    "rate": 0.0991,
-    "name_sq": "Kriva Palanka",
-    "name_lat": "Kriva Palanka",
-    "returned": 11,
-    "value_mkd": 31020
+    "returned": 14,
+    "value_mkd": 39950
    },
    {
     "key": "delcevo",
-    "base": 75,
+    "base": 74,
     "name": "Делчево",
-    "rate": 0.1467,
+    "rate": 0.1622,
     "name_sq": "Dellçeva",
     "name_lat": "Delčevo",
+    "returned": 12,
+    "value_mkd": 31530
+   },
+   {
+    "key": "stip",
+    "base": 190,
+    "name": "Штип",
+    "rate": 0.0579,
+    "name_sq": "Shtip",
+    "name_lat": "Štip",
     "returned": 11,
-    "value_mkd": 28530
+    "value_mkd": 35140
+   },
+   {
+    "key": "krivapalanka",
+    "base": 109,
+    "name": "Крива Паланка",
+    "rate": 0.0826,
+    "name_sq": "Kriva Palanka",
+    "name_lat": "Kriva Palanka",
+    "returned": 9,
+    "value_mkd": 24020
    }
   ],
   "others": {
-   "base": 1269,
-   "places": 44,
-   "returned": 82,
-   "value_mkd": 221080
+   "base": 1263,
+   "places": 43,
+   "returned": 78,
+   "value_mkd": 217139
   },
-  "places": 59,
+  "places": 58,
   "unknown": {
-   "base": 8,
+   "base": 9,
    "returned": 0,
    "value_mkd": 0
   }
@@ -632,10 +633,10 @@
   {
    "base": 52,
    "name": "21d ≤26 (1-3 orders)",
-   "rate": 0.2115,
+   "rate": 0.2308,
    "list_id": "00000000-0000-4000-9000-000000000002",
-   "returned": 11,
-   "value_mkd": 28050
+   "returned": 12,
+   "value_mkd": 30550
   },
   {
    "base": 37,
@@ -784,10 +785,10 @@
  ],
  "reasons": [
   {
-   "count": 251,
+   "count": 265,
    "bucket": "cancelled_after_sale",
    "reason": "no_parcel_7d",
-   "value_mkd": 460270
+   "value_mkd": 485650
   },
   {
    "count": 160,
@@ -822,195 +823,203 @@
  ],
  "by_person": {
   "none": {
-   "base": 928,
-   "returned": 150,
-   "value_mkd": 452948
+   "base": 79,
+   "returned": 9,
+   "value_mkd": 30999
   },
   "rows": [
    {
-    "base": 334,
+    "base": 508,
     "name": "Продавач 1",
-    "rate": 0.1138,
-    "returned": 38,
+    "rate": 0.0866,
+    "returned": 44,
     "person_id": "00000000-0000-4000-8000-000000000001",
-    "value_mkd": 74190
+    "value_mkd": 86550
    },
    {
-    "base": 238,
+    "base": 239,
     "name": "Продавач 2",
-    "rate": 0.1471,
-    "returned": 35,
+    "rate": 0.1506,
+    "returned": 36,
     "person_id": "00000000-0000-4000-8000-000000000002",
-    "value_mkd": 70000
+    "value_mkd": 72400
    },
    {
-    "base": 118,
+    "base": 223,
     "name": "Продавач 3",
-    "rate": 0.2373,
-    "returned": 28,
+    "rate": 0.157,
+    "returned": 35,
     "person_id": "00000000-0000-4000-8000-000000000003",
-    "value_mkd": 56700
+    "value_mkd": 110260
    },
    {
-    "base": 295,
+    "base": 131,
     "name": "Продавач 4",
-    "rate": 0.0712,
-    "returned": 21,
+    "rate": 0.2443,
+    "returned": 32,
     "person_id": "00000000-0000-4000-8000-000000000004",
-    "value_mkd": 52000
+    "value_mkd": 65150
    },
    {
-    "base": 122,
+    "base": 273,
     "name": "Продавач 5",
-    "rate": 0.1721,
-    "returned": 21,
+    "rate": 0.1136,
+    "returned": 31,
     "person_id": "00000000-0000-4000-8000-000000000005",
-    "value_mkd": 64560
+    "value_mkd": 99840
    },
    {
-    "base": 198,
+    "base": 231,
     "name": "Продавач 6",
-    "rate": 0.101,
-    "returned": 20,
+    "rate": 0.1299,
+    "returned": 30,
     "person_id": "00000000-0000-4000-8000-000000000006",
-    "value_mkd": 62900
+    "value_mkd": 82750
+   },
+   {
+    "base": 186,
+    "name": "Продавач 7",
+    "rate": 0.1613,
+    "returned": 30,
+    "person_id": "00000000-0000-4000-8000-000000000007",
+    "value_mkd": 114760
+   },
+   {
+    "base": 160,
+    "name": "Продавач 8",
+    "rate": 0.1813,
+    "returned": 29,
+    "person_id": "00000000-0000-4000-8000-000000000008",
+    "value_mkd": 79120
    },
    {
     "base": 178,
-    "name": "Продавач 7",
-    "rate": 0.1124,
-    "returned": 20,
-    "person_id": "00000000-0000-4000-8000-000000000007",
-    "value_mkd": 63560
-   },
-   {
-    "base": 143,
-    "name": "Продавач 8",
-    "rate": 0.1329,
-    "returned": 19,
-    "person_id": "00000000-0000-4000-8000-000000000008",
-    "value_mkd": 53830
-   },
-   {
-    "base": 111,
     "name": "Продавач 9",
-    "rate": 0.1532,
-    "returned": 17,
+    "rate": 0.1573,
+    "returned": 28,
     "person_id": "00000000-0000-4000-8000-000000000009",
-    "value_mkd": 37650
+    "value_mkd": 102279
    },
    {
-    "base": 84,
+    "base": 172,
     "name": "Продавач 10",
-    "rate": 0.2024,
-    "returned": 17,
+    "rate": 0.1628,
+    "returned": 28,
     "person_id": "00000000-0000-4000-8000-000000000010",
-    "value_mkd": 55920
+    "value_mkd": 84560
    },
    {
-    "base": 82,
+    "base": 160,
     "name": "Продавач 11",
-    "rate": 0.2073,
-    "returned": 17,
+    "rate": 0.1688,
+    "returned": 27,
     "person_id": "00000000-0000-4000-8000-000000000011",
-    "value_mkd": 59640
+    "value_mkd": 87200
    },
    {
-    "base": 90,
+    "base": 212,
     "name": "Продавач 12",
-    "rate": 0.1667,
-    "returned": 15,
+    "rate": 0.1226,
+    "returned": 26,
     "person_id": "00000000-0000-4000-8000-000000000012",
-    "value_mkd": 69560
+    "value_mkd": 74470
    },
    {
-    "base": 78,
+    "base": 133,
     "name": "Продавач 13",
-    "rate": 0.1923,
-    "returned": 15,
+    "rate": 0.1805,
+    "returned": 24,
     "person_id": "00000000-0000-4000-8000-000000000013",
-    "value_mkd": 36620
+    "value_mkd": 59180
+   },
+   {
+    "base": 412,
+    "name": "Продавач 14",
+    "rate": 0.0558,
+    "returned": 23,
+    "person_id": "00000000-0000-4000-8000-000000000014",
+    "value_mkd": 56000
+   },
+   {
+    "base": 238,
+    "name": "Продавач 15",
+    "rate": 0.0966,
+    "returned": 23,
+    "person_id": "00000000-0000-4000-8000-000000000015",
+    "value_mkd": 71600
    },
    {
     "base": 150,
-    "name": "Продавач 14",
-    "rate": 0.0867,
-    "returned": 13,
-    "person_id": "00000000-0000-4000-8000-000000000014",
-    "value_mkd": 35560
-   },
-   {
-    "base": 91,
-    "name": "Продавач 15",
-    "rate": 0.1429,
-    "returned": 13,
-    "person_id": "00000000-0000-4000-8000-000000000015",
-    "value_mkd": 31450
-   },
-   {
-    "base": 86,
     "name": "Продавач 16",
-    "rate": 0.1512,
-    "returned": 13,
+    "rate": 0.1533,
+    "returned": 23,
     "person_id": "00000000-0000-4000-8000-000000000016",
-    "value_mkd": 35560
+    "value_mkd": 49650
+   },
+   {
+    "base": 239,
+    "name": "Продавач 17",
+    "rate": 0.0837,
+    "returned": 20,
+    "person_id": "00000000-0000-4000-8000-000000000017",
+    "value_mkd": 41000
    },
    {
     "base": 134,
-    "name": "Продавач 17",
-    "rate": 0.0896,
-    "returned": 12,
-    "person_id": "00000000-0000-4000-8000-000000000017",
-    "value_mkd": 27900
-   },
-   {
-    "base": 71,
     "name": "Продавач 18",
-    "rate": 0.1549,
-    "returned": 11,
+    "rate": 0.1119,
+    "returned": 15,
     "person_id": "00000000-0000-4000-8000-000000000018",
-    "value_mkd": 39000
+    "value_mkd": 36650
    },
    {
-    "base": 119,
+    "base": 164,
     "name": "Продавач 19",
-    "rate": 0.084,
-    "returned": 10,
+    "rate": 0.0793,
+    "returned": 13,
     "person_id": "00000000-0000-4000-8000-000000000019",
-    "value_mkd": 24460
+    "value_mkd": 28200
    },
    {
-    "base": 119,
+    "base": 142,
     "name": "Продавач 20",
-    "rate": 0.084,
-    "returned": 10,
+    "rate": 0.0845,
+    "returned": 12,
     "person_id": "00000000-0000-4000-8000-000000000020",
-    "value_mkd": 21000
+    "value_mkd": 33920
    }
   ],
   "others": {
-   "base": 1645,
-   "people": 26,
-   "returned": 108,
-   "value_mkd": 258930
+   "base": 2215,
+   "people": 25,
+   "returned": 131,
+   "value_mkd": 306285
   }
  },
  "by_source": [
   {
    "key": "altercpa",
    "web": 0,
-   "base": 2123,
-   "open": 459,
-   "rate": 0.1488,
-   "orders": 316,
+   "base": 2259,
+   "open": 477,
+   "rate": 0.1483,
+   "orders": 302,
    "splits": [
     {
      "key": "bridge",
-     "base": 2122,
+     "base": 2152,
      "kind": "order",
-     "rate": 0.1489,
-     "returned": 316,
-     "value_mkd": 978598
+     "rate": 0.1403,
+     "returned": 302,
+     "value_mkd": 935458
+    },
+    {
+     "key": "mex_leads",
+     "base": 106,
+     "kind": "mex",
+     "rate": 0.3113,
+     "returned": 33,
+     "value_mkd": 115909
     },
     {
      "key": "history",
@@ -1022,28 +1031,52 @@
     }
    ],
    "base_web": 0,
-   "mex_only": 0,
-   "returned": 316,
-   "value_mkd": 978598,
-   "base_orders": 2123,
-   "base_mex_only": 0,
-   "base_value_mkd": 6291297
+   "mex_only": 33,
+   "returned": 335,
+   "value_mkd": 1051367,
+   "base_orders": 2153,
+   "base_mex_only": 106,
+   "base_value_mkd": 6761721
   },
   {
    "key": "elyon_crm",
    "web": 0,
-   "base": 687,
-   "open": 155,
-   "rate": 0.115,
-   "orders": 79,
+   "base": 2333,
+   "open": 362,
+   "rate": 0.0853,
+   "orders": 189,
    "splits": [
+    {
+     "key": "collabbox_out",
+     "base": 1510,
+     "kind": "order",
+     "rate": 0.0669,
+     "returned": 101,
+     "value_mkd": 234660
+    },
     {
      "key": "prediction_list",
      "base": 686,
      "kind": "order",
-     "rate": 0.1152,
-     "returned": 79,
-     "value_mkd": 220020
+     "rate": 0.1181,
+     "returned": 81,
+     "value_mkd": 224920
+    },
+    {
+     "key": "mex_out",
+     "base": 73,
+     "kind": "mex",
+     "rate": 0.137,
+     "returned": 10,
+     "value_mkd": 32500
+    },
+    {
+     "key": "collabbox_leads_out",
+     "base": 63,
+     "kind": "order",
+     "rate": 0.1111,
+     "returned": 7,
+     "value_mkd": 19415
     },
     {
      "key": "direct",
@@ -1055,19 +1088,85 @@
     }
    ],
    "base_web": 0,
-   "mex_only": 0,
-   "returned": 79,
-   "value_mkd": 220020,
-   "base_orders": 687,
-   "base_mex_only": 0,
-   "base_value_mkd": 1933781
+   "mex_only": 10,
+   "returned": 199,
+   "value_mkd": 511495,
+   "base_orders": 2260,
+   "base_mex_only": 73,
+   "base_value_mkd": 5805913
+  },
+  {
+   "key": "teleshop_other",
+   "web": 0,
+   "base": 2022,
+   "open": 201,
+   "rate": 0.0836,
+   "orders": 168,
+   "splits": [
+    {
+     "key": "teleshop",
+     "base": 2020,
+     "kind": "order",
+     "rate": 0.0832,
+     "returned": 168,
+     "value_mkd": 343670
+    },
+    {
+     "key": "mex_in",
+     "base": 2,
+     "kind": "mex",
+     "rate": 0.5,
+     "returned": 1,
+     "value_mkd": 2000
+    }
+   ],
+   "base_web": 0,
+   "mex_only": 1,
+   "returned": 169,
+   "value_mkd": 345670,
+   "base_orders": 2020,
+   "base_mex_only": 2,
+   "base_value_mkd": 4304936
+  },
+  {
+   "key": "social",
+   "web": 0,
+   "base": 205,
+   "open": 8,
+   "rate": 0.0634,
+   "orders": 10,
+   "splits": [
+    {
+     "key": "social",
+     "base": 146,
+     "kind": "order",
+     "rate": 0.0685,
+     "returned": 10,
+     "value_mkd": 14700
+    },
+    {
+     "key": "mex_social",
+     "base": 59,
+     "kind": "mex",
+     "rate": 0.0508,
+     "returned": 3,
+     "value_mkd": 5600
+    }
+   ],
+   "base_web": 0,
+   "mex_only": 3,
+   "returned": 13,
+   "value_mkd": 20300,
+   "base_orders": 146,
+   "base_mex_only": 59,
+   "base_value_mkd": 385460
   },
   {
    "key": "web",
    "web": 24,
-   "base": 411,
+   "base": 435,
    "open": 100,
-   "rate": 0.0584,
+   "rate": 0.0552,
    "orders": 0,
    "splits": [
     {
@@ -1085,66 +1184,9 @@
      "rate": 0.0308,
      "returned": 2,
      "value_mkd": 4980
-    }
-   ],
-   "base_web": 411,
-   "mex_only": 0,
-   "returned": 24,
-   "value_mkd": 53772,
-   "base_orders": 0,
-   "base_mex_only": 0,
-   "base_value_mkd": 869987
-  },
-  {
-   "key": "teleshop_other",
-   "web": 0,
-   "base": 4042,
-   "open": 217,
-   "rate": 0.0933,
-   "orders": 228,
-   "splits": [
-    {
-     "key": "teleshop",
-     "base": 2458,
-     "kind": "order",
-     "rate": 0.0887,
-     "returned": 218,
-     "value_mkd": 470620
     },
     {
-     "key": "mex_teleshop",
-     "base": 1060,
-     "kind": "mex",
-     "rate": 0.0764,
-     "returned": 81,
-     "value_mkd": 182460
-    },
-    {
-     "key": "elyon_unlinked",
-     "base": 295,
-     "kind": "mex",
-     "rate": 0.2203,
-     "returned": 65,
-     "value_mkd": 211384
-    },
-    {
-     "key": "social",
-     "base": 146,
-     "kind": "order",
-     "rate": 0.0685,
-     "returned": 10,
-     "value_mkd": 14700
-    },
-    {
-     "key": "mex_social",
-     "base": 59,
-     "kind": "mex",
-     "rate": 0.0508,
-     "returned": 3,
-     "value_mkd": 5600
-    },
-    {
-     "key": "mex_other",
+     "key": "mex_web",
      "base": 24,
      "kind": "mex",
      "rate": 0,
@@ -1152,205 +1194,205 @@
      "value_mkd": 0
     }
    ],
-   "base_web": 0,
-   "mex_only": 149,
-   "returned": 377,
-   "value_mkd": 884764,
-   "base_orders": 2604,
-   "base_mex_only": 1438,
-   "base_value_mkd": 9087367
+   "base_web": 411,
+   "mex_only": 0,
+   "returned": 24,
+   "value_mkd": 53772,
+   "base_orders": 0,
+   "base_mex_only": 24,
+   "base_value_mkd": 913058
   }
  ],
  "by_account": [
   {
    "key": "natura",
-   "base": 4164,
-   "rate": 0.0814,
-   "returned": 339,
-   "value_mkd": 733652
+   "base": 4195,
+   "rate": 0.0744,
+   "returned": 312,
+   "value_mkd": 665302
   },
   {
    "key": "bio_natural",
-   "base": 2752,
-   "rate": 0.1657,
-   "returned": 456,
-   "value_mkd": 1401502
+   "base": 2739,
+   "rate": 0.1563,
+   "returned": 428,
+   "value_mkd": 1317302
   },
   {
    "key": "__none__",
-   "base": 347,
-   "rate": 0.0029,
-   "returned": 1,
-   "value_mkd": 2000
+   "base": 320,
+   "rate": 0,
+   "returned": 0,
+   "value_mkd": 0
   }
  ],
  "by_product": {
   "rows": [
    {
+    "key": "p:a93a0b66-1aca-408d-a3c3-57b6a3316ab4",
+    "name": "MAGNESIUM CITRAT 325mg",
+    "rate": 0.0995,
+    "catalogue": true,
+    "free_units": 2,
+    "sold_units": 2031,
+    "returned_units": 202,
+    "free_returned_units": 0
+   },
+   {
     "key": "p:d65b038a-3779-4bed-9e61-2d4916259e9e",
     "name": "Adenofrin",
-    "rate": 0.1826,
+    "rate": 0.1693,
     "catalogue": true,
     "free_units": 1,
-    "sold_units": 1057,
-    "returned_units": 193,
-    "free_returned_units": 0
-   },
-   {
-    "key": "n:magnesium citrat 325mg 150/1 tab",
-    "name": "MAGNESIUM CITRAT 325mg 150/1 tab",
-    "rate": 0.1043,
-    "catalogue": false,
-    "free_units": 2,
-    "sold_units": 1659,
-    "returned_units": 173,
-    "free_returned_units": 0
-   },
-   {
-    "key": "p:cf38ad20-8608-4a81-b852-d9b5c7d3e0cc",
-    "name": "Alpha Male",
-    "rate": 0.1779,
-    "catalogue": true,
-    "free_units": 3,
-    "sold_units": 770,
-    "returned_units": 137,
+    "sold_units": 1075,
+    "returned_units": 182,
     "free_returned_units": 0
    },
    {
     "key": "p:fae40061-d8ad-4025-9de0-3dea17daff71",
     "name": "Urofix",
-    "rate": 0.1199,
+    "rate": 0.1162,
     "catalogue": true,
-    "free_units": 0,
-    "sold_units": 1084,
-    "returned_units": 130,
-    "free_returned_units": 0
+    "free_units": 1,
+    "sold_units": 1196,
+    "returned_units": 139,
+    "free_returned_units": 1
    },
    {
     "key": "p:0a67af01-ba33-42fc-949e-9fc5e60960e2",
     "name": "ПРОСТАТОЛ КОМПЛЕКС cps 30",
-    "rate": 0.1003,
+    "rate": 0.0767,
     "catalogue": true,
     "free_units": 0,
-    "sold_units": 1186,
-    "returned_units": 119,
+    "sold_units": 1668,
+    "returned_units": 128,
+    "free_returned_units": 0
+   },
+   {
+    "key": "p:cf38ad20-8608-4a81-b852-d9b5c7d3e0cc",
+    "name": "Alpha Male",
+    "rate": 0.155,
+    "catalogue": true,
+    "free_units": 3,
+    "sold_units": 787,
+    "returned_units": 122,
     "free_returned_units": 0
    },
    {
     "key": "p:7755d5c0-66ee-4ec6-93ae-fe7b8a47f4c6",
     "name": "Neurofix",
-    "rate": 0.1129,
+    "rate": 0.1118,
     "catalogue": true,
     "free_units": 0,
-    "sold_units": 1001,
+    "sold_units": 1011,
     "returned_units": 113,
-    "free_returned_units": 0
-   },
-   {
-    "key": "p:1395475b-b4a4-41cf-92ba-118d3d9af794",
-    "name": "Hemorofix",
-    "rate": 0.1667,
-    "catalogue": true,
-    "free_units": 1,
-    "sold_units": 654,
-    "returned_units": 109,
     "free_returned_units": 0
    },
    {
     "key": "p:bdc79d87-8e42-430d-8925-c3b010ca257f",
     "name": "Slim Fit",
-    "rate": 0.1883,
+    "rate": 0.1933,
     "catalogue": true,
     "free_units": 2,
-    "sold_units": 563,
-    "returned_units": 106,
-    "free_returned_units": 0
-   },
-   {
-    "key": "p:17e1f647-8091-4434-9fac-94ffc21c00d7",
-    "name": "Cardiofix",
-    "rate": 0.1815,
-    "catalogue": true,
-    "free_units": 0,
-    "sold_units": 518,
-    "returned_units": 94,
-    "free_returned_units": 0
-   },
-   {
-    "key": "p:4d720da7-d826-4771-915d-0c7aaa8ed194",
-    "name": "БРАИН АКТИВ 30cps",
-    "rate": 0.1084,
-    "catalogue": true,
-    "free_units": 2,
-    "sold_units": 775,
-    "returned_units": 84,
+    "sold_units": 564,
+    "returned_units": 109,
     "free_returned_units": 0
    },
    {
     "key": "p:7ecd116e-b183-48f7-bb85-b01a793db9d5",
     "name": "СНАИЛ КОМПЛЕКС cps 30",
-    "rate": 0.0768,
+    "rate": 0.0771,
     "catalogue": true,
-    "free_units": 0,
-    "sold_units": 1081,
-    "returned_units": 83,
-    "free_returned_units": 0
+    "free_units": 2,
+    "sold_units": 1400,
+    "returned_units": 108,
+    "free_returned_units": 1
    },
    {
     "key": "p:b01ce730-f4a6-4f9b-9011-bda12fcfd37d",
     "name": "АЛОЕ ВЕРА ГЕЛ СО АРОНИЈА 1Л",
-    "rate": 0.0941,
+    "rate": 0.0734,
+    "catalogue": true,
+    "free_units": 1,
+    "sold_units": 1416,
+    "returned_units": 104,
+    "free_returned_units": 0
+   },
+   {
+    "key": "p:17e1f647-8091-4434-9fac-94ffc21c00d7",
+    "name": "Cardiofix",
+    "rate": 0.1894,
+    "catalogue": true,
+    "free_units": 1,
+    "sold_units": 549,
+    "returned_units": 104,
+    "free_returned_units": 0
+   },
+   {
+    "key": "p:1395475b-b4a4-41cf-92ba-118d3d9af794",
+    "name": "Hemorofix",
+    "rate": 0.1433,
+    "catalogue": true,
+    "free_units": 1,
+    "sold_units": 684,
+    "returned_units": 98,
+    "free_returned_units": 0
+   },
+   {
+    "key": "p:4d720da7-d826-4771-915d-0c7aaa8ed194",
+    "name": "БРАИН АКТИВ 30cps",
+    "rate": 0.0939,
+    "catalogue": true,
+    "free_units": 2,
+    "sold_units": 969,
+    "returned_units": 91,
+    "free_returned_units": 0
+   },
+   {
+    "key": "p:ab0619ab-4e13-49c7-8ed0-b97bbb4ef0ab",
+    "name": "MAGNESIUM BISGLYCINATE 120/1",
+    "rate": 0.0536,
     "catalogue": true,
     "free_units": 0,
-    "sold_units": 808,
-    "returned_units": 76,
+    "sold_units": 1660,
+    "returned_units": 89,
     "free_returned_units": 0
    },
    {
     "key": "p:e25e349c-377e-45fb-9307-991573ac05ae",
     "name": "GlucoFix",
-    "rate": 0.1338,
+    "rate": 0.1336,
     "catalogue": true,
-    "free_units": 0,
-    "sold_units": 441,
-    "returned_units": 59,
+    "free_units": 1,
+    "sold_units": 524,
+    "returned_units": 70,
     "free_returned_units": 0
    },
    {
     "key": "p:8ae08430-37c3-438a-b3cc-0d713bbfbc6a",
     "name": "ProstaFix",
-    "rate": 0.1798,
-    "catalogue": true,
-    "free_units": 0,
-    "sold_units": 267,
-    "returned_units": 48,
-    "free_returned_units": 0
-   },
-   {
-    "key": "p:ab09eec7-638e-44a7-ab83-1b820df4c9cb",
-    "name": "ArthroFix",
-    "rate": 0.1279,
+    "rate": 0.1571,
     "catalogue": true,
     "free_units": 1,
-    "sold_units": 258,
-    "returned_units": 33,
+    "sold_units": 331,
+    "returned_units": 52,
     "free_returned_units": 0
    }
   ],
   "total": {
-   "free_units": 2878,
-   "sold_units": 17485,
-   "returned_units": 1920,
-   "free_returned_units": 257
+   "free_units": 3970,
+   "sold_units": 21639,
+   "returned_units": 2065,
+   "free_returned_units": 308
   },
   "others": {
-   "products": 256,
-   "sold_units": 5363,
-   "returned_units": 363
+   "products": 187,
+   "sold_units": 5774,
+   "returned_units": 354
   },
   "mex_only": {
-   "base": 1438,
-   "returned": 149
+   "base": 264,
+   "returned": 47
   },
   "not_products": [
    {
@@ -1359,15 +1401,15 @@
    },
    {
     "kind": "loyalty_point",
-    "units": 1293
+    "units": 1291
    },
    {
     "kind": "delivery",
-    "units": 161
+    "units": 154
    },
    {
     "kind": "note",
-    "units": 94
+    "units": 109
    },
    {
     "kind": "flyer",
@@ -1378,75 +1420,75 @@
  "by_weekday": [
   {
    "dow": 1,
-   "base": 1000,
-   "rate": 0.103,
-   "returned": 103
+   "base": 945,
+   "rate": 0.1153,
+   "returned": 109
   },
   {
    "dow": 2,
-   "base": 1391,
-   "rate": 0.1179,
-   "returned": 164
+   "base": 1175,
+   "rate": 0.103,
+   "returned": 121
   },
   {
    "dow": 3,
-   "base": 1348,
-   "rate": 0.1068,
-   "returned": 144
+   "base": 1384,
+   "rate": 0.0961,
+   "returned": 133
   },
   {
    "dow": 4,
-   "base": 1353,
-   "rate": 0.0909,
-   "returned": 123
+   "base": 1287,
+   "rate": 0.0917,
+   "returned": 118
   },
   {
    "dow": 5,
-   "base": 1144,
-   "rate": 0.1259,
-   "returned": 144
+   "base": 1238,
+   "rate": 0.1187,
+   "returned": 147
   },
   {
    "dow": 6,
-   "base": 574,
-   "rate": 0.122,
-   "returned": 70
+   "base": 726,
+   "rate": 0.0978,
+   "returned": 71
   },
   {
    "dow": 7,
-   "base": 453,
-   "rate": 0.106,
-   "returned": 48
+   "base": 499,
+   "rate": 0.0822,
+   "returned": 41
   }
  ],
  "days_to_return": {
   "bins": [
    {
     "key": "0_3",
-    "count": 166
+    "count": 148
    },
    {
     "key": "4_7",
-    "count": 431
+    "count": 415
    },
    {
     "key": "8_14",
-    "count": 171
+    "count": 153
    },
    {
     "key": "15_21",
-    "count": 26
+    "count": 23
    },
    {
     "key": "22_30",
-    "count": 2
+    "count": 1
    },
    {
     "key": "31_plus",
     "count": 0
    }
   ],
-  "count": 796,
+  "count": 740,
   "median_from_sale": 5.9,
   "median_at_courier": 4.1
  }

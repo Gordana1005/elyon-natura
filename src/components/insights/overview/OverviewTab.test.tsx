@@ -75,7 +75,13 @@ describe('Overview — owner', () => {
 
     // MEX-only parcels sit beside the bar, never in it.
     const tele = screen.getByRole('article', { name: i18n.t('overview.source.teleshopOther') });
-    expect(within(tele).getByText(i18n.t('overview.sources.mexOnlyChip', { n: '86' }), { exact: false })).toBeInTheDocument();
+    expect(within(tele).getByText(i18n.t('overview.sources.mexOnlyChip', { n: '66' }), { exact: false })).toBeInTheDocument();
+    // Social media is a card of its own (owner 28.09.2026): its collabBox orders open by cohort_source
+    const soc = screen.getByRole('article', { name: i18n.t('overview.source.social') });
+    expect(within(soc).getByText(i18n.t('overview.sources.mexOnlyChip', { n: '20' }), { exact: false })).toBeInTheDocument();
+    const socCourier = within(soc).getByRole('link', { name: `${i18n.t('overview.source.social')} · ${i18n.t('overview.bucket.courier')}: 26` });
+    expect(socCourier.getAttribute('href')).toContain('cohort_source=social');
+    expect(within(tele).queryByText(i18n.t('overview.split.social'))).toBeNull();
 
     // Deltas vs the previous period and the "must read 0" integrity tile (11 here → alarm).
     expect(container.textContent).toContain('+2,8%');
@@ -103,7 +109,7 @@ describe('Overview — admin/manager without money', () => {
 
     // What stays: parcel count as the hero, counts in every tile, the rates, teams, attention.
     expect(screen.getAllByText('1.285').length).toBeGreaterThan(0);   // proven parcels
-    expect(screen.getAllByText(i18n.t('overview.rates.delivery')).length).toBe(4);
+    expect(screen.getAllByText(i18n.t('overview.rates.delivery')).length).toBe(5);
     const alter = screen.getByRole('article', { name: 'AlterCPA' });
     expect(within(alter).getByRole('link', { name: `AlterCPA · ${i18n.t('overview.bucket.delivered')}: 196` })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Pending — AlterCPA' })).toBeInTheDocument();

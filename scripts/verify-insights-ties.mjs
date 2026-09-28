@@ -23,7 +23,7 @@
  *   D1  an independent recount of insights_sale_rows = the payload, and every sale lands in
  *       EXACTLY one bucket: one row per order / web order / MEX-only parcel, no parcel owned twice
  *   D2  the order part of EVERY number (each bucket × each source, outside, splits) = the rows
- *       GET /orders?cohort_bucket&sale_source&sold_from&sold_to lists: the api's own filter
+ *       GET /orders?cohort_bucket&cohort_source&sold_from&sold_to lists: the api's own filter
  *       (insightsCommon.ts cohortOrdersFilter), translated to SQL, counted here
  *   D3  the drill links the payload carries point at exactly those lists
  *   D4  the test phones (public.report_excluded_phones: 070 123 456 · 02 312 3123) are in no
@@ -237,12 +237,15 @@ export function pgrstTermToSql(term, alias = 'o') {
 /** A supabase-js `.or(expr)` (PostgREST `or=(expr)`) → SQL. */
 export const pgrstOrToSql = (expr, alias = 'o') => pgrstTermToSql(`or(${expr})`, alias);
 
-/** What GET /orders?cohort_bucket=<keys>&sale_source=<ss>&sale_source_detail=<d>&sold_from&sold_to
- *  selects, as SQL predicates over public.orders <alias> (ANDed) — built from the api's
- *  own cohortOrdersFilter() plus the plain column filters the handler adds. */
-export function drillPredicateParts(IC, { keys, saleSources = [], detail = null, window = null, ex }, alias = 'o') {
+/** What GET /orders?cohort_bucket=<keys>&cohort_source=<keys>&sale_source=<ss>&sale_source_detail=<d>
+ *  &sold_from&sold_to selects, as SQL predicates over public.orders <alias> (ANDed) — built from the
+ *  api's own cohortOrdersFilter() + cohortSourceOrFilter() (the twin of cohort_order_source,
+ *  migration 20260942000500) plus the plain column filters the handler adds. */
+export function drillPredicateParts(IC, { keys, cohortSources = [], saleSources = [], detail = null, window = null, ex }, alias = 'o') {
   const f = IC.cohortOrdersFilter(keys, ex, window);
   const parts = f.or.map((e) => pgrstOrToSql(e, alias));
+  const cs = cohortSources.length ? IC.cohortSourceOrFilter(cohortSources) : null;
+  if (cs) parts.push(pgrstOrToSql(cs, alias));
   if (saleSources.length) parts.push(`${alias}.sale_source IN (${saleSources.map(quote).join(', ')})`);
   if (detail) parts.push(`${alias}.sale_source_detail = ${quote(detail)}`);
   if (f.notIds.length) parts.push(`${alias}.id::text NOT IN (${f.notIds.map(quote).join(', ')})`);
@@ -258,6 +261,7 @@ export function parseDrill(href) {
   const sp = new URLSearchParams(href.slice(q + 1));
   return {
     cohort_bucket: sp.get('cohort_bucket'),
+    cohort_source: sp.get('cohort_source'),
     sale_source: sp.get('sale_source'),
     sale_source_detail: sp.get('sale_source_detail'),
     sold_from: sp.get('sold_from'),
@@ -399,7 +403,8 @@ FROM r`);
 async function d2Drills(ctx) {
   const { IC, cohort, w, ex } = ctx;
   const window = { fromIso: w.fromIso, toEndIso: w.toEndIso };
-  const scopes = [{ key: '*', ss: [] }, ...(cohort.by_source ?? []).map((r) => ({ key: r.key, ss: IC.SOURCE_SALE_SOURCES[r.key] ?? [] }))];
+  // '*' = every source (no cohort_source); a source's order part is GET /orders?cohort_source=<key>
+  const scopes = [{ key: '*', cs: [] }, ...(cohort.by_source ?? []).map((r) => ({ key: r.key, cs: [r.key] }))];
   const partsOf = (scope) => {
     const row = scope.key === '*' ? cohort : (cohort.by_source ?? []).find((r) => r.key === scope.key);
     return [
@@ -422,7 +427,7 @@ async function d2Drills(ctx) {
   const preds = probes.map((p) => {
     const keys = IC.parseCohortBucketParam(p.keys.join(','));
     if (!keys.ok) throw new Error(`bad bucket ${p.keys}`);
-    return drillPredicateParts(IC, { keys: keys.values, saleSources: p.scope.ss, detail: p.detail, window, ex });
+    return drillPredicateParts(IC, { keys: keys.values, cohortSources: p.scope.cs, detail: p.detail, window, ex });
   });
   // What every list shares (universe, test phones, the window) is filtered once.
   const common = preds[0].filter((x) => preds.every((ps) => ps.includes(x)));
@@ -438,10 +443,10 @@ async function d2Drills(ctx) {
     // D3: the link the payload carries
     const d = parseDrill(p.drill);
     if (p.want === 0) { linkLines.push(tie(`${p.label}: no link when there are no orders`, 'none', d ? 'link' : 'none')); return; }
-    const wantSs = p.scope.key === '*' ? null : (p.scope.ss.join(',') || null);
+    const wantCs = p.scope.key === '*' ? null : (p.scope.cs.join(',') || null);
     const wantBucket = p.keys[0];
-    const got = d ? `${d.cohort_bucket}|${d.sale_source}|${d.sale_source_detail}|${d.sold_from}|${d.sold_to}` : 'none';
-    linkLines.push(tie(`${p.label}: link`, `${wantBucket}|${wantSs}|${p.detail}|${cohort.meta.from}|${cohort.meta.to}`, got));
+    const got = d ? `${d.cohort_bucket}|${d.cohort_source}|${d.sale_source}|${d.sale_source_detail}|${d.sold_from}|${d.sold_to}` : 'none';
+    linkLines.push(tie(`${p.label}: link`, `${wantBucket}|${wantCs}|null|${p.detail}|${cohort.meta.from}|${cohort.meta.to}`, got));
   });
   return { status: statusOf([...lines, ...linkLines]), lines, linkLines };
 }

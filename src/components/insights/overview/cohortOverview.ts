@@ -4,18 +4,23 @@
  * outcomes. Pure — cohortOverview.test.ts covers it; the cards only lay it out.
  *
  * Split keys (by_source[].splits, each with its `kind`):
- *   order  a sale_source_detail — altercpa `bridge` / `history` / `partner`,
- *          elyon_crm `prediction_list` / `direct`, collabBox `teleshop` /
- *          `social` / `leads` / `leads_out` / a series, legacy `<source_type>`;
- *          `none` = no detail recorded (no filter can name it)
+ *   order  a sale_source_detail — altercpa `bridge` / `history` / `partner` /
+ *          `team_prediction` / `team_collabbox_out` / `team_collabbox_leads_out`
+ *          / `collabbox_leads`, elyon_crm (Lead out) `prediction_list` /
+ *          `direct` / `collabbox_out` / `collabbox_leads_out` (collabBox "out"
+ *          documents of agents who work in the CRM, owner 28.09), social
+ *          `social` (/ `1300`), teleshop_other (Lead in) `teleshop` / `leads` /
+ *          `leads_out` / a series, legacy `<source_type>`; `none` = no detail
+ *          recorded (no filter can name it)
  *   web    the shop mirror by payment: `cod`, `card` — never /orders
- *   mex    Teleshop/Other's parcels with no order — `mex_teleshop` (9100/9102),
- *          `mex_social` (9108), `mex_web` (an NTMK… parcel no shop order
- *          claims), `elyon_unlinked` (BIO NATURAL 9110/9103: the neutral
- *          "Elyon account — unlinked"), `mex_other` — never /orders
+ *   mex    parcels with no order, in the source their series names (owner
+ *          28.09): AlterCPA `mex_leads` (9110) · Lead out `mex_out` (9102 /
+ *          9103) · Lead in `mex_in` (9100) and `mex_other` (no series …) ·
+ *          Social media `mex_social` (9108 / 1300) · web `mex_web` (NTMK… / M…)
+ *          — never /orders
  * Anything else renders with its label (or raw key) and no link.
  */
-import { COHORT_SALE_SOURCES, type CohortBucketKey, type CohortSourceRow, type CohortSplit } from '../shared/cohortTypes';
+import { COHORT_SOURCE_PARAM, COHORT_SOURCES, type CohortBucketKey, type CohortSourceRow, type CohortSplit } from '../shared/cohortTypes';
 import {
   COHORT_DRILL_PARAM, isMexOnlySplit, ordersSupportsCohortDrill, sumParts, type DrillBlock, type Part,
 } from '../shared/cohortModel';
@@ -50,14 +55,14 @@ export function splitDrill(
   if (!(num(split.count) > 0)) return { href: null, blocked: 'none' };
   if (split.kind === 'web') return { href: null, blocked: 'web' };
   if (isMexOnlySplit(split)) return { href: null, blocked: 'mex_only' };
-  const ss = COHORT_SALE_SOURCES[row.key] ?? [];
-  if (split.kind !== 'order' || split.key === 'none' || !DETAIL_RE.test(split.key) || !ss.length) {
+  const known = (COHORT_SOURCES as readonly string[]).includes(row.key);
+  if (split.kind !== 'order' || split.key === 'none' || !DETAIL_RE.test(split.key) || !known) {
     return { href: null, blocked: 'not_orders' };
   }
   if (!supported) return { href: null, blocked: 'unsupported' };
   const sp = new URLSearchParams();
   sp.set(COHORT_DRILL_PARAM, 'total');
-  sp.set('sale_source', ss.join(','));
+  sp.set(COHORT_SOURCE_PARAM, row.key);
   sp.set('sale_source_detail', split.key);
   sp.set('sold_from', range.from);
   sp.set('sold_to', range.to);

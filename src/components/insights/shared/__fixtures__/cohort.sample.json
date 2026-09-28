@@ -13,8 +13,9 @@
     "sources": [
       "altercpa",
       "elyon_crm",
-      "web",
-      "teleshop_other"
+      "teleshop_other",
+      "social",
+      "web"
     ],
     "granularity": "day"
   },
@@ -148,7 +149,7 @@
         "orders": 365,
         "web": 0,
         "mex_only": 0,
-        "drill": "/orders?cohort_bucket=total&sale_source=altercpa,affiliate&sold_from=2026-09-22&sold_to=2026-09-28"
+        "drill": "/orders?cohort_bucket=total&cohort_source=altercpa&sold_from=2026-09-22&sold_to=2026-09-28"
       },
       "buckets": [
         {
@@ -159,7 +160,7 @@
           "orders": 70,
           "web": 0,
           "mex_only": 0,
-          "drill": "/orders?cohort_bucket=paid&sale_source=altercpa,affiliate&sold_from=2026-09-22&sold_to=2026-09-28"
+          "drill": "/orders?cohort_bucket=paid&cohort_source=altercpa&sold_from=2026-09-22&sold_to=2026-09-28"
         },
         {
           "key": "paid_unproven",
@@ -189,7 +190,7 @@
           "orders": 20,
           "web": 0,
           "mex_only": 0,
-          "drill": "/orders?cohort_bucket=courier&sale_source=altercpa,affiliate&sold_from=2026-09-22&sold_to=2026-09-28"
+          "drill": "/orders?cohort_bucket=courier&cohort_source=altercpa&sold_from=2026-09-22&sold_to=2026-09-28"
         },
         {
           "key": "courier_problem",
@@ -199,7 +200,7 @@
           "orders": 36,
           "web": 0,
           "mex_only": 0,
-          "drill": "/orders?cohort_bucket=courier_problem&sale_source=altercpa,affiliate&sold_from=2026-09-22&sold_to=2026-09-28"
+          "drill": "/orders?cohort_bucket=courier_problem&cohort_source=altercpa&sold_from=2026-09-22&sold_to=2026-09-28"
         },
         {
           "key": "label",
@@ -209,7 +210,7 @@
           "orders": 30,
           "web": 0,
           "mex_only": 0,
-          "drill": "/orders?cohort_bucket=label&sale_source=altercpa,affiliate&sold_from=2026-09-22&sold_to=2026-09-28"
+          "drill": "/orders?cohort_bucket=label&cohort_source=altercpa&sold_from=2026-09-22&sold_to=2026-09-28"
         },
         {
           "key": "to_pack",
@@ -219,7 +220,7 @@
           "orders": 207,
           "web": 0,
           "mex_only": 0,
-          "drill": "/orders?cohort_bucket=to_pack&sale_source=altercpa,affiliate&sold_from=2026-09-22&sold_to=2026-09-28"
+          "drill": "/orders?cohort_bucket=to_pack&cohort_source=altercpa&sold_from=2026-09-22&sold_to=2026-09-28"
         },
         {
           "key": "returned",
@@ -229,7 +230,7 @@
           "orders": 2,
           "web": 0,
           "mex_only": 0,
-          "drill": "/orders?cohort_bucket=returned&sale_source=altercpa,affiliate&sold_from=2026-09-22&sold_to=2026-09-28"
+          "drill": "/orders?cohort_bucket=returned&cohort_source=altercpa&sold_from=2026-09-22&sold_to=2026-09-28"
         }
       ],
       "outside": [
@@ -240,7 +241,7 @@
           "orders": 2,
           "web": 0,
           "mex_only": 0,
-          "drill": "/orders?cohort_bucket=cancelled_after_sale&sale_source=altercpa,affiliate&sold_from=2026-09-22&sold_to=2026-09-28"
+          "drill": "/orders?cohort_bucket=cancelled_after_sale&cohort_source=altercpa&sold_from=2026-09-22&sold_to=2026-09-28"
         },
         {
           "key": "trashed_after_sale",
@@ -267,14 +268,14 @@
           "kind": "order",
           "count": 358,
           "value_mkd": 973870,
-          "drill": "/orders?cohort_bucket=total&sale_source=altercpa,affiliate&sale_source_detail=bridge&sold_from=2026-09-22&sold_to=2026-09-28"
+          "drill": "/orders?cohort_bucket=total&cohort_source=altercpa&sale_source_detail=bridge&sold_from=2026-09-22&sold_to=2026-09-28"
         },
         {
           "key": "partner",
           "kind": "order",
           "count": 7,
           "value_mkd": 17450,
-          "drill": "/orders?cohort_bucket=total&sale_source=altercpa,affiliate&sale_source_detail=partner&sold_from=2026-09-22&sold_to=2026-09-28"
+          "drill": "/orders?cohort_bucket=total&cohort_source=altercpa&sale_source_detail=partner&sold_from=2026-09-22&sold_to=2026-09-28"
         }
       ],
       "leads_in": {
@@ -297,7 +298,7 @@
         "orders": 142,
         "web": 0,
         "mex_only": 0,
-        "drill": "/orders?cohort_bucket=total&sale_source=elyon_crm&sold_from=2026-09-22&sold_to=2026-09-28"
+        "drill": "/orders?cohort_bucket=total&cohort_source=elyon_crm&sold_from=2026-09-22&sold_to=2026-09-28"
       },
       "buckets": [
         {
@@ -308,7 +309,7 @@
           "orders": 51,
           "web": 0,
           "mex_only": 0,
-          "drill": "/orders?cohort_bucket=paid&sale_source=elyon_crm&sold_from=2026-09-22&sold_to=2026-09-28"
+          "drill": "/orders?cohort_bucket=paid&cohort_source=elyon_crm&sold_from=2026-09-22&sold_to=2026-09-28"
         },
         {
           "key": "paid_unproven",
@@ -338,7 +339,7 @@
           "orders": 12,
           "web": 0,
           "mex_only": 0,
-          "drill": "/orders?cohort_bucket=courier&sale_source=elyon_crm&sold_from=2026-09-22&sold_to=2026-09-28"
+          "drill": "/orders?cohort_bucket=courier&cohort_source=elyon_crm&sold_from=2026-09-22&sold_to=2026-09-28"
         },
         {
           "key": "courier_problem",
@@ -348,7 +349,7 @@
           "orders": 12,
           "web": 0,
           "mex_only": 0,
-          "drill": "/orders?cohort_bucket=courier_problem&sale_source=elyon_crm&sold_from=2026-09-22&sold_to=2026-09-28"
+          "drill": "/orders?cohort_bucket=courier_problem&cohort_source=elyon_crm&sold_from=2026-09-22&sold_to=2026-09-28"
         },
         {
           "key": "label",
@@ -358,7 +359,7 @@
           "orders": 13,
           "web": 0,
           "mex_only": 0,
-          "drill": "/orders?cohort_bucket=label&sale_source=elyon_crm&sold_from=2026-09-22&sold_to=2026-09-28"
+          "drill": "/orders?cohort_bucket=label&cohort_source=elyon_crm&sold_from=2026-09-22&sold_to=2026-09-28"
         },
         {
           "key": "to_pack",
@@ -368,7 +369,7 @@
           "orders": 53,
           "web": 0,
           "mex_only": 0,
-          "drill": "/orders?cohort_bucket=to_pack&sale_source=elyon_crm&sold_from=2026-09-22&sold_to=2026-09-28"
+          "drill": "/orders?cohort_bucket=to_pack&cohort_source=elyon_crm&sold_from=2026-09-22&sold_to=2026-09-28"
         },
         {
           "key": "returned",
@@ -378,7 +379,7 @@
           "orders": 1,
           "web": 0,
           "mex_only": 0,
-          "drill": "/orders?cohort_bucket=returned&sale_source=elyon_crm&sold_from=2026-09-22&sold_to=2026-09-28"
+          "drill": "/orders?cohort_bucket=returned&cohort_source=elyon_crm&sold_from=2026-09-22&sold_to=2026-09-28"
         }
       ],
       "outside": [
@@ -398,7 +399,7 @@
           "orders": 1,
           "web": 0,
           "mex_only": 0,
-          "drill": "/orders?cohort_bucket=trashed_after_sale&sale_source=elyon_crm&sold_from=2026-09-22&sold_to=2026-09-28"
+          "drill": "/orders?cohort_bucket=trashed_after_sale&cohort_source=elyon_crm&sold_from=2026-09-22&sold_to=2026-09-28"
         },
         {
           "key": "replacement",
@@ -416,14 +417,14 @@
           "kind": "order",
           "count": 118,
           "value_mkd": 327100,
-          "drill": "/orders?cohort_bucket=total&sale_source=elyon_crm&sale_source_detail=prediction_list&sold_from=2026-09-22&sold_to=2026-09-28"
+          "drill": "/orders?cohort_bucket=total&cohort_source=elyon_crm&sale_source_detail=prediction_list&sold_from=2026-09-22&sold_to=2026-09-28"
         },
         {
           "key": "direct",
           "kind": "order",
           "count": 24,
           "value_mkd": 63702,
-          "drill": "/orders?cohort_bucket=total&sale_source=elyon_crm&sale_source_detail=direct&sold_from=2026-09-22&sold_to=2026-09-28"
+          "drill": "/orders?cohort_bucket=total&cohort_source=elyon_crm&sale_source_detail=direct&sold_from=2026-09-22&sold_to=2026-09-28"
         }
       ],
       "leads_in": {
@@ -435,6 +436,297 @@
         "other": 0,
         "disposition": 1638,
         "conversion": 0.0798
+      }
+    },
+    {
+      "key": "teleshop_other",
+      "total": {
+        "count": 709,
+        "value_mkd": 1594665,
+        "cod_mkd": 1594665,
+        "orders": 0,
+        "web": 0,
+        "mex_only": 709,
+        "drill": null
+      },
+      "buckets": [
+        {
+          "key": "paid",
+          "count": 528,
+          "value_mkd": 1188015,
+          "cod_mkd": 1188015,
+          "orders": 0,
+          "web": 0,
+          "mex_only": 528,
+          "drill": null
+        },
+        {
+          "key": "paid_unproven",
+          "count": 0,
+          "value_mkd": 0,
+          "cod_mkd": 0,
+          "orders": 0,
+          "web": 0,
+          "mex_only": 0,
+          "drill": null
+        },
+        {
+          "key": "paid_legacy",
+          "count": 0,
+          "value_mkd": 0,
+          "cod_mkd": 0,
+          "orders": 0,
+          "web": 0,
+          "mex_only": 0,
+          "drill": null
+        },
+        {
+          "key": "courier",
+          "count": 66,
+          "value_mkd": 145600,
+          "cod_mkd": 145600,
+          "orders": 0,
+          "web": 0,
+          "mex_only": 66,
+          "drill": null
+        },
+        {
+          "key": "courier_problem",
+          "count": 71,
+          "value_mkd": 155800,
+          "cod_mkd": 155800,
+          "orders": 0,
+          "web": 0,
+          "mex_only": 71,
+          "drill": null
+        },
+        {
+          "key": "label",
+          "count": 34,
+          "value_mkd": 84050,
+          "cod_mkd": 84050,
+          "orders": 0,
+          "web": 0,
+          "mex_only": 34,
+          "drill": null
+        },
+        {
+          "key": "to_pack",
+          "count": 0,
+          "value_mkd": 0,
+          "cod_mkd": 0,
+          "orders": 0,
+          "web": 0,
+          "mex_only": 0,
+          "drill": null
+        },
+        {
+          "key": "returned",
+          "count": 10,
+          "value_mkd": 21200,
+          "cod_mkd": 21200,
+          "orders": 0,
+          "web": 0,
+          "mex_only": 10,
+          "drill": null
+        }
+      ],
+      "outside": [
+        {
+          "key": "cancelled_after_sale",
+          "count": 0,
+          "value_mkd": 0,
+          "orders": 0,
+          "web": 0,
+          "mex_only": 0,
+          "drill": null
+        },
+        {
+          "key": "trashed_after_sale",
+          "count": 0,
+          "value_mkd": 0,
+          "orders": 0,
+          "web": 0,
+          "mex_only": 0,
+          "drill": null
+        },
+        {
+          "key": "replacement",
+          "count": 6,
+          "value_mkd": 0,
+          "orders": 0,
+          "web": 0,
+          "mex_only": 6,
+          "drill": null
+        }
+      ],
+      "splits": [
+        {
+          "key": "mex_in",
+          "kind": "mex",
+          "count": 639,
+          "value_mkd": 1397880,
+          "drill": null
+        },
+        {
+          "key": "mex_other",
+          "kind": "mex",
+          "count": 70,
+          "value_mkd": 196785,
+          "drill": null
+        }
+      ],
+      "leads_in": {
+        "came_in": 0,
+        "became_sales": 0,
+        "cancelled": 0,
+        "trashed": 0,
+        "open": 0,
+        "other": 0,
+        "disposition": 0,
+        "conversion": null
+      }
+    },
+    {
+      "key": "social",
+      "total": {
+        "count": 31,
+        "value_mkd": 61600,
+        "cod_mkd": 61600,
+        "orders": 0,
+        "web": 0,
+        "mex_only": 31,
+        "drill": null
+      },
+      "buckets": [
+        {
+          "key": "paid",
+          "count": 22,
+          "value_mkd": 43800,
+          "cod_mkd": 43800,
+          "orders": 0,
+          "web": 0,
+          "mex_only": 22,
+          "drill": null
+        },
+        {
+          "key": "paid_unproven",
+          "count": 0,
+          "value_mkd": 0,
+          "cod_mkd": 0,
+          "orders": 0,
+          "web": 0,
+          "mex_only": 0,
+          "drill": null
+        },
+        {
+          "key": "paid_legacy",
+          "count": 0,
+          "value_mkd": 0,
+          "cod_mkd": 0,
+          "orders": 0,
+          "web": 0,
+          "mex_only": 0,
+          "drill": null
+        },
+        {
+          "key": "courier",
+          "count": 4,
+          "value_mkd": 8000,
+          "cod_mkd": 8000,
+          "orders": 0,
+          "web": 0,
+          "mex_only": 4,
+          "drill": null
+        },
+        {
+          "key": "courier_problem",
+          "count": 2,
+          "value_mkd": 4000,
+          "cod_mkd": 4000,
+          "orders": 0,
+          "web": 0,
+          "mex_only": 2,
+          "drill": null
+        },
+        {
+          "key": "label",
+          "count": 2,
+          "value_mkd": 3800,
+          "cod_mkd": 3800,
+          "orders": 0,
+          "web": 0,
+          "mex_only": 2,
+          "drill": null
+        },
+        {
+          "key": "to_pack",
+          "count": 0,
+          "value_mkd": 0,
+          "cod_mkd": 0,
+          "orders": 0,
+          "web": 0,
+          "mex_only": 0,
+          "drill": null
+        },
+        {
+          "key": "returned",
+          "count": 1,
+          "value_mkd": 2000,
+          "cod_mkd": 2000,
+          "orders": 0,
+          "web": 0,
+          "mex_only": 1,
+          "drill": null
+        }
+      ],
+      "outside": [
+        {
+          "key": "cancelled_after_sale",
+          "count": 0,
+          "value_mkd": 0,
+          "orders": 0,
+          "web": 0,
+          "mex_only": 0,
+          "drill": null
+        },
+        {
+          "key": "trashed_after_sale",
+          "count": 0,
+          "value_mkd": 0,
+          "orders": 0,
+          "web": 0,
+          "mex_only": 0,
+          "drill": null
+        },
+        {
+          "key": "replacement",
+          "count": 0,
+          "value_mkd": 0,
+          "orders": 0,
+          "web": 0,
+          "mex_only": 0,
+          "drill": null
+        }
+      ],
+      "splits": [
+        {
+          "key": "mex_social",
+          "kind": "mex",
+          "count": 31,
+          "value_mkd": 61600,
+          "drill": null
+        }
+      ],
+      "leads_in": {
+        "came_in": 0,
+        "became_sales": 0,
+        "cancelled": 0,
+        "trashed": 0,
+        "open": 0,
+        "other": 0,
+        "disposition": 0,
+        "conversion": null
       }
     },
     {
@@ -584,162 +876,6 @@
         "other": 0,
         "disposition": 0,
         "conversion": 0.559
-      }
-    },
-    {
-      "key": "teleshop_other",
-      "total": {
-        "count": 740,
-        "value_mkd": 1656265,
-        "cod_mkd": 1656265,
-        "orders": 0,
-        "web": 0,
-        "mex_only": 740,
-        "drill": null
-      },
-      "buckets": [
-        {
-          "key": "paid",
-          "count": 550,
-          "value_mkd": 1231815,
-          "cod_mkd": 1231815,
-          "orders": 0,
-          "web": 0,
-          "mex_only": 550,
-          "drill": null
-        },
-        {
-          "key": "paid_unproven",
-          "count": 0,
-          "value_mkd": 0,
-          "cod_mkd": 0,
-          "orders": 0,
-          "web": 0,
-          "mex_only": 0,
-          "drill": null
-        },
-        {
-          "key": "paid_legacy",
-          "count": 0,
-          "value_mkd": 0,
-          "cod_mkd": 0,
-          "orders": 0,
-          "web": 0,
-          "mex_only": 0,
-          "drill": null
-        },
-        {
-          "key": "courier",
-          "count": 70,
-          "value_mkd": 153600,
-          "cod_mkd": 153600,
-          "orders": 0,
-          "web": 0,
-          "mex_only": 70,
-          "drill": null
-        },
-        {
-          "key": "courier_problem",
-          "count": 73,
-          "value_mkd": 159800,
-          "cod_mkd": 159800,
-          "orders": 0,
-          "web": 0,
-          "mex_only": 73,
-          "drill": null
-        },
-        {
-          "key": "label",
-          "count": 36,
-          "value_mkd": 87850,
-          "cod_mkd": 87850,
-          "orders": 0,
-          "web": 0,
-          "mex_only": 36,
-          "drill": null
-        },
-        {
-          "key": "to_pack",
-          "count": 0,
-          "value_mkd": 0,
-          "cod_mkd": 0,
-          "orders": 0,
-          "web": 0,
-          "mex_only": 0,
-          "drill": null
-        },
-        {
-          "key": "returned",
-          "count": 11,
-          "value_mkd": 23200,
-          "cod_mkd": 23200,
-          "orders": 0,
-          "web": 0,
-          "mex_only": 11,
-          "drill": null
-        }
-      ],
-      "outside": [
-        {
-          "key": "cancelled_after_sale",
-          "count": 0,
-          "value_mkd": 0,
-          "orders": 0,
-          "web": 0,
-          "mex_only": 0,
-          "drill": null
-        },
-        {
-          "key": "trashed_after_sale",
-          "count": 0,
-          "value_mkd": 0,
-          "orders": 0,
-          "web": 0,
-          "mex_only": 0,
-          "drill": null
-        },
-        {
-          "key": "replacement",
-          "count": 6,
-          "value_mkd": 0,
-          "orders": 0,
-          "web": 0,
-          "mex_only": 6,
-          "drill": null
-        }
-      ],
-      "splits": [
-        {
-          "key": "mex_teleshop",
-          "kind": "mex",
-          "count": 639,
-          "value_mkd": 1397880,
-          "drill": null
-        },
-        {
-          "key": "elyon_unlinked",
-          "kind": "mex",
-          "count": 70,
-          "value_mkd": 196785,
-          "drill": null
-        },
-        {
-          "key": "mex_social",
-          "kind": "mex",
-          "count": 31,
-          "value_mkd": 61600,
-          "drill": null
-        }
-      ],
-      "leads_in": {
-        "came_in": 0,
-        "became_sales": 0,
-        "cancelled": 0,
-        "trashed": 0,
-        "open": 0,
-        "other": 0,
-        "disposition": 0,
-        "conversion": null
       }
     }
   ],

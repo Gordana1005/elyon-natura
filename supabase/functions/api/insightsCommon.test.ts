@@ -4,6 +4,7 @@ import {
   COHORT_UNIVERSE_OR, cohortBucketOrFilter, cohortExcludedPhoneOr, cohortOrderBucket, cohortOrderSaleAt,
   cohortFilterChars, COHORT_FILTER_MAX_CHARS, cohortOrdersFilter, cohortSaleWindowOrFilter, insightsAccess, insightsWindows,
   isCohortExcludedPhone, overlayFreshness, parseCohortBucketParam, parseCohortExceptions, parseSourcesParam, stripInsightsMoney,
+  COHORT_SOURCE_TERM, cohortSourceOrFilter, INSIGHTS_SOURCES, parseCohortSourceParam,
 } from "./insightsCommon.ts";
 import type { CohortExceptions, CohortOrderRow } from "./insightsCommon.ts";
 // The week fixture in insights_cohort()'s exact shape (owner view).
@@ -351,6 +352,61 @@ describe("the verify script translates the twin to SQL faithfully", () => {
   });
 });
 
+// ── the five sources on /orders (migration 20260942000500) ──────────────────
+/** cohort_order_source(sale_source, sale_source_detail), verbatim. */
+const sqlSource = (ss: string | null, d: string | null): string =>
+  ss === "altercpa" || ss === "affiliate" ? "altercpa"
+    : ss === "elyon_crm" ? "elyon_crm"
+    : ss === "web" ? "web"
+    : ss === "collabbox" && (d === "social" || d === "1300") ? "social"
+    : "teleshop_other";
+const SALE_SOURCES_ALL = ["altercpa", "affiliate", "elyon_crm", "web", "collabbox", "legacy", null];
+const DETAILS_ALL = ["social", "1300", "teleshop", "leads", "leads_out", "9225", "unknown", "bridge", "history",
+  "prediction_list", "direct", "collabbox_out", "collabbox_leads_out", "monadon_legacy", null];
+const SOURCE_ROWS: Row[] = SALE_SOURCES_ALL.flatMap((ss) => DETAILS_ALL.map((d) => ({ sale_source: ss, sale_source_detail: d })));
+
+describe("cohort_source — the twin of cohort_order_source(sale_source, detail)", () => {
+  it("every (sale_source, detail) lands in exactly the source SQL gives it, NULLs included", () => {
+    for (const r of SOURCE_ROWS) {
+      const hits = INSIGHTS_SOURCES.filter((k) => orMatches(COHORT_SOURCE_TERM[k], r));
+      expect(hits, JSON.stringify(r)).toEqual([sqlSource(r.sale_source as string | null, r.sale_source_detail as string | null)]);
+    }
+  });
+  it("collabBox is two sources: social documents (9108 / 1300) are Social media, the rest Teleshop / other", () => {
+    const f = cohortSourceOrFilter(["social"])!;
+    expect(orMatches(f, { sale_source: "collabbox", sale_source_detail: "social" })).toBe(true);
+    expect(orMatches(f, { sale_source: "collabbox", sale_source_detail: "1300" })).toBe(true);
+    expect(orMatches(f, { sale_source: "collabbox", sale_source_detail: "teleshop" })).toBe(false);
+    expect(orMatches(f, { sale_source: "legacy", sale_source_detail: "social" })).toBe(false);
+    const t = cohortSourceOrFilter(["teleshop_other"])!;
+    expect(orMatches(t, { sale_source: "collabbox", sale_source_detail: "teleshop" })).toBe(true);
+    expect(orMatches(t, { sale_source: "collabbox", sale_source_detail: null })).toBe(true);
+    expect(orMatches(t, { sale_source: "legacy", sale_source_detail: "monadon_legacy" })).toBe(true);
+    expect(orMatches(t, { sale_source: null, sale_source_detail: null })).toBe(true);
+    expect(orMatches(t, { sale_source: "collabbox", sale_source_detail: "social" })).toBe(false);
+    // ElyonCRM's collabBox "out" documents (owner 28.09) are ElyonCRM's, never Teleshop's
+    expect(orMatches(t, { sale_source: "elyon_crm", sale_source_detail: "collabbox_out" })).toBe(false);
+    expect(orMatches(cohortSourceOrFilter(["elyon_crm"])!, { sale_source: "elyon_crm", sale_source_detail: "collabbox_leads_out" })).toBe(true);
+  });
+  it("several keys = any of them; none or all five = no filter; unknown keys are refused", () => {
+    const f = cohortSourceOrFilter(["social", "altercpa"])!;
+    for (const r of SOURCE_ROWS) {
+      const want = ["social", "altercpa"].includes(sqlSource(r.sale_source as string | null, r.sale_source_detail as string | null));
+      expect(orMatches(f, r), JSON.stringify(r)).toBe(want);
+    }
+    expect(cohortSourceOrFilter([])).toBeNull();
+    expect(cohortSourceOrFilter([...INSIGHTS_SOURCES])).toBeNull();
+    expect(parseCohortSourceParam(null)).toEqual({ ok: true, values: [] });
+    expect(parseCohortSourceParam("social,teleshop_other")).toEqual({ ok: true, values: ["social", "teleshop_other"] });
+    expect(parseCohortSourceParam("collabbox")).toEqual({ ok: false, bad: "collabbox" });
+  });
+  it("the verify script translates it (the same SQL PostgREST runs)", () => {
+    for (const k of INSIGHTS_SOURCES) expect(() => pgrstOrToSql(cohortSourceOrFilter([k])!)).not.toThrow();
+    expect(pgrstOrToSql(cohortSourceOrFilter(["social"])!))
+      .toBe("(((o.sale_source = 'collabbox') AND (o.sale_source_detail::text IN ('social', '1300'))))");
+  });
+});
+
 describe("access, sources, windows", () => {
   it("owners get money, admin/manager counts, others nothing", () => {
     expect(insightsAccess(true, false)).toBe("owner");
@@ -358,8 +414,9 @@ describe("access, sources, windows", () => {
     expect(insightsAccess(false, true)).toBe("counts");
     expect(insightsAccess(false, false)).toBe("forbidden");
   });
-  it("sources default to all four and reject unknown keys", () => {
-    expect(parseSourcesParam(null)).toEqual({ ok: true, values: ["altercpa", "elyon_crm", "web", "teleshop_other"] });
+  it("sources default to all five and reject unknown keys", () => {
+    expect(parseSourcesParam(null)).toEqual({ ok: true, values: ["altercpa", "elyon_crm", "teleshop_other", "social", "web"] });
+    expect(parseSourcesParam("social")).toEqual({ ok: true, values: ["social"] });
     expect(parseSourcesParam("web,altercpa")).toEqual({ ok: true, values: ["web", "altercpa"] });
     expect(parseSourcesParam("collabbox").ok).toBe(false);
   });

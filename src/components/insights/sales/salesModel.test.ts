@@ -29,10 +29,10 @@ describe('outcome rates', () => {
 });
 
 describe('sources', () => {
-  it('four rows in the fixed order, Σ = the header, shares by денари for owners', () => {
+  it('five rows in the fixed order, Σ = the header, shares by денари for owners', () => {
     const c = core();
     const v = sourceViews(c, true);
-    expect(v.map((x) => x.key)).toEqual(['altercpa', 'elyon_crm', 'web', 'teleshop_other']);
+    expect(v.map((x) => x.key)).toEqual(['altercpa', 'elyon_crm', 'teleshop_other', 'social', 'web']);
     expect(v.reduce((a, x) => a + x.count, 0)).toBe(c.total.count);
     expect(v.reduce((a, x) => a + (x.value ?? 0), 0)).toBe(c.total.value_mkd);
     expect(v.reduce((a, x) => a + (x.share ?? 0), 0)).toBeCloseTo(1, 6);
@@ -65,7 +65,7 @@ describe('trend', () => {
     expect(byCount.reduce((a, r) => a + r.total, 0)).toBe(c.total.count);
     const byValue = trendRows(c.trend.points, true);
     expect(byValue.reduce((a, r) => a + r.total, 0)).toBe(c.total.value_mkd);
-    expect(trendSources(byCount)).toEqual(['altercpa', 'elyon_crm', 'web', 'teleshop_other']);
+    expect(trendSources(byCount)).toEqual(['altercpa', 'elyon_crm', 'teleshop_other', 'social', 'web']);
     expect(trendSources([{ d: '2026-09-01', total: 1, altercpa: 1, web: 0 }])).toEqual(['altercpa']);
   });
   it('a week or month that sticks out of the period is partial', () => {

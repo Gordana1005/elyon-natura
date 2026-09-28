@@ -34,7 +34,10 @@
  *                      whose tracking id is ANOTHER CRM order's display id. The series decides
  *                      the channel, never the account (20260940000000's rule — series cross
  *                      accounts at the margins); the account decides only when there is no
- *                      series. A collabBox order holding its own DocNumber is never suspect.
+ *                      series. A collabBox order holding its own DocNumber is never suspect, and
+ *                      neither is an order the teleshop ledger names as the sale of the collabBox
+ *                      document with that DocNumber (collab_twin — the teleshop team confirms in
+ *                      AlterCPA and books in collabBox, owner 28.09.2026).
  *   not_a_sale_status  pending / take / call_again / cancelled / trashed / duplicated
  *   in_payout          the order sits in agent_payout_items (payouts are deferred)
  *   items_unscalable   several order_items lines that sum to 0 — no proportion to keep
@@ -146,6 +149,9 @@ export function linkSuspicion(o, p) {
   if (!p) return null;
   const t = String(p.tracking_id ?? '');
   if (o.external_source === 'collabbox' && String(o.external_order_id ?? '') === t) return null;   // its own DocNumber
+  // The collabBox teleshop document with this DocNumber names THIS order as its sale (the teleshop
+  // team confirms in AlterCPA and books in collabBox — owner 28.09.2026): the link is proven.
+  if (o.collab_twin === true) return null;
   if (/^ORD-\d+$/i.test(t)) {
     return t.toUpperCase() === String(o.display_id ?? '').toUpperCase() ? null : `the parcel's tracking id is another CRM order's display id (${t})`;
   }

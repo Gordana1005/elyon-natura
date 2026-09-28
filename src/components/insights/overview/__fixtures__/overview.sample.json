@@ -393,6 +393,245 @@
       "web_block": null
     },
     {
+      "key": "teleshop_other",
+      "placed": {
+        "count": 480,
+        "value_eur": 16655.9
+      },
+      "buckets": {
+        "awaiting": {
+          "count": 0,
+          "value_eur": 0
+        },
+        "preparing": {
+          "count": 18,
+          "value_eur": 633.6
+        },
+        "packed": {
+          "count": 0,
+          "value_eur": 0
+        },
+        "courier": {
+          "count": 105,
+          "value_eur": 3656.7
+        },
+        "delivered": {
+          "count": 294,
+          "value_eur": 10312.2,
+          "cod_mkd": 638320
+        },
+        "returned": {
+          "count": 51,
+          "value_eur": 1707
+        },
+        "cancelled": {
+          "count": 12,
+          "value_eur": 346.4
+        },
+        "trashed": {
+          "count": 0,
+          "value_eur": 0
+        },
+        "mex_only": {
+          "count": 66,
+          "cod_mkd": 143020
+        }
+      },
+      "money": {
+        "collected_mkd": 638320,
+        "collected_proven_mkd": 638320,
+        "collected_unproven_mkd": 0,
+        "to_collect_eur": 4290.3,
+        "lost_eur": 2053.4
+      },
+      "cash": {
+        "count": 423,
+        "cod_mkd": 922470,
+        "proven_count": 423,
+        "proven_cod_mkd": 922470,
+        "unproven_count": 0,
+        "unproven_cod_mkd": 0,
+        "mex_only_count": 106,
+        "mex_only_cod_mkd": 229740
+      },
+      "worked": 0,
+      "cohort_sold": 0,
+      "conversion": null,
+      "confirmed": 0,
+      "confirmed_value_eur": 0,
+      "aov_eur": null,
+      "splits": [
+        {
+          "key": "teleshop",
+          "basis": "placed",
+          "count": 402,
+          "value_eur": 13936.4,
+          "sold_count": 0,
+          "sold_value_eur": 0,
+          "drill": {
+            "sale_source": [
+              "collabbox"
+            ],
+            "detail": [
+              "teleshop"
+            ]
+          }
+        },
+        {
+          "key": "leads_out",
+          "basis": "placed",
+          "count": 57,
+          "value_eur": 1988.3,
+          "sold_count": 0,
+          "sold_value_eur": 0,
+          "drill": {
+            "sale_source": [
+              "collabbox"
+            ],
+            "detail": [
+              "leads_out"
+            ]
+          }
+        },
+        {
+          "key": "leads",
+          "basis": "placed",
+          "count": 21,
+          "value_eur": 731.2,
+          "sold_count": 0,
+          "sold_value_eur": 0,
+          "drill": {
+            "sale_source": [
+              "collabbox"
+            ],
+            "detail": [
+              "leads"
+            ]
+          }
+        },
+        {
+          "key": "mex_only_unlinked",
+          "basis": "placed",
+          "count": 66,
+          "cod_mkd": 143020,
+          "drill": null
+        }
+      ],
+      "drill": {
+        "sale_source": [
+          "collabbox",
+          "legacy"
+        ],
+        "cohort_source": [
+          "teleshop_other"
+        ]
+      },
+      "web_block": null
+    },
+    {
+      "key": "social",
+      "placed": {
+        "count": 118,
+        "value_eur": 4210.4
+      },
+      "buckets": {
+        "awaiting": {
+          "count": 0,
+          "value_eur": 0
+        },
+        "preparing": {
+          "count": 4,
+          "value_eur": 140.8
+        },
+        "packed": {
+          "count": 0,
+          "value_eur": 0
+        },
+        "courier": {
+          "count": 26,
+          "value_eur": 915.2
+        },
+        "delivered": {
+          "count": 72,
+          "value_eur": 2534.4,
+          "cod_mkd": 154800
+        },
+        "returned": {
+          "count": 12,
+          "value_eur": 422.4
+        },
+        "cancelled": {
+          "count": 4,
+          "value_eur": 197.6
+        },
+        "trashed": {
+          "count": 0,
+          "value_eur": 0
+        },
+        "mex_only": {
+          "count": 20,
+          "cod_mkd": 43340
+        }
+      },
+      "money": {
+        "collected_mkd": 154800,
+        "collected_proven_mkd": 154800,
+        "collected_unproven_mkd": 0,
+        "to_collect_eur": 1056,
+        "lost_eur": 620
+      },
+      "cash": {
+        "count": 100,
+        "cod_mkd": 215400,
+        "proven_count": 100,
+        "proven_cod_mkd": 215400,
+        "unproven_count": 0,
+        "unproven_cod_mkd": 0,
+        "mex_only_count": 25,
+        "mex_only_cod_mkd": 54200
+      },
+      "worked": 0,
+      "cohort_sold": 0,
+      "conversion": null,
+      "confirmed": 0,
+      "confirmed_value_eur": 0,
+      "aov_eur": null,
+      "splits": [
+        {
+          "key": "social",
+          "basis": "placed",
+          "count": 118,
+          "value_eur": 4210.4,
+          "sold_count": 0,
+          "sold_value_eur": 0,
+          "drill": {
+            "sale_source": [
+              "collabbox"
+            ],
+            "detail": [
+              "social"
+            ]
+          }
+        },
+        {
+          "key": "mex_only_unlinked",
+          "basis": "placed",
+          "count": 20,
+          "cod_mkd": 43340,
+          "drill": null
+        }
+      ],
+      "drill": {
+        "sale_source": [
+          "collabbox"
+        ],
+        "cohort_source": [
+          "social"
+        ]
+      },
+      "web_block": null
+    },
+    {
       "key": "web",
       "placed": {
         "count": 175,
@@ -493,155 +732,6 @@
         ]
       },
       "web_block": true
-    },
-    {
-      "key": "teleshop_other",
-      "placed": {
-        "count": 598,
-        "value_eur": 20866.3
-      },
-      "buckets": {
-        "awaiting": {
-          "count": 0,
-          "value_eur": 0
-        },
-        "preparing": {
-          "count": 22,
-          "value_eur": 774.4
-        },
-        "packed": {
-          "count": 0,
-          "value_eur": 0
-        },
-        "courier": {
-          "count": 131,
-          "value_eur": 4571.9
-        },
-        "delivered": {
-          "count": 366,
-          "value_eur": 12846.6,
-          "cod_mkd": 793120
-        },
-        "returned": {
-          "count": 63,
-          "value_eur": 2129.4
-        },
-        "cancelled": {
-          "count": 16,
-          "value_eur": 544
-        },
-        "trashed": {
-          "count": 0,
-          "value_eur": 0
-        },
-        "mex_only": {
-          "count": 86,
-          "cod_mkd": 186360
-        }
-      },
-      "money": {
-        "collected_mkd": 793120,
-        "collected_proven_mkd": 793120,
-        "collected_unproven_mkd": 0,
-        "to_collect_eur": 5346.3,
-        "lost_eur": 2673.4
-      },
-      "cash": {
-        "count": 523,
-        "cod_mkd": 1137870,
-        "proven_count": 523,
-        "proven_cod_mkd": 1137870,
-        "unproven_count": 0,
-        "unproven_cod_mkd": 0,
-        "mex_only_count": 131,
-        "mex_only_cod_mkd": 283940
-      },
-      "worked": 0,
-      "cohort_sold": 0,
-      "conversion": null,
-      "confirmed": 0,
-      "confirmed_value_eur": 0,
-      "aov_eur": null,
-      "splits": [
-        {
-          "key": "teleshop",
-          "basis": "placed",
-          "count": 402,
-          "value_eur": 13936.4,
-          "sold_count": 0,
-          "sold_value_eur": 0,
-          "drill": {
-            "sale_source": [
-              "collabbox"
-            ],
-            "detail": [
-              "teleshop"
-            ]
-          }
-        },
-        {
-          "key": "social",
-          "basis": "placed",
-          "count": 118,
-          "value_eur": 4210.4,
-          "sold_count": 0,
-          "sold_value_eur": 0,
-          "drill": {
-            "sale_source": [
-              "collabbox"
-            ],
-            "detail": [
-              "social"
-            ]
-          }
-        },
-        {
-          "key": "leads_out",
-          "basis": "placed",
-          "count": 57,
-          "value_eur": 1988.3,
-          "sold_count": 0,
-          "sold_value_eur": 0,
-          "drill": {
-            "sale_source": [
-              "collabbox"
-            ],
-            "detail": [
-              "leads_out"
-            ]
-          }
-        },
-        {
-          "key": "leads",
-          "basis": "placed",
-          "count": 21,
-          "value_eur": 731.2,
-          "sold_count": 0,
-          "sold_value_eur": 0,
-          "drill": {
-            "sale_source": [
-              "collabbox"
-            ],
-            "detail": [
-              "leads"
-            ]
-          }
-        },
-        {
-          "key": "mex_only_unlinked",
-          "basis": "placed",
-          "count": 86,
-          "cod_mkd": 186360,
-          "drill": null
-        }
-      ],
-      "drill": {
-        "sale_source": [
-          "collabbox",
-          "legacy"
-        ]
-      },
-      "web_block": null
     }
   ],
   "trend": {
@@ -662,17 +752,23 @@
             "delivered_count": 45,
             "delivered_cash_mkd": 111432
           },
+          "teleshop_other": {
+            "placed_count": 80,
+            "placed_value_eur": 2775.99,
+            "delivered_count": 77,
+            "delivered_cash_mkd": 167721
+          },
+          "social": {
+            "placed_count": 20,
+            "placed_value_eur": 701.73,
+            "delivered_count": 18,
+            "delivered_cash_mkd": 39164
+          },
           "web": {
             "placed_count": 30,
             "placed_value_eur": 1094.34,
             "delivered_count": 17,
             "delivered_cash_mkd": 39880
-          },
-          "teleshop_other": {
-            "placed_count": 100,
-            "placed_value_eur": 3477.72,
-            "delivered_count": 95,
-            "delivered_cash_mkd": 206885
           }
         }
       },
@@ -691,17 +787,23 @@
             "delivered_count": 48,
             "delivered_cash_mkd": 117005
           },
+          "teleshop_other": {
+            "placed_count": 85,
+            "placed_value_eur": 2908.18,
+            "delivered_count": 81,
+            "delivered_cash_mkd": 176108
+          },
+          "social": {
+            "placed_count": 20,
+            "placed_value_eur": 735.15,
+            "delivered_count": 19,
+            "delivered_cash_mkd": 41122
+          },
           "web": {
             "placed_count": 31,
             "placed_value_eur": 1146.45,
             "delivered_count": 19,
             "delivered_cash_mkd": 41874
-          },
-          "teleshop_other": {
-            "placed_count": 105,
-            "placed_value_eur": 3643.33,
-            "delivered_count": 100,
-            "delivered_cash_mkd": 217230
           }
         }
       },
@@ -720,17 +822,23 @@
             "delivered_count": 43,
             "delivered_cash_mkd": 105861
           },
+          "teleshop_other": {
+            "placed_count": 80,
+            "placed_value_eur": 2775.99,
+            "delivered_count": 73,
+            "delivered_cash_mkd": 159336
+          },
+          "social": {
+            "placed_count": 20,
+            "placed_value_eur": 701.73,
+            "delivered_count": 17,
+            "delivered_cash_mkd": 37205
+          },
           "web": {
             "placed_count": 30,
             "placed_value_eur": 1094.34,
             "delivered_count": 16,
             "delivered_cash_mkd": 37886
-          },
-          "teleshop_other": {
-            "placed_count": 100,
-            "placed_value_eur": 3477.72,
-            "delivered_count": 90,
-            "delivered_cash_mkd": 196541
           }
         }
       },
@@ -749,17 +857,23 @@
             "delivered_count": 50,
             "delivered_cash_mkd": 122577
           },
+          "teleshop_other": {
+            "placed_count": 76,
+            "placed_value_eur": 2643.79,
+            "delivered_count": 85,
+            "delivered_cash_mkd": 184495
+          },
+          "social": {
+            "placed_count": 19,
+            "placed_value_eur": 668.32,
+            "delivered_count": 20,
+            "delivered_cash_mkd": 43080
+          },
           "web": {
             "placed_count": 27,
             "placed_value_eur": 1042.22,
             "delivered_count": 20,
             "delivered_cash_mkd": 43868
-          },
-          "teleshop_other": {
-            "placed_count": 95,
-            "placed_value_eur": 3312.11,
-            "delivered_count": 105,
-            "delivered_cash_mkd": 227575
           }
         }
       },
@@ -778,17 +892,23 @@
             "delivered_count": 35,
             "delivered_cash_mkd": 89146
           },
+          "teleshop_other": {
+            "placed_count": 64,
+            "placed_value_eur": 2247.22,
+            "delivered_count": 61,
+            "delivered_cash_mkd": 134177
+          },
+          "social": {
+            "placed_count": 16,
+            "placed_value_eur": 568.07,
+            "delivered_count": 15,
+            "delivered_cash_mkd": 31331
+          },
           "web": {
             "placed_count": 23,
             "placed_value_eur": 885.88,
             "delivered_count": 13,
             "delivered_cash_mkd": 31904
-          },
-          "teleshop_other": {
-            "placed_count": 80,
-            "placed_value_eur": 2815.29,
-            "delivered_count": 76,
-            "delivered_cash_mkd": 165508
           }
         }
       },
@@ -807,15 +927,21 @@
             "delivered_count": 0,
             "delivered_cash_mkd": 0
           },
-          "web": {
-            "placed_count": 19,
-            "placed_value_eur": 729.55,
+          "teleshop_other": {
+            "placed_count": 53,
+            "placed_value_eur": 1850.65,
             "delivered_count": 0,
             "delivered_cash_mkd": 0
           },
-          "teleshop_other": {
-            "placed_count": 66,
-            "placed_value_eur": 2318.47,
+          "social": {
+            "placed_count": 13,
+            "placed_value_eur": 467.82,
+            "delivered_count": 0,
+            "delivered_cash_mkd": 0
+          },
+          "web": {
+            "placed_count": 19,
+            "placed_value_eur": 729.55,
             "delivered_count": 0,
             "delivered_cash_mkd": 0
           }
@@ -836,17 +962,23 @@
             "delivered_count": 26,
             "delivered_cash_mkd": 66859
           },
+          "teleshop_other": {
+            "placed_count": 42,
+            "placed_value_eur": 1454.08,
+            "delivered_count": 46,
+            "delivered_cash_mkd": 100633
+          },
+          "social": {
+            "placed_count": 10,
+            "placed_value_eur": 367.58,
+            "delivered_count": 11,
+            "delivered_cash_mkd": 23498
+          },
           "web": {
             "placed_count": 15,
             "placed_value_eur": 573.22,
             "delivered_count": 10,
             "delivered_cash_mkd": 23928
-          },
-          "teleshop_other": {
-            "placed_count": 52,
-            "placed_value_eur": 1821.66,
-            "delivered_count": 57,
-            "delivered_cash_mkd": 124131
           }
         }
       }

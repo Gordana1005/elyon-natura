@@ -20,7 +20,8 @@
 //                          20260936000000). Change one → change the other.
 // ============================================================================
 
-export const OVERVIEW_SOURCES = ["altercpa", "elyon_crm", "web", "teleshop_other"] as const;
+/** The five sources in the owner's display order (28.09.2026 — 20260942000500). */
+export const OVERVIEW_SOURCES = ["altercpa", "elyon_crm", "teleshop_other", "social", "web"] as const;
 
 /** orders.sale_source vocabulary (migration 20260935000000). */
 export const SALE_SOURCES = ["altercpa", "web", "elyon_crm", "collabbox", "affiliate", "legacy"] as const;
@@ -180,10 +181,10 @@ const NON_MONEY_KEYS = new Set<string>([
   // sources
   "key", "buckets", "cash", "worked", "cohort_sold", "conversion", "splits", "drill", "web_block", "placed_shop",
   "awaiting", "preparing", "packed", "courier", "returned", "cancelled", "trashed", "no_record", "mex_only",
-  "basis", "sold_count", "bought_before", "sale_source",
+  "basis", "sold_count", "bought_before", "sale_source", "cohort_source",
   // trend
   "points", "bucket", "by_source", "placed_count", "delivered_count",
-  "altercpa", "elyon_crm", "web", "teleshop_other",
+  "altercpa", "elyon_crm", "teleshop_other", "social", "web",
   // teams
   "team_key", "name", "mode", "online_now", "break_now", "unmapped_decisions", "members",
   "person_id", "user_id", "is_manager", "role", "online_state",
@@ -408,6 +409,9 @@ export function attentionFilter(kind: string, now: Date = new Date(), opts: Atte
          `and(sold_at.is.null,confirmed_at.not.is.null,confirmed_at.lt.${cut})`,
          `and(sold_at.is.null,confirmed_at.is.null,created_at.lt.${cut})`].join(","),
         `ship_after_date.is.null,ship_after_date.lte.${skopjeTodayYmd(now)}`,
+        // a CRM sale an AlterCPA-team agent made counts in AlterCPA (20260942000700) but is not an
+        // AlterCPA approval: the 10-day no-parcel rule never covered CRM orders
+        "sale_source_detail.is.null,sale_source_detail.neq.team_prediction",
         ...notTestPhone,
       ],
       notIds,

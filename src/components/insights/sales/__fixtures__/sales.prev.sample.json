@@ -8,16 +8,16 @@
   "generated_at": "2026-09-28T08:00:00.000Z"
  },
  "total": {
-  "count": 7564,
-  "cod_mkd": 18419471,
-  "value_mkd": 18640463
+  "count": 7438,
+  "cod_mkd": 18171421,
+  "value_mkd": 18355343
  },
  "buckets": [
   {
    "key": "paid",
-   "count": 6352,
-   "cod_mkd": 15473771,
-   "value_mkd": 15481261
+   "count": 6272,
+   "cod_mkd": 15299601,
+   "value_mkd": 15307091
   },
   {
    "key": "paid_unproven",
@@ -34,65 +34,73 @@
   {
    "key": "courier",
    "count": 14,
-   "cod_mkd": 8630,
-   "value_mkd": 72802
+   "cod_mkd": 20130,
+   "value_mkd": 75662
   },
   {
    "key": "courier_problem",
-   "count": 2,
-   "cod_mkd": 5000,
-   "value_mkd": 5000
+   "count": 3,
+   "cod_mkd": 8000,
+   "value_mkd": 8000
   },
   {
    "key": "label",
-   "count": 33,
-   "cod_mkd": 87950,
-   "value_mkd": 87950
+   "count": 30,
+   "cod_mkd": 75850,
+   "value_mkd": 75850
   },
   {
    "key": "to_pack",
-   "count": 49,
+   "count": 33,
    "cod_mkd": 0,
-   "value_mkd": 102550
+   "value_mkd": 74120
   },
   {
    "key": "returned",
-   "count": 1090,
-   "cod_mkd": 2844120,
-   "value_mkd": 2844120
+   "count": 1062,
+   "cod_mkd": 2767840,
+   "value_mkd": 2767840
   }
  ],
  "by_source": [
   {
    "key": "altercpa",
    "total": {
-    "count": 2310,
-    "cod_mkd": 6774651,
-    "value_mkd": 6918771
+    "count": 2395,
+    "cod_mkd": 7118721,
+    "value_mkd": 7236321
    }
   },
   {
    "key": "elyon_crm",
    "total": {
-    "count": 41,
-    "cod_mkd": 85080,
-    "value_mkd": 154462
-   }
-  },
-  {
-   "key": "web",
-   "total": {
-    "count": 33,
-    "cod_mkd": 52222,
-    "value_mkd": 59712
+    "count": 176,
+    "cod_mkd": 481571,
+    "value_mkd": 540403
    }
   },
   {
    "key": "teleshop_other",
    "total": {
-    "count": 5180,
-    "cod_mkd": 11507518,
-    "value_mkd": 11507518
+    "count": 4429,
+    "cod_mkd": 9791703,
+    "value_mkd": 9791703
+   }
+  },
+  {
+   "key": "social",
+   "total": {
+    "count": 322,
+    "cod_mkd": 558692,
+    "value_mkd": 558692
+   }
+  },
+  {
+   "key": "web",
+   "total": {
+    "count": 116,
+    "cod_mkd": 220734,
+    "value_mkd": 228224
    }
   }
  ]

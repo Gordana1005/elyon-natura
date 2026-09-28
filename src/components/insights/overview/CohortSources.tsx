@@ -111,6 +111,10 @@ function SourceCard({ row, grand, money, range, f }: {
   const mexOnly = mexOnlyCount(row);
   const isWeb = row.key === 'web';
   const leads = row.leads_in;
+  // Teleshop / collabBox has no lead funnel: every Нарачка document IS a sale, so "came in =
+  // became sales = 100 %" would be a tautology (owner, 28.09.2026). Nor does Social media —
+  // its orders are collabBox social documents too (its own source since 28.09.2026).
+  const noFunnel = row.key === 'teleshop_other' || row.key === 'social';
   const splits = row.splits ?? [];
   // A split's words come from the shared vocabulary (insights.common.split.*);
   // a key it does not know yet (a new collabBox series) shows as sent.
@@ -209,7 +213,11 @@ function SourceCard({ row, grand, money, range, f }: {
           <h4 className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('overview.cohort.sources.leadsTitle')}</h4>
           <ClockCaption clock="created" />
         </div>
-        {leads && leads.came_in > 0 ? (
+        {noFunnel ? (
+          <p className="mt-1 text-xs text-muted-foreground">
+            {t(row.key === 'social' ? 'overview.cohort.leads.noFunnelSocial' : 'overview.cohort.leads.noFunnel')}
+          </p>
+        ) : leads && leads.came_in > 0 ? (
           <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
             <LeadStat label={t('overview.cohort.leads.cameIn')} value={f.int(leads.came_in)} />
             <LeadStat label={t('overview.cohort.leads.worked')} value={f.int(workedOf(leads))} />
@@ -266,9 +274,11 @@ function SourceCard({ row, grand, money, range, f }: {
         <p className="mt-2 flex items-start gap-1 text-[11px] leading-snug text-muted-foreground">
           <Info className="mt-px h-3 w-3 shrink-0" aria-hidden />
           <span>
-            {isWeb
-              ? t('overview.cohort.sources.webNote')
-              : t('overview.cohort.sources.mexOnlyNote', { n: f.int(mexOnly), count: mexOnly })}
+            {/* the web card may hold the shop's parcels with no order too (NTMK… / M…, owner 28.09) */}
+            {[
+              isWeb ? t('overview.cohort.sources.webNote') : null,
+              mexOnly > 0 ? t('overview.cohort.sources.mexOnlyNote', { n: f.int(mexOnly), count: mexOnly }) : null,
+            ].filter(Boolean).join(' ')}
           </span>
         </p>
       )}

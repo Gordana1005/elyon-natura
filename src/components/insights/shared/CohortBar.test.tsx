@@ -86,12 +86,15 @@ describe('CohortBar — owner, the whole business', () => {
     // the total: "507 во Нарачки" = every order of the period, whatever its source
     const totalPart = within(bar).getAllByRole('link').find((a) => a.textContent === partLink('507'))!;
     expect(totalPart.getAttribute('href')).toBe(`/orders?cohort_bucket=total&${WIN}`);
-    // The table twin: the web row and Teleshop/Other (parcels only) never link; AlterCPA does, exactly.
+    // The table twin: the web row, Social media and Teleshop/Other (parcels only) never link; AlterCPA does, exactly.
     const table = screen.getByRole('table');
     expect(within(table).queryByRole('link', { name: /Веб-продавница/ })).toBeNull();
-    expect(within(table).queryByRole('link', { name: /Телешоп/ })).toBeNull();
+    expect(within(table).queryByRole('link', { name: /Lead in/ })).toBeNull();
+    // Social media (its 9108 parcels only, this week) is a row of its own and never links either
+    expect(within(table).getByText(i18n.t('insights.common.source.social'))).toBeInTheDocument();
+    expect(within(table).queryByRole('link', { name: /Социјални/ })).toBeNull();
     const alterPaid = within(table).getByRole('link', { name: `AlterCPA · ${i18n.t('insights.common.bucket.paid')}: 70` });
-    expect(alterPaid.getAttribute('href')).toBe(`/orders?cohort_bucket=paid%2Cpaid_legacy&sale_source=altercpa%2Caffiliate&${WIN}`);
+    expect(alterPaid.getAttribute('href')).toBe(`/orders?cohort_bucket=paid%2Cpaid_legacy&cohort_source=altercpa&${WIN}`);
     expect(alterPaid.getAttribute('title')).toBeNull();
   });
 
@@ -117,7 +120,7 @@ describe('CohortBar — a source filter', () => {
     const bar = screen.getByRole('region', { name: i18n.t('insights.common.cohort.title') });
     expect(within(bar).getByText(i18n.t('insights.common.cohort.sumOk', { total: '507' }))).toBeInTheDocument();
     const toPack = within(bar).getByRole('link', { name: `${i18n.t('insights.common.bucket.to_pack')}: 260` });
-    expect(toPack.getAttribute('href')).toBe(`/orders?cohort_bucket=to_pack&sale_source=altercpa%2Caffiliate%2Celyon_crm&${WIN}`);
+    expect(toPack.getAttribute('href')).toBe(`/orders?cohort_bucket=to_pack&cohort_source=altercpa%2Celyon_crm&${WIN}`);
     // all orders: no "N во Нарачки" beside the numbers
     expect(within(bar).queryByText(partLink('260'))).toBeNull();
   });

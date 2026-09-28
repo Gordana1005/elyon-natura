@@ -110,7 +110,7 @@ export function BucketLegend({
 
 /** A person's sales by source as tiny identity dashes + counts (non-zero only). */
 export function SourceSplit({ m, f }: { m: Pick<PeopleMeasures, 'by_source'>; f: InsightsFormat }) {
-  const keys = (['altercpa', 'elyon_crm', 'teleshop_other', 'web'] as const).filter((k) => (m.by_source?.[k] ?? 0) > 0);
+  const keys = (['altercpa', 'elyon_crm', 'teleshop_other', 'social', 'web'] as const).filter((k) => (m.by_source?.[k] ?? 0) > 0);
   if (!keys.length) return <span className="text-muted-foreground">—</span>;
   return (
     <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-0.5"

@@ -1191,7 +1191,11 @@ begin
   if bad is not null then raise exception 'teleshop-import: mex_link_parcel refused: %', bad; end if;
   select count(*) into n from _new x join _ok p on p.doc = x.external_order_id
    where x.status <> p.status or x.paid_basis is distinct from p.basis
-      or x.sale_source is distinct from 'collabbox' or x.sale_source_detail is distinct from 'teleshop';
+      -- departments (20260942000700): 9100 lead in stays collabbox/teleshop; 9102 lead out is
+      -- "Телешоп – Lead out" (elyon_crm/collabbox_out), or AlterCPA when an AlterCPA-team agent booked it
+      or not ((x.sale_source = 'collabbox' and x.sale_source_detail = 'teleshop' and p.series <> '9102')
+           or (p.series = '9102' and ((x.sale_source = 'elyon_crm' and x.sale_source_detail = 'collabbox_out')
+                                   or (x.sale_source = 'altercpa' and x.sale_source_detail = 'team_collabbox_out'))));
   if n > 0 then raise exception 'teleshop-import: % orders did not keep their planned status / basis / source', n; end if;
   select count(*) into n from _new x
    where x.sold_via is distinct from 'collabbox' or x.confirmed_by_name is not null

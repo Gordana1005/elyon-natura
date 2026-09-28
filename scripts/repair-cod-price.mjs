@@ -89,6 +89,9 @@ export function rowsSql({ since = null, until = null } = {}) {
            mp.tracking_id, mp.account, mp.series, mp.status_id, mp.status_name, mp.cod_mkd, mp.order_id as reg_order_id,
            mp.link_method, mp.created_at_mex, mp.delivered_at, mp.returned_at, mp.sender_reference,
            d.holder_ids,
+           exists (select 1 from public.teleshop_import_documents td
+                    where td.doc_number = mp.tracking_id and td.related_order_id = o.id
+                      and td.outcome = 'conflict' and td.rolled_back_at is null) as collab_twin,
            l.altercpa_id, l.payload->>'price' as cpa_price, l.payload->>'currency' as cpa_currency,
            coalesce(l.payload->'goods'->0->>'count', l.payload->>'count') as cpa_count,
            ${itemsFingerprintSql('o.id')} as items_fp

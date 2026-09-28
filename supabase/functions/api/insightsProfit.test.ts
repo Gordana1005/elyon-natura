@@ -280,6 +280,44 @@ describe("the strip (CohortBar)", () => {
   });
 });
 
+describe("Social media — a source of its own (migration 20260942000500)", () => {
+  // Teleshop's collabBox social documents and 9108 parcels moved to their own column: one
+  // collected social sale (uncosted) and one returned, a strip part, a line and a price bin.
+  const SOC: ProfitRpc = {
+    ...COHORT,
+    agg: [
+      ...COHORT.agg!,
+      agg("collected", "s", "social", { n: 2, rev: 4000, pw: 2, ru: 4000, pu: 3 }),
+      agg("returned", "s", "social", { n: 1, rev: 1500, pw: 1 }),
+    ],
+    strip: [...COHORT.strip!, { s: "social", b: "paid", n: 2, v: 4000, c: 4000, no: 1, nw: 0, nm: 1 }],
+    products: [...COHORT.products!,
+      { s: "social", g: "collected", k: "n:zinc", name: "Zinc", kind: "product", reviewed: false, pkg: true, cost_eur: null, n: 2, qty: 3, pkgs: 3, fr: 0, rev: 4000, cm: 0, sh: 2, lb: 0 }],
+    hist: [...COHORT.hist!, { s: "social", u: 1333, q: 3, v: 4000 }],
+  };
+
+  it("has its own P&L column, in the fixed order, and the columns still add up to the total", () => {
+    const c = buildClock(SOC, null, SETTINGS);
+    expect(c.by_source.map((r) => r.key)).toEqual(["altercpa", "elyon_crm", "teleshop_other", "social", "web"]);
+    const soc = c.by_source.find((r) => r.key === "social")!;
+    expect(soc).toMatchObject({ sales: 2, revenue_mkd: 4000, returned: 1, returned_mkd: 1500 });
+    const tel = c.by_source.find((r) => r.key === "teleshop_other")!;
+    expect(tel.revenue_mkd).toBe(10000);                       // Teleshop's own, social not in it
+    for (const k of ["sales", "revenue_mkd", "vat_mkd", "courier_mkd", "net_mkd"] as const) {
+      expect(Math.abs(c.by_source.reduce((t, r) => t + (r[k] as number), 0) - (c.total[k] as number))).toBeLessThanOrEqual(PROFIT_SOURCES.length);
+    }
+    expect(c.total.revenue_mkd).toBe(53000 + 4000);
+  });
+
+  it("the strip, the products and the realized prices know it", () => {
+    const s = buildStrip(SOC.strip);
+    expect(s.by_source.find((r) => r.key === "social")!.total).toMatchObject({ count: 2, orders: 1, mex_only: 1 });
+    const zinc = productRows(SOC, SETTINGS, costRatioOf(SOC.agg)).rows.find((p) => p.key === "n:zinc")!;
+    expect(zinc.sources).toEqual(["elyon_crm", "teleshop_other", "social"]);
+    expect(distributionOf(SOC.hist, "social").packages).toBe(3);
+  });
+});
+
 describe("windows and settings", () => {
   it("bucket keys by day and by month", () => {
     expect(bucketKeys("2026-09-29", "2026-10-02", "day")).toEqual(["2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02"]);

@@ -22,6 +22,11 @@
 //   cohortBucketOrFilter() / cohortSaleWindowOrFilter() / COHORT_UNIVERSE_OR /
 //   cohortExcludedPhoneOr()  their PostgREST twins for GET /orders
 //                            ?cohort_bucket&sold_from&sold_to
+//   cohortSourceOrFilter()   the twin of cohort_order_source(sale_source,
+//                            sale_source_detail) for GET /orders?cohort_source=
+//                            (migration 20260942000500: Social media is a
+//                            source of its own, so a card's orders are no
+//                            longer a sale_source list)
 //   cohortOrdersFilter()     all of them, assembled ONCE: index.ts applies it
 //                            to the /orders query and scripts/verify-insights-
 //                            ties.mjs translates the very same filter to SQL
@@ -34,19 +39,45 @@ import type { CsvResult, OverviewWindow } from "./overview.ts";
 
 export type { OverviewWindow as InsightsWindow } from "./overview.ts";
 
-/** The four sale sources (owner rules 2026-09-28). */
-export const INSIGHTS_SOURCES = ["altercpa", "elyon_crm", "web", "teleshop_other"] as const;
+/** The five sale sources, in the owner's display order (28.09.2026 — migration
+ *  20260942000500): AlterCPA · elyon_crm ("Телешоп – Lead out") · teleshop_other
+ *  ("Телешоп – Lead in") · social (Social media, a department of its own) · web.
+ *  The keys never change; the app names them. */
+export const INSIGHTS_SOURCES = ["altercpa", "elyon_crm", "teleshop_other", "social", "web"] as const;
 export type InsightsSource = (typeof INSIGHTS_SOURCES)[number];
 
-/** orders.sale_source values that make up each source's ORDER part — the
- *  drill link's sale_source param. web orders live in web_orders (not
- *  orders); 'web' here only ever matches CRM-entered web orders (0 today). */
-export const SOURCE_SALE_SOURCES: Record<InsightsSource, string[]> = {
-  altercpa: ["altercpa", "affiliate"],
-  elyon_crm: ["elyon_crm"],
-  web: ["web"],
-  teleshop_other: ["collabbox", "legacy"],
+/** The collabBox details that make an order Social media's: 'social' (series
+ *  9108) and '1300' (the "Нарачка С. Мрежи-Продавница" type, series 002-1300,
+ *  which classify_sale_source leaves as its bare series). */
+export const SOCIAL_DETAILS = ["social", "1300"] as const;
+
+/** Each source's ORDER part as ONE PostgREST `or` term — the twin of
+ *  cohort_order_source(sale_source, sale_source_detail). web orders live in
+ *  web_orders (not orders); 'web' here only ever matches CRM-entered web
+ *  orders (0 today). Teleshop / other is everything else, NULL included (the
+ *  SQL's ELSE): a NULL sale_source / detail never matches not.in / neq, so
+ *  the NULLs are named. */
+export const COHORT_SOURCE_TERM: Record<InsightsSource, string> = {
+  altercpa: "sale_source.in.(altercpa,affiliate)",
+  elyon_crm: "sale_source.eq.elyon_crm",
+  web: "sale_source.eq.web",
+  social: `and(sale_source.eq.collabbox,sale_source_detail.in.(${SOCIAL_DETAILS.join(",")}))`,
+  teleshop_other: "or(sale_source.is.null,and(sale_source.not.in.(altercpa,affiliate,elyon_crm,web),"
+    + `or(sale_source.neq.collabbox,sale_source_detail.is.null,sale_source_detail.not.in.(${SOCIAL_DETAILS.join(",")}))))`,
 };
+
+/** GET /orders?cohort_source=a,b → one PostgREST `or` expression selecting
+ *  exactly the orders cohort_order_source() puts in those sources; null when
+ *  none is asked for or all five are (no filter: every order is in one). */
+export function cohortSourceOrFilter(keys: readonly string[]): string | null {
+  const known = INSIGHTS_SOURCES.filter((k) => keys.includes(k));
+  if (!known.length || known.length === INSIGHTS_SOURCES.length) return null;
+  return known.map((k) => COHORT_SOURCE_TERM[k]).join(",");
+}
+
+/** ?cohort_source=social,teleshop_other → validated source keys; empty /
+ *  absent / "all" → none (no filter). */
+export const parseCohortSourceParam = (raw: string | null): CsvResult => parseCsvParam(raw, INSIGHTS_SOURCES);
 
 /** Skopje windows for every /insights tab: ?from&to&compare, bare dates are
  *  Skopje days, the previous period is the same length and ends the day
@@ -66,7 +97,7 @@ export function insightsAccess(isOwner: boolean, isAdminOrManager: boolean): Ins
   return "forbidden";
 }
 
-/** ?source=altercpa,web → validated sources; empty/absent/"all" → all four. */
+/** ?source=altercpa,web → validated sources; empty/absent/"all" → all five. */
 export function parseSourcesParam(raw: string | null): CsvResult {
   const r = parseCsvParam(raw, INSIGHTS_SOURCES);
   if (!r.ok) return r;
@@ -418,8 +449,10 @@ export const cohortFilterChars = (f: CohortOrdersFilter) =>
  * Everything GET /orders?cohort_bucket=…[&sold_from&sold_to] adds to its
  * query so the list holds EXACTLY the order part the cohort counted: never a
  * disposition row, never a test phone, the buckets asked for and — with a
- * window (Skopje-day instants) — the cohort sale day. `sale_source` stays the
- * caller's plain `.in()`. ONE assembly for index.ts and the verify script.
+ * window (Skopje-day instants) — the cohort sale day. The source stays the
+ * caller's own filter: `cohort_source` (cohortSourceOrFilter, what the cohort's
+ * links send) or a plain `sale_source` `.in()`. ONE assembly for index.ts and
+ * the verify script.
  */
 export function cohortOrdersFilter(
   keys: readonly string[],

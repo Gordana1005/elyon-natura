@@ -2,18 +2,18 @@
  "kpis": {
   "low": null,
   "out": null,
-  "sales": 7263,
-  "units": 17485,
+  "sales": 7254,
+  "units": 21639,
   "active": 174,
   "tracked": 89,
-  "free_units": 2878,
-  "units_prev": 6742,
-  "products_sold": 271,
-  "returned_units": 2580,
-  "sales_mex_only": 1438,
-  "units_catalogue": 13534,
+  "free_units": 3970,
+  "units_prev": 22054,
+  "products_sold": 202,
+  "returned_units": 3348,
+  "sales_mex_only": 264,
+  "units_catalogue": 21510,
   "returned_parcels": 1096,
-  "returned_mex_only": 268
+  "returned_mex_only": 66
  },
  "meta": {
   "clock": "sale",
@@ -22,8 +22,9 @@
   "sources": [
    "altercpa",
    "elyon_crm",
-   "web",
-   "teleshop_other"
+   "teleshop_other",
+   "social",
+   "web"
   ],
   "granularity": "day",
   "from": "2026-09-01",
@@ -38,756 +39,779 @@
  },
  "queue": [
   {
-   "web": 0,
+   "web": 1,
    "ages": [
     {
      "to": "2026-09-28",
      "key": "0_2",
-     "web": 0,
+     "web": 1,
      "from": "2026-09-26",
-     "count": 127,
-     "orders": 127,
+     "count": 158,
+     "orders": 157,
      "mex_only": 0,
-     "value_mkd": 305781
+     "value_mkd": 393807
     },
     {
      "to": "2026-09-25",
      "key": "3_7",
      "web": 0,
      "from": "2026-09-21",
-     "count": 146,
-     "orders": 146,
+     "count": 143,
+     "orders": 143,
      "mex_only": 0,
-     "value_mkd": 345492
+     "value_mkd": 335492
     },
     {
      "to": "2026-09-20",
      "key": "8_14",
      "web": 0,
      "from": "2026-09-14",
-     "count": 77,
-     "orders": 77,
+     "count": 62,
+     "orders": 62,
      "mex_only": 0,
-     "value_mkd": 170460
+     "value_mkd": 143590
     },
     {
      "to": "2026-09-13",
      "key": "15_30",
      "web": 0,
      "from": "2026-08-29",
-     "count": 25,
-     "orders": 25,
+     "count": 19,
+     "orders": 19,
      "mex_only": 0,
-     "value_mkd": 72120
+     "value_mkd": 54220
     },
     {
      "to": "2026-08-28",
      "key": "31_plus",
      "web": 0,
      "from": "2026-08-01",
-     "count": 54,
-     "orders": 54,
+     "count": 37,
+     "orders": 37,
      "mex_only": 0,
-     "value_mkd": 110000
+     "value_mkd": 80080
     }
    ],
-   "count": 429,
+   "count": 419,
    "stage": "to_pack",
-   "units": 988,
+   "units": 1010,
    "oldest": "2026-08-01",
-   "orders": 429,
+   "orders": 418,
    "mex_only": 0,
    "by_source": [
     {
      "key": "altercpa",
      "web": 0,
-     "count": 308,
+     "count": 296,
      "oldest": "2026-08-01",
-     "orders": 308,
+     "orders": 296,
      "mex_only": 0,
-     "value_mkd": 653619
+     "value_mkd": 649299
     },
     {
      "key": "elyon_crm",
      "web": 0,
-     "count": 116,
+     "count": 118,
      "oldest": "2026-08-17",
-     "orders": 116,
+     "orders": 118,
      "mex_only": 0,
-     "value_mkd": 340234
+     "value_mkd": 347685
     },
     {
      "key": "teleshop_other",
      "web": 0,
-     "count": 5,
+     "count": 3,
      "oldest": "2026-09-08",
-     "orders": 5,
+     "orders": 3,
      "mex_only": 0,
-     "value_mkd": 10000
+     "value_mkd": 6000
+    },
+    {
+     "key": "social",
+     "web": 0,
+     "count": 1,
+     "oldest": "2026-09-17",
+     "orders": 1,
+     "mex_only": 0,
+     "value_mkd": 2000
+    },
+    {
+     "key": "web",
+     "web": 1,
+     "count": 1,
+     "oldest": "2026-09-28",
+     "orders": 0,
+     "mex_only": 0,
+     "value_mkd": 2205
     }
    ],
-   "value_mkd": 1003853
+   "value_mkd": 1007189
   },
   {
-   "web": 135,
+   "web": 58,
    "ages": [
     {
      "to": "2026-09-28",
      "key": "0_2",
-     "web": 41,
+     "web": 0,
      "from": "2026-09-26",
-     "count": 494,
-     "orders": 85,
-     "mex_only": 368,
-     "value_mkd": 1261062
+     "count": 43,
+     "orders": 9,
+     "mex_only": 34,
+     "value_mkd": 135980
     },
     {
      "to": "2026-09-25",
      "key": "3_7",
-     "web": 36,
+     "web": 1,
      "from": "2026-09-21",
-     "count": 214,
-     "orders": 109,
-     "mex_only": 69,
-     "value_mkd": 574850
+     "count": 51,
+     "orders": 47,
+     "mex_only": 3,
+     "value_mkd": 136575
     },
     {
      "to": "2026-09-20",
      "key": "8_14",
      "web": 2,
      "from": "2026-09-14",
-     "count": 56,
-     "orders": 50,
-     "mex_only": 4,
-     "value_mkd": 156520
+     "count": 84,
+     "orders": 81,
+     "mex_only": 1,
+     "value_mkd": 217420
     },
     {
      "to": "2026-09-13",
      "key": "15_30",
-     "web": 10,
+     "web": 9,
      "from": "2026-08-29",
-     "count": 48,
-     "orders": 31,
-     "mex_only": 7,
-     "value_mkd": 118640
+     "count": 43,
+     "orders": 29,
+     "mex_only": 5,
+     "value_mkd": 102640
     },
     {
      "to": "2026-08-28",
      "key": "31_plus",
      "web": 46,
      "from": "2026-04-02",
-     "count": 176,
-     "orders": 28,
-     "mex_only": 102,
-     "value_mkd": 423586
+     "count": 173,
+     "orders": 72,
+     "mex_only": 55,
+     "value_mkd": 413086
     }
    ],
-   "count": 988,
+   "count": 394,
    "stage": "label",
-   "units": 1314,
+   "units": 1052,
    "oldest": "2026-04-02",
-   "orders": 303,
-   "mex_only": 550,
+   "orders": 238,
+   "mex_only": 98,
    "by_source": [
     {
      "key": "altercpa",
      "web": 0,
-     "count": 223,
+     "count": 117,
      "oldest": "2026-04-03",
-     "orders": 223,
-     "mex_only": 0,
-     "value_mkd": 658505
+     "orders": 76,
+     "mex_only": 41,
+     "value_mkd": 365215
     },
     {
      "key": "elyon_crm",
      "web": 0,
-     "count": 46,
-     "oldest": "2026-09-15",
-     "orders": 46,
-     "mex_only": 0,
-     "value_mkd": 125000
-    },
-    {
-     "key": "web",
-     "web": 135,
-     "count": 135,
-     "oldest": "2026-04-13",
-     "orders": 0,
-     "mex_only": 0,
-     "value_mkd": 288929
+     "count": 71,
+     "oldest": "2026-04-06",
+     "orders": 57,
+     "mex_only": 14,
+     "value_mkd": 166560
     },
     {
      "key": "teleshop_other",
      "web": 0,
-     "count": 584,
+     "count": 108,
      "oldest": "2026-04-02",
-     "orders": 34,
-     "mex_only": 550,
-     "value_mkd": 1462224
+     "orders": 105,
+     "mex_only": 3,
+     "value_mkd": 279760
+    },
+    {
+     "key": "social",
+     "web": 0,
+     "count": 28,
+     "oldest": "2026-04-02",
+     "orders": 0,
+     "mex_only": 28,
+     "value_mkd": 56085
+    },
+    {
+     "key": "web",
+     "web": 58,
+     "count": 70,
+     "oldest": "2026-04-13",
+     "orders": 0,
+     "mex_only": 12,
+     "value_mkd": 138081
     }
    ],
-   "value_mkd": 2534658
+   "value_mkd": 1005701
   }
  ],
  "trend": [
   {
    "d": "2026-09-01",
-   "units": 972,
+   "units": 949,
    "by_source": {
     "web": 0,
-    "altercpa": 219,
+    "social": 33,
+    "altercpa": 196,
     "elyon_crm": 0,
-    "teleshop_other": 753
+    "teleshop_other": 720
    }
   },
   {
    "d": "2026-09-02",
-   "units": 1090,
+   "units": 1048,
    "by_source": {
     "web": 0,
-    "altercpa": 249,
-    "elyon_crm": 49,
-    "teleshop_other": 792
+    "social": 22,
+    "altercpa": 204,
+    "elyon_crm": 149,
+    "teleshop_other": 673
    }
   },
   {
    "d": "2026-09-03",
-   "units": 1088,
+   "units": 1111,
    "by_source": {
     "web": 0,
-    "altercpa": 333,
-    "elyon_crm": 70,
-    "teleshop_other": 685
+    "social": 38,
+    "altercpa": 348,
+    "elyon_crm": 318,
+    "teleshop_other": 407
    }
   },
   {
    "d": "2026-09-04",
-   "units": 879,
+   "units": 899,
    "by_source": {
     "web": 14,
-    "altercpa": 260,
-    "elyon_crm": 95,
-    "teleshop_other": 510
+    "social": 17,
+    "altercpa": 265,
+    "elyon_crm": 393,
+    "teleshop_other": 210
    }
   },
   {
    "d": "2026-09-05",
-   "units": 491,
+   "units": 478,
    "by_source": {
     "web": 26,
-    "altercpa": 259,
-    "elyon_crm": 0,
-    "teleshop_other": 206
+    "social": 3,
+    "altercpa": 246,
+    "elyon_crm": 96,
+    "teleshop_other": 107
    }
   },
   {
    "d": "2026-09-06",
-   "units": 411,
+   "units": 394,
    "by_source": {
     "web": 12,
-    "altercpa": 288,
-    "elyon_crm": 0,
-    "teleshop_other": 111
+    "social": 15,
+    "altercpa": 268,
+    "elyon_crm": 3,
+    "teleshop_other": 96
    }
   },
   {
    "d": "2026-09-07",
-   "units": 887,
+   "units": 931,
    "by_source": {
     "web": 23,
-    "altercpa": 182,
-    "elyon_crm": 101,
-    "teleshop_other": 581
+    "social": 36,
+    "altercpa": 217,
+    "elyon_crm": 418,
+    "teleshop_other": 237
    }
   },
   {
    "d": "2026-09-08",
-   "units": 536,
+   "units": 531,
    "by_source": {
     "web": 5,
-    "altercpa": 240,
+    "social": 33,
+    "altercpa": 235,
     "elyon_crm": 0,
-    "teleshop_other": 291
+    "teleshop_other": 258
    }
   },
   {
    "d": "2026-09-09",
-   "units": 961,
+   "units": 982,
    "by_source": {
     "web": 15,
-    "altercpa": 218,
-    "elyon_crm": 120,
-    "teleshop_other": 608
+    "social": 30,
+    "altercpa": 225,
+    "elyon_crm": 487,
+    "teleshop_other": 225
    }
   },
   {
    "d": "2026-09-10",
-   "units": 1039,
+   "units": 1044,
    "by_source": {
     "web": 30,
-    "altercpa": 184,
-    "elyon_crm": 188,
-    "teleshop_other": 637
+    "social": 38,
+    "altercpa": 183,
+    "elyon_crm": 494,
+    "teleshop_other": 299
    }
   },
   {
    "d": "2026-09-11",
-   "units": 1286,
+   "units": 1251,
    "by_source": {
     "web": 64,
-    "altercpa": 391,
-    "elyon_crm": 182,
-    "teleshop_other": 649
+    "social": 33,
+    "altercpa": 353,
+    "elyon_crm": 523,
+    "teleshop_other": 278
    }
   },
   {
    "d": "2026-09-12",
-   "units": 650,
+   "units": 674,
    "by_source": {
     "web": 57,
-    "altercpa": 250,
-    "elyon_crm": 52,
-    "teleshop_other": 291
+    "social": 20,
+    "altercpa": 271,
+    "elyon_crm": 210,
+    "teleshop_other": 116
    }
   },
   {
    "d": "2026-09-13",
-   "units": 393,
+   "units": 375,
    "by_source": {
     "web": 46,
-    "altercpa": 249,
+    "social": 11,
+    "altercpa": 231,
     "elyon_crm": 0,
-    "teleshop_other": 98
+    "teleshop_other": 87
    }
   },
   {
    "d": "2026-09-14",
-   "units": 988,
+   "units": 1036,
    "by_source": {
     "web": 94,
-    "altercpa": 208,
-    "elyon_crm": 168,
-    "teleshop_other": 518
+    "social": 16,
+    "altercpa": 256,
+    "elyon_crm": 486,
+    "teleshop_other": 184
    }
   },
   {
    "d": "2026-09-15",
-   "units": 1011,
+   "units": 1014,
    "by_source": {
     "web": 65,
-    "altercpa": 217,
-    "elyon_crm": 168,
-    "teleshop_other": 561
+    "social": 17,
+    "altercpa": 210,
+    "elyon_crm": 468,
+    "teleshop_other": 254
    }
   },
   {
    "d": "2026-09-16",
-   "units": 1018,
+   "units": 1041,
    "by_source": {
     "web": 48,
-    "altercpa": 247,
-    "elyon_crm": 141,
-    "teleshop_other": 582
+    "social": 25,
+    "altercpa": 253,
+    "elyon_crm": 418,
+    "teleshop_other": 297
    }
   },
   {
    "d": "2026-09-17",
-   "units": 808,
+   "units": 877,
    "by_source": {
     "web": 89,
-    "altercpa": 111,
-    "elyon_crm": 174,
-    "teleshop_other": 434
+    "social": 8,
+    "altercpa": 115,
+    "elyon_crm": 493,
+    "teleshop_other": 172
    }
   },
   {
    "d": "2026-09-18",
-   "units": 386,
+   "units": 812,
    "by_source": {
     "web": 44,
-    "altercpa": 134,
-    "elyon_crm": 114,
-    "teleshop_other": 94
+    "social": 0,
+    "altercpa": 131,
+    "elyon_crm": 401,
+    "teleshop_other": 236
    }
   },
   {
    "d": "2026-09-19",
-   "units": 220,
+   "units": 399,
    "by_source": {
     "web": 54,
-    "altercpa": 128,
-    "elyon_crm": 38,
-    "teleshop_other": 0
+    "social": 0,
+    "altercpa": 132,
+    "elyon_crm": 144,
+    "teleshop_other": 69
    }
   },
   {
    "d": "2026-09-20",
-   "units": 185,
+   "units": 243,
    "by_source": {
     "web": 50,
-    "altercpa": 135,
+    "social": 0,
+    "altercpa": 142,
     "elyon_crm": 0,
-    "teleshop_other": 0
+    "teleshop_other": 51
    }
   },
   {
    "d": "2026-09-21",
-   "units": 349,
+   "units": 831,
    "by_source": {
     "web": 77,
-    "altercpa": 143,
-    "elyon_crm": 129,
-    "teleshop_other": 0
+    "social": 0,
+    "altercpa": 146,
+    "elyon_crm": 421,
+    "teleshop_other": 187
    }
   },
   {
    "d": "2026-09-22",
-   "units": 398,
+   "units": 952,
    "by_source": {
     "web": 95,
-    "altercpa": 177,
-    "elyon_crm": 126,
-    "teleshop_other": 0
+    "social": 0,
+    "altercpa": 178,
+    "elyon_crm": 449,
+    "teleshop_other": 230
    }
   },
   {
    "d": "2026-09-23",
-   "units": 348,
+   "units": 1107,
    "by_source": {
     "web": 60,
-    "altercpa": 141,
-    "elyon_crm": 147,
-    "teleshop_other": 0
+    "social": 0,
+    "altercpa": 154,
+    "elyon_crm": 494,
+    "teleshop_other": 399
    }
   },
   {
    "d": "2026-09-24",
-   "units": 395,
+   "units": 889,
    "by_source": {
     "web": 86,
-    "altercpa": 194,
-    "elyon_crm": 115,
-    "teleshop_other": 0
+    "social": 0,
+    "altercpa": 192,
+    "elyon_crm": 397,
+    "teleshop_other": 214
    }
   },
   {
    "d": "2026-09-25",
-   "units": 281,
+   "units": 885,
    "by_source": {
     "web": 86,
-    "altercpa": 117,
-    "elyon_crm": 78,
-    "teleshop_other": 0
+    "social": 0,
+    "altercpa": 147,
+    "elyon_crm": 434,
+    "teleshop_other": 218
    }
   },
   {
    "d": "2026-09-26",
-   "units": 250,
+   "units": 583,
    "by_source": {
     "web": 79,
-    "altercpa": 154,
-    "elyon_crm": 17,
-    "teleshop_other": 0
+    "social": 0,
+    "altercpa": 193,
+    "elyon_crm": 195,
+    "teleshop_other": 116
    }
   },
   {
    "d": "2026-09-27",
-   "units": 165,
+   "units": 303,
    "by_source": {
     "web": 29,
-    "altercpa": 136,
+    "social": 0,
+    "altercpa": 186,
     "elyon_crm": 0,
-    "teleshop_other": 0
+    "teleshop_other": 88
    }
   }
  ],
  "trust": {
+  "counted": false,
   "trusted": false,
+  "mex_from": null,
   "last_count": "2026-08-06",
   "last_parcel": "2026-09-28",
+  "mex_enabled": false,
   "last_restock": null,
+  "mex_last_run": null,
   "last_movement": "2026-08-20",
   "last_deduction": "2026-08-20",
   "parcels_window": 7099,
   "ledger_in_window": 0,
   "ledger_out_window": 0,
   "ledger_moves_window": 0,
-  "parcels_since_deduction": 10262,
-  "counted": false,
-  "mex_enabled": false,
-  "mex_from": null,
-  "mex_last_run": null
+  "parcels_since_deduction": 10262
  },
  "hygiene": {
   "no_cost": {
    "rows": [
     {
+     "name": "MAGNESIUM CITRAT 325mg",
+     "units": 2031,
+     "product_id": "a93a0b66-1aca-408d-a3c3-57b6a3316ab4"
+    },
+    {
      "name": "ПРОСТАТОЛ КОМПЛЕКС cps 30",
-     "units": 1186,
+     "units": 1668,
      "product_id": "0a67af01-ba33-42fc-949e-9fc5e60960e2"
     },
     {
-     "name": "СНАИЛ КОМПЛЕКС cps 30",
-     "units": 1081,
-     "product_id": "7ecd116e-b183-48f7-bb85-b01a793db9d5"
-    },
-    {
-     "name": "АЛОЕ ВЕРА ГЕЛ СО АРОНИЈА 1Л",
-     "units": 808,
-     "product_id": "b01ce730-f4a6-4f9b-9011-bda12fcfd37d"
-    },
-    {
-     "name": "БРАИН АКТИВ 30cps",
-     "units": 775,
-     "product_id": "4d720da7-d826-4771-915d-0c7aaa8ed194"
-    },
-    {
      "name": "MAGNESIUM BISGLYCINATE 120/1",
-     "units": 344,
+     "units": 1660,
      "product_id": "ab0619ab-4e13-49c7-8ed0-b97bbb4ef0ab"
     },
     {
+     "name": "АЛОЕ ВЕРА ГЕЛ СО АРОНИЈА 1Л",
+     "units": 1416,
+     "product_id": "b01ce730-f4a6-4f9b-9011-bda12fcfd37d"
+    },
+    {
+     "name": "СНАИЛ КОМПЛЕКС cps 30",
+     "units": 1400,
+     "product_id": "7ecd116e-b183-48f7-bb85-b01a793db9d5"
+    },
+    {
+     "name": "БРАИН АКТИВ 30cps",
+     "units": 969,
+     "product_id": "4d720da7-d826-4771-915d-0c7aaa8ed194"
+    },
+    {
      "name": "Колаген Пептид со МАЛИНА 200 гр",
-     "units": 285,
+     "units": 465,
      "product_id": "de3d548e-4665-49ea-bce9-49a8634bc60e"
     },
     {
      "name": "КУРКУМА АКТИВ",
-     "units": 250,
+     "units": 420,
      "product_id": "20dc61f2-8ab4-4fe0-b196-7e51d71c5d83"
     },
     {
+     "name": "Колаген Пептид со ВАНИЛА 200 гр",
+     "units": 354,
+     "product_id": "6836933e-8fff-4ddd-b4f9-b43b10b67d33"
+    },
+    {
      "name": "БРОНХО ПРОТЕКТ 500ml",
-     "units": 166,
+     "units": 262,
      "product_id": "c5d5659f-8997-41c5-aa68-cf98032c4215"
     },
     {
-     "name": "NEUROFIX BIONATURAL 30/1",
-     "units": 147,
-     "product_id": "8f5732dc-cf65-4cae-b1d2-1d4ae96fd479"
-    },
-    {
-     "name": "MAGNESIUM CITRAT 325mg",
-     "units": 121,
-     "product_id": "a93a0b66-1aca-408d-a3c3-57b6a3316ab4"
+     "name": "КРЕАТИН ВО ПРАВ 200ГР",
+     "units": 215,
+     "product_id": "c801c3cc-c3e5-4fec-aeb8-733c546d33c7"
     },
     {
      "name": "MAGNESIUM+ZINK+B complex 120/1 TAB",
-     "units": 121,
+     "units": 209,
      "product_id": "56299955-d23a-4d07-acfb-d6002945a0db"
     },
     {
+     "name": "NEUROFIX BIONATURAL 30/1",
+     "units": 180,
+     "product_id": "8f5732dc-cf65-4cae-b1d2-1d4ae96fd479"
+    },
+    {
      "name": "VITAMIN D3+K2+BOR 180/1 tab",
-     "units": 114,
+     "units": 175,
      "product_id": "2adfb3b1-3b1c-4405-b611-e0acf85d6b00"
     },
     {
-     "name": "ADENOFRIN 20/1 cps",
-     "units": 93,
-     "product_id": "87337325-528f-4007-96b2-fcc1262a55e3"
-    },
-    {
-     "name": "MAGNESIUM+ B6 150/1 tab",
-     "units": 58,
-     "product_id": "578b42d3-c182-48fc-a43f-e0e66749f61f"
-    },
-    {
-     "name": "ALPHA MALE 60 cps",
-     "units": 55,
-     "product_id": "74c4b953-4e9f-495e-a51f-1bf25f2e3de2"
+     "name": "ДИАБЕТОЛ ФОРТЕ 30cps",
+     "units": 171,
+     "product_id": "f960872c-8a5c-4ae5-a4aa-496fc2b43f3e"
     }
    ],
-   "units": 6213,
+   "units": 13358,
    "active": 105,
-   "selling": 75
+   "selling": 120
   },
   "unmapped": {
    "rows": [
-    {
-     "name": "MAGNESIUM CITRAT 325mg 150/1 tab",
-     "units": 1659
-    },
-    {
-     "name": "Magnesium Bisglycinate — хелатна форма, 120 таблети",
-     "units": 416
-    },
-    {
-     "name": "КОЛАГЕН ПЕПТИД СО ВАНИЛА 200ГР",
-     "units": 183
-    },
-    {
-     "name": "ДИАБЕТОЛ ФОРТЕ 30cps",
-     "units": 120
-    },
-    {
-     "name": "CREATINE MONOHYDRATE — за сила и раст на мускулите",
-     "units": 87
-    },
-    {
-     "name": "UROFIX BIONATURAL 30/1",
-     "units": 82
-    },
-    {
-     "name": "Колаген Пептид -БЕЗ ВКУС 200 гр",
-     "units": 80
-    },
-    {
-     "name": "КРЕАТИН ВО ПРАВ 200ГР",
-     "units": 68
-    },
-    {
-     "name": "Magnesium + Zinc + B-Complex — 120 таблети",
-     "units": 65
-    },
-    {
-     "name": "Magnesium Citrat — магнезиум за мускули, нерви и коски",
-     "units": 55
-    },
-    {
-     "name": "COLLAGEN PEPTIDES 200 г — колагенски пептиди за кожа и зглобови (Вкус: Малина)",
-     "units": 42
-    },
-    {
-     "name": "CREATINE MONOHYDRATE 400 г — за сила и раст на мускулите (Вкус: Без вкус)",
-     "units": 42
-    },
-    {
-     "name": "GLUCO FIX BIONATURAL 30/1",
-     "units": 42
-    },
-    {
-     "name": "D3 + K2 + Bor — 180 таблети за коски и виталност",
-     "units": 39
-    },
-    {
-     "name": "COLLAGEN PEPTIDES 200 г — колагенски пептиди за кожа и зглобови (Вкус: Ванила)",
-     "units": 37
-    },
-    {
-     "name": "Aloe & Aronia (1 L) — сируп за имунитет и варење",
-     "units": 33
-    },
     {
      "name": "100% WHEY Protein 500 г — суруткин протеин за мускули и опоравување",
      "units": 32
     },
     {
-     "name": "Мача со колаген 175гр",
-     "units": 31
+     "name": "Л-ГЛУТАМИН ВО ПРАВ 200ГР",
+     "units": 12
+    },
+    {
+     "name": "COLLAGEN & COCONUT WATER 200gr",
+     "units": 10
     },
     {
      "name": "OPTICARE 60 cps",
-     "units": 28
+     "units": 10
     },
     {
-     "name": "PROSTA FIX BIONATURAL 30/1",
-     "units": 27
+     "name": "ELIXY Hyaluronic&Aloe Vera 55+",
+     "units": 8
     },
     {
-     "name": "CARDIOFIX BIONATURAL 30 cps",
-     "units": 25
+     "name": "3 MAGNESIUM BISGLYCINATE 120/1 tab",
+     "units": 6
     },
     {
-     "name": "ГАСТРО АЛОЕ 500ml",
-     "units": 25
+     "name": "НОНИ ЕКСТРАКТ 0,5 Л.",
+     "units": 5
     },
     {
-     "name": "ARTHRO FIX BIONATURAL 30/1",
-     "units": 23
+     "name": "КОЛАГЕН ПЕПТИД МАЛИНА 400гр",
+     "units": 4
     },
     {
-     "name": "ХЕПАТОЛ ФОРТЕ 30 cps",
-     "units": 23
+     "name": "2+1 АЛОЕ ВЕРА ГЕЛ-РЕСВЕРА.1Л",
+     "units": 3
     },
     {
-     "name": "ХЕМОРО ФОРТЕ",
-     "units": 22
+     "name": "БРАИН АКТИВ 30crs-сет2+1",
+     "units": 3
+    },
+    {
+     "name": "100% WHEY ВАНИЛА 2 КГ",
+     "units": 2
+    },
+    {
+     "name": "2 COLLAGEN & COCONUT WATER 200gr + ELIXY Matcha Face Cream 50ml + ELIXY MIDNIGHT MATCHA MASK 50ml ФИЗИЧКИ",
+     "units": 2
+    },
+    {
+     "name": "2+1 БРАИН АКТИВ + ZINC 120/1 tab",
+     "units": 2
+    },
+    {
+     "name": "2+2 СНАИЛ КОМПЛЕКС + VITAMIN D3 120/1 tab",
+     "units": 2
+    },
+    {
+     "name": "ELIXY Масло од шипка 30 ml",
+     "units": 2
+    },
+    {
+     "name": "NMN 60/1 cps",
+     "units": 2
+    },
+    {
+     "name": "Zinc — за имунитет, кожа и виталност",
+     "units": 2
+    },
+    {
+     "name": "СЛИМ ФИБЕР 30cps",
+     "units": 2
+    },
+    {
+     "name": "1+1 WHEY ПРОТЕИН ОД ЧОКОЛАДО 500гр + ZINC 120/1 tab",
+     "units": 1
+    },
+    {
+     "name": "100% WHEY ЧОКОЛАДО 2 kg",
+     "units": 1
+    },
+    {
+     "name": "2 КРЕАТИН + ГЛУТАМИН",
+     "units": 1
+    },
+    {
+     "name": "2 ПРОСТАТОЛ + 2 ДИАБЕТОЛ",
+     "units": 1
+    },
+    {
+     "name": "2 СНАИЛ + 2 ПРОСТАТОЛ + VITAMIN D3 120/1 tab",
+     "units": 1
+    },
+    {
+     "name": "2+1 БРАИН АКТИВ + VITAMIN D3 120/1 tab",
+     "units": 1
+    },
+    {
+     "name": "2+1 КУРКУМАКТИВ 500мл + MAGNESIUM GEL 50ml",
+     "units": 1
     }
    ],
-   "names": 160,
-   "units": 3951
+   "names": 38,
+   "units": 129
   },
   "duplicates": [
+   {
+    "key": "magnesium",
+    "products": [
+     {
+      "name": "MAGNESIUM CITRAT 325mg",
+      "units": 2031,
+      "on_hand": 1000,
+      "tracked": true,
+      "product_id": "a93a0b66-1aca-408d-a3c3-57b6a3316ab4"
+     },
+     {
+      "name": "MAGNESIUM BISGLYCINATE 120/1",
+      "units": 1660,
+      "on_hand": null,
+      "tracked": false,
+      "product_id": "ab0619ab-4e13-49c7-8ed0-b97bbb4ef0ab"
+     },
+     {
+      "name": "MAGNESIUM+ B6 150/1 tab",
+      "units": 80,
+      "on_hand": null,
+      "tracked": false,
+      "product_id": "578b42d3-c182-48fc-a43f-e0e66749f61f"
+     },
+     {
+      "name": "MAGNESIUM GEL 50ml",
+      "units": 29,
+      "on_hand": null,
+      "tracked": false,
+      "product_id": "cfeea178-f0bc-4c4c-a989-032112ffaf5a"
+     }
+    ]
+   },
    {
     "key": "prostatol",
     "products": [
      {
       "name": "ПРОСТАТОЛ КОМПЛЕКС cps 30",
-      "units": 1186,
+      "units": 1668,
       "on_hand": null,
       "tracked": false,
       "product_id": "0a67af01-ba33-42fc-949e-9fc5e60960e2"
      },
      {
       "name": "Простатол Комплекс",
-      "units": 31,
+      "units": 35,
       "on_hand": 1000,
       "tracked": true,
       "product_id": "2c793617-610a-4c87-b915-50cb2babcd9e"
-     }
-    ]
-   },
-   {
-    "key": "adenofrin",
-    "products": [
-     {
-      "name": "Adenofrin",
-      "units": 1057,
-      "on_hand": 996,
-      "tracked": true,
-      "product_id": "d65b038a-3779-4bed-9e61-2d4916259e9e"
-     },
-     {
-      "name": "ADENOFRIN 20/1 cps",
-      "units": 93,
-      "on_hand": null,
-      "tracked": false,
-      "product_id": "87337325-528f-4007-96b2-fcc1262a55e3"
-     }
-    ]
-   },
-   {
-    "key": "neurofix",
-    "products": [
-     {
-      "name": "Neurofix",
-      "units": 1001,
-      "on_hand": 959,
-      "tracked": true,
-      "product_id": "7755d5c0-66ee-4ec6-93ae-fe7b8a47f4c6"
-     },
-     {
-      "name": "NEUROFIX BIONATURAL 30/1",
-      "units": 147,
-      "on_hand": null,
-      "tracked": false,
-      "product_id": "8f5732dc-cf65-4cae-b1d2-1d4ae96fd479"
-     }
-    ]
-   },
-   {
-    "key": "snail",
-    "products": [
-     {
-      "name": "СНАИЛ КОМПЛЕКС cps 30",
-      "units": 1081,
-      "on_hand": null,
-      "tracked": false,
-      "product_id": "7ecd116e-b183-48f7-bb85-b01a793db9d5"
-     },
-     {
-      "name": "СНАИЛ КРЕМА 100ml антиревматска туба",
-      "units": 16,
-      "on_hand": null,
-      "tracked": false,
-      "product_id": "0567ebad-600e-4c3b-9c05-10ecdeb3e8cb"
-     },
-     {
-      "name": "Snail Complex",
-      "units": 9,
-      "on_hand": 1000,
-      "tracked": true,
-      "product_id": "7ec6ce03-0c4a-46bf-98ca-c716dfe9df15"
      }
     ]
    },
@@ -796,7 +820,7 @@
     "products": [
      {
       "name": "АЛОЕ ВЕРА ГЕЛ СО АРОНИЈА 1Л",
-      "units": 808,
+      "units": 1416,
       "on_hand": null,
       "tracked": false,
       "product_id": "b01ce730-f4a6-4f9b-9011-bda12fcfd37d"
@@ -825,21 +849,66 @@
     ]
    },
    {
-    "key": "alpha",
+    "key": "snail",
     "products": [
      {
-      "name": "Alpha Male",
-      "units": 770,
-      "on_hand": 993,
-      "tracked": true,
-      "product_id": "cf38ad20-8608-4a81-b852-d9b5c7d3e0cc"
-     },
-     {
-      "name": "ALPHA MALE 60 cps",
-      "units": 55,
+      "name": "СНАИЛ КОМПЛЕКС cps 30",
+      "units": 1400,
       "on_hand": null,
       "tracked": false,
-      "product_id": "74c4b953-4e9f-495e-a51f-1bf25f2e3de2"
+      "product_id": "7ecd116e-b183-48f7-bb85-b01a793db9d5"
+     },
+     {
+      "name": "СНАИЛ КРЕМА 100ml антиревматска туба",
+      "units": 26,
+      "on_hand": null,
+      "tracked": false,
+      "product_id": "0567ebad-600e-4c3b-9c05-10ecdeb3e8cb"
+     },
+     {
+      "name": "Snail Complex",
+      "units": 18,
+      "on_hand": 1000,
+      "tracked": true,
+      "product_id": "7ec6ce03-0c4a-46bf-98ca-c716dfe9df15"
+     }
+    ]
+   },
+   {
+    "key": "adenofrin",
+    "products": [
+     {
+      "name": "Adenofrin",
+      "units": 1075,
+      "on_hand": 996,
+      "tracked": true,
+      "product_id": "d65b038a-3779-4bed-9e61-2d4916259e9e"
+     },
+     {
+      "name": "ADENOFRIN 20/1 cps",
+      "units": 123,
+      "on_hand": null,
+      "tracked": false,
+      "product_id": "87337325-528f-4007-96b2-fcc1262a55e3"
+     }
+    ]
+   },
+   {
+    "key": "neurofix",
+    "products": [
+     {
+      "name": "Neurofix",
+      "units": 1011,
+      "on_hand": 959,
+      "tracked": true,
+      "product_id": "7755d5c0-66ee-4ec6-93ae-fe7b8a47f4c6"
+     },
+     {
+      "name": "NEUROFIX BIONATURAL 30/1",
+      "units": 180,
+      "on_hand": null,
+      "tracked": false,
+      "product_id": "8f5732dc-cf65-4cae-b1d2-1d4ae96fd479"
      }
     ]
    },
@@ -848,7 +917,7 @@
     "products": [
      {
       "name": "БРАИН АКТИВ 30cps",
-      "units": 775,
+      "units": 969,
       "on_hand": null,
       "tracked": false,
       "product_id": "4d720da7-d826-4771-915d-0c7aaa8ed194"
@@ -863,18 +932,63 @@
     ]
    },
    {
+    "key": "kolagen",
+    "products": [
+     {
+      "name": "Колаген Пептид со МАЛИНА 200 гр",
+      "units": 465,
+      "on_hand": null,
+      "tracked": false,
+      "product_id": "de3d548e-4665-49ea-bce9-49a8634bc60e"
+     },
+     {
+      "name": "Колаген Пептид со ВАНИЛА 200 гр",
+      "units": 354,
+      "on_hand": 1000,
+      "tracked": true,
+      "product_id": "6836933e-8fff-4ddd-b4f9-b43b10b67d33"
+     },
+     {
+      "name": "Колаген Пептид -ЧОКОЛАДО 200 гр",
+      "units": 63,
+      "on_hand": null,
+      "tracked": false,
+      "product_id": "f4e2c96b-571d-4620-bbf5-097fed5fe026"
+     }
+    ]
+   },
+   {
+    "key": "alpha",
+    "products": [
+     {
+      "name": "Alpha Male",
+      "units": 787,
+      "on_hand": 993,
+      "tracked": true,
+      "product_id": "cf38ad20-8608-4a81-b852-d9b5c7d3e0cc"
+     },
+     {
+      "name": "ALPHA MALE 60 cps",
+      "units": 82,
+      "on_hand": null,
+      "tracked": false,
+      "product_id": "74c4b953-4e9f-495e-a51f-1bf25f2e3de2"
+     }
+    ]
+   },
+   {
     "key": "slim",
     "products": [
      {
       "name": "Slim Fit",
-      "units": 563,
+      "units": 564,
       "on_hand": 995,
       "tracked": true,
       "product_id": "bdc79d87-8e42-430d-8925-c3b010ca257f"
      },
      {
       "name": "SLIM Fiber",
-      "units": 17,
+      "units": 29,
       "on_hand": 1000,
       "tracked": true,
       "product_id": "90f36677-e8ad-4b5a-984a-cc150d95ab4d"
@@ -888,7 +1002,7 @@
      },
      {
       "name": "SLIM Complex",
-      "units": 3,
+      "units": 4,
       "on_hand": 1000,
       "tracked": true,
       "product_id": "4a8748bc-f7eb-4815-bf96-24365c379580"
@@ -903,70 +1017,11 @@
     ]
    },
    {
-    "key": "magnesium",
-    "products": [
-     {
-      "name": "MAGNESIUM BISGLYCINATE 120/1",
-      "units": 344,
-      "on_hand": null,
-      "tracked": false,
-      "product_id": "ab0619ab-4e13-49c7-8ed0-b97bbb4ef0ab"
-     },
-     {
-      "name": "MAGNESIUM CITRAT 325mg",
-      "units": 121,
-      "on_hand": 1000,
-      "tracked": true,
-      "product_id": "a93a0b66-1aca-408d-a3c3-57b6a3316ab4"
-     },
-     {
-      "name": "MAGNESIUM+ B6 150/1 tab",
-      "units": 58,
-      "on_hand": null,
-      "tracked": false,
-      "product_id": "578b42d3-c182-48fc-a43f-e0e66749f61f"
-     },
-     {
-      "name": "MAGNESIUM GEL 50ml",
-      "units": 23,
-      "on_hand": null,
-      "tracked": false,
-      "product_id": "cfeea178-f0bc-4c4c-a989-032112ffaf5a"
-     }
-    ]
-   },
-   {
-    "key": "kolagen",
-    "products": [
-     {
-      "name": "Колаген Пептид со МАЛИНА 200 гр",
-      "units": 285,
-      "on_hand": null,
-      "tracked": false,
-      "product_id": "de3d548e-4665-49ea-bce9-49a8634bc60e"
-     },
-     {
-      "name": "Колаген Пептид со ВАНИЛА 200 гр",
-      "units": 26,
-      "on_hand": 1000,
-      "tracked": true,
-      "product_id": "6836933e-8fff-4ddd-b4f9-b43b10b67d33"
-     },
-     {
-      "name": "Колаген Пептид -ЧОКОЛАДО 200 гр",
-      "units": 24,
-      "on_hand": null,
-      "tracked": false,
-      "product_id": "f4e2c96b-571d-4620-bbf5-097fed5fe026"
-     }
-    ]
-   },
-   {
     "key": "bronho",
     "products": [
      {
       "name": "БРОНХО ПРОТЕКТ 500ml",
-      "units": 166,
+      "units": 262,
       "on_hand": null,
       "tracked": false,
       "product_id": "c5d5659f-8997-41c5-aa68-cf98032c4215"
@@ -985,38 +1040,45 @@
     "products": [
      {
       "name": "VITAMIN D3+K2+BOR 180/1 tab",
-      "units": 114,
+      "units": 175,
       "on_hand": null,
       "tracked": false,
       "product_id": "2adfb3b1-3b1c-4405-b611-e0acf85d6b00"
      },
      {
       "name": "ВИТАМИН Ц-1000 60 cps",
-      "units": 13,
+      "units": 23,
       "on_hand": null,
       "tracked": false,
       "product_id": "d9e5d5fd-f80f-4eca-bbe5-a07168caba5d"
      },
      {
       "name": "VITAMIN D3 120/1 tab",
-      "units": 7,
+      "units": 19,
       "on_hand": null,
       "tracked": false,
       "product_id": "c5baa58c-238c-442d-8ee6-66147c7709ec"
      },
      {
       "name": "ВИТАМИН Д3 365/1 таб",
-      "units": 2,
+      "units": 8,
       "on_hand": 1000,
       "tracked": true,
       "product_id": "fb450a97-8fde-4591-99d5-83b3caa7ce93"
      },
      {
       "name": "ВИТАМИН Б6 365/1 таб",
-      "units": 1,
+      "units": 7,
       "on_hand": 1000,
       "tracked": true,
       "product_id": "931cb587-1f07-4687-a337-0ac9c788c700"
+     },
+     {
+      "name": "ВИТАМИН Ц 500МГ/60 ТАБ",
+      "units": 4,
+      "on_hand": null,
+      "tracked": false,
+      "product_id": "b66acbb5-287c-4dff-98a0-69c9c3c374e7"
      },
      {
       "name": "ВИТАМИН Д3 180 tbl",
@@ -1059,13 +1121,6 @@
       "on_hand": null,
       "tracked": false,
       "product_id": "e513e786-5292-4c11-916c-8306e8a83ddb"
-     },
-     {
-      "name": "ВИТАМИН Ц 500МГ/60 ТАБ",
-      "units": 0,
-      "on_hand": null,
-      "tracked": false,
-      "product_id": "b66acbb5-287c-4dff-98a0-69c9c3c374e7"
      }
     ]
    },
@@ -1074,21 +1129,21 @@
     "products": [
      {
       "name": "НУТРИ ШЕЈК-со вкус на ванила 500 гр.",
-      "units": 19,
+      "units": 46,
       "on_hand": null,
       "tracked": false,
       "product_id": "08e5b05d-a361-4774-90ba-73f8177e418f"
      },
      {
       "name": "НУТРИ ШЕЈК-со вкус на чоколадо 500гр.",
-      "units": 9,
+      "units": 25,
       "on_hand": null,
       "tracked": false,
       "product_id": "a787c8b1-205a-4b2c-84c2-db3076dc3f54"
      },
      {
       "name": "НУТРИ ШЕЈК-со вкус на јагода 500 гр.",
-      "units": 8,
+      "units": 22,
       "on_hand": null,
       "tracked": false,
       "product_id": "e10ab6fc-eda4-47a8-9ddf-7a0536c603c4"
@@ -1110,18 +1165,63 @@
     ]
    },
    {
+    "key": "hemoro",
+    "products": [
+     {
+      "name": "Hemoro Forte",
+      "units": 61,
+      "on_hand": 1000,
+      "tracked": true,
+      "product_id": "cf71eecc-5289-4e4b-bfa0-93d19ad204e7"
+     },
+     {
+      "name": "ХЕМОРО ГЕЛ 100МЛ",
+      "units": 6,
+      "on_hand": null,
+      "tracked": false,
+      "product_id": "472912aa-5d0b-4d65-a303-ec3bf7fead59"
+     }
+    ]
+   },
+   {
+    "key": "gastro",
+    "products": [
+     {
+      "name": "Gastro Aloe",
+      "units": 38,
+      "on_hand": 1000,
+      "tracked": true,
+      "product_id": "f9efaf2a-84ba-49f6-9de0-b9d859f8665e"
+     },
+     {
+      "name": "ГАСТРО ПРОТЕКТ 500ml",
+      "units": 25,
+      "on_hand": null,
+      "tracked": false,
+      "product_id": "79a798bc-0da2-41e4-a38f-c09fe4d838d4"
+     },
+     {
+      "name": "Gastro Protect",
+      "units": 0,
+      "on_hand": 1000,
+      "tracked": true,
+      "product_id": "820f88a4-a607-42fd-a175-4fd9ed5e7cc4"
+     }
+    ]
+   },
+   {
     "key": "veno",
     "products": [
      {
       "name": "Veno Gel",
-      "units": 23,
+      "units": 44,
       "on_hand": 999,
       "tracked": true,
       "product_id": "3a754b34-11cd-4fba-8913-6acb3b6ccf76"
      },
      {
       "name": "ВЕНО ГАРД 30/1",
-      "units": 9,
+      "units": 16,
       "on_hand": null,
       "tracked": false,
       "product_id": "946efd4e-908b-4cce-ade6-195e330f1fea"
@@ -1133,7 +1233,7 @@
     "products": [
      {
       "name": "CALM антистрес формула 30 1",
-      "units": 30,
+      "units": 44,
       "on_hand": null,
       "tracked": false,
       "product_id": "a0ac8f5a-e48f-4b7e-b2cd-65ac0c1a1db8"
@@ -1152,21 +1252,21 @@
     "products": [
      {
       "name": "ДИЕТ ШЕЈК Чоколадо 500g",
-      "units": 11,
+      "units": 17,
       "on_hand": null,
       "tracked": false,
       "product_id": "66ed167b-ebf3-4147-8ad0-8d94002b96f4"
      },
      {
       "name": "ДИЕТ ШЕЈК Ванила 500g",
-      "units": 6,
+      "units": 13,
       "on_hand": null,
       "tracked": false,
       "product_id": "04fe60cd-5e81-41f1-a4ae-e3b2a9f94cad"
      },
      {
       "name": "ДИЕТ ШЕЈК Јагода 500g",
-      "units": 5,
+      "units": 8,
       "on_hand": null,
       "tracked": false,
       "product_id": "0962a7cc-d547-46c8-92a0-38adc0f8c4cd"
@@ -1202,28 +1302,47 @@
     ]
    },
    {
-    "key": "gastro",
+    "key": "bilberi",
     "products": [
      {
-      "name": "ГАСТРО ПРОТЕКТ 500ml",
-      "units": 19,
+      "name": "БИЛБЕРИ 90/1 таблети",
+      "units": 11,
       "on_hand": null,
       "tracked": false,
-      "product_id": "79a798bc-0da2-41e4-a38f-c09fe4d838d4"
+      "product_id": "faea7453-4c63-4345-9d11-d6a181a75346"
      },
      {
-      "name": "Gastro Aloe",
-      "units": 0,
-      "on_hand": 1000,
+      "name": "БИЛБЕРИ НАТУРА 30cps",
+      "units": 11,
+      "on_hand": null,
+      "tracked": false,
+      "product_id": "9a459687-5384-40c1-aad3-2e3290dbb332"
+     }
+    ]
+   },
+   {
+    "key": "drslim",
+    "products": [
+     {
+      "name": "DR.SLIM 90cps",
+      "units": 13,
+      "on_hand": 999,
       "tracked": true,
-      "product_id": "f9efaf2a-84ba-49f6-9de0-b9d859f8665e"
+      "product_id": "41dcd909-4d23-47d5-869b-3d8c266b72a8"
      },
      {
-      "name": "Gastro Protect",
-      "units": 0,
+      "name": "ДР.СЛИМ 210гр.",
+      "units": 3,
+      "on_hand": null,
+      "tracked": false,
+      "product_id": "8b1d6f5e-4404-48ff-b42c-fc5376c0cd0a"
+     },
+     {
+      "name": "ДР.СЛИМ РАСТИТЕЛЕН 210 гр",
+      "units": 2,
       "on_hand": 1000,
       "tracked": true,
-      "product_id": "820f88a4-a607-42fd-a175-4fd9ed5e7cc4"
+      "product_id": "fe3d1bf9-67ba-40ab-ab7e-7e341bd3d6ed"
      }
     ]
    },
@@ -1232,7 +1351,7 @@
     "products": [
      {
       "name": "ФЕММЕ 7 60 cps",
-      "units": 14,
+      "units": 16,
       "on_hand": null,
       "tracked": false,
       "product_id": "c3ce5bde-6967-4564-8c58-4a085305aad7"
@@ -1247,49 +1366,11 @@
     ]
    },
    {
-    "key": "bilberi",
-    "products": [
-     {
-      "name": "БИЛБЕРИ 90/1 таблети",
-      "units": 11,
-      "on_hand": null,
-      "tracked": false,
-      "product_id": "faea7453-4c63-4345-9d11-d6a181a75346"
-     },
-     {
-      "name": "БИЛБЕРИ НАТУРА 30cps",
-      "units": 2,
-      "on_hand": null,
-      "tracked": false,
-      "product_id": "9a459687-5384-40c1-aad3-2e3290dbb332"
-     }
-    ]
-   },
-   {
-    "key": "hemoro",
-    "products": [
-     {
-      "name": "ХЕМОРО ГЕЛ 100МЛ",
-      "units": 5,
-      "on_hand": null,
-      "tracked": false,
-      "product_id": "472912aa-5d0b-4d65-a303-ec3bf7fead59"
-     },
-     {
-      "name": "Hemoro Forte",
-      "units": 4,
-      "on_hand": 1000,
-      "tracked": true,
-      "product_id": "cf71eecc-5289-4e4b-bfa0-93d19ad204e7"
-     }
-    ]
-   },
-   {
     "key": "vitc",
     "products": [
      {
       "name": "Вит.Ц за возрасни 0,5ml.",
-      "units": 7,
+      "units": 13,
       "on_hand": null,
       "tracked": false,
       "product_id": "d91cad1c-5041-43d2-b0b7-3a5901570c02"
@@ -1315,55 +1396,17 @@
     "products": [
      {
       "name": "Имуно Буст-Капина 500 мл.",
-      "units": 8,
+      "units": 9,
       "on_hand": null,
       "tracked": false,
       "product_id": "66170d45-0689-40f5-965f-ea963ec5550a"
      },
      {
       "name": "Имуно Буст-Портокал/Ананас 500 мл.",
-      "units": 0,
+      "units": 5,
       "on_hand": null,
       "tracked": false,
       "product_id": "b78bc6f1-3989-4945-a38a-85843d77f4c2"
-     }
-    ]
-   },
-   {
-    "key": "sambukus",
-    "products": [
-     {
-      "name": "САМБУКУС сируп 250 мл",
-      "units": 6,
-      "on_hand": null,
-      "tracked": false,
-      "product_id": "318077bc-32bc-4e9b-aee6-33ddcfe71380"
-     },
-     {
-      "name": "САМБУКУС сирoп 250 мл",
-      "units": 0,
-      "on_hand": 1000,
-      "tracked": true,
-      "product_id": "a35cb6a4-83eb-4366-8b13-92b596191be0"
-     }
-    ]
-   },
-   {
-    "key": "liverfix",
-    "products": [
-     {
-      "name": "Liverfix",
-      "units": 3,
-      "on_hand": 1000,
-      "tracked": true,
-      "product_id": "4c15f7f7-7eaf-4112-8e47-53d3e2468ad3"
-     },
-     {
-      "name": "LIVERFIX 30/1 BIONATURAL",
-      "units": 2,
-      "on_hand": null,
-      "tracked": false,
-      "product_id": "daf9023e-c5fd-4900-9160-6f430a6ac979"
      }
     ]
    },
@@ -1372,7 +1415,7 @@
     "products": [
      {
       "name": "ТРИБУЛУС ТЕРЕСТРИС 30cps",
-      "units": 5,
+      "units": 14,
       "on_hand": null,
       "tracked": false,
       "product_id": "604ab890-8d89-4027-9956-946e87f1aea7"
@@ -1387,34 +1430,41 @@
     ]
    },
    {
-    "key": "drslim",
+    "key": "asvaganda",
     "products": [
      {
-      "name": "ДР.СЛИМ 210гр.",
-      "units": 2,
+      "name": "АШВАГАНДА ЕКСТРАКТ 60/1 cps",
+      "units": 12,
       "on_hand": null,
       "tracked": false,
-      "product_id": "8b1d6f5e-4404-48ff-b42c-fc5376c0cd0a"
+      "product_id": "7c28153d-01a4-4bab-b0dd-8b3864e32f85"
      },
      {
-      "name": "ДР.СЛИМ РАСТИТЕЛЕН 210 гр",
-      "units": 2,
+      "name": "АШВАГАНДА  ЕКСТРАКТ 60/1 cps",
+      "units": 1,
       "on_hand": 1000,
       "tracked": true,
-      "product_id": "fe3d1bf9-67ba-40ab-ab7e-7e341bd3d6ed"
-     },
-     {
-      "name": "DR.SLIM 90cps",
-      "units": 0,
-      "on_hand": 999,
-      "tracked": true,
-      "product_id": "41dcd909-4d23-47d5-869b-3d8c266b72a8"
+      "product_id": "bef8a560-6d62-4378-9159-fa765cc8b9a2"
      }
     ]
    },
    {
     "key": "elixy",
     "products": [
+     {
+      "name": "ELIXY Серум со 20%снаил екстракт",
+      "units": 7,
+      "on_hand": 1000,
+      "tracked": true,
+      "product_id": "d9aa8e45-1c04-4fee-b031-433759006fe1"
+     },
+     {
+      "name": "ELIXY Хијалурон и Алое серум 30ml",
+      "units": 2,
+      "on_hand": null,
+      "tracked": false,
+      "product_id": "c955d1bf-325b-44c7-bb7d-29ed4d5ea38d"
+     },
      {
       "name": "ELIXY DNEVNA & HYALURONIC +45  50 ml",
       "units": 1,
@@ -1428,13 +1478,6 @@
       "on_hand": 1000,
       "tracked": true,
       "product_id": "340622dc-77e0-446e-88c4-33a5be732c8a"
-     },
-     {
-      "name": "ELIXY Хијалурон и Алое серум 30ml",
-      "units": 1,
-      "on_hand": null,
-      "tracked": false,
-      "product_id": "c955d1bf-325b-44c7-bb7d-29ed4d5ea38d"
      },
      {
       "name": "ELIXY DNEVNA & HYALURONIC +35  50 ml",
@@ -1458,18 +1501,75 @@
       "product_id": "62690050-795a-467d-8057-916b16bee383"
      },
      {
-      "name": "ELIXY Серум со 20%снаил екстракт",
-      "units": 0,
-      "on_hand": 1000,
-      "tracked": true,
-      "product_id": "d9aa8e45-1c04-4fee-b031-433759006fe1"
-     },
-     {
       "name": "ELIXY Серум со витамин Ц",
       "units": 0,
       "on_hand": 1000,
       "tracked": true,
       "product_id": "30add053-f69a-4903-954d-50645540bdaa"
+     }
+    ]
+   },
+   {
+    "key": "sambukus",
+    "products": [
+     {
+      "name": "САМБУКУС сируп 250 мл",
+      "units": 8,
+      "on_hand": null,
+      "tracked": false,
+      "product_id": "318077bc-32bc-4e9b-aee6-33ddcfe71380"
+     },
+     {
+      "name": "САМБУКУС сирoп 250 мл",
+      "units": 0,
+      "on_hand": 1000,
+      "tracked": true,
+      "product_id": "a35cb6a4-83eb-4366-8b13-92b596191be0"
+     }
+    ]
+   },
+   {
+    "key": "zinc",
+    "products": [
+     {
+      "name": "ZINC 120/1 tab",
+      "units": 5,
+      "on_hand": null,
+      "tracked": false,
+      "product_id": "3ff3e198-94c7-4f05-8eb9-d723daeedaa3"
+     },
+     {
+      "name": "ZINC 120/1 tab ФИЗИЧКИ",
+      "units": 2,
+      "on_hand": null,
+      "tracked": false,
+      "product_id": "432bde3d-2ed5-4127-9747-3c6ea64f6e41"
+     },
+     {
+      "name": "Zinc 30 cps",
+      "units": 0,
+      "on_hand": 1000,
+      "tracked": true,
+      "product_id": "5c445088-0d6e-4289-a9cc-13abeddfc287"
+     }
+    ]
+   },
+   {
+    "key": "liverfix",
+    "products": [
+     {
+      "name": "Liverfix",
+      "units": 3,
+      "on_hand": 1000,
+      "tracked": true,
+      "product_id": "4c15f7f7-7eaf-4112-8e47-53d3e2468ad3"
+     },
+     {
+      "name": "LIVERFIX 30/1 BIONATURAL",
+      "units": 2,
+      "on_hand": null,
+      "tracked": false,
+      "product_id": "daf9023e-c5fd-4900-9160-6f430a6ac979"
      }
     ]
    },
@@ -1489,51 +1589,6 @@
       "on_hand": null,
       "tracked": false,
       "product_id": "9f6001cd-5521-4eb4-b234-28460afdfa15"
-     }
-    ]
-   },
-   {
-    "key": "zinc",
-    "products": [
-     {
-      "name": "ZINC 120/1 tab",
-      "units": 1,
-      "on_hand": null,
-      "tracked": false,
-      "product_id": "3ff3e198-94c7-4f05-8eb9-d723daeedaa3"
-     },
-     {
-      "name": "ZINC 120/1 tab ФИЗИЧКИ",
-      "units": 1,
-      "on_hand": null,
-      "tracked": false,
-      "product_id": "432bde3d-2ed5-4127-9747-3c6ea64f6e41"
-     },
-     {
-      "name": "Zinc 30 cps",
-      "units": 0,
-      "on_hand": 1000,
-      "tracked": true,
-      "product_id": "5c445088-0d6e-4289-a9cc-13abeddfc287"
-     }
-    ]
-   },
-   {
-    "key": "asvaganda",
-    "products": [
-     {
-      "name": "АШВАГАНДА  ЕКСТРАКТ 60/1 cps",
-      "units": 0,
-      "on_hand": 1000,
-      "tracked": true,
-      "product_id": "bef8a560-6d62-4378-9159-fa765cc8b9a2"
-     },
-     {
-      "name": "АШВАГАНДА ЕКСТРАКТ 60/1 cps",
-      "units": 0,
-      "on_hand": null,
-      "tracked": false,
-      "product_id": "7c28153d-01a4-4bab-b0dd-8b3864e32f85"
      }
     ]
    },
@@ -1586,18 +1641,18 @@
    },
    {
     "kind": "loyalty_point",
-    "lines": 1231,
-    "units": 1293
+    "lines": 1229,
+    "units": 1291
    },
    {
     "kind": "delivery",
-    "lines": 161,
-    "units": 161
+    "lines": 154,
+    "units": 154
    },
    {
     "kind": "note",
-    "lines": 94,
-    "units": 94
+    "lines": 109,
+    "units": 109
    },
    {
     "kind": "flyer",
@@ -1605,37 +1660,38 @@
     "units": 5
    }
   ],
-  "inactive_selling": 0
+  "inactive_selling": 36
  },
  "products": [
   {
-   "key": "n:magnesium citrat 325mg 150/1 tab",
-   "sku": null,
-   "name": "MAGNESIUM CITRAT 325mg 150/1 tab",
-   "state": null,
-   "units": 1659,
-   "on_hand": null,
-   "tracked": false,
+   "key": "p:a93a0b66-1aca-408d-a3c3-57b6a3316ab4",
+   "sku": "001571",
+   "name": "MAGNESIUM CITRAT 325mg",
+   "state": "ok",
+   "units": 2031,
+   "on_hand": 1000,
+   "tracked": true,
    "cost_mkd": null,
    "by_source": {
-    "web": 0,
-    "altercpa": 0,
-    "elyon_crm": 0,
-    "teleshop_other": 1659
+    "web": 55,
+    "social": 64,
+    "altercpa": 3,
+    "elyon_crm": 562,
+    "teleshop_other": 1347
    },
-   "catalogue": false,
+   "catalogue": true,
    "price_mkd": null,
-   "cost_known": null,
+   "cost_known": false,
    "days_cover": null,
    "free_units": 2,
-   "pack_units": 3,
-   "product_id": null,
-   "units_prev": 0,
-   "label_units": 2,
-   "placeholder": false,
-   "queue_units": 5,
-   "low_threshold": null,
-   "returned_units": 170,
+   "pack_units": 18,
+   "product_id": "a93a0b66-1aca-408d-a3c3-57b6a3316ab4",
+   "units_prev": 3848,
+   "label_units": 29,
+   "placeholder": true,
+   "queue_units": 47,
+   "low_threshold": 5,
+   "returned_units": 318,
    "stock_value_mkd": null
   },
   {
@@ -1643,15 +1699,16 @@
    "sku": "000265",
    "name": "ПРОСТАТОЛ КОМПЛЕКС cps 30",
    "state": "not_tracked",
-   "units": 1186,
+   "units": 1668,
    "on_hand": null,
    "tracked": false,
    "cost_mkd": null,
    "by_source": {
     "web": 0,
+    "social": 7,
     "altercpa": 0,
-    "elyon_crm": 26,
-    "teleshop_other": 1160
+    "elyon_crm": 784,
+    "teleshop_other": 877
    },
    "catalogue": true,
    "price_mkd": 895,
@@ -1660,42 +1717,74 @@
    "free_units": 0,
    "pack_units": 10,
    "product_id": "0a67af01-ba33-42fc-949e-9fc5e60960e2",
-   "units_prev": 12,
-   "label_units": 6,
+   "units_prev": 2647,
+   "label_units": 13,
    "placeholder": false,
-   "queue_units": 16,
+   "queue_units": 23,
    "low_threshold": 5,
-   "returned_units": 119,
+   "returned_units": 147,
    "stock_value_mkd": null
   },
   {
-   "key": "p:fae40061-d8ad-4025-9de0-3dea17daff71",
-   "sku": "001538",
-   "name": "Urofix",
-   "state": "ok",
-   "units": 1084,
-   "on_hand": 990,
-   "tracked": true,
-   "cost_mkd": 180,
+   "key": "p:ab0619ab-4e13-49c7-8ed0-b97bbb4ef0ab",
+   "sku": "001659",
+   "name": "MAGNESIUM BISGLYCINATE 120/1",
+   "state": "not_tracked",
+   "units": 1660,
+   "on_hand": null,
+   "tracked": false,
+   "cost_mkd": null,
    "by_source": {
-    "web": 0,
-    "altercpa": 814,
-    "elyon_crm": 270,
-    "teleshop_other": 0
+    "web": 416,
+    "social": 94,
+    "altercpa": 0,
+    "elyon_crm": 272,
+    "teleshop_other": 878
    },
    "catalogue": true,
-   "price_mkd": 1490,
-   "cost_known": true,
+   "price_mkd": 600,
+   "cost_known": false,
    "days_cover": null,
    "free_units": 0,
-   "pack_units": 54,
-   "product_id": "fae40061-d8ad-4025-9de0-3dea17daff71",
-   "units_prev": 276,
-   "label_units": 61,
+   "pack_units": 12,
+   "product_id": "ab0619ab-4e13-49c7-8ed0-b97bbb4ef0ab",
+   "units_prev": 83,
+   "label_units": 13,
    "placeholder": false,
-   "queue_units": 115,
+   "queue_units": 25,
    "low_threshold": 5,
-   "returned_units": 172,
+   "returned_units": 62,
+   "stock_value_mkd": null
+  },
+  {
+   "key": "p:b01ce730-f4a6-4f9b-9011-bda12fcfd37d",
+   "sku": "000109",
+   "name": "АЛОЕ ВЕРА ГЕЛ СО АРОНИЈА 1Л",
+   "state": "not_tracked",
+   "units": 1416,
+   "on_hand": null,
+   "tracked": false,
+   "cost_mkd": null,
+   "by_source": {
+    "web": 33,
+    "social": 0,
+    "altercpa": 0,
+    "elyon_crm": 688,
+    "teleshop_other": 695
+   },
+   "catalogue": true,
+   "price_mkd": 600,
+   "cost_known": false,
+   "days_cover": null,
+   "free_units": 1,
+   "pack_units": 8,
+   "product_id": "b01ce730-f4a6-4f9b-9011-bda12fcfd37d",
+   "units_prev": 1338,
+   "label_units": 18,
+   "placeholder": false,
+   "queue_units": 26,
+   "low_threshold": 5,
+   "returned_units": 118,
    "stock_value_mkd": null
   },
   {
@@ -1703,29 +1792,61 @@
    "sku": "000042",
    "name": "СНАИЛ КОМПЛЕКС cps 30",
    "state": "not_tracked",
-   "units": 1081,
+   "units": 1400,
    "on_hand": null,
    "tracked": false,
    "cost_mkd": null,
    "by_source": {
     "web": 0,
+    "social": 3,
     "altercpa": 0,
-    "elyon_crm": 18,
-    "teleshop_other": 1063
+    "elyon_crm": 666,
+    "teleshop_other": 731
    },
    "catalogue": true,
    "price_mkd": 895,
    "cost_known": false,
    "days_cover": null,
-   "free_units": 0,
-   "pack_units": 10,
+   "free_units": 2,
+   "pack_units": 14,
    "product_id": "7ecd116e-b183-48f7-bb85-b01a793db9d5",
-   "units_prev": 4,
-   "label_units": 5,
+   "units_prev": 2934,
+   "label_units": 20,
    "placeholder": false,
-   "queue_units": 15,
+   "queue_units": 34,
    "low_threshold": 5,
-   "returned_units": 83,
+   "returned_units": 127,
+   "stock_value_mkd": null
+  },
+  {
+   "key": "p:fae40061-d8ad-4025-9de0-3dea17daff71",
+   "sku": "001538",
+   "name": "Urofix",
+   "state": "ok",
+   "units": 1196,
+   "on_hand": 990,
+   "tracked": true,
+   "cost_mkd": 180,
+   "by_source": {
+    "web": 0,
+    "social": 3,
+    "altercpa": 817,
+    "elyon_crm": 357,
+    "teleshop_other": 19
+   },
+   "catalogue": true,
+   "price_mkd": 1490,
+   "cost_known": true,
+   "days_cover": null,
+   "free_units": 1,
+   "pack_units": 57,
+   "product_id": "fae40061-d8ad-4025-9de0-3dea17daff71",
+   "units_prev": 333,
+   "label_units": 33,
+   "placeholder": false,
+   "queue_units": 90,
+   "low_threshold": 5,
+   "returned_units": 203,
    "stock_value_mkd": null
   },
   {
@@ -1733,13 +1854,14 @@
    "sku": "SKU-000076",
    "name": "Adenofrin",
    "state": "ok",
-   "units": 1057,
+   "units": 1075,
    "on_hand": 996,
    "tracked": true,
    "cost_mkd": 180,
    "by_source": {
     "web": 0,
-    "altercpa": 831,
+    "social": 0,
+    "altercpa": 849,
     "elyon_crm": 226,
     "teleshop_other": 0
    },
@@ -1748,14 +1870,14 @@
    "cost_known": true,
    "days_cover": null,
    "free_units": 1,
-   "pack_units": 170,
+   "pack_units": 178,
    "product_id": "d65b038a-3779-4bed-9e61-2d4916259e9e",
-   "units_prev": 1034,
-   "label_units": 113,
+   "units_prev": 1033,
+   "label_units": 53,
    "placeholder": false,
-   "queue_units": 283,
+   "queue_units": 231,
    "low_threshold": 5,
-   "returned_units": 259,
+   "returned_units": 267,
    "stock_value_mkd": null
   },
   {
@@ -1763,13 +1885,14 @@
    "sku": "SKU-000073",
    "name": "Neurofix",
    "state": "ok",
-   "units": 1001,
+   "units": 1011,
    "on_hand": 959,
    "tracked": true,
    "cost_mkd": 180,
    "by_source": {
     "web": 0,
-    "altercpa": 687,
+    "social": 0,
+    "altercpa": 697,
     "elyon_crm": 314,
     "teleshop_other": 0
    },
@@ -1778,44 +1901,14 @@
    "cost_known": true,
    "days_cover": null,
    "free_units": 0,
-   "pack_units": 94,
+   "pack_units": 90,
    "product_id": "7755d5c0-66ee-4ec6-93ae-fe7b8a47f4c6",
-   "units_prev": 1281,
-   "label_units": 84,
+   "units_prev": 1285,
+   "label_units": 33,
    "placeholder": false,
-   "queue_units": 178,
+   "queue_units": 123,
    "low_threshold": 5,
-   "returned_units": 256,
-   "stock_value_mkd": null
-  },
-  {
-   "key": "p:b01ce730-f4a6-4f9b-9011-bda12fcfd37d",
-   "sku": "000109",
-   "name": "АЛОЕ ВЕРА ГЕЛ СО АРОНИЈА 1Л",
-   "state": "not_tracked",
-   "units": 808,
-   "on_hand": null,
-   "tracked": false,
-   "cost_mkd": null,
-   "by_source": {
-    "web": 0,
-    "altercpa": 0,
-    "elyon_crm": 47,
-    "teleshop_other": 761
-   },
-   "catalogue": true,
-   "price_mkd": 600,
-   "cost_known": false,
-   "days_cover": null,
-   "free_units": 0,
-   "pack_units": 8,
-   "product_id": "b01ce730-f4a6-4f9b-9011-bda12fcfd37d",
-   "units_prev": 4,
-   "label_units": 0,
-   "placeholder": false,
-   "queue_units": 8,
-   "low_threshold": 5,
-   "returned_units": 76,
+   "returned_units": 260,
    "stock_value_mkd": null
   },
   {
@@ -1823,15 +1916,16 @@
    "sku": "000636",
    "name": "БРАИН АКТИВ 30cps",
    "state": "not_tracked",
-   "units": 775,
+   "units": 969,
    "on_hand": null,
    "tracked": false,
    "cost_mkd": null,
    "by_source": {
-    "web": 0,
+    "web": 5,
+    "social": 6,
     "altercpa": 0,
-    "elyon_crm": 14,
-    "teleshop_other": 761
+    "elyon_crm": 388,
+    "teleshop_other": 570
    },
    "catalogue": true,
    "price_mkd": 800,
@@ -1840,12 +1934,12 @@
    "free_units": 2,
    "pack_units": 3,
    "product_id": "4d720da7-d826-4771-915d-0c7aaa8ed194",
-   "units_prev": 4,
-   "label_units": 0,
+   "units_prev": 482,
+   "label_units": 3,
    "placeholder": false,
-   "queue_units": 3,
+   "queue_units": 6,
    "low_threshold": 5,
-   "returned_units": 84,
+   "returned_units": 98,
    "stock_value_mkd": null
   },
   {
@@ -1853,29 +1947,30 @@
    "sku": "001315",
    "name": "Alpha Male",
    "state": "ok",
-   "units": 770,
+   "units": 787,
    "on_hand": 993,
    "tracked": true,
    "cost_mkd": 180,
    "by_source": {
     "web": 0,
-    "altercpa": 721,
-    "elyon_crm": 49,
-    "teleshop_other": 0
+    "social": 0,
+    "altercpa": 735,
+    "elyon_crm": 51,
+    "teleshop_other": 1
    },
    "catalogue": true,
    "price_mkd": 1490,
    "cost_known": true,
    "days_cover": null,
    "free_units": 3,
-   "pack_units": 51,
+   "pack_units": 54,
    "product_id": "cf38ad20-8608-4a81-b852-d9b5c7d3e0cc",
-   "units_prev": 728,
-   "label_units": 144,
+   "units_prev": 741,
+   "label_units": 24,
    "placeholder": false,
-   "queue_units": 195,
+   "queue_units": 78,
    "low_threshold": 5,
-   "returned_units": 181,
+   "returned_units": 185,
    "stock_value_mkd": null
   },
   {
@@ -1883,29 +1978,30 @@
    "sku": "001540",
    "name": "Hemorofix",
    "state": "ok",
-   "units": 654,
+   "units": 684,
    "on_hand": 986,
    "tracked": true,
    "cost_mkd": 180,
    "by_source": {
     "web": 0,
-    "altercpa": 543,
-    "elyon_crm": 111,
-    "teleshop_other": 0
+    "social": 0,
+    "altercpa": 546,
+    "elyon_crm": 134,
+    "teleshop_other": 4
    },
    "catalogue": true,
    "price_mkd": 1490,
    "cost_known": true,
    "days_cover": null,
    "free_units": 1,
-   "pack_units": 40,
+   "pack_units": 39,
    "product_id": "1395475b-b4a4-41cf-92ba-118d3d9af794",
-   "units_prev": 696,
-   "label_units": 39,
+   "units_prev": 705,
+   "label_units": 15,
    "placeholder": false,
-   "queue_units": 79,
+   "queue_units": 54,
    "low_threshold": 5,
-   "returned_units": 140,
+   "returned_units": 142,
    "stock_value_mkd": null
   },
   {
@@ -1913,14 +2009,15 @@
    "sku": "001312",
    "name": "Slim Fit",
    "state": "ok",
-   "units": 563,
+   "units": 564,
    "on_hand": 995,
    "tracked": true,
    "cost_mkd": 180,
    "by_source": {
     "web": 0,
+    "social": 0,
     "altercpa": 474,
-    "elyon_crm": 89,
+    "elyon_crm": 90,
     "teleshop_other": 0
    },
    "catalogue": true,
@@ -1930,12 +2027,12 @@
    "free_units": 2,
    "pack_units": 33,
    "product_id": "bdc79d87-8e42-430d-8925-c3b010ca257f",
-   "units_prev": 428,
-   "label_units": 34,
+   "units_prev": 434,
+   "label_units": 7,
    "placeholder": false,
-   "queue_units": 67,
+   "queue_units": 40,
    "low_threshold": 5,
-   "returned_units": 167,
+   "returned_units": 177,
    "stock_value_mkd": null
   },
   {
@@ -1943,29 +2040,30 @@
    "sku": "001291",
    "name": "Cardiofix",
    "state": "ok",
-   "units": 518,
+   "units": 549,
    "on_hand": 989,
    "tracked": true,
    "cost_mkd": 180,
    "by_source": {
     "web": 0,
-    "altercpa": 451,
-    "elyon_crm": 67,
-    "teleshop_other": 0
+    "social": 0,
+    "altercpa": 453,
+    "elyon_crm": 86,
+    "teleshop_other": 10
    },
    "catalogue": true,
    "price_mkd": 1490,
    "cost_known": true,
    "days_cover": null,
-   "free_units": 0,
-   "pack_units": 67,
+   "free_units": 1,
+   "pack_units": 64,
    "product_id": "17e1f647-8091-4434-9fac-94ffc21c00d7",
-   "units_prev": 433,
-   "label_units": 34,
+   "units_prev": 460,
+   "label_units": 20,
    "placeholder": false,
-   "queue_units": 101,
+   "queue_units": 84,
    "low_threshold": 5,
-   "returned_units": 99,
+   "returned_units": 110,
    "stock_value_mkd": null
   },
   {
@@ -1973,89 +2071,30 @@
    "sku": "001314",
    "name": "GlucoFix",
    "state": "ok",
-   "units": 441,
+   "units": 524,
    "on_hand": 996,
    "tracked": true,
    "cost_mkd": 180,
    "by_source": {
     "web": 0,
-    "altercpa": 276,
-    "elyon_crm": 165,
-    "teleshop_other": 0
+    "social": 0,
+    "altercpa": 283,
+    "elyon_crm": 217,
+    "teleshop_other": 24
    },
    "catalogue": true,
    "price_mkd": 2490,
    "cost_known": true,
    "days_cover": null,
-   "free_units": 0,
-   "pack_units": 64,
+   "free_units": 1,
+   "pack_units": 60,
    "product_id": "e25e349c-377e-45fb-9307-991573ac05ae",
-   "units_prev": 470,
-   "label_units": 27,
+   "units_prev": 532,
+   "label_units": 16,
    "placeholder": false,
-   "queue_units": 91,
+   "queue_units": 76,
    "low_threshold": 5,
-   "returned_units": 79,
-   "stock_value_mkd": null
-  },
-  {
-   "key": "n:magnesium bisglycinate — хелатна форма, 120 таблети",
-   "sku": null,
-   "name": "Magnesium Bisglycinate — хелатна форма, 120 таблети",
-   "state": null,
-   "units": 416,
-   "on_hand": null,
-   "tracked": false,
-   "cost_mkd": null,
-   "by_source": {
-    "web": 416,
-    "altercpa": 0,
-    "elyon_crm": 0,
-    "teleshop_other": 0
-   },
-   "catalogue": false,
-   "price_mkd": null,
-   "cost_known": null,
-   "days_cover": null,
-   "free_units": 0,
-   "pack_units": 0,
-   "product_id": null,
-   "units_prev": 0,
-   "label_units": 122,
-   "placeholder": false,
-   "queue_units": 122,
-   "low_threshold": null,
-   "returned_units": 15,
-   "stock_value_mkd": null
-  },
-  {
-   "key": "p:ab0619ab-4e13-49c7-8ed0-b97bbb4ef0ab",
-   "sku": "001659",
-   "name": "MAGNESIUM BISGLYCINATE 120/1",
-   "state": "not_tracked",
-   "units": 344,
-   "on_hand": null,
-   "tracked": false,
-   "cost_mkd": null,
-   "by_source": {
-    "web": 0,
-    "altercpa": 0,
-    "elyon_crm": 28,
-    "teleshop_other": 316
-   },
-   "catalogue": true,
-   "price_mkd": 600,
-   "cost_known": false,
-   "days_cover": null,
-   "free_units": 0,
-   "pack_units": 10,
-   "product_id": "ab0619ab-4e13-49c7-8ed0-b97bbb4ef0ab",
-   "units_prev": 4,
-   "label_units": 6,
-   "placeholder": false,
-   "queue_units": 16,
-   "low_threshold": 5,
-   "returned_units": 15,
+   "returned_units": 100,
    "stock_value_mkd": null
   },
   {
@@ -2063,15 +2102,16 @@
    "sku": "001023",
    "name": "Колаген Пептид со МАЛИНА 200 гр",
    "state": "not_tracked",
-   "units": 285,
+   "units": 465,
    "on_hand": null,
    "tracked": false,
    "cost_mkd": null,
    "by_source": {
-    "web": 0,
+    "web": 65,
+    "social": 18,
     "altercpa": 0,
-    "elyon_crm": 9,
-    "teleshop_other": 276
+    "elyon_crm": 278,
+    "teleshop_other": 104
    },
    "catalogue": true,
    "price_mkd": 1000,
@@ -2080,102 +2120,12 @@
    "free_units": 0,
    "pack_units": 0,
    "product_id": "de3d548e-4665-49ea-bce9-49a8634bc60e",
-   "units_prev": 0,
-   "label_units": 1,
+   "units_prev": 217,
+   "label_units": 58,
    "placeholder": false,
-   "queue_units": 1,
+   "queue_units": 58,
    "low_threshold": 5,
-   "returned_units": 7,
-   "stock_value_mkd": null
-  },
-  {
-   "key": "p:8ae08430-37c3-438a-b3cc-0d713bbfbc6a",
-   "sku": "001317",
-   "name": "ProstaFix",
-   "state": "ok",
-   "units": 267,
-   "on_hand": 994,
-   "tracked": true,
-   "cost_mkd": 180,
-   "by_source": {
-    "web": 0,
-    "altercpa": 143,
-    "elyon_crm": 124,
-    "teleshop_other": 0
-   },
-   "catalogue": true,
-   "price_mkd": 2490,
-   "cost_known": true,
-   "days_cover": null,
-   "free_units": 0,
-   "pack_units": 23,
-   "product_id": "8ae08430-37c3-438a-b3cc-0d713bbfbc6a",
-   "units_prev": 286,
-   "label_units": 7,
-   "placeholder": false,
-   "queue_units": 30,
-   "low_threshold": 5,
-   "returned_units": 54,
-   "stock_value_mkd": null
-  },
-  {
-   "key": "p:ab09eec7-638e-44a7-ab83-1b820df4c9cb",
-   "sku": "001313",
-   "name": "ArthroFix",
-   "state": "ok",
-   "units": 258,
-   "on_hand": 980,
-   "tracked": true,
-   "cost_mkd": 180,
-   "by_source": {
-    "web": 0,
-    "altercpa": 136,
-    "elyon_crm": 122,
-    "teleshop_other": 0
-   },
-   "catalogue": true,
-   "price_mkd": 1490,
-   "cost_known": true,
-   "days_cover": null,
-   "free_units": 1,
-   "pack_units": 43,
-   "product_id": "ab09eec7-638e-44a7-ab83-1b820df4c9cb",
-   "units_prev": 305,
-   "label_units": 9,
-   "placeholder": false,
-   "queue_units": 52,
-   "low_threshold": 5,
-   "returned_units": 49,
-   "stock_value_mkd": null
-  },
-  {
-   "key": "p:e0a4c01f-f06b-4f49-98b3-f0de309f7992",
-   "sku": "001316",
-   "name": "BrainFix",
-   "state": "ok",
-   "units": 251,
-   "on_hand": 1000,
-   "tracked": true,
-   "cost_mkd": 180,
-   "by_source": {
-    "web": 0,
-    "altercpa": 229,
-    "elyon_crm": 22,
-    "teleshop_other": 0
-   },
-   "catalogue": true,
-   "price_mkd": 2490,
-   "cost_known": true,
-   "days_cover": null,
-   "free_units": 0,
-   "pack_units": 92,
-   "product_id": "e0a4c01f-f06b-4f49-98b3-f0de309f7992",
-   "units_prev": 3,
-   "label_units": 112,
-   "placeholder": true,
-   "queue_units": 204,
-   "low_threshold": 5,
-   "returned_units": 5,
+   "returned_units": 17,
    "stock_value_mkd": null
   },
   {
@@ -2183,29 +2133,154 @@
    "sku": "000637",
    "name": "КУРКУМА АКТИВ",
    "state": "not_tracked",
-   "units": 250,
+   "units": 420,
    "on_hand": null,
    "tracked": false,
    "cost_mkd": null,
    "by_source": {
     "web": 0,
+    "social": 0,
     "altercpa": 0,
-    "elyon_crm": 33,
-    "teleshop_other": 217
+    "elyon_crm": 342,
+    "teleshop_other": 78
    },
    "catalogue": true,
    "price_mkd": 1200,
    "cost_known": false,
    "days_cover": null,
    "free_units": 1,
-   "pack_units": 2,
+   "pack_units": 6,
    "product_id": "20dc61f2-8ab4-4fe0-b196-7e51d71c5d83",
-   "units_prev": 3,
-   "label_units": 12,
+   "units_prev": 428,
+   "label_units": 14,
    "placeholder": false,
-   "queue_units": 14,
+   "queue_units": 20,
    "low_threshold": 5,
-   "returned_units": 18,
+   "returned_units": 31,
+   "stock_value_mkd": null
+  },
+  {
+   "key": "p:6836933e-8fff-4ddd-b4f9-b43b10b67d33",
+   "sku": "000982",
+   "name": "Колаген Пептид со ВАНИЛА 200 гр",
+   "state": "ok",
+   "units": 354,
+   "on_hand": 1000,
+   "tracked": true,
+   "cost_mkd": null,
+   "by_source": {
+    "web": 60,
+    "social": 4,
+    "altercpa": 0,
+    "elyon_crm": 218,
+    "teleshop_other": 72
+   },
+   "catalogue": true,
+   "price_mkd": 2490,
+   "cost_known": false,
+   "days_cover": null,
+   "free_units": 0,
+   "pack_units": 0,
+   "product_id": "6836933e-8fff-4ddd-b4f9-b43b10b67d33",
+   "units_prev": 136,
+   "label_units": 6,
+   "placeholder": true,
+   "queue_units": 6,
+   "low_threshold": 5,
+   "returned_units": 20,
+   "stock_value_mkd": null
+  },
+  {
+   "key": "p:8ae08430-37c3-438a-b3cc-0d713bbfbc6a",
+   "sku": "001317",
+   "name": "ProstaFix",
+   "state": "ok",
+   "units": 331,
+   "on_hand": 994,
+   "tracked": true,
+   "cost_mkd": 180,
+   "by_source": {
+    "web": 0,
+    "social": 0,
+    "altercpa": 146,
+    "elyon_crm": 183,
+    "teleshop_other": 2
+   },
+   "catalogue": true,
+   "price_mkd": 2490,
+   "cost_known": true,
+   "days_cover": null,
+   "free_units": 1,
+   "pack_units": 22,
+   "product_id": "8ae08430-37c3-438a-b3cc-0d713bbfbc6a",
+   "units_prev": 339,
+   "label_units": 3,
+   "placeholder": false,
+   "queue_units": 25,
+   "low_threshold": 5,
+   "returned_units": 66,
+   "stock_value_mkd": null
+  },
+  {
+   "key": "p:e0a4c01f-f06b-4f49-98b3-f0de309f7992",
+   "sku": "001316",
+   "name": "BrainFix",
+   "state": "ok",
+   "units": 301,
+   "on_hand": 1000,
+   "tracked": true,
+   "cost_mkd": 180,
+   "by_source": {
+    "web": 0,
+    "social": 0,
+    "altercpa": 269,
+    "elyon_crm": 29,
+    "teleshop_other": 3
+   },
+   "catalogue": true,
+   "price_mkd": 2490,
+   "cost_known": true,
+   "days_cover": null,
+   "free_units": 0,
+   "pack_units": 91,
+   "product_id": "e0a4c01f-f06b-4f49-98b3-f0de309f7992",
+   "units_prev": 11,
+   "label_units": 0,
+   "placeholder": true,
+   "queue_units": 91,
+   "low_threshold": 5,
+   "returned_units": 5,
+   "stock_value_mkd": null
+  },
+  {
+   "key": "p:ab09eec7-638e-44a7-ab83-1b820df4c9cb",
+   "sku": "001313",
+   "name": "ArthroFix",
+   "state": "ok",
+   "units": 295,
+   "on_hand": 980,
+   "tracked": true,
+   "cost_mkd": 180,
+   "by_source": {
+    "web": 0,
+    "social": 3,
+    "altercpa": 136,
+    "elyon_crm": 151,
+    "teleshop_other": 5
+   },
+   "catalogue": true,
+   "price_mkd": 1490,
+   "cost_known": true,
+   "days_cover": null,
+   "free_units": 1,
+   "pack_units": 39,
+   "product_id": "ab09eec7-638e-44a7-ab83-1b820df4c9cb",
+   "units_prev": 333,
+   "label_units": 10,
+   "placeholder": false,
+   "queue_units": 49,
+   "low_threshold": 5,
+   "returned_units": 56,
    "stock_value_mkd": null
   },
   {
@@ -2213,59 +2288,30 @@
    "sku": "001536",
    "name": "Parafix",
    "state": "ok",
-   "units": 243,
+   "units": 269,
    "on_hand": 996,
    "tracked": true,
    "cost_mkd": 180,
    "by_source": {
     "web": 0,
-    "altercpa": 197,
-    "elyon_crm": 46,
-    "teleshop_other": 0
+    "social": 0,
+    "altercpa": 210,
+    "elyon_crm": 58,
+    "teleshop_other": 1
    },
    "catalogue": true,
    "price_mkd": 1490,
    "cost_known": true,
    "days_cover": null,
    "free_units": 0,
-   "pack_units": 60,
+   "pack_units": 64,
    "product_id": "92ffb0db-e8c0-433e-bc54-707c1281f380",
-   "units_prev": 379,
-   "label_units": 20,
+   "units_prev": 405,
+   "label_units": 9,
    "placeholder": false,
-   "queue_units": 80,
+   "queue_units": 73,
    "low_threshold": 5,
-   "returned_units": 40,
-   "stock_value_mkd": null
-  },
-  {
-   "key": "n:колаген пептид со ванила 200гр",
-   "sku": null,
-   "name": "КОЛАГЕН ПЕПТИД СО ВАНИЛА 200ГР",
-   "state": null,
-   "units": 183,
-   "on_hand": null,
-   "tracked": false,
-   "cost_mkd": null,
-   "by_source": {
-    "web": 0,
-    "altercpa": 0,
-    "elyon_crm": 0,
-    "teleshop_other": 183
-   },
-   "catalogue": false,
-   "price_mkd": null,
-   "cost_known": null,
-   "days_cover": null,
-   "free_units": 0,
-   "pack_units": 0,
-   "product_id": null,
-   "units_prev": 0,
-   "label_units": 0,
-   "placeholder": false,
-   "queue_units": 0,
-   "low_threshold": null,
-   "returned_units": 4,
+   "returned_units": 47,
    "stock_value_mkd": null
   },
   {
@@ -2273,89 +2319,61 @@
    "sku": "000489",
    "name": "БРОНХО ПРОТЕКТ 500ml",
    "state": "not_tracked",
-   "units": 166,
+   "units": 262,
    "on_hand": null,
    "tracked": false,
    "cost_mkd": null,
    "by_source": {
     "web": 0,
+    "social": 0,
     "altercpa": 0,
-    "elyon_crm": 5,
-    "teleshop_other": 161
+    "elyon_crm": 188,
+    "teleshop_other": 74
    },
    "catalogue": true,
    "price_mkd": 600,
    "cost_known": false,
    "days_cover": null,
-   "free_units": 0,
+   "free_units": 1,
    "pack_units": 5,
    "product_id": "c5d5659f-8997-41c5-aa68-cf98032c4215",
-   "units_prev": 1,
+   "units_prev": 249,
    "label_units": 5,
    "placeholder": false,
    "queue_units": 10,
    "low_threshold": 5,
-   "returned_units": 8,
+   "returned_units": 22,
    "stock_value_mkd": null
   },
   {
-   "key": "p:8f5732dc-cf65-4cae-b1d2-1d4ae96fd479",
-   "sku": "001539",
-   "name": "NEUROFIX BIONATURAL 30/1",
+   "key": "p:c801c3cc-c3e5-4fec-aeb8-733c546d33c7",
+   "sku": "000953",
+   "name": "КРЕАТИН ВО ПРАВ 200ГР",
    "state": "not_tracked",
-   "units": 147,
+   "units": 215,
    "on_hand": null,
    "tracked": false,
    "cost_mkd": null,
    "by_source": {
-    "web": 0,
-    "altercpa": 2,
-    "elyon_crm": 55,
-    "teleshop_other": 90
-   },
-   "catalogue": true,
-   "price_mkd": 1490,
-   "cost_known": false,
-   "days_cover": null,
-   "free_units": 3,
-   "pack_units": 18,
-   "product_id": "8f5732dc-cf65-4cae-b1d2-1d4ae96fd479",
-   "units_prev": 79,
-   "label_units": 6,
-   "placeholder": false,
-   "queue_units": 24,
-   "low_threshold": 5,
-   "returned_units": 23,
-   "stock_value_mkd": null
-  },
-  {
-   "key": "p:a93a0b66-1aca-408d-a3c3-57b6a3316ab4",
-   "sku": "001571",
-   "name": "MAGNESIUM CITRAT 325mg",
-   "state": "ok",
-   "units": 121,
-   "on_hand": 1000,
-   "tracked": true,
-   "cost_mkd": null,
-   "by_source": {
-    "web": 0,
-    "altercpa": 3,
-    "elyon_crm": 118,
-    "teleshop_other": 0
+    "web": 140,
+    "social": 51,
+    "altercpa": 0,
+    "elyon_crm": 9,
+    "teleshop_other": 15
    },
    "catalogue": true,
    "price_mkd": null,
    "cost_known": false,
    "days_cover": null,
-   "free_units": 0,
-   "pack_units": 15,
-   "product_id": "a93a0b66-1aca-408d-a3c3-57b6a3316ab4",
-   "units_prev": 0,
-   "label_units": 12,
-   "placeholder": true,
-   "queue_units": 27,
+   "free_units": 2,
+   "pack_units": 0,
+   "product_id": "c801c3cc-c3e5-4fec-aeb8-733c546d33c7",
+   "units_prev": 8,
+   "label_units": 15,
+   "placeholder": false,
+   "queue_units": 15,
    "low_threshold": 5,
-   "returned_units": 10,
+   "returned_units": 11,
    "stock_value_mkd": null
   },
   {
@@ -2363,15 +2381,16 @@
    "sku": "001575",
    "name": "MAGNESIUM+ZINK+B complex 120/1 TAB",
    "state": "not_tracked",
-   "units": 121,
+   "units": 209,
    "on_hand": null,
    "tracked": false,
    "cost_mkd": null,
    "by_source": {
-    "web": 0,
+    "web": 65,
+    "social": 4,
     "altercpa": 0,
-    "elyon_crm": 1,
-    "teleshop_other": 120
+    "elyon_crm": 42,
+    "teleshop_other": 98
    },
    "catalogue": true,
    "price_mkd": null,
@@ -2380,42 +2399,43 @@
    "free_units": 0,
    "pack_units": 0,
    "product_id": "56299955-d23a-4d07-acfb-d6002945a0db",
-   "units_prev": 0,
-   "label_units": 0,
+   "units_prev": 240,
+   "label_units": 6,
    "placeholder": false,
-   "queue_units": 0,
+   "queue_units": 6,
    "low_threshold": 5,
-   "returned_units": 9,
+   "returned_units": 40,
    "stock_value_mkd": null
   },
   {
-   "key": "n:диабетол форте 30cps",
-   "sku": null,
-   "name": "ДИАБЕТОЛ ФОРТЕ 30cps",
-   "state": null,
-   "units": 120,
+   "key": "p:8f5732dc-cf65-4cae-b1d2-1d4ae96fd479",
+   "sku": "001539",
+   "name": "NEUROFIX BIONATURAL 30/1",
+   "state": "not_tracked",
+   "units": 180,
    "on_hand": null,
    "tracked": false,
    "cost_mkd": null,
    "by_source": {
     "web": 0,
-    "altercpa": 0,
-    "elyon_crm": 0,
-    "teleshop_other": 120
+    "social": 0,
+    "altercpa": 2,
+    "elyon_crm": 144,
+    "teleshop_other": 34
    },
-   "catalogue": false,
-   "price_mkd": null,
-   "cost_known": null,
+   "catalogue": true,
+   "price_mkd": 1490,
+   "cost_known": false,
    "days_cover": null,
-   "free_units": 0,
-   "pack_units": 0,
-   "product_id": null,
-   "units_prev": 0,
-   "label_units": 0,
+   "free_units": 3,
+   "pack_units": 18,
+   "product_id": "8f5732dc-cf65-4cae-b1d2-1d4ae96fd479",
+   "units_prev": 150,
+   "label_units": 3,
    "placeholder": false,
-   "queue_units": 0,
-   "low_threshold": null,
-   "returned_units": 10,
+   "queue_units": 21,
+   "low_threshold": 5,
+   "returned_units": 23,
    "stock_value_mkd": null
   },
   {
@@ -2423,29 +2443,123 @@
    "sku": "001630",
    "name": "VITAMIN D3+K2+BOR 180/1 tab",
    "state": "not_tracked",
-   "units": 114,
+   "units": 175,
    "on_hand": null,
    "tracked": false,
    "cost_mkd": null,
    "by_source": {
-    "web": 0,
+    "web": 39,
+    "social": 45,
     "altercpa": 0,
-    "elyon_crm": 12,
-    "teleshop_other": 102
+    "elyon_crm": 44,
+    "teleshop_other": 47
    },
    "catalogue": true,
    "price_mkd": 1500,
    "cost_known": false,
    "days_cover": null,
    "free_units": 0,
-   "pack_units": 4,
+   "pack_units": 5,
    "product_id": "2adfb3b1-3b1c-4405-b611-e0acf85d6b00",
-   "units_prev": 4,
+   "units_prev": 115,
    "label_units": 2,
    "placeholder": false,
-   "queue_units": 6,
+   "queue_units": 7,
    "low_threshold": 5,
-   "returned_units": 8,
+   "returned_units": 13,
+   "stock_value_mkd": null
+  },
+  {
+   "key": "p:f960872c-8a5c-4ae5-a4aa-496fc2b43f3e",
+   "sku": "000412",
+   "name": "ДИАБЕТОЛ ФОРТЕ 30cps",
+   "state": "not_tracked",
+   "units": 171,
+   "on_hand": null,
+   "tracked": false,
+   "cost_mkd": null,
+   "by_source": {
+    "web": 0,
+    "social": 0,
+    "altercpa": 0,
+    "elyon_crm": 96,
+    "teleshop_other": 75
+   },
+   "catalogue": true,
+   "price_mkd": 895,
+   "cost_known": false,
+   "days_cover": null,
+   "free_units": 0,
+   "pack_units": 0,
+   "product_id": "f960872c-8a5c-4ae5-a4aa-496fc2b43f3e",
+   "units_prev": 300,
+   "label_units": 0,
+   "placeholder": false,
+   "queue_units": 0,
+   "low_threshold": 5,
+   "returned_units": 14,
+   "stock_value_mkd": null
+  },
+  {
+   "key": "p:666ed719-5b43-4175-b4fa-6403fffce804",
+   "sku": "SKU-000090",
+   "name": "Opti Care",
+   "state": "ok",
+   "units": 143,
+   "on_hand": 500,
+   "tracked": true,
+   "cost_mkd": 200,
+   "by_source": {
+    "web": 0,
+    "social": 0,
+    "altercpa": 2,
+    "elyon_crm": 21,
+    "teleshop_other": 120
+   },
+   "catalogue": true,
+   "price_mkd": 1000,
+   "cost_known": true,
+   "days_cover": null,
+   "free_units": 0,
+   "pack_units": 2,
+   "product_id": "666ed719-5b43-4175-b4fa-6403fffce804",
+   "units_prev": 0,
+   "label_units": 143,
+   "placeholder": false,
+   "queue_units": 145,
+   "low_threshold": 50,
+   "returned_units": 0,
+   "stock_value_mkd": null
+  },
+  {
+   "key": "p:a94536dc-c34e-4b4b-818b-e6927c6433b8",
+   "sku": "001113",
+   "name": "Колаген Пептид -БЕЗ ВКУС 200 гр",
+   "state": "not_tracked",
+   "units": 134,
+   "on_hand": null,
+   "tracked": false,
+   "cost_mkd": null,
+   "by_source": {
+    "web": 0,
+    "social": 3,
+    "altercpa": 0,
+    "elyon_crm": 95,
+    "teleshop_other": 36
+   },
+   "catalogue": true,
+   "price_mkd": 1000,
+   "cost_known": false,
+   "days_cover": null,
+   "free_units": 0,
+   "pack_units": 0,
+   "product_id": "a94536dc-c34e-4b4b-818b-e6927c6433b8",
+   "units_prev": 99,
+   "label_units": 3,
+   "placeholder": false,
+   "queue_units": 3,
+   "low_threshold": 5,
+   "returned_units": 4,
    "stock_value_mkd": null
   },
   {
@@ -2453,179 +2567,61 @@
    "sku": "001584",
    "name": "ADENOFRIN 20/1 cps",
    "state": "not_tracked",
-   "units": 93,
+   "units": 123,
    "on_hand": null,
    "tracked": false,
    "cost_mkd": null,
    "by_source": {
     "web": 0,
+    "social": 0,
     "altercpa": 3,
-    "elyon_crm": 45,
-    "teleshop_other": 45
+    "elyon_crm": 112,
+    "teleshop_other": 8
    },
    "catalogue": true,
    "price_mkd": 1490,
    "cost_known": false,
    "days_cover": null,
    "free_units": 1,
-   "pack_units": 9,
+   "pack_units": 12,
    "product_id": "87337325-528f-4007-96b2-fcc1262a55e3",
-   "units_prev": 119,
-   "label_units": 5,
+   "units_prev": 183,
+   "label_units": 4,
    "placeholder": false,
-   "queue_units": 14,
+   "queue_units": 16,
    "low_threshold": 5,
-   "returned_units": 15,
+   "returned_units": 18,
    "stock_value_mkd": null
   },
   {
-   "key": "n:creatine monohydrate — за сила и раст на мускулите",
-   "sku": null,
-   "name": "CREATINE MONOHYDRATE — за сила и раст на мускулите",
-   "state": null,
-   "units": 87,
-   "on_hand": null,
-   "tracked": false,
-   "cost_mkd": null,
-   "by_source": {
-    "web": 87,
-    "altercpa": 0,
-    "elyon_crm": 0,
-    "teleshop_other": 0
-   },
-   "catalogue": false,
-   "price_mkd": null,
-   "cost_known": null,
-   "days_cover": null,
-   "free_units": 0,
-   "pack_units": 0,
-   "product_id": null,
-   "units_prev": 0,
-   "label_units": 12,
-   "placeholder": false,
-   "queue_units": 12,
-   "low_threshold": null,
-   "returned_units": 8,
-   "stock_value_mkd": null
-  },
-  {
-   "key": "n:urofix bionatural 30/1",
-   "sku": null,
-   "name": "UROFIX BIONATURAL 30/1",
-   "state": null,
+   "key": "p:74c4b953-4e9f-495e-a51f-1bf25f2e3de2",
+   "sku": "001055",
+   "name": "ALPHA MALE 60 cps",
+   "state": "not_tracked",
    "units": 82,
    "on_hand": null,
    "tracked": false,
    "cost_mkd": null,
    "by_source": {
-    "web": 0,
+    "web": 7,
+    "social": 21,
     "altercpa": 0,
-    "elyon_crm": 0,
-    "teleshop_other": 82
+    "elyon_crm": 42,
+    "teleshop_other": 12
    },
-   "catalogue": false,
-   "price_mkd": null,
-   "cost_known": null,
+   "catalogue": true,
+   "price_mkd": 500,
+   "cost_known": false,
    "days_cover": null,
    "free_units": 1,
-   "pack_units": 0,
-   "product_id": null,
-   "units_prev": 0,
+   "pack_units": 5,
+   "product_id": "74c4b953-4e9f-495e-a51f-1bf25f2e3de2",
+   "units_prev": 70,
    "label_units": 0,
    "placeholder": false,
-   "queue_units": 0,
-   "low_threshold": null,
-   "returned_units": 16,
-   "stock_value_mkd": null
-  },
-  {
-   "key": "n:колаген пептид -без вкус 200 гр",
-   "sku": null,
-   "name": "Колаген Пептид -БЕЗ ВКУС 200 гр",
-   "state": null,
-   "units": 80,
-   "on_hand": null,
-   "tracked": false,
-   "cost_mkd": null,
-   "by_source": {
-    "web": 0,
-    "altercpa": 0,
-    "elyon_crm": 0,
-    "teleshop_other": 80
-   },
-   "catalogue": false,
-   "price_mkd": null,
-   "cost_known": null,
-   "days_cover": null,
-   "free_units": 0,
-   "pack_units": 0,
-   "product_id": null,
-   "units_prev": 0,
-   "label_units": 3,
-   "placeholder": false,
-   "queue_units": 3,
-   "low_threshold": null,
-   "returned_units": 0,
-   "stock_value_mkd": null
-  },
-  {
-   "key": "n:креатин во прав 200гр",
-   "sku": null,
-   "name": "КРЕАТИН ВО ПРАВ 200ГР",
-   "state": null,
-   "units": 68,
-   "on_hand": null,
-   "tracked": false,
-   "cost_mkd": null,
-   "by_source": {
-    "web": 0,
-    "altercpa": 0,
-    "elyon_crm": 0,
-    "teleshop_other": 68
-   },
-   "catalogue": false,
-   "price_mkd": null,
-   "cost_known": null,
-   "days_cover": null,
-   "free_units": 1,
-   "pack_units": 0,
-   "product_id": null,
-   "units_prev": 0,
-   "label_units": 0,
-   "placeholder": false,
-   "queue_units": 0,
-   "low_threshold": null,
-   "returned_units": 3,
-   "stock_value_mkd": null
-  },
-  {
-   "key": "n:magnesium + zinc + b-complex — 120 таблети",
-   "sku": null,
-   "name": "Magnesium + Zinc + B-Complex — 120 таблети",
-   "state": null,
-   "units": 65,
-   "on_hand": null,
-   "tracked": false,
-   "cost_mkd": null,
-   "by_source": {
-    "web": 65,
-    "altercpa": 0,
-    "elyon_crm": 0,
-    "teleshop_other": 0
-   },
-   "catalogue": false,
-   "price_mkd": null,
-   "cost_known": null,
-   "days_cover": null,
-   "free_units": 0,
-   "pack_units": 0,
-   "product_id": null,
-   "units_prev": 0,
-   "label_units": 3,
-   "placeholder": false,
-   "queue_units": 3,
-   "low_threshold": null,
-   "returned_units": 4,
+   "queue_units": 5,
+   "low_threshold": 5,
+   "returned_units": 20,
    "stock_value_mkd": null
   },
   {
@@ -2633,15 +2629,16 @@
    "sku": "001573",
    "name": "MAGNESIUM+ B6 150/1 tab",
    "state": "not_tracked",
-   "units": 58,
+   "units": 80,
    "on_hand": null,
    "tracked": false,
    "cost_mkd": null,
    "by_source": {
-    "web": 0,
+    "web": 17,
+    "social": 0,
     "altercpa": 0,
-    "elyon_crm": 12,
-    "teleshop_other": 46
+    "elyon_crm": 53,
+    "teleshop_other": 10
    },
    "catalogue": true,
    "price_mkd": null,
@@ -2650,7 +2647,7 @@
    "free_units": 0,
    "pack_units": 3,
    "product_id": "578b42d3-c182-48fc-a43f-e0e66749f61f",
-   "units_prev": 3,
+   "units_prev": 99,
    "label_units": 0,
    "placeholder": false,
    "queue_units": 3,
@@ -2659,16 +2656,110 @@
    "stock_value_mkd": null
   },
   {
+   "key": "p:456139ed-0151-479b-9680-00b090075db0",
+   "sku": "000594",
+   "name": "УРО ПРОТЕКТ 30 cps",
+   "state": "not_tracked",
+   "units": 71,
+   "on_hand": null,
+   "tracked": false,
+   "cost_mkd": null,
+   "by_source": {
+    "web": 0,
+    "social": 1,
+    "altercpa": 0,
+    "elyon_crm": 36,
+    "teleshop_other": 34
+   },
+   "catalogue": true,
+   "price_mkd": 900,
+   "cost_known": false,
+   "days_cover": null,
+   "free_units": 0,
+   "pack_units": 2,
+   "product_id": "456139ed-0151-479b-9680-00b090075db0",
+   "units_prev": 66,
+   "label_units": 0,
+   "placeholder": false,
+   "queue_units": 2,
+   "low_threshold": 5,
+   "returned_units": 2,
+   "stock_value_mkd": null
+  },
+  {
+   "key": "p:f4e2c96b-571d-4620-bbf5-097fed5fe026",
+   "sku": "001112",
+   "name": "Колаген Пептид -ЧОКОЛАДО 200 гр",
+   "state": "not_tracked",
+   "units": 63,
+   "on_hand": null,
+   "tracked": false,
+   "cost_mkd": null,
+   "by_source": {
+    "web": 27,
+    "social": 1,
+    "altercpa": 0,
+    "elyon_crm": 30,
+    "teleshop_other": 5
+   },
+   "catalogue": true,
+   "price_mkd": 750,
+   "cost_known": false,
+   "days_cover": null,
+   "free_units": 0,
+   "pack_units": 0,
+   "product_id": "f4e2c96b-571d-4620-bbf5-097fed5fe026",
+   "units_prev": 36,
+   "label_units": 1,
+   "placeholder": false,
+   "queue_units": 1,
+   "low_threshold": 5,
+   "returned_units": 1,
+   "stock_value_mkd": null
+  },
+  {
+   "key": "p:cf71eecc-5289-4e4b-bfa0-93d19ad204e7",
+   "sku": "001058",
+   "name": "Hemoro Forte",
+   "state": "ok",
+   "units": 61,
+   "on_hand": 1000,
+   "tracked": true,
+   "cost_mkd": null,
+   "by_source": {
+    "web": 1,
+    "social": 0,
+    "altercpa": 0,
+    "elyon_crm": 39,
+    "teleshop_other": 21
+   },
+   "catalogue": true,
+   "price_mkd": 2490,
+   "cost_known": false,
+   "days_cover": null,
+   "free_units": 0,
+   "pack_units": 0,
+   "product_id": "cf71eecc-5289-4e4b-bfa0-93d19ad204e7",
+   "units_prev": 59,
+   "label_units": 5,
+   "placeholder": true,
+   "queue_units": 5,
+   "low_threshold": 5,
+   "returned_units": 30,
+   "stock_value_mkd": null
+  },
+  {
    "key": "p:680772d4-9e51-4a5f-ae72-491a0193e9e9",
    "sku": "SKU-000082",
    "name": "R&R Melem",
    "state": "ok",
-   "units": 56,
+   "units": 58,
    "on_hand": 998,
    "tracked": true,
    "cost_mkd": 180,
    "by_source": {
-    "web": 0,
+    "web": 2,
+    "social": 0,
     "altercpa": 35,
     "elyon_crm": 21,
     "teleshop_other": 0
@@ -2685,246 +2776,99 @@
    "placeholder": false,
    "queue_units": 5,
    "low_threshold": 5,
-   "returned_units": 9,
+   "returned_units": 10,
    "stock_value_mkd": null
   },
   {
-   "key": "n:magnesium citrat — магнезиум за мускули, нерви и коски",
-   "sku": null,
-   "name": "Magnesium Citrat — магнезиум за мускули, нерви и коски",
-   "state": null,
-   "units": 55,
+   "key": "p:8ff7d97c-8ac0-4b2b-a1c5-6a4b57cb0c8a",
+   "sku": "001072",
+   "name": "ТУРМЕРИК КУРКУМИН 425МЛ",
+   "state": "not_tracked",
+   "units": 52,
    "on_hand": null,
    "tracked": false,
    "cost_mkd": null,
    "by_source": {
-    "web": 55,
+    "web": 1,
+    "social": 0,
     "altercpa": 0,
-    "elyon_crm": 0,
-    "teleshop_other": 0
+    "elyon_crm": 27,
+    "teleshop_other": 24
    },
-   "catalogue": false,
-   "price_mkd": null,
-   "cost_known": null,
+   "catalogue": true,
+   "price_mkd": 600,
+   "cost_known": false,
    "days_cover": null,
    "free_units": 0,
-   "pack_units": 0,
-   "product_id": null,
-   "units_prev": 0,
-   "label_units": 7,
+   "pack_units": 4,
+   "product_id": "8ff7d97c-8ac0-4b2b-a1c5-6a4b57cb0c8a",
+   "units_prev": 45,
+   "label_units": 0,
    "placeholder": false,
-   "queue_units": 7,
-   "low_threshold": null,
+   "queue_units": 4,
+   "low_threshold": 5,
    "returned_units": 3,
    "stock_value_mkd": null
   },
   {
-   "key": "p:74c4b953-4e9f-495e-a51f-1bf25f2e3de2",
-   "sku": "001055",
-   "name": "ALPHA MALE 60 cps",
+   "key": "p:08e5b05d-a361-4774-90ba-73f8177e418f",
+   "sku": "001227",
+   "name": "НУТРИ ШЕЈК-со вкус на ванила 500 гр.",
    "state": "not_tracked",
-   "units": 55,
+   "units": 46,
    "on_hand": null,
    "tracked": false,
    "cost_mkd": null,
    "by_source": {
-    "web": 0,
+    "web": 21,
+    "social": 6,
     "altercpa": 0,
-    "elyon_crm": 20,
-    "teleshop_other": 35
+    "elyon_crm": 12,
+    "teleshop_other": 7
    },
    "catalogue": true,
-   "price_mkd": 500,
+   "price_mkd": 600,
    "cost_known": false,
    "days_cover": null,
-   "free_units": 1,
-   "pack_units": 5,
-   "product_id": "74c4b953-4e9f-495e-a51f-1bf25f2e3de2",
-   "units_prev": 4,
-   "label_units": 0,
-   "placeholder": false,
-   "queue_units": 5,
-   "low_threshold": 5,
-   "returned_units": 15,
-   "stock_value_mkd": null
-  },
-  {
-   "key": "n:creatine monohydrate 400 г — за сила и раст на мускулите (вкус: без вкус)",
-   "sku": null,
-   "name": "CREATINE MONOHYDRATE 400 г — за сила и раст на мускулите (Вкус: Без вкус)",
-   "state": null,
-   "units": 42,
-   "on_hand": null,
-   "tracked": false,
-   "cost_mkd": null,
-   "by_source": {
-    "web": 42,
-    "altercpa": 0,
-    "elyon_crm": 0,
-    "teleshop_other": 0
-   },
-   "catalogue": false,
-   "price_mkd": null,
-   "cost_known": null,
-   "days_cover": null,
    "free_units": 0,
    "pack_units": 0,
-   "product_id": null,
-   "units_prev": 0,
-   "label_units": 20,
-   "placeholder": false,
-   "queue_units": 20,
-   "low_threshold": null,
-   "returned_units": 0,
-   "stock_value_mkd": null
-  },
-  {
-   "key": "n:collagen peptides 200 г — колагенски пептиди за кожа и зглобови (вкус: малина)",
-   "sku": null,
-   "name": "COLLAGEN PEPTIDES 200 г — колагенски пептиди за кожа и зглобови (Вкус: Малина)",
-   "state": null,
-   "units": 42,
-   "on_hand": null,
-   "tracked": false,
-   "cost_mkd": null,
-   "by_source": {
-    "web": 42,
-    "altercpa": 0,
-    "elyon_crm": 0,
-    "teleshop_other": 0
-   },
-   "catalogue": false,
-   "price_mkd": null,
-   "cost_known": null,
-   "days_cover": null,
-   "free_units": 0,
-   "pack_units": 0,
-   "product_id": null,
-   "units_prev": 0,
-   "label_units": 7,
-   "placeholder": false,
-   "queue_units": 7,
-   "low_threshold": null,
-   "returned_units": 0,
-   "stock_value_mkd": null
-  },
-  {
-   "key": "n:gluco fix bionatural 30/1",
-   "sku": null,
-   "name": "GLUCO FIX BIONATURAL 30/1",
-   "state": null,
-   "units": 42,
-   "on_hand": null,
-   "tracked": false,
-   "cost_mkd": null,
-   "by_source": {
-    "web": 0,
-    "altercpa": 0,
-    "elyon_crm": 0,
-    "teleshop_other": 42
-   },
-   "catalogue": false,
-   "price_mkd": null,
-   "cost_known": null,
-   "days_cover": null,
-   "free_units": 1,
-   "pack_units": 0,
-   "product_id": null,
-   "units_prev": 0,
+   "product_id": "08e5b05d-a361-4774-90ba-73f8177e418f",
+   "units_prev": 15,
    "label_units": 0,
    "placeholder": false,
    "queue_units": 0,
-   "low_threshold": null,
-   "returned_units": 6,
+   "low_threshold": 5,
+   "returned_units": 4,
    "stock_value_mkd": null
   },
   {
-   "key": "n:d3 + k2 + bor — 180 таблети за коски и виталност",
-   "sku": null,
-   "name": "D3 + K2 + Bor — 180 таблети за коски и виталност",
-   "state": null,
-   "units": 39,
+   "key": "p:6a1b278a-fec5-41b0-8a64-86fc74430055",
+   "sku": "000300",
+   "name": "РЕСВЕРАТРОЛ КОМПЛЕКС 30 cps",
+   "state": "not_tracked",
+   "units": 45,
    "on_hand": null,
    "tracked": false,
    "cost_mkd": null,
    "by_source": {
-    "web": 39,
+    "web": 0,
+    "social": 0,
     "altercpa": 0,
-    "elyon_crm": 0,
-    "teleshop_other": 0
+    "elyon_crm": 19,
+    "teleshop_other": 26
    },
-   "catalogue": false,
-   "price_mkd": null,
-   "cost_known": null,
+   "catalogue": true,
+   "price_mkd": 895,
+   "cost_known": false,
    "days_cover": null,
    "free_units": 0,
    "pack_units": 0,
-   "product_id": null,
-   "units_prev": 0,
-   "label_units": 12,
+   "product_id": "6a1b278a-fec5-41b0-8a64-86fc74430055",
+   "units_prev": 30,
+   "label_units": 2,
    "placeholder": false,
-   "queue_units": 12,
-   "low_threshold": null,
-   "returned_units": 0,
-   "stock_value_mkd": null
-  },
-  {
-   "key": "n:collagen peptides 200 г — колагенски пептиди за кожа и зглобови (вкус: ванила)",
-   "sku": null,
-   "name": "COLLAGEN PEPTIDES 200 г — колагенски пептиди за кожа и зглобови (Вкус: Ванила)",
-   "state": null,
-   "units": 37,
-   "on_hand": null,
-   "tracked": false,
-   "cost_mkd": null,
-   "by_source": {
-    "web": 37,
-    "altercpa": 0,
-    "elyon_crm": 0,
-    "teleshop_other": 0
-   },
-   "catalogue": false,
-   "price_mkd": null,
-   "cost_known": null,
-   "days_cover": null,
-   "free_units": 0,
-   "pack_units": 0,
-   "product_id": null,
-   "units_prev": 0,
-   "label_units": 6,
-   "placeholder": false,
-   "queue_units": 6,
-   "low_threshold": null,
-   "returned_units": 3,
-   "stock_value_mkd": null
-  },
-  {
-   "key": "n:aloe & aronia (1 l) — сируп за имунитет и варење",
-   "sku": null,
-   "name": "Aloe & Aronia (1 L) — сируп за имунитет и варење",
-   "state": null,
-   "units": 33,
-   "on_hand": null,
-   "tracked": false,
-   "cost_mkd": null,
-   "by_source": {
-    "web": 33,
-    "altercpa": 0,
-    "elyon_crm": 0,
-    "teleshop_other": 0
-   },
-   "catalogue": false,
-   "price_mkd": null,
-   "cost_known": null,
-   "days_cover": null,
-   "free_units": 0,
-   "pack_units": 0,
-   "product_id": null,
-   "units_prev": 0,
-   "label_units": 23,
-   "placeholder": false,
-   "queue_units": 23,
-   "low_threshold": null,
+   "queue_units": 2,
+   "low_threshold": 5,
    "returned_units": 0,
    "stock_value_mkd": null
   },
@@ -2933,29 +2877,278 @@
    "sku": "000166",
    "name": "НЕУРО АКТИВ 60 cps",
    "state": "not_tracked",
-   "units": 32,
+   "units": 44,
    "on_hand": null,
    "tracked": false,
    "cost_mkd": null,
    "by_source": {
     "web": 0,
+    "social": 0,
     "altercpa": 0,
-    "elyon_crm": 3,
-    "teleshop_other": 29
+    "elyon_crm": 28,
+    "teleshop_other": 16
    },
    "catalogue": true,
    "price_mkd": 500,
    "cost_known": false,
    "days_cover": null,
-   "free_units": 4,
+   "free_units": 12,
    "pack_units": 3,
    "product_id": "a4e10c30-f199-4f6b-8bf7-6cb946df2734",
-   "units_prev": 0,
+   "units_prev": 52,
+   "label_units": 2,
+   "placeholder": false,
+   "queue_units": 5,
+   "low_threshold": 5,
+   "returned_units": 6,
+   "stock_value_mkd": null
+  },
+  {
+   "key": "p:3a754b34-11cd-4fba-8913-6acb3b6ccf76",
+   "sku": "000502",
+   "name": "Veno Gel",
+   "state": "ok",
+   "units": 44,
+   "on_hand": 999,
+   "tracked": true,
+   "cost_mkd": 180,
+   "by_source": {
+    "web": 0,
+    "social": 0,
+    "altercpa": 17,
+    "elyon_crm": 11,
+    "teleshop_other": 16
+   },
+   "catalogue": true,
+   "price_mkd": 1490,
+   "cost_known": true,
+   "days_cover": null,
+   "free_units": 22,
+   "pack_units": 0,
+   "product_id": "3a754b34-11cd-4fba-8913-6acb3b6ccf76",
+   "units_prev": 54,
+   "label_units": 1,
+   "placeholder": false,
+   "queue_units": 1,
+   "low_threshold": 5,
+   "returned_units": 4,
+   "stock_value_mkd": null
+  },
+  {
+   "key": "p:a0ac8f5a-e48f-4b7e-b2cd-65ac0c1a1db8",
+   "sku": "001019",
+   "name": "CALM антистрес формула 30 1",
+   "state": "not_tracked",
+   "units": 44,
+   "on_hand": null,
+   "tracked": false,
+   "cost_mkd": null,
+   "by_source": {
+    "web": 0,
+    "social": 0,
+    "altercpa": 0,
+    "elyon_crm": 30,
+    "teleshop_other": 14
+   },
+   "catalogue": true,
+   "price_mkd": null,
+   "cost_known": false,
+   "days_cover": null,
+   "free_units": 1,
+   "pack_units": 0,
+   "product_id": "a0ac8f5a-e48f-4b7e-b2cd-65ac0c1a1db8",
+   "units_prev": 38,
    "label_units": 0,
    "placeholder": false,
-   "queue_units": 3,
+   "queue_units": 0,
    "low_threshold": 5,
-   "returned_units": 3,
+   "returned_units": 2,
+   "stock_value_mkd": null
+  },
+  {
+   "key": "p:9c08eb88-fc01-4050-9983-fb4df76c8c2f",
+   "sku": "001427",
+   "name": "Мача со колаген 175гр",
+   "state": "not_tracked",
+   "units": 41,
+   "on_hand": null,
+   "tracked": false,
+   "cost_mkd": null,
+   "by_source": {
+    "web": 5,
+    "social": 4,
+    "altercpa": 0,
+    "elyon_crm": 25,
+    "teleshop_other": 7
+   },
+   "catalogue": true,
+   "price_mkd": 1000,
+   "cost_known": false,
+   "days_cover": null,
+   "free_units": 0,
+   "pack_units": 0,
+   "product_id": "9c08eb88-fc01-4050-9983-fb4df76c8c2f",
+   "units_prev": 28,
+   "label_units": 5,
+   "placeholder": false,
+   "queue_units": 5,
+   "low_threshold": 5,
+   "returned_units": 4,
+   "stock_value_mkd": null
+  },
+  {
+   "key": "p:a05eabed-4e65-4fe8-b3f4-62300fcbbb3a",
+   "sku": "000328",
+   "name": "Hepatol",
+   "state": "ok",
+   "units": 40,
+   "on_hand": 1000,
+   "tracked": true,
+   "cost_mkd": 82,
+   "by_source": {
+    "web": 0,
+    "social": 0,
+    "altercpa": 0,
+    "elyon_crm": 32,
+    "teleshop_other": 8
+   },
+   "catalogue": true,
+   "price_mkd": 1490,
+   "cost_known": true,
+   "days_cover": null,
+   "free_units": 0,
+   "pack_units": 0,
+   "product_id": "a05eabed-4e65-4fe8-b3f4-62300fcbbb3a",
+   "units_prev": 30,
+   "label_units": 0,
+   "placeholder": true,
+   "queue_units": 0,
+   "low_threshold": 5,
+   "returned_units": 4,
+   "stock_value_mkd": null
+  },
+  {
+   "key": "p:f9efaf2a-84ba-49f6-9de0-b9d859f8665e",
+   "sku": "000565",
+   "name": "Gastro Aloe",
+   "state": "ok",
+   "units": 38,
+   "on_hand": 1000,
+   "tracked": true,
+   "cost_mkd": 180,
+   "by_source": {
+    "web": 0,
+    "social": 0,
+    "altercpa": 0,
+    "elyon_crm": 26,
+    "teleshop_other": 12
+   },
+   "catalogue": true,
+   "price_mkd": 1290,
+   "cost_known": true,
+   "days_cover": null,
+   "free_units": 2,
+   "pack_units": 0,
+   "product_id": "f9efaf2a-84ba-49f6-9de0-b9d859f8665e",
+   "units_prev": 60,
+   "label_units": 29,
+   "placeholder": true,
+   "queue_units": 29,
+   "low_threshold": 5,
+   "returned_units": 0,
+   "stock_value_mkd": null
+  },
+  {
+   "key": "p:2edc76db-48fb-4820-8da9-04ce52cf66db",
+   "sku": "000271",
+   "name": "САУ ПАЛМЕТТО (Saw Palmetto) 30 cps",
+   "state": "not_tracked",
+   "units": 38,
+   "on_hand": null,
+   "tracked": false,
+   "cost_mkd": null,
+   "by_source": {
+    "web": 0,
+    "social": 0,
+    "altercpa": 0,
+    "elyon_crm": 29,
+    "teleshop_other": 9
+   },
+   "catalogue": true,
+   "price_mkd": 300,
+   "cost_known": false,
+   "days_cover": null,
+   "free_units": 66,
+   "pack_units": 0,
+   "product_id": "2edc76db-48fb-4820-8da9-04ce52cf66db",
+   "units_prev": 36,
+   "label_units": 2,
+   "placeholder": false,
+   "queue_units": 2,
+   "low_threshold": 5,
+   "returned_units": 11,
+   "stock_value_mkd": null
+  },
+  {
+   "key": "p:50482997-a856-4ba6-ab14-073bbd6c377b",
+   "sku": "SKU-000067",
+   "name": "ХОЛЕСТОЛ КОМПЛЕКС 30 cps",
+   "state": "ok",
+   "units": 35,
+   "on_hand": 1000,
+   "tracked": true,
+   "cost_mkd": null,
+   "by_source": {
+    "web": 1,
+    "social": 0,
+    "altercpa": 0,
+    "elyon_crm": 32,
+    "teleshop_other": 2
+   },
+   "catalogue": true,
+   "price_mkd": 2490,
+   "cost_known": false,
+   "days_cover": null,
+   "free_units": 0,
+   "pack_units": 0,
+   "product_id": "50482997-a856-4ba6-ab14-073bbd6c377b",
+   "units_prev": 9,
+   "label_units": 40,
+   "placeholder": true,
+   "queue_units": 40,
+   "low_threshold": 5,
+   "returned_units": 0,
+   "stock_value_mkd": null
+  },
+  {
+   "key": "p:2c793617-610a-4c87-b915-50cb2babcd9e",
+   "sku": "SKU-000066",
+   "name": "Простатол Комплекс",
+   "state": "ok",
+   "units": 35,
+   "on_hand": 1000,
+   "tracked": true,
+   "cost_mkd": 122,
+   "by_source": {
+    "web": 4,
+    "social": 0,
+    "altercpa": 0,
+    "elyon_crm": 31,
+    "teleshop_other": 0
+   },
+   "catalogue": true,
+   "price_mkd": 2490,
+   "cost_known": true,
+   "days_cover": null,
+   "free_units": 0,
+   "pack_units": 1,
+   "product_id": "2c793617-610a-4c87-b915-50cb2babcd9e",
+   "units_prev": 4,
+   "label_units": 0,
+   "placeholder": true,
+   "queue_units": 1,
+   "low_threshold": 5,
+   "returned_units": 6,
    "stock_value_mkd": null
   },
   {
@@ -2969,6 +3162,7 @@
    "cost_mkd": null,
    "by_source": {
     "web": 32,
+    "social": 0,
     "altercpa": 0,
     "elyon_crm": 0,
     "teleshop_other": 0
@@ -2989,183 +3183,127 @@
    "stock_value_mkd": null
   },
   {
-   "key": "p:456139ed-0151-479b-9680-00b090075db0",
-   "sku": "000594",
-   "name": "УРО ПРОТЕКТ 30 cps",
+   "key": "p:d6095095-29fd-42a0-9b9a-e112235baeb8",
+   "sku": "SKU-000089",
+   "name": "Collagen Cocconut",
    "state": "not_tracked",
-   "units": 32,
+   "units": 30,
+   "on_hand": null,
+   "tracked": false,
+   "cost_mkd": 610,
+   "by_source": {
+    "web": 13,
+    "social": 0,
+    "altercpa": 0,
+    "elyon_crm": 6,
+    "teleshop_other": 11
+   },
+   "catalogue": true,
+   "price_mkd": 1490,
+   "cost_known": true,
+   "days_cover": null,
+   "free_units": 9,
+   "pack_units": 3,
+   "product_id": "d6095095-29fd-42a0-9b9a-e112235baeb8",
+   "units_prev": 109,
+   "label_units": 2,
+   "placeholder": false,
+   "queue_units": 5,
+   "low_threshold": 5,
+   "returned_units": 53,
+   "stock_value_mkd": null
+  },
+  {
+   "key": "p:cc68b664-9703-422a-9e56-78db5bfda7ca",
+   "sku": "000593",
+   "name": "Д-МАНОЗА 30cps",
+   "state": "not_tracked",
+   "units": 30,
    "on_hand": null,
    "tracked": false,
    "cost_mkd": null,
    "by_source": {
-    "web": 0,
+    "web": 2,
+    "social": 0,
     "altercpa": 0,
-    "elyon_crm": 2,
-    "teleshop_other": 30
+    "elyon_crm": 20,
+    "teleshop_other": 8
    },
    "catalogue": true,
-   "price_mkd": 900,
+   "price_mkd": 600,
    "cost_known": false,
    "days_cover": null,
-   "free_units": 0,
+   "free_units": 7,
    "pack_units": 2,
-   "product_id": "456139ed-0151-479b-9680-00b090075db0",
-   "units_prev": 0,
+   "product_id": "cc68b664-9703-422a-9e56-78db5bfda7ca",
+   "units_prev": 11,
    "label_units": 0,
    "placeholder": false,
    "queue_units": 2,
    "low_threshold": 5,
-   "returned_units": 0,
+   "returned_units": 5,
    "stock_value_mkd": null
   },
   {
-   "key": "p:2c793617-610a-4c87-b915-50cb2babcd9e",
-   "sku": "SKU-000066",
-   "name": "Простатол Комплекс",
-   "state": "ok",
-   "units": 31,
-   "on_hand": 1000,
-   "tracked": true,
-   "cost_mkd": 122,
+   "key": "p:cfeea178-f0bc-4c4c-a989-032112ffaf5a",
+   "sku": "001641",
+   "name": "MAGNESIUM GEL 50ml",
+   "state": "not_tracked",
+   "units": 29,
+   "on_hand": null,
+   "tracked": false,
+   "cost_mkd": null,
    "by_source": {
     "web": 0,
+    "social": 0,
     "altercpa": 0,
-    "elyon_crm": 31,
-    "teleshop_other": 0
+    "elyon_crm": 17,
+    "teleshop_other": 12
    },
    "catalogue": true,
-   "price_mkd": 2490,
+   "price_mkd": null,
+   "cost_known": false,
+   "days_cover": null,
+   "free_units": 451,
+   "pack_units": 2,
+   "product_id": "cfeea178-f0bc-4c4c-a989-032112ffaf5a",
+   "units_prev": 20,
+   "label_units": 5,
+   "placeholder": false,
+   "queue_units": 7,
+   "low_threshold": 5,
+   "returned_units": 50,
+   "stock_value_mkd": null
+  },
+  {
+   "key": "p:90f36677-e8ad-4b5a-984a-cc150d95ab4d",
+   "sku": "000616",
+   "name": "SLIM Fiber",
+   "state": "ok",
+   "units": 29,
+   "on_hand": 1000,
+   "tracked": true,
+   "cost_mkd": 330,
+   "by_source": {
+    "web": 2,
+    "social": 0,
+    "altercpa": 0,
+    "elyon_crm": 17,
+    "teleshop_other": 10
+   },
+   "catalogue": true,
+   "price_mkd": null,
    "cost_known": true,
    "days_cover": null,
-   "free_units": 0,
-   "pack_units": 0,
-   "product_id": "2c793617-610a-4c87-b915-50cb2babcd9e",
-   "units_prev": 0,
-   "label_units": 4,
+   "free_units": 8,
+   "pack_units": 4,
+   "product_id": "90f36677-e8ad-4b5a-984a-cc150d95ab4d",
+   "units_prev": 37,
+   "label_units": 0,
    "placeholder": true,
    "queue_units": 4,
    "low_threshold": 5,
-   "returned_units": 6,
-   "stock_value_mkd": null
-  },
-  {
-   "key": "n:мача со колаген 175гр",
-   "sku": null,
-   "name": "Мача со колаген 175гр",
-   "state": null,
-   "units": 31,
-   "on_hand": null,
-   "tracked": false,
-   "cost_mkd": null,
-   "by_source": {
-    "web": 0,
-    "altercpa": 0,
-    "elyon_crm": 0,
-    "teleshop_other": 31
-   },
-   "catalogue": false,
-   "price_mkd": null,
-   "cost_known": null,
-   "days_cover": null,
-   "free_units": 0,
-   "pack_units": 0,
-   "product_id": null,
-   "units_prev": 0,
-   "label_units": 0,
-   "placeholder": false,
-   "queue_units": 0,
-   "low_threshold": null,
-   "returned_units": 4,
-   "stock_value_mkd": null
-  },
-  {
-   "key": "p:a0ac8f5a-e48f-4b7e-b2cd-65ac0c1a1db8",
-   "sku": "001019",
-   "name": "CALM антистрес формула 30 1",
-   "state": "not_tracked",
-   "units": 30,
-   "on_hand": null,
-   "tracked": false,
-   "cost_mkd": null,
-   "by_source": {
-    "web": 0,
-    "altercpa": 0,
-    "elyon_crm": 0,
-    "teleshop_other": 30
-   },
-   "catalogue": true,
-   "price_mkd": null,
-   "cost_known": false,
-   "days_cover": null,
-   "free_units": 1,
-   "pack_units": 0,
-   "product_id": "a0ac8f5a-e48f-4b7e-b2cd-65ac0c1a1db8",
-   "units_prev": 0,
-   "label_units": 0,
-   "placeholder": false,
-   "queue_units": 0,
-   "low_threshold": 5,
-   "returned_units": 0,
-   "stock_value_mkd": null
-  },
-  {
-   "key": "p:2edc76db-48fb-4820-8da9-04ce52cf66db",
-   "sku": "000271",
-   "name": "САУ ПАЛМЕТТО (Saw Palmetto) 30 cps",
-   "state": "not_tracked",
-   "units": 30,
-   "on_hand": null,
-   "tracked": false,
-   "cost_mkd": null,
-   "by_source": {
-    "web": 0,
-    "altercpa": 0,
-    "elyon_crm": 4,
-    "teleshop_other": 26
-   },
-   "catalogue": true,
-   "price_mkd": 300,
-   "cost_known": false,
-   "days_cover": null,
-   "free_units": 49,
-   "pack_units": 0,
-   "product_id": "2edc76db-48fb-4820-8da9-04ce52cf66db",
-   "units_prev": 0,
-   "label_units": 0,
-   "placeholder": false,
-   "queue_units": 0,
-   "low_threshold": 5,
-   "returned_units": 3,
-   "stock_value_mkd": null
-  },
-  {
-   "key": "n:opticare 60 cps",
-   "sku": null,
-   "name": "OPTICARE 60 cps",
-   "state": null,
-   "units": 28,
-   "on_hand": null,
-   "tracked": false,
-   "cost_mkd": null,
-   "by_source": {
-    "web": 0,
-    "altercpa": 0,
-    "elyon_crm": 0,
-    "teleshop_other": 28
-   },
-   "catalogue": false,
-   "price_mkd": null,
-   "cost_known": null,
-   "days_cover": null,
-   "free_units": 0,
-   "pack_units": 0,
-   "product_id": null,
-   "units_prev": 0,
-   "label_units": 28,
-   "placeholder": false,
-   "queue_units": 28,
-   "low_threshold": null,
-   "returned_units": 0,
+   "returned_units": 5,
    "stock_value_mkd": null
   },
   {
@@ -3179,203 +3317,179 @@
    "cost_mkd": null,
    "by_source": {
     "web": 0,
+    "social": 0,
     "altercpa": 0,
-    "elyon_crm": 2,
-    "teleshop_other": 25
+    "elyon_crm": 27,
+    "teleshop_other": 0
    },
    "catalogue": true,
    "price_mkd": 500,
    "cost_known": false,
    "days_cover": null,
-   "free_units": 41,
+   "free_units": 57,
    "pack_units": 1,
    "product_id": "d1f5c8d7-cf12-4198-a5dc-ce1cac5e5362",
-   "units_prev": 0,
-   "label_units": 2,
+   "units_prev": 7,
+   "label_units": 9,
    "placeholder": false,
-   "queue_units": 3,
+   "queue_units": 10,
    "low_threshold": 5,
-   "returned_units": 0,
+   "returned_units": 1,
    "stock_value_mkd": null
   },
   {
-   "key": "n:prosta fix bionatural 30/1",
-   "sku": null,
-   "name": "PROSTA FIX BIONATURAL 30/1",
-   "state": null,
+   "key": "p:b226b5c4-329b-4366-841a-8024a0de4c8b",
+   "sku": "000273",
+   "name": "ГЛУКОЗАМИН СУЛФАТ 30 cps",
+   "state": "not_tracked",
    "units": 27,
    "on_hand": null,
    "tracked": false,
    "cost_mkd": null,
    "by_source": {
-    "web": 0,
+    "web": 2,
+    "social": 0,
     "altercpa": 0,
-    "elyon_crm": 0,
-    "teleshop_other": 27
+    "elyon_crm": 10,
+    "teleshop_other": 15
    },
-   "catalogue": false,
-   "price_mkd": null,
-   "cost_known": null,
+   "catalogue": true,
+   "price_mkd": 500,
+   "cost_known": false,
    "days_cover": null,
-   "free_units": 0,
+   "free_units": 28,
    "pack_units": 0,
-   "product_id": null,
-   "units_prev": 0,
-   "label_units": 0,
+   "product_id": "b226b5c4-329b-4366-841a-8024a0de4c8b",
+   "units_prev": 83,
+   "label_units": 3,
    "placeholder": false,
-   "queue_units": 0,
-   "low_threshold": null,
-   "returned_units": 0,
+   "queue_units": 3,
+   "low_threshold": 5,
+   "returned_units": 22,
    "stock_value_mkd": null
   },
   {
-   "key": "p:6836933e-8fff-4ddd-b4f9-b43b10b67d33",
-   "sku": "000982",
-   "name": "Колаген Пептид со ВАНИЛА 200 гр",
-   "state": "ok",
+   "key": "p:0567ebad-600e-4c3b-9c05-10ecdeb3e8cb",
+   "sku": "000040",
+   "name": "СНАИЛ КРЕМА 100ml антиревматска туба",
+   "state": "not_tracked",
    "units": 26,
-   "on_hand": 1000,
-   "tracked": true,
+   "on_hand": null,
+   "tracked": false,
    "cost_mkd": null,
    "by_source": {
     "web": 0,
+    "social": 0,
     "altercpa": 0,
     "elyon_crm": 26,
     "teleshop_other": 0
    },
    "catalogue": true,
-   "price_mkd": 2490,
+   "price_mkd": 500,
    "cost_known": false,
    "days_cover": null,
-   "free_units": 0,
-   "pack_units": 0,
-   "product_id": "6836933e-8fff-4ddd-b4f9-b43b10b67d33",
-   "units_prev": 3,
-   "label_units": 0,
-   "placeholder": true,
-   "queue_units": 0,
-   "low_threshold": 5,
-   "returned_units": 3,
-   "stock_value_mkd": null
-  },
-  {
-   "key": "n:гастро алое 500ml",
-   "sku": null,
-   "name": "ГАСТРО АЛОЕ 500ml",
-   "state": null,
-   "units": 25,
-   "on_hand": null,
-   "tracked": false,
-   "cost_mkd": null,
-   "by_source": {
-    "web": 0,
-    "altercpa": 0,
-    "elyon_crm": 0,
-    "teleshop_other": 25
-   },
-   "catalogue": false,
-   "price_mkd": null,
-   "cost_known": null,
-   "days_cover": null,
-   "free_units": 2,
-   "pack_units": 0,
-   "product_id": null,
-   "units_prev": 0,
-   "label_units": 11,
+   "free_units": 84,
+   "pack_units": 3,
+   "product_id": "0567ebad-600e-4c3b-9c05-10ecdeb3e8cb",
+   "units_prev": 46,
+   "label_units": 5,
    "placeholder": false,
-   "queue_units": 11,
-   "low_threshold": null,
-   "returned_units": 0,
-   "stock_value_mkd": null
-  },
-  {
-   "key": "n:cardiofix bionatural 30 cps",
-   "sku": null,
-   "name": "CARDIOFIX BIONATURAL 30 cps",
-   "state": null,
-   "units": 25,
-   "on_hand": null,
-   "tracked": false,
-   "cost_mkd": null,
-   "by_source": {
-    "web": 0,
-    "altercpa": 0,
-    "elyon_crm": 0,
-    "teleshop_other": 25
-   },
-   "catalogue": false,
-   "price_mkd": null,
-   "cost_known": null,
-   "days_cover": null,
-   "free_units": 1,
-   "pack_units": 0,
-   "product_id": null,
-   "units_prev": 0,
-   "label_units": 0,
-   "placeholder": false,
-   "queue_units": 0,
-   "low_threshold": null,
-   "returned_units": 2,
-   "stock_value_mkd": null
-  },
-  {
-   "key": "p:cc68b664-9703-422a-9e56-78db5bfda7ca",
-   "sku": "000593",
-   "name": "Д-МАНОЗА 30cps",
-   "state": "not_tracked",
-   "units": 24,
-   "on_hand": null,
-   "tracked": false,
-   "cost_mkd": null,
-   "by_source": {
-    "web": 0,
-    "altercpa": 0,
-    "elyon_crm": 12,
-    "teleshop_other": 12
-   },
-   "catalogue": true,
-   "price_mkd": 600,
-   "cost_known": false,
-   "days_cover": null,
-   "free_units": 6,
-   "pack_units": 0,
-   "product_id": "cc68b664-9703-422a-9e56-78db5bfda7ca",
-   "units_prev": 1,
-   "label_units": 0,
-   "placeholder": false,
-   "queue_units": 0,
+   "queue_units": 8,
    "low_threshold": 5,
    "returned_units": 5,
    "stock_value_mkd": null
   },
   {
-   "key": "p:f4e2c96b-571d-4620-bbf5-097fed5fe026",
-   "sku": "001112",
-   "name": "Колаген Пептид -ЧОКОЛАДО 200 гр",
+   "key": "p:79a798bc-0da2-41e4-a38f-c09fe4d838d4",
+   "sku": "000568",
+   "name": "ГАСТРО ПРОТЕКТ 500ml",
+   "state": "not_tracked",
+   "units": 25,
+   "on_hand": null,
+   "tracked": false,
+   "cost_mkd": null,
+   "by_source": {
+    "web": 0,
+    "social": 0,
+    "altercpa": 0,
+    "elyon_crm": 16,
+    "teleshop_other": 9
+   },
+   "catalogue": true,
+   "price_mkd": 600,
+   "cost_known": false,
+   "days_cover": null,
+   "free_units": 0,
+   "pack_units": 0,
+   "product_id": "79a798bc-0da2-41e4-a38f-c09fe4d838d4",
+   "units_prev": 79,
+   "label_units": 46,
+   "placeholder": false,
+   "queue_units": 46,
+   "low_threshold": 5,
+   "returned_units": 0,
+   "stock_value_mkd": null
+  },
+  {
+   "key": "p:a787c8b1-205a-4b2c-84c2-db3076dc3f54",
+   "sku": "001228",
+   "name": "НУТРИ ШЕЈК-со вкус на чоколадо 500гр.",
+   "state": "not_tracked",
+   "units": 25,
+   "on_hand": null,
+   "tracked": false,
+   "cost_mkd": null,
+   "by_source": {
+    "web": 15,
+    "social": 0,
+    "altercpa": 0,
+    "elyon_crm": 4,
+    "teleshop_other": 6
+   },
+   "catalogue": true,
+   "price_mkd": 600,
+   "cost_known": false,
+   "days_cover": null,
+   "free_units": 0,
+   "pack_units": 0,
+   "product_id": "a787c8b1-205a-4b2c-84c2-db3076dc3f54",
+   "units_prev": 10,
+   "label_units": 9,
+   "placeholder": false,
+   "queue_units": 9,
+   "low_threshold": 5,
+   "returned_units": 1,
+   "stock_value_mkd": null
+  },
+  {
+   "key": "p:a168b5e5-9f2e-414d-9289-025b17ca2ee2",
+   "sku": "000957",
+   "name": "БЦАА ВО ПРАВ 200 ГР",
    "state": "not_tracked",
    "units": 24,
    "on_hand": null,
    "tracked": false,
    "cost_mkd": null,
    "by_source": {
-    "web": 0,
+    "web": 20,
+    "social": 2,
     "altercpa": 0,
-    "elyon_crm": 3,
-    "teleshop_other": 21
+    "elyon_crm": 0,
+    "teleshop_other": 2
    },
    "catalogue": true,
-   "price_mkd": 750,
+   "price_mkd": 825,
    "cost_known": false,
    "days_cover": null,
    "free_units": 0,
    "pack_units": 0,
-   "product_id": "f4e2c96b-571d-4620-bbf5-097fed5fe026",
+   "product_id": "a168b5e5-9f2e-414d-9289-025b17ca2ee2",
    "units_prev": 0,
-   "label_units": 0,
+   "label_units": 2,
    "placeholder": false,
-   "queue_units": 0,
+   "queue_units": 2,
    "low_threshold": 5,
-   "returned_units": 0,
+   "returned_units": 4,
    "stock_value_mkd": null
   },
   {
@@ -3389,9 +3503,10 @@
    "cost_mkd": null,
    "by_source": {
     "web": 0,
+    "social": 0,
     "altercpa": 0,
-    "elyon_crm": 0,
-    "teleshop_other": 24
+    "elyon_crm": 14,
+    "teleshop_other": 10
    },
    "catalogue": true,
    "price_mkd": 1200,
@@ -3400,7 +3515,7 @@
    "free_units": 0,
    "pack_units": 0,
    "product_id": "e255dad4-846d-4920-9b84-424e6496b010",
-   "units_prev": 0,
+   "units_prev": 18,
    "label_units": 0,
    "placeholder": false,
    "queue_units": 0,
@@ -3409,243 +3524,96 @@
    "stock_value_mkd": null
   },
   {
-   "key": "p:cfeea178-f0bc-4c4c-a989-032112ffaf5a",
-   "sku": "001641",
-   "name": "MAGNESIUM GEL 50ml",
+   "key": "p:d9e5d5fd-f80f-4eca-bbe5-a07168caba5d",
+   "sku": "001054",
+   "name": "ВИТАМИН Ц-1000 60 cps",
    "state": "not_tracked",
    "units": 23,
    "on_hand": null,
    "tracked": false,
    "cost_mkd": null,
    "by_source": {
-    "web": 0,
+    "web": 7,
+    "social": 0,
     "altercpa": 0,
     "elyon_crm": 7,
-    "teleshop_other": 16
+    "teleshop_other": 9
    },
    "catalogue": true,
    "price_mkd": null,
    "cost_known": false,
    "days_cover": null,
-   "free_units": 230,
-   "pack_units": 1,
-   "product_id": "cfeea178-f0bc-4c4c-a989-032112ffaf5a",
-   "units_prev": 0,
-   "label_units": 3,
+   "free_units": 43,
+   "pack_units": 0,
+   "product_id": "d9e5d5fd-f80f-4eca-bbe5-a07168caba5d",
+   "units_prev": 23,
+   "label_units": 24,
    "placeholder": false,
-   "queue_units": 4,
+   "queue_units": 24,
    "low_threshold": 5,
-   "returned_units": 27,
+   "returned_units": 19,
    "stock_value_mkd": null
   },
   {
-   "key": "n:arthro fix bionatural 30/1",
-   "sku": null,
-   "name": "ARTHRO FIX BIONATURAL 30/1",
-   "state": null,
-   "units": 23,
-   "on_hand": null,
-   "tracked": false,
-   "cost_mkd": null,
-   "by_source": {
-    "web": 0,
-    "altercpa": 0,
-    "elyon_crm": 0,
-    "teleshop_other": 23
-   },
-   "catalogue": false,
-   "price_mkd": null,
-   "cost_known": null,
-   "days_cover": null,
-   "free_units": 0,
-   "pack_units": 0,
-   "product_id": null,
-   "units_prev": 0,
-   "label_units": 0,
-   "placeholder": false,
-   "queue_units": 0,
-   "low_threshold": null,
-   "returned_units": 4,
-   "stock_value_mkd": null
-  },
-  {
-   "key": "p:3a754b34-11cd-4fba-8913-6acb3b6ccf76",
-   "sku": "000502",
-   "name": "Veno Gel",
-   "state": "ok",
-   "units": 23,
-   "on_hand": 999,
-   "tracked": true,
-   "cost_mkd": 180,
-   "by_source": {
-    "web": 0,
-    "altercpa": 17,
-    "elyon_crm": 6,
-    "teleshop_other": 0
-   },
-   "catalogue": true,
-   "price_mkd": 1490,
-   "cost_known": true,
-   "days_cover": null,
-   "free_units": 5,
-   "pack_units": 0,
-   "product_id": "3a754b34-11cd-4fba-8913-6acb3b6ccf76",
-   "units_prev": 32,
-   "label_units": 0,
-   "placeholder": false,
-   "queue_units": 0,
-   "low_threshold": 5,
-   "returned_units": 4,
-   "stock_value_mkd": null
-  },
-  {
-   "key": "n:хепатол форте 30 cps",
-   "sku": null,
-   "name": "ХЕПАТОЛ ФОРТЕ 30 cps",
-   "state": null,
-   "units": 23,
-   "on_hand": null,
-   "tracked": false,
-   "cost_mkd": null,
-   "by_source": {
-    "web": 0,
-    "altercpa": 0,
-    "elyon_crm": 0,
-    "teleshop_other": 23
-   },
-   "catalogue": false,
-   "price_mkd": null,
-   "cost_known": null,
-   "days_cover": null,
-   "free_units": 0,
-   "pack_units": 0,
-   "product_id": null,
-   "units_prev": 0,
-   "label_units": 0,
-   "placeholder": false,
-   "queue_units": 0,
-   "low_threshold": null,
-   "returned_units": 0,
-   "stock_value_mkd": null
-  },
-  {
-   "key": "n:хеморо форте",
-   "sku": null,
-   "name": "ХЕМОРО ФОРТЕ",
-   "state": null,
+   "key": "p:e10ab6fc-eda4-47a8-9ddf-7a0536c603c4",
+   "sku": "001229",
+   "name": "НУТРИ ШЕЈК-со вкус на јагода 500 гр.",
+   "state": "not_tracked",
    "units": 22,
    "on_hand": null,
    "tracked": false,
    "cost_mkd": null,
    "by_source": {
-    "web": 0,
+    "web": 12,
+    "social": 0,
     "altercpa": 0,
-    "elyon_crm": 0,
-    "teleshop_other": 22
+    "elyon_crm": 6,
+    "teleshop_other": 4
    },
-   "catalogue": false,
-   "price_mkd": null,
-   "cost_known": null,
+   "catalogue": true,
+   "price_mkd": 600,
+   "cost_known": false,
    "days_cover": null,
    "free_units": 0,
    "pack_units": 0,
-   "product_id": null,
-   "units_prev": 0,
+   "product_id": "e10ab6fc-eda4-47a8-9ddf-7a0536c603c4",
+   "units_prev": 18,
    "label_units": 3,
    "placeholder": false,
    "queue_units": 3,
-   "low_threshold": null,
-   "returned_units": 0,
+   "low_threshold": 5,
+   "returned_units": 2,
    "stock_value_mkd": null
   },
   {
-   "key": "n:nutri shake — веган шејк за контрола на апетитот (вкус: ванила)",
-   "sku": null,
-   "name": "Nutri Shake — веган шејк за контрола на апетитот (Вкус: Ванила)",
-   "state": null,
-   "units": 21,
+   "key": "p:cfba782a-d2d0-4d2b-bddb-daa120d4c49e",
+   "sku": "SKU-000100",
+   "name": "100% whey протеин 400 г",
+   "state": "not_tracked",
+   "units": 22,
    "on_hand": null,
    "tracked": false,
    "cost_mkd": null,
    "by_source": {
     "web": 21,
+    "social": 1,
     "altercpa": 0,
     "elyon_crm": 0,
     "teleshop_other": 0
    },
-   "catalogue": false,
+   "catalogue": true,
    "price_mkd": null,
-   "cost_known": null,
+   "cost_known": false,
    "days_cover": null,
    "free_units": 0,
    "pack_units": 0,
-   "product_id": null,
+   "product_id": "cfba782a-d2d0-4d2b-bddb-daa120d4c49e",
    "units_prev": 0,
-   "label_units": 12,
+   "label_units": 2,
    "placeholder": false,
-   "queue_units": 12,
-   "low_threshold": null,
-   "returned_units": 0,
-   "stock_value_mkd": null
-  },
-  {
-   "key": "n:collagen & coconut water 200gr",
-   "sku": null,
-   "name": "COLLAGEN & COCONUT WATER 200gr",
-   "state": null,
-   "units": 21,
-   "on_hand": null,
-   "tracked": false,
-   "cost_mkd": null,
-   "by_source": {
-    "web": 0,
-    "altercpa": 0,
-    "elyon_crm": 0,
-    "teleshop_other": 21
-   },
-   "catalogue": false,
-   "price_mkd": null,
-   "cost_known": null,
-   "days_cover": null,
-   "free_units": 0,
-   "pack_units": 0,
-   "product_id": null,
-   "units_prev": 0,
-   "label_units": 0,
-   "placeholder": false,
-   "queue_units": 0,
-   "low_threshold": null,
-   "returned_units": 2,
-   "stock_value_mkd": null
-  },
-  {
-   "key": "n:hemorofix bionatural 30/1",
-   "sku": null,
-   "name": "HEMOROFIX BIONATURAL 30/1",
-   "state": null,
-   "units": 21,
-   "on_hand": null,
-   "tracked": false,
-   "cost_mkd": null,
-   "by_source": {
-    "web": 0,
-    "altercpa": 0,
-    "elyon_crm": 0,
-    "teleshop_other": 21
-   },
-   "catalogue": false,
-   "price_mkd": null,
-   "cost_known": null,
-   "days_cover": null,
-   "free_units": 0,
-   "pack_units": 0,
-   "product_id": null,
-   "units_prev": 0,
-   "label_units": 0,
-   "placeholder": false,
-   "queue_units": 0,
-   "low_threshold": null,
-   "returned_units": 0,
+   "queue_units": 2,
+   "low_threshold": 0,
+   "returned_units": 1,
    "stock_value_mkd": null
   },
   {
@@ -3653,239 +3621,185 @@
    "sku": "000325",
    "name": "ЕПИМЕДИУМ КОМПЛЕКС 30 cps.",
    "state": "not_tracked",
-   "units": 21,
+   "units": 22,
    "on_hand": null,
    "tracked": false,
    "cost_mkd": null,
    "by_source": {
     "web": 0,
+    "social": 0,
     "altercpa": 0,
-    "elyon_crm": 0,
-    "teleshop_other": 21
+    "elyon_crm": 8,
+    "teleshop_other": 14
    },
    "catalogue": true,
    "price_mkd": 300,
    "cost_known": false,
    "days_cover": null,
    "free_units": 3,
-   "pack_units": 0,
-   "product_id": "faa45e27-43c2-4f74-9315-b74bece42e1c",
-   "units_prev": 0,
-   "label_units": 0,
-   "placeholder": false,
-   "queue_units": 0,
-   "low_threshold": 5,
-   "returned_units": 7,
-   "stock_value_mkd": null
-  },
-  {
-   "key": "n:bcaa — за мускули, сила и опоравување",
-   "sku": null,
-   "name": "BCAA — за мускули, сила и опоравување",
-   "state": null,
-   "units": 20,
-   "on_hand": null,
-   "tracked": false,
-   "cost_mkd": null,
-   "by_source": {
-    "web": 20,
-    "altercpa": 0,
-    "elyon_crm": 0,
-    "teleshop_other": 0
-   },
-   "catalogue": false,
-   "price_mkd": null,
-   "cost_known": null,
-   "days_cover": null,
-   "free_units": 0,
-   "pack_units": 0,
-   "product_id": null,
-   "units_prev": 0,
-   "label_units": 3,
-   "placeholder": false,
-   "queue_units": 3,
-   "low_threshold": null,
-   "returned_units": 3,
-   "stock_value_mkd": null
-  },
-  {
-   "key": "p:8ff7d97c-8ac0-4b2b-a1c5-6a4b57cb0c8a",
-   "sku": "001072",
-   "name": "ТУРМЕРИК КУРКУМИН 425МЛ",
-   "state": "not_tracked",
-   "units": 20,
-   "on_hand": null,
-   "tracked": false,
-   "cost_mkd": null,
-   "by_source": {
-    "web": 0,
-    "altercpa": 0,
-    "elyon_crm": 1,
-    "teleshop_other": 19
-   },
-   "catalogue": true,
-   "price_mkd": 600,
-   "cost_known": false,
-   "days_cover": null,
-   "free_units": 0,
    "pack_units": 1,
-   "product_id": "8ff7d97c-8ac0-4b2b-a1c5-6a4b57cb0c8a",
-   "units_prev": 0,
+   "product_id": "faa45e27-43c2-4f74-9315-b74bece42e1c",
+   "units_prev": 27,
    "label_units": 0,
    "placeholder": false,
    "queue_units": 1,
    "low_threshold": 5,
-   "returned_units": 0,
+   "returned_units": 12,
    "stock_value_mkd": null
   },
   {
-   "key": "p:79a798bc-0da2-41e4-a38f-c09fe4d838d4",
-   "sku": "000568",
-   "name": "ГАСТРО ПРОТЕКТ 500ml",
+   "key": "p:2b4391b5-88d4-409e-bfc2-2fca5e1df747",
+   "sku": "001462",
+   "name": "БРОНХО ПРОТЕКТ ФОРТЕ 500 мл",
    "state": "not_tracked",
-   "units": 19,
+   "units": 22,
    "on_hand": null,
    "tracked": false,
    "cost_mkd": null,
    "by_source": {
     "web": 0,
+    "social": 0,
     "altercpa": 0,
-    "elyon_crm": 0,
-    "teleshop_other": 19
-   },
-   "catalogue": true,
-   "price_mkd": 600,
-   "cost_known": false,
-   "days_cover": null,
-   "free_units": 0,
-   "pack_units": 0,
-   "product_id": "79a798bc-0da2-41e4-a38f-c09fe4d838d4",
-   "units_prev": 0,
-   "label_units": 17,
-   "placeholder": false,
-   "queue_units": 17,
-   "low_threshold": 5,
-   "returned_units": 0,
-   "stock_value_mkd": null
-  },
-  {
-   "key": "n:collagen peptides 400 г — колаген за кожа, зглобови и коски (вкус: ванила)",
-   "sku": null,
-   "name": "COLLAGEN PEPTIDES 400 г — колаген за кожа, зглобови и коски (Вкус: Ванила)",
-   "state": null,
-   "units": 19,
-   "on_hand": null,
-   "tracked": false,
-   "cost_mkd": null,
-   "by_source": {
-    "web": 19,
-    "altercpa": 0,
-    "elyon_crm": 0,
+    "elyon_crm": 22,
     "teleshop_other": 0
    },
-   "catalogue": false,
-   "price_mkd": null,
-   "cost_known": null,
-   "days_cover": null,
-   "free_units": 0,
-   "pack_units": 0,
-   "product_id": null,
-   "units_prev": 0,
-   "label_units": 1,
-   "placeholder": false,
-   "queue_units": 1,
-   "low_threshold": null,
-   "returned_units": 1,
-   "stock_value_mkd": null
-  },
-  {
-   "key": "p:08e5b05d-a361-4774-90ba-73f8177e418f",
-   "sku": "001227",
-   "name": "НУТРИ ШЕЈК-со вкус на ванила 500 гр.",
-   "state": "not_tracked",
-   "units": 19,
-   "on_hand": null,
-   "tracked": false,
-   "cost_mkd": null,
-   "by_source": {
-    "web": 0,
-    "altercpa": 0,
-    "elyon_crm": 7,
-    "teleshop_other": 12
-   },
    "catalogue": true,
-   "price_mkd": 600,
+   "price_mkd": null,
    "cost_known": false,
    "days_cover": null,
    "free_units": 0,
    "pack_units": 0,
-   "product_id": "08e5b05d-a361-4774-90ba-73f8177e418f",
-   "units_prev": 0,
+   "product_id": "2b4391b5-88d4-409e-bfc2-2fca5e1df747",
+   "units_prev": 30,
    "label_units": 0,
    "placeholder": false,
    "queue_units": 0,
    "low_threshold": 5,
-   "returned_units": 3,
+   "returned_units": 0,
    "stock_value_mkd": null
   },
   {
-   "key": "p:90f36677-e8ad-4b5a-984a-cc150d95ab4d",
-   "sku": "000616",
-   "name": "SLIM Fiber",
+   "key": "p:54ee17b2-b88e-4f6d-bcdf-778560d9a4ad",
+   "sku": "001529",
+   "name": "ЦИНК 365/1 таб",
    "state": "ok",
-   "units": 17,
+   "units": 22,
    "on_hand": 1000,
    "tracked": true,
-   "cost_mkd": 330,
+   "cost_mkd": 327,
    "by_source": {
-    "web": 0,
+    "web": 7,
+    "social": 1,
     "altercpa": 0,
-    "elyon_crm": 17,
-    "teleshop_other": 0
+    "elyon_crm": 9,
+    "teleshop_other": 5
    },
    "catalogue": true,
    "price_mkd": null,
    "cost_known": true,
    "days_cover": null,
-   "free_units": 7,
-   "pack_units": 4,
-   "product_id": "90f36677-e8ad-4b5a-984a-cc150d95ab4d",
-   "units_prev": 0,
-   "label_units": 1,
+   "free_units": 0,
+   "pack_units": 0,
+   "product_id": "54ee17b2-b88e-4f6d-bcdf-778560d9a4ad",
+   "units_prev": 23,
+   "label_units": 0,
    "placeholder": true,
-   "queue_units": 5,
+   "queue_units": 0,
+   "low_threshold": 5,
+   "returned_units": 6,
+   "stock_value_mkd": null
+  },
+  {
+   "key": "p:5b481426-d810-4d76-b8de-ea8af1efbbca",
+   "sku": "001156",
+   "name": "ЛИВЕР ДЕТОКС 90/1 cps",
+   "state": "not_tracked",
+   "units": 20,
+   "on_hand": null,
+   "tracked": false,
+   "cost_mkd": null,
+   "by_source": {
+    "web": 6,
+    "social": 0,
+    "altercpa": 0,
+    "elyon_crm": 6,
+    "teleshop_other": 8
+   },
+   "catalogue": true,
+   "price_mkd": 1000,
+   "cost_known": false,
+   "days_cover": null,
+   "free_units": 0,
+   "pack_units": 0,
+   "product_id": "5b481426-d810-4d76-b8de-ea8af1efbbca",
+   "units_prev": 50,
+   "label_units": 2,
+   "placeholder": false,
+   "queue_units": 2,
    "low_threshold": 5,
    "returned_units": 2,
    "stock_value_mkd": null
   },
   {
-   "key": "n:magnesium + b6 — магнезиум цитрат со витамин b6",
-   "sku": null,
-   "name": "Magnesium + B6 — магнезиум цитрат со витамин B6",
-   "state": null,
-   "units": 17,
+   "key": "p:5957bc0d-825e-41fc-9087-02b03b5fab07",
+   "sku": "001087",
+   "name": "100 % whey протеин чоколадо 500gr",
+   "state": "not_tracked",
+   "units": 19,
    "on_hand": null,
    "tracked": false,
    "cost_mkd": null,
    "by_source": {
-    "web": 17,
+    "web": 1,
+    "social": 14,
     "altercpa": 0,
-    "elyon_crm": 0,
-    "teleshop_other": 0
+    "elyon_crm": 2,
+    "teleshop_other": 2
    },
-   "catalogue": false,
-   "price_mkd": null,
-   "cost_known": null,
+   "catalogue": true,
+   "price_mkd": 750,
+   "cost_known": false,
    "days_cover": null,
    "free_units": 0,
    "pack_units": 0,
-   "product_id": null,
-   "units_prev": 0,
-   "label_units": 3,
+   "product_id": "5957bc0d-825e-41fc-9087-02b03b5fab07",
+   "units_prev": 1,
+   "label_units": 29,
    "placeholder": false,
-   "queue_units": 3,
-   "low_threshold": null,
-   "returned_units": 0,
+   "queue_units": 29,
+   "low_threshold": 5,
+   "returned_units": 1,
+   "stock_value_mkd": null
+  },
+  {
+   "key": "p:c5baa58c-238c-442d-8ee6-66147c7709ec",
+   "sku": "001661",
+   "name": "VITAMIN D3 120/1 tab",
+   "state": "not_tracked",
+   "units": 19,
+   "on_hand": null,
+   "tracked": false,
+   "cost_mkd": null,
+   "by_source": {
+    "web": 10,
+    "social": 2,
+    "altercpa": 0,
+    "elyon_crm": 3,
+    "teleshop_other": 4
+   },
+   "catalogue": true,
+   "price_mkd": null,
+   "cost_known": false,
+   "days_cover": null,
+   "free_units": 746,
+   "pack_units": 8,
+   "product_id": "c5baa58c-238c-442d-8ee6-66147c7709ec",
+   "units_prev": 17,
+   "label_units": 9,
+   "placeholder": false,
+   "queue_units": 17,
+   "low_threshold": 5,
+   "returned_units": 71,
    "stock_value_mkd": null
   },
   {
@@ -3893,12 +3807,13 @@
    "sku": "SKU-000063",
    "name": "Диабетол Форте",
    "state": "ok",
-   "units": 16,
+   "units": 19,
    "on_hand": 1000,
    "tracked": true,
    "cost_mkd": 144,
    "by_source": {
-    "web": 0,
+    "web": 3,
+    "social": 0,
     "altercpa": 0,
     "elyon_crm": 16,
     "teleshop_other": 0
@@ -3919,9 +3834,133 @@
    "stock_value_mkd": null
   },
   {
-   "key": "p:0567ebad-600e-4c3b-9c05-10ecdeb3e8cb",
-   "sku": "000040",
-   "name": "СНАИЛ КРЕМА 100ml антиревматска туба",
+   "key": "p:a6d0e53f-2e1d-4a8d-bf22-4753b755bf7c",
+   "sku": "000994",
+   "name": "АЛОЕ АРОНИЈА СО ВИТ Ц ЦИНК И Д3 500МЛ",
+   "state": "not_tracked",
+   "units": 19,
+   "on_hand": null,
+   "tracked": false,
+   "cost_mkd": null,
+   "by_source": {
+    "web": 0,
+    "social": 5,
+    "altercpa": 0,
+    "elyon_crm": 13,
+    "teleshop_other": 1
+   },
+   "catalogue": true,
+   "price_mkd": 300,
+   "cost_known": false,
+   "days_cover": null,
+   "free_units": 0,
+   "pack_units": 0,
+   "product_id": "a6d0e53f-2e1d-4a8d-bf22-4753b755bf7c",
+   "units_prev": 32,
+   "label_units": 1,
+   "placeholder": false,
+   "queue_units": 1,
+   "low_threshold": 5,
+   "returned_units": 0,
+   "stock_value_mkd": null
+  },
+  {
+   "key": "p:7ec6ce03-0c4a-46bf-98ca-c716dfe9df15",
+   "sku": "SKU-000060",
+   "name": "Snail Complex",
+   "state": "ok",
+   "units": 18,
+   "on_hand": 1000,
+   "tracked": true,
+   "cost_mkd": 185,
+   "by_source": {
+    "web": 9,
+    "social": 0,
+    "altercpa": 0,
+    "elyon_crm": 9,
+    "teleshop_other": 0
+   },
+   "catalogue": true,
+   "price_mkd": 1890,
+   "cost_known": true,
+   "days_cover": null,
+   "free_units": 0,
+   "pack_units": 0,
+   "product_id": "7ec6ce03-0c4a-46bf-98ca-c716dfe9df15",
+   "units_prev": 0,
+   "label_units": 0,
+   "placeholder": true,
+   "queue_units": 0,
+   "low_threshold": 5,
+   "returned_units": 0,
+   "stock_value_mkd": null
+  },
+  {
+   "key": "p:66ed167b-ebf3-4147-8ad0-8d94002b96f4",
+   "sku": "000891",
+   "name": "ДИЕТ ШЕЈК Чоколадо 500g",
+   "state": "not_tracked",
+   "units": 17,
+   "on_hand": null,
+   "tracked": false,
+   "cost_mkd": null,
+   "by_source": {
+    "web": 3,
+    "social": 2,
+    "altercpa": 0,
+    "elyon_crm": 12,
+    "teleshop_other": 0
+   },
+   "catalogue": true,
+   "price_mkd": 1000,
+   "cost_known": false,
+   "days_cover": null,
+   "free_units": 0,
+   "pack_units": 0,
+   "product_id": "66ed167b-ebf3-4147-8ad0-8d94002b96f4",
+   "units_prev": 7,
+   "label_units": 0,
+   "placeholder": false,
+   "queue_units": 0,
+   "low_threshold": 5,
+   "returned_units": 2,
+   "stock_value_mkd": null
+  },
+  {
+   "key": "p:c3ce5bde-6967-4564-8c58-4a085305aad7",
+   "sku": "001200",
+   "name": "ФЕММЕ 7 60 cps",
+   "state": "not_tracked",
+   "units": 16,
+   "on_hand": null,
+   "tracked": false,
+   "cost_mkd": null,
+   "by_source": {
+    "web": 1,
+    "social": 0,
+    "altercpa": 0,
+    "elyon_crm": 10,
+    "teleshop_other": 5
+   },
+   "catalogue": true,
+   "price_mkd": 800,
+   "cost_known": false,
+   "days_cover": null,
+   "free_units": 0,
+   "pack_units": 0,
+   "product_id": "c3ce5bde-6967-4564-8c58-4a085305aad7",
+   "units_prev": 21,
+   "label_units": 1,
+   "placeholder": false,
+   "queue_units": 1,
+   "low_threshold": 5,
+   "returned_units": 0,
+   "stock_value_mkd": null
+  },
+  {
+   "key": "p:d5684d72-f24f-4a02-af02-49b5f5b44d9d",
+   "sku": "000949",
+   "name": "АРТРО БЛУ ГЕЛ 200 МЛ,",
    "state": "not_tracked",
    "units": 16,
    "on_hand": null,
@@ -3929,90 +3968,186 @@
    "cost_mkd": null,
    "by_source": {
     "web": 0,
+    "social": 0,
     "altercpa": 0,
-    "elyon_crm": 4,
-    "teleshop_other": 12
+    "elyon_crm": 11,
+    "teleshop_other": 5
    },
    "catalogue": true,
-   "price_mkd": 500,
+   "price_mkd": 1200,
    "cost_known": false,
    "days_cover": null,
-   "free_units": 54,
-   "pack_units": 3,
-   "product_id": "0567ebad-600e-4c3b-9c05-10ecdeb3e8cb",
-   "units_prev": 0,
-   "label_units": 2,
+   "free_units": 0,
+   "pack_units": 0,
+   "product_id": "d5684d72-f24f-4a02-af02-49b5f5b44d9d",
+   "units_prev": 39,
+   "label_units": 0,
    "placeholder": false,
-   "queue_units": 5,
+   "queue_units": 0,
+   "low_threshold": 5,
+   "returned_units": 0,
+   "stock_value_mkd": null
+  },
+  {
+   "key": "p:946efd4e-908b-4cce-ade6-195e330f1fea",
+   "sku": "001311",
+   "name": "ВЕНО ГАРД 30/1",
+   "state": "not_tracked",
+   "units": 16,
+   "on_hand": null,
+   "tracked": false,
+   "cost_mkd": null,
+   "by_source": {
+    "web": 0,
+    "social": 0,
+    "altercpa": 0,
+    "elyon_crm": 8,
+    "teleshop_other": 8
+   },
+   "catalogue": true,
+   "price_mkd": null,
+   "cost_known": false,
+   "days_cover": null,
+   "free_units": 0,
+   "pack_units": 0,
+   "product_id": "946efd4e-908b-4cce-ade6-195e330f1fea",
+   "units_prev": 13,
+   "label_units": 0,
+   "placeholder": false,
+   "queue_units": 0,
+   "low_threshold": 5,
+   "returned_units": 0,
+   "stock_value_mkd": null
+  },
+  {
+   "key": "p:45fbadb2-aaf3-4f50-9ecb-31cf52055006",
+   "sku": "000615",
+   "name": "СЛИМ КОМПЛЕКС 30cps",
+   "state": "not_tracked",
+   "units": 15,
+   "on_hand": null,
+   "tracked": false,
+   "cost_mkd": null,
+   "by_source": {
+    "web": 0,
+    "social": 0,
+    "altercpa": 0,
+    "elyon_crm": 2,
+    "teleshop_other": 13
+   },
+   "catalogue": true,
+   "price_mkd": 600,
+   "cost_known": false,
+   "days_cover": null,
+   "free_units": 7,
+   "pack_units": 0,
+   "product_id": "45fbadb2-aaf3-4f50-9ecb-31cf52055006",
+   "units_prev": 29,
+   "label_units": 0,
+   "placeholder": false,
+   "queue_units": 0,
    "low_threshold": 5,
    "returned_units": 2,
    "stock_value_mkd": null
   },
   {
-   "key": "n:100 % whey протеин чоколадо 500gr",
-   "sku": null,
-   "name": "100 % whey протеин чоколадо 500gr",
-   "state": null,
-   "units": 16,
+   "key": "p:604ab890-8d89-4027-9956-946e87f1aea7",
+   "sku": "000312",
+   "name": "ТРИБУЛУС ТЕРЕСТРИС 30cps",
+   "state": "not_tracked",
+   "units": 14,
    "on_hand": null,
    "tracked": false,
    "cost_mkd": null,
    "by_source": {
-    "web": 0,
+    "web": 6,
+    "social": 2,
     "altercpa": 0,
-    "elyon_crm": 0,
-    "teleshop_other": 16
+    "elyon_crm": 6,
+    "teleshop_other": 0
    },
-   "catalogue": false,
-   "price_mkd": null,
-   "cost_known": null,
+   "catalogue": true,
+   "price_mkd": 300,
+   "cost_known": false,
    "days_cover": null,
-   "free_units": 0,
-   "pack_units": 0,
-   "product_id": null,
-   "units_prev": 0,
-   "label_units": 0,
+   "free_units": 14,
+   "pack_units": 1,
+   "product_id": "604ab890-8d89-4027-9956-946e87f1aea7",
+   "units_prev": 3,
+   "label_units": 2,
    "placeholder": false,
-   "queue_units": 0,
-   "low_threshold": null,
-   "returned_units": 1,
+   "queue_units": 3,
+   "low_threshold": 5,
+   "returned_units": 4,
    "stock_value_mkd": null
   },
   {
-   "key": "n:веногел гел 100ml",
-   "sku": null,
-   "name": "ВЕНОГЕЛ гел 100ml",
-   "state": null,
-   "units": 16,
+   "key": "p:0f6b402d-b313-4733-b52f-616b81e1bb3d",
+   "sku": "SKU-000056",
+   "name": "L-GLUTAMINE powder 200 gr.",
+   "state": "ok",
+   "units": 14,
+   "on_hand": 1000,
+   "tracked": true,
+   "cost_mkd": null,
+   "by_source": {
+    "web": 14,
+    "social": 0,
+    "altercpa": 0,
+    "elyon_crm": 0,
+    "teleshop_other": 0
+   },
+   "catalogue": true,
+   "price_mkd": 790,
+   "cost_known": false,
+   "days_cover": null,
+   "free_units": 0,
+   "pack_units": 0,
+   "product_id": "0f6b402d-b313-4733-b52f-616b81e1bb3d",
+   "units_prev": 0,
+   "label_units": 1,
+   "placeholder": true,
+   "queue_units": 1,
+   "low_threshold": 5,
+   "returned_units": 0,
+   "stock_value_mkd": null
+  },
+  {
+   "key": "p:4cff97e4-4e40-4efe-a729-da4e56ddc056",
+   "sku": "SKU-000104",
+   "name": "NMN (Nicotinamide Mononucleotide) 60 cps",
+   "state": "not_tracked",
+   "units": 14,
    "on_hand": null,
    "tracked": false,
    "cost_mkd": null,
    "by_source": {
-    "web": 0,
+    "web": 8,
+    "social": 0,
     "altercpa": 0,
-    "elyon_crm": 0,
-    "teleshop_other": 16
+    "elyon_crm": 3,
+    "teleshop_other": 3
    },
-   "catalogue": false,
+   "catalogue": true,
    "price_mkd": null,
-   "cost_known": null,
+   "cost_known": false,
    "days_cover": null,
-   "free_units": 12,
+   "free_units": 0,
    "pack_units": 0,
-   "product_id": null,
-   "units_prev": 0,
+   "product_id": "4cff97e4-4e40-4efe-a729-da4e56ddc056",
+   "units_prev": 2,
    "label_units": 0,
    "placeholder": false,
    "queue_units": 0,
-   "low_threshold": null,
+   "low_threshold": 0,
    "returned_units": 0,
    "stock_value_mkd": null
   }
  ],
  "valuation": null,
  "products_more": {
-  "units": 251,
-  "products": 195
+  "units": 444,
+  "products": 225
  },
  "queue_products": [
   {
@@ -4020,80 +4155,128 @@
    "name": "Adenofrin",
    "on_hand": 996,
    "catalogue": true,
-   "pack_units": 170,
-   "label_units": 113
+   "pack_units": 178,
+   "label_units": 53
   },
   {
-   "key": "p:e0a4c01f-f06b-4f49-98b3-f0de309f7992",
-   "name": "BrainFix",
-   "on_hand": 1000,
+   "key": "p:666ed719-5b43-4175-b4fa-6403fffce804",
+   "name": "Opti Care",
+   "on_hand": 500,
    "catalogue": true,
-   "pack_units": 92,
-   "label_units": 112
-  },
-  {
-   "key": "p:cf38ad20-8608-4a81-b852-d9b5c7d3e0cc",
-   "name": "Alpha Male",
-   "on_hand": 993,
-   "catalogue": true,
-   "pack_units": 51,
-   "label_units": 144
+   "pack_units": 2,
+   "label_units": 143
   },
   {
    "key": "p:7755d5c0-66ee-4ec6-93ae-fe7b8a47f4c6",
    "name": "Neurofix",
    "on_hand": 959,
    "catalogue": true,
-   "pack_units": 94,
-   "label_units": 84
+   "pack_units": 90,
+   "label_units": 33
   },
   {
-   "key": "n:magnesium bisglycinate — хелатна форма, 120 таблети",
-   "name": "Magnesium Bisglycinate — хелатна форма, 120 таблети",
-   "on_hand": null,
-   "catalogue": false,
-   "pack_units": 0,
-   "label_units": 122
+   "key": "p:e0a4c01f-f06b-4f49-98b3-f0de309f7992",
+   "name": "BrainFix",
+   "on_hand": 1000,
+   "catalogue": true,
+   "pack_units": 91,
+   "label_units": 0
   },
   {
    "key": "p:fae40061-d8ad-4025-9de0-3dea17daff71",
    "name": "Urofix",
    "on_hand": 990,
    "catalogue": true,
-   "pack_units": 54,
-   "label_units": 61
+   "pack_units": 57,
+   "label_units": 33
   },
   {
    "key": "p:17e1f647-8091-4434-9fac-94ffc21c00d7",
    "name": "Cardiofix",
    "on_hand": 989,
    "catalogue": true,
-   "pack_units": 67,
-   "label_units": 34
+   "pack_units": 64,
+   "label_units": 20
+  },
+  {
+   "key": "p:cf38ad20-8608-4a81-b852-d9b5c7d3e0cc",
+   "name": "Alpha Male",
+   "on_hand": 993,
+   "catalogue": true,
+   "pack_units": 54,
+   "label_units": 24
   },
   {
    "key": "p:e25e349c-377e-45fb-9307-991573ac05ae",
    "name": "GlucoFix",
    "on_hand": 996,
    "catalogue": true,
-   "pack_units": 64,
-   "label_units": 27
+   "pack_units": 60,
+   "label_units": 16
   },
   {
    "key": "p:92ffb0db-e8c0-433e-bc54-707c1281f380",
    "name": "Parafix",
    "on_hand": 996,
    "catalogue": true,
-   "pack_units": 60,
-   "label_units": 20
+   "pack_units": 64,
+   "label_units": 9
+  },
+  {
+   "key": "p:de3d548e-4665-49ea-bce9-49a8634bc60e",
+   "name": "Колаген Пептид со МАЛИНА 200 гр",
+   "on_hand": null,
+   "catalogue": true,
+   "pack_units": 0,
+   "label_units": 58
   },
   {
    "key": "p:1395475b-b4a4-41cf-92ba-118d3d9af794",
    "name": "Hemorofix",
    "on_hand": 986,
    "catalogue": true,
-   "pack_units": 40,
-   "label_units": 39
+   "pack_units": 39,
+   "label_units": 15
+  },
+  {
+   "key": "p:ab09eec7-638e-44a7-ab83-1b820df4c9cb",
+   "name": "ArthroFix",
+   "on_hand": 980,
+   "catalogue": true,
+   "pack_units": 39,
+   "label_units": 10
+  },
+  {
+   "key": "p:a93a0b66-1aca-408d-a3c3-57b6a3316ab4",
+   "name": "MAGNESIUM CITRAT 325mg",
+   "on_hand": 1000,
+   "catalogue": true,
+   "pack_units": 18,
+   "label_units": 29
+  },
+  {
+   "key": "p:79a798bc-0da2-41e4-a38f-c09fe4d838d4",
+   "name": "ГАСТРО ПРОТЕКТ 500ml",
+   "on_hand": null,
+   "catalogue": true,
+   "pack_units": 0,
+   "label_units": 46
+  },
+  {
+   "key": "p:432bde3d-2ed5-4127-9747-3c6ea64f6e41",
+   "name": "ZINC 120/1 tab ФИЗИЧКИ",
+   "on_hand": null,
+   "catalogue": true,
+   "pack_units": 4,
+   "label_units": 36
+  },
+  {
+   "key": "p:50482997-a856-4ba6-ab14-073bbd6c377b",
+   "name": "ХОЛЕСТОЛ КОМПЛЕКС 30 cps",
+   "on_hand": 1000,
+   "catalogue": true,
+   "pack_units": 0,
+   "label_units": 40
   },
   {
    "key": "p:bdc79d87-8e42-430d-8925-c3b010ca257f",
@@ -4101,22 +4284,6 @@
    "on_hand": 995,
    "catalogue": true,
    "pack_units": 33,
-   "label_units": 34
-  },
-  {
-   "key": "p:ab09eec7-638e-44a7-ab83-1b820df4c9cb",
-   "name": "ArthroFix",
-   "on_hand": 980,
-   "catalogue": true,
-   "pack_units": 43,
-   "label_units": 9
-  },
-  {
-   "key": "p:8ae08430-37c3-438a-b3cc-0d713bbfbc6a",
-   "name": "ProstaFix",
-   "on_hand": 994,
-   "catalogue": true,
-   "pack_units": 23,
    "label_units": 7
   },
   {
@@ -4124,56 +4291,24 @@
    "name": "ZINC 120/1 tab",
    "on_hand": null,
    "catalogue": true,
-   "pack_units": 15,
-   "label_units": 14
+   "pack_units": 13,
+   "label_units": 22
   },
   {
-   "key": "n:opticare 60 cps",
-   "name": "OPTICARE 60 cps",
-   "on_hand": null,
-   "catalogue": false,
-   "pack_units": 0,
-   "label_units": 28
-  },
-  {
-   "key": "p:a93a0b66-1aca-408d-a3c3-57b6a3316ab4",
-   "name": "MAGNESIUM CITRAT 325mg",
-   "on_hand": 1000,
-   "catalogue": true,
-   "pack_units": 15,
-   "label_units": 12
-  },
-  {
-   "key": "p:8f5732dc-cf65-4cae-b1d2-1d4ae96fd479",
-   "name": "NEUROFIX BIONATURAL 30/1",
+   "key": "p:7ecd116e-b183-48f7-bb85-b01a793db9d5",
+   "name": "СНАИЛ КОМПЛЕКС cps 30",
    "on_hand": null,
    "catalogue": true,
-   "pack_units": 18,
-   "label_units": 6
-  },
-  {
-   "key": "n:aloe & aronia (1 l) — сируп за имунитет и варење",
-   "name": "Aloe & Aronia (1 L) — сируп за имунитет и варење",
-   "on_hand": null,
-   "catalogue": false,
-   "pack_units": 0,
-   "label_units": 23
-  },
-  {
-   "key": "n:creatine monohydrate 400 г — за сила и раст на мускулите (вкус: без вкус)",
-   "name": "CREATINE MONOHYDRATE 400 г — за сила и раст на мускулите (Вкус: Без вкус)",
-   "on_hand": null,
-   "catalogue": false,
-   "pack_units": 0,
+   "pack_units": 14,
    "label_units": 20
   },
   {
-   "key": "n:100% whey protein (500g) 1+1 (чоколадо + ванила) + подарок creatine monohydrat",
-   "name": "100% Whey Protein (500g) 1+1 (чоколадо + ванила) + подарок Creatine Monohydrat",
+   "key": "p:5957bc0d-825e-41fc-9087-02b03b5fab07",
+   "name": "100 % whey протеин чоколадо 500gr",
    "on_hand": null,
-   "catalogue": false,
+   "catalogue": true,
    "pack_units": 0,
-   "label_units": 19
+   "label_units": 29
   }
  ]
 }

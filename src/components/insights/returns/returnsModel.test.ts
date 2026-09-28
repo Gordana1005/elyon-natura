@@ -3,7 +3,7 @@ import type { ReturnsResponse, StockProductRow, StockResponse } from '@/lib/insi
 import returnsSample from './__fixtures__/returns.sample.json';
 import stockSample from '../stock/__fixtures__/stock.sample.json';
 import {
-  cityName, filterProducts, queueDrill, ratePp, returnsColumns, rsDrill, saleSourcesOf, slowMovers, topMovers,
+  cityName, drillSourcesOf, filterProducts, queueDrill, ratePp, returnsColumns, rsDrill, slowMovers, topMovers,
 } from './returnsModel';
 
 const R = returnsSample as unknown as ReturnsResponse;
@@ -16,7 +16,7 @@ describe('rsDrill', () => {
     const d = rsDrill({ clock: 'sale', bucket: 'returned', comp: { orders: 67 }, count: 67, sources: ['elyon_crm'], range });
     expect(d.blocked).toBeNull();
     expect(d.href).toMatch(/^\/orders\?/);
-    expect(params(d.href!)).toEqual({ cohort_bucket: 'returned', sale_source: 'elyon_crm', sold_from: '2026-09-01', sold_to: '2026-09-27' });
+    expect(params(d.href!)).toEqual({ cohort_bucket: 'returned', cohort_source: 'elyon_crm', sold_from: '2026-09-01', sold_to: '2026-09-27' });
   });
 
   it('a mixed number has no link of its own but offers its order part', () => {
@@ -24,7 +24,7 @@ describe('rsDrill', () => {
     expect(d.href).toBeNull();
     expect(d.blocked).toBe('mixed');
     expect(d.orders).toBe(R.kpis.returned.orders);
-    // every source at once sends no sale_source (the api's own links do the same)
+    // every source at once sends no cohort_source (the api's own links do the same)
     expect(params(d.ordersHref!)).toEqual({ cohort_bucket: 'returned', sold_from: '2026-09-01', sold_to: '2026-09-27' });
   });
 
@@ -42,9 +42,13 @@ describe('rsDrill', () => {
     expect(rsDrill({ clock: 'sale', bucket: 'returned', comp: { mex_only: 2 }, count: 2, sources: [], range }).blocked).toBe('mex_only');
   });
 
-  it('maps cohort sources to /orders sale_source values', () => {
-    expect(saleSourcesOf(['altercpa', 'teleshop_other'])).toEqual(['altercpa', 'affiliate', 'collabbox', 'legacy']);
-    expect(saleSourcesOf([])).toHaveLength(6);
+  it('filters /orders by the selected cohort sources (collabBox is two: Social media, Teleshop / other)', () => {
+    expect(drillSourcesOf([])).toHaveLength(5);
+    const soc = rsDrill({ clock: 'sale', bucket: 'returned', comp: { orders: 2 }, count: 2, sources: ['social'], range });
+    expect(params(soc.href!).cohort_source).toBe('social');
+    const two = rsDrill({ clock: 'sale', bucket: 'returned', comp: { orders: 2 }, count: 2, sources: ['teleshop_other', 'altercpa'], range });
+    expect(params(two.href!).cohort_source).toBe('altercpa,teleshop_other');
+    expect(params(two.href!).sale_source).toBeUndefined();
   });
 });
 

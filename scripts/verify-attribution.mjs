@@ -27,10 +27,13 @@
  *
  * The connected Overview (migration 20260936000000) — C1/C2/C3/C6 call public.insights_overview
  * read-only for the window, exactly as GET /api/insights/overview does, and tie it out:
- *   C1   KPI tiles = Σ of the four sources = single-statement SQL over the same rows (placed,
+ *   C1   KPI tiles = Σ of the five sources = single-statement SQL over the same rows (placed,
  *        confirmed, delivered cash) and Σ buckets = placed; lists delivered parcels whose order
  *        the Overview cannot book as delivered cash
- *   C2   MEX-only cash = Σ COD of delivered parcels no order owns (web shop vs teleshop split)
+ *   C2   MEX-only cash = Σ COD of delivered parcels no order owns, and each source's share of
+ *        them by the owner's series rule (28.09.2026, migration 20260942000500): web claim /
+ *        NTMK… / M… → web · 9110 → AlterCPA · 9102, 9103 → Lead out · 9108, 1300 → Social
+ *        media · anything else → Lead in
  *   C3   Prediction-lists tab (insights_lists, 20260941000400) = the cohort's ElyonCRM ·
  *        prediction_list split, exactly (sale clock); the "list not recorded" rows are listed.
  *        Before that migration: the old tab (insights_orders_rollup) vs the Overview's split
@@ -848,7 +851,7 @@ SELECT (SELECT n FROM placed) + ${Number(shop.count) || 0} AS placed_n,
     status: bad.length ? 'FAIL' : t.odd_n ? 'WARN' : 'PASS',
     count: bad.length,
     sample: t.odd,
-    note: `KPI tiles vs Σ of the four sources vs single-statement SQL over the same rows (placed = created, confirmed = sold_at `
+    note: `KPI tiles vs Σ of the five sources vs single-statement SQL over the same rows (placed = created, confirmed = sold_at `
       + `→ confirmed_at → created_at, delivered = MEX delivered_at, else paid_at). ${bad.length} figure(s) disagree`
       + (t.odd_n ? `; ${fmtNum(t.odd_n)} delivered parcel(s) sit on an order the overview cannot book as delivered cash (listed)` : ''),
     window: describeWindow(w),
@@ -865,15 +868,25 @@ async function c2MexOnlyCash(ctx) {
     ? `EXISTS (SELECT 1 FROM public.web_orders wo WHERE wo.mex_tracking_id = p.tracking_id AND wo.deleted_in_shop_at IS NULL)`
     : 'false';
   const [t] = await ctx.sql(`
-WITH u AS (
+WITH u0 AS (
   SELECT p.account, coalesce(p.series, '-') AS series, coalesce(p.cod_mkd, 0) AS cod,
-         (coalesce(p.sender_reference, '') ~ '^NTMK' OR p.tracking_id ~ '^NTMK' OR ${claimed}) AS web
+         (coalesce(p.sender_reference, '') ~ '^NTMK' OR p.tracking_id ~ '^NTMK' OR p.tracking_id ~ '^M[0-9]' OR ${claimed}) AS web,
+         p.series AS ser
   FROM public.mex_parcels p
   WHERE p.status_id = ${MEX_DELIVERED} AND p.order_id IS NULL AND ${within('p.delivered_at', w)}
     AND ${notTestParcel(ctx, 'p')}
+),
+u AS (   -- the owner's series rule, stated here on its own (the Overview's is cohort_parcel_split)
+  SELECT u0.*, CASE WHEN u0.web THEN 'web'
+                    WHEN u0.ser = '9110' THEN 'altercpa'
+                    WHEN u0.ser IN ('9102', '9103') THEN 'elyon_crm'
+                    WHEN u0.ser IN ('9108', '1300') THEN 'social'
+                    ELSE 'teleshop_other' END AS src
+  FROM u0
 )
 SELECT count(*)::int AS n, coalesce(sum(cod), 0)::bigint AS mkd,
        count(*) FILTER (WHERE web)::int AS web_n, coalesce(sum(cod) FILTER (WHERE web), 0)::bigint AS web_mkd,
+       (SELECT coalesce(json_object_agg(x.src, x.n), '{}') FROM (SELECT src, count(*)::int AS n FROM u GROUP BY 1) x) AS by_src,
        (SELECT coalesce(json_agg(b ORDER BY b.n DESC), '[]') FROM (
           SELECT account, series, count(*)::int AS n, sum(cod)::bigint AS cod_mkd FROM u GROUP BY 1, 2) b) AS by_series
 FROM u`);
@@ -881,8 +894,9 @@ FROM u`);
   const rows = [
     tieRow('MEX-only (count)', { tile: ov.kpis.delivered.mex_only_count, sum_sources: sumSources(ov, (s) => s.cash?.mex_only_count), sql_truth: t.n }, 0),
     tieRow('MEX-only (MKD)', { tile: ov.kpis.delivered.mex_only_cod_mkd, sum_sources: sumSources(ov, (s) => s.cash?.mex_only_cod_mkd), sql_truth: num(t.mkd) }, OV_MKD_TOL),
-    tieRow('web shop parcels (count)', { source: num(src('web').mex_only_count), sql_truth: t.web_n }, 0),
-    tieRow('teleshop/other (count)', { source: num(src('teleshop_other').mex_only_count), sql_truth: t.n - t.web_n }, 0),
+    // each source's parcels with no order, by the series rule (owner 28.09.2026)
+    ...['altercpa', 'elyon_crm', 'teleshop_other', 'social', 'web'].map((k) =>
+      tieRow(`${k} parcels (count)`, { source: num(src(k).mex_only_count), sql_truth: num(t.by_src?.[k]) }, 0)),
   ];
   const bad = rows.filter((r) => !r.ok);
   return {
@@ -890,7 +904,7 @@ FROM u`);
     count: t.n,
     sample: [],
     note: `delivered MEX parcels no order owns, delivered in the window: ${fmtNum(t.n)} = ${fmtNum(t.mkd)} MKD `
-      + `(${fmtNum(t.web_n)} the web shop's, ${fmtNum(t.n - t.web_n)} teleshop/other)`,
+      + `(${fmtNum(t.web_n)} the web shop's, ${fmtNum(t.n - t.web_n)} credited by series to the other four sources)`,
     window: describeWindow(w),
     breakdown: { tie_out: rows, by_series: t.by_series },
   };

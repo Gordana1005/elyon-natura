@@ -106,13 +106,31 @@ target **explicitly** and verify it before running:
   `supabase/functions/api/overview.ts`); owner-only surfaces (Settings → Teams / Integrations,
   `/insights/pivot`, `/management-insights` beyond `?scope=calls`, the presence day sheet) answer
   `403 owners_only`.
-- **Four sale sources (owner law, 2026-09-28)** — `orders.sale_source`:
-  **AlterCPA** (lead intake; an ad lead from an existing client is still a LEAD) ·
-  **ElyonCRM** (an order created FIRST in Elyon is ours even if it's at MEX — never decide an
-  order's source from its MEX series) · **Web shop** (the `web_orders` mirror of naturatherapy.mk —
-  NOT orders; the live shop gets no changes) · **Teleshop/Other** (collabBox orders + MEX parcels
-  with no order). Unlinked BIO NATURAL 9110/9103 parcels are the neutral split "Elyon account —
-  unlinked", credited to nobody.
+- **Sale sources are the DEPARTMENTS (owner law, 28.09.2026, whole history)** — five cohort
+  sources, in this order (`cohort_order_source(sale_source, detail)` / `cohort_parcel_source()`):
+  - **AlterCPA** (`altercpa`): affiliate leads (bridge / history; an ad lead from an existing client
+    is still a LEAD; ships BIO NATURAL 9110), plus collabBox 9110 "LEADS" (`collabbox_leads`), plus
+    EVERY sale an AlterCPA-team agent makes (`team_prediction`, `team_collabbox_out`,
+    `team_collabbox_leads_out`). Her team on the sale day decides: "their prediction stays counted
+    in AlterCPA".
+  - **Телешоп – Lead out** (key `elyon_crm`): CRM-made sales (`prediction_list` / `direct`; they
+    ship as BIO NATURAL 9103 LEADS-OUT), plus collabBox 9102 "Нарачка out" (`collabbox_out`) and
+    9103 "LEADS-OUT" (`collabbox_leads_out`), whoever booked them.
+  - **Телешоп – Lead in** (key `teleshop_other`): only collabBox 9100 "Нарачка in", the TV lead-in
+    imported from collabBox.
+  - **Социјални мрежи** (`social`): collabBox 9108 / 1300. It is its own department, never teleshop.
+  - **Web shop**: the `web_orders` mirror of naturatherapy.mk. These are NOT orders, and the live
+    shop gets no changes.
+  - A MEX parcel with no order goes to its source by SERIES (9110 → AlterCPA · 9102/9103 → Lead
+    out · 9100 → Lead in · 9108 → Social · NTMK/M… → Web).
+  - `collabbox_department()` classifies at INSERT, and `tg_orders_stamp_sold` moves a CRM sale of an
+    AlterCPA-team agent to AlterCPA. Every later move of a row is logged in `sale_source_reclass`
+    (`scripts/reclass-department-sources.mjs --rollback`). One order, one source: the same row moves,
+    it is never copied.
+  - The 10-day no-parcel rule keeps its population. `team_prediction` is excluded in all three twins
+    (`apply_no_parcel_rule`, Overview `anp`, `attentionFilter`).
+  - `sales_people.crm_since` / `crm_until` record who works in the CRM. They are information, not a
+    gate.
 - **"Нарачки" = only real orders**: confirmed / packed / shipped / paid, plus returned (it
   shipped). Cancels and trash are never orders or order value — shown apart as Откажани (red dot) /
   Во корпа (grey); Вратени = pink dot; worked decisions = "Обработени".
