@@ -39,6 +39,25 @@ role for display ([../src/contexts/AuthContext.tsx](../src/contexts/AuthContext.
 
 Primary‑role precedence (display): admin → manager → prediction_agent → pending_agent → agent → warehouse → ads_admin.
 
+### 2a. Owners — who sees money (Macedonia, 27–28.09.2026)
+
+Money is not a role. ONE predicate decides it everywhere — RLS policies, the `api` function
+(`rpc is_business_owner` / `isBusinessOwner()`), and the frontend (`get_my_permissions().isBusinessOwner` →
+`canSeeBusiness`, `useInsightsAccess().business` / `.money`):
+
+- `public.is_business_owner(uid)` is true for anyone on `public.business_owners` (Settings → Owners,
+  [../src/components/settings/OwnersTab.tsx](../src/components/settings/OwnersTab.tsx);
+  `20260934000000_business_owners.sql`) **or any ACTIVE admin** (`20260939000500_admins_are_owners.sql`,
+  owner ruling 28.09: "all admins should be able to see it all"; a suspended admin loses it).
+- **Managers are not owners.** Shared operational surfaces (e.g. `/insights/overview`) give them the same
+  payload with every money key absent (`meta.money = false`, the `stripOverviewMoney` whitelist in
+  `supabase/functions/api/overview.ts`); owner-only surfaces (Settings → Teams / Integrations,
+  `/insights/pivot`, `/management-insights` beyond `?scope=calls`, the presence day sheet) answer
+  `403 owners_only`.
+- The presence idle-alert "owners" recipient group uses the same predicate.
+- Owner-only tables include `mex_parcels`, `web_orders`, the no-parcel ledger and the people/teams tables;
+  see [[elyon-security]] (`.grok/skills/elyon-security/SKILL.md`) for the full list.
+
 ---
 
 ## 3. The permission system (three tables)

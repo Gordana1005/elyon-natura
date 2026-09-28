@@ -80,7 +80,7 @@ Any query feeding the calculator MUST select: `status` and `order_items(price_pe
 
 ## Money display
 
-All payout/bonus figures shown to humans use the dual EUR/LEV helpers — see [[elyon-currency]].
+Payout/bonus amounts are stored in EUR and shown to staff in денари with `formatMoney` (the frozen 61.5 peg) — see [[elyon-currency]]; the only EUR display is affiliate (CPA) payout. There is no lev in this market. (The Agents tab's bare-EUR `fmt()` is a known display bug from the 28.09 audit; the payout/bonus math itself is deferred by the owner — do not touch it.)
 
 ## Packages sold vs awaiting (2026-07)
 

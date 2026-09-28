@@ -101,8 +101,11 @@ target **explicitly** and verify it before running:
   never enters the Trash List. Do not "align with BG" on either.
 - **Owners see money; every active admin is an owner (2026-09-28, `20260939000500`).**
   `public.is_business_owner()` gates every money figure and money tab. Managers are NOT owners:
-  they get the same operational payloads with every money key **absent** (the
-  `stripOverviewMoney` whitelist pattern in `supabase/functions/api/overview.ts`), never a 403.
+  on shared operational surfaces (e.g. `/insights/overview`) they get the same payload with every
+  money key **absent** (the `stripOverviewMoney` whitelist pattern in
+  `supabase/functions/api/overview.ts`); owner-only surfaces (Settings → Teams / Integrations,
+  `/insights/pivot`, `/management-insights` beyond `?scope=calls`, the presence day sheet) answer
+  `403 owners_only`.
 - **Four sale sources (owner law, 2026-09-28)** — `orders.sale_source`:
   **AlterCPA** (lead intake; an ad lead from an existing client is still a LEAD) ·
   **ElyonCRM** (an order created FIRST in Elyon is ours even if it's at MEX — never decide an
@@ -161,6 +164,9 @@ before non-trivial work on money, phones, warehouse, stock, webhooks, or fulfilm
 - `elyon-affiliates` — The CPA/partner system and the hard wall that keeps external logins out of staff surfaces.
 - `elyon-altercpa-bridge` — The AlterCPA lead mirror: ledger-first, callable geos, offer mapping, and why foreign leads must never reach `orders`. Read before touching `altercpa_*` or multi-country intake.
 - `elyon-logistics-costs` — Courier rate card, return round-trip loss, and Pure Profit actuals.
+- `elyon-presence-and-leaderboard` — Presence minutes + the 30-min idle alert, sales people / identities / teams, the write-once `orders.sold_*` stamps (who is credited with a sale, the stamping cron), the TV leaderboard and Settings → Teams.
+- `elyon-web-shop-bridge` — The read-only naturatherapy.mk mirror (`web_orders`, web-sync every 15 min, `crm_export` on the shop side). Web orders are NOT CRM orders; the live shop gets no changes.
+- `elyon-customer360-and-integrations` — Customer 360 (`customer_timeline`, last-8 matching, money stripped for non-owners) and Settings → Integrations health (freshness thresholds kept in step with the Overview, the 7-day rule's owner switch).
 
 New skills should be added to `.grok/skills/` whenever you find yourself re-explaining the same
 complicated rule or workflow. Use `/skillify` right after completing a complex piece of work;

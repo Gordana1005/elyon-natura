@@ -35,6 +35,14 @@ bundle or the repo.
 - **RLS** is enabled on every table. The recurring pattern uses `has_role()` / `is_admin_or_manager()`
   (SECURITY DEFINER, so no policy recursion). Permission config tables are locked to admin writes
   (`20260506180000_lock_down_permissions_tables.sql`).
+- **Money = owners (Macedonia, 27–28.09.2026).** `public.is_business_owner()` gates every money figure,
+  money tab, money route and money table (RLS): true for `public.business_owners` or any ACTIVE admin
+  (`20260934000000`, `20260939000500`). Managers get operational payloads with money keys absent
+  (`meta.money = false`, whitelist strip) or `403 owners_only` on owner-only surfaces. Owner-only
+  `app_settings` keys (e.g. `no_parcel_rule`) are guarded by `trg_app_settings_guard_owner_keys`
+  (`20260939000200`), so an admin/manager session cannot flip them through PostgREST. AlterCPA can never
+  mark an order paid — MEX alone decides paid/returned (money guards, `20260934000200`). Details:
+  [USERS_ROLES_PERMISSIONS.md §2a](USERS_ROLES_PERMISSIONS.md) and `.grok/skills/elyon-security/SKILL.md`.
 
 ## 3. Webhook integrity (inbound)
 - **HMAC‑SHA256** over the raw body, header `x-webhook-signature`, **timing‑safe** compare. 401 on bad/missing.
