@@ -61,6 +61,12 @@ target **explicitly** and verify it before running:
 - **Migrations:** the DB password was never recorded, so `supabase db push` cannot open a direct
   Postgres connection. Use `node scripts/apply-migration-mk.mjs <file.sql>` (Management API, same
   `postgres` role). Record the DB password in VAULT §1 to restore the normal `db push` path.
+  Finished-but-paused migrations live in `supabase/paused/` (never applied; see its README).
+- **Edge functions:** `api` (one deployable — deploy only when `index.ts` holds finished work),
+  `altercpa-sync`, `mex-reconcile`, `web-sync`, `collabbox-sync` (a probe only). Deploy with
+  `npx supabase functions deploy <fn> --project-ref bmfxhgznttcnnlqloqzp` after the tripwire.
+- **Read-only SQL** (verification): POST `https://api.supabase.com/v1/projects/bmfxhgznttcnnlqloqzp/database/query`
+  with `{query, read_only: true}`; checkers: `scripts/verify-attribution.mjs` (C1–C14).
 
 ## Per-market rules (Macedonia ≠ Bulgaria) — these OVERRIDE the copied BG docs/skills
 `.grok/skills/` and `docs/` were copied from Bulgaria and still describe BG specifics in places.
@@ -93,6 +99,43 @@ target **explicitly** and verify it before running:
   we keep them, because 2.391 Macedonian customers had already paid us *after* being trashed;
   (2) **`duplicate_order` is housekeeping**, so it never removes anyone from a calling band and
   never enters the Trash List. Do not "align with BG" on either.
+- **Owners see money; every active admin is an owner (2026-09-28, `20260939000500`).**
+  `public.is_business_owner()` gates every money figure and money tab. Managers are NOT owners:
+  they get the same operational payloads with every money key **absent** (the
+  `stripOverviewMoney` whitelist pattern in `supabase/functions/api/overview.ts`), never a 403.
+- **Four sale sources (owner law, 2026-09-28)** — `orders.sale_source`:
+  **AlterCPA** (lead intake; an ad lead from an existing client is still a LEAD) ·
+  **ElyonCRM** (an order created FIRST in Elyon is ours even if it's at MEX — never decide an
+  order's source from its MEX series) · **Web shop** (the `web_orders` mirror of naturatherapy.mk —
+  NOT orders; the live shop gets no changes) · **Teleshop/Other** (collabBox orders + MEX parcels
+  with no order). Unlinked BIO NATURAL 9110/9103 parcels are the neutral split "Elyon account —
+  unlinked", credited to nobody.
+- **"Нарачки" = only real orders**: confirmed / packed / shipped / paid, plus returned (it
+  shipped). Cancels and trash are never orders or order value — shown apart as Откажани (red dot) /
+  Во корпа (grey); Вратени = pink dot; worked decisions = "Обработени".
+- **Money is a COHORT**: the sales made in the period (sale day = `sold_at`, else AlterCPA
+  `decided_at`, else `confirmed_at`, else `created_at`, Skopje days), split into parts that sum
+  EXACTLY to the total — Наплатено (MEX 2) · Кај курирот (MEX 1/4/10; problem 3/9/13 inside it) ·
+  Спакувано (MEX 8) · Во магацин за пакување (confirmed, no parcel) · Вратено (MEX 7). **MEX status
+  beats CRM status.** Value = parcel COD (`formatDenari`, already denari), else price × 61.5
+  (`formatMoney`); web = shop total. The leads funnel and MEX cash-flow are separate, labelled
+  figures. MEX alone decides paid/returned; AlterCPA decides only confirmed-or-dead.
+- **The 7-day no-parcel rule is in APPLY mode (owner, 28.09; `20260938000000`).** An AlterCPA
+  approval with no MEX parcel 7 days later is cancelled `no_parcel_7d` nightly at 21:10 Skopje; a
+  parcel that appears later sends it back to shipped and MEX takes over. Same-phone unlinked
+  parcel → `needs_linking`, never cancelled.
+- **COD ≠ CRM price → MEX is right** (owner): the CRM price follows the parcel COD, except when COD =
+  price × 61.5 + 150 (the delivery fee) or COD is 0.
+- **Test phones 070123456 / 23123123** are never in any report (owner, 28.09): their CRM orders are
+  deleted (snapshot first); their web orders and MEX parcels stay in the shop/register but are
+  excluded from every figure.
+- **Bulk writes must not bump `orders.updated_at`** (GET /call-agains reads it as last_call_at):
+  `SET LOCAL elyon.keep_updated_at = 'on'` (honoured by `update_updated_at_column()` since
+  `20260939000300`). `session_replication_role` cannot be set inside functions on MK. Run bulk work
+  in the quiet window after 20:55 Skopje and never while `recompute_all_segments` runs.
+- **Deferred by the owner — do not touch:** payouts / bonus / commission math; VAT, costs and
+  lead cost (he sets them later); the collabBox daily sync (paused — its migration waits in
+  `supabase/paused/`).
 - Search the code for `TODO(mk)` to find every unfinished real-value spot.
 
 ## Grok Skills System
