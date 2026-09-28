@@ -84,8 +84,8 @@ target **explicitly** and verify it before running:
 - **Timezone:** `Europe/Skopje` (CET/CEST) — not Europe/Sofia (EET, one hour ahead).
 - **Phone:** country code **+389** — not +359. Last-8 matching is unchanged.
 - **Language:** default UI is Macedonian (`mk`); en/sq/bg also shipped.
-- **VAT:** 18% standard. ⚠️ Confirm with the accountant whether supplements fall under the
-  preferential 5%/10% band — `VAT_RATE` feeds every profit report.
+- **VAT: 18% — CONFIRMED by the owner on 28.09.2026** (supplements are not on the 5%/10% band).
+  `VAT_RATE` (0.18) feeds every profit report; `VAT_CONFIRMED` in `insightsProfit.ts` is true.
 - **Login email domain:** `elyon-mk.local` (placeholder — see TODO).
 - **Couriers/cities:** MEX Poshta is the carrier. The /orders "MEX Import CSV" emits MEX's own
   8-column portal template (contract: `src/lib/mexImportCsv.ts` — Latin, integer denari, no
