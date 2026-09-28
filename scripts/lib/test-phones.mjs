@@ -8,7 +8,7 @@
  *   TEST_PHONES          the two numbers, as last-8 keys (the project's phone canon —
  *                        .grok/skills/elyon-phone-normalization). The database twin for
  *                        reports is public.report_excluded_phones + is_report_excluded_phone()
- *                        (migration 20260940000300); keep the two lists equal.
+ *                        (migration 20260939000700); keep the two lists equal.
  *   DEPENDENTS           every table that points at orders(id) — the FK ones with their ON
  *                        DELETE rule (read from the migrations, re-checked live against
  *                        pg_constraint before an apply) and the soft references — and what the

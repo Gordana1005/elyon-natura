@@ -19,7 +19,7 @@ describe('the test numbers, matched the way the rest of the code matches phones 
     expect(TEST_PHONES.map((t: Row) => t.national)).toEqual(['070123456', '023123123']);
   });
   it('the migration seeds the SAME list reports exclude (one list, two twins)', () => {
-    const sql = readFileSync(join(process.cwd(), 'supabase/migrations/20260940000300_report_excluded_phones.sql'), 'utf8');
+    const sql = readFileSync(join(process.cwd(), 'supabase/migrations/20260939000700_report_excluded_phones.sql'), 'utf8');
     const seeded = [...sql.matchAll(/\('(\d{8})', 'Test phone/g)].map((m) => m[1]);
     expect(seeded).toEqual([...TEST_PHONE8S]);
     expect(sql).toMatch(/CREATE OR REPLACE FUNCTION public\.is_report_excluded_phone\(p_phone text\)\s+RETURNS boolean/);

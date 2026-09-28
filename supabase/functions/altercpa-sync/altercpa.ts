@@ -386,7 +386,7 @@ const TEST_NAME = /^\s*(test\b|тест|проб|probn)/i;
  * The owner's own test phones (ruling 2026-09-28): 070 123 456 and 23 123 123,
  * matched on the last 8 digits like every phone match here. Their CRM orders
  * are deleted (scripts/repair-test-phones.mjs) and they never count in a
- * report (public.report_excluded_phones, 20260940000300) — a lead of theirs
+ * report (public.report_excluded_phones, 20260939000700) — a lead of theirs
  * must not bring an order back, so it stays in the ledger as test_order.
  */
 export const TEST_PHONE8: ReadonlySet<string> = new Set(["70123456", "23123123"]);

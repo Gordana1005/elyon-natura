@@ -104,7 +104,7 @@ AS $fn$
 $fn$;
 
 COMMENT ON FUNCTION public.is_report_excluded_phone(text) IS
-  'THE report exclusion (owner decision 2026-09-28, test phones): true when the phone — any format, or an 8-digit phone8 — has at least 8 digits and its last 8 are in public.report_excluded_phones. Never NULL. Fixed contract: every report (orders, web_orders, mex_parcels) filters WHERE NOT is_report_excluded_phone(<phone>). Set-based twin: report_excluded_phone8s(). Migration 20260940000300.';
+  'THE report exclusion (owner decision 2026-09-28, test phones): true when the phone — any format, or an 8-digit phone8 — has at least 8 digits and its last 8 are in public.report_excluded_phones. Never NULL. Fixed contract: every report (orders, web_orders, mex_parcels) filters WHERE NOT is_report_excluded_phone(<phone>). Set-based twin: report_excluded_phone8s(). Migration 20260939000700.';
 
 CREATE OR REPLACE FUNCTION public.report_excluded_phone8s()
 RETURNS text[]
@@ -118,7 +118,7 @@ AS $fn$
 $fn$;
 
 COMMENT ON FUNCTION public.report_excluded_phone8s() IS
-  'The phone8 values of public.report_excluded_phones as text[] — for big scans: WHERE NOT (right(regexp_replace(phone, ''[^0-9]'', '''', ''g''), 8) = ANY ((SELECT public.report_excluded_phone8s())::text[])), evaluated once per statement (the ::text[] cast is required). Same list as is_report_excluded_phone(text). Migration 20260940000300.';
+  'The phone8 values of public.report_excluded_phones as text[] — for big scans: WHERE NOT (right(regexp_replace(phone, ''[^0-9]'', '''', ''g''), 8) = ANY ((SELECT public.report_excluded_phone8s())::text[])), evaluated once per statement (the ::text[] cast is required). Same list as is_report_excluded_phone(text). Migration 20260939000700.';
 
 REVOKE ALL ON FUNCTION public.is_report_excluded_phone(text) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.report_excluded_phone8s() FROM PUBLIC, anon;

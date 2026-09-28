@@ -23,7 +23,7 @@
  *     partner postbacks and the repair / 7-day ledgers are kept;
  *   * leaves web_orders (the shop mirror), mex_parcels rows, customer_profiles and the segment
  *     engine alone: reports exclude the phones through public.is_report_excluded_phone()
- *     (migration 20260940000300), and the AFTER DELETE trigger's recompute drops the phones
+ *     (migration 20260939000700), and the AFTER DELETE trigger's recompute drops the phones
  *     from every non-static prediction list once they have no order left.
  *
  *   node scripts/repair-test-phones.mjs                                # dry run → CSVs + run id
@@ -259,7 +259,7 @@ async function main() {
   console.log(bold('\nKept on the phones (the shop and MEX are never touched)'));
   console.log(`  web orders ${facts.web_orders} · MEX parcels ${facts.mex_parcels} (${facts.mex_parcels_linked} linked to an order now; delivered COD ${Number(facts.mex_delivered_cod).toLocaleString('de-DE')} ден)` +
     ` · customer profiles ${facts.profiles} · prediction-list memberships ${facts.segment_members} (the engine drops the non-static ones once no order is left)`);
-  console.log(`  report exclusion: ${facts.has_table && facts.has_helper ? green('public.report_excluded_phones + is_report_excluded_phone() are live') : yellow('migration 20260940000300 is NOT applied yet — reports still count these phones')}`);
+  console.log(`  report exclusion: ${facts.has_table && facts.has_helper ? green('public.report_excluded_phones + is_report_excluded_phone() are live') : yellow('migration 20260939000700 is NOT applied yet — reports still count these phones')}`);
 
   const stamp = fileStamp();
   const ordersCsv = writeCsv(`${KEY}-orders-${APPLY ? 'apply-' : ''}${stamp}.csv`, plan.rows.map((r) => ({
@@ -297,7 +297,7 @@ async function main() {
   // Order matters: a deleted order's delivered parcel becomes an unlinked, "MEX-only" parcel —
   // counted as MEX-only cash by every report that does not exclude the phone yet.
   if (!facts.has_table || !facts.has_helper) {
-    die('migration 20260940000300 (public.report_excluded_phones + is_report_excluded_phone) is not applied —\n' +
+    die('migration 20260939000700 (public.report_excluded_phones + is_report_excluded_phone) is not applied —\n' +
       '  apply it FIRST, or the deleted orders\' parcels start counting as MEX-only sales in the reports.');
   }
   requireQuietWindow({ override: !!args['outside-quiet-window'] });
@@ -354,7 +354,7 @@ async function main() {
   printTable([v]);
   console.log(`  orders left on the phones: ${v.orders_left} (expected = the ${plan.rows.length - toDelete.length} listed + ${stats.skipped.length} left alone)`);
   console.log(yellow(`  Undo: node scripts/repair-test-phones.mjs --restore ${args.run} [--apply]`));
-  console.log(yellow('  Next: node scripts/engine-fixture-mk.mjs; apply 20260940000300 if the report exclusion is not live yet.\n'));
+  console.log(yellow('  Next: node scripts/engine-fixture-mk.mjs; apply 20260939000700 if the report exclusion is not live yet.\n'));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
