@@ -395,11 +395,15 @@ export interface OrdersDrillParams {
   prediction_list?: string;
   product?: string;
   city?: string;
+  /** Insights sale cohort parts (csv of paid | courier | … | total): with it,
+   *  sold_from / sold_to are the cohort's sale day and the list holds exactly
+   *  the order part the cohort counted (migration 20260940000000). */
+  cohort_bucket?: string;
 }
 export const ORDERS_DRILL_KEYS: (keyof OrdersDrillParams)[] = [
   'sale_source', 'sale_source_detail', 'outcome', 'sold_by_person_id', 'created_from', 'created_to',
   'sold_from', 'sold_to', 'cash_from', 'cash_to', 'proof', 'paid_basis', 'attention', 'team_key',
-  'cpa_webmaster', 'cpa_stream', 'prediction_list', 'product', 'city',
+  'cpa_webmaster', 'cpa_stream', 'prediction_list', 'product', 'city', 'cohort_bucket',
 ];
 export const apiGetOrders = (params?: { status?: string; search?: string; agent_id?: string; source?: string; cpa_webmaster?: string; cpa_offer?: string; cpa_stream?: string; ready_only?: boolean; lead_only?: boolean; from?: string; to?: string; price_min?: number; price_max?: number; page?: number; limit?: number; drill?: OrdersDrillParams }) => {
   const sp = new URLSearchParams();

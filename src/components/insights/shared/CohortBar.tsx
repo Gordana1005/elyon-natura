@@ -1,13 +1,16 @@
 import { useId, type ReactNode } from 'react';
 import {
-  AlertTriangle, Ban, BadgeCheck, CheckCircle2, OctagonAlert, PackageOpen, Repeat2, Sigma, Tag, Truck, Undo2,
+  AlertTriangle, Ban, BadgeCheck, CheckCircle2, OctagonAlert, PackageOpen, Repeat2, Sigma, Tag, Trash2, Truck, Undo2,
   type LucideIcon,
 } from 'lucide-react';
+import type { OverviewSparkPoint } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { DrillLink } from '../overview/DrillLink';
 import { DeltaBadge } from '../overview/KpiRow';
 import { delta } from '../overview/model';
+import { Sparkline } from '../overview/Sparkline';
 import { ClockCaption } from './ClockCaption';
+import { OrdersPartLink, cohortWhy } from './CohortLinks';
 import { StackedBar, type StackSegment } from './StackedBar';
 import { COHORT_HATCH, COHORT_TONE, OUTSIDE_TONE, STATUS_TEXT } from './cohortPalette';
 import {
@@ -28,6 +31,7 @@ export const COHORT_ICON: Record<CohortBucketKey | CohortOutsideKey, LucideIcon>
   to_pack: PackageOpen,
   returned: Undo2,
   cancelled_after_sale: Ban,
+  trashed_after_sale: Trash2,
   replacement: Repeat2,
 };
 
@@ -37,7 +41,7 @@ const TILE_TEXT: Partial<Record<CohortBucketKey, string>> = {
 };
 
 export interface CohortBarProps {
-  total: { count: number; value_mkd?: number | null; cod_mkd?: number | null };
+  total: { count: number; value_mkd?: number | null; cod_mkd?: number | null; orders?: number | null; web?: number | null; mex_only?: number | null };
   buckets: CohortBucket[];
   /** Cancelled after sale / replacements — shown apart, never in the total. */
   outside?: CohortOutside[];
@@ -51,6 +55,8 @@ export interface CohortBarProps {
   prev?: { count: number; value_mkd?: number | null } | null;
   /** "vs 15.09 – 21.09.2026". */
   prevLabel?: string | null;
+  /** The period's sales per day (денари for owners, else counts) — the hero's sparkline. */
+  spark?: OverviewSparkPoint[] | null;
   /** Heading; defaults to "Продадено во периодот". */
   title?: ReactNode;
   /** A line under the heading (e.g. "only the selected sources"). */
@@ -68,27 +74,28 @@ export interface CohortBarProps {
  * into — Наплатено · Кај курирот (of which a problem) · Спакувано, чека курир ·
  * Во магацин за пакување · Вратено (+ unproven / legacy paid when there are
  * any). The parts add up to the total, exactly; the sum is checked and a
- * mismatch is shown, never hidden. Cancelled after sale and replacements sit
- * OUTSIDE the total, each with its own dot.
+ * mismatch is shown, never hidden. Cancelled (red) / trashed (grey) after the
+ * sale and replacements sit OUTSIDE the total, each with its own dot. A number
+ * links to /orders only when it is all orders; otherwise it offers its order
+ * part ("N во Нарачки") and says in its tooltip what no list holds.
  */
 export function CohortBar({
-  total, buckets, outside, money, rows = [], range, prev, prevLabel, title, note, variant = 'full', barLabel, f, className,
+  total, buckets, outside, money, rows = [], range, prev, prevLabel, spark, title, note, variant = 'full', barLabel, f, className,
 }: CohortBarProps) {
   const { t } = f;
   const titleId = useId();
   const parts = bucketParts(buckets);
-  const tot: Part = sumParts([{ count: total.count, value_mkd: total.value_mkd ?? null, cod_mkd: total.cod_mkd ?? null }]);
+  const tot: Part = sumParts([{
+    count: total.count, value_mkd: total.value_mkd ?? null, cod_mkd: total.cod_mkd ?? null,
+    orders: total.orders ?? null, web: total.web ?? null, mex_only: total.mex_only ?? null,
+  }]);
   const byValue = canWeighByValue(Object.values(parts), money);
   const check = checkSum({ count: tot.count, ...(tot.value_mkd != null ? { value_mkd: tot.value_mkd } : {}) }, buckets);
   if (!check.ok && import.meta.env.DEV) console.error('[cohort] parts do not add up to the total', check);
 
   const drill = (key: DrillKey | DrillKey[]): CohortDrill =>
-    range ? cohortDrill(rows, key, range) : { href: null, blocked: 'none', mexOnly: 0 };
-  const whyNoLink = (d: CohortDrill): string | undefined =>
-    d.blocked === 'web' ? t('insights.common.cohort.noLinkWeb')
-      : d.blocked === 'mex_only' ? t('insights.common.cohort.noLinkMexOnly')
-        : d.mexOnly > 0 && d.href ? t('insights.common.cohort.partialLink', { n: f.int(d.mexOnly) })
-          : undefined;
+    range ? cohortDrill(rows, key, range) : { href: null, blocked: 'none', ordersHref: null, orders: 0, web: 0, mexOnly: 0 };
+  const whyNoLink = (d: CohortDrill): string | undefined => cohortWhy(f, d);
 
   const share = (n: number) => f.share(n, tot.count);
   const moneyOf = (p: Part) => (money && p.value_mkd != null ? f.den(p.value_mkd) : null);
@@ -118,6 +125,7 @@ export function CohortBar({
     : null;
   const outs = outsideParts(outside);
   const hasOutside = !!outside;
+  const composed = tot.orders != null && tot.web != null && tot.mex_only != null;
 
   return (
     <section aria-labelledby={titleId} className={cn('space-y-3 rounded-xl border bg-card p-4 shadow-sm sm:p-5', className)}>
@@ -132,18 +140,30 @@ export function CohortBar({
         {prevLabel && <span className="text-[11px] tabular-nums text-muted-foreground">{prevLabel}</span>}
       </div>
 
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <DrillLink
-          href={totalDrill.href}
-          title={whyNoLink(totalDrill)}
-          className="break-words text-[clamp(2rem,7vw,3rem)] font-semibold leading-none tracking-tight tabular-nums text-card-foreground"
-        >
-          {hero}
-        </DrillLink>
-        {money && tot.value_mkd != null && (
-          <span className="text-sm tabular-nums text-muted-foreground">{t('insights.common.cohort.salesN', { n: f.int(tot.count) })}</span>
-        )}
-        <DeltaBadge d={d} f={f} />
+      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+        <div className="min-w-0 space-y-1">
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <DrillLink
+              href={totalDrill.href}
+              title={whyNoLink(totalDrill)}
+              className="break-words text-[clamp(2rem,7vw,3rem)] font-semibold leading-none tracking-tight tabular-nums text-card-foreground"
+            >
+              {hero}
+            </DrillLink>
+            {money && tot.value_mkd != null && (
+              <span className="text-sm tabular-nums text-muted-foreground">{t('insights.common.cohort.salesN', { n: f.int(tot.count) })}</span>
+            )}
+            <DeltaBadge d={d} f={f} />
+          </div>
+          {/* What the total is made of — why only its order part opens a list. */}
+          {composed && (
+            <p className="flex flex-wrap items-baseline gap-x-2 text-[11px] tabular-nums text-muted-foreground">
+              <span>{t('insights.common.cohort.composition', { orders: f.int(tot.orders), web: f.int(tot.web), mex: f.int(tot.mex_only) })}</span>
+              <OrdersPartLink drill={totalDrill} f={f} />
+            </p>
+          )}
+        </div>
+        {spark && spark.length > 1 && <Sparkline points={spark} accentClass={COHORT_TONE.paid} className="w-40 max-w-full" />}
       </div>
 
       <StackedBar segments={segments} label={label} className="h-4" />
@@ -158,6 +178,7 @@ export function CohortBar({
             const dProblem = drill('courier_problem');
             return (
               <Tile key={k} k={k} label={f.bucketLabel('courier')} part={both} share={share(both.count)} money={moneyOf(both)} drill={dAll} why={whyNoLink(dAll)} f={f}>
+                <OrdersPartLink drill={dAll} label={f.bucketLabel('courier')} f={f} />
                 {problem.count > 0 && (
                   <span className={cn('inline-flex items-center gap-1 text-[11px] font-medium', STATUS_TEXT.warning)}>
                     <span className={cn('h-2 w-2 shrink-0 rounded-full', COHORT_TONE.courier_problem)} aria-hidden />
@@ -175,6 +196,7 @@ export function CohortBar({
           return (
             <Tile key={k} k={k} label={f.bucketLabel(k)} part={p} share={share(p.count)} money={moneyOf(p)} drill={dk} why={whyNoLink(dk)}
               alert={k === 'paid_unproven' && p.count > 0} f={f}>
+              <OrdersPartLink drill={dk} label={f.bucketLabel(k)} f={f} />
               {k === 'paid' && money && p.cod_mkd != null && (
                 <span className="text-[11px] tabular-nums text-muted-foreground">{t('insights.common.cohort.codLine', { value: f.den(p.cod_mkd) })}</span>
               )}
@@ -202,8 +224,9 @@ export function CohortBar({
                   <span className={cn('h-2.5 w-2.5 shrink-0 rounded-full', OUTSIDE_TONE[k])} aria-hidden />
                   <Icon className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
                   <span>{f.outsideLabel(k)}</span>
-                  <DrillLink href={dk.href} title={whyNoLink(dk)} className="font-semibold tabular-nums">{f.int(p.count)}</DrillLink>
-                  {k === 'cancelled_after_sale' && moneyOf(p) && <span className="tabular-nums text-muted-foreground">· {moneyOf(p)}</span>}
+                  <DrillLink href={dk.href} title={whyNoLink(dk)} ariaLabel={`${f.outsideLabel(k)}: ${f.int(p.count)}`} className="font-semibold tabular-nums">{f.int(p.count)}</DrillLink>
+                  {k !== 'replacement' && moneyOf(p) && p.count > 0 && <span className="tabular-nums text-muted-foreground">· {moneyOf(p)}</span>}
+                  <OrdersPartLink drill={dk} label={f.outsideLabel(k)} f={f} />
                 </span>
               );
             })}

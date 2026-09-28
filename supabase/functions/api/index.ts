@@ -5545,16 +5545,22 @@ async function handleRequest(req: Request): Promise<Response> {
       // Insights cohort drill (migration 20260940000000, insightsCommon.ts):
       //   cohort_bucket  csv of paid|paid_unproven|paid_legacy|courier|
       //                  courier_problem|label|to_pack|returned|
-      //                  cancelled_after_sale|replacement (total = the eight)
+      //                  cancelled_after_sale|trashed_after_sale|replacement
+      //                  (total = the eight in-total buckets)
       // With it, sold_from/_to switch to the COHORT sale day (sold_at → AlterCPA
-      // ledger → confirmed_at → created_at). Both are the PostgREST twins of
-      // insights_sale_rows' order part, so the list is exactly what the cohort
-      // counted as orders (web orders and MEX-only parcels are not orders).
+      // ledger → confirmed_at → created_at), and disposition rows and the
+      // owner's test phones are never listed. All of it is IC.cohortOrdersFilter
+      // — the PostgREST twin of insights_sale_rows' order part — so the list is
+      // exactly what the cohort counted as orders (web orders and MEX-only
+      // parcels are not orders).
       const ovCohort = IC.parseCohortBucketParam(url.searchParams.get("cohort_bucket"));
       if (!ovCohort.ok) return json({ error: `Invalid cohort_bucket: ${ovCohort.bad}` }, 400);
       let ovCohortEx: IC.CohortExceptions | null = null;
       if (ovCohort.values.length) {
-        const { data: exData, error: exErr } = await adminClient.rpc("insights_cohort_order_exceptions");
+        const exWin = ovSoldFrom && ovSoldTo
+          ? { p_from: OV.skopjeMidnightIso(ovSoldFrom), p_to_end: OV.skopjeDayEndIso(ovSoldTo) }
+          : {};
+        const { data: exData, error: exErr } = await adminClient.rpc("insights_cohort_order_exceptions", exWin);
         if (exErr) return json({ error: `insights_cohort_order_exceptions: ${sanitizeDbError(exErr)}` }, 500);
         ovCohortEx = IC.parseCohortExceptions(exData);
         if (!ovCohortEx) return json({ error: "cohort_exceptions_unusable" }, 503);
@@ -5652,14 +5658,18 @@ async function handleRequest(req: Request): Promise<Response> {
       if (ovCreatedFrom) query = query.gte("created_at", OV.skopjeMidnightIso(ovCreatedFrom));
       if (ovCreatedTo) query = query.lte("created_at", OV.skopjeDayEndIso(ovCreatedTo));
       if (ovCohortEx) {
-        const cohortOr = IC.cohortBucketOrFilter(ovCohort.values, ovCohortEx.web_claimed);
-        query = query.or(IC.COHORT_UNIVERSE_OR);
-        if (cohortOr) query = query.or(cohortOr);
-      }
-      if (ovSoldFrom && ovSoldTo) {
-        query = query.or(ovCohortEx
-          ? IC.cohortSaleWindowOrFilter(OV.skopjeMidnightIso(ovSoldFrom), OV.skopjeDayEndIso(ovSoldTo), ovCohortEx.ledger)
-          : OV.soldWindowOrFilter(OV.skopjeMidnightIso(ovSoldFrom), OV.skopjeDayEndIso(ovSoldTo)));
+        const cf = IC.cohortOrdersFilter(ovCohort.values, ovCohortEx, ovSoldFrom && ovSoldTo
+          ? { fromIso: OV.skopjeMidnightIso(ovSoldFrom), toEndIso: OV.skopjeDayEndIso(ovSoldTo) }
+          : null);
+        // Too many undated ledger orders (the seller-stamping cron dates them) would
+        // make a URL the gateway refuses — say why rather than fail opaquely.
+        if (IC.cohortFilterChars(cf) > IC.COHORT_FILTER_MAX_CHARS) {
+          return json({ error: "cohort_filter_too_long", detail: `${ovCohortEx.ledger.length} ledger-dated orders without sold_at` }, 503);
+        }
+        for (const expr of cf.or) query = query.or(expr);
+        if (cf.notIds.length) query = query.not("id", "in", `(${cf.notIds.join(",")})`);
+      } else if (ovSoldFrom && ovSoldTo) {
+        query = query.or(OV.soldWindowOrFilter(OV.skopjeMidnightIso(ovSoldFrom), OV.skopjeDayEndIso(ovSoldTo)));
       }
       if (ovCashFrom && ovCashTo) {
         query = query.or(OV.cashWindowOrFilter(OV.skopjeMidnightIso(ovCashFrom), OV.skopjeDayEndIso(ovCashTo)));

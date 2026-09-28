@@ -35,8 +35,8 @@ import { CohortBar } from '../shared/CohortBar';
 import { CashFlowCard, LeadsInCard } from '../shared/CohortSecondary';
 import { CohortSources } from './CohortSources';
 import { QualityRail } from '../shared/QualityRail';
-import { cohortView, stripCohortMoney } from '../shared/cohortModel';
-import type { Cohort } from '../shared/cohortTypes';
+import { cohortDrill, cohortView, stripCohortMoney } from '../shared/cohortModel';
+import type { Cohort, CohortQualityKind } from '../shared/cohortTypes';
 
 type FixtureMode = '1' | 'nomoney';
 
@@ -169,6 +169,17 @@ export default function OverviewTab() {
   const cohort = (data as OverviewWithCohort | undefined)?.cohort ?? null;
   const cohortMoney = money && cohort?.meta?.money !== false;
   const cv = useMemo(() => (cohort ? cohortView(cohort, filters.sources) : null), [cohort, filters.sources]);
+  // The hero's sparkline: sales per sale day (денари for owners, counts otherwise) —
+  // the whole business only (the api sends no per-source series).
+  const cohortSpark = useMemo(
+    () => (cohort && cv && !cv.filtered
+      ? (cohort.spark ?? []).map((p) => ({ d: p.d, v: cohortMoney && p.value_mkd != null ? p.value_mkd : p.count }))
+      : null),
+    [cohort, cv, cohortMoney],
+  );
+  // A quality card opens a list only when /orders holds exactly its rows.
+  const qualityHref = (kind: CohortQualityKind): string | null =>
+    kind === 'unproven_paid' && cv ? cohortDrill(cv.rows, 'paid_unproven', filters.range).href : null;
 
   const teams = useMemo(() => (data?.teams ?? []), [data]);
   const shownTeams = filters.teams.length ? teams.filter((tm) => filters.teams.includes(tm.team_key)) : teams;
@@ -236,6 +247,7 @@ export default function OverviewTab() {
                 rows={cv.rows} range={filters.range}
                 prev={filters.compare && !cv.filtered ? cohort.prev?.total ?? null : null}
                 prevLabel={filters.compare && !cv.filtered ? prevLabel : null}
+                spark={cohortSpark}
                 note={cv.filtered ? t('insights.common.cohort.filtered') : null}
                 f={f}
               />
@@ -267,7 +279,7 @@ export default function OverviewTab() {
             teams={teams}
             f={f}
           />
-          {cohort && <QualityRail items={cohort.quality} money={cohortMoney} f={f} />}
+          {cohort && <QualityRail items={cohort.quality} money={cohortMoney} hrefFor={qualityHref} f={f} />}
           <AttentionRail items={data.attention ?? []} money={money} teamPeople={teamPeople} f={f} />
         </div>
       )}

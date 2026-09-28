@@ -4,9 +4,10 @@
  */
 import { ORDERS_DRILL_KEYS } from '@/lib/api';
 import {
-  COHORT_BUCKETS, COHORT_OUTSIDE, COHORT_SALE_SOURCES, COHORT_SOURCES,
-  type Cohort, type CohortBucket, type CohortBucketKey, type CohortLeadsIn, type CohortOutside,
+  ALL_SALE_SOURCES, COHORT_BUCKETS, COHORT_OUTSIDE, COHORT_SALE_SOURCES, COHORT_SOURCES,
+  type Cohort, type CohortBucket, type CohortBucketKey, type CohortComposition, type CohortLeadsIn, type CohortOutside,
   type CohortOutsideKey, type CohortQuality, type CohortQualityKind, type CohortSourceKey, type CohortSourceRow,
+  type CohortSplit,
 } from './cohortTypes';
 import type { DayRange } from './period';
 
@@ -22,12 +23,25 @@ export const CORE_TILES: CohortBucketKey[] = ['paid', 'courier', 'label', 'to_pa
  *  MEX 13 "Rejected" stays here until MEX says 7). */
 export const OPTIONAL_TILES: CohortBucketKey[] = ['paid_legacy', 'paid_unproven'];
 
-export interface Part { count: number; value_mkd: number | null; cod_mkd: number | null }
+export interface Part {
+  count: number;
+  value_mkd: number | null;
+  cod_mkd: number | null;
+  /** What it is made of (orders + web + mex_only = count); null when the api did not say. */
+  orders?: number | null;
+  web?: number | null;
+  mex_only?: number | null;
+}
 
-const partOf = (b: { count?: number; value_mkd?: number; cod_mkd?: number } | undefined): Part => ({
+type PartLike = { count?: number; value_mkd?: number | null; cod_mkd?: number | null } & CohortComposition;
+
+const partOf = (b: PartLike | undefined): Part => ({
   count: num(b?.count),
   value_mkd: hasNum(b?.value_mkd) ? b!.value_mkd! : null,
   cod_mkd: hasNum(b?.cod_mkd) ? b!.cod_mkd! : null,
+  orders: hasNum(b?.orders) ? b!.orders! : null,
+  web: hasNum(b?.web) ? b!.web! : null,
+  mex_only: hasNum(b?.mex_only) ? b!.mex_only! : null,
 });
 
 /** Every in-total bucket, in the bar's order, zeros included. */
@@ -43,15 +57,21 @@ export function outsideParts(outside: CohortOutside[] | undefined): Record<Cohor
   return out;
 }
 
-/** Σ of parts; a money sum is null when no part carries money (non-owner). */
+/** Σ of parts; a money sum is null when no part carries money (non-owner), a
+ *  composition sum is null as soon as one part does not say what it is made of. */
 export function sumParts(parts: Part[]): Part {
   let count = 0, value = 0, cod = 0, anyValue = false, anyCod = false;
+  const comp = { orders: 0 as number | null, web: 0 as number | null, mex_only: 0 as number | null };
   for (const p of parts) {
     count += p.count;
     if (p.value_mkd != null) { value += p.value_mkd; anyValue = true; }
     if (p.cod_mkd != null) { cod += p.cod_mkd; anyCod = true; }
+    for (const k of ['orders', 'web', 'mex_only'] as const) {
+      const v = p[k];
+      comp[k] = comp[k] == null || v == null ? null : comp[k]! + v;
+    }
   }
-  return { count, value_mkd: anyValue ? value : null, cod_mkd: anyCod ? cod : null };
+  return { count, value_mkd: anyValue ? value : null, cod_mkd: anyCod ? cod : null, ...comp };
 }
 
 /** Which tiles a bar shows, in order. */
@@ -97,7 +117,9 @@ export interface CohortView {
   filtered: boolean;
 }
 
-const EMPTY_LEADS: CohortLeadsIn = { came_in: 0, became_sales: 0, cancelled: 0, trashed: 0, open: 0, conversion: null };
+const EMPTY_LEADS: CohortLeadsIn = {
+  came_in: 0, became_sales: 0, cancelled: 0, trashed: 0, open: 0, other: 0, disposition: 0, conversion: null,
+};
 
 export function sumLeads(list: CohortLeadsIn[]): CohortLeadsIn {
   const out = { ...EMPTY_LEADS };
@@ -107,16 +129,26 @@ export function sumLeads(list: CohortLeadsIn[]): CohortLeadsIn {
     out.cancelled += num(l?.cancelled);
     out.trashed += num(l?.trashed);
     out.open += num(l?.open);
+    out.other = num(out.other) + num(l?.other);
+    out.disposition = num(out.disposition) + num(l?.disposition);
   }
   out.conversion = out.came_in > 0 ? out.became_sales / out.came_in : null;
   return out;
 }
+
+/** "Обработени": the leads that got a decision — became a sale, were cancelled
+ *  or trashed (an ElyonCRM "no" call is a cancel); open ones are not worked yet. */
+export const workedOf = (l: CohortLeadsIn | null | undefined) =>
+  num(l?.became_sales) + num(l?.cancelled) + num(l?.trashed);
 
 const toBuckets = (parts: Record<string, Part>, keys: readonly string[]) =>
   keys.map((k) => ({
     key: k, count: parts[k].count,
     ...(parts[k].value_mkd != null ? { value_mkd: parts[k].value_mkd } : {}),
     ...(parts[k].cod_mkd != null ? { cod_mkd: parts[k].cod_mkd } : {}),
+    ...(parts[k].orders != null ? { orders: parts[k].orders } : {}),
+    ...(parts[k].web != null ? { web: parts[k].web } : {}),
+    ...(parts[k].mex_only != null ? { mex_only: parts[k].mex_only } : {}),
   }));
 
 /**
@@ -165,41 +197,53 @@ export const ordersSupportsCohortDrill = (keys: readonly string[] = ORDERS_DRILL
   keys.includes(COHORT_DRILL_PARAM);
 
 /**
- * Split keys that are PARCELS, not orders (MEX-only: NATURA teleshop/social,
- * BIO NATURAL unlinked LEADS / LEADS-OUT, M-prefix): the backend names them
- * `mex_*` or `unlinked_*`. They never link to /orders.
+ * A split made of MEX parcels with no order (the api's kind 'mex': mex_teleshop,
+ * mex_social, mex_web, elyon_unlinked, mex_other). It never links to /orders.
  */
-export const isMexOnlySplit = (key: string) => /^(mex|unlinked)/i.test(key);
+export const isMexOnlySplit = (s: Pick<CohortSplit, 'key' | 'kind'> | string) => {
+  const sp = typeof s === 'string' ? { key: s } : s;
+  return sp.kind ? sp.kind === 'mex' : /^(mex_|unlinked|elyon_unlinked)/i.test(sp.key);
+};
 
-export const mexOnlyCount = (row: Pick<CohortSourceRow, 'splits'>) =>
-  (row.splits ?? []).reduce((a, s) => a + (isMexOnlySplit(s.key) ? num(s.count) : 0), 0);
+/** MEX parcels with no order among a source's sales. */
+export const mexOnlyCount = (row: Pick<CohortSourceRow, 'splits'> & { total?: CohortSourceRow['total'] }) =>
+  hasNum(row.total?.mex_only) ? row.total!.mex_only!
+    : (row.splits ?? []).reduce((a, s) => a + (isMexOnlySplit(s) ? num(s.count) : 0), 0);
 
-export type DrillBlock = 'none' | 'unsupported' | 'web' | 'mex_only';
+/** Why a number has no link of its own: nothing there · /orders cannot filter
+ *  the cohort yet · (part of it is) the web mirror · (part of it is) MEX
+ *  parcels with no order · both · the api did not say what it is made of. */
+export type DrillBlock = 'none' | 'unsupported' | 'web' | 'mex_only' | 'mixed' | 'unknown';
 
 export interface CohortDrill {
+  /** The number itself opens /orders — ONLY when every sale behind it is an
+   *  order, so the list holds exactly the number (never a wider or narrower one). */
   href: string | null;
-  /** Why there is no link. */
   blocked: DrillBlock | null;
-  /** MEX-only parcels in the contributing sources: the list shows the orders
-   *  only, so it can hold fewer rows than the number on the tile. */
+  /** A number that is only partly orders: the exact link to that part, and its size. */
+  ordersHref: string | null;
+  orders: number;
+  /** What no list holds: web-shop orders (the mirror) and MEX parcels with no order. */
+  web: number;
   mexOnly: number;
 }
 
 export type DrillKey = CohortBucketKey | CohortOutsideKey | 'total';
 
-const countIn = (row: CohortSourceRow, keys: DrillKey[]): number => keys.reduce((a, key) => {
-  if (key === 'total') return a + num(row.total?.count);
-  if ((COHORT_OUTSIDE as readonly string[]).includes(key)) return a + num(row.outside?.find((o) => o.key === key)?.count);
-  return a + num(row.buckets?.find((b) => b.key === key)?.count);
-}, 0);
+const partIn = (row: CohortSourceRow, key: DrillKey): Part => {
+  if (key === 'total') return partOf(row.total);
+  if ((COHORT_OUTSIDE as readonly string[]).includes(key)) return partOf(row.outside?.find((o) => o.key === key));
+  return partOf(row.buckets?.find((b) => b.key === key));
+};
 
 /** `/orders?cohort_bucket=…&sale_source=…&sold_from=…&sold_to=…` — several parts
- *  = any of them (comma list); 'total' = the whole cohort (no bucket filter). */
+ *  = any of them (comma list); 'total' = the eight in-total buckets. Every
+ *  sale_source at once is sent as none (as the api's own links do). */
 export function cohortHref(key: DrillKey | DrillKey[], saleSources: string[], range: DayRange): string {
-  const keys = (Array.isArray(key) ? key : [key]).filter((k) => k !== 'total');
+  const keys = Array.isArray(key) ? key : [key];
   const sp = new URLSearchParams();
-  if (keys.length) sp.set(COHORT_DRILL_PARAM, keys.join(','));
-  if (saleSources.length) sp.set('sale_source', saleSources.join(','));
+  sp.set(COHORT_DRILL_PARAM, keys.includes('total') ? 'total' : keys.join(','));
+  if (saleSources.length && !ALL_SALE_SOURCES.every((s) => saleSources.includes(s))) sp.set('sale_source', saleSources.join(','));
   sp.set('sold_from', range.from);
   sp.set('sold_to', range.to);
   return `/orders?${sp.toString()}`;
@@ -207,25 +251,31 @@ export function cohortHref(key: DrillKey | DrillKey[], saleSources: string[], ra
 
 /**
  * The link behind one cohort number, over the source rows that make it up.
- * No link when nothing is there, when /orders cannot filter on the bucket yet,
- * when any contributing row is the web shop (a mirror, not orders), or when a
- * contributing row is made of MEX-only parcels alone.
+ * The number links only when it is ALL orders (web = MEX-only = 0): then the
+ * /orders list holds exactly it. A number that is partly orders keeps no link
+ * of its own and offers its order part (`ordersHref`, `orders`) instead; a
+ * number with no orders at all, or before /orders can filter the cohort, has
+ * none. The api says per number what it is made of (orders / web / mex_only).
  */
 export function cohortDrill(
   rows: CohortSourceRow[], key: DrillKey | DrillKey[], range: DayRange, supported: boolean = ordersSupportsCohortDrill(),
 ): CohortDrill {
   const keys = Array.isArray(key) ? key : [key];
-  const inPlay = rows.filter((r) => countIn(r, keys) > 0);
-  const mexOnly = inPlay.reduce((a, r) => a + mexOnlyCount(r), 0);
-  if (!inPlay.length) return { href: null, blocked: 'none', mexOnly: 0 };
-  if (inPlay.some((r) => !(COHORT_SALE_SOURCES[r.key]?.length))) return { href: null, blocked: 'web', mexOnly };
-  // A row whose every sale is a parcel without an order: the list would be empty.
-  if (inPlay.some((r) => mexOnlyCount(r) >= num(r.total?.count) && num(r.total?.count) > 0)) {
-    return { href: null, blocked: 'mex_only', mexOnly };
-  }
-  if (!supported) return { href: null, blocked: 'unsupported', mexOnly };
-  const saleSources = [...new Set(inPlay.flatMap((r) => COHORT_SALE_SOURCES[r.key]))];
-  return { href: cohortHref(key, saleSources, range), blocked: null, mexOnly };
+  const inPlay = rows.map((r) => ({ r, p: sumParts(keys.map((k) => partIn(r, k))) })).filter((x) => x.p.count > 0);
+  const none = { href: null, ordersHref: null, orders: 0, web: 0, mexOnly: 0 };
+  if (!inPlay.length) return { ...none, blocked: 'none' };
+  const s = sumParts(inPlay.map((x) => x.p));
+  // No composition (an older api): nobody can say the list would hold exactly this.
+  if (s.orders == null || s.web == null || s.mex_only == null) return { ...none, blocked: 'unknown' };
+  const made = { orders: s.orders, web: s.web, mexOnly: s.mex_only };
+  if (!supported) return { href: null, ordersHref: null, ...made, blocked: 'unsupported' };
+  const saleSources = [...new Set(inPlay.flatMap((x) => COHORT_SALE_SOURCES[x.r.key] ?? []))];
+  const href = s.orders > 0 ? cohortHref(key, saleSources, range) : null;
+  if (s.web === 0 && s.mex_only === 0) return { href, ordersHref: null, ...made, blocked: href ? null : 'none' };
+  return {
+    href: null, ordersHref: href, ...made,
+    blocked: s.web > 0 && s.mex_only > 0 ? 'mixed' : s.web > 0 ? 'web' : 'mex_only',
+  };
 }
 
 // ── Quality rail ────────────────────────────────────────────────────────────

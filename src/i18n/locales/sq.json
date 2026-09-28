@@ -2598,20 +2598,28 @@
       "outside": {
         "title": "Jashtë totalit",
         "cancelled_after_sale": "Anuluar pas shitjes",
-        "replacement": "Zëvendësime (pa pagesë në dorëzim)"
+        "replacement": "Zëvendësime (pa pagesë në dorëzim)",
+        "trashed_after_sale": "Në kosh pas shitjes"
       },
       "split": {
         "prediction_list": "Listat e parashikimit",
         "direct": "Direkt",
-        "collabbox": "collabBox",
-        "unlinked_leads": "Elyon LEADS — të palidhura",
-        "unlinked_leads_out": "Elyon LEADS-OUT — të palidhura",
         "mex_teleshop": "Teleshop (MEX)",
         "mex_social": "Rrjete sociale (MEX)",
         "mexOther": "Tjetër (MEX)",
-        "orders": "Porosi",
         "cod": "Pagesë në dorëzim",
-        "card": "Kartë"
+        "card": "Kartë",
+        "bridge": "Ura e drejtpërdrejtë",
+        "history": "Import 08.2026",
+        "partner": "Partnerë (affiliate)",
+        "teleshop": "Teleshop",
+        "social": "Rrjete sociale",
+        "leads": "LEADS (9110)",
+        "leads_out": "LEADS-OUT (9103)",
+        "import": "Import i vjetër",
+        "none": "Pa nënkanal",
+        "mex_web": "Pako web pa porosi (MEX)",
+        "elyon_unlinked": "Llogaria Elyon — të palidhura"
       },
       "clock": {
         "counted": "Numëruar {{clocks}} (ora e Shkupit)",
@@ -2642,7 +2650,11 @@
         "sumBad": "Pjesët ({{parts}}) nuk mblidhen në totalin ({{total}})",
         "noLinkWeb": "Dyqani online nuk është në listën e Porosive",
         "noLinkMexOnly": "Vetëm pako MEX pa porosi — nuk janë në listën e Porosive",
-        "partialLink": "Porositë tregojnë vetëm porositë; {{n}} pako MEX pa porosi nuk janë në listë"
+        "noLinkMixed": "Porositë e dyqanit web dhe pakot MEX pa porosi nuk janë në listën e Porosive",
+        "noLinkUnknown": "Nuk dihet sa prej tyre janë porosi — pa lidhje",
+        "ordersPart": "{{n}} te Porositë",
+        "ordersPartHint": "Hap vetëm porositë pas këtij numri — porositë e dyqanit web dhe pakot vetëm në MEX nuk janë në listë",
+        "composition": "porosi {{orders}} · dyqani web {{web}} · vetëm në MEX {{mex}}"
       },
       "leads": {
         "title": "Erdhën në periudhë",
@@ -2650,7 +2662,11 @@
         "became_sales": "U bënë shitje",
         "open": "Ende të hapura",
         "cancelled": "Të anuluara",
-        "trashed": "Në kosh"
+        "trashed": "Në kosh",
+        "other": "Tjetër",
+        "worked": "Të përpunuara (me vendim): {{n}}",
+        "dispositionNote_one": "prej tyre {{n}} telefonatë pa shitje në ElyonCRM — vendim, kurrë shitje",
+        "dispositionNote_other": "prej tyre {{n}} telefonata pa shitje në ElyonCRM — vendime, kurrë shitje"
       },
       "cash": {
         "title": "Hyrje nga MEX në periudhë",
@@ -4282,7 +4298,9 @@
       "proof": {
         "unproven": "pa dëshmi nga MEX",
         "mex": "të vërtetuara nga MEX"
-      }
+      },
+      "cohortTotal": "të gjitha shitjet",
+      "soldCohort": "shitur {{period}} (dita e shitjes)"
     },
     "cohort": {
       "title": "Shitjet (të konfirmuara) · {{period}}",
@@ -4318,12 +4336,6 @@
         "mexOnlyNote_one": "Prej tyre {{n}} pako është vetëm te MEX, pa porosi — nuk është në listën Porositë.",
         "mexOnlyNote_other": "Prej tyre {{n}} pako janë vetëm te MEX, pa porosi — nuk janë në listën Porositë.",
         "empty": "Nuk ka shitje në këtë periudhë."
-      },
-      "split": {
-        "orders": "Porosi në CRM",
-        "mexOther": "Të tjera te MEX",
-        "cod": "Pagesë në dorëzim",
-        "card": "Paguar me kartë"
       }
     },
     "clock": {

@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildCohortResponse, COHORT_BUCKETS, COHORT_KEYS, COHORT_UNIVERSE_OR, cohortBucketOrFilter, cohortOrderBucket,
-  cohortOrderSaleAt, cohortSaleWindowOrFilter, insightsAccess, insightsWindows, overlayFreshness,
-  parseCohortBucketParam, parseCohortExceptions, parseSourcesParam, stripInsightsMoney,
+  buildCohortResponse, COHORT_BUCKETS, COHORT_KEYS, COHORT_NON_MONEY_KEYS, COHORT_OUTSIDE,
+  COHORT_UNIVERSE_OR, cohortBucketOrFilter, cohortExcludedPhoneOr, cohortOrderBucket, cohortOrderSaleAt,
+  cohortFilterChars, COHORT_FILTER_MAX_CHARS, cohortOrdersFilter, cohortSaleWindowOrFilter, insightsAccess, insightsWindows,
+  isCohortExcludedPhone, overlayFreshness, parseCohortBucketParam, parseCohortExceptions, parseSourcesParam, stripInsightsMoney,
 } from "./insightsCommon.ts";
-import type { CohortOrderRow } from "./insightsCommon.ts";
+import type { CohortExceptions, CohortOrderRow } from "./insightsCommon.ts";
+// The week fixture in insights_cohort()'s exact shape (owner view).
+import weekCohort from "../../../src/components/insights/shared/__fixtures__/cohort.sample.json";
+// The verify script's PostgREST → SQL translation of this very filter.
+import { pgrstOrToSql, pgrstTermToSql } from "../../../scripts/verify-insights-ties.mjs";
 
 // ── a tiny PostgREST logic-tree evaluator (or/and/not + the ops we emit) ────
 type Row = Record<string, unknown>;
@@ -43,16 +48,19 @@ function compile(term: string): Pred {
       return neg ? (r === null ? null : !r) : r;
     };
   }
-  const m = t.match(/^([a-z_]+)\.(not\.)?(eq|neq|gt|gte|lt|lte|is|in)\.(.*)$/s);
+  const m = t.match(/^([a-z_]+)\.(not\.)?(eq|neq|gt|gte|lt|lte|is|in|like)\.(.*)$/s);
   if (!m) throw new Error("cannot parse " + t);
   const [, col, neg, op, val] = m;
   const list = op === "in" ? splitTop(val.replace(/^\(|\)$/g, "")) : [];
+  // PostgREST `like`: * is the wildcard (SQL %); the values we send hold only digits
+  const like = op === "like" ? new RegExp(`^${val.split("*").map((x) => x.replace(/\W/g, "\\$&")).join(".*")}$`, "s") : null;
   return (row) => {
     const v = row[col];
     let r: boolean | null;
     if (op === "is") r = val === "null" ? v == null : String(v) === val;
     else if (v == null) r = null;
     else if (op === "in") r = list.some((x) => String(v) === x);
+    else if (like) r = like.test(String(v));
     else {
       const c = cmp(v, val);
       r = op === "eq" ? c === 0 : op === "neq" ? c !== 0 : op === "gt" ? c > 0 : op === "gte" ? c >= 0 : op === "lt" ? c < 0 : c <= 0;
@@ -71,10 +79,13 @@ const orMatches = (expr: string, row: Row) => {
 // ── fixtures ───────────────────────────────────────────────────────────────
 const W1 = "11111111-1111-4111-8111-111111111111";
 const L1 = "22222222-2222-4222-8222-222222222222";
+/** What migration 20260939000700 seeds into public.report_excluded_phones — test
+ *  data here: the api never holds a copy, it gets the list from the exceptions RPC. */
+const PH = ["70123456", "23123123"];
 
 function* grid(): Generator<CohortOrderRow & { id: string; web: boolean }> {
   let n = 0;
-  for (const status of ["pending", "take", "call_again", "duplicated", "confirmed", "shipped", "paid", "returned", "cancelled", "trashed"])
+  for (const status of ["pending", "take", "call_again", "duplicated", "confirmed", "shipped", "delivered", "paid", "returned", "cancelled", "trashed"])
   for (const price of [null, 0, 24.23])
   for (const sold_at of [null, "2026-09-10T10:00:00Z"])
   for (const paid_basis of [null, "mex", "operator_ruling", "legacy_import"])
@@ -137,26 +148,123 @@ describe("cohort bucket twins", () => {
     expect(cohortOrderBucket({ ...base, paid_basis: "manual", source_type: "import" }, false)).toBe("paid_unproven");
     expect(cohortOrderBucket({ ...base, status: "confirmed" }, false)).toBe("to_pack");
     expect(cohortOrderBucket({ ...base, status: "shipped" }, false)).toBe("courier");
+    // Откажани (red) and Во корпа (grey) after the sale are apart — neither is in the total
     expect(cohortOrderBucket({ ...base, status: "cancelled" }, false)).toBe("cancelled_after_sale");
+    expect(cohortOrderBucket({ ...base, status: "trashed" }, false)).toBe("trashed_after_sale");
     expect(cohortOrderBucket({ ...base, status: "cancelled", sold_at: null }, false)).toBeNull();
+    // the BG-era 'delivered' reads as paid
+    expect(cohortOrderBucket({ ...base, status: "delivered" }, false)).toBe("paid_unproven");
+    expect(cohortOrderBucket({ ...base, status: "delivered", source_type: "import" }, false)).toBe("paid_legacy");
     expect(cohortOrderBucket({ ...base, status: "pending" }, false)).toBeNull();
     expect(cohortOrderBucket({ ...base, status: "confirmed", price: 0 }, false)).toBe("replacement");
     expect(cohortOrderBucket({ ...base, sale_source_detail: "disposition" }, false)).toBeNull();
   });
 
-  it("total = the eight in-total buckets", () => {
+  it("total = the eight in-total buckets; the outside three are asked for by name", () => {
     expect(parseCohortBucketParam("total")).toEqual({ ok: true, values: [...COHORT_BUCKETS] });
     expect(parseCohortBucketParam("label,paid")).toEqual({ ok: true, values: ["paid", "label"] });
+    expect(parseCohortBucketParam("trashed_after_sale").ok).toBe(true);
+    expect(COHORT_OUTSIDE).toEqual(["cancelled_after_sale", "trashed_after_sale", "replacement"]);
     expect(parseCohortBucketParam("bogus").ok).toBe(false);
     expect(parseCohortBucketParam(null)).toEqual({ ok: true, values: [] });
     expect(cohortBucketOrFilter([])).toBeNull();
   });
 
-  it("without web claims the filter carries no id list", () => {
+  it("the web-claim id list appears at most twice, never once per clause (the URL stays short)", () => {
     const f = cohortBucketOrFilter(["paid", "to_pack"], [])!;
     expect(f).not.toMatch(/(^|[(,])id\./);
-    expect(cohortBucketOrFilter(["paid"], [W1])!).toMatch(/,id\.not\.in\.\(/);
     expect(f.split("and(").length).toBeGreaterThan(2);
+    const all = cohortBucketOrFilter([...COHORT_KEYS], [W1, L1])!;
+    expect(all.split(W1).length - 1).toBe(2);
+    expect(all.startsWith(`and(id.not.in.(${W1},${L1}),or(`)).toBe(true);
+    // only MEX-decided buckets asked for: a web-claimed order can be in none of them
+    expect(cohortBucketOrFilter(["label"], [W1])).toBe(`and(id.not.in.(${W1}),or(${cohortBucketOrFilter(["label"])}))`);
+    // the whole /orders filter of a `total` drill with six web claims stays a few KB
+    // (gateways refuse request lines past ~8 KB; supabase-js puts it all in the URL)
+    const six = Array.from({ length: 6 }, (_, i) => `00000000-0000-4000-8000-00000000000${i}`);
+    const totalDrill = cohortOrdersFilter([...COHORT_BUCKETS], { web_claimed: six, ledger: [], excluded_phone8s: PH, test_orders: [] },
+      { fromIso: "2026-09-21T22:00:00.000Z", toEndIso: "2026-09-28T21:59:59.999999Z" });
+    expect(totalDrill.or.join("").length).toBeLessThan(4000);
+    expect(all.length).toBeLessThan(3600);
+  });
+});
+
+describe("test phones (owner 2026-09-28)", () => {
+  it("the last-8 canon (is_report_excluded_phone): 070 123 456 and 02 312 3123, however written", () => {
+    for (const p of ["+38970123456", "070123456", "070 123 456", "+389 2 312 3123", "023123123", "23123123", "0038970123456"]) {
+      expect(isCohortExcludedPhone(p, PH), p).toBe(true);
+    }
+    for (const p of ["+38970123457", "70123456x1", "", null, "1234567"]) expect(isCohortExcludedPhone(p, PH), String(p)).toBe(false);
+    expect(isCohortExcludedPhone("+38970123456", [])).toBe(false);
+  });
+  it("the phone-text filter keeps every other phone and drops the canonical test forms", () => {
+    const f = cohortExcludedPhoneOr(PH)!;
+    const keep = (phone: string | null) => orMatches(f, { customer_phone: phone });
+    expect(keep("+38971000001")).toBe(true);
+    expect(keep(null)).toBe(true);
+    expect(keep("+38970123456")).toBe(false);
+    expect(keep("023123123")).toBe(false);
+    // text the LIKE cannot see — the exceptions' test_orders list catches it by id
+    expect(keep("070 123 456")).toBe(true);
+  });
+  it("the list is data from the database: none → no filter; only 8-digit values ever reach the URL", () => {
+    expect(cohortExcludedPhoneOr([])).toBeNull();
+    expect(cohortExcludedPhoneOr(["7012345", "70123456),id.not.is.null"])).toBeNull();
+    expect(cohortExcludedPhoneOr(["12345678"])).toBe("customer_phone.is.null,and(customer_phone.not.like.*12345678)");
+  });
+});
+
+describe("cohortOrdersFilter — everything GET /orders adds, assembled once", () => {
+  const F = "2026-09-21T22:00:00.000Z", T = "2026-09-28T21:59:59.999999Z";
+  const T1 = "33333333-3333-4333-8333-333333333333";
+  const ex: CohortExceptions = { web_claimed: [W1], ledger: [{ id: L1, sale_at: "2026-09-23T10:00:00Z" }], excluded_phone8s: PH, test_orders: [T1] };
+  type R = CohortOrderRow & { id: string; customer_phone: string | null };
+  const base: R = {
+    id: "a0000000-0000-4000-8000-000000000001", status: "confirmed", price: 24.23, sold_at: "2026-09-23T10:00:00Z",
+    confirmed_at: null, created_at: "2026-09-22T10:00:00Z", paid_basis: null, source_type: "altercpa", sale_source_detail: "bridge",
+    mex_tracking_id: null, mex_status_id: null, mex_cod_mkd: null, mex_delivered_at: null, customer_phone: "+38971000001",
+  };
+  const listed = (keys: string[], row: R) => {
+    const parsed = parseCohortBucketParam(keys.join(","));
+    if (!parsed.ok) throw new Error("bad keys");
+    const f = cohortOrdersFilter(parsed.values, ex, { fromIso: F, toEndIso: T });
+    return f.or.every((e) => orMatches(e, row as unknown as Row)) && !f.notIds.includes(row.id);
+  };
+  // What the SQL twin decides for one row: in the cohort window, not disposition, not a test phone / test order.
+  const twin = (keys: string[], row: R) => {
+    const parsed = parseCohortBucketParam(keys.join(","));
+    if (!parsed.ok) throw new Error("bad keys");
+    const b = cohortOrderBucket(row, ex.web_claimed.includes(row.id));
+    const led = ex.ledger.find((e) => e.id === row.id)?.sale_at ?? null;
+    const at = Date.parse(cohortOrderSaleAt(row, row.sold_at ? null : led)!);
+    const inWin = at >= Date.parse(F) && at <= Date.parse(T);
+    return b != null && parsed.values.includes(b) && inWin && row.sale_source_detail !== "disposition"
+      && !isCohortExcludedPhone(row.customer_phone, ex.excluded_phone8s) && !ex.test_orders.includes(row.id);
+  };
+  const cases: R[] = [
+    base,
+    { ...base, id: "a0000000-0000-4000-8000-000000000002", customer_phone: "+38970123456" },          // test phone (text)
+    { ...base, id: T1, customer_phone: "070 123 456" },                                                   // test phone (by id)
+    { ...base, id: "a0000000-0000-4000-8000-000000000003", sale_source_detail: "disposition", price: 0 }, // never
+    { ...base, id: "a0000000-0000-4000-8000-000000000004", sold_at: "2026-09-10T10:00:00Z" },          // outside the window
+    { ...base, id: W1, status: "paid", mex_tracking_id: "NTMK1", mex_status_id: 2, mex_cod_mkd: 1990 }, // web claims its parcel
+    { ...base, id: L1, sold_at: null, created_at: "2026-09-01T10:00:00Z" },                             // dated by the ledger
+    { ...base, id: "a0000000-0000-4000-8000-000000000005", status: "trashed" },                          // trashed after the sale
+  ];
+  it("lists exactly what the cohort counts as orders, part by part", () => {
+    for (const keys of [["total"], ["to_pack"], ["paid_unproven"], ["trashed_after_sale"], ["paid", "label"], [...COHORT_KEYS]]) {
+      for (const c of cases) expect(listed(keys, c), `${keys} ${c.id} ${c.customer_phone}`).toBe(twin(keys, c));
+    }
+  });
+  it("carries the universe, the test-phone text filter, the buckets and the window; test orders by id", () => {
+    const f = cohortOrdersFilter(["paid"], ex, { fromIso: F, toEndIso: T });
+    expect(f.or[0]).toBe(COHORT_UNIVERSE_OR);
+    expect(f.or[1]).toBe(cohortExcludedPhoneOr(PH));
+    expect(f.or).toHaveLength(4);
+    expect(f.notIds).toEqual([T1]);
+    expect(cohortOrdersFilter(["paid"], ex, null).or).toHaveLength(3);
+    // an empty list (nothing excluded) adds no phone filter at all
+    expect(cohortOrdersFilter(["paid"], { ...ex, excluded_phone8s: [] }, { fromIso: F, toEndIso: T }).or).toHaveLength(3);
   });
 });
 
@@ -190,16 +298,56 @@ describe("cohort sale window twin", () => {
     const f = cohortSaleWindowOrFilter(F, T, [{ id: L1, sale_at: "2026-09-01T10:00:00Z" }]);
     expect(orMatches(f, cases[6] as unknown as Row)).toBe(false);
   });
+  it("each ledger id appears once, however many there are (the URL budget)", () => {
+    const many = Array.from({ length: 80 }, (_, i) => ({
+      id: `b0000000-0000-4000-8000-${String(i).padStart(12, "0")}`,
+      sale_at: i % 2 ? "2026-09-23T10:00:00Z" : "2026-09-01T10:00:00Z",
+    }));
+    const f = cohortSaleWindowOrFilter(F, T, many);
+    for (const e of many) expect(f.split(e.id).length - 1, e.id).toBe(1);
+    const cf = cohortOrdersFilter([...COHORT_BUCKETS], { web_claimed: [W1], ledger: many, excluded_phone8s: PH, test_orders: [] }, { fromIso: F, toEndIso: T });
+    expect(cohortFilterChars(cf)).toBeLessThan(COHORT_FILTER_MAX_CHARS);
+    // …but a backlog the stamping cron has not dated is refused by the api, never sent as a broken URL
+    const backlog = Array.from({ length: 200 }, (_, i) => ({ id: `c0000000-0000-4000-8000-${String(i).padStart(12, "0")}`, sale_at: "2026-09-01T10:00:00Z" }));
+    expect(cohortFilterChars(cohortOrdersFilter(["paid"], { web_claimed: [], ledger: backlog, excluded_phone8s: PH, test_orders: [] }, { fromIso: F, toEndIso: T })))
+      .toBeGreaterThan(COHORT_FILTER_MAX_CHARS);
+  });
 });
 
 describe("exceptions payload", () => {
-  it("validates ids and caps the lists", () => {
-    expect(parseCohortExceptions({ web_claimed: [W1], ledger: [{ id: L1, sale_at: "2026-09-21T14:24:57+00:00" }] }))
-      .toEqual({ web_claimed: [W1], ledger: [{ id: L1, sale_at: "2026-09-21T14:24:57+00:00" }] });
+  it("validates ids and phones and caps the lists", () => {
+    expect(parseCohortExceptions({ web_claimed: [W1], ledger: [{ id: L1, sale_at: "2026-09-21T14:24:57+00:00" }], excluded_phone8s: PH, test_orders: [L1] }))
+      .toEqual({ web_claimed: [W1], ledger: [{ id: L1, sale_at: "2026-09-21T14:24:57+00:00" }], excluded_phone8s: PH, test_orders: [L1] });
+    // a body from before the test-phone rule: no phones, no test orders
+    expect(parseCohortExceptions({ web_claimed: [], ledger: [] })).toEqual({ web_claimed: [], ledger: [], excluded_phone8s: [], test_orders: [] });
     expect(parseCohortExceptions({ web_claimed: ["x"], ledger: [] })).toBeNull();
+    expect(parseCohortExceptions({ web_claimed: [], ledger: [], test_orders: ["x"] })).toBeNull();
+    // a phone goes into the filter string: anything but 8 digits refuses the body
+    expect(parseCohortExceptions({ web_claimed: [], ledger: [], excluded_phone8s: ["7012345"] })).toBeNull();
+    expect(parseCohortExceptions({ web_claimed: [], ledger: [], excluded_phone8s: ["70123456),or(id.not.is.null"] })).toBeNull();
+    expect(parseCohortExceptions({ web_claimed: [], ledger: [], excluded_phone8s: "70123456" })).toBeNull();
     expect(parseCohortExceptions({ web_claimed: [], ledger: [{ id: L1, sale_at: "nope" }] })).toBeNull();
     expect(parseCohortExceptions(null)).toBeNull();
     expect(parseCohortExceptions({ web_claimed: Array(301).fill(W1), ledger: [] })).toBeNull();
+    expect(parseCohortExceptions({ web_claimed: Array(200).fill(W1), ledger: [], test_orders: Array(101).fill(L1) })).toBeNull();
+  });
+});
+
+describe("the verify script translates the twin to SQL faithfully", () => {
+  it("logic, operators, like and lists", () => {
+    expect(pgrstTermToSql("status.eq.confirmed")).toBe("(o.status = 'confirmed')");
+    expect(pgrstTermToSql("mex_status_id.not.in.(2,3)")).toBe("(NOT (o.mex_status_id::text IN ('2', '3')))");
+    expect(pgrstTermToSql("customer_phone.not.like.*70123456")).toBe("(NOT (o.customer_phone LIKE '%70123456'))");
+    expect(pgrstTermToSql("sold_at.is.null")).toBe("(o.sold_at IS NULL)");
+    expect(pgrstOrToSql("price.gt.0,and(price.is.null,mex_cod_mkd.gte.1)"))
+      .toBe("((o.price > '0') OR ((o.price IS NULL) AND (o.mex_cod_mkd >= '1')))");
+  });
+  it("translates every filter the api really sends, and refuses a column it does not know", () => {
+    const f = cohortOrdersFilter([...COHORT_KEYS], { web_claimed: [W1], ledger: [{ id: L1, sale_at: "2026-09-23T10:00:00Z" }], excluded_phone8s: PH, test_orders: [] },
+      { fromIso: "2026-09-21T22:00:00.000Z", toEndIso: "2026-09-28T21:59:59.999999Z" });
+    for (const e of f.or) expect(() => pgrstOrToSql(e)).not.toThrow();
+    expect(() => pgrstTermToSql("secret.eq.1")).toThrow(/not allowed/);
+    expect(pgrstTermToSql("status.eq.it's")).toBe("(o.status = 'it''s')");
   });
 });
 
@@ -249,6 +397,18 @@ function keysDeep(v: unknown, acc: string[] = []): string[] {
 }
 
 describe("money strip", () => {
+  it("the real payload: every non-money key the api sends survives, not one money key does", () => {
+    const keysOf = (v: unknown, acc = new Set<string>()): Set<string> => {
+      if (Array.isArray(v)) v.forEach((x) => keysOf(x, acc));
+      else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) { acc.add(k); keysOf(x, acc); }
+      return acc;
+    };
+    const owner = keysOf(weekCohort);
+    const stripped = keysOf(stripInsightsMoney(structuredClone(weekCohort) as Record<string, unknown>));
+    const wantKept = [...owner].filter((k) => !/(_mkd|_eur)$/.test(k)).sort();
+    expect([...stripped].sort()).toEqual(wantKept);
+    for (const k of wantKept) expect(COHORT_NON_MONEY_KEYS.has(k), k).toBe(true);
+  });
   it("non-owners: every *_mkd / *_eur key is absent (never 0), counts and drills stay", () => {
     const s = stripInsightsMoney(cohort());
     const keys = keysDeep(s);

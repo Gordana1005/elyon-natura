@@ -2598,20 +2598,28 @@
       "outside": {
         "title": "Outside the total",
         "cancelled_after_sale": "Cancelled after the sale",
-        "replacement": "Replacements (no cash on delivery)"
+        "replacement": "Replacements (no cash on delivery)",
+        "trashed_after_sale": "Trashed after the sale"
       },
       "split": {
         "prediction_list": "Prediction lists",
         "direct": "Direct",
-        "collabbox": "collabBox",
-        "unlinked_leads": "Elyon LEADS — unlinked",
-        "unlinked_leads_out": "Elyon LEADS-OUT — unlinked",
         "mex_teleshop": "Teleshop (MEX)",
         "mex_social": "Social media (MEX)",
         "mexOther": "Other (MEX)",
-        "orders": "Orders",
         "cod": "Cash on delivery",
-        "card": "Card"
+        "card": "Card",
+        "bridge": "Live bridge",
+        "history": "Import 08.2026",
+        "partner": "Partners (affiliate)",
+        "teleshop": "Teleshop",
+        "social": "Social media",
+        "leads": "LEADS (9110)",
+        "leads_out": "LEADS-OUT (9103)",
+        "import": "Older import",
+        "none": "No sub-channel",
+        "mex_web": "Web parcel, no shop order (MEX)",
+        "elyon_unlinked": "Elyon account — unlinked"
       },
       "clock": {
         "counted": "Counted {{clocks}} (Skopje time)",
@@ -2642,7 +2650,11 @@
         "sumBad": "The parts ({{parts}}) do not add up to the total ({{total}})",
         "noLinkWeb": "The web shop is not in the Orders list",
         "noLinkMexOnly": "MEX parcels without an order only — not in the Orders list",
-        "partialLink": "Orders lists the orders only; {{n}} MEX parcels without an order are not in the list"
+        "noLinkMixed": "Web-shop orders and MEX parcels with no order are not in the Orders list",
+        "noLinkUnknown": "Not known how much of this is orders — no link",
+        "ordersPart": "{{n}} in Orders",
+        "ordersPartHint": "Opens only the orders behind this number — web-shop orders and MEX-only parcels are not in the list",
+        "composition": "orders {{orders}} · web shop {{web}} · MEX only {{mex}}"
       },
       "leads": {
         "title": "Came in during the period",
@@ -2650,7 +2662,11 @@
         "became_sales": "Became sales",
         "open": "Still open",
         "cancelled": "Cancelled",
-        "trashed": "Trashed"
+        "trashed": "Trashed",
+        "other": "Other",
+        "worked": "Worked (a decision taken): {{n}}",
+        "dispositionNote_one": "of which {{n}} ElyonCRM call without a sale — a decision, never a sale",
+        "dispositionNote_other": "of which {{n}} ElyonCRM calls without a sale — decisions, never sales"
       },
       "cash": {
         "title": "Cash in from MEX in the period",
@@ -4282,7 +4298,9 @@
       "proof": {
         "unproven": "without MEX proof",
         "mex": "proven by MEX"
-      }
+      },
+      "cohortTotal": "all sales",
+      "soldCohort": "sold {{period}} (sale day)"
     },
     "cohort": {
       "title": "Sales (confirmed) · {{period}}",
@@ -4318,12 +4336,6 @@
         "mexOnlyNote_one": "{{n}} of them is a MEX-only parcel with no order — not in the Orders list.",
         "mexOnlyNote_other": "{{n}} of them are MEX-only parcels with no order — not in the Orders list.",
         "empty": "No sales in this period."
-      },
-      "split": {
-        "orders": "CRM orders",
-        "mexOther": "Other at MEX",
-        "cod": "Cash on delivery",
-        "card": "Paid by card"
       }
     },
     "clock": {

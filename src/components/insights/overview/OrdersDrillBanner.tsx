@@ -24,7 +24,18 @@ export function OrdersDrillBanner({ drill, label, onClear }: { drill: OrdersDril
   if (drill.sale_source) {
     parts.push(drill.sale_source.split(',').map((s) => t(`overview.saleSource.${s}`, { defaultValue: s })).join(' + '));
   }
-  if (drill.sale_source_detail) parts.push(t(`overview.split.${drill.sale_source_detail}`, { defaultValue: drill.sale_source_detail }));
+  if (drill.sale_source_detail) {
+    // the cohort's split words first (bridge, history, …), then the Overview's older ones
+    const d = drill.sale_source_detail;
+    parts.push(t(`insights.common.split.${d.replace(/_other$/, 'Other')}`, { defaultValue: t(`overview.split.${d}`, { defaultValue: d }) }));
+  }
+  if (drill.cohort_bucket) {
+    parts.push(drill.cohort_bucket === 'total'
+      ? t('overview.drill.cohortTotal')
+      : drill.cohort_bucket.split(',').map((k) => t(`insights.common.bucket.${k}`, {
+        defaultValue: t(`insights.common.outside.${k}`, { defaultValue: k }),
+      })).join(' + '));
+  }
   if (drill.outcome) {
     const known = OUTCOME_LABEL[drill.outcome];
     parts.push(known
@@ -34,7 +45,10 @@ export function OrdersDrillBanner({ drill, label, onClear }: { drill: OrdersDril
   if (drill.attention && !label) parts.push(t(`overview.attention.kind.${drill.attention}`, { defaultValue: drill.attention }));
   if (drill.paid_basis) parts.push(t('overview.drill.paidBasis', { basis: drill.paid_basis }));
   if (drill.created_from || drill.created_to) parts.push(t('overview.drill.created', { period: range(drill.created_from, drill.created_to) }));
-  if (drill.sold_from || drill.sold_to) parts.push(t('overview.drill.sold', { period: range(drill.sold_from, drill.sold_to) }));
+  if (drill.sold_from || drill.sold_to) {
+    // with cohort_bucket the days are the cohort's sale day, not "confirmed that day"
+    parts.push(t(drill.cohort_bucket ? 'overview.drill.soldCohort' : 'overview.drill.sold', { period: range(drill.sold_from, drill.sold_to) }));
+  }
   if (drill.cash_from || drill.cash_to) parts.push(t('overview.drill.cash', { period: range(drill.cash_from, drill.cash_to) }));
   if (drill.proof) parts.push(t(`overview.drill.proof.${drill.proof}`, { defaultValue: drill.proof }));
   for (const k of ['cpa_webmaster', 'cpa_stream', 'prediction_list', 'product', 'city'] as const) {

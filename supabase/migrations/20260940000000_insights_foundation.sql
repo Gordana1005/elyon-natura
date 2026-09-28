@@ -14,10 +14,15 @@
 --                                                    DELIVERED (+ the card line)
 --   insights_cohort(p_from, p_to_end, p_prev_from, p_prev_to_end, p_sources,
 --                   p_money) → jsonb                 the /api/insights/cohort body
---   insights_cohort_order_exceptions() → jsonb       the two tiny id lists the
+--   insights_cohort_order_exceptions(p_from, p_to_end) → jsonb
+--                                                    the three tiny id lists the
 --                                                    /orders twin needs
 --   cohort_* helpers (pure, inlinable)               the bucket / source /
 --                                                    channel rules, ONCE
+--   insights_phone8() / insights_excluded8()         the last-8 canon and the
+--                                                    test-phone test (the LIST
+--                                                    is public.report_excluded_
+--                                                    phones — see TEST PHONES)
 --   mk_geo_norm(text), mk_city_key(text)             city folding
 --   product_aliases (table, UNSEEDED), product_alias_norm(), product_key(),
 --   order_line_kind()                                product folding
@@ -28,19 +33,40 @@
 -- Payout tab and the parity harness and stay exactly as they are.
 --
 -- ── WHAT A SALE IS (owner rules 2026-09-28) ────────────────────────────────
--- FOUR sources, all included:
---   altercpa        orders.sale_source altercpa | affiliate
---                   + MEX-only parcels of series 9110 ("unlinked LEADS")
+-- FOUR sources, all included (HANDOFF 2026-09-28 §3 — where it and older
+-- notes disagree, §3 wins):
+--   altercpa        orders.sale_source altercpa | affiliate — the lead intake.
+--                   An ad lead from an existing client is still AlterCPA
+--                   (sale_source is fixed at birth, 20260935000000).
 --   elyon_crm       orders.sale_source elyon_crm (prediction_list | direct;
---                   disposition rows are NEVER sales, orders or money)
---                   + MEX-only parcels of series 9103 ("unlinked LEADS-OUT")
---   web             public.web_orders (the naturatherapy.mk mirror — NOT
---                   orders) + MEX-only NTMK parcels no web order claims
+--                   disposition rows are NEVER sales, orders or money). An
+--                   order created FIRST in Elyon is ours even when it sits at
+--                   MEX: an ORDER's source is its sale_source, never the MEX
+--                   series of its parcel.
+--   web             public.web_orders only (the naturatherapy.mk mirror — NOT
+--                   orders; the rare CRM-entered sale_source 'web' order too)
 --   teleshop_other  every other orders.sale_source (collabbox, legacy, …)
---                   + MEX-only parcels of series 9100/9102 (teleshop),
---                   9108 (social) and anything else (M…, bare numbers)
--- The series decides the channel, never the account (series cross accounts at
--- the margins — 20260934000100).
+--                   + EVERY MEX parcel with no order, split by channel:
+--                   mex_teleshop 9100/9102 · mex_social 9108 · mex_web an
+--                   NTMK… parcel no web order claims · elyon_unlinked 9110 /
+--                   9103 (and bare BIO NATURAL ids) — the NEUTRAL split
+--                   "Elyon account — unlinked", credited neither to AlterCPA
+--                   nor to ElyonCRM · mex_other M…, bare numbers, anything else
+-- The series (or the NTMK reference) names the channel, never the account
+-- (series cross accounts at the margins — 20260934000100).
+--
+-- TEST PHONES (owner 2026-09-28): 070 123 456 and 02 312 3123 — last 8 digits
+-- 70123456 / 23123123. Their CRM orders (by customer_phone, or holding a
+-- test-phone parcel), web orders (phone8, or a test-phone parcel) and MEX
+-- parcels (phone8) are in NO insights number: not sales, not leads, not cash.
+-- The list is NOT repeated here: it is public.report_excluded_phones, the one
+-- list every report shares (migration 20260939000700, which must be applied
+-- FIRST — checked below). Each function reads it once per call through
+-- report_excluded_phone8s(), the set-based twin of is_report_excluded_phone(),
+-- and hands it to its query as a parameter, so the 100k-row scans compare
+-- against a constant array. Adding a phone is an INSERT there, never a change
+-- here or in the api (the /orders twin receives the list from
+-- insights_cohort_order_exceptions()).
 --
 -- A PARCEL COUNTS ONCE. Ownership, first match wins:
 --   1. a live web order claims it (web_orders.mex_tracking_id) → web
@@ -50,13 +76,21 @@
 --      → that order. Disposition rows are not real orders: a parcel only a
 --      disposition row holds is MEX-only (17 such rows exist).
 --   3. otherwise it is MEX-only.
--- (3 tracking ids are held by TWO orders each; both count it — flagged
---  q_shared_parcel, reported under quality.double_count_candidates.)
+-- SHARED PARCELS: 3 tracking ids are held by TWO orders each, and the owner
+-- ruled both orders accurate (keep both). Both are sales, each in the ONE
+-- bucket its parcel's status puts them in, but the parcel's single COD is
+-- SPLIT between them by price share (equal shares when neither has a price;
+-- the first-created holder takes the rounding remainder) — so the value and
+-- cod_mkd count that COD exactly once and still tie to the MEX register,
+-- and Σ parts = total holds row by row. Flagged q_shared_parcel; not a
+-- double-count candidate any more (checker C8a exception).
 --
 -- Orders: a row is a sale when it is not disposition and it has a parcel
--- (MEX-first) or its CRM status is confirmed | shipped | paid | returned.
--- Cancels and trash are NEVER sales; a sale that was later cancelled with no
--- parcel is kept OUTSIDE the total as cancelled_after_sale.
+-- (MEX-first) or its CRM status is confirmed | shipped | paid | returned
+-- (| delivered, the enum value inherited from BG — read as paid). Cancels and
+-- trash are NEVER sales; a sale that was later cancelled / trashed with no
+-- parcel is kept OUTSIDE the total as cancelled_after_sale (Откажани, red) /
+-- trashed_after_sale (Во корпа, grey).
 --
 -- SALE DAY (the cohort clock, Skopje days):
 --   orders   coalesce(sold_at, AlterCPA ledger decided_at for approved |
@@ -79,35 +113,45 @@
 --   label            MEX 8 Shipment created              (Спакувано, чека курир)
 --   to_pack          CRM confirmed, no parcel            (Во магацин за пакување)
 --   returned         MEX 7, or CRM returned with no parcel (Вратено)
--- The eight sum EXACTLY to the total. OUTSIDE the total:
---   cancelled_after_sale  sold (sold_at set), then cancelled/trashed, no parcel
+-- The eight sum EXACTLY to the total, and every sale lands in exactly one
+-- (one row per sale, one bucket per row). OUTSIDE the total:
+--   cancelled_after_sale  sold (sold_at set), then cancelled, no parcel (red)
+--   trashed_after_sale    sold (sold_at set), then trashed, no parcel (grey)
 --   replacement           nothing to collect: parcel COD <= 0 (or, with no
 --                         parcel / no COD, price <= 0; web total <= 0)
 --
 -- VALUE (denari): the parcel's COD when a parcel exists (COD is what MEX
--- collects — never × 61,5 again), else price × 61,5 (the FROZEN peg; price is
--- EUR), web: the shop total. A price-0 order with a COD > 0 parcel is a real
--- sale valued at COD (flag q_no_price). Replacement rows carry value 0 (their
--- COD stays in cod_mkd).
+-- collects — never × 61,5 again; a shared parcel's COD split as above), else
+-- price × 61,5 (the FROZEN peg; price is EUR), web: the shop total. A price-0
+-- order with a COD > 0 parcel is a real sale valued at COD (flag q_no_price).
+-- Replacement rows carry value 0 (their COD stays in cod_mkd).
 --
 -- CASH (insights_cash_rows): every MEX parcel delivered in the window, by
--- delivered_at, each once, owned as above — Σ cod_mkd ties to the MEX
--- register. Card-paid web orders (payment PAID, parcel delivered) add their
--- card money on its own line: card_mkd = shop total − the COD MEX collected.
+-- delivered_at, each once, owned as above (a shared parcel by its
+-- first-created holder) — Σ cod_mkd ties to the MEX register less the test
+-- phones' parcels. Card-paid web orders (payment PAID, parcel delivered) add
+-- their card money on its own line: card_mkd = shop total − the COD MEX
+-- collected.
 --
 -- LEADS (insights_leads_rows): what CAME INTO our systems in the window, by
--- created_at — orders (disposition rows kept apart: they are worked calls, not
--- leads) and web orders (failed card checkouts dropped, as the shop does).
--- MEX-only parcels never "came in" and are not leads.
+-- created_at — every order row and every web order (failed card checkouts
+-- dropped, as the shop does), each with its state NOW: sale | cancelled |
+-- trashed | open | other. An ElyonCRM "no" call row (disposition) is a worked
+-- decision (Обработени) that ended cancelled / trashed: it is in came_in and
+-- its state, and counted apart as `disposition` — never a sale. MEX-only
+-- parcels never "came in" and are not leads.
 --
 -- ── /orders twin ────────────────────────────────────────────────────────────
 -- GET /orders?cohort_bucket=<key>&sold_from&sold_to lists exactly the ORDER
 -- part of a bucket. Its PostgREST predicates (supabase/functions/api/
--- insightsCommon.ts cohortBucketOrFilter / cohortSaleWindowOrFilter) are the
--- twins of cohort_order_bucket() and the sale-day coalesce below, over the
--- orders.mex_* columns; the two things they cannot see (a web claim, a ledger
--- date) come from insights_cohort_order_exceptions(). CHANGE THEM TOGETHER.
--- scripts/verify-insights-ties.mjs replays the TS twin over live rows.
+-- insightsCommon.ts cohortBucketOrFilter / cohortSaleWindowOrFilter /
+-- cohortExcludedPhoneOr) are the twins of cohort_order_bucket(), the sale-day
+-- coalesce and the test-phone rule below, over the orders.mex_* columns; what
+-- they cannot see (a web claim, a ledger date, a test order its phone text
+-- does not show) and the test-phone list itself come from
+-- insights_cohort_order_exceptions().
+-- CHANGE THEM TOGETHER. scripts/verify-insights-ties.mjs replays the TS twin
+-- over live rows and ties every order part to its /orders count.
 --
 -- ── Technique ───────────────────────────────────────────────────────────────
 -- The cohort_* helpers are LANGUAGE sql IMMUTABLE with NO `SET search_path`:
@@ -117,7 +161,11 @@
 -- what they compute. The table-reading functions are SECURITY DEFINER with a
 -- pinned search_path, service_role EXECUTE only (+ the read-only harness role).
 -- plpgsql + EXECUTE … USING on purpose (as insights_overview): each call is
--- planned with its REAL bounds.
+-- planned with its REAL bounds. `SET jit = off` on the four row/cohort
+-- functions: their plans are wide but cheap to run, and at the live volume a
+-- JIT compile of ~230 expressions cost 3 s of a 3.6 s query. Sandbox at the
+-- live volume (105k orders / 92k parcels / 25k web orders), insights_cohort
+-- with compare: week 0.5 s · month 0.8 s · a year 2.4 s (9.7 s with JIT).
 -- 61.5 is the FROZEN MKD_PER_EUR peg (src/lib/currency.ts) — used only to
 -- express a EUR price in denari, never to re-price anything.
 -- ============================================================================
@@ -132,6 +180,44 @@ CREATE INDEX IF NOT EXISTS idx_mex_parcels_delivered_at
   ON public.mex_parcels (delivered_at) WHERE delivered_at IS NOT NULL;
 
 -- ── 2. The rules, once (pure, inlinable) ───────────────────────────────────
+
+-- The test-phone list lives in public.report_excluded_phones (20260939000700).
+-- The plpgsql functions below read it only at run time, so a missing helper
+-- would surface as a broken Insights page, not here — refuse to go on instead.
+DO $dep$
+BEGIN
+  IF to_regprocedure('public.report_excluded_phone8s()') IS NULL
+     OR to_regprocedure('public.is_report_excluded_phone(text)') IS NULL THEN
+    RAISE EXCEPTION 'apply 20260939000700_report_excluded_phones.sql first: the insights cohort reads its test-phone list (public.report_excluded_phone8s())';
+  END IF;
+END
+$dep$;
+
+-- A last-8 phone (the CRM's phone-matching canon: mex_parcels.phone8,
+-- web_orders.phone8, idx_orders_phone_last8) is on the excluded list — the
+-- list is passed in: public.report_excluded_phone8s(), read once per call.
+-- Same answer as public.is_report_excluded_phone() for a last-8 value;
+-- NULL / short / an empty list → false (never NULL, so `NOT …` drops nothing
+-- by accident).
+CREATE OR REPLACE FUNCTION public.insights_excluded8(p_phone8 text, p_list text[])
+RETURNS boolean
+LANGUAGE sql
+IMMUTABLE
+PARALLEL SAFE
+AS $b$
+  SELECT coalesce(p_phone8 = ANY (p_list), false)
+$b$;
+
+-- A raw phone → its last 8 digits: character for character the expression
+-- idx_orders_phone_last8 indexes (so a lookup can use it).
+CREATE OR REPLACE FUNCTION public.insights_phone8(p_raw text)
+RETURNS text
+LANGUAGE sql
+IMMUTABLE
+PARALLEL SAFE
+AS $b$
+  SELECT right(regexp_replace(p_raw, '[^0-9]', '', 'g'), 8)
+$b$;
 
 -- orders.sale_source → the four cohort sources.
 CREATE OR REPLACE FUNCTION public.cohort_order_source(p_sale_source text)
@@ -185,18 +271,20 @@ AS $b$
         WHEN p_mex_status = 8                                               THEN 'label'
         ELSE 'courier'
       END
-    -- no parcel: the CRM status
-    WHEN p_status IN ('paid', 'returned', 'shipped', 'confirmed')
+    -- no parcel: the CRM status ('delivered' is the BG-era twin of paid)
+    WHEN p_status IN ('paid', 'delivered', 'returned', 'shipped', 'confirmed')
          AND coalesce(p_price, 0) <= 0                                      THEN 'replacement'
-    WHEN p_status = 'paid' THEN
+    WHEN p_status IN ('paid', 'delivered') THEN
       CASE WHEN p_paid_basis IN ('operator_ruling', 'legacy_import')
              OR (p_paid_basis IS NULL AND p_source_type = 'import')         THEN 'paid_legacy'
            ELSE 'paid_unproven' END
     WHEN p_status = 'returned'                                              THEN 'returned'
     WHEN p_status = 'shipped'                                               THEN 'courier'
     WHEN p_status = 'confirmed'                                             THEN 'to_pack'
-    WHEN p_status IN ('cancelled', 'trashed') AND p_sold_at IS NOT NULL
+    WHEN p_status = 'cancelled' AND p_sold_at IS NOT NULL
          AND coalesce(p_price, 0) > 0                                       THEN 'cancelled_after_sale'
+    WHEN p_status = 'trashed' AND p_sold_at IS NOT NULL
+         AND coalesce(p_price, 0) > 0                                       THEN 'trashed_after_sale'
   END
 $b$;
 
@@ -251,35 +339,29 @@ AS $b$
   END
 $b$;
 
--- A MEX-only parcel's channel (the series names the sales channel).
-CREATE OR REPLACE FUNCTION public.cohort_parcel_split(p_series text, p_tracking text, p_sender_ref text)
+-- A MEX-only parcel's channel — its split inside Teleshop/Other, where EVERY
+-- parcel with no order belongs (owner rule §3). The shop's NTMK reference or
+-- the series names the channel. BIO NATURAL's own series 9110 (LEADS) / 9103
+-- (LEADS-OUT), and a BIO NATURAL id with no series (ORD-… as the waybill),
+-- are the NEUTRAL "Elyon account — unlinked": most are AlterCPA or ElyonCRM
+-- sales nobody linked, but nothing proves which, so neither is credited.
+CREATE OR REPLACE FUNCTION public.cohort_parcel_split(
+  p_account    text,
+  p_series     text,
+  p_tracking   text,
+  p_sender_ref text)
 RETURNS text
 LANGUAGE sql
 IMMUTABLE
 PARALLEL SAFE
 AS $b$
   SELECT CASE
-    WHEN p_series = '9110'                         THEN 'mex_leads'
-    WHEN p_series = '9103'                         THEN 'mex_leads_out'
-    WHEN p_series IN ('9100', '9102')              THEN 'mex_teleshop'
-    WHEN p_series = '9108'                         THEN 'mex_social'
-    WHEN p_series IS NULL
-         AND (coalesce(p_tracking, '') ~ '^NTMK' OR coalesce(p_sender_ref, '') ~ '^NTMK') THEN 'mex_web'
+    WHEN coalesce(p_tracking, '') ~ '^NTMK' OR coalesce(p_sender_ref, '') ~ '^NTMK' THEN 'mex_web'
+    WHEN p_series IN ('9110', '9103')                                            THEN 'elyon_unlinked'
+    WHEN p_series IN ('9100', '9102')                                            THEN 'mex_teleshop'
+    WHEN p_series = '9108'                                                       THEN 'mex_social'
+    WHEN p_series IS NULL AND p_account = 'bio_natural'                          THEN 'elyon_unlinked'
     ELSE 'mex_other'
-  END
-$b$;
-
-CREATE OR REPLACE FUNCTION public.cohort_split_source(p_split text)
-RETURNS text
-LANGUAGE sql
-IMMUTABLE
-PARALLEL SAFE
-AS $b$
-  SELECT CASE p_split
-    WHEN 'mex_leads'     THEN 'altercpa'
-    WHEN 'mex_leads_out' THEN 'elyon_crm'
-    WHEN 'mex_web'       THEN 'web'
-    ELSE 'teleshop_other'
   END
 $b$;
 
@@ -457,17 +539,19 @@ $b$;
 -- Columns:
 --   kind            order | web | mex (MEX-only parcel)
 --   source          altercpa | elyon_crm | web | teleshop_other
---   split           orders: sale_source_detail ('none' when NULL); web: shop |
---                   opencart; MEX-only: mex_leads | mex_leads_out |
---                   mex_teleshop | mex_social | mex_web | mex_other
+--   split           orders: sale_source_detail ('none' when NULL); web: cod |
+--                   card (payment method); MEX-only (all Teleshop/Other):
+--                   mex_teleshop | mex_social | mex_web | elyon_unlinked |
+--                   mex_other
 --   sale_source     orders.sale_source (NULL for web / MEX-only)
 --   sale_at/_day    the cohort clock (header) / its Skopje day
 --   bucket          see the header; in_total = one of the eight
 --   proven          MEX Delivered (bucket paid)
 --   value_eur       orders.price, the catalogue EUR (NULL for web / MEX-only)
---   value_mkd       the cohort value (COD | price × 61,5 | shop total; 0 for
---                   a replacement)
---   cod_mkd         the owned parcel's COD (NULL without a parcel)
+--   value_mkd       the cohort value (COD — a shared parcel's share of it |
+--                   price × 61,5 | shop total; 0 for a replacement)
+--   cod_mkd         the owned parcel's COD (a shared parcel's share of it;
+--                   NULL without a parcel)
 --   cash_at         MEX delivered_at for bucket paid
 --   card_mkd        card money of a card-paid, delivered web order
 --   person_id       orders.sold_by_person_id
@@ -480,12 +564,14 @@ $b$;
 --   q_*             quality flags: cancelled_but_moving (CRM cancelled/trashed,
 --                   MEX moving) · no_seller (order sale, no person) · zero_cod
 --                   (a parcel with COD <= 0) · no_price (price <= 0, valued at
---                   COD) · shared_parcel (two orders hold the tracking id) ·
---                   double_count (MEX-only parcel on the phone of a CRM sale
---                   that has no parcel, sale ±21 days — never auto-merged)
+--                   COD) · shared_parcel (two orders hold the tracking id;
+--                   COD split, owner-ruled accurate) · double_count (MEX-only
+--                   parcel on the phone of a CRM sale that has no parcel, sale
+--                   ±21 days — never auto-merged)
 --   order_id · display_id (order display id / web order number / tracking
 --   id) · web_id · tracking_id · phone8
--- Replacement and cancelled_after_sale rows ARE returned (in_total false).
+-- Replacement and cancelled / trashed after-sale rows ARE returned (in_total
+-- false). Test-phone rows are NOT (see the header).
 CREATE OR REPLACE FUNCTION public.insights_sale_rows(
   p_from   timestamptz,
   p_to_end timestamptz,
@@ -531,10 +617,11 @@ SECURITY DEFINER
 SET search_path = public, pg_temp
 SET TimeZone = 'UTC'
 SET work_mem = '64MB'
+SET jit = off
 AS $fn$
 DECLARE
-  -- ONE definition of the rows ($1 from · $2 to_end · $3 compute the keys);
-  -- only the last step differs: with the keys it joins the city / product
+  -- ONE definition of the rows ($1 from · $2 to_end · $3 compute the keys ·
+  -- $4 the excluded phones' last-8 digits); only the last step differs: with the keys it joins the city / product
   -- keys (computed once per distinct value), without them it streams `u`
   -- straight out (no second pass, no materialisation of 100k wide rows).
   v_rows text := $sr$
@@ -543,6 +630,11 @@ wc AS MATERIALIZED (       -- parcels a live web order claims (web claims win)
   SELECT DISTINCT w.mex_tracking_id AS tr
   FROM public.web_orders w
   WHERE w.mex_tracking_id IS NOT NULL AND w.deleted_in_shop_at IS NULL
+),
+tp AS MATERIALIZED (       -- the test phones' parcels: counted nowhere, nor is
+  SELECT p.tracking_id AS tr -- any order / web order that holds one
+  FROM public.mex_parcels p
+  WHERE p.phone8 = ANY ($4)
 ),
 led AS MATERIALIZED (      -- AlterCPA approvals on orders that carry no sold_at
   SELECT l.order_id, max(l.decided_at) AS decided_at
@@ -553,19 +645,11 @@ led AS MATERIALIZED (      -- AlterCPA approvals on orders that carry no sold_at
     AND l.decided_at IS NOT NULL
   GROUP BY l.order_id
 ),
-shr AS MATERIALIZED (      -- tracking ids two real orders hold
-  SELECT x.mex_tracking_id AS tr
-  FROM public.orders x
-  WHERE x.mex_tracking_id IS NOT NULL
-    AND x.sale_source_detail IS DISTINCT FROM 'disposition'
-  GROUP BY x.mex_tracking_id
-  HAVING count(*) > 1
-),
 ob AS (
   SELECT x.id, x.display_id, x.status::text AS status, x.price, x.sale_source, x.sale_source_detail,
          x.sold_by_person_id, x.prediction_list_id, x.prediction_list_name,
          x.customer_city, x.product_id, x.product_name,
-         regexp_replace(coalesce(x.customer_phone, ''), '[^0-9]', '', 'g') AS phone_digits,
+         public.insights_phone8(x.customer_phone) AS p8,
          x.mex_tracking_id, x.mex_status_id, x.mex_cod_mkd, x.mex_delivered_at, x.mex_account,
          z.sale_at, z.web_claimed,
          (x.mex_tracking_id IS NOT NULL
@@ -575,16 +659,61 @@ ob AS (
                                     x.sale_source_detail, x.mex_tracking_id, x.mex_status_id,
                                     x.mex_cod_mkd, x.mex_delivered_at, z.web_claimed) AS bucket
   FROM public.orders x
+  LEFT JOIN led ON led.order_id = x.id
   CROSS JOIN LATERAL (
-    -- the ledger is read only for an order that has no sold_at (coalesce
-    -- short-circuits; `led` holds a handful of rows); the web claim is a
-    -- hashed probe into `wc`
-    SELECT coalesce(x.sold_at, (SELECT led.decided_at FROM led WHERE led.order_id = x.id),
-                    x.confirmed_at, x.created_at) AS sale_at,
+    -- the ledger date counts only for an order that has no sold_at (`led`
+    -- holds only those); the web claim is a hashed probe into `wc`
+    SELECT coalesce(x.sold_at, led.decided_at, x.confirmed_at, x.created_at) AS sale_at,
            coalesce(x.mex_tracking_id IN (SELECT wc.tr FROM wc), false) AS web_claimed
   ) z
-  WHERE z.sale_at BETWEEN $1 AND $2
+  -- A superset the indexes can answer (sold_at · confirmed_at of an unsold
+  -- order · created_at · a ledger date in the window); the exact sale day
+  -- is checked right after.
+  WHERE (x.sold_at BETWEEN $1 AND $2
+         OR (x.sold_at IS NULL AND x.confirmed_at BETWEEN $1 AND $2)
+         OR x.created_at BETWEEN $1 AND $2
+         OR x.id = ANY (ARRAY(SELECT led.order_id FROM led WHERE led.decided_at BETWEEN $1 AND $2)))
+    AND z.sale_at BETWEEN $1 AND $2
     AND x.sale_source_detail IS DISTINCT FROM 'disposition'
+    AND NOT public.insights_excluded8(public.insights_phone8(x.customer_phone), $4)
+    AND NOT coalesce(x.mex_tracking_id IN (SELECT tp.tr FROM tp), false)
+),
+-- SHARED PARCELS (owner 2026-09-28: both orders accurate). A tracking id two
+-- or more real, non-test orders hold (a web-claimed one is no order's): each
+-- holder's share of the ONE COD — by price, equal shares when no holder has a
+-- price — and the first-created holder takes the rounding remainder, so the
+-- shares add up to the COD to the denar and the parcel is counted once.
+sh0 AS MATERIALIZED (
+  SELECT x.mex_tracking_id AS tr
+  FROM public.orders x
+  WHERE x.mex_tracking_id IS NOT NULL
+    AND x.sale_source_detail IS DISTINCT FROM 'disposition'
+    AND NOT public.insights_excluded8(public.insights_phone8(x.customer_phone), $4)
+    AND x.mex_tracking_id NOT IN (SELECT wc.tr FROM wc)
+    AND x.mex_tracking_id NOT IN (SELECT tp.tr FROM tp)
+  GROUP BY x.mex_tracking_id
+  HAVING count(*) > 1
+),
+shr AS MATERIALIZED (
+  SELECT s.id,
+         CASE WHEN s.rn = 1 THEN s.cod - (sum(s.part) OVER (PARTITION BY s.tr) - s.part)
+              ELSE s.part END AS cod_share
+  FROM (
+    SELECT t.*, round(t.cod * t.frac) AS part
+    FROM (
+      SELECT x.id, x.mex_tracking_id AS tr,
+             (max(x.mex_cod_mkd) OVER w)::numeric AS cod,
+             row_number() OVER (PARTITION BY x.mex_tracking_id ORDER BY x.created_at, x.id) AS rn,
+             CASE WHEN sum(greatest(x.price, 0)) OVER w > 0
+                  THEN greatest(x.price, 0) / sum(greatest(x.price, 0)) OVER w
+                  ELSE 1.0 / count(*) OVER w END AS frac
+      FROM public.orders x
+      JOIN sh0 ON sh0.tr = x.mex_tracking_id
+      WHERE x.sale_source_detail IS DISTINCT FROM 'disposition'
+        AND NOT public.insights_excluded8(public.insights_phone8(x.customer_phone), $4)
+      WINDOW w AS (PARTITION BY x.mex_tracking_id)
+    ) t
+  ) s
 ),
 o AS (
   SELECT 'order'::text AS kind,
@@ -596,9 +725,10 @@ o AS (
          (ob.bucket = 'paid') AS proven,
          ob.price AS value_eur,
          CASE WHEN ob.bucket = 'replacement' THEN 0::numeric
+              WHEN ob.hp AND sh.cod_share IS NOT NULL THEN sh.cod_share
               WHEN ob.hp AND ob.mex_cod_mkd IS NOT NULL THEN ob.mex_cod_mkd::numeric
               ELSE round(coalesce(ob.price, 0) * 61.5) END AS value_mkd,
-         CASE WHEN ob.hp THEN ob.mex_cod_mkd::numeric END AS cod_mkd,
+         CASE WHEN ob.hp THEN coalesce(sh.cod_share, ob.mex_cod_mkd::numeric) END AS cod_mkd,
          -- orders.mex_delivered_at is the parcel's copy; read the register only
          -- when the copy is missing (a handful of drifted links)
          CASE WHEN ob.bucket = 'paid' THEN
@@ -627,14 +757,15 @@ o AS (
          (ob.sold_by_person_id IS NULL AND public.cohort_in_total(ob.bucket)) AS q_no_seller,
          (ob.bucket = 'replacement' AND ob.hp) AS q_zero_cod,
          (coalesce(ob.price, 0) <= 0 AND public.cohort_in_total(ob.bucket)) AS q_no_price,
-         (ob.hp AND ob.mex_tracking_id IN (SELECT shr.tr FROM shr)) AS q_shared_parcel,
+         (ob.hp AND sh.id IS NOT NULL) AS q_shared_parcel,
          false AS q_double_count,
          ob.id AS order_id,
          ob.display_id,
          NULL::integer AS web_id,
          CASE WHEN ob.hp THEN ob.mex_tracking_id END AS tracking_id,
-         CASE WHEN length(ob.phone_digits) >= 8 THEN right(ob.phone_digits, 8) END AS phone8
+         CASE WHEN length(ob.p8) = 8 THEN ob.p8 END AS phone8
   FROM ob
+  LEFT JOIN shr sh ON sh.id = ob.id
   WHERE ob.bucket IS NOT NULL
 ),
 -- The shop's classifier once per distinct (status, payment) — it carries a
@@ -659,6 +790,8 @@ wo AS MATERIALIZED (
   LEFT JOIN public.mex_parcels p ON p.tracking_id = w.mex_tracking_id
   WHERE w.deleted_in_shop_at IS NULL
     AND w.created_at BETWEEN $1 AND $2
+    AND NOT public.insights_excluded8(w.phone8, $4)
+    AND NOT public.insights_excluded8(p.phone8, $4)
 ),
 wb AS (
   SELECT wo.*, public.cohort_web_bucket(wo.outcome, wo.is_legacy, wo.total, wo.p_st, wo.p_tr IS NOT NULL) AS bucket
@@ -667,18 +800,20 @@ wb AS (
 wr AS (
   SELECT 'web'::text AS kind,
          'web'::text AS source,
-         CASE WHEN wb.is_legacy THEN 'opencart' ELSE 'shop' END AS split,
+         -- card money never passes through MEX (its COD is 0): its own split
+         CASE WHEN wb.payment_method = 'CARD' THEN 'card' ELSE 'cod' END AS split,
          NULL::text AS sale_source,
          wb.created_at AS sale_at,
          wb.bucket,
          (wb.bucket = 'paid') AS proven,
          NULL::numeric AS value_eur,
-         CASE WHEN wb.bucket = 'replacement' THEN 0::numeric ELSE wb.total END AS value_mkd,
+         -- whole denari, as every other value: the parts add up to the denar
+         CASE WHEN wb.bucket = 'replacement' THEN 0::numeric ELSE round(wb.total) END AS value_mkd,
          CASE WHEN wb.p_tr IS NOT NULL THEN wb.p_cod::numeric END AS cod_mkd,
          CASE WHEN wb.bucket = 'paid' THEN wb.p_deliv END AS cash_at,
          CASE WHEN wb.bucket = 'paid' AND wb.payment_method = 'CARD'
                    AND wb.payment_status IN ('PAID', 'PARTIALLY_REFUNDED')
-              THEN greatest(wb.total - coalesce(wb.p_cod, 0), 0) END AS card_mkd,
+              THEN greatest(round(wb.total) - coalesce(wb.p_cod, 0), 0) END AS card_mkd,
          NULL::uuid AS person_id,
          NULL::uuid AS list_id,
          NULL::text AS list_name,
@@ -709,11 +844,13 @@ wr AS (
   WHERE wb.bucket IS NOT NULL
 ),
 mo AS MATERIALIZED (       -- MEX-only: no live web order, no real order holds it
+  -- (a parcel a TEST order holds is that order's: counted nowhere either)
   SELECT p.tracking_id, p.account, p.series, p.status_id, p.cod_mkd, p.created_at_mex,
          p.delivered_at, p.receiver_city, p.phone8,
-         public.cohort_parcel_split(p.series, p.tracking_id, p.sender_reference) AS split
+         public.cohort_parcel_split(p.account, p.series, p.tracking_id, p.sender_reference) AS split
   FROM public.mex_parcels p
   WHERE p.created_at_mex BETWEEN $1 AND $2
+    AND NOT public.insights_excluded8(p.phone8, $4)
     AND NOT EXISTS (SELECT 1 FROM wc WHERE wc.tr = p.tracking_id)
     AND NOT EXISTS (SELECT 1 FROM public.orders x
                      WHERE x.mex_tracking_id = p.tracking_id
@@ -731,7 +868,7 @@ cs AS MATERIALIZED (
          coalesce(x.sold_at, x.confirmed_at, x.created_at) AS at
   FROM public.orders x
   WHERE x.mex_tracking_id IS NULL
-    AND x.status IN ('confirmed', 'shipped', 'paid', 'returned')
+    AND x.status IN ('confirmed', 'shipped', 'delivered', 'paid', 'returned')
     AND coalesce(x.price, 0) > 0
     AND x.sale_source_detail IS DISTINCT FROM 'disposition'
     AND x.customer_phone IS NOT NULL
@@ -747,7 +884,7 @@ dbl AS MATERIALIZED (
 ),
 mr AS (
   SELECT 'mex'::text AS kind,
-         public.cohort_split_source(mo.split) AS source,
+         'teleshop_other'::text AS source,             -- every parcel with no order (§3)
          mo.split,
          NULL::text AS sale_source,
          mo.created_at_mex AS sale_at,
@@ -824,6 +961,7 @@ SELECT u.kind, u.source, u.split, u.sale_source, u.sale_at,
        u.order_id, u.display_id, u.web_id, u.tracking_id, u.phone8
 FROM u
 $srn$;
+  v_excluded text[];
 BEGIN
   IF p_from IS NULL OR p_to_end IS NULL THEN
     RAISE EXCEPTION 'insights_sale_rows: p_from and p_to_end are required' USING ERRCODE = '22023';
@@ -832,47 +970,53 @@ BEGIN
     RAISE EXCEPTION 'insights_sale_rows: bad window' USING ERRCODE = '22023';
   END IF;
 
+  -- the test phones: read once, a constant for the planner
+  v_excluded := public.report_excluded_phone8s();
   IF coalesce(p_keys, true) THEN
-    RETURN QUERY EXECUTE v_rows || v_keys USING p_from, p_to_end, true;
+    RETURN QUERY EXECUTE v_rows || v_keys USING p_from, p_to_end, true, v_excluded;
   ELSE
-    RETURN QUERY EXECUTE v_rows || v_plain USING p_from, p_to_end, false;
+    RETURN QUERY EXECUTE v_rows || v_plain USING p_from, p_to_end, false, v_excluded;
   END IF;
 END;
 $fn$;
 
 COMMENT ON FUNCTION public.insights_sale_rows(timestamptz, timestamptz, boolean) IS
-  'THE sale cohort (owner rules 2026-09-28): one row per sale across orders, web_orders and MEX-only parcels, sale day in the window, MEX-first bucket, value (COD | price×61.5 | shop total), cash, card, person, list, city/product keys, quality flags. Replacement and cancelled_after_sale rows are returned with in_total = false. Definitions: migration 20260940000000.';
+  'THE sale cohort (owner rules 2026-09-28): one row per sale across orders, web_orders and MEX-only parcels, sale day in the window, MEX-first bucket, value (COD | price×61.5 | shop total), cash, card, person, list, city/product keys, quality flags. Replacement, cancelled_after_sale and trashed_after_sale rows are returned with in_total = false; the test phones (public.report_excluded_phones) are in no row. Definitions: migration 20260940000000.';
 
 -- ── 6. insights_leads_rows — what came in ──────────────────────────────────
 -- One row per lead that CAME IN during the window (created_at): every order
--- (disposition rows returned with state 'disposition' — they are worked calls,
--- not leads) and every web order except failed card checkouts. state:
+-- row and every web order except failed card checkouts; test phones never.
+-- state (a partition — every row has exactly one):
 --   sale        it is a sale NOW (in_total bucket, any sale day)
 --   cancelled   CRM cancelled / web cancelled (incl. cancelled after a sale)
 --   trashed     CRM trashed
 --   open        still being worked (pending | take | call_again | duplicated;
 --               web awaiting)
 --   other       anything else — a free replacement, a sale re-opened
---   disposition an ElyonCRM "no" call row
+-- disposition: an ElyonCRM "no" call row (0 ден, never a sale). It is a worked
+-- decision like any other (Обработени) and keeps its cancelled / trashed
+-- state; the flag lets a report say how many of the cancels were calls.
 -- MEX-only parcels never came in and are not here.
 CREATE OR REPLACE FUNCTION public.insights_leads_rows(p_from timestamptz, p_to_end timestamptz)
 RETURNS TABLE (
-  kind       text,
-  source     text,
-  split      text,
-  came_at    timestamptz,
-  state      text,
-  bucket     text,
-  order_id   uuid,
-  display_id text,
-  web_id     integer,
-  person_id  uuid)
+  kind        text,
+  source      text,
+  split       text,
+  came_at     timestamptz,
+  state       text,
+  disposition boolean,
+  bucket      text,
+  order_id    uuid,
+  display_id  text,
+  web_id      integer,
+  person_id   uuid)
 LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
 SET search_path = public, pg_temp
 SET TimeZone = 'UTC'
 SET work_mem = '64MB'
+SET jit = off
 AS $fn$
 BEGIN
   IF p_from IS NULL OR p_to_end IS NULL OR p_to_end < p_from OR p_to_end - p_from > interval '800 days' THEN
@@ -886,6 +1030,11 @@ wc AS MATERIALIZED (
   FROM public.web_orders w
   WHERE w.mex_tracking_id IS NOT NULL AND w.deleted_in_shop_at IS NULL
 ),
+tp AS MATERIALIZED (       -- the test phones' parcels
+  SELECT p.tracking_id AS tr
+  FROM public.mex_parcels p
+  WHERE p.phone8 = ANY ($3)
+),
 ol AS (
   SELECT x.id, x.display_id, x.status::text AS status, x.sale_source, x.sale_source_detail,
          x.created_at, x.sold_by_person_id,
@@ -895,6 +1044,8 @@ ol AS (
                                     coalesce(x.mex_tracking_id IN (SELECT wc.tr FROM wc), false)) AS bucket
   FROM public.orders x
   WHERE x.created_at BETWEEN $1 AND $2
+    AND NOT public.insights_excluded8(public.insights_phone8(x.customer_phone), $3)
+    AND NOT coalesce(x.mex_tracking_id IN (SELECT tp.tr FROM tp), false)
 ),
 wos AS MATERIALIZED (       -- the shop's classifier once per distinct (status, payment)
   SELECT d.status, d.payment_status, d.payment_method,
@@ -905,7 +1056,7 @@ wos AS MATERIALIZED (       -- the shop's classifier once per distinct (status, 
            AND w.created_at BETWEEN $1 AND $2) d
 ),
 wl AS (
-  SELECT w.shop_order_id, w.order_number, w.is_legacy, w.created_at, wos.oc,
+  SELECT w.shop_order_id, w.order_number, w.payment_method, w.created_at, wos.oc,
          public.cohort_web_bucket(wos.oc, w.is_legacy, w.total, p.status_id, p.tracking_id IS NOT NULL) AS bucket
   FROM public.web_orders w
   JOIN wos ON wos.status = w.status AND wos.payment_status = w.payment_status
@@ -913,17 +1064,19 @@ wl AS (
   LEFT JOIN public.mex_parcels p ON p.tracking_id = w.mex_tracking_id
   WHERE w.deleted_in_shop_at IS NULL
     AND w.created_at BETWEEN $1 AND $2
+    AND NOT public.insights_excluded8(w.phone8, $3)
+    AND NOT public.insights_excluded8(p.phone8, $3)
 )
 SELECT 'order'::text                                                           AS kind,
        public.cohort_order_source(ol.sale_source)                              AS source,
        coalesce(ol.sale_source_detail, 'none')                                 AS split,
        ol.created_at                                                           AS came_at,
-       CASE WHEN ol.sale_source_detail = 'disposition'                         THEN 'disposition'
-            WHEN public.cohort_in_total(ol.bucket)                             THEN 'sale'
+       CASE WHEN public.cohort_in_total(ol.bucket)                             THEN 'sale'
             WHEN ol.status = 'cancelled'                                       THEN 'cancelled'
             WHEN ol.status = 'trashed'                                         THEN 'trashed'
             WHEN ol.status IN ('pending', 'take', 'call_again', 'duplicated')  THEN 'open'
             ELSE 'other' END                                                   AS state,
+       (ol.sale_source_detail IS NOT DISTINCT FROM 'disposition')              AS disposition,
        ol.bucket                                                               AS bucket,
        ol.id                                                                   AS order_id,
        ol.display_id                                                           AS display_id,
@@ -933,27 +1086,30 @@ FROM ol
 UNION ALL
 SELECT 'web'::text,
        'web'::text,
-       CASE WHEN wl.is_legacy THEN 'opencart' ELSE 'shop' END,
+       CASE WHEN wl.payment_method = 'CARD' THEN 'card' ELSE 'cod' END,
        wl.created_at,
        CASE WHEN public.cohort_in_total(wl.bucket) THEN 'sale'
             WHEN wl.oc = 'cancelled'               THEN 'cancelled'
             WHEN wl.oc = 'awaiting'                THEN 'open'
             ELSE 'other' END,
+       false,
        wl.bucket, NULL::uuid, wl.order_number, wl.shop_order_id, NULL::uuid
 FROM wl
 WHERE wl.oc <> 'card_unpaid'
   $lr$
-  USING p_from, p_to_end;
+  USING p_from, p_to_end, public.report_excluded_phone8s();   -- $3: the test phones, read once
 END;
 $fn$;
 
 COMMENT ON FUNCTION public.insights_leads_rows(timestamptz, timestamptz) IS
-  'The leads funnel (owner rules 2026-09-28): orders and web orders that CAME IN in the window (created_at), each with its state now: sale | cancelled | trashed | open | other | disposition. Failed card checkouts are dropped; MEX-only parcels are not leads.';
+  'The leads funnel (owner rules 2026-09-28): orders and web orders that CAME IN in the window (created_at), each with its state now: sale | cancelled | trashed | open | other; disposition = an ElyonCRM "no" call row (in its cancelled / trashed state, never a sale). Failed card checkouts and test phones are dropped; MEX-only parcels are not leads.';
 
 -- ── 7. insights_cash_rows — MEX money by delivery day ──────────────────────
 -- One row per MEX parcel DELIVERED in the window (delivered_at, write-once),
 -- both accounts, every parcel exactly once, owned as in the header (web claim
--- → real order → MEX-only). card_mkd: the card money of a card-paid web order
+-- → real order → MEX-only; a shared parcel → its first-created holder). The
+-- test phones' parcels — and a parcel only a test order / test web order
+-- holds — are not cash. card_mkd: the card money of a card-paid web order
 -- (payment PAID / PARTIALLY_REFUNDED) = shop total − the COD MEX collected.
 -- sale_at: the owner's sale day — splits the cash into "from this period's
 -- sales" and "from earlier sales".
@@ -978,6 +1134,7 @@ SECURITY DEFINER
 SET search_path = public, pg_temp
 SET TimeZone = 'UTC'
 SET work_mem = '64MB'
+SET jit = off
 AS $fn$
 BEGIN
   IF p_from IS NULL OR p_to_end IS NULL OR p_to_end < p_from OR p_to_end - p_from > interval '800 days' THEN
@@ -991,6 +1148,7 @@ dp AS MATERIALIZED (
          p.created_at_mex, p.order_id
   FROM public.mex_parcels p
   WHERE p.delivered_at BETWEEN $1 AND $2
+    AND NOT public.insights_excluded8(p.phone8, $3)
 ),
 led AS MATERIALIZED (
   SELECT l.order_id, max(l.decided_at) AS decided_at
@@ -1004,35 +1162,39 @@ led AS MATERIALIZED (
 wcl AS (                   -- the live web order that claims the parcel
   SELECT DISTINCT ON (w.mex_tracking_id)
          w.mex_tracking_id AS tr, w.shop_order_id, w.order_number, w.created_at, w.total,
-         w.payment_method, w.payment_status, w.is_legacy
+         w.payment_method, w.payment_status,
+         public.insights_excluded8(w.phone8, $3) AS test
   FROM public.web_orders w
   JOIN dp ON dp.tracking_id = w.mex_tracking_id
   WHERE w.deleted_in_shop_at IS NULL
   ORDER BY w.mex_tracking_id, w.created_at DESC, w.shop_order_id DESC
 ),
-ocl AS (                   -- the real order that holds it (the linked one first)
+ocl AS (                   -- the real order that holds it: a non-test holder,
+                           -- the first-created one (the shared-parcel rule)
   SELECT DISTINCT ON (x.mex_tracking_id)
          x.mex_tracking_id AS tr, x.id, x.display_id, x.sale_source, x.sale_source_detail,
-         coalesce(x.sold_at, (SELECT led.decided_at FROM led WHERE led.order_id = x.id),
-                  x.confirmed_at, x.created_at) AS sale_at
+         coalesce(x.sold_at, led.decided_at, x.confirmed_at, x.created_at) AS sale_at,
+         public.insights_excluded8(public.insights_phone8(x.customer_phone), $3) AS test
   FROM dp
   JOIN public.orders x ON x.mex_tracking_id = dp.tracking_id
+  LEFT JOIN led ON led.order_id = x.id
   WHERE x.sale_source_detail IS DISTINCT FROM 'disposition'
-  ORDER BY x.mex_tracking_id, (x.id = dp.order_id) IS TRUE DESC, x.display_id
+  ORDER BY x.mex_tracking_id, public.insights_excluded8(public.insights_phone8(x.customer_phone), $3),
+           x.created_at, x.id
 )
 SELECT CASE WHEN wcl.tr IS NOT NULL THEN 'web' WHEN ow.id IS NOT NULL THEN 'order' ELSE 'mex' END AS kind,
        CASE WHEN wcl.tr IS NOT NULL THEN 'web'
             WHEN ow.id IS NOT NULL THEN public.cohort_order_source(ow.sale_source)
-            ELSE public.cohort_split_source(public.cohort_parcel_split(dp.series, dp.tracking_id, dp.sender_reference)) END AS source,
-       CASE WHEN wcl.tr IS NOT NULL THEN CASE WHEN wcl.is_legacy THEN 'opencart' ELSE 'shop' END
+            ELSE 'teleshop_other' END                                        AS source,
+       CASE WHEN wcl.tr IS NOT NULL THEN CASE WHEN wcl.payment_method = 'CARD' THEN 'card' ELSE 'cod' END
             WHEN ow.id IS NOT NULL THEN coalesce(ow.sale_source_detail, 'none')
-            ELSE public.cohort_parcel_split(dp.series, dp.tracking_id, dp.sender_reference) END AS split,
+            ELSE public.cohort_parcel_split(dp.account, dp.series, dp.tracking_id, dp.sender_reference) END AS split,
        dp.tracking_id                                                        AS tracking_id,
        dp.delivered_at                                                       AS delivered_at,
        dp.cod_mkd::numeric                                                   AS cod_mkd,
        CASE WHEN wcl.tr IS NOT NULL AND wcl.payment_method = 'CARD'
                  AND wcl.payment_status IN ('PAID', 'PARTIALLY_REFUNDED')
-            THEN greatest(wcl.total - coalesce(dp.cod_mkd, 0), 0) END        AS card_mkd,
+            THEN greatest(round(wcl.total) - coalesce(dp.cod_mkd, 0), 0) END AS card_mkd,
        CASE WHEN wcl.tr IS NOT NULL THEN wcl.created_at
             WHEN ow.id IS NOT NULL THEN ow.sale_at
             ELSE dp.created_at_mex END                                       AS sale_at,
@@ -1051,7 +1213,8 @@ LEFT JOIN ocl ON ocl.tr = dp.tracking_id
 LEFT JOIN LATERAL (
   SELECT x.id, x.display_id, x.sale_source, x.sale_source_detail,
          coalesce(x.sold_at, (SELECT led.decided_at FROM led WHERE led.order_id = x.id),
-                  x.confirmed_at, x.created_at) AS sale_at
+                  x.confirmed_at, x.created_at) AS sale_at,
+         public.insights_excluded8(public.insights_phone8(x.customer_phone), $3) AS test
   FROM public.orders x
   WHERE ocl.tr IS NULL AND wcl.tr IS NULL AND dp.order_id IS NOT NULL
     AND x.id = dp.order_id
@@ -1062,29 +1225,57 @@ CROSS JOIN LATERAL (
          coalesce(ocl.display_id, olk.display_id) AS display_id,
          CASE WHEN ocl.tr IS NOT NULL THEN ocl.sale_source ELSE olk.sale_source END               AS sale_source,
          CASE WHEN ocl.tr IS NOT NULL THEN ocl.sale_source_detail ELSE olk.sale_source_detail END AS sale_source_detail,
-         coalesce(ocl.sale_at, olk.sale_at)       AS sale_at
+         coalesce(ocl.sale_at, olk.sale_at)       AS sale_at,
+         coalesce(ocl.test, olk.test, false)      AS test
 ) ow
+-- a parcel only a test order / test web order holds is theirs: not cash
+WHERE CASE WHEN wcl.tr IS NOT NULL THEN NOT wcl.test ELSE NOT ow.test END
   $cr$
-  USING p_from, p_to_end;
+  USING p_from, p_to_end, public.report_excluded_phone8s();   -- $3: the test phones, read once
 END;
 $fn$;
 
 COMMENT ON FUNCTION public.insights_cash_rows(timestamptz, timestamptz) IS
-  'Cash flow (owner rules 2026-09-28): every MEX parcel delivered in the window, once, with its owner (web claim → order → MEX-only), COD, the card money of a card-paid web order, and the owner''s sale day. Σ cod_mkd ties to the MEX register.';
+  'Cash flow (owner rules 2026-09-28): every MEX parcel delivered in the window, once, with its owner (web claim → order, a shared parcel''s first-created holder → MEX-only), COD, the card money of a card-paid web order, and the owner''s sale day. Σ cod_mkd ties to the MEX register less the test phones'' parcels.';
 
--- ── 8. The two id lists the /orders twin cannot derive from order columns ──
+-- ── 8. The id lists the /orders twin cannot derive from order columns ─────
 --   web_claimed  orders whose mex_tracking_id a live web order claims (the
 --                order is judged WITHOUT that parcel)
 --   ledger       orders with no sold_at whose sale day is the AlterCPA
---                ledger's decided_at (approved | cancel_other)
--- Both are tiny (6 and 2 on 2026-09-28; the stamping cron empties the second).
-CREATE OR REPLACE FUNCTION public.insights_cohort_order_exceptions()
+--                ledger's decided_at (approved | cancel_other). With a window,
+--                only those it concerns: the ledger day OR the fallback day
+--                (confirmed_at, else created_at) inside it — the list stays
+--                window-sized even before the stamping cron empties it.
+--   excluded_phone8s  the test phones' last-8 digits (report_excluded_
+--                phone8s(), the shared list): the api drops every order
+--                whose phone TEXT ends in one (insightsCommon.ts
+--                cohortExcludedPhoneOr) — no copy of the list in the api
+--   test_orders  test-phone orders that text filter cannot see: the phone's
+--                digits end in a test phone but the text does not (spaces,
+--                a suffix), or the order holds a test-phone parcel.
+-- All of them are tiny (6 web claims · 2 ledger dates · 2 phones on 2026-09-28;
+-- the test phones' CRM orders go with scripts/repair-test-phones.mjs).
+CREATE OR REPLACE FUNCTION public.insights_cohort_order_exceptions(
+  p_from   timestamptz DEFAULT NULL,
+  p_to_end timestamptz DEFAULT NULL)
 RETURNS jsonb
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $fn$
+  WITH xp AS MATERIALIZED (   -- the shared test-phone list, read once
+    SELECT public.report_excluded_phone8s() AS l
+  ),
+  led AS (
+    SELECT l.order_id, max(l.decided_at) AS decided_at
+    FROM public.altercpa_leads l
+    JOIN public.orders x ON x.id = l.order_id AND x.sold_at IS NULL
+    WHERE l.order_id IS NOT NULL
+      AND l.decision IN ('approved', 'cancel_other')
+      AND l.decided_at IS NOT NULL
+    GROUP BY l.order_id
+  )
   SELECT jsonb_build_object(
     'web_claimed', coalesce((
       SELECT jsonb_agg(DISTINCT x.id)
@@ -1093,17 +1284,26 @@ AS $fn$
       WHERE x.mex_tracking_id IS NOT NULL), '[]'::jsonb),
     'ledger', coalesce((
       SELECT jsonb_agg(jsonb_build_object('id', q.order_id, 'sale_at', q.decided_at) ORDER BY q.order_id)
-      FROM (SELECT l.order_id, max(l.decided_at) AS decided_at
-              FROM public.altercpa_leads l
-              JOIN public.orders x ON x.id = l.order_id AND x.sold_at IS NULL
-             WHERE l.order_id IS NOT NULL
-               AND l.decision IN ('approved', 'cancel_other')
-               AND l.decided_at IS NOT NULL
-             GROUP BY l.order_id) q), '[]'::jsonb))
+      FROM led q
+      JOIN public.orders x ON x.id = q.order_id
+      WHERE p_from IS NULL OR p_to_end IS NULL
+         OR q.decided_at BETWEEN p_from AND p_to_end
+         OR coalesce(x.confirmed_at, x.created_at) BETWEEN p_from AND p_to_end), '[]'::jsonb),
+    'excluded_phone8s', (SELECT to_jsonb(xp.l) FROM xp),
+    'test_orders', coalesce((
+      SELECT jsonb_agg(x.id ORDER BY x.id)
+      FROM public.orders x
+      -- the scalar sub-selects run once (InitPlans); the phone one is
+      -- idx_orders_phone_last8's expression, so it is an index probe
+      WHERE (public.insights_phone8(x.customer_phone) = ANY ((SELECT xp.l FROM xp)::text[])
+             OR x.mex_tracking_id IN (SELECT p.tracking_id FROM public.mex_parcels p
+                                       WHERE p.phone8 = ANY ((SELECT xp.l FROM xp)::text[])))
+        AND NOT EXISTS (SELECT 1 FROM xp, unnest(xp.l) t(p8)
+                         WHERE x.customer_phone LIKE '%' || t.p8)), '[]'::jsonb))
 $fn$;
 
-COMMENT ON FUNCTION public.insights_cohort_order_exceptions() IS
-  'For GET /orders?cohort_bucket: {web_claimed: [order ids whose parcel a web order claims], ledger: [{id, sale_at}] orders dated by the AlterCPA ledger}. The PostgREST twin of the cohort needs exactly these two lists.';
+COMMENT ON FUNCTION public.insights_cohort_order_exceptions(timestamptz, timestamptz) IS
+  'For GET /orders?cohort_bucket: {web_claimed: [order ids whose parcel a web order claims], ledger: [{id, sale_at}] orders dated by the AlterCPA ledger (only those the window concerns when one is given), excluded_phone8s: [the test phones'' last-8 digits, public.report_excluded_phone8s()], test_orders: [test-phone order ids the phone-text filter misses]}. The PostgREST twin of the cohort needs exactly these lists.';
 
 -- ── 9. Money strip (non-owners): every *_mkd / *_eur key, at any depth ─────
 CREATE OR REPLACE FUNCTION public.insights_strip_money(p jsonb)
@@ -1139,17 +1339,24 @@ $fn$;
 -- { meta:{from,to,prev_from,prev_to,generated_at,money,clock:'sale',sources,granularity},
 --   total:{count,value_mkd?,cod_mkd?,orders,web,mex_only,drill},
 --   buckets:[{key,count,value_mkd?,cod_mkd?,orders,web,mex_only,drill}]   Σ = total
---   outside:[{key:'cancelled_after_sale'|'replacement',count,value_mkd?,orders,web,mex_only,drill}],
+--   outside:[{key:'cancelled_after_sale'|'trashed_after_sale'|'replacement',
+--             count,value_mkd?,orders,web,mex_only,drill}],
 --   by_source:[{key,total,buckets,outside,splits:[{key,kind,count,value_mkd?,drill}],leads_in}],
---   leads_in:{came_in,became_sales,cancelled,trashed,open,conversion,other,disposition},
+--   leads_in:{came_in,became_sales,cancelled,trashed,open,other,disposition,conversion},
 --   cash_flow:{cod_mkd?,card_mkd?,parcels,card_orders,from_this_period_mkd?,from_earlier_mkd?},
 --   prev:{total,buckets} | null,
 --   spark:[{d,count,value_mkd?}],
 --   quality:[{kind,count,value_mkd?}] — all five kinds, always }
 -- orders / web / mex_only split each count into what GET /orders can list
 -- (orders) and what it cannot (web orders, MEX-only parcels); drill is the
--- /orders link of the orders part, NULL when there is none. p_money = false
--- removes every *_mkd / *_eur key (absent, never 0). p_sources NULL = all four.
+-- /orders link of the orders part, NULL when there is none — it lists
+-- EXACTLY `orders` rows, so a number is linkable as a whole only when web =
+-- mex_only = 0. A split's kind is order | web | mex; only an order split with
+-- a sale_source_detail has a drill. Σ by_source.total = total; Σ a source's
+-- splits = its total. leads_in partitions came_in: became_sales + cancelled +
+-- trashed + open + other = came_in (disposition counts the "no" calls among
+-- the cancelled / trashed). p_money = false removes every *_mkd / *_eur key
+-- (absent, never 0). p_sources NULL = all four. Test phones are in nothing.
 -- Spark: at least 14 Skopje days ending at `to`, daily up to 62 days, monthly
 -- beyond. prev has no drill links (its window may be cut at the elapsed time).
 CREATE OR REPLACE FUNCTION public.insights_cohort(
@@ -1166,6 +1373,7 @@ SECURITY DEFINER
 SET search_path = public, pg_temp
 SET TimeZone = 'UTC'
 SET work_mem = '64MB'
+SET jit = off
 AS $fn$
 DECLARE
   v_all  text[] := ARRAY['altercpa', 'elyon_crm', 'web', 'teleshop_other'];
@@ -1245,7 +1453,8 @@ bks AS (
   SELECT * FROM (VALUES ('paid', 1, true), ('paid_unproven', 2, true), ('paid_legacy', 3, true),
                         ('courier', 4, true), ('courier_problem', 5, true), ('label', 6, true),
                         ('to_pack', 7, true), ('returned', 8, true),
-                        ('cancelled_after_sale', 9, false), ('replacement', 10, false)) v(key, ord, in_total)
+                        ('cancelled_after_sale', 9, false), ('trashed_after_sale', 10, false),
+                        ('replacement', 11, false)) v(key, ord, in_total)
 ),
 sr AS MATERIALIZED (
   SELECT r.kind, r.source, r.split, r.bucket, r.in_total, r.value_mkd, r.cod_mkd, r.sale_day,
@@ -1323,7 +1532,8 @@ spj AS (
   SELECT sp.source,
     jsonb_agg(jsonb_build_object(
       'key', sp.split, 'kind', sp.kind, 'count', sp.n, 'value_mkd', round(sp.v),
-      'drill', CASE WHEN sp.kind = 'order' AND sp.split <> 'none' THEN
+      -- only a detail GET /orders accepts (overview.ts DETAIL_RE) links
+      'drill', CASE WHEN sp.kind = 'order' AND sp.split <> 'none' AND sp.split ~* '^[a-z0-9_.-]{1,40}$' THEN
                  '/orders?cohort_bucket=total&sale_source=' || s.ss || '&sale_source_detail=' || sp.split || prm.win_q END)
       ORDER BY sp.n DESC, sp.split) AS j
   FROM sp
@@ -1332,20 +1542,20 @@ spj AS (
   GROUP BY sp.source
 ),
 lr AS MATERIALIZED (
-  SELECT l.source, l.state
+  SELECT l.source, l.state, l.disposition
   FROM public.insights_leads_rows($1, $2) l
   CROSS JOIN prm
   WHERE l.source = ANY (prm.srcs)
 ),
-la AS (
+la AS (                    -- a partition: sales + cancelled + trashed + open + other = came_in
   SELECT coalesce(l.source, '*') AS src,
-         count(*) FILTER (WHERE l.state <> 'disposition') AS came_in,
+         count(*)                                         AS came_in,
          count(*) FILTER (WHERE l.state = 'sale')         AS sales,
          count(*) FILTER (WHERE l.state = 'cancelled')    AS cancelled,
          count(*) FILTER (WHERE l.state = 'trashed')      AS trashed,
          count(*) FILTER (WHERE l.state = 'open')         AS open,
          count(*) FILTER (WHERE l.state = 'other')        AS other,
-         count(*) FILTER (WHERE l.state = 'disposition')  AS dispo
+         count(*) FILTER (WHERE l.disposition)            AS dispo
   FROM lr l
   GROUP BY GROUPING SETS ((l.source), ())
 ),
@@ -1356,9 +1566,9 @@ laj AS (
     'cancelled',    coalesce(la.cancelled, 0),
     'trashed',      coalesce(la.trashed, 0),
     'open',         coalesce(la.open, 0),
-    'conversion',   CASE WHEN coalesce(la.came_in, 0) > 0 THEN round(la.sales::numeric / la.came_in, 4) END,
     'other',        coalesce(la.other, 0),
-    'disposition',  coalesce(la.dispo, 0)) AS j
+    'disposition',  coalesce(la.dispo, 0),
+    'conversion',   CASE WHEN coalesce(la.came_in, 0) > 0 THEN round(la.sales::numeric / la.came_in, 4) END) AS j
   FROM scopes sc
   LEFT JOIN la ON la.src = sc.src
 ),
@@ -1406,9 +1616,11 @@ qj AS (
     jsonb_build_object('kind', 'zero_cod_parcels',
       'count', count(*) FILTER (WHERE r.q_zero_cod),
       'value_mkd', round(coalesce(sum(r.cod_mkd) FILTER (WHERE r.q_zero_cod), 0))),
+    -- a shared parcel is NOT a candidate: the owner ruled both orders
+    -- accurate and its COD is split, not doubled (checker C8a exception)
     jsonb_build_object('kind', 'double_count_candidates',
-      'count', count(*) FILTER (WHERE r.q_double_count OR r.q_shared_parcel),
-      'value_mkd', round(coalesce(sum(r.value_mkd) FILTER (WHERE r.q_double_count OR r.q_shared_parcel), 0))),
+      'count', count(*) FILTER (WHERE r.q_double_count),
+      'value_mkd', round(coalesce(sum(r.value_mkd) FILTER (WHERE r.q_double_count), 0))),
     jsonb_build_object('kind', 'no_seller',
       'count', count(*) FILTER (WHERE r.q_no_seller),
       'value_mkd', round(coalesce(sum(r.value_mkd) FILTER (WHERE r.q_no_seller), 0))),
@@ -1468,7 +1680,7 @@ END;
 $fn$;
 
 COMMENT ON FUNCTION public.insights_cohort(timestamptz, timestamptz, timestamptz, timestamptz, text[], boolean) IS
-  'GET /api/insights/cohort (owner rules 2026-09-28): the sales made in the window (sale day, Skopje) split into MEX-first buckets that sum exactly to the total, by source with splits and the leads funnel, cash flow by MEX delivery day (+ card), previous period, spark and quality. p_money = false strips every *_mkd / *_eur key. Contract: migration 20260940000000.';
+  'GET /api/insights/cohort (owner rules 2026-09-28): the sales made in the window (sale day, Skopje) split into MEX-first buckets that sum exactly to the total, by source (Σ = total) with splits and the leads funnel, cash flow by MEX delivery day (+ card), previous period, spark and quality. Test phones excluded. p_money = false strips every *_mkd / *_eur key. Contract: migration 20260940000000.';
 
 -- ── 11. Grants ──────────────────────────────────────────────────────────────
 REVOKE ALL ON FUNCTION public.cohort_order_source(text)                          FROM PUBLIC, anon, authenticated;
@@ -1476,8 +1688,9 @@ REVOKE ALL ON FUNCTION public.cohort_order_bucket(text, numeric, timestamptz, te
                                                                                  FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.cohort_web_bucket(text, boolean, numeric, integer, boolean) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.cohort_parcel_bucket(integer, integer)             FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.cohort_parcel_split(text, text, text)              FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.cohort_split_source(text)                          FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.cohort_parcel_split(text, text, text, text)        FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.insights_excluded8(text, text[])                   FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.insights_phone8(text)                              FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.cohort_in_total(text)                              FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.mk_geo_norm(text)                                  FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.mk_city_key(text)                                  FROM PUBLIC, anon, authenticated;
@@ -1487,7 +1700,7 @@ REVOKE ALL ON FUNCTION public.order_line_kind(text, text)                       
 REVOKE ALL ON FUNCTION public.insights_sale_rows(timestamptz, timestamptz, boolean) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.insights_leads_rows(timestamptz, timestamptz)      FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.insights_cash_rows(timestamptz, timestamptz)       FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.insights_cohort_order_exceptions()                 FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.insights_cohort_order_exceptions(timestamptz, timestamptz) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.insights_strip_money(jsonb)                        FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.insights_cohort(timestamptz, timestamptz, timestamptz, timestamptz, text[], boolean)
                                                                                  FROM PUBLIC, anon, authenticated;
@@ -1497,8 +1710,9 @@ GRANT EXECUTE ON FUNCTION public.cohort_order_bucket(text, numeric, timestamptz,
                                                                                  TO service_role;
 GRANT EXECUTE ON FUNCTION public.cohort_web_bucket(text, boolean, numeric, integer, boolean) TO service_role;
 GRANT EXECUTE ON FUNCTION public.cohort_parcel_bucket(integer, integer)          TO service_role;
-GRANT EXECUTE ON FUNCTION public.cohort_parcel_split(text, text, text)           TO service_role;
-GRANT EXECUTE ON FUNCTION public.cohort_split_source(text)                       TO service_role;
+GRANT EXECUTE ON FUNCTION public.cohort_parcel_split(text, text, text, text)     TO service_role;
+GRANT EXECUTE ON FUNCTION public.insights_excluded8(text, text[])                TO service_role;
+GRANT EXECUTE ON FUNCTION public.insights_phone8(text)                           TO service_role;
 GRANT EXECUTE ON FUNCTION public.cohort_in_total(text)                           TO service_role;
 -- Pure text folding: harmless to a signed-in user (search boxes may use it).
 GRANT EXECUTE ON FUNCTION public.mk_geo_norm(text)                               TO authenticated, service_role;
@@ -1509,7 +1723,7 @@ GRANT EXECUTE ON FUNCTION public.order_line_kind(text, text)                    
 GRANT EXECUTE ON FUNCTION public.insights_sale_rows(timestamptz, timestamptz, boolean) TO service_role;
 GRANT EXECUTE ON FUNCTION public.insights_leads_rows(timestamptz, timestamptz)   TO service_role;
 GRANT EXECUTE ON FUNCTION public.insights_cash_rows(timestamptz, timestamptz)    TO service_role;
-GRANT EXECUTE ON FUNCTION public.insights_cohort_order_exceptions()              TO service_role;
+GRANT EXECUTE ON FUNCTION public.insights_cohort_order_exceptions(timestamptz, timestamptz) TO service_role;
 GRANT EXECUTE ON FUNCTION public.insights_strip_money(jsonb)                     TO service_role;
 GRANT EXECUTE ON FUNCTION public.insights_cohort(timestamptz, timestamptz, timestamptz, timestamptz, text[], boolean)
                                                                                  TO service_role;
@@ -1527,8 +1741,9 @@ BEGIN
                                                                                  TO supabase_read_only_user;
     GRANT EXECUTE ON FUNCTION public.cohort_web_bucket(text, boolean, numeric, integer, boolean) TO supabase_read_only_user;
     GRANT EXECUTE ON FUNCTION public.cohort_parcel_bucket(integer, integer)       TO supabase_read_only_user;
-    GRANT EXECUTE ON FUNCTION public.cohort_parcel_split(text, text, text)        TO supabase_read_only_user;
-    GRANT EXECUTE ON FUNCTION public.cohort_split_source(text)                    TO supabase_read_only_user;
+    GRANT EXECUTE ON FUNCTION public.cohort_parcel_split(text, text, text, text)  TO supabase_read_only_user;
+    GRANT EXECUTE ON FUNCTION public.insights_excluded8(text, text[])             TO supabase_read_only_user;
+    GRANT EXECUTE ON FUNCTION public.insights_phone8(text)                        TO supabase_read_only_user;
     GRANT EXECUTE ON FUNCTION public.cohort_in_total(text)                        TO supabase_read_only_user;
     GRANT EXECUTE ON FUNCTION public.mk_geo_norm(text)                            TO supabase_read_only_user;
     GRANT EXECUTE ON FUNCTION public.mk_city_key(text)                            TO supabase_read_only_user;
@@ -1538,7 +1753,7 @@ BEGIN
     GRANT EXECUTE ON FUNCTION public.insights_sale_rows(timestamptz, timestamptz, boolean) TO supabase_read_only_user;
     GRANT EXECUTE ON FUNCTION public.insights_leads_rows(timestamptz, timestamptz) TO supabase_read_only_user;
     GRANT EXECUTE ON FUNCTION public.insights_cash_rows(timestamptz, timestamptz) TO supabase_read_only_user;
-    GRANT EXECUTE ON FUNCTION public.insights_cohort_order_exceptions()           TO supabase_read_only_user;
+    GRANT EXECUTE ON FUNCTION public.insights_cohort_order_exceptions(timestamptz, timestamptz) TO supabase_read_only_user;
     GRANT EXECUTE ON FUNCTION public.insights_strip_money(jsonb)                  TO supabase_read_only_user;
     GRANT EXECUTE ON FUNCTION public.insights_cohort(timestamptz, timestamptz, timestamptz, timestamptz, text[], boolean)
                                                                                  TO supabase_read_only_user;

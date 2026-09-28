@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { OverviewResponse, OverviewTeamMember } from '@/lib/api';
 import sample from './__fixtures__/overview.sample.json';
 import pivotSample from './__fixtures__/pivot.sample.json';
-import cohortSample from './__fixtures__/cohort.sample.json';
+import cohortSample from '../shared/__fixtures__/cohort.sample.json';
 import {
   agoParts, compactParts, delta, deriveKpis, groupPivotRows, measureSetOf, ordersHref, parseDrillParams,
   parseOverviewParams, placedOf, preparingOf, presetRange, previousRange, primaryOf, seriesFromTrend, shareText,
@@ -221,9 +221,11 @@ describe('owners-only money', () => {
     };
     expect(JSON.stringify(d.cohort)).not.toMatch(/_mkd"/);
     expect(d.cohort.meta.money).toBe(false);
-    expect(d.cohort.total).toEqual({ count: 1337 });
+    expect(d.cohort.total).toEqual({
+      count: 1337, orders: 507, web: 90, mex_only: 740, drill: '/orders?cohort_bucket=total&sold_from=2026-09-22&sold_to=2026-09-28',
+    });
     expect(d.cohort.by_source[0].leads_in.cancelled).toBe(301);
-    expect(d.cohort.cash_flow).toEqual({ parcels: 1302 });
+    expect(d.cohort.cash_flow).toEqual({ parcels: 1302, card_orders: 6 });
   });
 });
 
