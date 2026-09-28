@@ -232,3 +232,20 @@ Gates 734/734 + build ✓ → deployed `api`; `/insights/cohort` without token �
 `scripts/data/c8a-accepted-duplicates.json` → C8a PASS. Same run (default range): C7 FAIL 132 (paid
 without MEX proof), C8b FAIL 56 (tracking id not in `mex_parcels`), C10 FAIL 90 (ghost parcels), C3 WARN 7,
 C6 WARN 470, C9 WARN 1.344 — pre-existing, not part of this pass; follow-up.
+
+**§6.2 People** — NOT run (it back-stamps ≈1.364 orders, so it belongs in the quiet window). Lazar =
+user 0b4b9f0f-…, no sales_people row; 15 collabBox spellings / 1.364 orders confirmed. Steps in
+FINISH-FROM-VSCODE §C1.
+**§6.3 Dry runs** — test phones: 6 to delete (1 paid, 1 cancelled, 4 trashed; 18 dependents), 2 kept
+(other_prefix). COD→price: 760 mismatches → 478 re-price (Σ 870.676 → 1.456.425 ден), 282 excluded
+(suspect_link 237, not_a_sale_status 24, disposition 14, zero_price 7); 372 PAID change price
+(Δ 457.344 ден; under the deferred bonus rule, +495 € on 275 orders). Not applied.
+**§6.5 needs_linking** — 47 orders, 3 provable; linked 2 (ORD-89633, ORD-105252; link_method
+`repair` + note). ORD-82442 not linked (city differs). Not provable: cod_nofit 21, 9102/9103 only 20,
+mixed 2, no free parcel 1 (+ the 3 above = 47).
+**§6.6 NATURA M** — 3.175 M parcels; COD 0 = 564 (not 3.176); 324 match a COD/PAID web order that
+has no parcel link (668.032 ден), 4 COD/UNPAID, 232 no web order on the phone. None card-paid.
+**§6.4 / §7 / checks** — blocked in the cloud session: the push to `main` and the 19:20 UTC
+wake-up were denied by the session's permission guard, as was further live SQL. Everything left is
+in `FINISH-FROM-VSCODE.md`. Check-ins are scheduled for 01:50 and 02:40 UTC 29.09.
+**§8 Docs** — `docs/how-it-works.md` (new), `MACEDONIA-STATUS.md` current-state section.

@@ -14,7 +14,36 @@ operation. It shares **nothing at runtime** with Bulgaria (own repo / own Supaba
 
 ---
 
-## 🟢 Current state
+## 🟢 Current state: 28.09.2026 release
+
+> How the system works now: **`docs/how-it-works.md`**. Steps still to do and what to check:
+> **`docs/handoff/2026-09-28/FINISH-FROM-VSCODE.md`**.
+
+- **Supabase:** 232 migrations applied, latest `20260940000200`. Applied 28.09:
+  - stamping cron `20260939000300`;
+  - test-phone list `…000700`;
+  - Insights foundation `20260940000000`;
+  - resumable AlterCPA sweeps `…0100`;
+  - MEX upsell revive `…0200`.
+- **Edge functions:** `api`, `altercpa-sync` and `mex-reconcile` redeployed 28.09. `web-sync` and `collabbox-sync` (probe only) unchanged.
+- **Frontend:** the Insights/Overview cohort UI is on branch `claude/epic-ride-8fhxhs`. It goes live when that branch is merged to `main`.
+- **Cron:** new jobs `stamp-order-deciders` (`1-59/5`), `stamp-order-deciders-full` (02:23 UTC) and `altercpa-sync-continue` (`1-59/2`). The full table is in `docs/how-it-works.md` §8.
+- **Numbers, 28.09** (cohort, sale day, Skopje):
+  - 22–28.09 (partial): 1.321 sales · 3.247.209 ден, of which paid 704 · 1.685.032;
+  - 15–21.09: 1.629 · 4.138.998;
+  - 01–27.09: 7.176 · 17.968.541.
+- **7-day rule:** APPLY mode; its first real run is 28.09 21:10 Skopje (≈522 cancels, needs_linking 47 → 45 after 2 hand links).
+- **Pending tonight:**
+  - delete the test-phone orders (6);
+  - re-price COD → price (≈478, of which 372 are paid orders);
+  - add Lazar Delev and the 15 collabBox author placeholders.
+
+  See FINISH-FROM-VSCODE §C.
+- **Open:** `verify-attribution` C7 (132), C8b (56) and C10 (90) predate this release; the full list is in FINISH-FROM-VSCODE §E.
+
+The sections below are the history up to 19.08.
+
+### Earlier state (19.08)
 
 - **Frontend (Vercel):** https://elyon-natura.vercel.app (`gordanas-projects-a53c0208/elyon-natura`, GitHub-connected → **push to `main` auto-deploys production**)
 - **Backend (Supabase):** `bmfxhgznttcnnlqloqzp` — **206 migrations applied** (repo and remote in step, latest `20260928000100`), edge function `api` deployed (v52, 2026-08-19), `WEBHOOK_SECRET` set, `pg_cron` on, **`INSIGHTS_ENGINE=sql`**.
