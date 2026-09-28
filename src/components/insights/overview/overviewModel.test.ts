@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { OverviewResponse, OverviewTeamMember } from '@/lib/api';
 import sample from './__fixtures__/overview.sample.json';
 import pivotSample from './__fixtures__/pivot.sample.json';
+import cohortSample from './__fixtures__/cohort.sample.json';
 import {
   agoParts, compactParts, delta, deriveKpis, groupPivotRows, measureSetOf, ordersHref, parseDrillParams,
   parseOverviewParams, placedOf, preparingOf, presetRange, previousRange, primaryOf, seriesFromTrend, shareText,
@@ -10,13 +11,14 @@ import {
 
 const fixture = () => structuredClone(sample) as unknown as OverviewResponse;
 
-describe('ranges (Skopje days, the shop panel presets)', () => {
-  const today = '2026-09-28';
-  it('rolls 1 / 7 / 30 / 365 days back from today, inclusive', () => {
+describe('ranges (Skopje days — the shared /insights period, ../shared/period)', () => {
+  const today = '2026-09-28'; // a Monday
+  it('calendar presets: today, this week from Monday, this month from the 1st, this year from 1 January', () => {
     expect(presetRange('today', today)).toEqual({ from: today, to: today });
-    expect(presetRange('week', today)).toEqual({ from: '2026-09-22', to: today });
-    expect(presetRange('month', today)).toEqual({ from: '2026-08-30', to: today });
-    expect(presetRange('year', today)).toEqual({ from: '2025-09-29', to: today });
+    expect(presetRange('week', today)).toEqual({ from: '2026-09-28', to: today });
+    expect(presetRange('week', '2026-09-27')).toEqual({ from: '2026-09-21', to: '2026-09-27' });
+    expect(presetRange('month', today)).toEqual({ from: '2026-09-01', to: today });
+    expect(presetRange('year', today)).toEqual({ from: '2026-01-01', to: today });
   });
   it('custom: swaps a reversed pair and caps the span', () => {
     expect(presetRange('custom', today, { from: '2026-09-20', to: '2026-09-01' })).toEqual({ from: '2026-09-01', to: '2026-09-20' });
@@ -25,8 +27,8 @@ describe('ranges (Skopje days, the shop panel presets)', () => {
     expect(wide.from).toBe('2025-08-24'); // 400 days back
     expect(MAX_SPAN_DAYS).toBe(400);
   });
-  it('custom: an unreadable day falls back instead of widening the range', () => {
-    expect(presetRange('custom', today, { from: 'garbage', to: '2026-13-45' })).toEqual({ from: '2026-09-22', to: today });
+  it('custom: an unreadable day falls back (to this week) instead of widening the range', () => {
+    expect(presetRange('custom', today, { from: 'garbage', to: '2026-13-45' })).toEqual({ from: '2026-09-28', to: today });
   });
   it('compares against the equal-length span right before', () => {
     expect(previousRange({ from: '2026-09-22', to: '2026-09-28' })).toEqual({ from: '2026-09-15', to: '2026-09-21' });
@@ -212,6 +214,16 @@ describe('owners-only money', () => {
     expect(d.kpis.delivered.proven_count).toBe(1285);
     expect(d.sources.every((s) => s.money == null)).toBe(true);
     expect(d.teams[0].members[0].worked).toBeGreaterThan(0);
+  });
+  it('the embedded sales cohort is stripped too: counts and lead outcomes kept, not one denar', () => {
+    const d = stripMoney({ ...fixture(), cohort: structuredClone(cohortSample) } as unknown as OverviewResponse) as OverviewResponse & {
+      cohort: { meta: { money: boolean }; total: Record<string, number>; by_source: { leads_in: { cancelled: number } }[]; cash_flow: Record<string, number> };
+    };
+    expect(JSON.stringify(d.cohort)).not.toMatch(/_mkd"/);
+    expect(d.cohort.meta.money).toBe(false);
+    expect(d.cohort.total).toEqual({ count: 1337 });
+    expect(d.cohort.by_source[0].leads_in.cancelled).toBe(301);
+    expect(d.cohort.cash_flow).toEqual({ parcels: 1302 });
   });
 });
 

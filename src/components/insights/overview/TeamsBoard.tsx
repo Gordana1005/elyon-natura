@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import { apiGetLeaderboardAdmin, type OverviewTeam, type OverviewTeamMember, type OverviewPresenceState } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { DrillLink } from './DrillLink';
+import { ClockCaption } from '../shared/ClockCaption';
 import { ordersHref, sortMembers, type DayRange, type MemberSortKey } from './model';
 import type { OverviewFormat } from './useOverviewFormat';
 
@@ -54,6 +55,7 @@ export function TeamsBoard({
         <div>
           <h2 id="ov-teams-title" className="text-base font-semibold">{t('overview.teams.title')}</h2>
           <p className="text-xs text-muted-foreground">{t('overview.teams.subtitle')}</p>
+          <ClockCaption clock={['decided', 'sale', 'delivered']} />
         </div>
         <PresenceLegend f={f} />
       </div>

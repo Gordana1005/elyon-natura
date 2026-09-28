@@ -1,0 +1,517 @@
+{
+  "meta": {
+    "from": "2026-09-22",
+    "to": "2026-09-28",
+    "prev_from": "2026-09-15",
+    "prev_to": "2026-09-21",
+    "generated_at": "2026-09-28T07:40:00Z",
+    "money": true,
+    "clock": "sale"
+  },
+  "total": {
+    "count": 1337,
+    "value_mkd": 3242497
+  },
+  "buckets": [
+    {
+      "key": "paid",
+      "count": 717,
+      "value_mkd": 1657408,
+      "cod_mkd": 1671114
+    },
+    {
+      "key": "paid_legacy",
+      "count": 0,
+      "value_mkd": 0
+    },
+    {
+      "key": "paid_unproven",
+      "count": 0,
+      "value_mkd": 0
+    },
+    {
+      "key": "courier",
+      "count": 113,
+      "value_mkd": 268920
+    },
+    {
+      "key": "courier_problem",
+      "count": 121,
+      "value_mkd": 292739
+    },
+    {
+      "key": "label",
+      "count": 105,
+      "value_mkd": 261402
+    },
+    {
+      "key": "to_pack",
+      "count": 267,
+      "value_mkd": 727260
+    },
+    {
+      "key": "returned",
+      "count": 14,
+      "value_mkd": 34768
+    }
+  ],
+  "outside": [
+    {
+      "key": "cancelled_after_sale",
+      "count": 3,
+      "value_mkd": 8970
+    },
+    {
+      "key": "replacement",
+      "count": 6,
+      "value_mkd": 0
+    }
+  ],
+  "by_source": [
+    {
+      "key": "altercpa",
+      "total": {
+        "count": 397,
+        "value_mkd": 1087260
+      },
+      "buckets": [
+        {
+          "key": "paid",
+          "count": 95,
+          "value_mkd": 260110,
+          "cod_mkd": 267913
+        },
+        {
+          "key": "paid_legacy",
+          "count": 0,
+          "value_mkd": 0
+        },
+        {
+          "key": "paid_unproven",
+          "count": 0,
+          "value_mkd": 0
+        },
+        {
+          "key": "courier",
+          "count": 30,
+          "value_mkd": 82140
+        },
+        {
+          "key": "courier_problem",
+          "count": 34,
+          "value_mkd": 93092
+        },
+        {
+          "key": "label",
+          "count": 30,
+          "value_mkd": 82140
+        },
+        {
+          "key": "to_pack",
+          "count": 207,
+          "value_mkd": 566766
+        },
+        {
+          "key": "returned",
+          "count": 1,
+          "value_mkd": 3012
+        }
+      ],
+      "outside": [
+        {
+          "key": "cancelled_after_sale",
+          "count": 2,
+          "value_mkd": 5980
+        },
+        {
+          "key": "replacement",
+          "count": 0,
+          "value_mkd": 0
+        }
+      ],
+      "splits": [
+        {
+          "key": "unlinked_leads",
+          "count": 32,
+          "value_mkd": 95560
+        }
+      ],
+      "leads_in": {
+        "came_in": 831,
+        "became_sales": 351,
+        "cancelled": 250,
+        "trashed": 114,
+        "open": 116,
+        "conversion": 0.4224
+      }
+    },
+    {
+      "key": "elyon_crm",
+      "total": {
+        "count": 180,
+        "value_mkd": 492213
+      },
+      "buckets": [
+        {
+          "key": "paid",
+          "count": 72,
+          "value_mkd": 196776,
+          "cod_mkd": 202679
+        },
+        {
+          "key": "paid_legacy",
+          "count": 0,
+          "value_mkd": 0
+        },
+        {
+          "key": "paid_unproven",
+          "count": 0,
+          "value_mkd": 0
+        },
+        {
+          "key": "courier",
+          "count": 10,
+          "value_mkd": 27330
+        },
+        {
+          "key": "courier_problem",
+          "count": 18,
+          "value_mkd": 49194
+        },
+        {
+          "key": "label",
+          "count": 26,
+          "value_mkd": 71058
+        },
+        {
+          "key": "to_pack",
+          "count": 53,
+          "value_mkd": 144849
+        },
+        {
+          "key": "returned",
+          "count": 1,
+          "value_mkd": 3006
+        }
+      ],
+      "outside": [
+        {
+          "key": "cancelled_after_sale",
+          "count": 1,
+          "value_mkd": 2990
+        },
+        {
+          "key": "replacement",
+          "count": 0,
+          "value_mkd": 0
+        }
+      ],
+      "splits": [
+        {
+          "key": "prediction_list",
+          "count": 96,
+          "value_mkd": 264330
+        },
+        {
+          "key": "direct",
+          "count": 46,
+          "value_mkd": 126658
+        },
+        {
+          "key": "unlinked_leads_out",
+          "count": 38,
+          "value_mkd": 101225
+        }
+      ],
+      "leads_in": {
+        "came_in": 142,
+        "became_sales": 142,
+        "cancelled": 0,
+        "trashed": 0,
+        "open": 0,
+        "conversion": 1
+      }
+    },
+    {
+      "key": "web",
+      "total": {
+        "count": 90,
+        "value_mkd": 201150
+      },
+      "buckets": [
+        {
+          "key": "paid",
+          "count": 46,
+          "value_mkd": 102810,
+          "cod_mkd": 102810
+        },
+        {
+          "key": "paid_legacy",
+          "count": 0,
+          "value_mkd": 0
+        },
+        {
+          "key": "paid_unproven",
+          "count": 0,
+          "value_mkd": 0
+        },
+        {
+          "key": "courier",
+          "count": 8,
+          "value_mkd": 17880
+        },
+        {
+          "key": "courier_problem",
+          "count": 3,
+          "value_mkd": 6705
+        },
+        {
+          "key": "label",
+          "count": 26,
+          "value_mkd": 58110
+        },
+        {
+          "key": "to_pack",
+          "count": 7,
+          "value_mkd": 15645
+        },
+        {
+          "key": "returned",
+          "count": 0,
+          "value_mkd": 0
+        }
+      ],
+      "outside": [
+        {
+          "key": "cancelled_after_sale",
+          "count": 0,
+          "value_mkd": 0
+        },
+        {
+          "key": "replacement",
+          "count": 0,
+          "value_mkd": 0
+        }
+      ],
+      "splits": [],
+      "leads_in": {
+        "came_in": 161,
+        "became_sales": 90,
+        "cancelled": 23,
+        "trashed": 0,
+        "open": 48,
+        "conversion": 0.559
+      }
+    },
+    {
+      "key": "teleshop_other",
+      "total": {
+        "count": 670,
+        "value_mkd": 1461874
+      },
+      "buckets": [
+        {
+          "key": "paid",
+          "count": 504,
+          "value_mkd": 1097712,
+          "cod_mkd": 1097712
+        },
+        {
+          "key": "paid_legacy",
+          "count": 0,
+          "value_mkd": 0
+        },
+        {
+          "key": "paid_unproven",
+          "count": 0,
+          "value_mkd": 0
+        },
+        {
+          "key": "courier",
+          "count": 65,
+          "value_mkd": 141570
+        },
+        {
+          "key": "courier_problem",
+          "count": 66,
+          "value_mkd": 143748
+        },
+        {
+          "key": "label",
+          "count": 23,
+          "value_mkd": 50094
+        },
+        {
+          "key": "to_pack",
+          "count": 0,
+          "value_mkd": 0
+        },
+        {
+          "key": "returned",
+          "count": 12,
+          "value_mkd": 28750
+        }
+      ],
+      "outside": [
+        {
+          "key": "cancelled_after_sale",
+          "count": 0,
+          "value_mkd": 0
+        },
+        {
+          "key": "replacement",
+          "count": 6,
+          "value_mkd": 0
+        }
+      ],
+      "splits": [
+        {
+          "key": "mex_teleshop",
+          "count": 639,
+          "value_mkd": 1400274
+        },
+        {
+          "key": "mex_social",
+          "count": 31,
+          "value_mkd": 61600
+        }
+      ],
+      "leads_in": {
+        "came_in": 670,
+        "became_sales": 670,
+        "cancelled": 0,
+        "trashed": 0,
+        "open": 0,
+        "conversion": 1
+      }
+    }
+  ],
+  "leads_in": {
+    "came_in": 1804,
+    "became_sales": 1253,
+    "cancelled": 273,
+    "trashed": 114,
+    "open": 164,
+    "conversion": 0.6946
+  },
+  "cash_flow": {
+    "cod_mkd": 3062765,
+    "card_mkd": 12600,
+    "parcels": 1302,
+    "from_this_period_mkd": 1672432,
+    "from_earlier_mkd": 1390333
+  },
+  "prev": {
+    "total": {
+      "count": 1641,
+      "value_mkd": 4120498
+    },
+    "buckets": [
+      {
+        "key": "paid",
+        "count": 1224,
+        "value_mkd": 3015924,
+        "cod_mkd": 3052110
+      },
+      {
+        "key": "paid_legacy",
+        "count": 0,
+        "value_mkd": 0
+      },
+      {
+        "key": "paid_unproven",
+        "count": 6,
+        "value_mkd": 12220
+      },
+      {
+        "key": "courier",
+        "count": 25,
+        "value_mkd": 64430
+      },
+      {
+        "key": "courier_problem",
+        "count": 35,
+        "value_mkd": 104529
+      },
+      {
+        "key": "label",
+        "count": 91,
+        "value_mkd": 242495
+      },
+      {
+        "key": "to_pack",
+        "count": 109,
+        "value_mkd": 254520
+      },
+      {
+        "key": "returned",
+        "count": 151,
+        "value_mkd": 426380
+      }
+    ]
+  },
+  "spark": [
+    {
+      "d": "2026-09-22",
+      "count": 254,
+      "value_mkd": 616074
+    },
+    {
+      "d": "2026-09-23",
+      "count": 241,
+      "value_mkd": 583649
+    },
+    {
+      "d": "2026-09-24",
+      "count": 227,
+      "value_mkd": 551224
+    },
+    {
+      "d": "2026-09-25",
+      "count": 214,
+      "value_mkd": 518800
+    },
+    {
+      "d": "2026-09-26",
+      "count": 174,
+      "value_mkd": 421525
+    },
+    {
+      "d": "2026-09-27",
+      "count": 214,
+      "value_mkd": 518800
+    },
+    {
+      "d": "2026-09-28",
+      "count": 13,
+      "value_mkd": 32425
+    }
+  ],
+  "quality": [
+    {
+      "kind": "unproven_paid",
+      "count": 0,
+      "value_mkd": 0
+    },
+    {
+      "kind": "cancelled_but_moving",
+      "count": 43,
+      "value_mkd": 130470
+    },
+    {
+      "kind": "double_count_candidates",
+      "count": 7,
+      "value_mkd": 24400
+    },
+    {
+      "kind": "no_seller",
+      "count": 38,
+      "value_mkd": 101225
+    },
+    {
+      "kind": "zero_cod_parcels",
+      "count": 6,
+      "value_mkd": 0
+    }
+  ]
+}

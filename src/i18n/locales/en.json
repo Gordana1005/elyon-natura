@@ -2559,7 +2559,142 @@
     "avgPerPkg": "Avg / pkg"
   },
   "insights": {
-    "workClockFromAugust": "Work numbers from August 2026 follow the day of confirm/cancel/trash. Earlier months stay on lead-created day. Affiliate realisation is still intake day. Cash/Pure Profit stays paid day.",
+    "common": {
+      "period": {
+        "label": "Period",
+        "today": "Today",
+        "week": "This week",
+        "month": "This month",
+        "year": "This year",
+        "custom": "Custom",
+        "from": "From",
+        "to": "To",
+        "apply": "Apply",
+        "placeholder": "dd.mm.yyyy",
+        "openCalendar": "Open calendar — {{label}}",
+        "compare": "Compare with the previous period",
+        "vs": "vs {{period}}",
+        "hint": "Skopje days · up to {{n}} days",
+        "reversed": "The start is after the end",
+        "tooLong": "Up to {{n}} days",
+        "loading": "Loading"
+      },
+      "source": {
+        "altercpa": "AlterCPA",
+        "elyon_crm": "ElyonCRM",
+        "web": "Web shop",
+        "teleshopOther": "Teleshop / other"
+      },
+      "bucket": {
+        "paid": "Collected",
+        "paid_legacy": "Paid (ruling / legacy import)",
+        "paid_unproven": "Paid without MEX proof",
+        "courier": "At the courier",
+        "courier_problem": "Problem at the courier",
+        "label": "Packed, waiting for the courier",
+        "to_pack": "In the warehouse, to pack",
+        "returned": "Returned"
+      },
+      "outside": {
+        "title": "Outside the total",
+        "cancelled_after_sale": "Cancelled after the sale",
+        "replacement": "Replacements (no cash on delivery)"
+      },
+      "split": {
+        "prediction_list": "Prediction lists",
+        "direct": "Direct",
+        "collabbox": "collabBox",
+        "unlinked_leads": "Elyon LEADS — unlinked",
+        "unlinked_leads_out": "Elyon LEADS-OUT — unlinked",
+        "mex_teleshop": "Teleshop (MEX)",
+        "mex_social": "Social media (MEX)",
+        "mexOther": "Other (MEX)",
+        "orders": "Orders",
+        "cod": "Cash on delivery",
+        "card": "Card"
+      },
+      "clock": {
+        "counted": "Counted {{clocks}} (Skopje time)",
+        "sale": "by the day of the sale",
+        "created": "by the day the lead / order came in",
+        "decided": "by the day of the decision (confirm, cancel, trash)",
+        "delivered": "by the day MEX delivered the parcel",
+        "mex_created": "by the day the parcel was created at MEX",
+        "returned": "by the day MEX returned the parcel",
+        "call": "by the day of the call",
+        "now": "Current state — does not depend on the period"
+      },
+      "sentinel": {
+        "unknown": "Unknown",
+        "others": "Others"
+      },
+      "cohort": {
+        "title": "Sold in the period",
+        "titleNoMoney": "Sales in the period",
+        "salesN": "{{n}} sales",
+        "barLabel": "Where each sale is now",
+        "filtered": "Selected sources only",
+        "codLine": "MEX cash on delivery {{value}}",
+        "problemPart": "of which a problem {{n}}",
+        "legacyNote": "Operator ruling or legacy import — not an alarm",
+        "unprovenNote": "Should be 0 — check",
+        "sumOk": "Parts add up to {{total}}",
+        "sumBad": "The parts ({{parts}}) do not add up to the total ({{total}})",
+        "noLinkWeb": "The web shop is not in the Orders list",
+        "noLinkMexOnly": "MEX parcels without an order only — not in the Orders list",
+        "partialLink": "Orders lists the orders only; {{n}} MEX parcels without an order are not in the list"
+      },
+      "leads": {
+        "title": "Came in during the period",
+        "became": "became sales {{n}} · {{pct}}",
+        "became_sales": "Became sales",
+        "open": "Still open",
+        "cancelled": "Cancelled",
+        "trashed": "Trashed"
+      },
+      "cash": {
+        "title": "Cash in from MEX in the period",
+        "titleNoMoney": "Parcels delivered in the period",
+        "parcelsN": "{{n}} parcels",
+        "fromThis": "from this period's sales",
+        "fromEarlier": "from earlier sales",
+        "card": "Paid by card (web)"
+      },
+      "quality": {
+        "title": "Data quality",
+        "allClear": "All clear — nothing to check.",
+        "severity": {
+          "critical": "Urgent",
+          "warning": "Check",
+          "info": "FYI"
+        },
+        "kind": {
+          "unproven_paid": "Paid without MEX proof",
+          "zero_cod_parcels": "MEX parcels with no cash on delivery (replacements)",
+          "double_count_candidates": "Possible double count",
+          "no_seller": "Sales without a seller",
+          "cancelled_but_moving": "Cancelled in the CRM, but MEX is carrying them"
+        },
+        "hint": {
+          "unproven_paid": "Marked paid, but MEX has no delivered parcel. Should be 0.",
+          "zero_cod_parcels": "Parcels with cash on delivery of 0 or less — replacements, not sales.",
+          "double_count_candidates": "A MEX parcel without an order on the phone of a CRM sale without a parcel (±21 days). For review only — nothing is merged automatically.",
+          "no_seller": "Sales with no seller recorded.",
+          "cancelled_but_moving": "Cancelled in the CRM, but the parcel is moving at MEX. Counted by MEX (at the courier)."
+        }
+      },
+      "table": {
+        "title": "Sales by source",
+        "source": "Source",
+        "sales": "Sales",
+        "value": "Value",
+        "leads": "Came in → sales",
+        "leadsLine": "{{in}} → {{sales}} ({{pct}})",
+        "total": "Total",
+        "empty": "No sales in this period.",
+        "mexOnlyTag": "MEX"
+      }
+    },
     "tabOverview": "Overview",
     "slowLoading": "Loading report… {{s}}s",
     "tabSales": "Sales",
@@ -4147,6 +4282,48 @@
       "proof": {
         "unproven": "without MEX proof",
         "mex": "proven by MEX"
+      }
+    },
+    "cohort": {
+      "title": "Sales (confirmed) · {{period}}",
+      "ordersN_one": "{{n}} order",
+      "ordersN_other": "{{n}} orders",
+      "link": {
+        "unsupported": "The Orders list cannot filter sales by their state yet, so this number has no link.",
+        "notOrders": "This is not a filter in the Orders list."
+      },
+      "leads": {
+        "cameIn": "Came in",
+        "worked": "Worked",
+        "conversion": "Conversion",
+        "none": "No leads in the period"
+      },
+      "sources": {
+        "title": "Where the money came from",
+        "titleNoMoney": "Where the sales came from",
+        "subtitle": "Sales in the period by source, and where each one is now",
+        "viewLabel": "Sources view",
+        "view": {
+          "cards": "Cards",
+          "table": "Table"
+        },
+        "tableTitle": "The same numbers as a table",
+        "header_one": "{{n}} order · {{value}}",
+        "header_other": "{{n}} orders · {{value}}",
+        "shareOfAll": "{{pct}} of the total",
+        "outsideNote": "Outside the total — not orders and not in the value.",
+        "leadsTitle": "Leads",
+        "splits": "Breakdown",
+        "webNote": "Counted from the web-shop mirror — these orders are not in the Orders list.",
+        "mexOnlyNote_one": "{{n}} of them is a MEX-only parcel with no order — not in the Orders list.",
+        "mexOnlyNote_other": "{{n}} of them are MEX-only parcels with no order — not in the Orders list.",
+        "empty": "No sales in this period."
+      },
+      "split": {
+        "orders": "CRM orders",
+        "mexOther": "Other at MEX",
+        "cod": "Cash on delivery",
+        "card": "Paid by card"
       }
     },
     "clock": {

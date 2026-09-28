@@ -282,5 +282,10 @@ export function useInsightsAccess() {
   // Call Activity is its own module (admin-only by default), governed from
   // Settings → Role Permissions.
   const calls = canAccessModule('call_activity');
-  return { business, overview, agents, payout, calls, any: business || overview || agents || payout || calls };
+  // Money on /insights (denars, EUR, profit) = business owners only
+  // (= canSeeBusiness, is_business_owner() on the server). Every tab renders
+  // money from the payload's meta.money; this flag is for the UI around it
+  // (a money column's header, an export button) before or without a payload.
+  const money = canSeeBusiness;
+  return { business, overview, agents, payout, calls, money, any: business || overview || agents || payout || calls };
 }

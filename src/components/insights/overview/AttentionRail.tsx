@@ -2,6 +2,7 @@ import { AlertTriangle, CheckCircle2, OctagonAlert } from 'lucide-react';
 import type { OverviewAttention, OverviewAttentionKind } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { DrillLink } from './DrillLink';
+import { ClockCaption } from '../shared/ClockCaption';
 import { TONE_TEXT } from './palette';
 import { ordersHref } from './model';
 import type { OverviewFormat } from './useOverviewFormat';
@@ -40,7 +41,10 @@ export function AttentionRail({
 
   return (
     <section id="overview-attention" aria-labelledby="ov-att-title" className="scroll-mt-20 space-y-3">
-      <h2 id="ov-att-title" className="text-base font-semibold">{t('overview.attention.title')}</h2>
+      <div>
+        <h2 id="ov-att-title" className="text-base font-semibold">{t('overview.attention.title')}</h2>
+        <ClockCaption clock="now" />
+      </div>
       {live.length === 0 ? (
         <p className={cn('flex items-center gap-2 rounded-xl border bg-card p-4 text-sm', TONE_TEXT.good)}>
           <CheckCircle2 className="h-4 w-4" aria-hidden />{t('overview.attention.allClear')}

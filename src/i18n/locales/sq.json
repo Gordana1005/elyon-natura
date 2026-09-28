@@ -2559,7 +2559,142 @@
     "avgPerPkg": "Mes. / paketë"
   },
   "insights": {
-    "workClockFromAugust": "Numrat e punës nga gusht 2026 ndjekin ditën e konfirmimit/anulimit/koshit. Muajt e mëparshëm mbeten te dita e lidit. Realizimi te afiliati është ende dita e hyrjes. Cash/Pure Profit mbetet dita e pagesës.",
+    "common": {
+      "period": {
+        "label": "Periudha",
+        "today": "Sot",
+        "week": "Kjo javë",
+        "month": "Ky muaj",
+        "year": "Ky vit",
+        "custom": "E personalizuar",
+        "from": "Nga",
+        "to": "Deri",
+        "apply": "Zbato",
+        "placeholder": "dd.mm.vvvv",
+        "openCalendar": "Hap kalendarin — {{label}}",
+        "compare": "Krahaso me periudhën e mëparshme",
+        "vs": "kundrejt {{period}}",
+        "hint": "Ditë sipas orës së Shkupit · deri në {{n}} ditë",
+        "reversed": "Fillimi është pas fundit",
+        "tooLong": "Deri në {{n}} ditë",
+        "loading": "Po ngarkohet"
+      },
+      "source": {
+        "altercpa": "AlterCPA",
+        "elyon_crm": "ElyonCRM",
+        "web": "Dyqani online",
+        "teleshopOther": "Teleshop / tjetër"
+      },
+      "bucket": {
+        "paid": "Të arkëtuara",
+        "paid_legacy": "Paguar (vendim / import i vjetër)",
+        "paid_unproven": "Paguar pa provë nga MEX",
+        "courier": "Te korrieri",
+        "courier_problem": "Problem te korrieri",
+        "label": "Paketuar, pret korrierin",
+        "to_pack": "Në magazinë, për paketim",
+        "returned": "Të kthyera"
+      },
+      "outside": {
+        "title": "Jashtë totalit",
+        "cancelled_after_sale": "Anuluar pas shitjes",
+        "replacement": "Zëvendësime (pa pagesë në dorëzim)"
+      },
+      "split": {
+        "prediction_list": "Listat e parashikimit",
+        "direct": "Direkt",
+        "collabbox": "collabBox",
+        "unlinked_leads": "Elyon LEADS — të palidhura",
+        "unlinked_leads_out": "Elyon LEADS-OUT — të palidhura",
+        "mex_teleshop": "Teleshop (MEX)",
+        "mex_social": "Rrjete sociale (MEX)",
+        "mexOther": "Tjetër (MEX)",
+        "orders": "Porosi",
+        "cod": "Pagesë në dorëzim",
+        "card": "Kartë"
+      },
+      "clock": {
+        "counted": "Numëruar {{clocks}} (ora e Shkupit)",
+        "sale": "sipas ditës së shitjes",
+        "created": "sipas ditës kur erdhi lidi / porosia",
+        "decided": "sipas ditës së vendimit (konfirmim, anulim, kosh)",
+        "delivered": "sipas ditës kur MEX e dorëzoi pakon",
+        "mex_created": "sipas ditës kur pakoja u krijua te MEX",
+        "returned": "sipas ditës kur MEX e ktheu pakon",
+        "call": "sipas ditës së telefonatës",
+        "now": "Gjendja aktuale — nuk varet nga periudha"
+      },
+      "sentinel": {
+        "unknown": "E panjohur",
+        "others": "Të tjera"
+      },
+      "cohort": {
+        "title": "Shitur në periudhë",
+        "titleNoMoney": "Shitjet në periudhë",
+        "salesN": "{{n}} shitje",
+        "barLabel": "Ku ndodhet secila shitje tani",
+        "filtered": "Vetëm burimet e zgjedhura",
+        "codLine": "Pagesa në dorëzim MEX {{value}}",
+        "problemPart": "prej tyre problem {{n}}",
+        "legacyNote": "Vendim i operatorit ose import i vjetër — jo alarm",
+        "unprovenNote": "Duhet të jetë 0 — kontrollo",
+        "sumOk": "Pjesët mblidhen në {{total}}",
+        "sumBad": "Pjesët ({{parts}}) nuk mblidhen në totalin ({{total}})",
+        "noLinkWeb": "Dyqani online nuk është në listën e Porosive",
+        "noLinkMexOnly": "Vetëm pako MEX pa porosi — nuk janë në listën e Porosive",
+        "partialLink": "Porositë tregojnë vetëm porositë; {{n}} pako MEX pa porosi nuk janë në listë"
+      },
+      "leads": {
+        "title": "Erdhën në periudhë",
+        "became": "u bënë shitje {{n}} · {{pct}}",
+        "became_sales": "U bënë shitje",
+        "open": "Ende të hapura",
+        "cancelled": "Të anuluara",
+        "trashed": "Në kosh"
+      },
+      "cash": {
+        "title": "Hyrje nga MEX në periudhë",
+        "titleNoMoney": "Pako të dorëzuara në periudhë",
+        "parcelsN": "{{n}} pako",
+        "fromThis": "nga shitjet e kësaj periudhe",
+        "fromEarlier": "nga shitjet e mëparshme",
+        "card": "Paguar me kartë (web)"
+      },
+      "quality": {
+        "title": "Cilësia e të dhënave",
+        "allClear": "Gjithçka në rregull — asgjë për të kontrolluar.",
+        "severity": {
+          "critical": "Urgjente",
+          "warning": "Kontrollo",
+          "info": "Për dijeni"
+        },
+        "kind": {
+          "unproven_paid": "Paguar pa provë nga MEX",
+          "zero_cod_parcels": "Pako MEX pa pagesë në dorëzim (zëvendësime)",
+          "double_count_candidates": "Numërim i mundshëm i dyfishtë",
+          "no_seller": "Shitje pa shitës",
+          "cancelled_but_moving": "Anuluar në CRM, por MEX po i dërgon"
+        },
+        "hint": {
+          "unproven_paid": "Shënuar si të paguara, por MEX nuk ka pako të dorëzuar. Duhet të jetë 0.",
+          "zero_cod_parcels": "Pako me pagesë në dorëzim 0 ose më pak — zëvendësime, jo shitje.",
+          "double_count_candidates": "Pako MEX pa porosi në telefonin e një shitjeje CRM pa pako (±21 ditë). Vetëm për shqyrtim — asgjë nuk bashkohet automatikisht.",
+          "no_seller": "Shitje pa shitës të regjistruar.",
+          "cancelled_but_moving": "Anuluar në CRM, por pakoja lëviz te MEX. Numërohen sipas MEX (te korrieri)."
+        }
+      },
+      "table": {
+        "title": "Shitjet sipas burimit",
+        "source": "Burimi",
+        "sales": "Shitje",
+        "value": "Vlera",
+        "leads": "Erdhën → shitje",
+        "leadsLine": "{{in}} → {{sales}} ({{pct}})",
+        "total": "Gjithsej",
+        "empty": "Asnjë shitje në këtë periudhë.",
+        "mexOnlyTag": "MEX"
+      }
+    },
     "tabOverview": "Përmbledhje",
     "slowLoading": "Raporti po ngarkohet… {{s}}s",
     "tabSales": "Shitjet",
@@ -4147,6 +4282,48 @@
       "proof": {
         "unproven": "pa dëshmi nga MEX",
         "mex": "të vërtetuara nga MEX"
+      }
+    },
+    "cohort": {
+      "title": "Shitjet (të konfirmuara) · {{period}}",
+      "ordersN_one": "{{n}} porosi",
+      "ordersN_other": "{{n}} porosi",
+      "link": {
+        "unsupported": "Lista Porositë ende nuk mund t'i filtrojë shitjet sipas gjendjes, prandaj ky numër është pa lidhje.",
+        "notOrders": "Ky nuk është filtër në listën Porositë."
+      },
+      "leads": {
+        "cameIn": "Erdhën",
+        "worked": "Të përpunuara",
+        "conversion": "Konvertimi",
+        "none": "Asnjë lid në periudhë"
+      },
+      "sources": {
+        "title": "Nga erdhën paratë",
+        "titleNoMoney": "Nga erdhën shitjet",
+        "subtitle": "Shitjet në periudhë sipas burimit dhe ku është secila tani",
+        "viewLabel": "Pamja e burimeve",
+        "view": {
+          "cards": "Kartela",
+          "table": "Tabela"
+        },
+        "tableTitle": "Të njëjtët numra në tabelë",
+        "header_one": "{{n}} porosi · {{value}}",
+        "header_other": "{{n}} porosi · {{value}}",
+        "shareOfAll": "{{pct}} e totalit",
+        "outsideNote": "Jashtë totalit — nuk janë porosi dhe nuk janë në vlerë.",
+        "leadsTitle": "Lidet",
+        "splits": "Ndarja",
+        "webNote": "Numëruar nga pasqyra e dyqanit online — këto porosi nuk janë në listën Porositë.",
+        "mexOnlyNote_one": "Prej tyre {{n}} pako është vetëm te MEX, pa porosi — nuk është në listën Porositë.",
+        "mexOnlyNote_other": "Prej tyre {{n}} pako janë vetëm te MEX, pa porosi — nuk janë në listën Porositë.",
+        "empty": "Nuk ka shitje në këtë periudhë."
+      },
+      "split": {
+        "orders": "Porosi në CRM",
+        "mexOther": "Të tjera te MEX",
+        "cod": "Pagesë në dorëzim",
+        "card": "Paguar me kartë"
       }
     },
     "clock": {

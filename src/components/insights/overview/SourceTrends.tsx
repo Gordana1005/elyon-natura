@@ -5,6 +5,7 @@ import { eurToDen } from '@/lib/currency';
 import { formatDate } from '@/i18n/dates';
 import { cn } from '@/lib/utils';
 import { sourceColorVar } from './palette';
+import { ClockCaption } from '../shared/ClockCaption';
 import { dm, type OverviewFormat } from './useOverviewFormat';
 
 interface Row { bucket: string; placed: number; done: number }
@@ -59,6 +60,7 @@ export function SourceTrends({
             {money ? t('overview.trend.subtitleMoney') : t('overview.trend.subtitleCount')}
             {' · '}{granularity === 'month' ? t('overview.trend.byMonth') : t('overview.trend.byDay')}
           </p>
+          <ClockCaption clock={['created', 'delivered']} />
         </div>
         <div role="group" aria-label={t('overview.trend.viewLabel')} className="inline-flex rounded-lg border p-0.5">
           {(['chart', 'table'] as const).map((v) => (

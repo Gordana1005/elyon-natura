@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { AlertTriangle, FlaskConical } from 'lucide-react';
 import {
   apiGetInsightsOverview, apiGetInsightsPivot,
@@ -17,10 +17,9 @@ import { skopjeHm } from '@/lib/presence/state';
 import { OVERVIEW_COLOR_VARS, SOURCE_ORDER } from './palette';
 import {
   OUTCOME, deriveKpis, groupPivotRows, measureSetOf, ordersHref, parseOverviewParams, placedOf, preparingOf,
-  previousRange, seriesFromTrend, skopjeToday, sourceDrill, stripMoney, writeOverviewParams,
+  previousRange, seriesFromTrend, sourceDrill, stripMoney, writeOverviewParams,
   type DayRange, type MeasureSet, type OverviewFilters, type TileKey,
 } from './model';
-import { useOverviewFormat } from './useOverviewFormat';
 import { FilterBar } from './FilterBar';
 import { FreshnessStrip } from './FreshnessStrip';
 import { KpiRow } from './KpiRow';
@@ -29,8 +28,22 @@ import { SourceTrends } from './SourceTrends';
 import { TeamsBoard } from './TeamsBoard';
 import { DrillPivot } from './DrillPivot';
 import { AttentionRail } from './AttentionRail';
+import { useInsightsPeriod } from '../shared/useInsightsPeriod';
+import { useInsightsFormat } from '../shared/useInsightsFormat';
+import { useOverviewFormat } from './useOverviewFormat';
+import { CohortBar } from '../shared/CohortBar';
+import { CashFlowCard, LeadsInCard } from '../shared/CohortSecondary';
+import { CohortSources } from './CohortSources';
+import { QualityRail } from '../shared/QualityRail';
+import { cohortView, stripCohortMoney } from '../shared/cohortModel';
+import type { Cohort } from '../shared/cohortTypes';
 
 type FixtureMode = '1' | 'nomoney';
+
+/** GET /insights/overview embeds the shared sales cohort under `cohort` (the
+ *  contract in ../shared/cohortTypes). Feature-detected: without it the page
+ *  keeps the KPI row and source cards. */
+type OverviewWithCohort = OverviewResponse & { cohort?: Cohort | null };
 
 /**
  * The connected Overview (Insights → Overview): every denar by source, team and
@@ -42,13 +55,20 @@ type FixtureMode = '1' | 'nomoney';
  * branch and the JSON are compiled out of production builds.
  */
 export default function OverviewTab() {
-  const f = useOverviewFormat();
+  const f = useInsightsFormat();
+  // The pre-cohort source cards (fallback while the api has no `cohort`) label
+  // their created-day buckets from overview.bucket.*, not the cohort's vocabulary.
+  const fLegacy = useOverviewFormat();
   const { t } = f;
   const { user } = useAuth();
-  const queryClient = useQueryClient();
   const [sp, setSp] = useSearchParams();
-  const today = useMemo(() => skopjeToday(), []);
-  const filters = useMemo(() => parseOverviewParams(sp, today), [sp, today]);
+  // The period is the page's one filter bar (shared by every tab); the chips
+  // below it — sources, teams — are the Overview's own.
+  const period = useInsightsPeriod();
+  const chips = useMemo(() => parseOverviewParams(sp, period.today), [sp, period.today]);
+  const filters: OverviewFilters = useMemo(() => ({
+    preset: period.preset, range: period.range, compare: period.compare, sources: chips.sources, teams: chips.teams,
+  }), [period.preset, period.range, period.compare, chips.sources, chips.teams]);
   const setFilters = useCallback(
     (next: Partial<OverviewFilters>) => setSp((prev) => writeOverviewParams(prev, next), { replace: true }),
     [setSp],
@@ -56,11 +76,14 @@ export default function OverviewTab() {
   const raw = import.meta.env.DEV ? sp.get('ovFixture') : null;
   const fixture: FixtureMode | null = raw === '1' || raw === 'nomoney' ? raw : null;
 
-  const load = useCallback(async (r: DayRange, compare: boolean, signal?: AbortSignal): Promise<OverviewResponse> => {
+  const load = useCallback(async (r: DayRange, compare: boolean, signal?: AbortSignal): Promise<OverviewWithCohort> => {
     if (import.meta.env.DEV && fixture) {
       const m = await import('./__fixtures__/overview.sample.json');
-      const d = structuredClone(m.default) as unknown as OverviewResponse;
-      return fixture === 'nomoney' ? stripMoney(d) : d;
+      const c = await import('../shared/__fixtures__/cohort.sample.json');
+      const d = structuredClone(m.default) as unknown as OverviewWithCohort;
+      const cohort = structuredClone(c.default) as unknown as Cohort;
+      if (fixture === 'nomoney') return { ...stripMoney(d), cohort: stripCohortMoney(cohort) };
+      return { ...d, cohort };
     }
     return apiGetInsightsOverview({ from: r.from, to: r.to, compare }, signal);
   }, [fixture]);
@@ -95,14 +118,6 @@ export default function OverviewTab() {
     staleTime: 5 * 60_000,
     retry: 0,
   });
-
-  // Past ~3 s the spinner gains elapsed seconds and a Cancel (same as the page).
-  const [slowSecs, setSlowSecs] = useState(0);
-  useEffect(() => {
-    if (!q.isFetching) { setSlowSecs(0); return; }
-    const id = setInterval(() => setSlowSecs((s) => s + 1), 1000);
-    return () => clearInterval(id);
-  }, [q.isFetching]);
 
   const fetchPivot = useCallback(async (by: OverviewPivotDim[], signal?: AbortSignal): Promise<OverviewPivotResponse> => {
     if (import.meta.env.DEV && fixture) {
@@ -150,6 +165,11 @@ export default function OverviewTab() {
     return { cur, prev, sparks, hrefs: tileHrefs(sources, filters.range, filtered) };
   }, [data, prevQ.data, sources, selected, filtered, filters.compare, filters.range, money]);
 
+  // The shared sales cohort (one total, parts that add up), when the api sends it.
+  const cohort = (data as OverviewWithCohort | undefined)?.cohort ?? null;
+  const cohortMoney = money && cohort?.meta?.money !== false;
+  const cv = useMemo(() => (cohort ? cohortView(cohort, filters.sources) : null), [cohort, filters.sources]);
+
   const teams = useMemo(() => (data?.teams ?? []), [data]);
   const shownTeams = filters.teams.length ? teams.filter((tm) => filters.teams.includes(tm.team_key)) : teams;
   const teamPeople = filters.teams.length ? new Set(shownTeams.flatMap((tm) => tm.members.map((m) => m.person_id))) : null;
@@ -175,11 +195,7 @@ export default function OverviewTab() {
       <FilterBar
         filters={filters}
         onChange={setFilters}
-        today={today}
         teams={teams.map((tm) => ({ key: tm.team_key, name: tm.name }))}
-        fetching={q.isFetching}
-        slowSecs={slowSecs}
-        onCancel={() => queryClient.cancelQueries({ queryKey: ['insights-overview'] })}
         f={f}
       />
 
@@ -209,11 +225,36 @@ export default function OverviewTab() {
             </p>
           )}
           <FreshnessStrip feeds={data.freshness ?? []} attention={data.attention ?? []} asOf={skopjeHm(data.meta.generated_at) || null} f={f} />
-          {view && (
-            <KpiRow cur={view.cur} prev={view.prev} money={money} sparks={view.sparks} hrefs={view.hrefs}
-              prevLabel={prevLabel} filtered={filtered} f={f} />
+          {cohort && cv ? (
+            // The cohort: this period's sales and where each one is now — the
+            // parts add up to the total. Leads and MEX cash are separate figures,
+            // each on its own clock.
+            <div className="space-y-4">
+              <CohortBar
+                title={t('overview.cohort.title', { period: f.period(filters.range.from, filters.range.to) })}
+                total={cv.total} buckets={cv.buckets} outside={cv.outside} money={cohortMoney}
+                rows={cv.rows} range={filters.range}
+                prev={filters.compare && !cv.filtered ? cohort.prev?.total ?? null : null}
+                prevLabel={filters.compare && !cv.filtered ? prevLabel : null}
+                note={cv.filtered ? t('insights.common.cohort.filtered') : null}
+                f={f}
+              />
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <LeadsInCard leads={cv.leads_in} f={f} />
+                {!cv.filtered && <CashFlowCard cash={cohort.cash_flow} money={cohortMoney} f={f} />}
+              </div>
+              {/* Per source: cards on the same cohort (the table twin is one toggle away). */}
+              <CohortSources rows={cv.rows} total={cv.total} leadsTotal={cv.leads_in} money={cohortMoney} range={filters.range} f={f} />
+            </div>
+          ) : (
+            <>
+              {view && (
+                <KpiRow cur={view.cur} prev={view.prev} money={money} sparks={view.sparks} hrefs={view.hrefs}
+                  prevLabel={prevLabel} filtered={filtered} f={f} />
+              )}
+              <SourceRows sources={sources} range={filters.range} money={money} f={fLegacy} />
+            </>
           )}
-          <SourceRows sources={sources} range={filters.range} money={money} f={f} />
           <SourceTrends points={data.trend?.points ?? []} granularity={data.trend?.granularity ?? 'day'} sources={selected} money={money} f={f} />
           <TeamsBoard teams={shownTeams} range={filters.range} money={money} canTvLink={!!(user?.isAdmin || user?.isManager)} f={f} />
           <DrillPivot
@@ -226,6 +267,7 @@ export default function OverviewTab() {
             teams={teams}
             f={f}
           />
+          {cohort && <QualityRail items={cohort.quality} money={cohortMoney} f={f} />}
           <AttentionRail items={data.attention ?? []} money={money} teamPeople={teamPeople} f={f} />
         </div>
       )}

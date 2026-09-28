@@ -6,6 +6,7 @@ import type {
 } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { DrillLink } from './DrillLink';
+import { ClockCaption } from '../shared/ClockCaption';
 import { sourceColorVar } from './palette';
 import { groupPivotRows, ordersHref, PIVOT_LEAF_PARAM, PIVOT_NONE, placedOf, sourceDrill, type DayRange } from './model';
 import type { OverviewFormat } from './useOverviewFormat';
@@ -147,6 +148,7 @@ export function DrillPivot({
         <div>
           <h2 id="ov-pivot-title" className="text-base font-semibold">{t('overview.pivot.title')}</h2>
           <p className="text-xs text-muted-foreground">{t('overview.pivot.subtitle')}</p>
+          <ClockCaption clock="created" />
         </div>
         <label className="flex items-center gap-2 text-xs text-muted-foreground">
           {t('overview.pivot.leaf')}

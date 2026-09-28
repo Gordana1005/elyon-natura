@@ -14,6 +14,10 @@ import * as LB from "./leaderboard.ts";
 // codes, suggestions, the no-parcel switch (pure, unit-tested).
 import * as TA from "./teamsAdmin.ts";
 import * as IH from "./integrationsHealth.ts";
+// Insights foundation (migration 20260940000000): the sale cohort's windows,
+// owner gate, money-strip whitelist and the /orders cohort twins (pure,
+// unit-tested in insightsCommon.test.ts).
+import * as IC from "./insightsCommon.ts";
 
 // ============================================================
 // INPUT VALIDATION SCHEMAS
@@ -1689,7 +1693,9 @@ async function loadCourierRates(adminClient: any): Promise<{ rates: RateMap; fal
       rates[rateKey(r.courier, r.service)] = { deliver: Number(r.deliver_cost || 0), return_: Number(r.return_cost || 0) };
     }
   } catch (_e) { /* table missing → pure fallback */ }
-  return { rates, fallback: { deliver: BLENDED_DELIVER_COST, return_: BLENDED_RETURN_COST } };
+  // An order with no recorded courier shipped with MEX (the only MK carrier):
+  // the courier_rates 'mex' row, not the inherited BG blend (critic C5).
+  return { rates, fallback: rates[rateKey("mex", "door")] || rates[rateKey("mex", "office")] || { deliver: BLENDED_DELIVER_COST, return_: BLENDED_RETURN_COST } };
 }
 
 async function handleRequest(req: Request): Promise<Response> {
@@ -5536,6 +5542,23 @@ async function handleRequest(req: Request): Promise<Response> {
       }
       if (ovSoldFrom || ovSoldTo) { ovSoldFrom = ovSoldFrom || ovSoldTo; ovSoldTo = ovSoldTo || ovSoldFrom; }
       const ovOutcomeOr = OV.outcomeOrFilter(ovOutcome.values);
+      // Insights cohort drill (migration 20260940000000, insightsCommon.ts):
+      //   cohort_bucket  csv of paid|paid_unproven|paid_legacy|courier|
+      //                  courier_problem|label|to_pack|returned|
+      //                  cancelled_after_sale|replacement (total = the eight)
+      // With it, sold_from/_to switch to the COHORT sale day (sold_at → AlterCPA
+      // ledger → confirmed_at → created_at). Both are the PostgREST twins of
+      // insights_sale_rows' order part, so the list is exactly what the cohort
+      // counted as orders (web orders and MEX-only parcels are not orders).
+      const ovCohort = IC.parseCohortBucketParam(url.searchParams.get("cohort_bucket"));
+      if (!ovCohort.ok) return json({ error: `Invalid cohort_bucket: ${ovCohort.bad}` }, 400);
+      let ovCohortEx: IC.CohortExceptions | null = null;
+      if (ovCohort.values.length) {
+        const { data: exData, error: exErr } = await adminClient.rpc("insights_cohort_order_exceptions");
+        if (exErr) return json({ error: `insights_cohort_order_exceptions: ${sanitizeDbError(exErr)}` }, 500);
+        ovCohortEx = IC.parseCohortExceptions(exData);
+        if (!ovCohortEx) return json({ error: "cohort_exceptions_unusable" }, 503);
+      }
       // Further Overview links (the tiles, the pivot leaves, the rail):
       //   cash_from/_to  Skopje days, inclusive — the CASH clock
       //   proof          mex | unproven (a delivered order with / without a delivered MEX parcel)
@@ -5597,7 +5620,7 @@ async function handleRequest(req: Request): Promise<Response> {
         (cpaStream && cpaStream !== "all") ||
         ovSource.values.length || ovDetail.values.length || ovOutcomeOr || ovPerson ||
         ovCreatedFrom || ovCreatedTo || ovSoldFrom || ovCashFrom || ovProof || ovPaidBasis ||
-        Object.values(ovText).some(Boolean) || ovTeam || ovAttention,
+        Object.values(ovText).some(Boolean) || ovTeam || ovAttention || ovCohort.values.length,
       );
       let query = client
         .from("orders")
@@ -5628,8 +5651,15 @@ async function handleRequest(req: Request): Promise<Response> {
       if (ovPerson) query = query.eq("sold_by_person_id", ovPerson);
       if (ovCreatedFrom) query = query.gte("created_at", OV.skopjeMidnightIso(ovCreatedFrom));
       if (ovCreatedTo) query = query.lte("created_at", OV.skopjeDayEndIso(ovCreatedTo));
+      if (ovCohortEx) {
+        const cohortOr = IC.cohortBucketOrFilter(ovCohort.values, ovCohortEx.web_claimed);
+        query = query.or(IC.COHORT_UNIVERSE_OR);
+        if (cohortOr) query = query.or(cohortOr);
+      }
       if (ovSoldFrom && ovSoldTo) {
-        query = query.or(OV.soldWindowOrFilter(OV.skopjeMidnightIso(ovSoldFrom), OV.skopjeDayEndIso(ovSoldTo)));
+        query = query.or(ovCohortEx
+          ? IC.cohortSaleWindowOrFilter(OV.skopjeMidnightIso(ovSoldFrom), OV.skopjeDayEndIso(ovSoldTo), ovCohortEx.ledger)
+          : OV.soldWindowOrFilter(OV.skopjeMidnightIso(ovSoldFrom), OV.skopjeDayEndIso(ovSoldTo)));
       }
       if (ovCashFrom && ovCashTo) {
         query = query.or(OV.cashWindowOrFilter(OV.skopjeMidnightIso(ovCashFrom), OV.skopjeDayEndIso(ovCashTo)));
@@ -17004,14 +17034,76 @@ async function handleRequest(req: Request): Promise<Response> {
         url.searchParams.get("compare") === "1",
       );
       if ("error" in ovWin) return json({ error: ovWin.error }, 400);
-      const { data: ovData, error: ovErr } = await adminClient.rpc("insights_overview", {
-        p_from: ovWin.fromIso,
-        p_to_end: ovWin.toEndIso,
-        p_prev_from: ovWin.prev?.fromIso ?? null,
-        p_prev_to_end: ovWin.prev?.toEndIso ?? null,
-      });
+      // The Overview, the sale cohort (migration 20260940000000 — the same
+      // window, all four sources) and THE collabBox freshness, in parallel.
+      // The cohort and the collabBox entry are additive: if either RPC is
+      // missing or fails, the Overview still answers (cohort: null / the
+      // Overview's own collabBox entry).
+      const [ovRes, ovCohortRes, ovCbRes] = await Promise.all([
+        adminClient.rpc("insights_overview", {
+          p_from: ovWin.fromIso,
+          p_to_end: ovWin.toEndIso,
+          p_prev_from: ovWin.prev?.fromIso ?? null,
+          p_prev_to_end: ovWin.prev?.toEndIso ?? null,
+        }),
+        adminClient.rpc("insights_cohort", {
+          p_from: ovWin.fromIso,
+          p_to_end: ovWin.toEndIso,
+          p_prev_from: ovWin.prev?.fromIso ?? null,
+          p_prev_to_end: ovWin.prev?.toEndIso ?? null,
+          p_sources: [...IC.INSIGHTS_SOURCES],
+          p_money: ovOwner,
+        }),
+        adminClient.rpc("collabbox_feed_state"),
+      ]);
+      const { data: ovData, error: ovErr } = ovRes;
       if (ovErr) return json({ error: `insights_overview: ${sanitizeDbError(ovErr)}` }, 500);
-      return json(OV.buildOverviewResponse((ovData ?? {}) as Record<string, unknown>, ovWin, ovOwner));
+      const ovRaw = { ...((ovData ?? {}) as Record<string, unknown>) };
+      if (!ovCbRes.error && ovCbRes.data) ovRaw.freshness = IC.overlayFreshness(ovRaw.freshness, ovCbRes.data);
+      const ovBody = OV.buildOverviewResponse(ovRaw, ovWin, ovOwner);
+      if (ovCohortRes.error) console.error("insights_cohort (overview):", ovCohortRes.error.message);
+      ovBody.cohort = ovCohortRes.error || !ovCohortRes.data
+        ? null
+        : IC.buildCohortResponse(ovCohortRes.data as Record<string, unknown>, ovWin, ovOwner);
+      return json(ovBody);
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // GET /api/insights/cohort?from=YYYY-MM-DD&to=YYYY-MM-DD&compare=1
+    //                         &source=altercpa,elyon_crm,web,teleshop_other
+    // The sale cohort every /insights tab counts from (owner rules
+    // 2026-09-28, migration 20260940000000 insights_cohort): the sales made
+    // in the window (sale day, Skopje), MEX-first buckets that sum exactly to
+    // the total, by source with splits and the leads funnel, cash flow by MEX
+    // delivery day (+ card), previous period, spark, quality.
+    //   owner (public.business_owners) → with money, meta.money = true
+    //   non-owner admin / manager      → the same payload, every *_mkd key
+    //                                    ABSENT (insightsCommon.ts whitelist)
+    //   everyone else                  → 403
+    // Drill links point at GET /orders?cohort_bucket&sale_source&sold_from&
+    // sold_to, which lists exactly the order part of a number.
+    // ══════════════════════════════════════════════════════════════
+    if (req.method === "GET" && path === "insights/cohort") {
+      const coAccess = IC.insightsAccess(await isBusinessOwner(user.id), isAdminOrManager);
+      if (coAccess === "forbidden") return json({ error: "Forbidden" }, 403);
+      const coOwner = coAccess === "owner";
+      const coWin = IC.insightsWindows(
+        url.searchParams.get("from"), url.searchParams.get("to"),
+        url.searchParams.get("compare") === "1",
+      );
+      if ("error" in coWin) return json({ error: coWin.error }, 400);
+      const coSources = IC.parseSourcesParam(url.searchParams.get("source"));
+      if (!coSources.ok) return json({ error: `Invalid source: ${coSources.bad}` }, 400);
+      const { data: coData, error: coErr } = await adminClient.rpc("insights_cohort", {
+        p_from: coWin.fromIso,
+        p_to_end: coWin.toEndIso,
+        p_prev_from: coWin.prev?.fromIso ?? null,
+        p_prev_to_end: coWin.prev?.toEndIso ?? null,
+        p_sources: coSources.values,
+        p_money: coOwner,
+      });
+      if (coErr) return json({ error: `insights_cohort: ${sanitizeDbError(coErr)}` }, 500);
+      return json(IC.buildCohortResponse((coData ?? {}) as Record<string, unknown>, coWin, coOwner));
     }
 
     // GET /api/insights/pivot?from&to&by=source,team,person — the Overview's

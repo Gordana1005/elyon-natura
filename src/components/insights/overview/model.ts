@@ -10,58 +10,21 @@ import {
   type OverviewSparkPoint, type OverviewTeamMember, type OverviewTrendPoint,
 } from '@/lib/api';
 import { SOURCE_ORDER } from './palette';
+import { isYmd, parsePeriodParams, writePeriodParams, type DayRange, type PeriodPreset } from '../shared/period';
 
 // ── Ranges (Skopje calendar days) ───────────────────────────────────────────
+// The period is shared by every /insights tab and lives in ../shared/period.ts
+// (calendar presets, dd.mm.yyyy, the URL params). The Overview only adds its
+// source / team chips on top; these re-exports keep its old names working.
 
-export const RANGE_PRESETS = ['today', 'week', 'month', 'year', 'custom'] as const;
-export type RangePreset = (typeof RANGE_PRESETS)[number];
-export const DEFAULT_PRESET: RangePreset = 'week';
-/** Longest custom span we ask for (the shop panel's cap). */
-export const MAX_SPAN_DAYS = 400;
-
-const ymdRe = /^\d{4}-\d{2}-\d{2}$/;
-export const isYmd = (s: string | null | undefined): s is string =>
-  !!s && ymdRe.test(s) && !Number.isNaN(Date.parse(`${s}T00:00:00Z`));
-
-/** Today on the Europe/Skopje calendar. */
-export function skopjeToday(now: Date = new Date()): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Europe/Skopje', year: 'numeric', month: '2-digit', day: '2-digit',
-  }).format(now);
-}
-
-export function addDays(day: string, n: number): string {
-  const [y, m, d] = day.split('-').map(Number);
-  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
-}
-
-export function daysBetween(from: string, to: string): number {
-  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
-}
-
-export interface DayRange { from: string; to: string }
-
-/** A preset's days, inclusive — the shop panel's rules: rolling 7 / 30 / 365 days. */
-export function presetRange(preset: RangePreset, today: string, custom?: Partial<DayRange>): DayRange {
-  if (preset === 'custom') {
-    let from = isYmd(custom?.from) ? custom!.from! : addDays(today, -6);
-    let to = isYmd(custom?.to) ? custom!.to! : today;
-    if (from > to) [from, to] = [to, from];             // a reversed pair is a slip, not a question
-    if (daysBetween(from, to) > MAX_SPAN_DAYS) from = addDays(to, -MAX_SPAN_DAYS);
-    return { from, to };
-  }
-  const span = preset === 'week' ? 6 : preset === 'month' ? 29 : preset === 'year' ? 364 : 0;
-  return { from: addDays(today, -span), to: today };
-}
-
-/** The equal-length span immediately before `r` (what "compare" measures against). */
-export function previousRange(r: DayRange): DayRange {
-  const days = daysBetween(r.from, r.to) + 1;
-  return { from: addDays(r.from, -days), to: addDays(r.to, -days) };
-}
+export {
+  PERIOD_PRESETS as RANGE_PRESETS, DEFAULT_PERIOD_PRESET as DEFAULT_PRESET, MAX_SPAN_DAYS,
+  addDays, daysBetween, isYmd, presetRange, previousRange, skopjeToday,
+} from '../shared/period';
+export type { PeriodPreset as RangePreset, DayRange } from '../shared/period';
 
 export interface OverviewFilters {
-  preset: RangePreset;
+  preset: PeriodPreset;
   range: DayRange;
   compare: boolean;
   /** Empty = every source. */
@@ -72,26 +35,21 @@ export interface OverviewFilters {
 
 /** Reads the Overview's state out of the /insights URL (shareable, survives reload). */
 export function parseOverviewParams(sp: URLSearchParams, today: string): OverviewFilters {
-  const raw = sp.get('range') as RangePreset | null;
-  const preset: RangePreset = raw && (RANGE_PRESETS as readonly string[]).includes(raw) ? raw : DEFAULT_PRESET;
-  const range = presetRange(preset, today, { from: sp.get('from') ?? undefined, to: sp.get('to') ?? undefined });
+  const period = parsePeriodParams(sp, today);
   const sources = (sp.get('src') ?? '').split(',').filter((s): s is OverviewSourceKey =>
     (SOURCE_ORDER as string[]).includes(s));
   const teams = (sp.get('team') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
-  return { preset, range, compare: sp.get('cmp') !== '0', sources, teams };
+  return { ...period, sources, teams };
 }
 
 /** Writes the Overview's state back, keeping every other param (the tab). */
 export function writeOverviewParams(sp: URLSearchParams, f: Partial<OverviewFilters>): URLSearchParams {
-  const next = new URLSearchParams(sp);
+  const next = writePeriodParams(sp, {
+    ...(f.preset !== undefined ? { preset: f.preset } : {}),
+    ...(f.range !== undefined ? { range: f.range } : {}),
+    ...(f.compare !== undefined ? { compare: f.compare } : {}),
+  });
   const set = (k: string, v: string | null) => (v ? next.set(k, v) : next.delete(k));
-  if (f.preset !== undefined) set('range', f.preset === DEFAULT_PRESET ? null : f.preset);
-  if (f.preset !== undefined || f.range !== undefined) {
-    const custom = (f.preset ?? next.get('range')) === 'custom';
-    set('from', custom && f.range ? f.range.from : custom ? next.get('from') : null);
-    set('to', custom && f.range ? f.range.to : custom ? next.get('to') : null);
-  }
-  if (f.compare !== undefined) set('cmp', f.compare ? null : '0');
   if (f.sources !== undefined) set('src', f.sources.length ? f.sources.join(',') : null);
   if (f.teams !== undefined) set('team', f.teams.length ? f.teams.join(',') : null);
   return next;
@@ -434,6 +392,9 @@ export function stripMoney(p: OverviewResponse): OverviewResponse {
   stripped.meta = { ...stripped.meta, money: false };
   delete stripped.kpis.spark;   // the api drops the whole spark block for a non-owner
   for (const s of stripped.sources) s.money = null;
+  // The embedded sales cohort says so too (its *_mkd keys are already gone above).
+  const cohort = (stripped as { cohort?: { meta?: { money?: boolean } } | null }).cohort;
+  if (cohort?.meta) cohort.meta = { ...cohort.meta, money: false };
   return stripped;
 }
 
