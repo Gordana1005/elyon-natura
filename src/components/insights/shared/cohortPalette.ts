@@ -32,9 +32,10 @@
  *   tiles and the table (never colour alone).
  *
  * Outside the total (dots beside words, never touching fills):
- *   cancelled_after_sale RED light #dc2626 / dark #ff5a4f · replacement slate
- *   #64748b / #94a3b8 · trashed (leads) #cbd5e1 / #64748b. Dark red↔pink is
- *   CVD 13.2 / normal 13.7 — the word beside each dot carries it.
+ *   cancelled_after_sale RED light #dc2626 / dark #ff5a4f (owner: Откажани =
+ *   red) · trashed_after_sale and trashed leads GREY #cbd5e1 / #64748b (Во
+ *   корпа) · replacement slate #64748b / #94a3b8. Dark red↔pink is CVD 13.2 /
+ *   normal 13.7 — the word beside each dot carries it.
  */
 import type { CohortBucketKey, CohortOutsideKey } from './cohortTypes';
 
@@ -57,6 +58,7 @@ export const COHORT_HATCH: Partial<Record<CohortBucketKey, string>> = {
 
 export const OUTSIDE_TONE: Record<CohortOutsideKey | 'trashed', string> = {
   cancelled_after_sale: 'bg-[#dc2626] dark:bg-[#ff5a4f]',
+  trashed_after_sale: 'bg-[#cbd5e1] dark:bg-[#64748b]',
   replacement: 'bg-[#64748b] dark:bg-[#94a3b8]',
   trashed: 'bg-[#cbd5e1] dark:bg-[#64748b]',
 };

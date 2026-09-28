@@ -6,6 +6,7 @@ import { delta } from '../overview/model';
 import { ClockCaption } from './ClockCaption';
 import { StackedBar } from './StackedBar';
 import { COHORT_TONE, OUTSIDE_TONE } from './cohortPalette';
+import { workedOf } from './cohortModel';
 import type { CohortCashFlow, CohortLeadsIn } from './cohortTypes';
 import type { InsightsFormat } from './useInsightsFormat';
 
@@ -20,10 +21,14 @@ const LEADS_PARTS = [
   { key: 'open', tone: COHORT_TONE.to_pack },
   { key: 'cancelled', tone: OUTSIDE_TONE.cancelled_after_sale },
   { key: 'trashed', tone: OUTSIDE_TONE.trashed },
+  // a free replacement, a sale re-opened — shown only when there is any
+  { key: 'other', tone: OUTSIDE_TONE.replacement },
 ] as const;
 
-/** "Дојдени во периодот" — the leads that came in, and what became of them.
- *  A separate small figure: leads are not sales and never add to the total. */
+/** "Дојдени во периодот" — the leads that came in, and what became of them
+ *  (the parts are a partition of came_in). A separate small figure: leads are
+ *  not sales and never add to the total. An ElyonCRM "no" call is a worked
+ *  decision (a cancel), said in its own line. */
 export function LeadsInCard({ leads, prev, f, className }: {
   leads: CohortLeadsIn | null | undefined;
   prev?: CohortLeadsIn | null;
@@ -34,6 +39,8 @@ export function LeadsInCard({ leads, prev, f, className }: {
   const titleId = useId();
   if (!leads) return null;
   const conv = leads.conversion ?? (leads.came_in > 0 ? leads.became_sales / leads.came_in : null);
+  const val = (k: (typeof LEADS_PARTS)[number]['key']) => leads[k] ?? 0;
+  const parts = LEADS_PARTS.filter((p) => p.key !== 'other' || val('other') > 0);
   return (
     <section aria-labelledby={titleId} className={cn('flex min-w-0 flex-col gap-2 rounded-xl border bg-card p-4 shadow-sm', className)}>
       <div>
@@ -47,22 +54,30 @@ export function LeadsInCard({ leads, prev, f, className }: {
         </span>
         {prev && <DeltaBadge d={delta(leads.came_in, prev.came_in, 'up')} f={f} />}
       </div>
+      <p className="text-[11px] text-muted-foreground">
+        {t('insights.common.leads.worked', { n: f.int(workedOf(leads)) })}
+      </p>
       <StackedBar
         className="h-2.5"
         label={t('insights.common.leads.title')}
-        segments={LEADS_PARTS.map((p) => ({
-          key: p.key, weight: leads[p.key], tone: p.tone,
-          text: `${t(`insights.common.leads.${p.key}`)} · ${f.int(leads[p.key])} (${f.share(leads[p.key], leads.came_in)})`,
+        segments={parts.map((p) => ({
+          key: p.key, weight: val(p.key), tone: p.tone,
+          text: `${t(`insights.common.leads.${p.key}`)} · ${f.int(val(p.key))} (${f.share(val(p.key), leads.came_in)})`,
         }))}
       />
       <ul className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-        {LEADS_PARTS.map((p) => (
+        {parts.map((p) => (
           <li key={p.key} className="inline-flex items-center gap-1">
             <span className={cn('h-2.5 w-2.5 shrink-0 rounded-full', p.tone)} aria-hidden />
-            {t(`insights.common.leads.${p.key}`)} <b className="tabular-nums text-foreground">{f.int(leads[p.key])}</b>
+            {t(`insights.common.leads.${p.key}`)} <b className="tabular-nums text-foreground">{f.int(val(p.key))}</b>
           </li>
         ))}
       </ul>
+      {(leads.disposition ?? 0) > 0 && (
+        <p className="text-[11px] text-muted-foreground">
+          {t('insights.common.leads.dispositionNote', { n: f.int(leads.disposition), count: leads.disposition })}
+        </p>
+      )}
     </section>
   );
 }

@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { AlertTriangle, Info, LayoutGrid, Table2, Truck } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { COHORT_SALE_SOURCES, type CohortLeadsIn, type CohortSourceRow } from '../shared/cohortTypes';
+import { type CohortLeadsIn, type CohortSourceRow } from '../shared/cohortTypes';
 import {
   bucketParts, cohortDrill, isMexOnlySplit, mexOnlyCount, outsideParts, tileKeys, type Part,
 } from '../shared/cohortModel';
 import { COHORT_ICON, CohortBar } from '../shared/CohortBar';
+import { OrdersPartLink } from '../shared/CohortLinks';
 import { COHORT_TONE, OUTSIDE_TONE, STATUS_TEXT } from '../shared/cohortPalette';
 import { ClockCaption } from '../shared/ClockCaption';
 import { SourceTable } from '../shared/SourceTable';
@@ -28,6 +28,7 @@ const writeView = (v: SourcesView) => {
 
 const toPart = (m: CohortSourceRow['total'] | undefined): Part => ({
   count: m?.count ?? 0, value_mkd: m?.value_mkd ?? null, cod_mkd: m?.cod_mkd ?? null,
+  orders: m?.orders ?? null, web: m?.web ?? null, mex_only: m?.mex_only ?? null,
 });
 
 /** A hollow ring = still open (no outcome yet). */
@@ -102,23 +103,18 @@ function SourceCard({ row, grand, money, range, f }: {
   row: CohortSourceRow; grand: Part; money: boolean; range: DayRange; f: InsightsFormat;
 }) {
   const { t } = f;
-  const { i18n } = useTranslation();
   const name = f.sourceLabel(row.key);
   const total = toPart(row.total);
   const parts = bucketParts(row.buckets);
   const outs = outsideParts(row.outside);
   const rowDrill = cohortDrill([row], 'total', range);
   const mexOnly = mexOnlyCount(row);
-  const isWeb = !(COHORT_SALE_SOURCES[row.key]?.length);
+  const isWeb = row.key === 'web';
   const leads = row.leads_in;
   const splits = row.splits ?? [];
-  // A split's words: the shared vocabulary first, then the Overview's own, then the key as sent.
-  // A key ending in `_other` would read as an i18next plural form, so it is looked up camelCased.
-  const splitLabel = (k: string) => {
-    const ik = k.replace(/_other$/, 'Other');
-    return i18n.exists(`insights.common.split.${ik}`) ? t(`insights.common.split.${ik}`)
-      : i18n.exists(`overview.cohort.split.${ik}`) ? t(`overview.cohort.split.${ik}`) : f.dimLabel(k);
-  };
+  // A split's words come from the shared vocabulary (insights.common.split.*);
+  // a key it does not know yet (a new collabBox series) shows as sent.
+  const splitLabel = (k: string) => f.splitLabel(k);
 
   return (
     <article aria-labelledby={`ov-src-${row.key}`} className="rounded-xl border bg-card p-4 shadow-sm sm:p-5">
@@ -137,6 +133,7 @@ function SourceCard({ row, grand, money, range, f }: {
               ? t('overview.cohort.sources.header', { n: f.int(total.count), count: total.count, value: f.den(total.value_mkd) })
               : t('overview.cohort.ordersN', { n: f.int(total.count), count: total.count })}
           </DrillLink>
+          <OrdersPartLink drill={rowDrill} label={name} f={f} />
         </div>
         <span className="text-[11px] tabular-nums text-muted-foreground">
           {t('overview.cohort.sources.shareOfAll', { pct: f.share(total.count, grand.count) })}
@@ -179,10 +176,10 @@ function SourceCard({ row, grand, money, range, f }: {
         })}
       </ul>
 
-      {/* Outside this source's total: cancelled after the sale (red) · replacements (only when there are any). */}
+      {/* Outside this source's total: cancelled (red) / trashed (grey) after the sale · replacements (only when there are any). */}
       <ul className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground" aria-label={t('insights.common.outside.title')}>
-        {(['cancelled_after_sale', 'replacement'] as const)
-          .filter((k) => k === 'cancelled_after_sale' || outs[k].count > 0)
+        {(['cancelled_after_sale', 'trashed_after_sale', 'replacement'] as const)
+          .filter((k) => k !== 'replacement' || outs[k].count > 0)
           .map((k) => {
             const p = outs[k];
             const Icon = COHORT_ICON[k];
@@ -196,9 +193,10 @@ function SourceCard({ row, grand, money, range, f }: {
                   className="font-semibold tabular-nums text-foreground">
                   {f.int(p.count)}
                 </DrillLink>
-                {money && k === 'cancelled_after_sale' && p.value_mkd != null && p.count > 0 && (
+                {money && k !== 'replacement' && p.value_mkd != null && p.count > 0 && (
                   <span className="tabular-nums">· {f.den(p.value_mkd)}</span>
                 )}
+                <OrdersPartLink drill={dk} label={`${name} · ${f.outsideLabel(k)}`} f={f} />
               </li>
             );
           })}
@@ -223,9 +221,16 @@ function SourceCard({ row, grand, money, range, f }: {
             <LeadStat label={t('insights.common.leads.cancelled')} value={f.int(leads.cancelled)} dot={OUTSIDE_TONE.cancelled_after_sale} />
             <LeadStat label={t('insights.common.leads.trashed')} value={f.int(leads.trashed)} dot={OUTSIDE_TONE.trashed} />
             <LeadStat label={t('insights.common.leads.open')} value={f.int(leads.open)} dot={OPEN_DOT} />
+            {(leads.other ?? 0) > 0 && <LeadStat label={t('insights.common.leads.other')} value={f.int(leads.other)} />}
           </ul>
         ) : (
           <p className="mt-1 text-xs text-muted-foreground">{t('overview.cohort.leads.none')}</p>
+        )}
+        {/* ElyonCRM's "no" calls are decisions too (Обработени), never sales. */}
+        {(leads?.disposition ?? 0) > 0 && (
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            {t('insights.common.leads.dispositionNote', { n: f.int(leads!.disposition), count: leads!.disposition })}
+          </p>
         )}
       </div>
 
@@ -233,7 +238,7 @@ function SourceCard({ row, grand, money, range, f }: {
         <ul className="mt-3 flex flex-wrap gap-1.5" aria-label={t('overview.cohort.sources.splits')}>
           {splits.map((sp) => {
             const d = splitDrill(row, sp, range);
-            const mex = isMexOnlySplit(sp.key);
+            const mex = isMexOnlySplit(sp);
             return (
               <li key={sp.key}>
                 <DrillLink

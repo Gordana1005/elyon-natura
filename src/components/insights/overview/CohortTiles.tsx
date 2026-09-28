@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 import type { CohortBucketKey } from '../shared/cohortTypes';
 import type { CohortDrill, Part } from '../shared/cohortModel';
 import { COHORT_ICON } from '../shared/CohortBar';
+import { OrdersPartLink, cohortWhy } from '../shared/CohortLinks';
 import { COHORT_HATCH, COHORT_TONE, STATUS_TEXT } from '../shared/cohortPalette';
 import type { InsightsFormat } from '../shared/useInsightsFormat';
 import { DrillLink } from './DrillLink';
@@ -13,24 +14,16 @@ const TILE_TEXT: Partial<Record<CohortBucketKey, string>> = {
   paid: STATUS_TEXT.good, paid_unproven: STATUS_TEXT.critical, returned: STATUS_TEXT.returned,
 };
 
-/** Why a number has no link (or opens only part of it) — said in the tooltip, never silently. */
-export function whyNoLink(
-  f: InsightsFormat, d: { href: string | null; blocked: SplitBlock | null; mexOnly?: number },
-): string | undefined {
-  const { t } = f;
-  if (d.href) return (d.mexOnly ?? 0) > 0 ? t('insights.common.cohort.partialLink', { n: f.int(d.mexOnly) }) : undefined;
-  switch (d.blocked) {
-    case 'web': return t('insights.common.cohort.noLinkWeb');
-    case 'mex_only': return t('insights.common.cohort.noLinkMexOnly');
-    case 'unsupported': return t('overview.cohort.link.unsupported');
-    case 'not_orders': return t('overview.cohort.link.notOrders');
-    default: return undefined;
-  }
+/** Why a number has no link — said in the tooltip, never silently. */
+export function whyNoLink(f: InsightsFormat, d: { href: string | null; blocked: SplitBlock | null }): string | undefined {
+  return cohortWhy(f, d);
 }
 
 /**
- * One cohort part in a source card: dot + icon + label, the count (a link when
- * exact), its share of the source's sales, денари for owners, an optional line.
+ * One cohort part in a source card: dot + icon + label, the count (a link only
+ * when it is all orders), its share of the source's sales, денари for owners,
+ * the "N во Нарачки" link to its order part when it is only partly orders, and
+ * an optional line.
  */
 export function CohortTile({
   k, part, share, drill, money, sourceName, f, children,
@@ -38,7 +31,7 @@ export function CohortTile({
   k: CohortBucketKey;
   part: Part;
   share: string;
-  drill: Pick<CohortDrill, 'href' | 'blocked' | 'mexOnly'>;
+  drill: Pick<CohortDrill, 'href' | 'blocked' | 'ordersHref' | 'orders'>;
   money: boolean;
   sourceName: string;
   f: InsightsFormat;
@@ -78,6 +71,7 @@ export function CohortTile({
       {money && (
         <span className="truncate text-xs tabular-nums text-muted-foreground">{part.value_mkd != null ? f.den(part.value_mkd) : '—'}</span>
       )}
+      <OrdersPartLink drill={drill} label={`${sourceName} · ${label}`} f={f} />
       {children}
     </li>
   );

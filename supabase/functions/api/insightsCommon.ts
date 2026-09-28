@@ -14,13 +14,18 @@
 //                            listed. Money keys are ABSENT, never 0.
 //   buildCohortResponse()    GET /api/insights/cohort (+ Overview "cohort")
 //   overlayFreshness()       swap one feed's freshness entry (collabBox)
-//   cohortOrderBucket() / cohortOrderSaleAt()
-//                            TS twins of cohort_order_bucket() and the cohort
-//                            sale day (verify-insights-ties.mjs replays them
-//                            over live rows)
-//   cohortBucketOrFilter() / cohortSaleWindowOrFilter() / COHORT_UNIVERSE_OR
-//                            their PostgREST twins for GET /orders
+//   cohortOrderBucket() / cohortOrderSaleAt() / isCohortExcludedPhone()
+//                            TS twins of cohort_order_bucket(), the cohort
+//                            sale day and the test-phone rule (the phone LIST
+//                            is data: public.report_excluded_phones, handed
+//                            over by insights_cohort_order_exceptions())
+//   cohortBucketOrFilter() / cohortSaleWindowOrFilter() / COHORT_UNIVERSE_OR /
+//   cohortExcludedPhoneOr()  their PostgREST twins for GET /orders
 //                            ?cohort_bucket&sold_from&sold_to
+//   cohortOrdersFilter()     all of them, assembled ONCE: index.ts applies it
+//                            to the /orders query and scripts/verify-insights-
+//                            ties.mjs translates the very same filter to SQL
+//                            and ties every order part to its /orders count
 // CHANGE A RULE HERE → change it in the migration too (and vice versa).
 // ============================================================================
 
@@ -167,8 +172,9 @@ export function overlayFreshness(freshness: unknown, entry: unknown): unknown {
 export const COHORT_BUCKETS = [
   "paid", "paid_unproven", "paid_legacy", "courier", "courier_problem", "label", "to_pack", "returned",
 ] as const;
-/** Kept outside the total. */
-export const COHORT_OUTSIDE = ["cancelled_after_sale", "replacement"] as const;
+/** Kept outside the total: sold then cancelled (Откажани, red) / trashed (Во
+ *  корпа, grey) with no parcel, and replacements (nothing to collect). */
+export const COHORT_OUTSIDE = ["cancelled_after_sale", "trashed_after_sale", "replacement"] as const;
 export const COHORT_KEYS = [...COHORT_BUCKETS, ...COHORT_OUTSIDE] as const;
 export type CohortKey = (typeof COHORT_KEYS)[number];
 
@@ -219,9 +225,11 @@ export function cohortOrderBucket(o: CohortOrderRow, webClaimed: boolean): Cohor
     if (st === 8) return "label";
     return "courier";
   }
+  // No parcel: the CRM status ('delivered' is the BG-era twin of paid).
   const s = o.status;
-  if ((s === "paid" || s === "returned" || s === "shipped" || s === "confirmed") && price <= 0) return "replacement";
-  if (s === "paid") {
+  const paid = s === "paid" || s === "delivered";
+  if ((paid || s === "returned" || s === "shipped" || s === "confirmed") && price <= 0) return "replacement";
+  if (paid) {
     const legacy = o.paid_basis === "operator_ruling" || o.paid_basis === "legacy_import" ||
       (o.paid_basis == null && o.source_type === "import");
     return legacy ? "paid_legacy" : "paid_unproven";
@@ -229,8 +237,36 @@ export function cohortOrderBucket(o: CohortOrderRow, webClaimed: boolean): Cohor
   if (s === "returned") return "returned";
   if (s === "shipped") return "courier";
   if (s === "confirmed") return "to_pack";
-  if ((s === "cancelled" || s === "trashed") && o.sold_at != null && price > 0) return "cancelled_after_sale";
+  if (s === "cancelled" && o.sold_at != null && price > 0) return "cancelled_after_sale";
+  if (s === "trashed" && o.sold_at != null && price > 0) return "trashed_after_sale";
   return null;
+}
+
+// ── test phones (owner 2026-09-28) ──────────────────────────────────────────
+// The owner's test phones (070 123 456, 02 312 3123): their CRM orders, web
+// orders and MEX parcels are in no insights number. The LIST is not copied
+// here: it is public.report_excluded_phones (migration 20260939000700), and
+// the api receives it as insights_cohort_order_exceptions().excluded_phone8s —
+// adding a phone there needs no deploy.
+
+/** A last-8 value as report_excluded_phones stores it (its CHECK). */
+const PHONE8_RE = /^[0-9]{8}$/;
+
+/** TS twin of public.is_report_excluded_phone(): the phone's digits (any
+ *  format) end in a listed last-8 value; fewer than 8 digits → false. */
+export function isCohortExcludedPhone(raw: string | null | undefined, phone8s: readonly string[]): boolean {
+  const d = String(raw ?? "").replace(/\D/g, "");
+  return d.length >= 8 && phone8s.includes(d.slice(-8));
+}
+
+/** The PostgREST side of the test-phone rule: drop an order whose phone TEXT
+ *  ends in a listed phone (null when the list is empty). The few the text
+ *  cannot show (spaces inside the digits, an order holding a test-phone
+ *  parcel) come by id: insights_cohort_order_exceptions().test_orders. */
+export function cohortExcludedPhoneOr(phone8s: readonly string[]): string | null {
+  const list = phone8s.filter((p) => PHONE8_RE.test(p));
+  if (!list.length) return null;
+  return `customer_phone.is.null,and(${list.map((p) => `customer_phone.not.like.*${p}`).join(",")})`;
 }
 
 /** TS twin of the cohort sale day: sold_at → the AlterCPA ledger's decided_at
@@ -250,15 +286,27 @@ export const COHORT_EXCEPTIONS_MAX = 300;
 export interface CohortExceptions {
   web_claimed: string[];
   ledger: { id: string; sale_at: string }[];
+  /** The test phones' last-8 digits (public.report_excluded_phone8s()). */
+  excluded_phone8s: string[];
+  /** Test-phone orders cohortExcludedPhoneOr() cannot see. */
+  test_orders: string[];
 }
 
-/** insights_cohort_order_exceptions() → validated lists, or null when the
- *  payload is malformed or too long to put in a filter. */
+/** insights_cohort_order_exceptions(p_from, p_to_end) → validated lists, or
+ *  null when the payload is malformed or too long to put in a filter. */
 export function parseCohortExceptions(raw: unknown): CohortExceptions | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
   if (!Array.isArray(r.web_claimed) || !Array.isArray(r.ledger)) return null;
-  const web = r.web_claimed.filter((x): x is string => typeof x === "string" && UUID_RE.test(x));
+  // test_orders / excluded_phone8s arrived with the test-phone rule; an older body without them is none
+  const testRaw = r.test_orders ?? [];
+  const phonesRaw = r.excluded_phone8s ?? [];
+  if (!Array.isArray(testRaw) || !Array.isArray(phonesRaw)) return null;
+  const uuids = (a: unknown[]) => a.filter((x): x is string => typeof x === "string" && UUID_RE.test(x));
+  const web = uuids(r.web_claimed);
+  const test = uuids(testRaw);
+  // the phones go into a filter string: exactly 8 digits or the body is refused
+  const phones = phonesRaw.filter((x): x is string => typeof x === "string" && PHONE8_RE.test(x));
   const ledger: { id: string; sale_at: string }[] = [];
   for (const e of r.ledger) {
     if (!e || typeof e !== "object") return null;
@@ -266,9 +314,9 @@ export function parseCohortExceptions(raw: unknown): CohortExceptions | null {
     if (typeof id !== "string" || !UUID_RE.test(id) || typeof sale_at !== "string" || Number.isNaN(Date.parse(sale_at))) return null;
     ledger.push({ id, sale_at });
   }
-  if (web.length !== r.web_claimed.length) return null;
-  if (web.length + ledger.length > COHORT_EXCEPTIONS_MAX) return null;
-  return { web_claimed: web, ledger };
+  if (web.length !== r.web_claimed.length || test.length !== testRaw.length || phones.length !== phonesRaw.length) return null;
+  if (web.length + ledger.length + test.length + phones.length > COHORT_EXCEPTIONS_MAX) return null;
+  return { web_claimed: web, ledger, excluded_phone8s: phones, test_orders: test };
 }
 
 /** Disposition rows are never sales — every cohort drill carries this. */
@@ -277,56 +325,112 @@ export const COHORT_UNIVERSE_OR = "sale_source_detail.is.null,sale_source_detail
 /**
  * cohort_bucket=a,b → ONE PostgREST `or` expression selecting exactly the
  * orders cohort_order_bucket() puts in those buckets. `webClaimed`: order ids
- * whose parcel a live web order claims (judged without it). Always combine
- * with COHORT_UNIVERSE_OR.
+ * whose parcel a live web order claims — judged on their CRM status alone, so
+ * they get the no-parcel clauses and everyone else the MEX-first ones (the id
+ * list appears at most twice, never once per clause: it keeps the URL short).
+ * Always combine with COHORT_UNIVERSE_OR (cohortOrdersFilter does).
  */
 export function cohortBucketOrFilter(keys: readonly string[], webClaimed: readonly string[] = []): string | null {
   const w = webClaimed.filter((x) => UUID_RE.test(x));
-  const hp = [
-    "mex_tracking_id.not.is.null",
-    "or(mex_status_id.not.is.null,mex_delivered_at.not.is.null)",
-    ...(w.length ? [`id.not.in.(${w.join(",")})`] : []),
-  ].join(",");
-  const nhp = `or(mex_tracking_id.is.null,and(mex_status_id.is.null,mex_delivered_at.is.null)${w.length ? `,id.in.(${w.join(",")})` : ""})`;
+  // a parcel exists → MEX decides · no parcel → the CRM status decides
+  const hp = "mex_tracking_id.not.is.null,or(mex_status_id.not.is.null,mex_delivered_at.not.is.null)";
+  const nhp = "or(mex_tracking_id.is.null,and(mex_status_id.is.null,mex_delivered_at.is.null))";
   const notRepl = "or(mex_cod_mkd.gt.0,and(mex_cod_mkd.is.null,price.gt.0))";
   const repl = "or(mex_cod_mkd.lte.0,and(mex_cod_mkd.is.null,or(price.is.null,price.lte.0)))";
   const legacy = "or(paid_basis.in.(operator_ruling,legacy_import),and(paid_basis.is.null,source_type.eq.import))";
   const notLegacy = "or(paid_basis.not.in.(operator_ruling,legacy_import),and(paid_basis.is.null,or(source_type.is.null,source_type.neq.import)))";
-  const parcel = (status: string) => `and(${hp},${notRepl},${status})`;
-  const crm = (...conds: string[]) => `and(${nhp},${conds.join(",")})`;
-  const CLAUSES: Record<CohortKey, string[]> = {
-    paid: [parcel("or(mex_status_id.eq.2,and(mex_status_id.is.null,mex_delivered_at.not.is.null))")],
-    returned: [parcel("mex_status_id.eq.7"), crm("status.eq.returned", "price.gt.0")],
-    courier_problem: [parcel("mex_status_id.in.(3,9,13)")],
-    label: [parcel("mex_status_id.eq.8")],
-    courier: [parcel("mex_status_id.not.in.(2,3,7,8,9,13)"), crm("status.eq.shipped", "price.gt.0")],
-    to_pack: [crm("status.eq.confirmed", "price.gt.0")],
-    paid_unproven: [crm("status.eq.paid", "price.gt.0", notLegacy)],
-    paid_legacy: [crm("status.eq.paid", "price.gt.0", legacy)],
-    cancelled_after_sale: [crm("status.in.(cancelled,trashed)", "sold_at.not.is.null", "price.gt.0")],
-    replacement: [`and(${hp},${repl})`, crm("status.in.(paid,returned,shipped,confirmed)", "or(price.is.null,price.lte.0)")],
+  const paid = "status.in.(paid,delivered)";   // 'delivered' = the BG-era twin of paid
+  const PARCEL: Partial<Record<CohortKey, string>> = {
+    paid: `and(${hp},${notRepl},or(mex_status_id.eq.2,and(mex_status_id.is.null,mex_delivered_at.not.is.null)))`,
+    returned: `and(${hp},${notRepl},mex_status_id.eq.7)`,
+    courier_problem: `and(${hp},${notRepl},mex_status_id.in.(3,9,13))`,
+    label: `and(${hp},${notRepl},mex_status_id.eq.8)`,
+    courier: `and(${hp},${notRepl},mex_status_id.not.in.(2,3,7,8,9,13))`,
+    replacement: `and(${hp},${repl})`,
   };
-  const out: string[] = [];
-  for (const k of keys) for (const c of CLAUSES[k as CohortKey] ?? []) if (!out.includes(c)) out.push(c);
-  return out.length ? out.join(",") : null;
+  const CRM: Partial<Record<CohortKey, string>> = {
+    paid_unproven: `${paid},price.gt.0,${notLegacy}`,
+    paid_legacy: `${paid},price.gt.0,${legacy}`,
+    returned: "status.eq.returned,price.gt.0",
+    courier: "status.eq.shipped,price.gt.0",
+    to_pack: "status.eq.confirmed,price.gt.0",
+    cancelled_after_sale: "status.eq.cancelled,sold_at.not.is.null,price.gt.0",
+    trashed_after_sale: "status.eq.trashed,sold_at.not.is.null,price.gt.0",
+    replacement: "status.in.(paid,delivered,returned,shipped,confirmed),or(price.is.null,price.lte.0)",
+  };
+  const normal: string[] = [];
+  const crmOnly: string[] = [];
+  const add = (list: string[], c: string) => { if (!list.includes(c)) list.push(c); };
+  for (const k of keys) {
+    const p = PARCEL[k as CohortKey];
+    if (p) add(normal, p);
+    const c = CRM[k as CohortKey];
+    if (c) { add(normal, `and(${nhp},${c})`); add(crmOnly, `and(${c})`); }
+  }
+  if (!normal.length) return null;
+  if (!w.length) return normal.join(",");
+  const ids = w.join(",");
+  return [
+    `and(id.not.in.(${ids}),or(${normal.join(",")}))`,
+    ...(crmOnly.length ? [`and(id.in.(${ids}),or(${crmOnly.join(",")}))`] : []),
+  ].join(",");
 }
 
 /** The cohort sale day inside [fromIso, toEndIso] as a PostgREST `or`
  *  expression — the twin of coalesce(sold_at, ledger decided_at, confirmed_at,
- *  created_at). `ledger`: the orders (sold_at NULL) dated by the ledger. */
+ *  created_at). `ledger`: the orders (sold_at NULL) dated by the ledger. Each
+ *  ledger id appears ONCE (the URL stays short while the stamping cron has
+ *  not dated them yet): dated inside → listed by id; dated outside → kept
+ *  out of the fallback days. */
 export function cohortSaleWindowOrFilter(
   fromIso: string,
   toEndIso: string,
   ledger: readonly { id: string; sale_at: string }[] = [],
 ): string {
   const L = ledger.filter((e) => UUID_RE.test(e.id));
-  const notL = L.length ? `,id.not.in.(${L.map((e) => e.id).join(",")})` : "";
   const f = Date.parse(fromIso), t = Date.parse(toEndIso);
-  const inWin = L.filter((e) => { const x = Date.parse(e.sale_at); return x >= f && x <= t; });
+  const inside = (e: { sale_at: string }) => { const x = Date.parse(e.sale_at); return x >= f && x <= t; };
+  const inWin = L.filter(inside).map((e) => e.id);
+  const outWin = L.filter((e) => !inside(e)).map((e) => e.id);
+  const notL = outWin.length ? `,id.not.in.(${outWin.join(",")})` : "";
   return [
     `and(sold_at.gte.${fromIso},sold_at.lte.${toEndIso})`,
-    `and(sold_at.is.null${notL},confirmed_at.gte.${fromIso},confirmed_at.lte.${toEndIso})`,
-    `and(sold_at.is.null${notL},confirmed_at.is.null,created_at.gte.${fromIso},created_at.lte.${toEndIso})`,
-    ...(inWin.length ? [`id.in.(${inWin.map((e) => e.id).join(",")})`] : []),
+    `and(sold_at.is.null${notL},or(and(confirmed_at.gte.${fromIso},confirmed_at.lte.${toEndIso}),and(confirmed_at.is.null,created_at.gte.${fromIso},created_at.lte.${toEndIso})))`,
+    ...(inWin.length ? [`id.in.(${inWin.join(",")})`] : []),
   ].join(",");
+}
+
+export interface CohortOrdersFilter {
+  /** PostgREST `or=(…)` expressions, ANDed with each other (supabase-js `.or()`). */
+  or: string[];
+  /** Orders never in the list (`id=not.in.(…)`, supabase-js `.not("id", "in", …)`). */
+  notIds: string[];
+}
+
+/** supabase-js sends the whole filter in the URL; past ~8 KB the gateway refuses
+ *  the request line. Measured: a `total` drill with six web claims is ~3.3 KB of
+ *  filter (~4.2 KB of URL). Beyond this budget the api says why (503) instead. */
+export const COHORT_FILTER_MAX_CHARS = 6000;
+export const cohortFilterChars = (f: CohortOrdersFilter) =>
+  f.or.reduce((a, e) => a + e.length, 0) + f.notIds.reduce((a, id) => a + id.length + 1, 0);
+
+/**
+ * Everything GET /orders?cohort_bucket=…[&sold_from&sold_to] adds to its
+ * query so the list holds EXACTLY the order part the cohort counted: never a
+ * disposition row, never a test phone, the buckets asked for and — with a
+ * window (Skopje-day instants) — the cohort sale day. `sale_source` stays the
+ * caller's plain `.in()`. ONE assembly for index.ts and the verify script.
+ */
+export function cohortOrdersFilter(
+  keys: readonly string[],
+  ex: CohortExceptions,
+  window: { fromIso: string; toEndIso: string } | null,
+): CohortOrdersFilter {
+  const or = [COHORT_UNIVERSE_OR];
+  const phones = cohortExcludedPhoneOr(ex.excluded_phone8s);
+  if (phones) or.push(phones);
+  const buckets = cohortBucketOrFilter(keys, ex.web_claimed);
+  if (buckets) or.push(buckets);
+  if (window) or.push(cohortSaleWindowOrFilter(window.fromIso, window.toEndIso, ex.ledger));
+  return { or, notIds: ex.test_orders.filter((x) => UUID_RE.test(x)) };
 }
