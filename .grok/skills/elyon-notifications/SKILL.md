@@ -104,7 +104,7 @@ its failures never show in pg_cron.)
 
 `SET LOCAL elyon.bulk_repair = 'on'` (20260934000200) silences the order-paid, order-returned
 and AlterCPA confirm-rate triggers for one repair transaction — a repair of thousands of orders
-must not bury the staff in bells that describe no real event. The 7-day no-parcel rule sets it
+must not bury the staff in bells that describe no real event. The no-parcel rule (10 days) sets it
 in apply mode.
 
 ## Rule 4 — every new table/RPC starts locked

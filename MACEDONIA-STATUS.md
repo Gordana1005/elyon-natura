@@ -32,13 +32,17 @@ operation. It shares **nothing at runtime** with Bulgaria (own repo / own Supaba
   - 22–28.09 (partial): 1.321 sales · 3.247.209 ден, of which paid 704 · 1.685.032;
   - 15–21.09: 1.629 · 4.138.998;
   - 01–27.09: 7.176 · 17.968.541.
-- **7-day rule:** APPLY mode; its first real run is 28.09 21:10 Skopje (≈522 cancels, needs_linking 47 → 45 after 2 hand links).
-- **Pending tonight:**
-  - delete the test-phone orders (6);
-  - re-price COD → price (≈478, of which 372 are paid orders);
-  - add Lazar Delev and the 15 collabBox author placeholders.
-
-  See FINISH-FROM-VSCODE §C.
+- **No-parcel rule: 10 DAYS** (the owner changed it from 7 on 28.09), APPLY mode. First real run
+  by hand 28.09 ~06:40 Skopje: 516 candidates → **473 cancelled (€12.757)**, 43 needs_linking;
+  818 `no_parcel_7d` cancels in total. The nightly 21:10 run continues.
+- **Done 28.09 ~06:30–06:45 Skopje** (owner: "why not run everything now"):
+  - Lazar Delev added (owner, management team, never earns);
+  - 28 collabBox authors mapped: 6 to their CRM agents' Cyrillic spellings, 22 as placeholders
+    named exactly as collabBox writes them — ≈8.540 orders got a seller;
+  - 6 test-phone orders deleted (run `becf69c8`);
+  - 478 orders re-priced to the MEX COD (run `1220de9c`, 372 of them paid);
+  - ORD-82442 linked by hand (same customer, CRM city was wrong), and the 3 MEX-delivered hand
+    links (ORD-82442, ORD-89633, ORD-105252) set to paid with MEX's delivery date.
 - **Open:** `verify-attribution` C7 (132), C8b (56) and C10 (90) predate this release; the full list is in FINISH-FROM-VSCODE §E.
 
 The sections below are the history up to 19.08.

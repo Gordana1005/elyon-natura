@@ -206,7 +206,7 @@ business, series 9110/9103; NATURA = teleshop/social/web), upserts each into the
    - COD = round(price€ × 61.5) [+150 delivery] ±3 ден → `phone_cod`, nearest date wins;
    - no COD fit, exactly ONE real sale on the phone, open/shipped/delivered → `phone_single`;
    - **upsell revive** (owner rule 2026-09-28) — no COD fit, exactly ONE real sale on the phone,
-     it is our own 7-day no-parcel cancel (`no_parcel_7d`) of an AlterCPA order, and the parcel
+     it is our own no-parcel cancel (10 days since 28.09) (`no_parcel_7d`) of an AlterCPA order, and the parcel
      is BIO NATURAL series 9110 with a COD > 0 (an upsell: ~8.3% of 9110 parcels carry a COD ≠
      the CRM price) → `upsell_revive`;
    - anything else is skipped and counted (`ambiguous`, `single_not_open`, …).

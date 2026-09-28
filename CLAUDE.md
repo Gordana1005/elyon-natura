@@ -43,9 +43,9 @@ exits non-zero if anything points at Bulgaria.
 The shell's working directory **silently resets between tool calls**. NEVER rely on the current
 directory to choose which project a command acts on. For ANY state-changing command, pass the
 target **explicitly** and verify it before running:
-- **Vercel:** `vercel <cmd> --cwd "D:\Dev\archives\elyon-macedonia" --scope gordanas-projects-a53c0208`
+- **Vercel:** `vercel <cmd> --cwd "D:\Dev\archives\elyon-natura" --scope gordanas-projects-a53c0208`
 - **Supabase:** confirm `supabase/config.toml` `project_id = "bmfxhgznttcnnlqloqzp"` before any link/push/deploy
-- **Git:** `git -C "D:\Dev\archives\elyon-macedonia" …`
+- **Git:** `git -C "D:\Dev\archives\elyon-natura" …` (the repo folder is `elyon-natura`; there is no `elyon-macedonia` folder)
 - Read the tool's echoed target (e.g. "to Project X"); if it's ever `elyoncrm`/BG → abort immediately.
 - **Never pass a `--project-ref` copied out of `docs/`** — those pages were inherited from Bulgaria.
 - **Vercel env vars:** prefer the Vercel REST API (JSON body) over `vercel env add` stdin — PowerShell
@@ -123,10 +123,13 @@ target **explicitly** and verify it before running:
   beats CRM status.** Value = parcel COD (`formatDenari`, already denari), else price × 61.5
   (`formatMoney`); web = shop total. The leads funnel and MEX cash-flow are separate, labelled
   figures. MEX alone decides paid/returned; AlterCPA decides only confirmed-or-dead.
-- **The 7-day no-parcel rule is in APPLY mode (owner, 28.09; `20260938000000`).** An AlterCPA
-  approval with no MEX parcel 7 days later is cancelled `no_parcel_7d` nightly at 21:10 Skopje; a
-  parcel that appears later sends it back to shipped and MEX takes over. Same-phone unlinked
-  parcel → `needs_linking`, never cancelled.
+- **The no-parcel rule is 10 DAYS, in APPLY mode (owner, 28.09; `20260938000000`,
+  `app_settings.no_parcel_rule.days = 10` — was 7 until 28.09).** An AlterCPA approval with no MEX
+  parcel 10 days later is cancelled nightly at 21:10 Skopje (reason code stays `no_parcel_7d`); a
+  parcel that appears later sends it back to shipped and MEX takes over (rule C, and the 9110
+  upsell revive). Same-phone unlinked parcel → `needs_linking`, never cancelled.
+- **Денари everywhere (owner, 28.09):** every staff-facing amount — screens, charts, exports,
+  notifications — is shown in денари. The only EUR on screen is the foreign affiliate payout above.
 - **COD ≠ CRM price → MEX is right** (owner): the CRM price follows the parcel COD, except when COD =
   price × 61.5 + 150 (the delivery fee) or COD is 0.
 - **Test phones 070123456 / 23123123** are never in any report (owner, 28.09): their CRM orders are

@@ -5,8 +5,14 @@ three things: **pushing to `main`**, **scheduling the 21:20 wake-up for tonight'
 (near the end) **more live SQL**. This file takes you through the rest from your PC.
 
 All times are UTC unless marked Skopje (Skopje = UTC+2). Run every command from the repo root:
-`D:\Dev\archives\elyon-macedonia`. In Git Bash, prefix with `git -C "D:\Dev\archives\elyon-macedonia"`,
+`D:\Dev\archives\elyon-natura`. In Git Bash, prefix with `git -C "D:\Dev\archives\elyon-natura"`,
 or open that folder in VS Code and use its terminal.
+
+> ✅ **Update 28.09 ~06:45 Skopje (VS Code session):** section B (frontend merge) and ALL of
+> section C are DONE — on the owner's order ("why not run everything now") they ran at 06:30–06:45
+> instead of 21:20, and the no-parcel rule is now **10 days** (was 7): 473 cancelled by a manual run.
+> Lazar + 28 collabBox authors mapped, 6 test-phone orders deleted, 478 re-priced, ORD-82442 linked.
+> See MACEDONIA-STATUS.md. Section D (the night checks) still applies.
 
 > 🛑 Before EVERY migration, deploy or write, run `node scripts/assert-mk-target.mjs`. It must print
 > **Target confirmed: Macedonia**. Never touch `sxymaloycddnoxudxaqp` / elyoncall.com / Vercel `elyoncrm`.

@@ -9,11 +9,15 @@
 
 | Thing | Host | Identifier |
 |---|---|---|
-| Frontend | Vercel | project `elyoncrm` (`prj_965V2iBg793RmiJJw9m6Tl3djllX`), org `team_vvGANvn1DSdgZZAIUBkcCSWh` |
-| Domains | Namecheap → Vercel | `elyoncall.com` + `www`; legacy `elyoncrm.vercel.app` |
+| Frontend | Vercel | project `elyon-natura` (`prj_cwxmm4jb74hUHmAb6YzbUG7PuDy3`), scope `gordanas-projects-a53c0208` |
+| Domains | Vercel | `elyon-natura.vercel.app` (legacy alias `elyon-macedonia.vercel.app`) |
 | DB + Edge Function + Auth | Supabase | project ref `bmfxhgznttcnnlqloqzp` |
-| PBX | AlphaVPS Sofia | `pbx.elyoncall.com` → `104.152.48.222` |
-| Repo | GitHub (private) | `github.com/Gordana1005/elyoncrm`, default branch `main` |
+| PBX | — | none: Macedonian telephony is deferred (Phase 2) |
+| Repo | GitHub (private) | `github.com/Gordana1005/elyon-natura`, default branch `main` (push = Vercel production) |
+
+> 🛑 This runbook was inherited from Bulgaria. `elyoncrm`, `elyoncall.com`, `pbx.elyoncall.com`,
+> `sxymaloycddnoxudxaqp` and `C:\Users\Mile\Desktop\elyoncrm` are the **live Bulgarian system —
+> never touch them**. Run `node scripts/assert-mk-target.mjs` before every state-changing command.
 
 ---
 

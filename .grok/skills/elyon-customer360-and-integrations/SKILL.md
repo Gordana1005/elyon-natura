@@ -112,7 +112,7 @@ Overview says `failed` where this page says `failing`.
   — **PAUSED by the owner 28.09** (`supabase/paused/README.md`; never applied). The deployed
   `collabbox-sync` function is a one-GET reachability probe.
 
-### The 7-day no-parcel rule card and the owners' Report ↔ Apply switch
+### The no-parcel rule card (10 days since 28.09; code `no_parcel_7d`) and the owners' Report ↔ Apply switch
 
 - **The rule** (20260938000000): `apply_no_parcel_rule()`, cron `no-parcel-rule` at :10 every
   hour, self-gated to `settings.hour` (21 → 21:10 Skopje), one scheduled run per Skopje day.

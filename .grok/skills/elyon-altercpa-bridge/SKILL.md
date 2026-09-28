@@ -189,8 +189,9 @@ Never backwards, never re-open, never rewrite a terminal status; reasons
 — approval alone is not money, and a wrong `paid` is locked, moves commissions/sticky-trash/
 revenue, and cannot be corrected. Verify with `node scripts/verify-altercpa-status.mjs`.
 
-**The 7-day no-parcel rule and its reopen (owner rules 2026-09-27/28).** An AlterCPA-confirmed
-order with no MEX parcel 7 days after the approval is cancelled `no_parcel_7d` by the nightly
+**The no-parcel rule and its reopen (owner rules 2026-09-27/28; 10 days since 28.09, was 7).** An
+AlterCPA-confirmed order with no MEX parcel 10 days after the approval (`app_settings.no_parcel_rule.days`)
+is cancelled `no_parcel_7d` (the code keeps its old name) by the nightly
 `apply_no_parcel_rule()` (`20260938000000`, APPLY mode) — our cancel, not the customer's. When the
 parcel turns up later, `mex-reconcile` reopens the order (rule C → `shipped`, then MEX decides
 paid/returned): on a `tracking` or phone+COD (`phone_cod`) link, or — when the COD differs from
