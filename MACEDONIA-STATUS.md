@@ -59,6 +59,22 @@ operation. It shares **nothing at runtime** with Bulgaria (own repo / own Supaba
     tonight.
   - Денари everywhere is live (staff screens, charts, exports, notifications); the foreign
     affiliate payout stays EUR (08-10 exception).
+- **28.09 afternoon — every Insights tab rebuilt** on the foundation (`insights_sale_rows`), Overview
+  style, migrations `20260941000100`–`0600`, api deployed, commit `d1f324a`:
+  Продажби · Агенти · Pure Profit + Маржи · Прогнозни списоци · Враќања + Залихи · Активност.
+  Every tab ties to `insights_cohort` (`scripts/verify-tab-<tab>.mjs`, all PASS for 22–28.09 and
+  01–27.09); managers get the same pages without money; payout/bonus math untouched.
+  Open owner questions from the rebuild:
+  - no-parcel rule for ElyonCRM too;
+  - Teleshop team;
+  - managers' access to Активност;
+  - product-name mapping (233 names) and line rules (ПОЕН / ДОСТАВА / gift);
+  - cost prices (33% coverage; the AlterCPA €2,93 placeholder);
+  - VAT; MEX return fee; lead price per webmaster;
+  - stock count plus MEX-driven stock movements;
+  - return reason capture;
+  - 928 MEX-shipped AlterCPA cancels credited to nobody;
+  - year windows in Pure Profit take 7–10 s.
 - **Review later (not errors):** C7 74 manual; C8b 54 tracking ids unknown to MEX; C8c 2 WARN
   (re-sends whose first parcel came back); 424 NATURA M parcels with no web order (198 COD-0
   deliveries to our own shops/dm, 101 no web order on the phone, 60 from the 18.08–04.09 mirror
