@@ -6,7 +6,18 @@
  *   scripts/repair-mex-ghost-links.mjs        (B — run FIRST)
  *   scripts/repair-altercpa-catchup-paid.mjs  (A — run after B)
  *   scripts/report-cod-mismatch.mjs           (C — read-only)
+ *   scripts/repair-cod-price.mjs              (owner 28.09: CRM price := MEX COD)
+ *   scripts/repair-test-phones.mjs            (owner 28.09: delete the test phones' orders)
  *   scripts/rollback-repair.mjs               (undo one applied run)
+ *
+ * BULK-WRITE GUARDS (owner rules 28.09, HANDOFF §1): every write transaction also sets
+ *   SET LOCAL elyon.keep_updated_at = 'on'  — GET /call-agains reads orders.updated_at as
+ *   last_call_at, so a repair must never look like a call (the update_updated_at_column()
+ *   guard lands with 20260939000300; requireKeepUpdatedAt() refuses an apply without it).
+ * An apply runs in the quiet window (after 20:55 Skopje, requireQuietWindow) and refuses to
+ * start — and to start any further chunk (applyChunked) — while recompute_all_segments or
+ * the 7-day rule (apply_no_parcel_rule, 21:10 Skopje) is running (requireNoSegmentRecompute;
+ * the recompute deadlocked a repair once). SET session_replication_role is never used.
  *
  * THE PROTOCOL every repair follows:
  *   dry run (default)   classify → CSV in exports/repairs/<key>-<ts>.csv (PII, gitignored) →
@@ -367,6 +378,93 @@ export async function requireRepairSchema({ forApply = false, needReason = null 
   }
 }
 
+// ─── bulk-write guards (owner rules 28.09) ───────────────────────────────────
+/**
+ * The update_updated_at_column() guard must be live before any bulk write: without it
+ * SET LOCAL elyon.keep_updated_at = 'on' is a no-op and every repaired order's updated_at
+ * jumps to now() — which GET /call-agains reads as its last call. Refuses an --apply,
+ * warns on a dry run. The check is the one the handoff names: the function's source
+ * must mention keep_updated_at (migration 20260939000300).
+ */
+export async function requireKeepUpdatedAt({ forApply = false } = {}) {
+  const rows = await sqlRead(`select n.nspname as schema, p.prosrc from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace where p.proname = 'update_updated_at_column'`);
+  const pub = rows.find((r) => r.schema === 'public');
+  const okGuard = !!pub && keepUpdatedAtGuarded(pub.prosrc);
+  if (okGuard) { ok('update_updated_at_column() honours elyon.keep_updated_at'); return true; }
+  const msg = pub
+    ? 'public.update_updated_at_column() does not honour elyon.keep_updated_at — apply migration 20260939000300 first'
+    : 'public.update_updated_at_column() not found';
+  if (forApply) die(`${msg}. Refusing to write: every repaired order would get updated_at = now(), which /call-agains reads as a call.`);
+  warn(`${msg} — fine for a dry run, BLOCKS --apply.`);
+  return false;
+}
+/** Pure: does a function body honour the keep_updated_at switch? */
+export const keepUpdatedAtGuarded = (prosrc) => String(prosrc ?? '').includes('keep_updated_at');
+
+/** Quiet window for bulk writes: 20:55 → 07:00 Skopje (HANDOFF §1). */
+export const QUIET_FROM_MIN = 20 * 60 + 55;
+export const QUIET_TO_MIN = 7 * 60;
+export function skopjeMinuteOfDay(ms = Date.now()) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Skopje', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).formatToParts(new Date(ms)).map((x) => [x.type, x.value]));
+  return (Number(p.hour) % 24) * 60 + Number(p.minute);
+}
+export const inQuietWindow = (ms = Date.now()) => {
+  const m = skopjeMinuteOfDay(ms);
+  return m >= QUIET_FROM_MIN || m < QUIET_TO_MIN;
+};
+/**
+ * Refuse an apply outside the quiet window unless the operator says so explicitly
+ * (the override is printed and belongs in the run's audit payload).
+ */
+export function requireQuietWindow({ override = false, ms = Date.now() } = {}) {
+  if (inQuietWindow(ms)) { ok(`inside the quiet window (${fmtSkopje(ms)} Skopje, 20:55–07:00)`); return true; }
+  if (override) { warn(`OUTSIDE the quiet window (${fmtSkopje(ms)} Skopje) — proceeding because --outside-quiet-window was given.`); return false; }
+  die(`It is ${fmtSkopje(ms)} Skopje — bulk writes run in the quiet window after 20:55 (until 07:00).\n` +
+    '  Re-run then, or pass --outside-quiet-window if this really cannot wait.');
+  return false;
+}
+
+/**
+ * The bulk writers a repair must never run beside: public.recompute_all_segments() locks
+ * segment members per phone while reading orders (a repair holding order rows deadlocked
+ * against it once — HANDOFF §1), and public.apply_no_parcel_rule() — the 7-day rule, 21:10
+ * Skopje, i.e. inside the quiet window — cancels orders in bulk.
+ */
+export const BUSY_FUNCTIONS = Object.freeze(['recompute_all_segments', 'apply_no_parcel_rule']);
+/** The pg_stat_activity probe (pure string — tested against a real database). */
+export const busyActivitySql = () => {
+  const any = BUSY_FUNCTIONS.map((f) => `query ilike '%${f}%'`).join(' or ');
+  return `select
+      count(*) filter (where ${any})::int as busy,
+      coalesce(string_agg(distinct case ${BUSY_FUNCTIONS.map((f) => `when query ilike '%${f}%' then '${f}'`).join(' ')} end, ', '), '') as what,
+      count(*) filter (where query = '<insufficient privilege>')::int as hidden,
+      coalesce(max(extract(epoch from now() - query_start)) filter (where ${any}), 0)::int as busy_for_s
+    from pg_stat_activity
+   where pid <> pg_backend_pid() and state is distinct from 'idle'`;
+};
+/**
+ * Is one of BUSY_FUNCTIONS running right now? Runs on the privileged path so every session's
+ * query text is visible; a session hiding its text is reported.
+ */
+export async function segmentRecomputeActivity() {
+  const [r] = await sql(busyActivitySql());
+  return r || { busy: 0, what: '', hidden: 0, busy_for_s: 0 };
+}
+/** Die (before a write) while the segment recompute — or the 7-day rule — runs. */
+export async function requireNoSegmentRecompute(where = 'start') {
+  const a = await segmentRecomputeActivity();
+  if (a.busy > 0) {
+    die(`${a.what || 'recompute_all_segments'} is running (${a.busy} session(s), ${a.busy_for_s} s so far) — refusing to ${where}.\n` +
+      '  Wait for it to finish, then re-run the same command (an interrupted apply resumes from the ledger).');
+  }
+  if (a.hidden > 0) warn(`${a.hidden} session(s) in pg_stat_activity hide their query text from this role — could not rule out a recompute there.`);
+  ok('neither recompute_all_segments nor the 7-day rule is running');
+  return a;
+}
+
 /** orders column → SQL type name (format_type) for the columns a plan may write. */
 export async function loadOrderColumnTypes() {
   const rows = await sqlRead(`select a.attname as col, format_type(a.atttypid, a.atttypmod) as typ
@@ -584,6 +682,13 @@ export function printTrashFalls(trash, label = 'customers who fall back into sti
 }
 
 // ─── the run ledger ─────────────────────────────────────────────────────────
+/** JSON with object keys sorted at every level — jsonb does not keep the insertion order. */
+export function canonicalJson(v) {
+  const norm = (x) => (Array.isArray(x) ? x.map(norm)
+    : x && typeof x === 'object' ? Object.fromEntries(Object.keys(x).sort().map((k) => [k, norm(x[k])])) : x);
+  return JSON.stringify(norm(v));
+}
+
 export async function recordDryRun({ key, lines, summary }) {
   const id = randomUUID();
   const hash = candidateHash(lines);
@@ -607,8 +712,9 @@ export async function verifyRunForApply({ key, runId, lines, options = null }) {
   if (!run.dry_run) die(`run ${runId} is not a dry run.`);
   if (run.applied_at) die(`run ${runId} was already applied at ${fmtSkopje(run.applied_at)}.`);
   if (options) {
-    const recorded = JSON.stringify(run.summary?.options ?? {});
-    if (recorded !== JSON.stringify(options)) die(`run ${runId} was dry-run with options ${recorded}; this apply uses ${JSON.stringify(options)} — pass the same flags.`);
+    // canonical: jsonb hands the recorded object back with its keys re-ordered
+    const recorded = canonicalJson(run.summary?.options ?? {});
+    if (recorded !== canonicalJson(options)) die(`run ${runId} was dry-run with options ${recorded}; this apply uses ${canonicalJson(options)} — pass the same flags.`);
   }
   const doneRows = await sqlRead(`select order_id, evidence->>'line' as line from public.data_repair_rows
     where run_id = ${qUuid(runId)} and after is not null`);
@@ -713,6 +819,7 @@ update public.orders o set ${shape.split(',').map((c) => `${c} = ${colExpr(c)}`)
 
   return `
 set local elyon.bulk_repair = 'on';
+set local elyon.keep_updated_at = 'on';
 set local statement_timeout = '120s';
 set local lock_timeout = '20s';
 set local timezone = 'UTC';
@@ -830,6 +937,51 @@ export async function applyUnits({ key, runId, units, typeMap, chunkSize = MAX_C
       const skipped = Array.isArray(res.skipped) ? res.skipped : [];
       stats.skipped.push(...skipped);
       console.log(`${green('committed')} ${res.applied}/${res.planned}` +
+        `${skipped.length ? yellow(` (${skipped.length} moved since the dry run — left alone)`) : ''} in ${((Date.now() - t0) / 1000).toFixed(1)} s`);
+    } catch (e) {
+      console.log(red('FAILED — rolled back'));
+      stats.failed = { chunk: i + 1, error: String(e.message || e).slice(0, 1500) };
+      console.error(red(stats.failed.error));
+      break;
+    }
+  }
+  return stats;
+}
+
+/**
+ * The generic chunk loop for repairs that build their own transaction SQL (cod-price,
+ * test-phones, their restores). `items` are split into ≤ `chunkSize` (≤ 200) groups; each
+ * group is ONE API call = ONE implicit transaction (see buildChunkSql). Before every chunk the
+ * segment recompute is checked again: if it started, the loop STOPS cleanly (committed chunks
+ * stay in the ledger; the same command resumes). Stops at the first failed chunk.
+ * build(chunk) → SQL whose last result row has { planned, applied, skipped? }.
+ */
+export async function applyChunked({ items, build, chunkSize = MAX_CHUNK, label = 'orders', checkRecompute = true }) {
+  const size = Math.max(1, Math.min(MAX_CHUNK, Number(chunkSize) || MAX_CHUNK));
+  const chunks = [];
+  for (let i = 0; i < items.length; i += size) chunks.push(items.slice(i, i + size));
+  const stats = { chunks: chunks.length, committed: 0, planned: 0, applied: 0, skipped: [], failed: null, results: [] };
+  for (let i = 0; i < chunks.length; i++) {
+    if (checkRecompute) {
+      const a = await segmentRecomputeActivity();
+      if (a.busy > 0) {
+        stats.failed = { chunk: i + 1, error: `${a.what || 'recompute_all_segments'} started (${a.busy} session(s)) — stopped before this chunk` };
+        console.log(yellow(`  stopped before chunk ${i + 1}/${chunks.length}: ${stats.failed.error}`));
+        break;
+      }
+    }
+    const t0 = Date.now();
+    process.stdout.write(`  chunk ${i + 1}/${chunks.length} (${chunks[i].length} ${label}) … `);
+    try {
+      const [res] = await sql(build(chunks[i]));
+      if (!res) throw new Error('no result row came back — check the ledger before resuming');
+      stats.committed++;
+      stats.planned += Number(res.planned ?? chunks[i].length);
+      stats.applied += Number(res.applied ?? res.restored ?? 0);
+      const skipped = Array.isArray(res.skipped) ? res.skipped : [];
+      stats.skipped.push(...skipped);
+      stats.results.push(res);
+      console.log(`${green('committed')} ${res.applied ?? res.restored}/${res.planned ?? chunks[i].length}` +
         `${skipped.length ? yellow(` (${skipped.length} moved since the dry run — left alone)`) : ''} in ${((Date.now() - t0) / 1000).toFixed(1)} s`);
     } catch (e) {
       console.log(red('FAILED — rolled back'));

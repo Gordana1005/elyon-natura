@@ -1,0 +1,17 @@
+{
+  "check": "C8a — one parcel, one order: tracking id on 2+ live orders (scripts/verify-attribution.mjs)",
+  "decision": "Owner (Mile), 28.09.2026 — HANDOFF §3: keep both orders on the 3 parcels held by two orders; they may be identical, but both are accurate. Only the exact (tracking id, set of orders) pairs listed under \"accepted\" turn into PASS/INFO; any other tracking id held by two or more live orders — or a third order joining a listed one — still FAILs C8a. An entry whose tracking id is no longer double-claimed reads as stale (WARN) until it is removed here.",
+  "how_to_fill": [
+    "1. node scripts/verify-attribution.mjs --c8a-template   (read-only; prints the SQL and a ready JSON entry for every double claim live now)",
+    "2. Confirm each printed tracking id is one of the parcels the owner accepted (3 on 28.09.2026) — never paste a pair the owner did not decide.",
+    "3. Copy those entries into \"accepted\" below, write the reason (why both orders are real) and owner_date, commit.",
+    "4. node scripts/verify-attribution.mjs   → C8a PASS, the pairs listed as owner-accepted in its breakdown."
+  ],
+  "entry_shape": {
+    "tracking_id": "the MEX tracking id both orders name (orders.mex_tracking_id)",
+    "orders": ["ORD-…", "ORD-…"],
+    "reason": "why the owner keeps both orders",
+    "owner_date": "YYYY-MM-DD"
+  },
+  "accepted": []
+}
