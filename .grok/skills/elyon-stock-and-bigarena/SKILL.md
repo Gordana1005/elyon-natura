@@ -7,7 +7,24 @@ description: Use for any stock movement, BigArena imports, reconciliation, inven
 
 Stock is real money and real warehouse capacity. Mistakes here have physical consequences.
 
-## Core Stock Rules
+## MK: the count + MEX regime (migration 20260942000100) — overrides the rules below
+
+- **Попис (stock count)**, Warehouse → Попис: one count event (`stock_count_apply`) sets on-hand,
+  writes a `count` movement per difference, sets `app_settings.stock_counted_at`, and the FIRST
+  count sets `stock_mex_movements.from`. Owners / admins / warehouse role.
+- **From `from` on, MEX parcels move stock, not CRM statuses.** `stock_mex_apply()` (cron
+  `:12/:42`) reconciles `stock_mex_ledger` (UNIQUE parcel × owner × kind) with
+  `stock_mex_desired()`: a registered parcel deducts its owner's lines, MEX status 7 restocks,
+  a relink/unlink reverses — each change an `inventory_logs` row (`mex_deduct/mex_restock/
+  mex_reverse`). A (parcel, product) older than that product's last count is frozen.
+- **Dark** until an owner switches `stock_mex_movements.enabled` on (POST /api/stock/mex-movements).
+- The api's status blocks below are gated by `stockByStatus()` and **stop once `from` is set** —
+  do not "restore" them, a parcel would be deducted twice.
+- Free units (0-price / web GIFT lines of a catalogue product) are deducted unless
+  `free_units = 'skip'`; a reviewed `product_aliases` row of kind `gift` skips one name.
+- Proof: `node scripts/verify-stock.mjs` (on-hand = last count + movements; one ledger row per key).
+
+## Core Stock Rules (before the first count)
 
 - Stock **only** changes on `shipped` (decrement) and `returned` (increment).
 - It is **never** changed on order creation or confirmation.

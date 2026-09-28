@@ -27,7 +27,12 @@ import {
   apiBulkStatusUpdate,
 } from '@/lib/api';
 import { Checkbox } from '@/components/ui/checkbox';
+import { apiGetStockHealth } from '@/lib/stockApi';
+import StockCountTab from '@/components/warehouse/StockCountTab';
+import { stockMoment } from '@/components/warehouse/stockText';
 import {
+  ClipboardCheck,
+  ShieldAlert,
   Package,
   PackageCheck,
   Loader2,
@@ -645,6 +650,15 @@ function InventoryTab() {
   // Cost and price are money: business owners only (is_business_owner). The
   // warehouse role and non-owner managers see the stock, never what it costs.
   const { canSeeBusiness: showMoney } = usePermissions();
+  // Stock health (migration 20260942000100): on-hand is verified once a count
+  // exists and MEX stock movements are on — then days of cover shows; before
+  // that the numbers carry the "not verified" banner.
+  const health = useQuery({ queryKey: ['stock-health'], queryFn: () => apiGetStockHealth(true), staleTime: 60_000, retry: 0 });
+  const trusted = health.data?.trusted === true;
+  const cover = useMemo(
+    () => new Map((health.data?.products ?? []).map((r) => [r.product_id, r.days_cover])),
+    [health.data],
+  );
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -707,6 +721,21 @@ function InventoryTab() {
 
   return (
     <div className="space-y-4">
+      {/* Not verified until a count exists AND MEX stock movements are on (tab Попис) */}
+      {health.data && !trusted && (
+        <div role="status" className="flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+          <ShieldAlert className="mt-px h-4 w-4 shrink-0" aria-hidden />
+          <div className="space-y-0.5">
+            <p className="font-semibold">{t('wh.unverifiedTitle')}</p>
+            <p>
+              {health.data.counted
+                ? t(health.data.mex.enabled ? 'wh.unverifiedStale' : 'wh.unverifiedMexOff', { date: stockMoment(health.data.counted.at) })
+                : t('wh.unverifiedNoCount')}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Low stock alerts — collapsed to a preview so 100+ warnings can't swallow the page */}
       {lowStockProducts.length > 0 && (
         <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
@@ -769,6 +798,7 @@ function InventoryTab() {
               {showMoney && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('wh.colCost')}</th>}
               {showMoney && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('wh.colPrice')}</th>}
               <th className="px-4 py-3 text-left font-medium text-muted-foreground min-w-[160px]">{t('wh.colStockLevel')}</th>
+              {trusted && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('wh.colCover')}</th>}
               <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('wh.colStatus')}</th>
               {canRestock && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('wh.colActions')}</th>}
             </tr>
@@ -809,6 +839,11 @@ function InventoryTab() {
                       </div>
                     </div>
                   </td>
+                  {trusted && (
+                    <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
+                      {cover.get(p.id) != null ? t('wh.coverDays', { n: cover.get(p.id) }) : '—'}
+                    </td>
+                  )}
                   <td className="px-4 py-3">
                     <Badge variant={p.is_active ? 'default' : 'secondary'}>{p.is_active ? t('wh.active') : t('wh.disabled')}</Badge>
                   </td>
@@ -824,7 +859,7 @@ function InventoryTab() {
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={(canRestock ? 9 : 8) - (showMoney ? 0 : 2)} className="p-0">
+                <td colSpan={(canRestock ? 9 : 8) - (showMoney ? 0 : 2) + (trusted ? 1 : 0)} className="p-0">
                   <EmptyState
                     icon={<Package className="h-5 w-5" />}
                     title={search || categoryFilter ? t('wh.noProductsMatch') : t('wh.noProducts')}
@@ -878,8 +913,9 @@ function StockMovementsTab() {
   const fetchMovements = () => {
     setLoading(true);
     apiGetStockMovements({
-      product_id: productFilter || undefined,
-      movement_type: typeFilter || undefined,
+      // "all" is the Select's reset value, not a filter
+      product_id: productFilter && productFilter !== 'all' ? productFilter : undefined,
+      movement_type: typeFilter && typeFilter !== 'all' ? typeFilter : undefined,
       limit: 200,
     }).then(setMovements).catch(() => {}).finally(() => setLoading(false));
   };
@@ -887,14 +923,18 @@ function StockMovementsTab() {
   useEffect(() => { fetchMovements(); }, [typeFilter, productFilter]);
 
   const movementIcon = (type: string) => {
-    if (type === 'restock') return <ArrowUpCircle className="h-4 w-4 text-emerald-600" />;
-    if (type === 'order_deduction') return <ArrowDownCircle className="h-4 w-4 text-destructive" />;
-    if (type === 'manual_adjust') return <RotateCcw className="h-4 w-4 text-muted-foreground" />;
+    if (type === 'restock' || type === 'mex_restock' || type === 'order_return') return <ArrowUpCircle className="h-4 w-4 text-emerald-600" />;
+    if (type === 'order_deduction' || type === 'mex_deduct') return <ArrowDownCircle className="h-4 w-4 text-destructive" />;
+    if (type === 'count') return <ClipboardCheck className="h-4 w-4 text-primary" />;
+    if (type === 'mex_reverse') return <Truck className="h-4 w-4 text-muted-foreground" />;
     return <RotateCcw className="h-4 w-4 text-muted-foreground" />;
   };
 
+  // Every movement type with its own words (the MEX / count ones: migration 20260942000100).
+  const KNOWN_MOVEMENTS = ['restock', 'order_deduction', 'manual_adjust', 'deduction', 'order_return', 'bigarena_sync',
+    'count', 'mex_deduct', 'mex_restock', 'mex_reverse'];
   const movementLabel = (type: string) => {
-    if (type === 'restock' || type === 'order_deduction' || type === 'manual_adjust' || type === 'deduction') return t('wh.mv.' + type);
+    if (KNOWN_MOVEMENTS.includes(type)) return t('wh.mv.' + type);
     return type || t('common.unknown');
   };
 
@@ -909,6 +949,10 @@ function StockMovementsTab() {
             <SelectItem value="order_deduction">{t('wh.mv.order_deduction')}</SelectItem>
             <SelectItem value="manual_adjust">{t('wh.mv.manual_adjust')}</SelectItem>
             <SelectItem value="order_return">{t('wh.mv.order_return')}</SelectItem>
+            <SelectItem value="count">{t('wh.mv.count')}</SelectItem>
+            <SelectItem value="mex_deduct">{t('wh.mv.mex_deduct')}</SelectItem>
+            <SelectItem value="mex_restock">{t('wh.mv.mex_restock')}</SelectItem>
+            <SelectItem value="mex_reverse">{t('wh.mv.mex_reverse')}</SelectItem>
             <SelectItem value="bigarena_sync">{t('wh.mv.bigarena_sync')}</SelectItem>
           </SelectContent>
         </Select>
@@ -1107,6 +1151,13 @@ export default function WarehousePage() {
   // Packing/History are the warehouse_incoming module — hidden from managers by
   // default, shown to warehouse + admin, governable from Settings → Role Permissions.
   const canIncoming = canAccessModule('warehouse_incoming');
+  // Попис (the stock count): owners, admins and the warehouse role — the server
+  // (POST /api/stock/count) makes the same decision.
+  const { user } = useAuth();
+  const canCount = !!(user?.isAdmin || user?.isWarehouse) || canSeeBusiness;
+  // The stock value is shown only once on-hand is verified (a count + MEX stock movements on).
+  const healthQ = useQuery({ queryKey: ['stock-health'], queryFn: () => apiGetStockHealth(true), staleTime: 60_000, retry: 0 });
+  const stockTrusted = healthQ.data?.trusted === true;
 
   const [products, setProducts] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
@@ -1127,8 +1178,8 @@ export default function WarehousePage() {
   const kpiCards = [
     { labelKey: 'wh.kpiTotalProducts', value: totalProducts, icon: Boxes, color: 'bg-primary/10 text-primary' },
     { labelKey: 'wh.kpiLowStock', value: lowStockCount, icon: TrendingDown, color: lowStockCount > 0 ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground' },
-    // The stock value is money: business owners only.
-    ...(canSeeBusiness ? [{ labelKey: 'wh.kpiStockValue', value: formatMoney(totalStockValue), icon: Banknote, color: 'bg-emerald-500/10 text-emerald-600' }] : []),
+    // The stock value is money: business owners only — and only once on-hand is verified.
+    ...(canSeeBusiness ? [{ labelKey: 'wh.kpiStockValue', value: stockTrusted ? formatMoney(totalStockValue) : t('wh.kpiStockValueHidden'), icon: Banknote, color: 'bg-emerald-500/10 text-emerald-600' }] : []),
     ...(canIncoming ? [{ labelKey: 'wh.kpiPendingOrders', value: pendingOrders, icon: ShoppingCart, color: pendingOrders > 0 ? 'bg-amber-500/10 text-amber-600' : 'bg-muted text-muted-foreground' }] : []),
   ];
 
@@ -1166,6 +1217,11 @@ export default function WarehousePage() {
             <TabsTrigger value="movements" className="gap-1.5">
               <History className="h-3.5 w-3.5" /> {t('wh.tabMovements')}
             </TabsTrigger>
+            {canCount && (
+              <TabsTrigger value="count" className="gap-1.5">
+                <ClipboardCheck className="h-3.5 w-3.5" /> {t('stockCount.tab')}
+              </TabsTrigger>
+            )}
             {canIncoming && (
               <TabsTrigger value="history" className="gap-1.5">
                 <Archive className="h-3.5 w-3.5" /> {t('wh.tabHistory')}
@@ -1186,6 +1242,12 @@ export default function WarehousePage() {
           <TabsContent value="movements">
             <StockMovementsTab />
           </TabsContent>
+
+          {canCount && (
+            <TabsContent value="count">
+              <StockCountTab />
+            </TabsContent>
+          )}
 
           {canIncoming && (
             <TabsContent value="history">

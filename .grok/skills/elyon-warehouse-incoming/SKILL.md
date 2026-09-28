@@ -23,7 +23,9 @@ These are merged in the backend (`/warehouse/incoming-orders`) and presented wit
 - This is intentional and respected by the warehouse flow.
 
 **Stock safety**:
-- Stock only decrements on transition to `shipped` (via single PATCH or bulk).
+- MK, once the first stock count exists (migration 20260942000100): MEX parcels move stock and
+  marking `shipped` / `returned` here moves nothing (see `elyon-stock-and-bigarena`).
+- Before that: stock only decrements on transition to `shipped` (via single PATCH or bulk).
 - Only rows where `order_items.product_id IS NOT NULL` affect stock (legacy imports are skipped on purpose).
 - Bulk export can optionally flip `confirmed → shipped` automatically.
 

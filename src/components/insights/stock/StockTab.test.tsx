@@ -87,6 +87,27 @@ describe('Products & stock — owner', () => {
   });
 });
 
+describe('Products & stock — the stock regime (migration 20260942000100)', () => {
+  it('counted but MEX stock movements off: says so, still hides days of cover and the valuation', async () => {
+    const s = S();
+    s.trust = { ...s.trust, last_count: '2026-10-01', counted: true, mex_enabled: false, mex_from: '2026-10-01', mex_last_run: null };
+    renderWith(s);
+    expect(await screen.findByText(i18n.t('insights.stock.trust.countedTitle', { date: '01.10.2026' }), {}, { timeout: 10_000 })).toBeInTheDocument();
+    expect(screen.getByText(i18n.t('insights.stock.trust.countedOff'))).toBeInTheDocument();
+    expect(screen.queryByText(i18n.t('insights.stock.col.cover'))).toBeNull();
+    expect(screen.queryByText(i18n.t('insights.stock.tile.valuation'))).toBeNull();
+  });
+
+  it('counted, MEX on and running: trusted — days of cover shows', async () => {
+    const s = S();
+    s.trust = { ...s.trust, trusted: true, last_count: '2026-10-01', counted: true, mex_enabled: true, mex_from: '2026-10-01', mex_last_run: '2026-10-02T09:42' };
+    s.kpis = { ...s.kpis, out: 0, low: 0 };
+    renderWith(s);
+    expect(await screen.findByText(i18n.t('insights.stock.trust.mexOk', { count: '01.10.2026', from: '01.10.2026', run: '02.10.2026 09:42' }), {}, { timeout: 10_000 })).toBeInTheDocument();
+    expect(screen.getByText(i18n.t('insights.stock.col.cover'))).toBeInTheDocument();
+  });
+});
+
 describe('Products & stock — admin / manager (no money)', () => {
   it('never shows a cost, a price, a queue value or the valuation', async () => {
     const owner = S();

@@ -89,6 +89,8 @@ export const STOCK_NON_MONEY_KEYS: ReadonlySet<string> = new Set([
   // trust
   "trust", "trusted", "last_count", "last_restock", "last_deduction", "last_movement", "last_parcel",
   "parcels_since_deduction", "ledger_out_window", "ledger_in_window", "ledger_moves_window", "parcels_window",
+  // the stock regime (20260942000100): counted, and the MEX stock ledger on / its last run
+  "counted", "mex_enabled", "mex_from", "mex_last_run",
   // kpis
   "kpis", "sales", "sales_mex_only", "units", "units_prev", "free_units", "units_catalogue", "products_sold",
   "returned_units", "returned_parcels", "returned_mex_only", "tracked", "active", "out", "low",

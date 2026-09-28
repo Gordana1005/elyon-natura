@@ -168,6 +168,13 @@ export interface StockTrust {
   ledger_in_window: number;
   ledger_moves_window: number;
   parcels_window: number;
+  /** The stock regime (migration 20260942000100) — absent on an older database. */
+  counted?: boolean;
+  mex_enabled?: boolean;
+  /** YYYY-MM-DD (Skopje): where MEX-driven stock movements start. */
+  mex_from?: string | null;
+  /** YYYY-MM-DDTHH:MM (Skopje): the MEX stock ledger's last successful run. */
+  mex_last_run?: string | null;
 }
 
 export type QueueAgeKey = '0_2' | '3_7' | '8_14' | '15_30' | '31_plus';

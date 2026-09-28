@@ -203,12 +203,28 @@ function StockBody({ data, money, sources, compare, f }: {
 function TrustBanner({ data, f }: { data: StockResponse; f: InsightsFormat }) {
   const { t } = f;
   const tr = data.trust;
+  // "2026-09-28T14:05" (Skopje) → "28.09.2026 14:05"
+  const run = tr.mex_last_run ? `${dm(tr.mex_last_run.slice(0, 10), true)} ${tr.mex_last_run.slice(11, 16)}` : '—';
   if (tr.trusted) {
     return (
       <p className={cn('flex items-center gap-2 rounded-lg border px-3 py-2 text-xs', STATUS_TEXT.good)}>
         <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden />
-        {t('insights.stock.trust.ok', { count: tr.last_count ? dm(tr.last_count, true) : '—', deduction: tr.last_deduction ? dm(tr.last_deduction, true) : '—' })}
+        {tr.mex_enabled
+          ? t('insights.stock.trust.mexOk', { count: tr.last_count ? dm(tr.last_count, true) : '—', from: tr.mex_from ? dm(tr.mex_from, true) : '—', run })
+          : t('insights.stock.trust.ok', { count: tr.last_count ? dm(tr.last_count, true) : '—', deduction: tr.last_deduction ? dm(tr.last_deduction, true) : '—' })}
       </p>
+    );
+  }
+  // Counted (migration 20260942000100), but MEX stock movements are off, or their ledger stopped running.
+  if (tr.counted) {
+    return (
+      <div role="status" className="flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+        <ShieldAlert className="mt-px h-4 w-4 shrink-0" aria-hidden />
+        <div className="space-y-0.5">
+          <p className="font-semibold">{t('insights.stock.trust.countedTitle', { date: tr.last_count ? dm(tr.last_count, true) : '—' })}</p>
+          <p>{tr.mex_enabled ? t('insights.stock.trust.stale', { run }) : t('insights.stock.trust.countedOff')}</p>
+        </div>
+      </div>
     );
   }
   return (

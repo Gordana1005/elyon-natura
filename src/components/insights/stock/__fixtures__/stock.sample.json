@@ -512,7 +512,11 @@
   "ledger_in_window": 0,
   "ledger_out_window": 0,
   "ledger_moves_window": 0,
-  "parcels_since_deduction": 10262
+  "parcels_since_deduction": 10262,
+  "counted": false,
+  "mex_enabled": false,
+  "mex_from": null,
+  "mex_last_run": null
  },
  "hygiene": {
   "no_cost": {

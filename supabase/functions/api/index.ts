@@ -39,6 +39,10 @@ import * as IPF from "./insightsProfit.ts";
 // the clock param, the money-strip whitelists and the response envelopes
 // (pure, unit-tested in insightsReturnsStock.test.ts).
 import * as IRS from "./insightsReturnsStock.ts";
+// Stock — the physical count (попис) and MEX-driven stock movements (migration
+// 20260942000100): access, body parsing, and whether a CRM status change still
+// moves stock (pure, unit-tested in stockLedger.test.ts).
+import * as SL from "./stockLedger.ts";
 
 // ============================================================
 // INPUT VALIDATION SCHEMAS
@@ -2979,6 +2983,29 @@ async function handleRequest(req: Request): Promise<Response> {
         businessOwnerMemo.set(uid, p);
       }
       return p;
+    };
+
+    // Stock regime (migration 20260942000100): once the first physical count
+    // has anchored the MEX stock ledger (app_settings.stock_mex_movements.from),
+    // MEX parcels move stock (public.stock_mex_apply) and a CRM status change
+    // must not — shipped → deduct, returned → restore and their "insufficient
+    // stock" refusal all stop, or a parcel would be counted twice. Before the
+    // count, and if the setting cannot be read, the old behaviour stays.
+    // Memoized per request (read only by the status routes that need it).
+    let stockByStatusMemo: Promise<boolean> | null = null;
+    const stockByStatus = (): Promise<boolean> => {
+      if (!stockByStatusMemo) {
+        stockByStatusMemo = (async () => {
+          const { data, error } = await adminClient
+            .from("app_settings").select("value").eq("key", "stock_mex_movements").maybeSingle();
+          if (error) {
+            console.error("stock_mex_movements read failed:", error.message);
+            return true;
+          }
+          return SL.stockMovesOnStatus(data?.value ?? null);
+        })();
+      }
+      return stockByStatusMemo;
     };
 
     // ============================================================
@@ -6466,8 +6493,9 @@ async function handleRequest(req: Request): Promise<Response> {
       }
 
       if (toUpdate.length > 0) {
-        // Stock deduction when bulk-setting to "shipped"
-        if (new_status === "shipped") {
+        // Stock deduction when bulk-setting to "shipped" — only until the first
+        // stock count; after it MEX parcels move stock (stockByStatus).
+        if (new_status === "shipped" && await stockByStatus()) {
           // Walk a SNAPSHOT. The stock check below drops orders out of toUpdate,
           // and splicing the very array a for...of is walking makes the iterator
           // skip the next element — so an order could be marked shipped with its
@@ -6548,8 +6576,8 @@ async function handleRequest(req: Request): Promise<Response> {
           }
         }
 
-        // Stock return when bulk-setting to "returned"
-        if (new_status === "returned") {
+        // Stock return when bulk-setting to "returned" (until the first count — stockByStatus)
+        if (new_status === "returned" && await stockByStatus()) {
           for (const oid of toUpdate) {
             const prev = (currentOrders || []).find((o: any) => o.id === oid);
             if (prev?.status === "returned") continue; // already returned
@@ -6767,9 +6795,10 @@ async function handleRequest(req: Request): Promise<Response> {
         updated.paid = toPaidIds.length;
       }
 
-      // Process RETURNED group (full stock restore + logs, exactly like bulk)
+      // Process RETURNED group (full stock restore + logs, exactly like bulk —
+      // the restore only until the first stock count: stockByStatus)
       if (toReturnedIds.length > 0) {
-        for (const oid of toReturnedIds) {
+        for (const oid of (await stockByStatus()) ? toReturnedIds : []) {
           const { data: orderItems } = await adminClient.from("order_items").select("*").eq("order_id", oid);
           if (orderItems && orderItems.length > 0) {
             for (const item of orderItems) {
@@ -7330,8 +7359,9 @@ async function handleRequest(req: Request): Promise<Response> {
         }
       }
 
-      // Stock deduction on SHIPPED (not confirmed) — supports multi-product orders
-      if (newStatus === "shipped" && order.status !== "shipped") {
+      // Stock deduction on SHIPPED (not confirmed) — supports multi-product orders.
+      // Only until the first stock count; after it MEX parcels move stock (stockByStatus).
+      if (newStatus === "shipped" && order.status !== "shipped" && await stockByStatus()) {
         // Check for order_items first (multi-product)
         const { data: orderItems } = await adminClient.from("order_items").select("*").eq("order_id", orderId);
 
@@ -7391,8 +7421,8 @@ async function handleRequest(req: Request): Promise<Response> {
         }
       }
 
-      // Stock return on RETURNED — add products back to inventory
-      if (newStatus === "returned" && order.status !== "returned") {
+      // Stock return on RETURNED — add products back to inventory (until the first count — stockByStatus)
+      if (newStatus === "returned" && order.status !== "returned" && await stockByStatus()) {
         const { data: orderItems } = await adminClient.from("order_items").select("*").eq("order_id", orderId);
 
         if (orderItems && orderItems.length > 0) {
@@ -14504,8 +14534,9 @@ async function handleRequest(req: Request): Promise<Response> {
           const { data: currentOrder } = await adminClient.from("orders").select("*").eq("id", itemId).single();
           if (!currentOrder) return json({ error: "Order not found" }, 404);
 
-          // Stock deduction on shipped — supports multi-product orders
-          if (body.status === "shipped" && currentOrder.status !== "shipped") {
+          // Stock deduction on shipped — supports multi-product orders (until the
+          // first stock count; after it MEX parcels move stock — stockByStatus)
+          if (body.status === "shipped" && currentOrder.status !== "shipped" && await stockByStatus()) {
             const { data: orderItems } = await adminClient.from("order_items").select("*").eq("order_id", itemId);
             if (orderItems && orderItems.length > 0) {
               // Multi-product: check stock for all items first
@@ -15163,6 +15194,25 @@ async function handleRequest(req: Request): Promise<Response> {
       let body;
       try { body = parseBody(restockSchema, await req.json()); } catch (e: any) { return json({ error: e.message }, 400); }
 
+      // One statement (migration 20260942000100): the old read → add → write
+      // below could lose units against a concurrent stock ledger run. The old
+      // path stays only for a database without the function yet.
+      const { data: rs, error: rsErr } = await adminClient.rpc("stock_restock", {
+        p_product: body.product_id, p_quantity: body.quantity, p_actor: user.id,
+        p_supplier_name: body.supplier_name, p_invoice_number: body.invoice_number, p_notes: body.notes,
+      });
+      if (!rsErr) {
+        if (!(rs as any)?.ok) {
+          return (rs as any)?.error === "not_found"
+            ? json({ error: "Product not found" }, 404)
+            : json({ error: (rs as any)?.error || "restock failed" }, 400);
+        }
+        return json({ success: true, product_name: (rs as any).product_name, new_stock: (rs as any).new_stock });
+      }
+      if (!(rsErr.code === "PGRST202" || /stock_restock/.test(rsErr.message || ""))) {
+        return json({ error: sanitizeDbError(rsErr) }, 500);
+      }
+
       const { data: product } = await adminClient
         .from("products")
         .select("stock_quantity, name")
@@ -15223,6 +15273,86 @@ async function handleRequest(req: Request): Promise<Response> {
       }));
 
       return json(enriched);
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // STOCK — the physical count (попис) and MEX-driven stock movements
+    // (migration 20260942000100; the pure half is stockLedger.ts).
+    //   GET  /api/stock/health          owners · admin / manager · warehouse — no money in it
+    //   POST /api/stock/count           owners · admin · warehouse — {lines, note?, dry?}:
+    //                                   dry → the preview, else ONE count event (audited)
+    //   POST /api/stock/mex-movements   OWNERS only — {enabled, free_units?} (audited);
+    //                                   switching on runs the MEX stock ledger at once
+    // ══════════════════════════════════════════════════════════════
+    if (segments[0] === "stock") {
+      const stOwner = await isBusinessOwner(user.id);
+      const stActorName = async (): Promise<string | null> => {
+        const { data: prof } = await adminClient.from("profiles").select("full_name").eq("user_id", user.id).maybeSingle();
+        return prof?.full_name || user.email || null;
+      };
+      const stRpcError = (fn: string, error: any) =>
+        error?.code === "PGRST202"
+          ? json({ error: "stock_not_installed" }, 503)
+          : json({ error: `${fn}: ${sanitizeDbError(error)}` }, 500);
+
+      if (req.method === "GET" && path === "stock/health") {
+        if (!SL.stockHealthAccess(stOwner, isAdminOrManager, isWarehouse)) return json({ error: "Forbidden" }, 403);
+        const { data, error } = await adminClient.rpc("stock_health", { p_detail: url.searchParams.get("detail") !== "0" });
+        if (error) return stRpcError("stock_health", error);
+        return json({ ...((data ?? {}) as Record<string, unknown>), can_count: SL.stockCountAccess(stOwner, isAdmin, isWarehouse), can_switch: stOwner });
+      }
+
+      if (req.method === "POST" && path === "stock/count") {
+        if (!SL.stockCountAccess(stOwner, isAdmin, isWarehouse)) return json({ error: "Forbidden" }, 403);
+        let raw: unknown;
+        try { raw = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
+        const p = SL.parseCountBody(raw);
+        if (!p.ok) return json({ error: p.error }, 400);
+        const { data, error } = await adminClient.rpc("stock_count_apply", {
+          p_lines: p.value.lines, p_actor: user.id, p_actor_name: await stActorName(),
+          p_note: p.value.note, p_dry: p.value.dry,
+        });
+        if (error) return stRpcError("stock_count_apply", error);
+        const res = (data ?? {}) as Record<string, any>;
+        if (!res.ok) return json({ error: res.error || "failed" }, SL.countErrorStatus(String(res.error || "")));
+        if (!p.value.dry) {
+          await audit(adminClient, user.id, user.email, "stock.count", {
+            target_type: "stock_counts", target_id: res.count_id ?? null, target_name: `${res.products} products`,
+            payload: {
+              products: res.products, changed: res.changed, units_before: res.units_before, units_after: res.units_after,
+              up: res.up, down: res.down, not_counted: res.not_counted, anchored: res.anchored, from: res.from, note: p.value.note,
+            },
+          });
+        }
+        return json(res);
+      }
+
+      if (req.method === "POST" && path === "stock/mex-movements") {
+        if (!stOwner) return json({ error: "owners_only" }, 403);
+        let raw: unknown;
+        try { raw = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
+        const p = SL.parseMexSwitchBody(raw);
+        if (!p.ok) return json({ error: p.error }, 400);
+        const { data, error } = await adminClient.rpc("stock_mex_set", {
+          p_enabled: p.value.enabled, p_free_units: p.value.free_units, p_actor: user.id, p_actor_name: await stActorName(),
+        });
+        if (error) return stRpcError("stock_mex_set", error);
+        const res = (data ?? {}) as Record<string, any>;
+        if (!res.ok) return json({ error: res.error || "failed" }, SL.countErrorStatus(String(res.error || "")));
+        // Switched on: the first run catches up every parcel since the count.
+        let run: unknown = null;
+        if (p.value.enabled) {
+          const { data: r, error: rErr } = await adminClient.rpc("stock_mex_apply", { p_trigger: "switch_on" });
+          run = rErr ? { ok: false, error: sanitizeDbError(rErr) } : r;
+        }
+        await audit(adminClient, user.id, user.email, "stock.mex_movements", {
+          target_type: "app_settings", target_id: "stock_mex_movements", target_name: p.value.enabled ? "on" : "off",
+          payload: { before: res.before, after: res.after, run },
+        });
+        return json({ ok: true, settings: res.after, run });
+      }
+
+      return json({ error: "Not found" }, 404);
     }
 
     // GET /api/search-prediction?q=...
