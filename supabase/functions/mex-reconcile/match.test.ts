@@ -6,6 +6,9 @@ import {
 } from "./match.ts";
 import type { OrderRow } from "./match.ts";
 import { isSyntheticProductName as uiIsSynthetic } from "../../../src/lib/utils";
+// The upsell revive (owner rule 2026-09-28) — tested at the bottom of the file.
+import { isAlterCpaOrder, isLeadsParcel, isNoParcelCancel, mexSeries } from "./match.ts";
+import type { ParcelRef } from "./match.ts";
 
 // A parcel created 2026-09-20 12:00 Skopje; orders are dated relative to it.
 const SHIP_CREATED = mexDate("2026-09-20 12:00:00")!;
@@ -256,5 +259,188 @@ describe("small helpers", () => {
     expect(mexDate("2026-09-20 12:00:00")?.toISOString()).toBe("2026-09-20T10:00:00.000Z");
     expect(mexDate("")).toBeNull();
     expect(mexDate("not a date")).toBeNull();
+  });
+});
+
+// ── The upsell revive (owner rule 2026-09-28) ───────────────────────────────
+// The 7-day no-parcel rule cancelled an AlterCPA sale; its parcel turns up later
+// with a COD that is not the CRM price (an upsell at AlterCPA). npCancel is the
+// shape apply_no_parcel_rule leaves behind, sold 12 days before the parcel.
+const npCancel = (o: Partial<OrderRow> = {}) => order({
+  status: "cancelled", cancellation_reason: "no_parcel_7d", created_at: daysBefore(12), ...o,
+});
+const LEADS: ParcelRef = { account: "bio_natural", tracking_id: "002-9110-158456/2026" };
+const UPSELL_COD = 3000;   // two packages at the door; the CRM still says one × 1.500 ден
+
+describe("mexSeries / isLeadsParcel", () => {
+  it("reads the series exactly as the mex_parcels.series column does", () => {
+    expect(mexSeries("002-9110-158456/2026")).toBe("9110");
+    expect(mexSeries("002-9103-1/2026")).toBe("9103");
+    for (const id of ["ORD-89109", "NTMK40556", "M3258911", "3324341", "", null, undefined,
+      "02-9110-1/2026", "002-91100-1/2026", "x002-9110-1/2026", "002-9110"]) {
+      expect(mexSeries(id)).toBeNull();
+    }
+  });
+  it("is BIO NATURAL series 9110 only — the account as fetched, never derived", () => {
+    expect(isLeadsParcel(LEADS)).toBe(true);
+    expect(isLeadsParcel({ ...LEADS, account: "natura" })).toBe(false);
+    expect(isLeadsParcel({ ...LEADS, tracking_id: "002-9103-158456/2026" })).toBe(false);
+    expect(isLeadsParcel({ tracking_id: LEADS.tracking_id })).toBe(false);
+    expect(isLeadsParcel(null)).toBe(false);
+    expect(isLeadsParcel(undefined)).toBe(false);
+  });
+});
+
+describe("isAlterCpaOrder / isNoParcelCancel", () => {
+  it("is AlterCPA by source_type or external_source (classify_sale_source's rule)", () => {
+    expect(isAlterCpaOrder({ source_type: "altercpa", external_source: "altercpa" })).toBe(true);
+    expect(isAlterCpaOrder({ source_type: "altercpa", external_source: null })).toBe(true);
+    expect(isAlterCpaOrder({ source_type: "import", external_source: "altercpa" })).toBe(true);
+    expect(isAlterCpaOrder({ source_type: "manual", external_source: null })).toBe(false);
+    expect(isAlterCpaOrder({ source_type: "import", external_source: "collabbox" })).toBe(false);
+    expect(isAlterCpaOrder({ source_type: "affiliate", external_source: null })).toBe(false);
+  });
+  it("is only our own no_parcel_7d cancel of an AlterCPA sale", () => {
+    expect(isNoParcelCancel(npCancel())).toBe(true);
+    expect(isNoParcelCancel(npCancel({ cancellation_reason: "changed_mind" }))).toBe(false);
+    expect(isNoParcelCancel(npCancel({ status: "trashed" }))).toBe(false);
+    expect(isNoParcelCancel(npCancel({ source_type: "manual", external_source: null }))).toBe(false);
+  });
+});
+
+describe("pickCandidate — the upsell revive (owner rule 2026-09-28)", () => {
+  it("links the lone no_parcel_7d AlterCPA cancel when every condition holds", () => {
+    const o = npCancel();
+    expect(pickCandidate([o], UPSELL_COD, SHIP_CREATED, LEADS)).toEqual({ order: o, method: "upsell_revive" });
+    // any COD that does not fit — below the price too
+    expect(pickCandidate([o], 999, SHIP_CREATED, LEADS)).toEqual({ order: o, method: "upsell_revive" });
+  });
+
+  it("also for the 2026-08 history import (external_source altercpa)", () => {
+    const o = npCancel({ source_type: "import", external_source: "altercpa" });
+    expect(pickCandidate([o], UPSELL_COD, SHIP_CREATED, LEADS)).toEqual({ order: o, method: "upsell_revive" });
+  });
+
+  it("counts real sales exactly as phone_single does — unlinked and inside the window", () => {
+    const o = npCancel();
+    const notRivals = [
+      ghost({ created_at: daysBefore(1) }),                                     // 0 ден disposition
+      order({ status: "paid", price: 30, mex_tracking_id: "002-9110-1/2026" }), // holds its own parcel
+      order({ status: "paid", price: 30, created_at: daysBefore(90) }),         // outside the window
+    ];
+    expect(pickCandidate([...notRivals, o], UPSELL_COD, SHIP_CREATED, LEADS)).toEqual({ order: o, method: "upsell_revive" });
+  });
+
+  it("uses the matcher's window, both edges included", () => {
+    const early = npCancel({ created_at: daysBefore(75) });
+    expect(pickCandidate([early], UPSELL_COD, SHIP_CREATED, LEADS)).toEqual({ order: early, method: "upsell_revive" });
+    const late = npCancel({ created_at: daysBefore(-3) });
+    expect(pickCandidate([late], UPSELL_COD, SHIP_CREATED, LEADS)).toEqual({ order: late, method: "upsell_revive" });
+  });
+
+  it("hands the revived order to rule C", () => {
+    const pick = pickCandidate([npCancel()], UPSELL_COD, SHIP_CREATED, LEADS);
+    expect("order" in pick && shipGate(pick.order, pick.method)).toBe("rule_c");
+  });
+
+  // ── each condition failing on its own ──
+  it("not for another account (a NATURA 9110 parcel)", () => {
+    expect(pickCandidate([npCancel()], UPSELL_COD, SHIP_CREATED, { ...LEADS, account: "natura" }))
+      .toEqual({ skip: "single_not_open" });
+    expect(pickCandidate([npCancel()], UPSELL_COD, SHIP_CREATED, { tracking_id: LEADS.tracking_id }))
+      .toEqual({ skip: "single_not_open" });
+  });
+
+  it("not for another series, or a tracking id with no series", () => {
+    for (const tracking_id of ["002-9103-158456/2026", "002-9100-1/2026", "002-9102-1/2026", "002-9108-1/2026",
+      "ORD-89109", "NTMK40556", "M3258911", "3324341"]) {
+      expect(pickCandidate([npCancel()], UPSELL_COD, SHIP_CREATED, { account: "bio_natural", tracking_id }))
+        .toEqual({ skip: "single_not_open" });
+    }
+  });
+
+  it("not outside the ship window", () => {
+    expect(pickCandidate([npCancel({ created_at: daysBefore(76) })], UPSELL_COD, SHIP_CREATED, LEADS))
+      .toEqual({ skip: "unmatched" });
+    expect(pickCandidate([npCancel({ created_at: daysBefore(-4) })], UPSELL_COD, SHIP_CREATED, LEADS))
+      .toEqual({ skip: "unmatched" });
+    expect(pickCandidate([npCancel()], UPSELL_COD, null, LEADS)).toEqual({ skip: "unmatched" });
+  });
+
+  it("not with no real sale on the phone", () => {
+    expect(pickCandidate([], UPSELL_COD, SHIP_CREATED, LEADS)).toEqual({ skip: "unmatched" });
+    expect(pickCandidate([ghost()], UPSELL_COD, SHIP_CREATED, LEADS)).toEqual({ skip: "no_real_sale" });
+    // a 0 ден no_parcel_7d row is no real sale either
+    expect(pickCandidate([npCancel({ price: 0 })], UPSELL_COD, SHIP_CREATED, LEADS)).toEqual({ skip: "no_real_sale" });
+    // and one that already holds a parcel is no candidate at all
+    expect(pickCandidate([npCancel({ mex_tracking_id: "002-9110-1/2026" })], UPSELL_COD, SHIP_CREATED, LEADS))
+      .toEqual({ skip: "unmatched" });
+  });
+
+  it("not with two or more real sales on the phone", () => {
+    expect(pickCandidate([npCancel(), order({ status: "confirmed", price: 30 })], UPSELL_COD, SHIP_CREATED, LEADS))
+      .toEqual({ skip: "ambiguous" });
+    expect(pickCandidate([npCancel(), order({ status: "paid", price: 30 })], UPSELL_COD, SHIP_CREATED, LEADS))
+      .toEqual({ skip: "ambiguous" });
+    expect(pickCandidate([npCancel(), npCancel({ created_at: daysBefore(20) })], UPSELL_COD, SHIP_CREATED, LEADS))
+      .toEqual({ skip: "ambiguous" });
+  });
+
+  it("not for a cancel with another reason — or none", () => {
+    for (const cancellation_reason of ["changed_mind", "no_money", "other", "duplicate_order", "stale_pending_cleanup", null]) {
+      expect(pickCandidate([npCancel({ cancellation_reason })], UPSELL_COD, SHIP_CREATED, LEADS))
+        .toEqual({ skip: "single_not_open" });
+    }
+  });
+
+  it("not for a no_parcel_7d order that is no longer cancelled", () => {
+    for (const status of ["trashed", "paid", "returned"]) {
+      expect(pickCandidate([npCancel({ status })], UPSELL_COD, SHIP_CREATED, LEADS)).toEqual({ skip: "single_not_open" });
+    }
+  });
+
+  it("not for an order that did not come through AlterCPA", () => {
+    for (const src of [
+      { source_type: "manual", external_source: null },
+      { source_type: "import", external_source: "collabbox" },
+      { source_type: "affiliate", external_source: null },
+      { source_type: "opencart", external_source: null },
+    ]) {
+      expect(pickCandidate([npCancel(src)], UPSELL_COD, SHIP_CREATED, LEADS)).toEqual({ skip: "single_not_open" });
+    }
+  });
+
+  it("not on a COD of 0 — no money signal", () => {
+    expect(pickCandidate([npCancel()], 0, SHIP_CREATED, LEADS)).toEqual({ skip: "single_not_open" });
+  });
+
+  it("a COD that fits takes the normal phone_cod path, not the revive", () => {
+    const o = npCancel();
+    expect(pickCandidate([o], 1500, SHIP_CREATED, LEADS)).toEqual({ order: o, method: "phone_cod" });
+    expect(pickCandidate([o], 1650, SHIP_CREATED, LEADS)).toEqual({ order: o, method: "phone_cod" });
+  });
+
+  it("never without the parcel — the three-argument call is unchanged", () => {
+    expect(pickCandidate([npCancel()], UPSELL_COD, SHIP_CREATED)).toEqual({ skip: "single_not_open" });
+    expect(pickCandidate([npCancel()], UPSELL_COD, SHIP_CREATED, null)).toEqual({ skip: "single_not_open" });
+  });
+
+  it("leaves the open-order fallback as it was on a 9110 parcel", () => {
+    const open = order({ status: "confirmed", price: 30 });
+    expect(pickCandidate([open], UPSELL_COD, SHIP_CREATED, LEADS)).toEqual({ order: open, method: "phone_single" });
+  });
+});
+
+describe("shipGate — the upsell revive", () => {
+  it("allows rule C on the no_parcel_7d AlterCPA cancel an upsell_revive link names", () => {
+    expect(shipGate(npCancel(), "upsell_revive")).toBe("rule_c");
+    expect(shipGate(npCancel({ source_type: "import", external_source: "altercpa" }), "upsell_revive")).toBe("rule_c");
+  });
+  it("denies it for anything else", () => {
+    expect(shipGate(npCancel({ cancellation_reason: "changed_mind" }), "upsell_revive")).toBeNull();
+    expect(shipGate(npCancel({ source_type: "manual", external_source: null }), "upsell_revive")).toBeNull();
+    for (const status of ["trashed", "paid", "returned", "delivered", "shipped"]) {
+      expect(shipGate(npCancel({ status }), "upsell_revive")).toBeNull();
+    }
   });
 });
