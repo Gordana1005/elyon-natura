@@ -1,6 +1,7 @@
-#!/usr/bin/env node
 /**
  * Repair — the CRM price takes the MEX COD (owner decision 28.09.2026, HANDOFF §3).
+ * No shebang: the test suite imports this file, and Vite's SSR transform leaves a
+ * shebang below the injected imports, which Node then rejects. Run with `node`.
  *
  *   "COD ≠ CRM price: MEX is right. Set the CRM price to the MEX COD when it differs. Not when
  *    COD = price×61.5+150 (delivery fee), and not when COD is 0. Dry-run list first; keep

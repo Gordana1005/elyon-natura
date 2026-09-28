@@ -1,6 +1,7 @@
-#!/usr/bin/env node
 /**
  * verify-attribution — READ-ONLY proof that the money is attributed correctly
+ * No shebang: the test suite imports this file, and Vite's SSR transform leaves a
+ * shebang below the injected imports, which Node then rejects. Run with `node`.
  * and that every "paid" is backed by the courier (MEX Poshta).
  *
  *   node scripts/verify-attribution.mjs                          text report, default windows
