@@ -191,6 +191,44 @@ operation. It shares **nothing at runtime** with Bulgaria (own repo / own Supaba
     - live counting of today's lead out needs either that or a daily collabBox import (the sync is
       paused).
 
+- **28.09 night — the collabBox FOLDER MAP (evidence, owner's question "is one of the outs affiliate?")**:
+  the document TYPE decides, not the series or the MEX profile.
+  | Type | Name | Series | What it is |
+  |---|---|---|---|
+  | 10036 | Нарачка in | 9100 | Teleshop in (TV), NATURA |
+  | 10050 | Нарачка out | 9102 | Teleshop out: teleshop's own repeat customers, NATURA |
+  | 10111 | Нарачка LEADS | 9110 | Affiliate lead (in), BIO NATURAL |
+  | 10114 | LEADS-OUT | 9103 (703 numbered 9102) | **Affiliate out**: 97% had an AlterCPA lead first, BIO NATURAL since 02.04.2026 |
+  | 10106 / 10055 | Social | 9108 / 1300 | Social |
+  | 10107 | Продавници | — | Shop orders, not at MEX |
+  - **Our CRM orders are affiliate out too** (580/606 September parcels = BIO NATURAL 9103; 98,5%
+    AlterCPA leads before).
+  - The current grouping "Lead out = CRM + 9102 + 9103" mixes affiliate out with teleshop out. The
+    owner decides the model (a separate "Affiliate – Lead out"? inside AlterCPA?) and the grey zone
+    (~14% of 9102 are re-sales to recent affiliate customers).
+  - ~1.100 collabBox orders are labelled by series against their type.
+- **28.09 night — products:** 8 new AlterCPA products (GlucoCare, MenCare, ProstaCare, NeuroCare,
+  Arthriva, Collagen Peptides Bionatural, Neurofix 1+1, Prostafix 1+1; stock placeholder 1000, no
+  cost price) and 10 MK offers mapped. Their leads now enter the CRM. The catalogue run `01d83713`
+  added 170 aliases (September 99,6 % / history 96 % resolved). Activating the sold-but-inactive
+  products and creating the rest: in progress (`scripts/complete-catalogue.mjs`).
+- **28.09 night — leaderboard audit** (22–28.09): the boards show 72% of sales (1.166 of 1.612).
+  - Gaps:
+    - Lead in is on no board;
+    - collabBox bookings reach the CRM only via imports (no cron);
+    - managers (Nina, Dragana) are ranked;
+    - AlterCPA agents are split across boards;
+    - roster gaps.
+  - Fixed tonight:
+    - a MEX revival is no longer credited to "now" and the old agent (`20260942000800`);
+    - 8 wrong twin links undone;
+    - 3 cross-channel revivals undone (one web order was counted twice).
+  - Needs the owner: Lead in / social on the board; teams for Чима / Ристеска / Кипровска and 5
+    no-team logins; #4531; the manager accounts; a daytime collabBox header fetch for the live board.
+- **collabBox nightly sync (00:00 Skopje) — being built** (owner 28.09 23:30). It was never built:
+  only the paused design and a login probe existed. Edge function + migration `20260942000900`,
+  tested with `dry_run` on a real day before the cron is switched on.
+
 The sections below are the history up to 19.08.
 
 ### Earlier state (19.08)
