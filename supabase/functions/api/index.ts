@@ -2929,13 +2929,13 @@ async function handleRequest(req: Request): Promise<Response> {
     const canHearRecordings = privCan("can_hear_recordings");          // hear ALL recordings (admin/manager/inbound_agent)
     const canHearOwnRecordings = privCan("can_hear_own_recordings");   // hear ONLY recordings attached to your own calls
 
-    // Business owners (owner ruling 2026-09-27): the full business/money view
-    // is visible ONLY to the people named in public.business_owners — NOT to
-    // every admin (nine accounts hold the full admin role set). There is
-    // deliberately NO admin bypass here. Asks the DB's own is_business_owner()
-    // — the same predicate get_my_permissions() hands the UI — so server and
-    // client can never disagree about who is an owner. Fail-closed: a failed
-    // lookup (or the migration not applied yet) means "not an owner".
+    // Business owners: the full business/money view. The DB's own
+    // is_business_owner() decides — public.business_owners OR any ACTIVE admin
+    // (owner ruling 2026-09-28, 20260939000500; managers are not owners) — and
+    // it is the same predicate get_my_permissions() hands the UI, so server and
+    // client can never disagree. No role bypass is added here on top of it.
+    // Fail-closed: a failed lookup (or the migration not applied yet) means
+    // "not an owner".
     // Memoized per request.
     const businessOwnerMemo = new Map<string, Promise<boolean>>();
     const isBusinessOwner = (uid: string): Promise<boolean> => {
@@ -6034,7 +6034,7 @@ async function handleRequest(req: Request): Promise<Response> {
     }
 
     // GET /api/presence/day?date=YYYY-MM-DD — owners only (same gate as the
-    // money view: public.business_owners, no admin bypass). One row per staff
+    // money view: is_business_owner(), i.e. business_owners or an active admin). One row per staff
     // person for that Europe/Skopje day: everyone with presence minutes, plus
     // everyone with a login record or a scheduled shift but no presence at
     // all, so "who wasn't there" shows too. Affiliate-only logins never appear.

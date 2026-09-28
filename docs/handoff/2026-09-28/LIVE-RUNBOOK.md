@@ -91,7 +91,34 @@ stamp full sweep 02:23 (new). The 7-day rule applies at 21:10 Skopje.
    `link_error`.
 
 ## 5. TODO 4 — Insights foundation + Overview cohort (`20260939000700`, `20260940000000`)
-(Section finalized after the TODO 4 merge — see the bottom of this file.)
+1. Tripwire → apply `20260939000700_report_excluded_phones.sql` (the ONE test-phone list:
+   `report_excluded_phones`, `is_report_excluded_phone()`, `report_excluded_phone8s()`). The
+   foundation refuses to apply without it.
+2. Tripwire → apply `20260940000000_insights_foundation.sql` → `node scripts/engine-fixture-mk.mjs`.
+3. Read-only spot checks:
+   - `SELECT sale_source, count(*) FROM public.orders WHERE sale_source_detail IS DISTINCT FROM 'disposition' GROUP BY 1;`
+     → only altercpa / affiliate / elyon_crm / web / collabbox / legacy, no NULL.
+   - `SELECT public.insights_cohort_order_exceptions('2026-09-21T22:00:00Z','2026-09-28T21:59:59.999999Z');`
+     → ≈6 web claims, ≈2 ledger entries, the 2 test phones (0 test orders once step 6.4 ran).
+4. `node scripts/verify-insights-ties.mjs --from 2026-09-22 --to 2026-09-28` → exit 0 (Σ buckets =
+   total in count AND value, Σ sources = total, order part = the /orders drill, test phones absent).
+   Also `--from 2026-09-15 --to 2026-09-21` and `--from 2026-09-01 --to 2026-09-27`. Compare the
+   headlines with `research-cohort-numbers.md` (measured 28.09 01:40, older rules): 22–28.09 ≈
+   1.343 · 3.239.584 ден (expect ≤ 1.337: COD ≤ 0 parcels are replacements now, test phones out;
+   value lower by the shared parcels no longer counted twice; 28.09 itself keeps growing) ·
+   15–21.09 ≈ 1.701 · 4.233.908 · 01–27.09 ≈ 7.666 · 18.659.256. Record every difference and
+   its cause in the Log; an unexplained one is a STOP for the api deploy.
+5. Deploy `api` (tripwire first): the `/insights/cohort` route, the `cohort` embed in
+   `/insights/overview`, the `/orders?cohort_bucket=…&sold_from=…&sold_to=…` drill, courier
+   fallback = the MEX rate. Right after: `GET https://bmfxhgznttcnnlqloqzp.supabase.co/functions/v1/api/insights/cohort`
+   without a token → 401 (routing alive).
+6. UI (after the merge to `main` deploys): this session has no staff login, so ask Mile to open
+   Insights → Overview as an owner and as a manager and check: the headline + one bar whose parts
+   add up; the manager sees no "ден" anywhere; each drill link and "N во Нарачки" opens /orders
+   with the same count; no `cohort_filter_too_long` error.
+Known, not in this pass: the older `insights_overview` / `insights_web_block` / `insights_pivot`
+blocks (trend, teams, pivot, attention) still include the test phones' web orders and parcels —
+tiny, listed as a follow-up.
 
 ## 6. TODO 5 — the owner's leftover answers
 1. **C8a** (any time): `node scripts/verify-attribution.mjs --c8a-template` → put ONLY the 3
@@ -146,3 +173,15 @@ and the follow-ups in the Log.
 
 ---
 ## Log (fill in as you go; commit with the docs)
+
+### Known follow-ups found in session 1 (not fixed in this pass — report them to Mile)
+- Older Overview blocks (`insights_overview` trend/teams/attention, `insights_web_block`,
+  `insights_pivot`) still include the test phones' web orders and parcels (tiny).
+- Bell: `altercpa_rate`, `altercpa_rate_below`, `affiliate_lead` missing from the type maps (render
+  grey); the `order_paid` notification prints the price as `€NN.NN` (EUR in the UI);
+  `altercpa_rate_verdict_sweep()` swallows every error; `syncAgeHours` still measures the removed
+  BigArena upload.
+- `financial_visibility` is editable in Settings but nothing reads it; `altercpa_lead_events`'
+  comment says the sync writes it (nothing does); chase-job comments still say "Sofia".
+- Agents tab shows bare EUR (`fmt()`) — part of the Insights tabs rebuild (WP2), payouts deferred.
+- Staff EUR displays outside the affiliate pages: `MirrorTab.tsx`, `LeadDistributionPage.tsx`.

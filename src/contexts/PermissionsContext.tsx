@@ -58,10 +58,10 @@ interface PermissionsContextType {
   canSeeFinancial: (metric: keyof Omit<FinancialVisibility, 'role'>) => boolean;
   /** Check a customer-privacy flag for the current user (admin-first, OR across roles) */
   canSeePrivacy: (flag: keyof Omit<RolePrivacy, 'role'>) => boolean;
-  /** The full business/money view (owner ruling 2026-09-27): true ONLY for a
-   *  login listed in public.business_owners. Deliberately NO admin bypass —
-   *  nine accounts hold the admin role set and most of them must not see it.
-   *  UX only: GET /management-insights enforces the same rule server-side. */
+  /** The full business/money view: the server's is_business_owner() — a login
+   *  listed in public.business_owners OR any ACTIVE admin (owner ruling
+   *  2026-09-28, 20260939000500; managers are not owners). No client-side role
+   *  bypass on top of it. UX only: the api enforces the same rule server-side. */
   canSeeBusiness: boolean;
   /** Refresh all permissions from DB */
   refresh: () => Promise<void>;
@@ -234,7 +234,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
     });
   }, [userRoles, privacy]);
 
-  // No admin bypass (see the type). An external partner login can never be an
+  // The server's predicate only (see the type). An external partner login can never be an
   // owner — the server refuses to add one — but the hard wall holds here too.
   const canSeeBusiness = isBusinessOwner && !user?.isExternalAffiliate;
 
@@ -259,7 +259,7 @@ export function usePermissions() {
 /** Which parts of /insights the current login may open (owner ruling
  *  2026-09-27). `business` gates the money tabs (Sales, Pure Profit,
  *  Margin Lab, Prediction Lists, Stock, Returns) and follows canSeeBusiness
- *  ONLY — no admin bypass. `overview` opens the connected Overview to owners
+ *  ONLY (is_business_owner(): owners list + active admins). `overview` opens the connected Overview to owners
  *  (with money) and to admins/managers (without). The operational tabs keep
  *  their module rules.
  *  ManagementInsightsPage and the sidebar both read this, so the two can never

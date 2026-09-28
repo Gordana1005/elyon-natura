@@ -98,7 +98,7 @@ export default function SettingsPage() {
   const { user: currentUser } = useAuth();
   const isAdmin = currentUser?.isAdmin ?? false;
   const isManager = currentUser?.isManager ?? false;
-  // Owners tab: business owners only (owner ruling 2026-09-27) — no admin bypass.
+  // Owners tab: business owners only — is_business_owner(), which since 28.09 includes every active admin (20260939000500).
   const { canSeeBusiness } = usePermissions();
 
   if (!isAdmin && !isManager) {
