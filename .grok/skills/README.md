@@ -31,6 +31,9 @@ These skills encode the hard-won operational wisdom of running this Bulgarian ca
 | `elyon-affiliates` | `/cpa/*` endpoints, affiliate tables, webmaster API keys, offers/payouts, lead stages, postback queue, affiliate portal/admin pages | External CPA identities + payout math; partners must never see internal data |
 | `elyon-i18n` | Any user-facing text: labels, toasts, placeholders, table headers, page titles, statuses; also dates/exports that only look like display text | Quadrilingual EN/BG/SQ/MK parity — never hardcode a string |
 | `elyon-notifications` | The bell dropdown, any DB trigger or pg_cron job writing to `notifications`, notification text, unpaid-delivery chase alerts | English-in-DB + `meta.i18n` translation contract; owner = confirmer; REVOKE FROM PUBLIC on every new table/RPC |
+| `elyon-presence-and-leaderboard` | Presence / time on the CRM, 30-min idle alerts, the TV leaderboard, sales people / identities / teams, `orders.sold_*`, Settings → Teams | Source wins, the team is a badge; managers are shown and never earn; only the deciding agent is credited; `sold_*` is write-once |
+| `elyon-web-shop-bridge` | The naturatherapy.mk mirror: `web_orders`, the `web-sync` function + crons, the shop's `crm_export`, web ↔ MEX parcel links, web money | The live shop gets NO changes; web orders are a read-only mirror, never CRM orders |
+| `elyon-customer360-and-integrations` | Customer 360 timeline, Settings → Integrations health, feed freshness, the 7-day no-parcel rule's Report ↔ Apply switch | Owner-only money keys absent for everyone else; freshness thresholds in step with `insights_overview` |
 
 ## Best Practice for Future Work
 
