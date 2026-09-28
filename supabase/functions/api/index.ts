@@ -17264,31 +17264,54 @@ async function handleRequest(req: Request): Promise<Response> {
       );
       if ("error" in pfWin) return json({ error: pfWin.error }, 400);
       const pfPrev = IPF.profitPrevWindow(pfWin);
-      const pfCall = (w: { fromIso: string; toEndIso: string }, clock: "cohort" | "cash", detail: boolean) =>
+      const pfCall = (w: { fromIso: string; toEndIso: string }, clock: "cohort" | "cash", gran: "day" | "month" | null, detail: boolean) =>
         adminClient.rpc("insights_profit", {
-          p_from: w.fromIso, p_to_end: w.toEndIso, p_clock: clock, p_granularity: null, p_detail: detail,
+          p_from: w.fromIso, p_to_end: w.toEndIso, p_clock: clock, p_granularity: gran, p_detail: detail,
         });
+      // A window over 62 days reads whole closed months from the monthly cache
+      // (migration 20260942000200) and computes only the rest live — the same
+      // numbers as one live call (insightsProfit.ts loadProfitClocks).
+      const pfDeps: IPF.ProfitLoadDeps = {
+        live: async (w, clock, gran, detail) => {
+          const { data, error } = await pfCall(w, clock, gran, detail);
+          if (error) throw new Error(`insights_profit${clock === "cash" ? " (cash)" : ""}: ${sanitizeDbError(error)}`);
+          return (data ?? {}) as IPF.ProfitRpc;
+        },
+        readCache: async (months) => {
+          const { data, error } = await adminClient.rpc("insights_profit_cache_read", { p_months: months });
+          if (error) { console.error("insights_profit_cache_read:", error.message); return []; }
+          return ((data as { rows?: IPF.ProfitCacheRow[] } | null)?.rows ?? []);
+        },
+        webmasters: async () => {
+          const { data, error } = await adminClient.from("altercpa_webmasters").select("wm_id,name,named_at,updated_at").range(0, 9999);
+          if (error) throw error;
+          return data ?? [];
+        },
+      };
       const pfNone = Promise.resolve({ data: null, error: null });
-      const [pfCo, pfCa, pfPco, pfPca, pfRates, pfProfiles, pfRoles] = await Promise.all([
-        pfCall(pfWin, "cohort", true),
-        pfCall(pfWin, "cash", true),
-        pfPrev ? pfCall(pfPrev, "cohort", false) : pfNone,
-        pfPrev ? pfCall(pfPrev, "cash", false) : pfNone,
+      let pfClocks: Awaited<ReturnType<typeof IPF.loadProfitClocks>>;
+      const pfRest = Promise.all([
+        pfPrev ? pfCall(pfPrev, "cohort", null, false) : pfNone,
+        pfPrev ? pfCall(pfPrev, "cash", null, false) : pfNone,
         loadCourierRates(adminClient),
         adminClient.from("profiles").select("user_id,full_name").range(0, 9999),
         adminClient.from("user_roles").select("user_id, role")
           .in("role", ["agent", "pending_agent", "prediction_agent", "admin", "manager"]).range(0, 9999),
       ]);
-      if (pfCo.error) return json({ error: `insights_profit: ${sanitizeDbError(pfCo.error)}` }, 500);
-      if (pfCa.error) return json({ error: `insights_profit (cash): ${sanitizeDbError(pfCa.error)}` }, 500);
+      try {
+        pfClocks = await IPF.loadProfitClocks(pfWin, pfDeps);
+      } catch (e) {
+        return json({ error: e instanceof Error ? e.message : "insights_profit failed" }, 500);
+      }
+      const [pfPco, pfPca, pfRates, pfProfiles, pfRoles] = await pfRest;
       if (pfProfiles.error || pfRoles.error) return json({ error: "profit: agent list unavailable" }, 500);
       // The comparison is additive: a failed previous-period scan shows no delta, never a wrong one.
       if (pfPco.error) console.error("insights_profit (prev):", pfPco.error.message);
       if (pfPca.error) console.error("insights_profit (prev cash):", pfPca.error.message);
       return json(IPF.buildProfitResponse(
         {
-          cohort: (pfCo.data ?? {}) as IPF.ProfitRpc,
-          cash: (pfCa.data ?? {}) as IPF.ProfitRpc,
+          cohort: pfClocks.cohort,
+          cash: pfClocks.cash,
           prevCohort: pfPco.error ? null : (pfPco.data as IPF.ProfitRpc | null),
           prevCash: pfPca.error ? null : (pfPca.data as IPF.ProfitRpc | null),
         },
@@ -17298,7 +17321,33 @@ async function handleRequest(req: Request): Promise<Response> {
           ...IPF.mexRate(pfRates.rates, pfRates.fallback),
           agentNames: IPF.commissionAgentNames(pfProfiles.data ?? [], pfRoles.data ?? []),
         },
+        new Date(),
+        pfClocks.cache,
       ));
+    }
+
+    // POST /api/insights/profit/refresh?from=YYYY-MM-DD&to=YYYY-MM-DD — the
+    // owners' "refresh the cache" button: recomputes the window's CLOSED months
+    // of insights_profit_monthly one by one (each call well inside the
+    // statement timeout), newest first, for up to ~90 s; what is left is
+    // returned as `remaining` (the button asks again) and the nightly job
+    // takes it anyway. Owners only.
+    if (req.method === "POST" && path === "insights/profit/refresh") {
+      if (!(await isBusinessOwner(user.id))) {
+        return json({ error: isAdminOrManager ? "owners_only" : "Forbidden" }, 403);
+      }
+      const rfWin = IC.insightsWindows(url.searchParams.get("from"), url.searchParams.get("to"), false);
+      if ("error" in rfWin) return json({ error: rfWin.error }, 400);
+      const rfMonths = IPF.refreshMonths(rfWin).reverse();
+      const rfDone: string[] = [];
+      const rfStart = Date.now();
+      for (const m of rfMonths) {
+        if (Date.now() - rfStart > 90_000) break;
+        const { error } = await adminClient.rpc("insights_profit_refresh", { p_month: m });
+        if (error) return json({ error: `insights_profit_refresh: ${sanitizeDbError(error)}`, refreshed: rfDone }, 500);
+        rfDone.push(m);
+      }
+      return json({ refreshed: rfDone, remaining: rfMonths.filter((m) => !rfDone.includes(m)), ms: Date.now() - rfStart });
     }
 
     // ══════════════════════════════════════════════════════════════

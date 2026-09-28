@@ -3,9 +3,11 @@ import {
   bucketKeys, buildClock, buildProfitResponse, buildStrip, commissionAgentNames, costRatioOf, distributionOf,
   gatedBonusEur, mexRate, MKD_PER_EUR, normAgent, plRow, productRows, profitPrevWindow, PROFIT_PREV_MAX_DAYS,
   PROFIT_PRODUCTS_MAX, PROFIT_SOURCES,
+  coalesceRanges, loadProfitClocks, mergeProfitRpcs, PROFIT_CACHE_MIN_DAYS, profitPieces, refreshMonths, webmasterNames,
 } from "./insightsProfit.ts";
-import type { AggRow, CommRow, ProductRpcRow, ProfitRpc, ProfitSettings } from "./insightsProfit.ts";
+import type { AggRow, CommRow, ProductRpcRow, ProfitCacheRow, ProfitRpc, ProfitSettings } from "./insightsProfit.ts";
 import type { InsightsWindow } from "./insightsCommon.ts";
+import { insightsWindows } from "./insightsCommon.ts";
 
 const agg = (g: string, dim: string, key: string, x: Partial<AggRow>): AggRow => ({
   g, dim, key, n: 0, rev: 0, card: 0, pw: 0, rc: 0, ru: 0, rn: 0, cm: 0, pc: 0, pu: 0, fr: 0, lb: 0, ...x,
@@ -305,7 +307,7 @@ describe("the response", () => {
   it("meta says what every figure rests on", () => {
     expect(r.meta).toMatchObject({
       from: "2026-09-22", to: "2026-09-28", money: true, granularity: "day", prev_from: "2026-09-15", prev_skipped: false,
-      vat: { rate: 0.18, confirmed: false }, courier: { deliver_mkd: 150, return_mkd: 0, source: "courier_rates" },
+      vat: { rate: 0.18, confirmed: true }, courier: { deliver_mkd: 150, return_mkd: 0, source: "courier_rates" },
       lead_cost: { configured: false },
     });
   });
@@ -318,7 +320,8 @@ describe("the response", () => {
     expect(r.realized.all.packages).toBe(52);
     expect(Object.keys(r.realized)).toEqual(["all", ...PROFIT_SOURCES]);
     const kinds = r.quality.map((q: { kind: string }) => q.kind);
-    expect(kinds).toEqual(expect.arrayContaining(["uncosted_packages", "unproven_paid", "vat_unconfirmed", "lead_cost_missing", "return_fee_unconfirmed"]));
+    expect(kinds).toEqual(expect.arrayContaining(["uncosted_packages", "unproven_paid", "lead_cost_missing", "return_fee_unconfirmed"]));
+    expect(kinds).not.toContain("vat_unconfirmed"); // owner confirmed 18 % on 28.09
     const unc = r.quality.find((q: { kind: string }) => q.kind === "uncosted_packages");
     expect(unc.count).toBe(17);
     expect(unc.top[0].key).toBe("n:zinc");
@@ -333,5 +336,137 @@ describe("the response", () => {
       }
     };
     walk(r, "r");
+  });
+});
+
+// ── the monthly cache (migration 20260942000200) ─────────────────────────────
+
+const NOW = new Date("2026-09-28T10:00:00Z");   // 28.09.2026, Skopje
+
+describe("the monthly cache: pieces", () => {
+  it("cuts a window into whole closed months and live edges", () => {
+    expect(profitPieces({ from: "2025-09-28", to: "2026-09-28" }, NOW)).toEqual({
+      months: ["2025-10-01", "2025-11-01", "2025-12-01", "2026-01-01", "2026-02-01", "2026-03-01",
+        "2026-04-01", "2026-05-01", "2026-06-01", "2026-07-01", "2026-08-01"],
+      live: [{ from: "2025-09-28", to: "2025-09-30" }, { from: "2026-09-01", to: "2026-09-28" }],
+    });
+    // a window ending mid-month: that month is live even though it is closed
+    expect(profitPieces({ from: "2026-04-01", to: "2026-08-15" }, NOW)).toEqual({
+      months: ["2026-04-01", "2026-05-01", "2026-06-01", "2026-07-01"],
+      live: [{ from: "2026-08-01", to: "2026-08-15" }],
+    });
+    expect(refreshMonths({ from: "2026-07-20", to: "2026-09-28" }, NOW)).toEqual(["2026-07-01", "2026-08-01"]);
+  });
+
+  it("joins adjacent live ranges", () => {
+    expect(coalesceRanges([{ from: "2026-05-01", to: "2026-05-31" }, { from: "2026-03-01", to: "2026-03-31" }, { from: "2026-04-01", to: "2026-04-30" }]))
+      .toEqual([{ from: "2026-03-01", to: "2026-05-31" }]);
+    expect(coalesceRanges([{ from: "2026-03-01", to: "2026-03-31" }, { from: "2026-05-01", to: "2026-05-31" }])).toHaveLength(2);
+  });
+
+  it("names the webmasters as the SQL does (latest named, then updated)", () => {
+    expect(webmasterNames([
+      { wm_id: "1", name: "Old", named_at: "2026-01-01T00:00:00Z", updated_at: "2026-09-01T00:00:00Z" },
+      { wm_id: "1", name: "New", named_at: "2026-05-01T00:00:00Z", updated_at: "2026-02-01T00:00:00Z" },
+      { wm_id: "2", name: "  ", named_at: null, updated_at: null },
+      { wm_id: "3", name: "X", named_at: null, updated_at: "2026-01-01T00:00:00Z" },
+    ])).toEqual({ "1": "New", "3": "X" });
+  });
+});
+
+/** A synthetic database: every day carries a small P&L of its own, so any
+ *  split of a window must add up to the whole. */
+function dayPayload(clock: "cohort" | "cash", day: string, month: string): ProfitRpc {
+  const d = Number(day.slice(8, 10));
+  const m = { n: 1, rev: 1000 + d, card: 0, pw: 1, rc: 600, ru: 400 + d, rn: 0, cm: 120.5, pc: 2, pu: 1, fr: 0, lb: 2 };
+  const aggRows: AggRow[] = [
+    { g: "collected", dim: "s", key: "altercpa", ...m },
+    { g: "collected", dim: "d", key: month, ...m },
+    { g: "collected", dim: "w", key: "3221", ...m },
+    { g: "returned", dim: "s", key: "altercpa", ...m, n: 0, rev: 0, pw: d % 3 === 0 ? 1 : 0 },
+  ];
+  const base: ProfitRpc = {
+    clock, granularity: "month", agg: aggRows, wm_names: { "3221": "Fomikch" },
+    comm: [{ dim: "s", key: "altercpa", o: d % 2 ? "Ана Петрова" : null, b: 2, n: 1 }, { dim: "d", key: month, o: "Ана Петрова", b: 2, n: 1 }],
+  };
+  if (clock === "cohort") {
+    base.strip = [{ s: "altercpa", b: "paid", n: 1, v: 1000 + d, c: 1000 + d, no: 1, nw: 0, nm: 0 }];
+    base.products = [
+      { s: "altercpa", g: "collected", k: "p:a", name: d % 2 ? "Adenofrin" : "ADENOFRIN", kind: "product", reviewed: false, pkg: true, cost_eur: 2.93, n: 1, qty: 2, pkgs: 2, fr: 0, rev: 600, cm: 120.5, sh: 0.25 + d / 1000, lb: 2 },
+      { s: "altercpa", g: "collected", k: "n:x", name: "X", kind: "product", reviewed: false, pkg: true, cost_eur: null, n: 1, qty: 1, pkgs: 1, fr: 0, rev: 400 + d, cm: 0, sh: 0.75 - d / 1000, lb: 0 },
+    ];
+    base.hist = [{ s: "altercpa", u: 300, q: 2, v: 600 }];
+    base.no_items = { n: 0, v: 0 };
+  } else {
+    base.returned_parcels = [{ s: "altercpa", d: month, n: d % 4 === 0 ? 1 : 0 }];
+  }
+  return base;
+}
+function fakeLive(range: { fromIso: string; toEndIso: string }, clock: "cohort" | "cash"): ProfitRpc {
+  const parts: ProfitRpc[] = [];
+  for (let t = Date.parse(range.fromIso) + 12 * 3600_000; t <= Date.parse(range.toEndIso); t += 86400_000) {
+    const day = new Date(t).toISOString().slice(0, 10);
+    parts.push(dayPayload(clock, day, day.slice(0, 7)));
+  }
+  return mergeProfitRpcs(parts, clock, "month");
+}
+
+describe("the monthly cache: loading", () => {
+  const YEAR: InsightsWindow = {
+    from: "2025-09-28", to: "2026-09-28", days: 366, partial: true, prev: null,
+    fromIso: "2025-09-27T22:00:00.000Z", toEndIso: "2026-09-28T21:59:59.999Z",
+  };
+  const monthEndOf = (m: string) => new Date(Date.UTC(Number(m.slice(0, 4)), Number(m.slice(5, 7)), 0)).toISOString().slice(0, 10);
+
+  it("cached closed months + live edges = one live call, clock by clock", async () => {
+    const calls: string[] = [];
+    const plan = profitPieces(YEAR, NOW);
+    const cache: ProfitCacheRow[] = plan.months.flatMap((m) => (["cohort", "cash"] as const).map((clock) => {
+      const w = insightsWindows(m, monthEndOf(m), false, NOW) as InsightsWindow;
+      return { month: m, clock, refreshed_at: "2026-09-28T01:30:00Z", payload: fakeLive(w, clock) };
+    }));
+    const out = await loadProfitClocks(YEAR, {
+      live: async (r, clock) => { calls.push(`${clock}:${r.fromIso}`); return fakeLive(r, clock); },
+      readCache: async () => cache,
+      webmasters: async () => [{ wm_id: "3221", name: "Fomikch", named_at: null, updated_at: null }],
+    }, NOW);
+    expect(calls).toHaveLength(4);   // two edges × two clocks
+    expect(out.cache).toMatchObject({ months: { cohort: 11, cash: 11 }, closed_months: 11, refreshed_min: "2026-09-28T01:30:00Z" });
+    for (const clock of ["cohort", "cash"] as const) {
+      const a = buildClock(fakeLive(YEAR, clock), null, SETTINGS), b = buildClock(out[clock], null, SETTINGS);
+      expect(b.total).toEqual(a.total);
+      expect(b.by_source).toEqual(a.by_source);
+      expect(b.affiliates).toEqual(a.affiliates);
+      expect(b.trend).toEqual(a.trend);
+    }
+    const pa = productRows(fakeLive(YEAR, "cohort"), SETTINGS, 0.2), pb = productRows(out.cohort, SETTINGS, 0.2);
+    // money exact; a margin (a fraction) to float noise
+    const fix = (r: typeof pa) => ({ ...r, rows: r.rows.map((p) => ({ ...p, margin: p.margin == null ? null : Number(p.margin.toFixed(9)) })) });
+    expect(fix(pb)).toEqual(fix(pa));
+    expect(pb.rows.find((p) => p.key === "p:a")!.name).toBe("ADENOFRIN");   // byte-order minimum, as COLLATE "C"
+  });
+
+  it("a month the cache does not hold is computed live; a cache that fails means all live", async () => {
+    const calls: string[] = [];
+    const out = await loadProfitClocks(YEAR, {
+      live: async (r, clock) => { calls.push(`${clock}:${r.fromIso}`); return fakeLive(r, clock); },
+      readCache: async () => { throw new Error("down"); },
+      webmasters: async () => [],
+    }, NOW);
+    expect(out.cache!.months).toEqual({ cohort: 0, cash: 0 });
+    expect(buildClock(out.cohort, null, SETTINGS).total).toEqual(buildClock(fakeLive(YEAR, "cohort"), null, SETTINGS).total);
+    // edges (2) + the 11 missing months joined into one range, per clock
+    expect(calls).toHaveLength(6);
+  });
+
+  it(`up to ${PROFIT_CACHE_MIN_DAYS} days: two live calls, no cache`, async () => {
+    let n = 0;
+    const out = await loadProfitClocks(WEEK, {
+      live: async (r, clock) => { n++; return fakeLive(r, clock); },
+      readCache: async () => { throw new Error("must not be read"); },
+      webmasters: async () => [],
+    }, NOW);
+    expect(n).toBe(2);
+    expect(out.cache).toBeNull();
   });
 });

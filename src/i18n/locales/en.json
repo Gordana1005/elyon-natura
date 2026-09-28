@@ -4411,6 +4411,12 @@
         "productsHint": "Profit by product, cost coverage and returns",
         "affiliates": "AlterCPA webmasters",
         "affiliatesHint": "Profit per webmaster before lead cost"
+      },
+      "cache": {
+        "until": "Closed months {{n}} of {{of}} from the cache, as of {{date}} {{time}}; the rest is live.",
+        "none": "The {{of}} closed months are computed live (not cached yet).",
+        "refresh": "Refresh",
+        "refreshing": "Refreshing…"
       }
     },
     "margins": {

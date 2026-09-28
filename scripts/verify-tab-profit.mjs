@@ -40,7 +40,10 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { runSql } from './verify-insights-ties.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const MIGRATION = join(ROOT, 'supabase', 'migrations', '20260941000300_insights_profit.sql');
+// the newest migration that emits insights_profit() (its query text is what runs)
+const MIGRATIONS = ['20260942000200_insights_profit_monthly.sql', '20260941000300_insights_profit.sql']
+  .map((m) => join(ROOT, 'supabase', 'migrations', m));
+const MIGRATION = MIGRATIONS.find((p) => { try { readFileSync(p); return true; } catch { return false; } });
 const EXIT = { OK: 0, FAIL: 1, ERROR: 2 };
 const VAT_RATE = 0.18;           // index.ts VAT_RATE
 class UsageError extends Error {}
@@ -232,6 +235,140 @@ export async function verify({ from, to, sql, now = new Date() }) {
   return { w, live, resp, results };
 }
 
+// ── --cache: the monthly cache adds up to one live call ─────────────────────
+
+/** Every difference between two responses: whole денари and counts must be
+ *  equal; fractions (margins, shares, ratios) to 1e-7 (a millionth of the
+ *  0,1 % the tab shows — float noise of summing months); text exactly. */
+export function diffResponses(a, b, path = '', out = []) {
+  if (out.length > 40) return out;
+  if (/\.(generated_at|cache)$/.test(path)) return out;
+  if (typeof a === 'number' || typeof b === 'number') {
+    if (typeof a !== 'number' || typeof b !== 'number') { out.push(`${path}: ${a} ≠ ${b}`); return out; }
+    const exact = /_mkd$|\.(sales|count|packages|free_packages|packages_costed|packages_uncosted|returned|returned_packages|n|orders|web|mex_only|sales_total|open|agents|products_total)$/.test(path);
+    if (exact ? a !== b : Math.abs(a - b) > 1e-7) out.push(`${path}: ${a} ≠ ${b}`);
+    return out;
+  }
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) { out.push(`${path}: length ${a?.length} ≠ ${b?.length}`); return out; }
+    a.forEach((x, i) => diffResponses(x, b[i], `${path}[${i}]`, out));
+    return out;
+  }
+  if (a && b && typeof a === 'object' && typeof b === 'object') {
+    for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) diffResponses(a[k], b[k], `${path}.${k}`, out);
+    return out;
+  }
+  if (a !== b) out.push(`${path}: ${JSON.stringify(a)} ≠ ${JSON.stringify(b)}`);
+  return out;
+}
+
+async function pool(tasks, width) {
+  const out = new Array(tasks.length);
+  let i = 0;
+  await Promise.all(Array.from({ length: Math.min(width, tasks.length) }, async () => {
+    while (i < tasks.length) { const k = i++; out[k] = await tasks[k](); }
+  }));
+  return out;
+}
+
+/**
+ * C1  for the window: the closed months (from insights_profit_monthly when the
+ *     cache exists, else each month computed now exactly as the refresh stores
+ *     it) + the live edges, merged by the api's own mergeProfitRpcs, give the
+ *     SAME response as one live call over the whole window — every line, source,
+ *     month, webmaster, product and histogram bin.
+ * C2  (cache applied) which cached months are behind the live data, and whether
+ *     insights_profit_touched() flags them for the nightly refresh.
+ */
+export async function verifyCache({ from, to, sql, now = new Date() }) {
+  const IC = await loadTs('insightsCommon.ts');
+  const IP = await loadTs('insightsProfit.ts');
+  const w = IC.insightsWindows(from, to, false, now);
+  if ('error' in w) throw new UsageError(w.error);
+  if (w.days <= IP.PROFIT_CACHE_MIN_DAYS) throw new UsageError(`--cache needs a window over ${IP.PROFIT_CACHE_MIN_DAYS} days`);
+  const queries = migrationQueries(readFileSync(MIGRATIONS[0], 'utf8'));
+  const [probe] = await sql(`SELECT to_regprocedure('public.insights_profit_cache_read(date[])') IS NOT NULL AS cache`);
+  const cacheLive = probe.cache === true;
+  const run = async (fromIso, toEndIso, clock) => {
+    const r = await sql(bind(queries[clock], { fromIso, toEndIso, gran: 'month', detail: true }));
+    return r[0].jsonb_build_object;
+  };
+  const plan = IP.profitPieces(w, now);
+  const monthEnd = (m) => new Date(Date.UTC(Number(m.slice(0, 4)), Number(m.slice(5, 7)), 0)).toISOString().slice(0, 10);
+  const iso = (a, b) => ({ fromIso: a === w.from ? w.fromIso : IC.insightsWindows(a, a, false, now).fromIso,
+                           toEndIso: b === w.to ? w.toEndIso : IC.insightsWindows(b, b, false, now).toEndIso });
+  let cached = [];
+  if (cacheLive && plan.months.length) {
+    const r = await sql(`SELECT public.insights_profit_cache_read(ARRAY[${plan.months.map((m) => `${lit(m)}::date`).join(',')}]) AS j`);
+    cached = r[0].j?.rows ?? [];
+  }
+  const t0 = Date.now();
+  const tasks = [];
+  const wholeIdx = {};
+  const pieceIdx = { cohort: [], cash: [] };
+  const emulated = { cohort: new Map(), cash: new Map() };
+  for (const clock of ['cohort', 'cash']) {
+    wholeIdx[clock] = tasks.push(() => run(w.fromIso, w.toEndIso, clock)) - 1;
+    for (const r of plan.live) { const b = iso(r.from, r.to); pieceIdx[clock].push(tasks.push(() => run(b.fromIso, b.toEndIso, clock)) - 1); }
+    for (const m of plan.months) {
+      const hit = cached.find((c) => c.month === m && c.clock === clock);
+      if (hit) emulated[clock].set(m, { cached: hit });
+      const b = iso(m, monthEnd(m));
+      emulated[clock].set(m, { ...(emulated[clock].get(m) ?? {}), idx: tasks.push(() => run(b.fromIso, b.toEndIso, clock)) - 1 });
+    }
+  }
+  const res = await pool(tasks, 3);
+  const ms = Date.now() - t0;
+  const wm = await sql(`SELECT wm_id, name, named_at, updated_at FROM public.altercpa_webmasters`);
+  const names = IP.webmasterNames(wm);
+  const results = [];
+  const people = await sql(`SELECT (SELECT json_agg(json_build_object('user_id', user_id, 'full_name', full_name)) FROM public.profiles) AS profiles,
+                (SELECT json_agg(json_build_object('user_id', user_id, 'role', role)) FROM public.user_roles
+                  WHERE role IN ('agent','pending_agent','prediction_agent','admin','manager')) AS roles`);
+  const settings = { vatRate: VAT_RATE, deliverEur: 2.439, returnEur: 0, rateSource: 'courier_rates',
+    agentNames: IP.commissionAgentNames(people[0].profiles ?? [], people[0].roles ?? []) };
+  const build = (co, ca) => IP.buildProfitResponse({ cohort: co, cash: ca }, w, settings, now);
+  const merge = (clock, useCache) => {
+    const parts = [...pieceIdx[clock].map((i) => res[i])];
+    for (const [, v] of emulated[clock]) parts.push(useCache && v.cached ? v.cached.payload : res[v.idx]);
+    const m = IP.mergeProfitRpcs(parts, clock, 'month');
+    const keys = new Set((m.agg ?? []).filter((a) => a.dim === 'w').map((a) => a.key));
+    m.wm_names = Object.fromEntries(Object.entries(names).filter(([k]) => keys.has(k)));
+    return m;
+  };
+  const whole = build(res[wholeIdx.cohort], res[wholeIdx.cash]);
+  const pieces = build(merge('cohort', false), merge('cash', false));
+  const d1 = diffResponses(whole, pieces);
+  results.push({ id: 'C1', title: `${plan.months.length} closed months + ${plan.live.length} live edge(s), merged = one live call`, status: d1.length ? 'FAIL' : 'PASS', fails: d1, info: [] });
+  if (cacheLive) {
+    const withCache = build(merge('cohort', true), merge('cash', true));
+    const d2 = diffResponses(whole, withCache);
+    const behind = [];
+    for (const clock of ['cohort', 'cash']) {
+      for (const [m, v] of emulated[clock]) {
+        if (!v.cached) continue;
+        const d = diffResponses(build(clock === 'cohort' ? v.cached.payload : res[wholeIdx.cohort], clock === 'cash' ? v.cached.payload : res[wholeIdx.cash]),
+          build(clock === 'cohort' ? res[v.idx] : res[wholeIdx.cohort], clock === 'cash' ? res[v.idx] : res[wholeIdx.cash]));
+        if (d.length) behind.push({ month: m, clock, refreshed_at: v.cached.refreshed_at });
+      }
+    }
+    let unflagged = [];
+    if (behind.length) {
+      const since = behind.map((b) => b.refreshed_at).sort()[0];
+      const t = await sql(`SELECT to_char(month, 'YYYY-MM-DD') AS month, changed_at FROM public.insights_profit_touched(${lit(since)}::timestamptz)`);
+      unflagged = behind.filter((b) => !t.some((x) => x.month === b.month && Date.parse(x.changed_at) > Date.parse(b.refreshed_at)));
+    }
+    const usedN = cached.length;
+    results.push({
+      id: 'C2', title: `the cache as stored (${usedN} month×clock rows): behind the live data only where the nightly refresh is due`,
+      status: unflagged.length ? 'FAIL' : 'PASS',
+      fails: unflagged.map((b) => `${b.month} ${b.clock}: differs from live and is NOT flagged by insights_profit_touched (refreshed ${b.refreshed_at})`),
+      info: [behind.length ? `${behind.length} month×clock behind, all flagged for refresh (${d2.length} response diffs until then)` : 'identical to live'],
+    });
+  }
+  return { w, plan, ms, results, cacheLive, whole };
+}
+
 export function headline(resp) {
   const line = (c) => ({
     sales: c.total.sales, revenue: c.total.revenue_mkd, vat: c.total.vat_mkd, cogs_known: c.total.cogs_known_mkd,
@@ -243,18 +380,20 @@ export function headline(resp) {
   return { cohort: line(resp.cohort), cash: line(resp.cash), strip_total: resp.strip.total };
 }
 
-const USAGE = `usage: node scripts/verify-tab-profit.mjs [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--json]
+const USAGE = `usage: node scripts/verify-tab-profit.mjs [--from YYYY-MM-DD] [--to YYYY-MM-DD] [--cache] [--json]
+--cache: a window over 62 days — closed months (the monthly cache) + live edges = one live call.
 Read-only. Dates are Skopje calendar days (inclusive; default the 7 days ending today).
 Exit 1 if any check FAILs, 2 if refused / unreachable.`;
 
 function parseArgs(argv) {
-  const opts = { json: false, from: null, to: null, help: false };
+  const opts = { json: false, cache: false, from: null, to: null, help: false };
   for (let i = 0; i < argv.length; i++) {
     let arg = argv[i];
     let val;
     const eq = arg.indexOf('=');
     if (arg.startsWith('--') && eq > 0) { val = arg.slice(eq + 1); arg = arg.slice(0, eq); }
     if (arg === '--json' && val === undefined) opts.json = true;
+    else if (arg === '--cache' && val === undefined) opts.cache = true;
     else if ((arg === '--help' || arg === '-h') && val === undefined) opts.help = true;
     else if (arg === '--from' || arg === '--to') {
       if (val === undefined) val = argv[++i];
@@ -272,6 +411,21 @@ async function main(argv) {
   const opts = parseArgs(argv);
   if (opts.help) { console.log(USAGE); return EXIT.OK; }
   const t0 = Date.now();
+  if (opts.cache) {
+    const { w, plan, ms, results, cacheLive } = await verifyCache({ from: opts.from, to: opts.to, sql: runSql });
+    const exitCode = results.some((r) => r.status === 'FAIL') ? EXIT.FAIL : EXIT.OK;
+    if (opts.json) {
+      console.log(JSON.stringify({ tool: 'verify-tab-profit', mode: 'cache', window: { from: w.from, to: w.to }, cache_applied: cacheLive, plan, ms, exit_code: exitCode, results }, null, 2));
+    } else {
+      console.log(`verify-tab-profit --cache ${w.from} → ${w.to} · ${cacheLive ? 'insights_profit_monthly applied' : 'cache not applied yet: months computed now, as the refresh stores them'} · ${plan.months.length} closed months, live ${plan.live.map((r) => r.from + '…' + r.to).join(', ') || '—'} · ${Date.now() - t0} ms`);
+      for (const r of results) {
+        console.log(`  ${r.status}  ${r.id}  ${r.title}${r.info.length ? `  (${r.info.join('; ')})` : ''}`);
+        for (const f of r.fails.slice(0, 15)) console.log(`        ✗ ${f}`);
+      }
+      console.log(exitCode ? 'RESULT: FAIL' : 'RESULT: identical');
+    }
+    return exitCode;
+  }
   const { w, live, resp, results } = await verify({ from: opts.from, to: opts.to, sql: runSql });
   const exitCode = results.some((r) => r.status === 'FAIL') ? EXIT.FAIL : EXIT.OK;
   if (opts.json) {

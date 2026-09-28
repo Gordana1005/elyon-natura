@@ -80,6 +80,29 @@ The cohort strip ties to `insights_cohort` bucket by bucket; cash ties to its
   `P = (1+r)(target + cost + courier + tier(P) × 61,5 × γ)`, γ = the share of the
   product's packages today's rule actually pays commission on. No cost → no floor.
 
+## The monthly cache for long windows (migration 20260942000200)
+
+- A window over **62 days** reads whole CLOSED months from
+  `insights_profit_monthly` (one row per month × clock = exactly what
+  `insights_profit()` returns for that month, granularity month) and computes
+  only the partial first month and the current month live; `insightsProfit.ts
+  loadProfitClocks / mergeProfitRpcs` add the pieces. Every block is a sum per
+  key, so the result is IDENTICAL to one live call — proven by
+  `node scripts/verify-tab-profit.mjs --cache --from … --to …` (a year and
+  01.04–27.09.2026: identical). Year window: ~5 s → ~1,5 s.
+- What keeps it additive (do not undo): a shared parcel counts 1/holders over
+  ALL its holders; sums leave SQL with 9 decimals; the api rounds to denars
+  once, snapped to 0,0001; product name / kind = byte-order minimum (COLLATE "C").
+- Freshness: a row is used only while `version` = `insights_profit_cache_version()`
+  (bump it when the P&L logic changes) and `sig` = `insights_profit_cache_sig()`
+  (catalogue names / cost prices, reviewed aliases, test phones — entering a cost
+  price invalidates every month). Closed months still move (late MEX, repairs):
+  the nightly cron `insights-profit-monthly` (03:40 Skopje, DST-proof gate)
+  refreshes the last 3 closed months, every month `insights_profit_touched()`
+  flags since its refresh, stale version / sig, and missing months of the last
+  24; owners refresh a window by hand (POST /api/insights/profit/refresh). The
+  tab says "cached until dd.mm HH:mm".
+
 ## Money display
 
 Денари only (elyon-currency): the api sends whole денари (`*_mkd`), rendered with

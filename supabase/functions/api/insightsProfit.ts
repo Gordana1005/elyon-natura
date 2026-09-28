@@ -34,6 +34,10 @@
 // ============================================================================
 
 import type { InsightsWindow } from "./insightsCommon.ts";
+import { addDaysYmd, skopjeDayEndIso, skopjeMidnightIso, skopjeTodayYmd } from "./overview.ts";
+
+/** Owner confirmed the 18 % standard VAT rate for supplements on 28.09.2026. */
+export const VAT_CONFIRMED = true;
 
 /** The FROZEN peg (src/lib/currency.ts MKD_PER_EUR) — only to express a EUR
  *  amount (cost price, bonus, rate card) in денари, never to re-price. */
@@ -138,7 +142,9 @@ export function mexRate(
 // ── the P&L ─────────────────────────────────────────────────────────────────
 
 const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : Number(v) || 0);
-const r0 = (v: number) => Math.round(v);
+// whole denars, snapped to 0,0001 first: a sum of monthly pieces and one live sum
+// differ in the last float bits, and a share of 150 ден often lands on exactly ,5
+const r0 = (v: number) => Math.round(Math.round(v * 1e4) / 1e4);
 const share = (a: number, b: number): number | null => (b > 0 ? a / b : null);
 
 interface Measures {
@@ -347,7 +353,8 @@ export function productRows(
       lbUngated: 0, commEur: 0, rPkgs: 0, rRev: 0, rSh: 0,
     };
     if (p.name && (!a.name || p.name < a.name)) a.name = p.name;
-    if (p.cost_eur != null && num(p.cost_eur) > 0) a.cost_eur = num(p.cost_eur);
+    if (p.kind && p.kind < a.kind) a.kind = p.kind;
+    if (p.cost_eur != null && num(p.cost_eur) > 0) a.cost_eur = Math.max(a.cost_eur ?? 0, num(p.cost_eur));
     a.pkg = a.pkg || !!p.pkg;
     a.reviewed = a.reviewed || !!p.reviewed;
     if (p.g === "collected") {
@@ -393,7 +400,10 @@ export function productRows(
       return_rate: share(a.rPkgs, a.pkgs + a.rPkgs),
     };
   };
-  const all = [...by.values()].sort((x, y) => y.rev - x.rev || y.rRev - x.rRev || x.key.localeCompare(y.key));
+  // to the cent, then the key in byte order: the same order however the rows were summed
+  const cents = (v: number) => Math.round(v * 100);
+  const all = [...by.values()].sort((x, y) => cents(y.rev) - cents(x.rev) || cents(y.rRev) - cents(x.rRev)
+    || (x.key < y.key ? -1 : x.key > y.key ? 1 : 0));
   const head = all.slice(0, PROFIT_PRODUCTS_MAX);
   const tail = all.slice(PROFIT_PRODUCTS_MAX);
   let others: ProductRow | null = null;
@@ -696,7 +706,8 @@ export function buildQuality(
     kind: "orders_without_lines", severity: "warning",
     count: num(cohortRpc.no_items?.n), value_mkd: r0(num(cohortRpc.no_items?.v)),
   });
-  out.push({ kind: "vat_unconfirmed", severity: "info", count: 1 });
+  // VAT 18 % confirmed by the owner on 28.09.2026 — no longer a pending item.
+  if (!VAT_CONFIRMED) out.push({ kind: "vat_unconfirmed", severity: "info", count: 1 });
   out.push({ kind: "lead_cost_missing", severity: "info", count: cohortClock.by_source.find((r) => r.key === "altercpa")?.sales ?? 0 });
   if (s.returnEur === 0) out.push({ kind: "return_fee_unconfirmed", severity: "info", count: r0(t.parcels_returned) });
   return out;
@@ -727,6 +738,7 @@ export function buildProfitResponse(
   win: InsightsWindow,
   s: ProfitSettings,
   now: Date = new Date(),
+  cache: ProfitCacheMeta | null = null,
 ): Record<string, unknown> {
   const gran = r.cohort.granularity === "month" ? "month" : "day";
   const keys = bucketKeys(win.from, win.to, gran);
@@ -750,7 +762,7 @@ export function buildProfitResponse(
       generated_at: now.toISOString(),
       money: true,
       granularity: gran,
-      vat: { rate: s.vatRate, confirmed: false },
+      vat: { rate: s.vatRate, confirmed: VAT_CONFIRMED },
       courier: {
         deliver_mkd: r0(s.deliverEur * MKD_PER_EUR),
         return_mkd: r0(s.returnEur * MKD_PER_EUR),
@@ -759,6 +771,9 @@ export function buildProfitResponse(
       lead_cost: { configured: false },
       commission: { rule: "per_package_paid_agents", agents: s.agentNames.size },
       mkd_per_eur: MKD_PER_EUR,
+      // windows over PROFIT_CACHE_MIN_DAYS: which closed months came from the
+      // monthly cache (insights_profit_monthly) and how old the oldest is
+      cache,
     },
     strip: buildStrip(r.cohort.strip),
     cohort,
@@ -769,4 +784,264 @@ export function buildProfitResponse(
     realized,
     quality: buildQuality(r.cohort, cohort, products.rows, s),
   };
+}
+
+// ── the monthly cache (migration 20260942000200) ────────────────────────────
+//
+// A window longer than PROFIT_CACHE_MIN_DAYS reads whole CLOSED months from
+// insights_profit_monthly and computes only the rest live (the partial first
+// month, the current month, and any month not cached with today's logic /
+// catalogue). Every block insights_profit() returns is a sum per key, so the
+// pieces add up to exactly what one live call over the window returns —
+// scripts/verify-tab-profit.mjs --cache proves it on live data.
+
+/** Windows up to this many days are computed live (daily granularity). */
+export const PROFIT_CACHE_MIN_DAYS = 62;
+
+export interface ProfitCacheMeta {
+  /** Closed months of the window read from the cache, per clock. */
+  months: { cohort: number; cash: number };
+  /** Closed months the window holds (cacheable). */
+  closed_months: number;
+  /** The oldest / newest snapshot used ("cached until"), ISO; null when none. */
+  refreshed_min: string | null;
+  refreshed_max: string | null;
+  /** The pieces computed live (Skopje days). */
+  live: { clock: "cohort" | "cash"; from: string; to: string }[];
+}
+
+export interface DayRange { from: string; to: string }
+
+const monthStart = (ymd: string) => `${ymd.slice(0, 7)}-01`;
+function monthEnd(ymd: string): string {
+  const y = Number(ymd.slice(0, 4)), m = Number(ymd.slice(5, 7));
+  return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);   // day 0 of the next month
+}
+
+/**
+ * The window cut at month boundaries: each piece is either a whole CLOSED
+ * month (a cache candidate, keyed YYYY-MM-01) or a live day range.
+ */
+export function profitPieces(win: Pick<InsightsWindow, "from" | "to">, now: Date = new Date()): {
+  months: string[];
+  live: DayRange[];
+} {
+  const todayMonth = monthStart(skopjeTodayYmd(now));
+  const months: string[] = [];
+  const live: DayRange[] = [];
+  for (let m = monthStart(win.from); m <= win.to; m = addDaysYmd(monthEnd(m), 1)) {
+    const from = m < win.from ? win.from : m;
+    const end = monthEnd(m);
+    const to = end > win.to ? win.to : end;
+    if (from === m && to === end && m < todayMonth) months.push(m);
+    else live.push({ from, to });
+    if (months.length + live.length > 40) break;
+  }
+  return { months, live };
+}
+
+/** Day ranges joined where one ends the day before the next starts (fewer live calls). */
+export function coalesceRanges(ranges: DayRange[]): DayRange[] {
+  const sorted = [...ranges].sort((a, b) => (a.from < b.from ? -1 : a.from > b.from ? 1 : 0));
+  const out: DayRange[] = [];
+  for (const r of sorted) {
+    const last = out[out.length - 1];
+    if (last && addDaysYmd(last.to, 1) >= r.from) {
+      if (r.to > last.to) last.to = r.to;
+    } else out.push({ ...r });
+  }
+  return out;
+}
+
+function sumInto(a: object, b: object, keys: readonly string[]) {
+  const x = a as Record<string, unknown>, y = b as Record<string, unknown>;
+  for (const k of keys) x[k] = num(x[k]) + num(y[k]);
+}
+
+const AGG_KEYS = ["n", "rev", "card", "pw", "rc", "ru", "rn", "cm", "pc", "pu", "fr", "lb"] as const;
+const PROD_KEYS = ["n", "qty", "pkgs", "fr", "rev", "cm", "sh", "lb"] as const;
+
+/**
+ * Pieces of one clock (cached months + live ranges) → one payload, exactly as
+ * insights_profit() returns it for the whole window: sums per key; a product's
+ * name / kind the byte-order minimum (the SQL's COLLATE "C"), its cost the
+ * maximum, its flags OR-ed.
+ */
+export function mergeProfitRpcs(pieces: ProfitRpc[], clock: "cohort" | "cash", granularity: "day" | "month"): ProfitRpc {
+  const agg = new Map<string, AggRow>();
+  const comm = new Map<string, CommRow>();
+  const strip = new Map<string, StripRow>();
+  const products = new Map<string, ProductRpcRow>();
+  const hist = new Map<string, HistRow>();
+  const ret = new Map<string, { s: string; d: string; n: number }>();
+  const wm: Record<string, string> = {};
+  let noItems = { n: 0, v: 0 };
+  for (const p of pieces) {
+    for (const a of p.agg ?? []) {
+      const k = `${a.g}|${a.dim}|${a.key}`;
+      const cur = agg.get(k);
+      if (cur) sumInto(cur, a, AGG_KEYS);
+      else { const c = { ...a }; sumInto(Object.assign(c, Object.fromEntries(AGG_KEYS.map((x) => [x, 0]))), a, AGG_KEYS); agg.set(k, c); }
+    }
+    for (const c of p.comm ?? []) {
+      const k = `${c.dim}|${c.key}|${c.o === null ? "\u0000" : c.o}`;
+      const cur = comm.get(k);
+      if (cur) { cur.b = num(cur.b) + num(c.b); cur.n = num(cur.n) + num(c.n); } else comm.set(k, { ...c, b: num(c.b), n: num(c.n) });
+    }
+    for (const r of p.strip ?? []) {
+      const k = `${r.s}|${r.b}`;
+      const cur = strip.get(k);
+      if (cur) sumInto(cur, r, ["n", "v", "c", "no", "nw", "nm"]);
+      else strip.set(k, { ...r, n: num(r.n), v: num(r.v), c: num(r.c), no: num(r.no), nw: num(r.nw), nm: num(r.nm) });
+    }
+    for (const r of p.products ?? []) {
+      const k = `${r.s}|${r.g}|${r.k}`;
+      const cur = products.get(k);
+      if (!cur) {
+        const c = { ...r };
+        sumInto(Object.assign(c, Object.fromEntries(PROD_KEYS.map((x) => [x, 0]))), r, PROD_KEYS);
+        products.set(k, c);
+        continue;
+      }
+      sumInto(cur, r, PROD_KEYS);
+      if (r.name != null && (cur.name == null || r.name < cur.name)) cur.name = r.name;
+      if (r.kind != null && (cur.kind == null || r.kind < cur.kind)) cur.kind = r.kind;
+      cur.reviewed = !!cur.reviewed || !!r.reviewed;
+      cur.pkg = !!cur.pkg || !!r.pkg;
+      if (r.cost_eur != null && (cur.cost_eur == null || num(r.cost_eur) > num(cur.cost_eur))) cur.cost_eur = num(r.cost_eur);
+    }
+    for (const h of p.hist ?? []) {
+      const k = `${h.s}|${h.u}`;
+      const cur = hist.get(k);
+      if (cur) { cur.q = num(cur.q) + num(h.q); cur.v = num(cur.v) + num(h.v); } else hist.set(k, { s: h.s, u: num(h.u), q: num(h.q), v: num(h.v) });
+    }
+    for (const r of p.returned_parcels ?? []) {
+      const k = `${r.s}|${r.d}`;
+      const cur = ret.get(k);
+      if (cur) cur.n += num(r.n); else ret.set(k, { s: r.s, d: r.d, n: num(r.n) });
+    }
+    if (p.no_items) noItems = { n: noItems.n + num(p.no_items.n), v: noItems.v + num(p.no_items.v) };
+    Object.assign(wm, p.wm_names ?? {});
+  }
+  const out: ProfitRpc = { clock, granularity, agg: [...agg.values()], comm: [...comm.values()], wm_names: wm };
+  if (clock === "cohort") {
+    out.strip = [...strip.values()];
+    out.products = [...products.values()];
+    out.hist = [...hist.values()];
+    out.no_items = noItems;
+  } else {
+    out.returned_parcels = [...ret.values()];
+  }
+  return out;
+}
+
+/** TS twin of the SQL's webmaster names (wmn): the latest non-empty name per
+ *  wm_id, by named_at (nulls last) then updated_at. */
+export function webmasterNames(
+  rows: readonly { wm_id: string; name: string | null; named_at?: string | null; updated_at?: string | null }[] | null | undefined,
+): Record<string, string> {
+  const best = new Map<string, { name: string; named: number; updated: number }>();
+  for (const r of rows ?? []) {
+    if (!r.name || !r.name.trim()) continue;
+    const named = r.named_at ? Date.parse(r.named_at) : -Infinity;
+    const updated = r.updated_at ? Date.parse(r.updated_at) : -Infinity;
+    const cur = best.get(r.wm_id);
+    if (!cur || named > cur.named || (named === cur.named && updated > cur.updated)) best.set(r.wm_id, { name: r.name, named, updated });
+  }
+  return Object.fromEntries([...best.entries()].map(([k, v]) => [k, v.name]));
+}
+
+export interface ProfitCacheRow { month: string; clock: "cohort" | "cash"; refreshed_at: string; payload: ProfitRpc }
+
+export interface ProfitLoadDeps {
+  /** insights_profit(range, clock, granularity, detail) — one live piece. */
+  live: (range: { fromIso: string; toEndIso: string }, clock: "cohort" | "cash", granularity: "day" | "month" | null, detail: boolean) => Promise<ProfitRpc>;
+  /** insights_profit_cache_read(months) — valid cached rows only. */
+  readCache: (months: string[]) => Promise<ProfitCacheRow[]>;
+  /** altercpa_webmasters rows (names for the merged keys). */
+  webmasters: () => Promise<{ wm_id: string; name: string | null; named_at?: string | null; updated_at?: string | null }[]>;
+}
+
+/**
+ * Both clocks of a window. Up to PROFIT_CACHE_MIN_DAYS: two live calls (as
+ * before). Longer: cached closed months + live pieces, merged; a cache that
+ * cannot be read falls back to live for everything (never a wrong number).
+ */
+export async function loadProfitClocks(
+  win: InsightsWindow,
+  deps: ProfitLoadDeps,
+  now: Date = new Date(),
+): Promise<{ cohort: ProfitRpc; cash: ProfitRpc; cache: ProfitCacheMeta | null }> {
+  if (win.days <= PROFIT_CACHE_MIN_DAYS) {
+    const [cohort, cash] = await Promise.all([
+      deps.live({ fromIso: win.fromIso, toEndIso: win.toEndIso }, "cohort", null, true),
+      deps.live({ fromIso: win.fromIso, toEndIso: win.toEndIso }, "cash", null, true),
+    ]);
+    return { cohort, cash, cache: null };
+  }
+  const plan = profitPieces(win, now);
+  // the window's last piece ends where the window does (today: its elapsed part)
+  const bounds = (r: DayRange) => ({
+    fromIso: r.from === win.from ? win.fromIso : skopjeMidnightIso(r.from),
+    toEndIso: r.to === win.to ? win.toEndIso : skopjeDayEndIso(r.to),
+  });
+  const clocks = ["cohort", "cash"] as const;
+  const live: ProfitCacheMeta["live"] = [];
+  const liveBy: Record<"cohort" | "cash", Promise<ProfitRpc>[]> = { cohort: [], cash: [] };
+  const cachedBy: Record<"cohort" | "cash", ProfitCacheRow[]> = { cohort: [], cash: [] };
+  const goLive = (clock: "cohort" | "cash", r: DayRange) => {
+    live.push({ clock, from: r.from, to: r.to });
+    const p = deps.live(bounds(r), clock, "month", true);
+    p.catch(() => {});   // awaited below; never an unhandled rejection meanwhile
+    liveBy[clock].push(p);
+  };
+  // the edges are live whatever the cache holds: they start while it is read
+  for (const clock of clocks) for (const r of coalesceRanges(plan.live)) goLive(clock, r);
+  let rows: ProfitCacheRow[] = [];
+  if (plan.months.length) {
+    try { rows = (await deps.readCache(plan.months)) ?? []; } catch { rows = []; }
+  }
+  for (const clock of clocks) {
+    const mine = rows.filter((r) => r.clock === clock && plan.months.includes(r.month));
+    const have = new Set(mine.map((r) => r.month));
+    cachedBy[clock] = mine;
+    const missing = plan.months.filter((m) => !have.has(m)).map((m) => ({ from: m, to: monthEnd(m) }));
+    for (const r of coalesceRanges(missing)) goLive(clock, r);
+  }
+  const [co, ca, wmRows] = await Promise.all([
+    Promise.all(liveBy.cohort), Promise.all(liveBy.cash),
+    deps.webmasters().catch(() => null),
+  ]);
+  const names = wmRows ? webmasterNames(wmRows) : null;
+  const finish = (clock: "cohort" | "cash", liveParts: ProfitRpc[]) => {
+    const merged = mergeProfitRpcs([...cachedBy[clock].map((r) => r.payload), ...liveParts], clock, "month");
+    if (names) {
+      const keys = new Set((merged.agg ?? []).filter((a) => a.dim === "w").map((a) => a.key));
+      merged.wm_names = Object.fromEntries(Object.entries(names).filter(([k]) => keys.has(k)));
+    }
+    return merged;
+  };
+  const used = [...cachedBy.cohort, ...cachedBy.cash].map((r) => r.refreshed_at).sort();
+  return {
+    cohort: finish("cohort", co),
+    cash: finish("cash", ca),
+    cache: {
+      months: { cohort: cachedBy.cohort.length, cash: cachedBy.cash.length },
+      closed_months: plan.months.length,
+      refreshed_min: used[0] ?? null,
+      refreshed_max: used[used.length - 1] ?? null,
+      live,
+    },
+  };
+}
+
+/** The closed months a window touches (whole or partly) — what an owner's
+ *  refresh recomputes (the current month is always live). */
+export function refreshMonths(win: Pick<InsightsWindow, "from" | "to">, now: Date = new Date()): string[] {
+  const todayMonth = monthStart(skopjeTodayYmd(now));
+  const out: string[] = [];
+  for (let m = monthStart(win.from); m <= win.to && out.length < 30; m = addDaysYmd(monthEnd(m), 1)) {
+    if (m < todayMonth) out.push(m);
+  }
+  return out;
 }

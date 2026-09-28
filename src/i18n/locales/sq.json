@@ -4411,6 +4411,12 @@
         "productsHint": "Fitimi sipas produktit, mbulimi me çmim dhe kthimet",
         "affiliates": "Uebmasterët e AlterCPA",
         "affiliatesHint": "Fitimi sipas uebmasterit para kostos së lead-eve"
+      },
+      "cache": {
+        "until": "Muajt e mbyllur {{n}} nga {{of}} nga memoria, gjendja {{date}} {{time}}; pjesa tjetër është live.",
+        "none": "Muajt e mbyllur ({{of}}) llogariten live (ende pa memorie).",
+        "refresh": "Rifresko",
+        "refreshing": "Po rifreskohet…"
       }
     },
     "margins": {

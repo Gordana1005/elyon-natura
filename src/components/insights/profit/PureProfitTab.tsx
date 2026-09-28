@@ -18,6 +18,7 @@ import { ProfitTrend } from './ProfitTrend';
 import { SourcePLTable } from './SourcePLTable';
 import { Waterfall } from './Waterfall';
 import PureProfitExportDialog from './PureProfitExportDialog';
+import { CacheNote } from './CacheNote';
 import { PROFIT_COLOR_VARS } from './profitPalette';
 import { stripRows } from './profitModel';
 import { useProfitQuery } from './useProfitQuery';
@@ -87,6 +88,7 @@ export default function PureProfitTab() {
               <PureProfitExportDialog data={data} />
             </div>
             <ClockSwitch value={clockKey} onChange={setClockKey} cohort={data.cohort} cash={data.cash} f={f} />
+            <CacheNote meta={data.meta} f={f} />
           </div>
 
           <ProfitHero clock={clock} meta={data.meta} prevLabel={prevLabel} f={f} />

@@ -149,6 +149,9 @@ export interface ProfitResponse {
     lead_cost: { configured: boolean };
     commission: { rule: string; agents: number };
     mkd_per_eur: number;
+    /** Windows over 62 days: the closed months read from the monthly cache
+     *  (insights_profit_monthly); null for shorter windows (all live). */
+    cache: ProfitCacheMeta | null;
   };
   /** The cohort strip in /insights/cohort's shape (CohortBar). */
   strip: {
@@ -166,7 +169,23 @@ export interface ProfitResponse {
   quality: ProfitQuality[];
 }
 
+export interface ProfitCacheMeta {
+  months: { cohort: number; cash: number };
+  closed_months: number;
+  /** The oldest snapshot used — "cached until". */
+  refreshed_min: string | null;
+  refreshed_max: string | null;
+  live: { clock: 'cohort' | 'cash'; from: string; to: string }[];
+}
+
 export interface ProfitParams { from: string; to: string; compare?: boolean }
+
+/** POST /insights/profit/refresh — recompute the window's closed months of the
+ *  cache (owners). Returns what is still left when the ~90 s budget ran out. */
+export function apiRefreshInsightsProfit(p: { from: string; to: string }): Promise<{ refreshed: string[]; remaining: string[]; ms: number }> {
+  const qs = new URLSearchParams({ from: p.from, to: p.to });
+  return apiFetch(`insights/profit/refresh?${qs.toString()}`, { method: 'POST' });
+}
 
 export function apiGetInsightsProfit(p: ProfitParams, signal?: AbortSignal): Promise<ProfitResponse> {
   const qs = new URLSearchParams({ from: p.from, to: p.to });
