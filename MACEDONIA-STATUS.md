@@ -43,6 +43,27 @@ operation. It shares **nothing at runtime** with Bulgaria (own repo / own Supaba
   - 478 orders re-priced to the MEX COD (run `1220de9c`, 372 of them paid);
   - ORD-82442 linked by hand (same customer, CRM city was wrong), and the 3 MEX-delivered hand
     links (ORD-82442, ORD-89633, ORD-105252) set to paid with MEX's delivery date.
+- **Done 28.09 ~07:10–07:35 Skopje** (owner: "treat everything how you think it's accurate"):
+  - `altercpa-unproven-paid` (run `c1a90c3d`, `--evidence-guards`): the 132 "paid without MEX
+    proof" → 45 cancelled (no parcel anywhere), 9 took their MEX status, 3 parcels moved back;
+    **C7 132 → 74** (all manual — the phone's parcels fit another order, or are held by a real sale).
+  - `ghost-manual` (run `5edf77ba`): 18 ambiguous ghost parcels decided from collabBox document
+    times (6 moved, 12 unlinked); `--include-zero-price` re-price of 5 real zero-price orders
+    (run `456038d9`); ORD-93612 restamped disposition → prediction_list. **C10 90 → 0 FAIL**
+    (the 67 collabBox replacements are INFO: price 0 + COD 0 = not an order).
+  - Web shop: **2.751 web orders linked to their NATURA "M…" (old OpenCart) parcels** — about 2.430
+    March–August sales had been counted twice (web order + MEX-only parcel). web-sync links new
+    ones by phone + amount (`20260940000300`).
+  - 18 AlterCPA orders "shipped" on a MEX label that no longer exists (deleted before pickup) →
+    back to confirmed → the 10-day rule cancelled 16, ORD-82400 → needs_linking, ORD-104951 decides
+    tonight.
+  - Денари everywhere is live (staff screens, charts, exports, notifications); the foreign
+    affiliate payout stays EUR (08-10 exception).
+- **Review later (not errors):** C7 74 manual; C8b 54 tracking ids unknown to MEX; C8c 2 WARN
+  (re-sends whose first parcel came back); 424 NATURA M parcels with no web order (198 COD-0
+  deliveries to our own shops/dm, 101 no web order on the phone, 60 from the 18.08–04.09 mirror
+  gap, 38 ambiguous, 27 other); 7 old AlterCPA leads that mex-reconcile reopened on a parcel
+  created > 30 days after the lead (possible re-sales).
 - **Open:** `verify-attribution` C7 (132), C8b (56) and C10 (90) predate this release; the full list is in FINISH-FROM-VSCODE §E.
 
 The sections below are the history up to 19.08.
