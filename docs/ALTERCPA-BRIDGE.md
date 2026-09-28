@@ -186,17 +186,37 @@ Both secrets are recorded in `docs/VAULT.md` §2 (gitignored).
 | `altercpa-sync-nightly` | `15 1 * * *` | last 7 days |
 | `altercpa-sync-weekly` | `45 2 * * 0` | last 90 days |
 | `altercpa-sync-status` | `*/5 * * * *` | not a window — our open orders, by `oid` |
-| `mex-reconcile` | `7,37 * * * *` | MEX terminal shipments by `updated_from` (see below) |
+| `mex-reconcile` | `7,37 * * * *` | MEX shipments by `updated_from`, both accounts (see below) |
 
-**`mex-reconcile`** (`20260918000100`, edge fn `supabase/functions/mex-reconcile`) is the courier
-ground-truth corrector: twice an hour (07:00–20:55 Skopje gate) it pulls MEX shipments whose
-status became Delivered/Returned since the cursor, matches them to orders (remembered
-`orders.mex_tracking_id` link first, else phone→E.164 + COD ×61.5 ±150 ±3 + nearest date, never
-guessing on ambiguity), and applies **Delivered → paid / Returned → returned** — overriding even
-terminal statuses (operator decision 2026-08-11; `duplicated` excluded), because the courier's
-record of collected COD outranks anything AlterCPA says. Run log: `mex_sync_runs` (admin/manager).
-Port of `scripts/reconcile-mex-shipments.mjs` — keep the two matchers in step. The CSV-export
-path remains only for ADDRESS backfill (the API withholds `receiver_address`).
+**`mex-reconcile`** (`20260918000100`, edge fn `supabase/functions/mex-reconcile`; the pure
+matching rules live in `match.ts`, tested by `match.test.ts`) is the courier ground-truth
+corrector: twice an hour (07:00–20:55 Skopje gate, plus a Sunday sweep of the last 60 days) it
+pulls every shipment MEX updated since the cursor from BOTH accounts (BIO NATURAL = the Elyon
+business, series 9110/9103; NATURA = teleshop/social/web), upserts each into the parcel register
+`mex_parcels`, then matches it — never guessing:
+
+1. **remembered** — the order whose `orders.mex_tracking_id` is the parcel (`tracking`);
+2. **fresh** — phone → E.164, unlinked orders created within [−3d … +75d], **real sales only**
+   (price > 0, a real product name, not `duplicated`):
+   - COD = round(price€ × 61.5) [+150 delivery] ±3 ден → `phone_cod`, nearest date wins;
+   - no COD fit, exactly ONE real sale on the phone, open/shipped/delivered → `phone_single`;
+   - **upsell revive** (owner rule 2026-09-28) — no COD fit, exactly ONE real sale on the phone,
+     it is our own 7-day no-parcel cancel (`no_parcel_7d`) of an AlterCPA order, and the parcel
+     is BIO NATURAL series 9110 with a COD > 0 (an upsell: ~8.3% of 9110 parcels carry a COD ≠
+     the CRM price) → `upsell_revive`;
+   - anything else is skipped and counted (`ambiguous`, `single_not_open`, …).
+
+Every link goes through `mex_link_parcel()`. Then **2 Delivered → paid** (`paid_basis 'mex'`)
+and **7 Returned → returned** from any status (operator decision 2026-08-11 — the courier's
+record of collected COD outranks anything AlterCPA says); any other status → **shipped**,
+forward-only from open statuses, plus **rule C** (MEX outranks AlterCPA): an AlterCPA
+cancel/trash, or a `no_parcel_7d` cancel, whose parcel turns up on a `tracking`/`phone_cod`
+link — or the `no_parcel_7d` AlterCPA cancel an `upsell_revive` link names — goes to shipped
+and then follows MEX. `duplicated` rows are never touched and a 0-value row never takes money.
+Run log: `mex_sync_runs` (per-rule counters in `skipped`: `rule_c`, `fallback_single`,
+`upsell_revive`, …). `scripts/reconcile-mex-shipments.mjs` mirrors the fresh-match rules except
+the upsell revive (a portal CSV has no MEX account); the CSV-export path remains only for
+ADDRESS backfill (the API withholds `receiver_address`).
 
 `altercpa-sync-status` (added 2026-08-11, `20260918000000`) fires around the clock but
 `invoke_altercpa_status_sync()` gates on `hour(Europe/Skopje) BETWEEN 7 AND 20` — i.e. it works

@@ -189,6 +189,17 @@ Never backwards, never re-open, never rewrite a terminal status; reasons
 — approval alone is not money, and a wrong `paid` is locked, moves commissions/sticky-trash/
 revenue, and cannot be corrected. Verify with `node scripts/verify-altercpa-status.mjs`.
 
+**The 7-day no-parcel rule and its reopen (owner rules 2026-09-27/28).** An AlterCPA-confirmed
+order with no MEX parcel 7 days after the approval is cancelled `no_parcel_7d` by the nightly
+`apply_no_parcel_rule()` (`20260938000000`, APPLY mode) — our cancel, not the customer's. When the
+parcel turns up later, `mex-reconcile` reopens the order (rule C → `shipped`, then MEX decides
+paid/returned): on a `tracking` or phone+COD (`phone_cod`) link, or — when the COD differs from
+the CRM price, an upsell (~8.3% of 9110 parcels) — on an `upsell_revive` link: a BIO NATURAL
+series 9110 parcel with a COD > 0, inside the ship window, on a phone whose only real sale is that
+AlterCPA `no_parcel_7d` cancel. Rules: `supabase/functions/mex-reconcile/match.ts`
+(`pickCandidate`, `shipGate`). The no-parcel ledger (`no_parcel_rule_items`) is never rewritten
+by a reopen: its `cancelled` row stays the true record of that night.
+
 ## Why foreign leads must stay out of `orders`
 
 Two independent reasons, either one sufficient:

@@ -3,7 +3,9 @@
  *
  * No Deno, no remote imports, no I/O: index.ts imports this as "./match.ts" and
  * vitest runs match.test.ts against it in Node. scripts/reconcile-mex-shipments.mjs
- * (the CSV path) mirrors pickCandidate's rules — keep the two in step.
+ * (the CSV path) mirrors pickCandidate's rules — keep the two in step. The one
+ * deliberate gap is the upsell revive (pickCandidate): a portal CSV carries no
+ * MEX account, so that path cannot tell a BIO NATURAL 9110 parcel from another.
  *
  * THE RULE THIS FILE EXISTS TO ENFORCE (2026-09-27): a MEX parcel is only ever
  * matched to a REAL SALE. The old single-candidate fallback took ANY lone order
@@ -29,7 +31,7 @@ export const OPEN_FOR_SHIP: ReadonlySet<string> = new Set(["pending", "take", "c
 export const SINGLE_FALLBACK_STATUSES: ReadonlySet<string> = new Set([...OPEN_FOR_SHIP, "shipped", "delivered"]);
 
 /** How a parcel came to belong to an order in THIS run's logic. */
-export type LinkMethod = "tracking" | "phone_cod" | "phone_single";
+export type LinkMethod = "tracking" | "phone_cod" | "phone_single" | "upsell_revive";
 export type Target = "paid" | "returned" | "shipped";
 
 /** A list_shipments.php row, exactly as MEX returns it (`cod` is a STRING). */
@@ -131,9 +133,46 @@ export function inShipWindow(created: Date, orderCreatedAt: string): boolean {
   return delta >= -WINDOW_BEFORE_DAYS * DAY && delta <= WINDOW_AFTER_DAYS * DAY;
 }
 
+/** 002-9110-158456/2026 → '9110'. Mirror of the mex_parcels.series generated
+ * column (20260934000100): only the real NNN-SSSS-… shape has a series;
+ * ORD-89109, NTMK40556, M3258911 and bare numbers read null. */
+export function mexSeries(trackingId: string | null | undefined): string | null {
+  const m = /^[0-9]{3}-([0-9]{4})-/.exec(String(trackingId ?? ""));
+  return m ? m[1] : null;
+}
+
+/** Arrived through the AlterCPA intake — the live bridge, or the 2026-08
+ * history import that reused external_source 'altercpa'. The same test
+ * classify_sale_source (20260935000000) files under sale_source 'altercpa'. */
+export function isAlterCpaOrder(o: Pick<OrderRow, "source_type" | "external_source">): boolean {
+  return o.source_type === "altercpa" || o.external_source === "altercpa";
+}
+
+/** Our own 7-day no-parcel cancel (apply_no_parcel_rule, 20260938000000) of an
+ * AlterCPA sale: not the customer's decision — only a parcel not seen yet. */
+export function isNoParcelCancel(
+  o: Pick<OrderRow, "status" | "cancellation_reason" | "source_type" | "external_source">,
+): boolean {
+  return o.status === "cancelled" && o.cancellation_reason === "no_parcel_7d" && isAlterCpaOrder(o);
+}
+
+/** What the upsell revive needs to know about a parcel: the account whose
+ * list it came from, and its tracking id (for the series). */
+export interface ParcelRef {
+  account?: string | null;
+  tracking_id?: string | null;
+}
+
+/** BIO NATURAL series 9110 — Нарачка LEADS, what the Elyon business ships for
+ * AlterCPA leads. The account is the list the row came from, never derived
+ * from the series (series cross accounts at the margins). */
+export function isLeadsParcel(p: ParcelRef | null | undefined): boolean {
+  return p?.account === "bio_natural" && mexSeries(p.tracking_id) === "9110";
+}
+
 export type CandidateSkip = "unmatched" | "no_real_sale" | "single_not_open" | "ambiguous";
 export type CandidatePick =
-  | { order: OrderRow; method: "phone_cod" | "phone_single" }
+  | { order: OrderRow; method: "phone_cod" | "phone_single" | "upsell_revive" }
   | { skip: CandidateSkip };
 
 /**
@@ -143,10 +182,24 @@ export type CandidatePick =
  *   REAL SALES only (isRealSale)                              else 'no_real_sale'
  *   COD fits → nearest created date wins                      → 'phone_cod'
  *   no fit, exactly ONE real sale, open/shipped/delivered     → 'phone_single'
+ *   no fit, exactly ONE real sale, our no_parcel_7d cancel of
+ *     an AlterCPA sale, parcel BIO NATURAL 9110 with a COD    → 'upsell_revive'
  *   no fit, exactly one real sale but cancelled/paid/…        → 'single_not_open'
  *   no fit, several real sales                                → 'ambiguous'
+ *
+ * THE UPSELL REVIVE (owner rule 2026-09-28). The 7-day rule cancels an AlterCPA
+ * sale whose parcel has not appeared; when it does appear, the order goes back
+ * to shipped and follows MEX. A COD that fits does that through 'phone_cod' and
+ * rule C — but ~8.3% of 9110 parcels carry a COD that is not the CRM price (an
+ * upsell at AlterCPA), and a lone cancelled sale never gets 'phone_single', so
+ * that cancel stood forever. Narrow on purpose: the parcel's account and series
+ * (`parcel` omitted → never), the same window, exactly one real sale counted
+ * exactly as for 'phone_single', and that sale is our own no_parcel_7d cancel.
+ * A COD of 0 is no signal (as for the cod_mismatch telemetry): never revived.
  */
-export function pickCandidate(orders: OrderRow[], cod: number, created: Date | null): CandidatePick {
+export function pickCandidate(
+  orders: OrderRow[], cod: number, created: Date | null, parcel?: ParcelRef | null,
+): CandidatePick {
   if (!created) return { skip: "unmatched" };
   const inWindow = orders.filter((o) => !o.mex_tracking_id && inShipWindow(created, o.created_at));
   if (!inWindow.length) return { skip: "unmatched" };
@@ -160,9 +213,10 @@ export function pickCandidate(orders: OrderRow[], cod: number, created: Date | n
     return { order: [...fits].sort((a, b) => dist(a) - dist(b))[0], method: "phone_cod" };
   }
   if (real.length === 1) {
-    return SINGLE_FALLBACK_STATUSES.has(real[0].status)
-      ? { order: real[0], method: "phone_single" }
-      : { skip: "single_not_open" };
+    const only = real[0];
+    if (SINGLE_FALLBACK_STATUSES.has(only.status)) return { order: only, method: "phone_single" };
+    if (cod > 0 && isLeadsParcel(parcel) && isNoParcelCancel(only)) return { order: only, method: "upsell_revive" };
+    return { skip: "single_not_open" };
   }
   return { skip: "ambiguous" };
 }
@@ -202,17 +256,19 @@ export function rememberedLinkMethod(o: Pick<OrderRow, "external_source">): "col
  *   'rule_c' — MEX outranks AlterCPA: an AlterCPA cancel/trash (or our own
  *              'no_parcel_7d' cancel) whose parcel then turns up at MEX did
  *              ship. Strong links only ('tracking', 'phone_cod'); never on a
- *              'phone_single' guess.
+ *              'phone_single' guess. An 'upsell_revive' link counts only for
+ *              the order it exists for: our no_parcel_7d cancel of an
+ *              AlterCPA sale (isNoParcelCancel).
  *   null     — no-op (terminal/settled statuses, or rule C not satisfied).
  */
 export function shipGate(o: OrderRow, method: LinkMethod): "open" | "rule_c" | null {
   if (OPEN_FOR_SHIP.has(o.status)) return "open";
   if ((o.status === "cancelled" || o.status === "trashed")
     && (method === "tracking" || method === "phone_cod")
-    && (o.source_type === "altercpa" || o.external_source === "altercpa"
-      || o.cancellation_reason === "no_parcel_7d")) {
+    && (isAlterCpaOrder(o) || o.cancellation_reason === "no_parcel_7d")) {
     return "rule_c";
   }
+  if (method === "upsell_revive" && isNoParcelCancel(o)) return "rule_c";
   return null;
 }
 

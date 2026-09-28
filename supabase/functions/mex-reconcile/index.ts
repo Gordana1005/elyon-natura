@@ -34,6 +34,11 @@
  *         no COD fit → 'phone_single' only when exactly ONE real sale is on
  *           the phone and it is open (pending/take/call_again/confirmed) or
  *           shipped/delivered;
+ *         no COD fit → 'upsell_revive' only when exactly ONE real sale is on
+ *           the phone, it is our own 7-day no-parcel cancel ('no_parcel_7d')
+ *           of an AlterCPA order, and the parcel is BIO NATURAL series 9110
+ *           with a COD > 0 — an upsell at AlterCPA (owner rule 2026-09-28:
+ *           a late parcel reopens the 7-day cancel; counted 'upsell_revive');
  *       then linked through mex_link_parcel — never a raw update. 'conflict'
  *       ⇒ skipped (link_conflict). A parcel the register links to an order that
  *       no longer holds it is left alone (register_disagrees), and so is one
@@ -47,7 +52,9 @@
  *                       forward-only from pending/take/call_again/confirmed.
  *                       Rule C, MEX outranks AlterCPA: also from an AlterCPA
  *                       cancelled/trashed order, or one cancelled 'no_parcel_7d',
- *                       on a 'tracking' or 'phone_cod' link)
+ *                       on a 'tracking' or 'phone_cod' link — and from the
+ *                       AlterCPA 'no_parcel_7d' cancel an 'upsell_revive' link
+ *                       names)
  *    2 Delivered → paid (paid_at = courier time, paid_basis 'mex'; cancel/trash
  *                       reasons cleared — AlterCPA cancels on delivered parcels
  *                       are wrong, proven at 4.184-order scale)
@@ -316,11 +323,13 @@ serve(async (req: Request) => {
           if (isNegativeCod(s.cod)) { bump("negative_cod"); continue; }   // money out, not a sale
           const phone = mkE164(s.receiver_phone);
           if (!phone) { bump("no_phone"); continue; }
-          const pick = pickCandidate(byPhone.get(phone) || [], parseCod(s.cod), mexDate(s.created_at));
+          // `s` carries the account and tracking id the upsell revive needs.
+          const pick = pickCandidate(byPhone.get(phone) || [], parseCod(s.cod), mexDate(s.created_at), s);
           if ("skip" in pick) { bump(pick.skip); continue; }
           order = pick.order;
           method = pick.method;
           if (method === "phone_single") bump("fallback_single");
+          if (method === "upsell_revive") bump("upsell_revive");
           if (!dry) {
             const res = await linkParcel(s.tracking_id, order.id, method);
             if (res !== "linked" && res !== "already") {
@@ -390,6 +399,8 @@ serve(async (req: Request) => {
         });
         const how = method === "phone_cod" ? " Linked by phone + COD."
           : method === "phone_single" ? " Linked by phone (the only open sale; COD differs)."
+          : method === "upsell_revive"
+          ? " Linked by phone (the only sale on it; BIO NATURAL 9110, COD differs from the price — an upsell)."
           : "";
         const overruled = !ruleC ? ""
           : order.cancellation_reason === "no_parcel_7d" && was === "cancelled"
