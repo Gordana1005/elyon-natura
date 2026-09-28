@@ -377,7 +377,7 @@ export const PRICE_KEYS = Object.freeze(['price', 'quantity', 'items']);
  * orders still exactly as planned (status, parcel, price, quantity, lines fingerprint, the
  * parcel's link and COD) → data_repair_rows.before → price (+ quantity) → lines → verify
  * Σ lines = price → one order_notes row each → after. No order_history row: the status does
- * not change (and a history row would read as a sales decision in v_sales_work).
+ * not change, and the kit writes history only for a status move — the note is the record.
  */
 export function buildPriceChunkSql({ runId, units }) {
   if (!units.length) throw new Error('empty chunk');
