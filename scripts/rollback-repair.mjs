@@ -1,6 +1,14 @@
 #!/usr/bin/env node
 /**
- * Roll back one applied data-repair run (repair-mex-ghost-links / repair-altercpa-catchup-paid).
+ * Roll back one applied data-repair run (repair-mex-ghost-links / repair-altercpa-catchup-paid /
+ * repair-cod-price). A repair-test-phones run is undone by its own
+ * `node scripts/repair-test-phones.mjs --restore <run>` (the orders are gone — they are
+ * re-inserted from the snapshot, not updated back).
+ *
+ * cod-price runs (key 'cod-price'): an order goes back to its `before` price, quantity and
+ * order_items lines ONLY while those three still equal `after` — its status and MEX facts may
+ * have moved on since (MEX decides them; the repair never changed them). See
+ * buildPriceRollbackSql in scripts/lib/cod-price.mjs.
  *
  * For every order the run changed (data_repair_rows with `after`), the order is restored to
  * `before` ONLY if it still equals `after` — anything that moved on since (an agent, a cron,
@@ -30,15 +38,20 @@ import {
   MK_REF, MAX_CHUNK, SNAP_COLUMNS, bold, green, yellow, die, warn, ok,
   mkGuard, sql, sqlRead, assertRemoteIsMk, requireRepairSchema, loadOrderColumnTypes,
   q, qUuid, qUuidArray, qJson, parseArgs, fmtSkopje, fileStamp, writeCsv, candidateHash, planLine,
-  resolveActor, snapshotSql, orderSnapshotSql, printTable, isUuid,
+  resolveActor, snapshotSql, orderSnapshotSql, printTable, isUuid, requireKeepUpdatedAt, requireNoSegmentRecompute,
 } from './lib/repair-kit.mjs';
+import { KEY as COD_PRICE_KEY, PRICE_KEYS, priceSnapshotSql, buildPriceRollbackSql } from './lib/cod-price.mjs';
+import { KEY as TEST_PHONES_KEY } from './lib/test-phones.mjs';
 
 /** What --loose still compares. */
 const CORE = ['status', 'paid_at', 'returned_at', 'shipped_at', 'cancelled_at', 'trashed_at',
   'cancellation_reason', 'trash_reason', 'mex_tracking_id', 'paid_basis'];
 
 const TS_RE = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/;
+/** order_items lines → one comparable string (numbers compared as numbers). */
+const itemsKey = (xs) => (Array.isArray(xs) ? xs : []).map((i) => `${i.id}:${Number(i.quantity)}:${Number(i.price_per_unit)}:${Number(i.total_price)}`).sort().join('|');
 function sameValue(a, b) {
+  if (Array.isArray(a) || Array.isArray(b)) return itemsKey(a) === itemsKey(b);
   if ((a ?? null) === null || (b ?? null) === null) return (a ?? null) === (b ?? null);
   if (typeof a === 'string' && typeof b === 'string' && TS_RE.test(a) && TS_RE.test(b)) return Date.parse(a) === Date.parse(b);
   if (typeof a === 'number' || typeof b === 'number') return Number(a) === Number(b);
@@ -48,9 +61,9 @@ export function diffKeys(now, after, keys) {
   return keys.filter((k) => !sameValue(now?.[k], after?.[k]));
 }
 
-async function loadRows(runId) {
+async function loadRows(runId, { price = false } = {}) {
   return sqlRead(`select r.id, r.order_id, r.rule, r.before, r.after, r.evidence, o.display_id,
-      ${orderSnapshotSql('o')} as now_snap
+      ${price ? priceSnapshotSql('o') : orderSnapshotSql('o')} as now_snap
     from public.data_repair_rows r join public.orders o on o.id = r.order_id
    where r.run_id = ${qUuid(runId)} and r.after is not null
    order by o.display_id`);
@@ -72,6 +85,7 @@ export function buildRollbackSql({ key, runId, rbRunId, orderIds, loose, typeMap
   const parcelWhere = `mp.tracking_id in (select x->>'tracking_id' from jsonb_array_elements(e.before->'parcels') x)`;
   return `
 set local elyon.bulk_repair = 'on';
+set local elyon.keep_updated_at = 'on';
 set local statement_timeout = '120s';
 set local lock_timeout = '20s';
 set local timezone = 'UTC';
@@ -155,15 +169,29 @@ async function main() {
   if (!run) die(`run ${args.run} not found.`);
   const key = run.key;
   if (!/^[a-z0-9-]+$/.test(key)) die(`unexpected run key ${key}`);
+  if (key === TEST_PHONES_KEY) {
+    die(`run ${args.run} deleted orders — they are brought back from its snapshot, not rolled back:\n` +
+      `  node scripts/repair-test-phones.mjs --restore ${args.run}          (preview)\n` +
+      `  node scripts/repair-test-phones.mjs --restore ${args.run} --apply`);
+  }
+  if (key === `restore-${TEST_PHONES_KEY}`) {
+    die(`run ${args.run} restored deleted orders; to delete them again, dry-run repair-test-phones.mjs anew and apply that run.`);
+  }
+  const PRICE = key === COD_PRICE_KEY || key === `rollback-${COD_PRICE_KEY}`;
+  if (PRICE && args.loose) die('--loose does not apply to a cod-price run (it already compares only price, quantity and order_items).');
+  if (APPLY) {
+    await requireKeepUpdatedAt({ forApply: true });
+    await requireNoSegmentRecompute('start the rollback');
+  }
   if (key.startsWith('rollback-')) warn('this run is itself a rollback — rolling it back re-applies the original repair.');
   const state = run.applied_at ? `applied ${fmtSkopje(run.applied_at)}`
     : run.changed ? yellow(`${run.changed} orders changed but never finalized — an apply stopped part-way`)
     : 'a dry run that was never applied';
   console.log(`  run key ${key} · created ${fmtSkopje(run.created_at)} · ${state}`);
 
-  const rows = await loadRows(args.run);
+  const rows = await loadRows(args.run, { price: PRICE });
   if (!rows.length) die('this run changed no orders — nothing to roll back.');
-  const keys = args.loose ? CORE : SNAP_COLUMNS;
+  const keys = PRICE ? PRICE_KEYS : args.loose ? CORE : SNAP_COLUMNS;
   const only = new Set(String(args.only || '').split(',').map((s) => s.trim()).filter(Boolean));
   const unitOf = (r) => r.evidence?.unit || r.order_id;
   const wantedUnits = only.size ? new Set(rows.filter((r) => only.has(r.display_id)).map(unitOf)) : null;
@@ -172,7 +200,9 @@ async function main() {
 
   const preview = scope.map((r) => {
     const diff = diffKeys(r.now_snap, r.after, keys);
-    return { order: r.display_id, rule: r.rule, now: r.now_snap?.status, back_to: r.before?.status, restorable: diff.length ? 'no' : 'yes', changed_since: diff.join(' ') };
+    return PRICE
+      ? { order: r.display_id, rule: r.rule, now: `${r.now_snap?.price} €`, back_to: `${r.before?.price} €`, restorable: diff.length ? 'no' : 'yes', changed_since: diff.join(' ') }
+      : { order: r.display_id, rule: r.rule, now: r.now_snap?.status, back_to: r.before?.status, restorable: diff.length ? 'no' : 'yes', changed_since: diff.join(' ') };
   });
   const restorable = preview.filter((p) => p.restorable === 'yes');
   const skipped = preview.filter((p) => p.restorable === 'no');
@@ -193,7 +223,7 @@ async function main() {
   const typeMap = await loadOrderColumnTypes();
   const rbKey = `rollback-${key}`.slice(0, 60);
   const rbRunId = randomUUID();
-  const lines = scope.map((r) => planLine(r.order_id, 'rollback', r.before?.status, ''));
+  const lines = scope.map((r) => planLine(r.order_id, 'rollback', PRICE ? r.before?.price : r.before?.status, ''));
   await sql(`insert into public.data_repair_runs (id, key, dry_run, candidate_hash, summary, created_at)
     values (${qUuid(rbRunId)}, ${q(rbKey)}, false, ${q(candidateHash(lines))},
             ${qJson({ rolled_back_run: args.run, loose: !!args.loose, only: [...only], orders_in_scope: scope.length })}, now())`);
@@ -215,7 +245,9 @@ async function main() {
   for (let i = 0; i < chunks.length; i++) {
     process.stdout.write(`  chunk ${i + 1}/${chunks.length} (${chunks[i].length} orders) … `);
     try {
-      const [res] = await sql(buildRollbackSql({ key, runId: args.run, rbRunId, orderIds: chunks[i], loose: !!args.loose, typeMap }));
+      const [res] = await sql(PRICE
+        ? buildPriceRollbackSql({ key, runId: args.run, rbRunId, orderIds: chunks[i] })
+        : buildRollbackSql({ key, runId: args.run, rbRunId, orderIds: chunks[i], loose: !!args.loose, typeMap }));
       stats.restored += res.restored;
       stats.moves += res.status_moves;
       stats.skipped.push(...(res.skipped || []));

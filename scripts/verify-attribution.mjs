@@ -7,6 +7,7 @@
  *   node scripts/verify-attribution.mjs --from 2026-09-01 --to 2026-09-27
  *   node scripts/verify-attribution.mjs --guard-since 2026-09-28  C9 becomes a hard gate
  *   node scripts/verify-attribution.mjs --json --sample 25
+ *   node scripts/verify-attribution.mjs --c8a-template             prints the SQL + JSON entries for the C8a exception list
  *
  *   --from/--to    Skopje calendar days, inclusive. Turned into UTC bounds with the
  *                  real Europe/Skopje offset (CET/CEST, DST included). A naked date is
@@ -33,6 +34,10 @@
  *        orders on one side only are listed (lost list attribution / dispositions)
  *   C6   proven cash = Σ COD of linked delivered parcels; COD − price × 61.5 splits into exact /
  *        +150 delivery fee / listed mismatches
+ *   C8a  a tracking id on 2+ live orders FAILs — except the owner-accepted pairs (owner decision
+ *        28.09.2026: keep both orders on the 3 parcels held by two orders) listed with a reason in
+ *        scripts/data/c8a-accepted-duplicates.json: those read INFO; a new double claim still FAILs,
+ *        a stale entry WARNs (see judgeC8a; --c8a-template prints the entries to paste)
  *   C12  orders.sale_source never NULL      C13  ≥ 99% of v_sales_work decisions have a person
  *   C14  insights_web_block = the shop's own classifier over web_orders (SKIP until web-sync lands)
  * The TV leaderboard (migration 20260939000000) — C4/C5 call public.leaderboard_day for the last
@@ -63,6 +68,7 @@
 import { readFileSync, realpathSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { loadAcceptedDuplicates, classifyDoubleClaims, DOUBLE_CLAIMS_SQL } from './lib/accepted-duplicates.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const REF = 'bmfxhgznttcnnlqloqzp';            // Macedonia — the ONLY project this script queries
@@ -147,7 +153,7 @@ function codeOf(sql) {
   return out;
 }
 
-function assertReadOnly(sql) {
+export function assertReadOnly(sql) {
   const code = codeOf(sql).trim().replace(/;\s*$/, '');
   if (code.includes(';')) throw new Refusal('refusing SQL: more than one statement');
   if (!/^(select|with)\b/i.test(code)) throw new Refusal('refusing SQL: only SELECT / WITH may run');
@@ -350,41 +356,101 @@ SELECT (SELECT count(*) FROM y)::int AS n,
   };
 }
 
+/**
+ * C8a — one parcel, one order. A tracking id named by 2+ live (non-duplicated) orders FAILs,
+ * EXCEPT the owner-accepted pairs (owner decision 28.09.2026: "keep both orders on the 3
+ * parcels held by two orders — they may be identical but both are accurate"). The exception
+ * is DATA, not code: scripts/data/c8a-accepted-duplicates.json lists each accepted
+ * (tracking id, exact set of orders) with its reason and owner date
+ * (scripts/lib/accepted-duplicates.mjs). An accepted pair is reported as INFO and does not
+ * fail; any other double claim — a new tracking id, or a third order joining an accepted
+ * one — still FAILs; an entry that no longer matches a double claim WARNs (clean the file);
+ * an unreadable/invalid file FAILs (it must never silently accept everything).
+ * `node scripts/verify-attribution.mjs --c8a-template` prints the SQL + ready entries.
+ */
+export function judgeC8a({ doubles, accepted, narrowed = false, sampleN = SAMPLE_DEFAULT }) {
+  const file = accepted.file ? String(accepted.file).split(/[\\/]/).slice(-3).join('/') : 'scripts/data/c8a-accepted-duplicates.json';
+  const cls = classifyDoubleClaims(doubles, accepted.errors?.length ? [] : accepted.entries);
+  const paidOf = (d) => d.holders.filter((h) => h.status === 'paid').map((h) => Number(h.eur) || 0);
+  const excess = (d) => { const p = paidOf(d); return p.length > 1 ? p.reduce((a, b) => a + b, 0) - Math.max(...p) : 0; };
+  const bad = cls.unaccepted;
+  const involved = bad.reduce((n, d) => n + d.holders.length, 0);
+  const doublePaid = bad.filter((d) => paidOf(d).length > 1).length;
+  const excessEur = Math.round(bad.reduce((n, d) => n + excess(d), 0) * 100) / 100;
+  const byStatuses = new Map();
+  for (const d of bad) {
+    const k = d.holders.map((h) => h.status).sort().join('+');
+    byStatuses.set(k, (byStatuses.get(k) || 0) + 1);
+  }
+  const line = (d) => d.holders.map((h) => `${h.display_id} ${h.status} ${h.source ?? '-'} EUR ${Number(h.eur ?? 0).toFixed(2)}`).join(' | ');
+  const sample = [...bad]
+    .sort((a, b) => paidOf(b).length - paidOf(a).length || b.holders.length - a.holders.length || a.tracking_id.localeCompare(b.tracking_id))
+    .slice(0, sampleN)
+    .map((d) => ({ tracking_id: d.tracking_id, holders: d.holders.length, orders: line(d) }));
+  const invalid = accepted.errors?.length ? accepted.errors : null;
+  const status = invalid || bad.length ? 'FAIL' : (cls.stale.length || cls.changed.length) ? 'WARN' : 'PASS';
+  const notes = [
+    `${fmtNum(bad.length)} tracking id(s) held by ${fmtNum(involved)} non-duplicated orders outside the owner-accepted list; ${fmtNum(doublePaid)} of them `
+      + `carry 2+ PAID orders (one delivery counted as revenue more than once: EUR ${fmtNum(excessEur, 2)} claimed beyond the first order per parcel)`,
+    `INFO: ${fmtNum(cls.accepted.length)} owner-accepted double claim(s) (C8a exception, ${file}) — both orders are kept, not a failure`,
+  ];
+  if (invalid) notes.push(`the exception file is INVALID (${invalid.join('; ')}) — no pair is accepted until it is fixed`);
+  if (accepted.missing) notes.push(`the exception file ${file} is missing — no pair is accepted`);
+  if (cls.changed.length) notes.push(`${cls.changed.length} accepted tracking id(s) are now held by a DIFFERENT set of orders (${cls.changed.map((e) => `${e.tracking_id}: accepted ${e.orders.join('+')}, now ${e.now_held_by.join('+')}`).join('; ')}) — that is a new double claim`);
+  if (cls.stale.length) notes.push(`${cls.stale.length} exception(s) no longer match any double claim (${cls.stale.map((e) => e.tracking_id).join(', ')}) — remove them from ${file}`);
+  if (bad.length) notes.push(`if the owner accepts one: node scripts/verify-attribution.mjs --c8a-template, then add the entry to ${file}`);
+  if (narrowed) notes.push('only ids with at least one holder created in the window');
+  return {
+    status,
+    count: bad.length,
+    sample,
+    note: notes.join('; '),
+    breakdown: {
+      by_holder_statuses: [...byStatuses].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([k, n]) => ({ k, n })),
+      owner_accepted: cls.accepted.map((d) => ({ tracking_id: d.tracking_id, orders: d.holders.map((h) => `${h.display_id} ${h.status}`).join(' + '), owner_date: d.owner_date, reason: d.reason })),
+      stale_exceptions: cls.stale.map((e) => ({ tracking_id: e.tracking_id, orders: e.orders.join(' + '), owner_date: e.owner_date })),
+    },
+  };
+}
+
 async function c8aSharedTracking(ctx) {
   const w = ctx.windows.invariant;
   const narrowed = Boolean(w.fromUtc || w.toUtc);
-  const [r] = await ctx.sql(`
+  const rows = await ctx.sql(`
 WITH t AS (
-  SELECT o.mex_tracking_id AS tracking_id, count(*)::int AS holders,
-         count(*) FILTER (WHERE o.status = 'paid')::int AS paid_holders,
-         ${eur2("sum(o.price) FILTER (WHERE o.status = 'paid')")} - ${eur2("max(o.price) FILTER (WHERE o.status = 'paid')")} AS excess_paid_eur,
-         string_agg(o.status::text, '+' ORDER BY o.status::text) AS statuses,
-         string_agg(o.display_id || ' ' || o.status::text || ' ' || coalesce(o.source_type, '-') || ' EUR ' || ${eur2('o.price')}::text,
-                    ' | ' ORDER BY o.created_at) AS orders
+  SELECT o.mex_tracking_id AS tracking_id,
+         json_agg(json_build_object('display_id', o.display_id, 'status', o.status::text, 'source', coalesce(o.source_type, '-'),
+                                    'eur', ${eur2('o.price')}) ORDER BY o.created_at, o.display_id) AS holders
   FROM public.orders o
   WHERE o.mex_tracking_id IS NOT NULL AND o.status::text <> 'duplicated'
   GROUP BY o.mex_tracking_id
   HAVING count(*) > 1${narrowed ? ` AND bool_or(${within('o.created_at', w)})` : ''}
 )
-SELECT (SELECT count(*) FROM t)::int AS n,
-  (SELECT coalesce(sum(holders), 0) FROM t)::int AS orders_involved,
-  (SELECT count(*) FROM t WHERE paid_holders > 1)::int AS double_paid,
-  (SELECT coalesce(sum(excess_paid_eur), 0) FROM t) AS excess_paid_eur,
-  ${kv('t', 'statuses', { eur: false })} AS by_statuses,
-  (SELECT coalesce(json_agg(s), '[]') FROM (
-     SELECT tracking_id, holders, orders FROM t
-     ORDER BY paid_holders DESC, holders DESC, tracking_id LIMIT ${ctx.sampleN}) s) AS sample`);
-  return {
-    status: r.n > 0 ? 'FAIL' : 'PASS',
-    count: r.n,
-    sample: r.sample,
-    note: `${fmtNum(r.n)} tracking id(s) held by ${fmtNum(r.orders_involved)} non-duplicated orders; ${fmtNum(r.double_paid)} of them `
-      + `carry 2+ PAID orders (one delivery counted as revenue more than once: EUR ${fmtNum(r.excess_paid_eur, 2)} claimed beyond `
-      + 'the first order per parcel)'
-      + (narrowed ? '; only ids with at least one holder created in the window' : ''),
-    window: describeWindow(w),
-    breakdown: { by_holder_statuses: r.by_statuses },
-  };
+SELECT tracking_id, holders FROM t ORDER BY tracking_id LIMIT 5000`);
+  const accepted = ctx.acceptedDuplicates ?? loadAcceptedDuplicates();
+  return { ...judgeC8a({ doubles: rows, accepted, narrowed, sampleN: ctx.sampleN }), window: describeWindow(w) };
+}
+
+/** --c8a-template: the read-only SQL + a ready JSON entry per double claim live now. */
+async function printC8aTemplate() {
+  const rows = await runSql(DOUBLE_CLAIMS_SQL);
+  const today = skopjeToday();
+  const acc = loadAcceptedDuplicates();
+  const known = new Set((acc.entries || []).map((e) => `${e.tracking_id}#${e.key}`));
+  const out = [
+    'C8a exception template — READ-ONLY. The SQL (run it yourself read-only if you prefer):',
+    '', DOUBLE_CLAIMS_SQL, '',
+    `${rows.length} tracking id(s) are held by two or more live orders now. Paste into "accepted" of`,
+    'scripts/data/c8a-accepted-duplicates.json ONLY the entries the owner accepted (3 on 28.09.2026),',
+    'with the reason filled in; any other double claim must stay a FAIL.', '',
+  ];
+  for (const r of rows) {
+    const orders = Array.isArray(r.orders) ? r.orders : [];
+    const already = known.has(`${r.tracking_id}#${[...orders].map((d) => String(d).toUpperCase()).sort().join('|')}`);
+    out.push(`// ${r.tracking_id}: ${r.detail}${already ? '   [already accepted]' : ''}`);
+    out.push(`${JSON.stringify({ tracking_id: r.tracking_id, orders, reason: 'Owner 28.09.2026: both orders are real — <say why>', owner_date: today })},`);
+  }
+  console.log(out.join('\n'));
 }
 
 async function c8bTrackingNotInLedger(ctx) {
@@ -1226,10 +1292,11 @@ export async function runChecks(ctx, checks = CHECKS) {
 
 const USAGE = `usage: node scripts/verify-attribution.mjs [--from YYYY-MM-DD] [--to YYYY-MM-DD]
                                           [--guard-since YYYY-MM-DD|YYYY-MM-DDTHH:MM|ISO] [--sample N] [--json]
+       node scripts/verify-attribution.mjs --c8a-template
 Read-only. Dates are Skopje calendar days (inclusive). Exit 1 if any check FAILs, 2 if refused/unreachable.`;
 
 export function parseArgs(argv) {
-  const opts = { json: false, sample: SAMPLE_DEFAULT, from: null, to: null, guardSince: null, help: false };
+  const opts = { json: false, sample: SAMPLE_DEFAULT, from: null, to: null, guardSince: null, help: false, c8aTemplate: false };
   const valued = { '--from': 'from', '--to': 'to', '--sample': 'sample', '--guard-since': 'guardSince' };
   for (let i = 0; i < argv.length; i++) {
     let arg = argv[i];
@@ -1237,6 +1304,7 @@ export function parseArgs(argv) {
     const eq = arg.indexOf('=');
     if (arg.startsWith('--') && eq > 0) { val = arg.slice(eq + 1); arg = arg.slice(0, eq); }
     if (arg === '--json' && val === undefined) opts.json = true;
+    else if (arg === '--c8a-template' && val === undefined) opts.c8aTemplate = true;
     else if ((arg === '--help' || arg === '-h') && val === undefined) opts.help = true;
     else if (valued[arg]) {
       if (val === undefined) val = argv[++i];
@@ -1354,6 +1422,7 @@ async function main(argv) {
   const opts = parseArgs(argv);
   if (opts.help) { console.log(USAGE); return EXIT.OK; }
   TOKEN = loadToken();
+  if (opts.c8aTemplate) { await printC8aTemplate(); return EXIT.OK; }
   const ctx = await buildContext(opts);
   const results = await runChecks(ctx);
   const summary = { PASS: 0, FAIL: 0, WARN: 0, SKIP: 0 };
