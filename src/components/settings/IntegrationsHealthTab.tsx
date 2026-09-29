@@ -235,6 +235,9 @@ function JobsList({ jobs, now }: { jobs: HealthJob[]; now: number }) {
 function FeedCard({ feed, now }: { feed: HealthFeed; now: number }) {
   const { t } = useTranslation();
   const s = STATUS[feed.status] ?? STATUS['n/a'];
+  // collabBox has a run log like every other feed since 20260942001400: last_ok_at is its last
+  // ok sync run (jobs 'rolling' = the 15-minute pass, 'nightly', 'manual'); data_through is the
+  // newest document the sync has read. Its one row (lag_parcels) is a backlog, not a 24 h count.
   const isCb = feed.key === 'collabbox';
   const rowKeys = Object.keys(feed.rows ?? {});
   return (
@@ -248,14 +251,16 @@ function FeedCard({ feed, now }: { feed: HealthFeed; now: number }) {
       </header>
 
       <dl className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 text-sm">
-        <dt className="text-muted-foreground">{isCb ? t('settings.integrations.newestDoc') : t('settings.integrations.lastOk')}</dt>
+        <dt className="text-muted-foreground">{t('settings.integrations.lastOk')}</dt>
         <dd><When iso={feed.last_ok_at} now={now} /></dd>
-        {!isCb && (
+        <dt className="text-muted-foreground">{t('settings.integrations.runs24')}</dt>
+        <dd className={cn('tabular-nums', feed.failed_24h > 0 && 'text-red-700 dark:text-red-400')}>
+          {t('settings.integrations.runs24Value', { runs: feed.runs_24h, failed: feed.failed_24h })}
+        </dd>
+        {isCb && feed.data_through && (
           <>
-            <dt className="text-muted-foreground">{t('settings.integrations.runs24')}</dt>
-            <dd className={cn('tabular-nums', feed.failed_24h > 0 && 'text-red-700 dark:text-red-400')}>
-              {t('settings.integrations.runs24Value', { runs: feed.runs_24h, failed: feed.failed_24h })}
-            </dd>
+            <dt className="text-muted-foreground">{t('settings.integrations.newestDoc')}</dt>
+            <dd><When iso={feed.data_through} now={now} /></dd>
           </>
         )}
       </dl>

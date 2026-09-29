@@ -66,8 +66,19 @@ const health: IntegrationsHealth = {
           last_run_status: 'failed', last_error: 'stale: still running after 10 minutes', last_error_at: '2026-09-27T01:15:00Z',
           runs_24h: 1, failed_24h: 1, rows_24h: 0 },
       ] },
-    { key: 'collabbox', status: 'stale', last_ok_at: '2026-09-18T07:00:00Z', last_run_at: null, data_through: '2026-09-18T07:00:00Z',
-      detail: 'manual import', last_error: null, last_error_at: null, runs_24h: 0, failed_24h: 0, rows: { lag_parcels: 34517 }, jobs: [], days: null },
+    // collabBox since 20260942001400: last_ok_at = its last ok sync run, with a run log like the others
+    { key: 'collabbox', status: 'ok', last_ok_at: '2026-09-28T00:03:00Z', last_run_at: '2026-09-28T00:00:05Z',
+      data_through: '2026-09-27T20:41:00Z', detail: 'full sync every 15 min 07:00-22:59 (yesterday + today) + nightly 00:00',
+      last_error: 'collabBox login: 502', last_error_at: '2026-09-27T09:15:00Z', runs_24h: 68, failed_24h: 1,
+      rows: { lag_parcels: 34517 }, days: days.map((d) => day(d, 64, d === '2026-09-27' ? 1 : 0)),
+      jobs: [
+        { job: 'rolling', expect: 'cbx_15m', status: 'ok', last_ok_at: '2026-09-27T20:48:00Z', last_run_at: '2026-09-27T20:45:00Z',
+          last_run_status: 'ok', last_error: null, last_error_at: null, runs_24h: 64, failed_24h: 0, rows_24h: 312 },
+        { job: 'nightly', expect: 'nightly', status: 'ok', last_ok_at: '2026-09-28T00:03:00Z', last_run_at: '2026-09-28T00:00:05Z',
+          last_run_status: 'ok', last_error: null, last_error_at: null, runs_24h: 1, failed_24h: 0, rows_24h: 40 },
+        { job: 'manual', expect: 'manual', status: 'ok', last_ok_at: '2026-09-27T10:02:00Z', last_run_at: '2026-09-27T10:00:00Z',
+          last_run_status: 'ok', last_error: 'collabBox login: 502', last_error_at: '2026-09-27T09:15:00Z', runs_24h: 3, failed_24h: 1, rows_24h: 0 },
+      ] },
   ],
   no_parcel: {
     key: 'no_parcel_rule', status: 'ok', mode: 'report', days_n: 7, hour: 21, settings: {},
@@ -140,16 +151,28 @@ describe('Settings → Teams — person drawer', () => {
 });
 
 describe('Settings → Integrations health', () => {
-  it('shows every feed with an icon + word, the failing job, and collabBox without a run strip', async () => {
+  it('shows every feed with an icon + word, the failing job, and collabBox with its run log like the others', async () => {
     wrap(<IntegrationsHealthTab />);
     const alter = await screen.findByRole('region', { name: 'AlterCPA' }, { timeout: 10_000 });
     expect(within(alter).getAllByText(i18n.t('settings.integrations.status.ok')).length).toBeGreaterThan(0);
     expect(within(alter).getByText(i18n.t('settings.integrations.status.failing'))).toBeInTheDocument();
     expect(within(alter).getByText(i18n.t('settings.integrations.job.nightly'))).toBeInTheDocument();
     const cb = screen.getByRole('region', { name: 'collabBox' });
-    expect(within(cb).getByText(i18n.t('settings.integrations.noRunsYet'))).toBeInTheDocument();
+    // last success = the last ok sync run (no longer "newest document"), runs, the strip and the jobs
+    expect(within(cb).getByText(i18n.t('settings.integrations.lastOk'))).toBeInTheDocument();
+    expect(within(cb).getByText(i18n.t('settings.integrations.runs24Value', { runs: 68, failed: 1 }))).toBeInTheDocument();
+    expect(within(cb).getByText(i18n.t('settings.integrations.days7'))).toBeInTheDocument();
+    expect(within(cb).queryByText(i18n.t('settings.integrations.noRunsYet'))).toBeNull();
+    expect(within(cb).getByText(i18n.t('settings.integrations.job.rolling'))).toBeInTheDocument();
+    expect(within(cb).getByText(i18n.t('settings.integrations.expect.cbx_15m'))).toBeInTheDocument();
+    expect(within(cb).getByText(i18n.t('settings.integrations.job.manual'))).toBeInTheDocument();
+    // the newest document the sync has read is its own row; the old error sits under the last success
+    expect(within(cb).getByText(i18n.t('settings.integrations.newestDoc'))).toBeInTheDocument();
+    expect(within(cb).getByText(`· ${i18n.t('settings.integrations.errorOld')}`)).toBeInTheDocument();
+    // the NATURA backlog is not a 24 h count: no "came in, 24 h" heading on this card
     expect(within(cb).getByText('34.517')).toBeInTheDocument();
-    expect(screen.getByText(i18n.t('settings.integrations.issues', { count: 2 }))).toBeInTheDocument();
+    expect(within(cb).queryByText(i18n.t('settings.integrations.rows24'))).toBeNull();
+    expect(screen.getByText(i18n.t('settings.integrations.issues', { count: 1 }))).toBeInTheDocument();
   }, 30_000);
 
   it('switching the no-parcel rule to Apply states the exact count first, then switches', async () => {
