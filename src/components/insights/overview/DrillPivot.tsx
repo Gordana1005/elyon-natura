@@ -28,6 +28,13 @@ const soldValueOf = (src: OverviewSource): number | null => {
 const isNone = (v: unknown) => v == null || PIVOT_NONE.has(String(v));
 
 /**
+ * NOT DRAWN (29.09.2026) — waits for a rebuild on the cohort (insights_sale_rows).
+ * insights_pivot counts orders by CREATED day on CRM status in EUR, counts the
+ * 0-ден "no"-call rows as orders and misses the web shop and MEX-only sales, and
+ * its level 1 is the pre-cohort insights_overview sources — so its rows cannot
+ * tie to the rest of the Overview (for a non-owner every level also reads
+ * "owners only"). OverviewTab no longer renders it; no verify script checks it.
+ *
  * Source → team → person → one detail dimension (insights_pivot). Level 1 comes
  * from the overview itself; each deeper level is fetched the first time any row
  * at that depth is opened — one request per level and range, shared by every

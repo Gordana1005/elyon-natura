@@ -3149,7 +3149,9 @@
         "title": "Sold from the prediction lists · {{period}}",
         "titleNoMoney": "Sales from the prediction lists · {{period}}",
         "tie": "= Overview · Affiliate – Lead out · Prediction lists: {{n}} · {{value}}",
-        "tieNoMoney": "= Overview · Affiliate – Lead out · Prediction lists: {{n}}"
+        "tieNoMoney": "= Overview · Affiliate – Lead out · Prediction lists: {{n}}",
+        "tieDepts": "= Overview · Prediction lists in every department: Affiliate – Lead out {{n}} · {{value}} + other departments {{m}} · {{rest}}",
+        "tieDeptsNoMoney": "= Overview · Prediction lists in every department: Affiliate – Lead out {{n}} + other departments {{m}}"
       },
       "kpi": {
         "title": "Key figures of the lists",
@@ -5897,6 +5899,13 @@
       "byMonth": "by month",
       "placed": "Placed (value)",
       "placedCount": "Placed (orders)",
+      "sales": "Sold (value)",
+      "salesCount": "Sales",
+      "subtitleSales": "Sold by sale day vs cash collected (MEX) · each chart has its own scale",
+      "subtitleSalesCount": "Sales by sale day vs parcels delivered · each chart has its own scale",
+      "subtitleCashOnly": "Cash collected (MEX) by delivery day · each chart has its own scale",
+      "subtitleCashOnlyCount": "Parcels delivered by delivery day · each chart has its own scale",
+      "toSales": "Details: Sales",
       "cash": "Collected (MEX)",
       "delivered": "Delivered (parcels)",
       "chart": "Chart",
@@ -5937,6 +5946,7 @@
       "timeTitle": "Online {{online}} · active {{active}} · idle {{idle}} · break {{brk}}",
       "tvBoard": "TV board",
       "tvNoLink": "No TV link yet — create one in Settings → Leaderboard",
+      "openAgents": "Details: Agents",
       "empty": "Nobody on this team in the period.",
       "onBreak": "{{n}} on break"
     },
@@ -6045,7 +6055,8 @@
         "empty": "No sales in this period.",
         "bookedNote_one": "{{n}} of them is booked in collabBox and still waits for its MEX parcel — it becomes an order when the parcel is created.",
         "bookedNote_other": "{{n}} of them are booked in collabBox and still wait for their MEX parcel — they become orders when the parcel is created."
-      }
+      },
+      "loadFailed": "The period's sales could not be computed, so they are not shown. Try again."
     },
     "clock": {
       "placed": "Counted by the day the order was placed (Skopje time)"

@@ -218,16 +218,18 @@ export const salesPerHourOf = (sales: number, activeMinutes: number | null | und
 export const LIST_SALE_SOURCE = 'elyon_crm';
 export const LIST_DETAIL = 'prediction_list';
 /** The Affiliate – Lead out department key — the tab's footer card. The tab's list sales are
- *  NOT limited to it: since 20260942001800 a list sale counts in its agent's department (a
- *  teleshop Lead-out agent's → Телешоп – Lead out), and the tab shows the list sales of every
- *  department, so its links carry sale_source + detail only (no cohort_source). */
+ *  NOT limited to it: a CRM list sale follows its parcel's MEX profile (20260942001860) — on
+ *  BIO NATURAL, or with no parcel yet, Affiliate – Lead out; on a NATURA parcel its series decides
+ *  (9100 → Телешоп – Lead in, 9108 / 1300 → Social media, else Телешоп – Lead out). The tab shows
+ *  the list sales of every department, so its links carry sale_source + detail only (no
+ *  cohort_source). */
 export const LIST_COHORT_SOURCE = 'elyon_crm';
 
 /**
  * `/orders?cohort_bucket=…&sale_source=elyon_crm&sale_source_detail=prediction_list
  * [&prediction_list=<exact name>][&sold_by_person_id=…]&sold_from&sold_to` — the
  * order twin of a number on this tab (every list sale is an order, in whichever
- * department its agent puts it — 20260942001800).
+ * department its parcel puts it — 20260942001860).
  */
 export function listsHref(
   key: DrillKey | DrillKey[],
@@ -270,6 +272,29 @@ export function listsDrill(
   if (!supported) return { ...base, href: null, blocked: 'unsupported' };
   if (listName === null) return { ...base, href: null, blocked: 'unknown' };
   return { ...base, href: listsHref(keys, range, { listName }), blocked: null };
+}
+
+/** A count with its денари value (value null = no money in the payload). */
+export interface TiePart { count: number; value_mkd: number | null }
+
+/**
+ * The header's tie to the Overview. The header holds the list sales of EVERY
+ * department, so it equals the Σ of the Overview cards' prediction_list split:
+ * Affiliate – Lead out's part (the footer's split, `elyon_crm.splits`) + the rest,
+ * which sits in the other departments' cards (list sales on NATURA parcels).
+ * Null when there is nothing to tie.
+ */
+export function listsTieParts(
+  total: { count: number; value_mkd?: number | null },
+  leadOut: { count: number; value_mkd?: number | null } | null | undefined,
+): { leadOut: TiePart; other: TiePart } | null {
+  if (!leadOut && !(total.count > 0)) return null;
+  const lv = leadOut?.value_mkd;
+  const tv = total.value_mkd;
+  // no Lead out split at all = none of the list sales is Affiliate – Lead out's (0 ден for an owner)
+  const lo: TiePart = { count: num(leadOut?.count), value_mkd: hasNum(lv) ? lv : !leadOut && hasNum(tv) ? 0 : null };
+  const otherValue = hasNum(tv) && (lo.value_mkd != null || lo.count === 0) ? Math.max(0, tv - (lo.value_mkd ?? 0)) : null;
+  return { leadOut: lo, other: { count: Math.max(0, num(total.count) - lo.count), value_mkd: otherValue } };
 }
 
 /**

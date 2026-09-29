@@ -34,9 +34,10 @@
     },
     {
       "feed": "collabbox",
-      "last_ok_at": "2026-09-11T07:12:00Z",
+      "last_ok_at": "2026-09-28T05:15:00Z",
       "status": "stale",
-      "detail": "manual import; newest document 11.09.2026"
+      "detail": "full sync every 15 min 07:00-22:59 (yesterday + today) + nightly 00:00 (last 3 days); last ok 28.09.2026 07:15; documents through 28.09.2026 07:10; 12 NATURA parcels without a document",
+      "data_through": "2026-09-28T05:10:00Z"
     }
   ],
   "kpis": {
@@ -1869,6 +1870,7 @@
       "severity": "critical",
       "count": 38,
       "value_eur": 1547.22,
+      "value_mkd": 95154,
       "by_person": [
         {
           "person_id": "p-010",
@@ -1904,6 +1906,8 @@
       "severity": "warning",
       "count": 17,
       "value_eur": 612.4,
+      "cod_mkd": 38140,
+      "value_mkd": 38140,
       "by_status": [
         {
           "status_id": 9,
@@ -1951,6 +1955,8 @@
       "severity": "warning",
       "count": 6,
       "value_eur": 243.9,
+      "cod_mkd": 15890,
+      "value_mkd": 15890,
       "by_person": [
         {
           "person_id": "p-012",
@@ -1971,6 +1977,8 @@
       "severity": "warning",
       "count": 135,
       "value_eur": 4765.2,
+      "cod_mkd": 293060,
+      "value_mkd": 293060,
       "sample": [
         {
           "display_id": "9102-0045117",
@@ -1986,8 +1994,8 @@
       "sample": [
         {
           "display_id": "collabbox",
-          "at": "2026-09-11T07:12:00Z",
-          "note": "stale · manual import; newest document 11.09.2026"
+          "at": "2026-09-28T05:15:00Z",
+          "note": "stale · full sync every 15 min 07:00-22:59 (yesterday + today) + nightly 00:00 (last 3 days); last ok 28.09.2026 07:15; documents through 28.09.2026 07:10; 12 NATURA parcels without a document"
         }
       ]
     },
@@ -1995,7 +2003,9 @@
       "kind": "web_waiting_24h",
       "severity": "warning",
       "count": 5,
-      "value_eur": 187.3
+      "value_eur": 187.3,
+      "cod_mkd": 11519,
+      "value_mkd": 11519
     },
     {
       "kind": "night_approvals",

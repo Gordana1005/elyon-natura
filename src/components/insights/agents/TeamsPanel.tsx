@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { ArrowDown, ArrowUp, ChevronRight, Circle, Coffee } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ArrowDown, ArrowUp, Bell, ChevronRight, Circle, Coffee, ExternalLink } from 'lucide-react';
 import type { PeopleMember, PeoplePerson, PeopleTeam } from '@/lib/insightsApi/agents';
 import { cn } from '@/lib/utils';
 import { DrillLink } from '../overview/DrillLink';
@@ -15,40 +16,54 @@ import { isMainTeam, memberIsWhole, personHref, personLinkable, ratesOf, sortTea
 import { BucketLegend, BucketsBar, PersonBadges, PresenceIcon, SourceSplit, TimeCell, teamName } from './parts';
 
 /**
- * Teams side by side (the Overview's TeamsBoard, on the cohort): each team
- * counts every sale, decision and minute in the team the person was in THAT
- * day, so its members add up to it. The two call teams sit side by side;
- * Teleshop / collabBox, Management and "no team" follow.
+ * Teams side by side (the Agents tab's, and the Overview's board — the same
+ * component on the same GET /insights/agents payload, so the two show the same
+ * numbers): each team counts every sale, decision and minute in the team the
+ * person was in THAT day, so its members add up to it. The two call teams sit
+ * side by side; Teleshop / collabBox, Management and "no team" follow.
  */
-export function TeamsPanel({ teams, people, range, money, onPerson, f }: {
+export function TeamsPanel({ teams, people, range, money, onPerson, f, aside, tvHref, alerts = false }: {
   teams: PeopleTeam[];
   people: PeoplePerson[];
   range: DayRange;
   money: boolean;
   onPerson: (id: string) => void;
   f: InsightsFormat;
+  /** Beside the title (the Overview: the presence legend and its link to the Agents tab). */
+  aside?: ReactNode;
+  /** A team's TV-board link (the Overview): a URL, null = no link yet (→ Settings), undefined = none. */
+  tvHref?: (team: PeopleTeam) => string | null | undefined;
+  /** Each member's idle alerts (the Overview's bell column). */
+  alerts?: boolean;
 }) {
   const { t } = f;
   const ordered = useMemo(() => sortTeams(teams), [teams]);
   const byId = useMemo(() => new Map(people.map((p) => [p.person_id, p])), [people]);
   const main = ordered.filter(isMainTeam);
   const rest = ordered.filter((tm) => !isMainTeam(tm));
+  const card = (tm: PeopleTeam, open: boolean) => (
+    <TeamCard key={tm.key} team={tm} byId={byId} range={range} money={money} onPerson={onPerson} open={open}
+      tv={tvHref?.(tm)} alerts={alerts} f={f} />
+  );
   return (
     <section aria-labelledby="ag-teams-title" className="space-y-3">
-      <div>
-        <h2 id="ag-teams-title" className="text-base font-semibold">{t('insights.agents.teams.title')}</h2>
-        <p className="text-xs text-muted-foreground">{t('insights.agents.teams.subtitle')}</p>
-        <ClockCaption clock={['sale', 'decided']} />
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h2 id="ag-teams-title" className="text-base font-semibold">{t('insights.agents.teams.title')}</h2>
+          <p className="text-xs text-muted-foreground">{t('insights.agents.teams.subtitle')}</p>
+          <ClockCaption clock={['sale', 'decided']} />
+        </div>
+        {aside}
       </div>
       {ordered.length === 0 ? (
         <p className="rounded-xl border bg-card p-6 text-center text-sm text-muted-foreground">{t('insights.agents.teams.empty')}</p>
       ) : (
         <>
           <div className="grid grid-cols-1 gap-3 2xl:grid-cols-2">
-            {main.map((tm) => <TeamCard key={tm.key} team={tm} byId={byId} range={range} money={money} onPerson={onPerson} open f={f} />)}
+            {main.map((tm) => card(tm, true))}
           </div>
           <div className="grid grid-cols-1 gap-3 2xl:grid-cols-2">
-            {rest.map((tm) => <TeamCard key={tm.key} team={tm} byId={byId} range={range} money={money} onPerson={onPerson} open={false} f={f} />)}
+            {rest.map((tm) => card(tm, false))}
           </div>
         </>
       )}
@@ -56,9 +71,9 @@ export function TeamsPanel({ teams, people, range, money, onPerson, f }: {
   );
 }
 
-function TeamCard({ team, byId, range, money, onPerson, open, f }: {
+function TeamCard({ team, byId, range, money, onPerson, open, tv, alerts, f }: {
   team: PeopleTeam; byId: Map<string, PeoplePerson>; range: DayRange; money: boolean;
-  onPerson: (id: string) => void; open: boolean; f: InsightsFormat;
+  onPerson: (id: string) => void; open: boolean; tv?: string | null; alerts: boolean; f: InsightsFormat;
 }) {
   const { t } = f;
   const name = teamName(team.key, team.name, f);
@@ -97,6 +112,17 @@ function TeamCard({ team, byId, range, money, onPerson, open, f }: {
             </span>
           )}
           {spark.length > 1 && <Sparkline points={spark} accentClass={COHORT_TONE.paid} className="w-24" />}
+          {tv !== undefined && (tv ? (
+            <a href={tv} target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              {t('overview.teams.tvBoard')}<ExternalLink className="h-3 w-3" aria-hidden />
+            </a>
+          ) : (
+            <Link to="/settings" title={t('overview.teams.tvNoLink')}
+              className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              {t('overview.teams.tvBoard')}
+            </Link>
+          ))}
         </div>
       </header>
       <dl className="flex flex-wrap gap-x-4 gap-y-1 px-4 pb-2 text-xs text-muted-foreground">
@@ -131,17 +157,17 @@ function TeamCard({ team, byId, range, money, onPerson, open, f }: {
           <ChevronRight className="h-3.5 w-3.5 transition-transform group-open:rotate-90" aria-hidden />
           {t('insights.agents.teams.members', { n: f.int(team.members.length) })}
         </summary>
-        <MemberTable team={team} byId={byId} range={range} money={money} onPerson={onPerson} f={f} />
+        <MemberTable team={team} byId={byId} range={range} money={money} onPerson={onPerson} alerts={alerts} f={f} />
       </details>
     </article>
   );
 }
 
-type MemberSort = 'name' | 'online' | 'worked' | 'conversion' | 'sales' | 'paid' | 'returned' | 'value';
+type MemberSort = 'name' | 'online' | 'worked' | 'conversion' | 'sales' | 'paid' | 'returned' | 'value' | 'alerts';
 
-function MemberTable({ team, byId, range, money, onPerson, f }: {
+function MemberTable({ team, byId, range, money, onPerson, alerts, f }: {
   team: PeopleTeam; byId: Map<string, PeoplePerson>; range: DayRange; money: boolean;
-  onPerson: (id: string) => void; f: InsightsFormat;
+  onPerson: (id: string) => void; alerts: boolean; f: InsightsFormat;
 }) {
   const { t } = f;
   const [sort, setSort] = useState<{ key: MemberSort; dir: 'asc' | 'desc' }>({ key: 'sales', dir: 'desc' });
@@ -156,6 +182,7 @@ function MemberTable({ team, byId, range, money, onPerson, f }: {
         case 'paid': return m.buckets.paid;
         case 'returned': return m.buckets.returned;
         case 'value': return m.value_mkd ?? null;
+        case 'alerts': return m.presence?.idle_alerts ?? null;
       }
     };
     const dir = sort.dir === 'asc' ? 1 : -1;
@@ -167,7 +194,7 @@ function MemberTable({ team, byId, range, money, onPerson, f }: {
       return b.sales - a.sales || b.worked - a.worked;
     });
   }, [team.members, sort, byId]);
-  const cols: { key: MemberSort; label: string; left?: boolean }[] = [
+  const cols: { key: MemberSort; label: string; left?: boolean; icon?: boolean }[] = [
     { key: 'name', label: t('insights.agents.col.person'), left: true },
     { key: 'online', label: t('insights.agents.col.online'), left: true },
     { key: 'worked', label: t('insights.agents.col.worked') },
@@ -176,6 +203,8 @@ function MemberTable({ team, byId, range, money, onPerson, f }: {
     { key: 'paid', label: t('insights.agents.col.paid') },
     { key: 'returned', label: t('insights.agents.col.returned') },
     ...(money ? [{ key: 'value' as const, label: t('insights.agents.col.value') }] : []),
+    // A bell, not the word: keeps two teams side by side on a normal wide screen.
+    ...(alerts ? [{ key: 'alerts' as const, label: t('overview.teams.col.alerts'), icon: true }] : []),
   ];
   const toggle = (key: MemberSort) =>
     setSort((s) => (s.key === key ? { key, dir: s.dir === 'desc' ? 'asc' : 'desc' } : { key, dir: key === 'name' ? 'asc' : 'desc' }));
@@ -191,9 +220,9 @@ function MemberTable({ team, byId, range, money, onPerson, f }: {
               return (
                 <th key={c.key} scope="col" aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
                   className={cn('whitespace-nowrap px-2 py-1.5 font-medium first:sticky first:left-0 first:z-10 first:bg-card first:pl-4', c.left ? 'text-left' : 'text-right')}>
-                  <button type="button" onClick={() => toggle(c.key)}
+                  <button type="button" onClick={() => toggle(c.key)} title={c.icon ? c.label : undefined}
                     className={cn('inline-flex items-center gap-0.5 rounded-sm hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', active && 'text-foreground')}>
-                    {c.label}
+                    {c.icon ? <><Bell className="h-3.5 w-3.5" aria-hidden /><span className="sr-only">{c.label}</span></> : c.label}
                     {active && (sort.dir === 'asc' ? <ArrowUp className="h-3 w-3" aria-hidden /> : <ArrowDown className="h-3 w-3" aria-hidden />)}
                   </button>
                 </th>
@@ -210,6 +239,7 @@ function MemberTable({ team, byId, range, money, onPerson, f }: {
               n > 0 && whole && personLinkable(m, k) ? personHref(m.person_id, k, range, `${name} · ${label}`) : null;
             const why = whole ? undefined : t('insights.agents.teams.partOfPerson');
             const r = ratesOf(m);
+            const idleAlerts = m.presence?.idle_alerts ?? null;
             return (
               <tr key={m.person_id} className="border-t">
                 <th scope="row" className="sticky left-0 z-10 max-w-[200px] bg-card py-1.5 pl-4 pr-2 text-left font-medium">
@@ -235,6 +265,13 @@ function MemberTable({ team, byId, range, money, onPerson, f }: {
                   <DrillLink href={link('returned', m.buckets.returned, f.bucketLabel('returned'))} title={why}>{f.int(m.buckets.returned)}</DrillLink>
                 </td>
                 {money && <td className="whitespace-nowrap px-2 py-1.5 pr-4 text-right tabular-nums">{m.value_mkd != null ? f.den(m.value_mkd) : '—'}</td>}
+                {alerts && (
+                  // null = no presence record (it starts 28.09.2026): "—", never a fake 0
+                  <td className={cn('px-2 py-1.5 pr-4 text-right tabular-nums',
+                    (idleAlerts ?? 0) > 0 ? 'font-semibold text-amber-700 dark:text-amber-400' : 'text-muted-foreground')}>
+                    {idleAlerts == null ? '—' : f.int(idleAlerts)}
+                  </td>
+                )}
               </tr>
             );
           })}

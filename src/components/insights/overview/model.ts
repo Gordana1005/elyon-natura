@@ -11,6 +11,7 @@ import {
 } from '@/lib/api';
 import { SOURCE_ORDER } from './palette';
 import { isYmd, parsePeriodParams, writePeriodParams, type DayRange, type PeriodPreset } from '../shared/period';
+import type { CohortSparkPoint } from '../shared/cohortTypes';
 
 // ── Ranges (Skopje calendar days) ───────────────────────────────────────────
 // The period is shared by every /insights tab and lives in ../shared/period.ts
@@ -295,6 +296,31 @@ export function delta(cur: number | null | undefined, prev: number | null | unde
   const tone = goodWhen === 'neutral' ? 'neutral' : (dir === goodWhen ? 'good' : 'bad');
   if (prev === 0) return { dir: 'new', pct: null, tone };
   return { dir, pct: (cur - prev) / Math.abs(prev), tone };
+}
+
+/**
+ * The cohort's sales per trend bucket and department — insights_cohort's spark,
+ * which carries `by_source` since 20260942001930: the sales made that day (sale
+ * day, Skopje; bookings included), денари (parcel COD else price × 61,5) for
+ * owners, counts otherwise. Only buckets the trend has are read (a short window's
+ * spark starts 14 days back). Null when the payload has no per-department spark
+ * (an older api) or counts on another granularity — the trend then draws MEX
+ * cash alone.
+ */
+export function cohortSalesSeries(
+  spark: CohortSparkPoint[] | null | undefined,
+  money: boolean,
+  granularity: { spark?: string | null; trend: string },
+): Map<string, Partial<Record<OverviewSourceKey, number>>> | null {
+  if (!spark?.length || !spark.every((p) => Array.isArray(p.by_source))) return null;
+  if (granularity.spark && granularity.spark !== granularity.trend) return null;
+  const out = new Map<string, Partial<Record<OverviewSourceKey, number>>>();
+  for (const p of spark) {
+    const row: Partial<Record<OverviewSourceKey, number>> = {};
+    for (const s of p.by_source ?? []) row[s.key] = money ? num(s.value_mkd) : num(s.count);
+    out.set(p.d, row);
+  }
+  return out;
 }
 
 /** Sums the trend into one series for the selected sources. */

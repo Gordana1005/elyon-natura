@@ -2,11 +2,8 @@ import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { AlertTriangle, FlaskConical } from 'lucide-react';
-import {
-  apiGetInsightsOverview, apiGetInsightsPivot,
-  type OrdersDrillParams, type OverviewPivotDim, type OverviewPivotResponse, type OverviewResponse,
-  type OverviewSource, type OverviewSourceKey,
-} from '@/lib/api';
+import { apiGetInsightsOverview, type OverviewResponse } from '@/lib/api';
+import { apiGetInsightsAgents, type PeopleResponse } from '@/lib/insightsApi/agents';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiErrorText } from '@/i18n/apiErrors';
 import { Button } from '@/components/ui/button';
@@ -16,50 +13,61 @@ import { cn } from '@/lib/utils';
 import { skopjeHm } from '@/lib/presence/state';
 import { OVERVIEW_COLOR_VARS, SOURCE_ORDER } from './palette';
 import {
-  OUTCOME, deriveKpis, groupPivotRows, measureSetOf, ordersHref, parseOverviewParams, placedOf, preparingOf,
-  previousRange, seriesFromTrend, sourceDrill, stripMoney, writeOverviewParams,
-  type DayRange, type MeasureSet, type OverviewFilters, type TileKey,
+  cohortSalesSeries, parseOverviewParams, stripMoney, writeOverviewParams, type DayRange, type OverviewFilters,
 } from './model';
 import { FilterBar } from './FilterBar';
 import { FreshnessStrip } from './FreshnessStrip';
-import { KpiRow } from './KpiRow';
-import { SourceRows } from './SourceRows';
 import { SourceTrends } from './SourceTrends';
 import { TeamsBoard } from './TeamsBoard';
-import { DrillPivot } from './DrillPivot';
 import { AttentionRail } from './AttentionRail';
 import { useInsightsPeriod } from '../shared/useInsightsPeriod';
 import { useInsightsFormat } from '../shared/useInsightsFormat';
-import { useOverviewFormat } from './useOverviewFormat';
 import { CohortBar } from '../shared/CohortBar';
 import { CashFlowCard, LeadsInCard } from '../shared/CohortSecondary';
 import { CohortSources } from './CohortSources';
 import { QualityRail } from '../shared/QualityRail';
+import { LoadError } from '../shared/LoadError';
+import { switchTabParams } from '../shared/period';
 import { cohortDrill, cohortView, stripCohortMoney } from '../shared/cohortModel';
-import { cohortSourceParam } from '../shared/cohortTypes';
 import type { Cohort, CohortQualityKind } from '../shared/cohortTypes';
+import { sortTeams } from '../agents/model';
+import { teamName } from '../agents/parts';
 
 type FixtureMode = '1' | 'nomoney';
 
 /** GET /insights/overview embeds the shared sales cohort under `cohort` (the
- *  contract in ../shared/cohortTypes). Feature-detected: without it the page
- *  keeps the KPI row and source cards. */
+ *  contract in ../shared/cohortTypes) — null when its RPC failed. */
 type OverviewWithCohort = OverviewResponse & { cohort?: Cohort | null };
 
+/** The admin/manager view of a DEV fixture: every money key removed. */
+const stripMoneyKeys = <T,>(v: T): T => {
+  if (Array.isArray(v)) return v.map(stripMoneyKeys) as unknown as T;
+  if (v && typeof v === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, x] of Object.entries(v)) if (!/_(mkd|eur)$/.test(k)) out[k] = stripMoneyKeys(x);
+    return out as T;
+  }
+  return v;
+};
+
 /**
- * The connected Overview (Insights → Overview): every denar by source, team and
- * person, MEX-proven cash apart from claims. Owners get money (meta.money);
- * admins/managers get the same page counted, never an empty hole.
+ * The connected Overview (Insights → Overview, and the admins' Табла): every
+ * denar by department, team and person on THE sale cohort, MEX-proven cash
+ * apart from claims. Owners get money (meta.money); admins/managers get the same
+ * page counted, never an empty hole.
  *
- * Data: GET /insights/overview (+ /insights/pivot per drill level). In a DEV
- * build `?ovFixture=1` (or `=nomoney`) renders the typed fixture instead — the
- * branch and the JSON are compiled out of production builds.
+ * Data: GET /insights/overview (freshness, the MEX cash trend, the attention rail
+ * — and `cohort`, the sales everything else counts) + GET /insights/agents for
+ * the teams (the Agents tab's own query). The pre-cohort widgets are gone: the
+ * KPI tiles and source rows (created day, CRM status, EUR) — a missing cohort is
+ * an error with a retry now, never the old numbers — and the drill-down pivot
+ * (DrillPivot.tsx: created day, CRM status, EUR, "no" calls counted as orders,
+ * no web / MEX-only; it waits for a rebuild on the cohort and is not drawn).
+ * In a DEV build `?ovFixture=1` (or `=nomoney`) renders the typed fixtures
+ * instead — the branch and the JSON are compiled out of production builds.
  */
 export default function OverviewTab() {
   const f = useInsightsFormat();
-  // The pre-cohort source cards (fallback while the api has no `cohort`) label
-  // their created-day buckets from overview.bucket.*, not the cohort's vocabulary.
-  const fLegacy = useOverviewFormat();
   const { t } = f;
   const { user } = useAuth();
   const [sp, setSp] = useSearchParams();
@@ -89,6 +97,8 @@ export default function OverviewTab() {
     return apiGetInsightsOverview({ from: r.from, to: r.to, compare }, signal);
   }, [fixture]);
 
+  // ONE request per view: the cohort carries its own previous period, so a
+  // department filter needs no second Overview for the previous span.
   const q = useQuery({
     queryKey: ['insights-overview', user?.id, filters.range.from, filters.range.to, filters.compare, fixture],
     queryFn: ({ signal }) => load(filters.range, filters.compare, signal),
@@ -98,100 +108,73 @@ export default function OverviewTab() {
   });
   const data = q.data;
 
-  // Which sources are in view. Empty filter = all of them; order is fixed.
-  const allKeys = useMemo(
-    () => SOURCE_ORDER.filter((k) => data?.sources.some((s) => s.key === k))
-      .concat((data?.sources ?? []).map((s) => s.key).filter((k) => !SOURCE_ORDER.includes(k))),
-    [data],
-  );
-  const selected: OverviewSourceKey[] = useMemo(
-    () => (filters.sources.length ? allKeys.filter((k) => filters.sources.includes(k)) : allKeys),
-    [allKeys, filters.sources],
-  );
-  const filtered = filters.sources.length > 0 && selected.length < allKeys.length;
-
-  // A source filter needs the previous period per source → the same endpoint for that span.
-  const prevRange = previousRange(filters.range);
-  const prevQ = useQuery({
-    queryKey: ['insights-overview', user?.id, prevRange.from, prevRange.to, false, fixture],
-    queryFn: ({ signal }) => load(prevRange, false, signal),
-    enabled: !!data && filters.compare && filtered,
+  // The teams are the Agents tab's (GET /insights/agents): the SAME query key as
+  // AgentsTab, so the two share one cache entry and show the same numbers.
+  const loadAgents = useCallback(async (r: DayRange, compare: boolean, signal?: AbortSignal): Promise<PeopleResponse> => {
+    if (import.meta.env.DEV && fixture) {
+      const m = await import('../agents/__fixtures__/people.sample.json');
+      const d = structuredClone(m.default) as unknown as PeopleResponse;
+      const meta = { ...d.meta, access: 'owner' as const, money: true };
+      return fixture === 'nomoney'
+        ? stripMoneyKeys({ ...d, meta: { ...meta, access: 'counts' as const, money: false } })
+        : { ...d, meta };
+    }
+    return apiGetInsightsAgents({ from: r.from, to: r.to, compare }, signal);
+  }, [fixture]);
+  const agentsQ = useQuery({
+    queryKey: ['insights-agents', user?.id, filters.range.from, filters.range.to, filters.compare, fixture ? `ov-${fixture}` : null],
+    queryFn: ({ signal }) => loadAgents(filters.range, filters.compare, signal),
     staleTime: 5 * 60_000,
+    placeholderData: keepPreviousData,
     retry: 0,
   });
 
-  const fetchPivot = useCallback(async (by: OverviewPivotDim[], signal?: AbortSignal): Promise<OverviewPivotResponse> => {
-    if (import.meta.env.DEV && fixture) {
-      const m = await import('./__fixtures__/pivot.sample.json');
-      const rows = (m.default as unknown as OverviewPivotResponse).rows;
-      const grouped = groupPivotRows(rows, by);
-      if (fixture === 'nomoney') for (const r of grouped) { delete r.value_eur; delete r.delivered_cash_mkd; }
-      return { by, rows: grouped };
-    }
-    return apiGetInsightsPivot({ from: filters.range.from, to: filters.range.to, by }, signal);
-  }, [fixture, filters.range.from, filters.range.to]);
-
-  const money = data?.meta.money === true;
-  const sources = useMemo(
-    () => (data?.sources ?? []).filter((s) => selected.includes(s.key))
-      .sort((a, b) => selected.indexOf(a.key) - selected.indexOf(b.key)),
-    [data, selected],
+  // Which departments are in view. Empty filter = all six; the order is fixed.
+  const selected = useMemo(
+    () => (filters.sources.length ? SOURCE_ORDER.filter((k) => filters.sources.includes(k)) : SOURCE_ORDER),
+    [filters.sources],
   );
 
-  const view = useMemo(() => {
-    if (!data) return null;
-    const cur: MeasureSet = filtered ? deriveKpis(sources, data.kpis) : measureSetOf(data.kpis);
-    let prev: MeasureSet | null = null;
-    if (filters.compare) {
-      if (!filtered) prev = data.kpis.prev ? measureSetOf(data.kpis.prev) : null;
-      else if (prevQ.data) {
-        const ps = prevQ.data.sources.filter((s) => selected.includes(s.key));
-        prev = deriveKpis(ps, prevQ.data.kpis);
-      }
-    }
-    const pts = data.trend?.points ?? [];
-    const spark = data.kpis.spark ?? {};
-    const sparks: Partial<Record<TileKey, { d: string; v: number }[] | null>> = {
-      placed: !filtered && money && spark.placed_value?.length ? spark.placed_value
-        : seriesFromTrend(pts, selected, money ? 'placed_value_eur' : 'placed_count'),
-      delivered: !filtered && money && spark.delivered_cash_mkd?.length ? spark.delivered_cash_mkd
-        : seriesFromTrend(pts, selected, money ? 'delivered_cash_mkd' : 'delivered_count'),
-    };
-    if (!filtered) {
-      for (const k of ['confirmed', 'at_courier', 'to_collect', 'lost', 'unproven_paid'] as TileKey[]) {
-        const series = spark[k];
-        if (Array.isArray(series) && series.length) sparks[k] = series;
-      }
-    }
-    return { cur, prev, sparks, hrefs: tileHrefs(sources, filters.range, filtered) };
-  }, [data, prevQ.data, sources, selected, filtered, filters.compare, filters.range, money]);
+  const money = data?.meta.money === true;
 
-  // The shared sales cohort (one total, parts that add up), when the api sends it.
-  const cohort = (data as OverviewWithCohort | undefined)?.cohort ?? null;
+  // The shared sales cohort (one total, parts that add up).
+  const cohort = data?.cohort ?? null;
   const cohortMoney = money && cohort?.meta?.money !== false;
   const cv = useMemo(() => (cohort ? cohortView(cohort, filters.sources) : null), [cohort, filters.sources]);
   // The hero's sparkline: sales per sale day (денари for owners, counts otherwise) —
-  // the whole business only (the api sends no per-source series).
+  // the whole business only.
   const cohortSpark = useMemo(
     () => (cohort && cv && !cv.filtered
       ? (cohort.spark ?? []).map((p) => ({ d: p.d, v: cohortMoney && p.value_mkd != null ? p.value_mkd : p.count }))
       : null),
     [cohort, cv, cohortMoney],
   );
+  // The trend's sales line: the cohort's spark per department, in the trend's unit.
+  const trendGranularity = data?.trend?.granularity ?? 'day';
+  const trendSales = useMemo(
+    () => cohortSalesSeries(cohort?.spark, cohortMoney, { spark: cohort?.meta?.granularity, trend: trendGranularity }),
+    [cohort, cohortMoney, trendGranularity],
+  );
   // A quality card opens a list only when /orders holds exactly its rows.
   const qualityHref = (kind: CohortQualityKind): string | null =>
     kind === 'unproven_paid' && cv ? cohortDrill(cv.rows, 'paid_unproven', filters.range).href : null;
 
-  const teams = useMemo(() => (data?.teams ?? []), [data]);
-  const shownTeams = filters.teams.length ? teams.filter((tm) => filters.teams.includes(tm.team_key)) : teams;
-  const teamPeople = filters.teams.length ? new Set(shownTeams.flatMap((tm) => tm.members.map((m) => m.person_id))) : null;
+  // Team chips, and the people behind them for the attention rail, from the Agents payload.
+  const agentTeams = useMemo(() => sortTeams(agentsQ.data?.teams ?? []), [agentsQ.data]);
+  const teamChips = useMemo(() => agentTeams.map((tm) => ({ key: tm.key, name: teamName(tm.key, tm.name, f) })), [agentTeams, f]);
+  const teamPeople = useMemo(
+    () => (filters.teams.length && agentTeams.length
+      ? new Set(agentTeams.filter((tm) => filters.teams.includes(tm.key)).flatMap((tm) => tm.members.map((m) => m.person_id)))
+      : null),
+    [agentTeams, filters.teams],
+  );
 
   const cutAt = data?.meta.partial && data.meta.prev_to_end ? skopjeHm(data.meta.prev_to_end) : '';
   const prevLabel = filters.compare && data?.meta.prev_from && data.meta.prev_to
     ? (cutAt
       ? t('overview.kpi.vsPrevPartial', { period: f.period(data.meta.prev_from, data.meta.prev_to), time: cutAt })
       : t('overview.kpi.vsPrev', { period: f.period(data.meta.prev_from, data.meta.prev_to) }))
-    : filters.compare && filtered ? t('overview.kpi.vsPrev', { period: f.period(prevRange.from, prevRange.to) }) : null;
+    : null;
 
   const errorText = (err: unknown) =>
     err instanceof Error && /^HTTP 404$|not found/i.test(err.message) ? t('overview.notDeployed') : apiErrorText(err);
@@ -204,12 +187,7 @@ export default function OverviewTab() {
         </p>
       )}
 
-      <FilterBar
-        filters={filters}
-        onChange={setFilters}
-        teams={teams.map((tm) => ({ key: tm.team_key, name: tm.name }))}
-        f={f}
-      />
+      <FilterBar filters={filters} onChange={setFilters} teams={teamChips} f={f} />
 
       {!data ? (
         q.isError ? (
@@ -260,73 +238,25 @@ export default function OverviewTab() {
               <CohortSources rows={cv.rows} total={cv.total} leadsTotal={cv.leads_in} money={cohortMoney} range={filters.range} f={f} />
             </div>
           ) : (
-            <>
-              {view && (
-                <KpiRow cur={view.cur} prev={view.prev} money={money} sparks={view.sparks} hrefs={view.hrefs}
-                  prevLabel={prevLabel} filtered={filtered} f={f} />
-              )}
-              <SourceRows sources={sources} range={filters.range} money={money} f={fLegacy} />
-            </>
+            // The cohort failed (the api answers `cohort: null`): say so and offer
+            // a retry — the pre-cohort tiles (created day, CRM status, EUR) never
+            // stand in for it.
+            <LoadError text={t('overview.cohort.loadFailed')} onRetry={() => { void q.refetch(); }} />
           )}
-          <SourceTrends points={data.trend?.points ?? []} granularity={data.trend?.granularity ?? 'day'} sources={selected} money={money} f={f} />
-          <TeamsBoard teams={shownTeams} range={filters.range} money={money} canTvLink={!!(user?.isAdmin || user?.isManager)} f={f} />
-          <DrillPivot
-            sources={sources}
-            teamsFilter={filters.teams}
-            range={filters.range}
-            money={money}
-            fetchPivot={fetchPivot}
-            queryKeyBase={['insights-overview', user?.id, filters.range.from, filters.range.to, fixture]}
-            teams={teams}
-            f={f}
+          <SourceTrends
+            points={data.trend?.points ?? []} granularity={trendGranularity} sales={trendSales} sources={selected}
+            money={cohortMoney} salesHref={`/insights?${switchTabParams(sp, 'sales').toString()}`} f={f}
           />
+          <TeamsBoard q={agentsQ} teamKeys={filters.teams} range={filters.range} canTvLink={!!(user?.isAdmin || user?.isManager)} f={f} />
+          {/* The drill-down table (DrillPivot.tsx) is not drawn: it counts orders by
+              created day on CRM status in EUR, "no" calls as orders, and misses web and
+              MEX-only sales. It waits for a rebuild on the cohort (insights_sale_rows). */}
           {cohort && <QualityRail items={cohort.quality} money={cohortMoney} hrefFor={qualityHref} f={f} />}
           <AttentionRail items={data.attention ?? []} money={money} teamPeople={teamPeople} f={f} />
         </div>
       )}
     </div>
   );
-}
-
-/**
- * A tile links only when the link is exact: every selected source that adds to
- * the number must be counted from `orders` (the web-shop mirror is not). A
- * department is not one sale_source (elyon_crm = sale_source elyon_crm +
- * altercpa + affiliate), so the link also carries the departments in play as
- * cohort_source (a row's key IS its department; none when all six are in play)
- * — GET /orders ANDs the two.
- */
-function tileHrefs(sources: OverviewSource[], range: DayRange, filtered: boolean): Partial<Record<TileKey, string | null>> {
-  const contributes: Record<Exclude<TileKey, 'unproven_paid' | 'delivered'>, (s: OverviewSource) => number> = {
-    placed: (s) => placedOf(s).count,
-    confirmed: (s) => s.confirmed,
-    at_courier: (s) => s.buckets.courier?.count ?? 0,
-    to_collect: (s) => preparingOf(s).count + (s.buckets.courier?.count ?? 0),
-    lost: (s) => (s.buckets.returned?.count ?? 0) + (s.buckets.cancelled?.count ?? 0) + (s.buckets.trashed?.count ?? 0),
-  };
-  const base = (k: keyof typeof contributes): Pick<OrdersDrillParams, 'sale_source' | 'cohort_source'> | null => {
-    const inPlay = sources.filter((s) => contributes[k](s) > 0);
-    if (!inPlay.length || inPlay.some((s) => !sourceDrill(s, range))) return null;
-    const sale_source = [...new Set(inPlay.flatMap((s) => s.drill.sale_source))].join(',');
-    const cohort_source = cohortSourceParam(inPlay.map((s) => s.key));
-    return { sale_source, ...(cohort_source ? { cohort_source } : {}) };
-  };
-  const cr = { created_from: range.from, created_to: range.to };
-  const make = (k: keyof typeof contributes, extra: OrdersDrillParams) => {
-    const b = base(k);
-    return b ? ordersHref({ ...b, ...extra }) : null;
-  };
-  return {
-    placed: make('placed', cr),
-    confirmed: make('confirmed', { sold_from: range.from, sold_to: range.to }),
-    at_courier: make('at_courier', { ...cr, outcome: 'courier' }),
-    // The hero is on the CASH clock and includes MEX-only parcels (not orders): no single list holds it.
-    delivered: null,
-    to_collect: make('to_collect', { ...cr, outcome: OUTCOME.toCollect }),
-    lost: make('lost', { ...cr, outcome: OUTCOME.lost }),
-    // Cash clock: paid in the window, no delivered MEX parcel. Whole business only.
-    unproven_paid: filtered ? null : ordersHref({ cash_from: range.from, cash_to: range.to, proof: 'unproven' }),
-  };
 }
 
 function OverviewSkeleton() {

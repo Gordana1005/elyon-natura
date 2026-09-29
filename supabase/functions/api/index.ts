@@ -17648,12 +17648,14 @@ async function handleRequest(req: Request): Promise<Response> {
 
     // ══════════════════════════════════════════════════════════════
     // GET /api/insights/lists?from=YYYY-MM-DD&to=YYYY-MM-DD&compare=1
-    // Insights → Prediction lists (migration 20260941000400): the ElyonCRM
-    // prediction-list slice of the sale cohort per list — members now, worked
+    // Insights → Prediction lists (migration 20260941000400): the prediction-list
+    // sales of the sale cohort in EVERY department, per list — members now, worked
     // decisions, sales, MEX-first buckets, MEX cash, stale to-pack, sellers,
-    // trend, quality. Σ lists + "list not recorded" = the Overview's ElyonCRM ·
-    // prediction_list split. The cash-flow line (insights_lists_cash, MEX
-    // delivery day) runs in PARALLEL; if it fails the tab still answers.
+    // trend, quality. Σ lists + "list not recorded" = the Overview's
+    // prediction_list split summed over the departments (a list sale sits in its
+    // parcel's department, 20260942001860); `elyon_crm` = the Affiliate – Lead out
+    // card. The cash-flow line (insights_lists_cash, MEX delivery day) runs in
+    // PARALLEL; if it fails the tab still answers.
     //   owner → with money · admin / manager → the same, every *_mkd ABSENT
     //   (insightsLists.ts whitelist) · everyone else → 403
     // ══════════════════════════════════════════════════════════════

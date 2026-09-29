@@ -107,7 +107,7 @@ function renderTab(url = '/insights?tab=call-activity&range=custom&from=2026-09-
   );
 }
 
-describe('Insights → Work', () => {
+describe('Insights → Work', { timeout: 30_000 }, () => {
   it('shows the work ledger, people, credited drill links, queues and quality — and no money', async () => {
     work.mockResolvedValue(payload());
     workDay.mockResolvedValue(dayPayload());

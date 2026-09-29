@@ -20,7 +20,8 @@
  *   T2  Σ by_source = total, and each source's Σ buckets = its total
  *   T3  each source's Σ splits = its total; the header's parts = Σ of the sources' parts
  *   T4  leads: sale + cancelled + trashed + open + other = came in (every source, and the sum)
- *   T5  previous period and spark add up
+ *   T5  previous period and spark add up (and, since 20260942001930, the spark per department:
+ *       every point = Σ its departments, each department over the window = its total)
  *   D1  an independent recount of insights_sale_rows = the payload, and every sale lands in
  *       EXACTLY one bucket: one row per order / web order / MEX-only parcel / collabBox booking, no
  *       parcel owned twice; a booking (a collabBox document whose MEX parcel does not exist yet,
@@ -356,6 +357,25 @@ export function payloadTies(c) {
     const inWin = c.spark.filter((p) => p.d >= c.meta.from && p.d <= c.meta.to);
     out.T5.push(tie('spark: Σ days in the window = total.count', n(total.count), sumBy(inWin, 'count')));
     if (total.value_mkd !== undefined) out.T5.push(tie('spark: Σ days in the window = total.value_mkd', n(total.value_mkd), sumBy(inWin, 'value_mkd')));
+    // the spark per department (20260942001930 — the Overview's trend draws its sales lines from
+    // it): every point = Σ its departments, and over the window each department = its total
+    if (c.spark.length && c.spark.every((p) => Array.isArray(p.by_source))) {
+      out.T5.push(tie('spark: points whose Σ by_source.count ≠ the point', 0,
+        c.spark.filter((p) => sumBy(p.by_source, 'count') !== n(p.count)).length));
+      if (total.value_mkd !== undefined) {
+        out.T5.push(tie('spark: points whose Σ by_source.value_mkd ≠ the point', 0,
+          c.spark.filter((p) => sumBy(p.by_source, 'value_mkd') !== n(p.value_mkd)).length));
+      }
+      for (const r of c.by_source ?? []) {
+        const of = (p) => (p.by_source ?? []).find((x) => x.key === r.key);
+        out.T5.push(tie(`spark: ${r.key} Σ days in the window = its total.count`, n(r.total?.count),
+          inWin.reduce((a, p) => a + n(of(p)?.count), 0)));
+        if (r.total?.value_mkd !== undefined) {
+          out.T5.push(tie(`spark: ${r.key} Σ days in the window = its total.value_mkd`, n(r.total.value_mkd),
+            inWin.reduce((a, p) => a + n(of(p)?.value_mkd), 0)));
+        }
+      }
+    }
   }
   return out;
 }

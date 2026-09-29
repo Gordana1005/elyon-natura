@@ -35,9 +35,10 @@
  *        20260942001000): web claim / NTMK… / M… → web · 9110 → Affiliate – Lead in · 9103 →
  *        Affiliate – Lead out · 9102 → Телешоп – Lead out · 9108, 1300 → Social media ·
  *        anything else (9100 …) → Телешоп – Lead in
- *   C3   Prediction-lists tab (insights_lists, 20260941000400) = the cohort's Affiliate –
- *        Lead out (elyon_crm) · prediction_list split, exactly (sale clock); the "list not
- *        recorded" rows are listed.
+ *   C3   Prediction-lists tab (insights_lists, 20260941000400) = the cohort's prediction_list
+ *        split summed over the departments, exactly (sale clock; a list sale sits in its
+ *        parcel's department, 20260942001860), and its footer = the Affiliate – Lead out card;
+ *        the "list not recorded" rows are listed.
  *        Before that migration: the old tab (insights_orders_rollup) vs the Overview's split
  *   C6   proven cash = Σ COD of linked delivered parcels; COD − price × 61.5 splits into exact /
  *        +150 delivery fee / listed mismatches
@@ -944,8 +945,9 @@ SELECT public.insights_lists(${from}, ${to}, NULL, NULL, true, 7) AS lists,
        public.insights_cohort(${from}, ${to}, NULL, NULL, ARRAY['altercpa','elyon_crm','teleshop_out','teleshop_other','social','web'], true) AS cohort`);
   const L = typeof t.lists === 'string' ? JSON.parse(t.lists) : t.lists;
   const C = typeof t.cohort === 'string' ? JSON.parse(t.cohort) : t.cohort;
-  // Since 20260942001800 a list sale is in the department of its agent (a teleshop Lead-out
-  // agent's → Телешоп – Lead out): the tab holds the prediction_list split of EVERY department.
+  // A list sale is in its parcel's department (20260942001860: BIO NATURAL or no parcel yet →
+  // Affiliate – Lead out, a NATURA parcel by its series), never its agent's team: the tab holds
+  // the prediction_list split of EVERY department.
   const listSplits = (C.by_source ?? []).map((src) => src.splits?.find((x) => x.key === 'prediction_list') ?? {});
   const split = { count: listSplits.reduce((a, x) => a + num(x.count), 0), value_mkd: listSplits.reduce((a, x) => a + num(x.value_mkd), 0) };
   const card = (C.by_source ?? []).find((s) => s.key === 'elyon_crm')?.total ?? {};

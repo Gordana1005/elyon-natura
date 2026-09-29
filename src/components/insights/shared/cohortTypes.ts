@@ -159,6 +159,9 @@ export interface CohortSparkPoint {
   d: string;
   count: number;
   value_mkd?: number;
+  /** The same point per department, in the owner's order (20260942001930): Σ = the point.
+   *  Absent on an older payload. */
+  by_source?: { key: CohortSourceKey; count: number; value_mkd?: number }[];
 }
 
 export interface Cohort {

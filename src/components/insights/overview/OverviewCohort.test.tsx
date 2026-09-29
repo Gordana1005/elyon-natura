@@ -4,9 +4,11 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import i18n from '@/i18n';
 import type { OverviewResponse } from '@/lib/api';
+import type { PeopleResponse } from '@/lib/insightsApi/agents';
 import { formatDenari } from '@/lib/currency';
 import sample from './__fixtures__/overview.sample.json';
 import cohortSample from '../shared/__fixtures__/cohort.sample.json';
+import peopleSample from '../agents/__fixtures__/people.sample.json';
 import { stripMoney } from './model';
 
 // The Overview on the sales cohort (HANDOFF §3, 2026-09-28), rendered from the
@@ -14,8 +16,13 @@ import { stripMoney } from './model';
 // same parts (never a worked count), leads and MEX cash sit apart, a
 // non-owner sees the same page counted — and a number links to /orders only
 // when the list holds exactly it.
-const h = vi.hoisted(() => ({ overview: vi.fn(), drillKeys: [] as string[] }));
+const h = vi.hoisted(() => ({ overview: vi.fn(), agents: vi.fn(), drillKeys: [] as string[] }));
 vi.mock('@/integrations/supabase/client', () => ({ supabase: {} }));
+// The teams board reads the Agents tab's payload (GET /insights/agents).
+vi.mock('@/lib/insightsApi/agents', async (orig) => ({
+  ...(await orig<typeof import('@/lib/insightsApi/agents')>()),
+  apiGetInsightsAgents: (...a: unknown[]) => h.agents(...a),
+}));
 vi.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({ user: { id: 'u-test', isAdmin: true, isManager: false } }),
 }));
@@ -47,6 +54,13 @@ const payload = (): WithCohort => ({ ...(structuredClone(sample) as unknown as O
 
 function renderWith(p: WithCohort, query = 'range=custom&from=2026-09-22&to=2026-09-28') {
   h.overview.mockResolvedValue(p);
+  // the Agents payload for the same reader: an owner's, or a manager's without a single *_mkd key
+  const owner = (p.meta as { money?: boolean }).money !== false;
+  const strip = (v: unknown): unknown => (Array.isArray(v) ? v.map(strip) : v && typeof v === 'object'
+    ? Object.fromEntries(Object.entries(v).filter(([k]) => owner || !/_mkd$/.test(k)).map(([k, x]) => [k, strip(x)])) : v);
+  const people = strip(structuredClone(peopleSample)) as PeopleResponse;
+  people.meta = { ...people.meta, access: owner ? 'owner' : 'counts', money: owner };
+  h.agents.mockResolvedValue(people);
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
@@ -122,8 +136,10 @@ describe('Overview on the sales cohort — owner', () => {
     // MEX cash is a separate figure on its own clock.
     expect(screen.getByText(formatDenari(3062765))).toBeInTheDocument();
     expect(container.textContent).toMatch(DENARS);
-    // Teams, pivot and the attention rail still render.
-    expect(screen.getByRole('heading', { name: i18n.t('overview.pivot.title') })).toBeInTheDocument();
+    // Teams (the Agents tab's) and the attention rail still render; the pre-cohort
+    // drill-down pivot does not (it waits for a rebuild on the cohort).
+    expect(await screen.findByRole('heading', { name: i18n.t('insights.agents.teams.title') })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: i18n.t('overview.pivot.title') })).toBeNull();
     expect(screen.getByText(i18n.t('overview.attention.kind.approved_no_parcel_7d', { days: 10 }))).toBeInTheDocument();
   }, 30_000);
 

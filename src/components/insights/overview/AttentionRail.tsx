@@ -1,5 +1,6 @@
 import { AlertTriangle, CheckCircle2, OctagonAlert } from 'lucide-react';
 import type { OverviewAttention, OverviewAttentionKind } from '@/lib/api';
+import { eurToDen } from '@/lib/currency';
 import { cn } from '@/lib/utils';
 import { DrillLink } from './DrillLink';
 import { ClockCaption } from '../shared/ClockCaption';
@@ -24,6 +25,14 @@ const SEVERITY_ORDER = { critical: 0, warning: 1 } as const;
 const MONEY_IN_TEXT = /\d[\d.,\s]*(ден|mkd|eur|€)/i;
 export const safeNote = (note: string | null | undefined, money: boolean) =>
   !note ? null : !money && MONEY_IN_TEXT.test(note) ? null : note;
+
+const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+
+/** A card's amount, always денари: `value_mkd` (the parcel's COD where a parcel
+ *  exists, else price × 61,5 — 20260942001920), else the parcels' COD; an older
+ *  payload's Σ price (EUR) is shown at the frozen rate, never as euro. */
+export const attentionAmount = (a: Pick<OverviewAttention, 'value_mkd' | 'cod_mkd' | 'value_eur'>): number | null =>
+  isNum(a.value_mkd) ? a.value_mkd : isNum(a.cod_mkd) ? a.cod_mkd : isNum(a.value_eur) ? eurToDen(a.value_eur) : null;
 
 /** "Треба внимание" — one card per kind: severity icon + word, count, value, who, examples. */
 export function AttentionRail({
@@ -62,6 +71,7 @@ export function AttentionRail({
             const kindLabel = t(`overview.attention.kind.${a.kind}`, { days: noParcelDaysOr(a.days) });
             const href = a.kind === 'stale_feed' ? '#overview-freshness' : ordersHref(base, kindLabel);
             const people = (a.by_person ?? []).filter((p) => !teamPeople || teamPeople.has(p.person_id)).slice(0, 3);
+            const amount = money ? attentionAmount(a) : null;
             return (
               <li key={a.kind}
                 className={cn('flex min-w-0 flex-col rounded-xl border bg-card p-4 shadow-sm',
@@ -77,8 +87,8 @@ export function AttentionRail({
                   ) : (
                     <DrillLink href={href} className="text-2xl font-semibold tabular-nums">{f.int(a.count)}</DrillLink>
                   )}
-                  {money && a.value_eur != null && a.value_eur > 0 && (
-                    <span className="text-sm tabular-nums text-muted-foreground">{f.eur(a.value_eur)}</span>
+                  {amount != null && amount > 0 && (
+                    <span className="text-sm tabular-nums text-muted-foreground">{f.den(amount)}</span>
                   )}
                 </div>
                 {(a.by_status ?? []).length > 0 && (

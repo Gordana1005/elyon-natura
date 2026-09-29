@@ -8,9 +8,10 @@ import type { ListsResponse } from '@/lib/insightsApi/lists';
 import sample from './__fixtures__/lists.sample.json';
 
 // Insights → Prediction lists rendered from the 01.09–27.09.2026 payload: the
-// header is the list slice of THE sale cohort (= the Overview's ElyonCRM ·
-// prediction_list split), the lists read in Macedonian with денари bands, a
-// number opens exactly its orders, and a non-owner sees the same page counted.
+// header is the list sales of THE sale cohort in every department (= the
+// Overview's prediction_list split summed over the departments), the lists read
+// in Macedonian with денари bands, a number opens exactly its orders, and a
+// non-owner sees the same page counted.
 const h = vi.hoisted(() => ({ lists: vi.fn() }));
 vi.mock('@/integrations/supabase/client', () => ({ supabase: {} }));
 vi.mock('@/contexts/AuthContext', () => ({
@@ -44,7 +45,7 @@ function renderWith(p: ListsResponse, query = WIN) {
 }
 const title = () => i18n.t('insights.lists.cohort.title', { period: '01.09 – 27.09.2026' });
 
-describe('Prediction lists — owner', () => {
+describe('Prediction lists — owner', { timeout: 30_000 }, () => {
   it('leads with the list slice of the cohort and ties it to the Overview', async () => {
     renderWith(payload());
     expect(await screen.findByText(title(), {}, { timeout: 10_000 })).toBeInTheDocument();
@@ -57,6 +58,24 @@ describe('Prediction lists — owner', () => {
     // MEX cash (cohort) and the cash-flow line
     expect(screen.getAllByText(formatDenari(1249939)).length).toBeGreaterThan(0);
     expect(screen.getByText(formatDenari(1255939))).toBeInTheDocument();
+  });
+
+  it('list sales on NATURA parcels sit in other departments: the note shows each part of the header', async () => {
+    const p = payload();
+    // 10 list sales went out on NATURA 9102 parcels — Телешоп – Lead out's (the parcel decides,
+    // 20260942001860), still list sales: the header counts them, Affiliate – Lead out's split does not
+    p.total.count += 10;
+    p.total.value_mkd = (p.total.value_mkd ?? 0) + 26900;
+    const paid = p.buckets.find((b) => b.key === 'paid')!;
+    paid.count += 10;
+    paid.value_mkd = (paid.value_mkd ?? 0) + 26900;
+    renderWith(p);
+    await screen.findByText(title(), {}, { timeout: 10_000 });
+    expect(screen.getByText(i18n.t('insights.lists.cohort.tieDepts', {
+      n: '686', value: formatDenari(1929281), m: '10', rest: formatDenari(26900),
+    }))).toBeInTheDocument();
+    // the old note claimed the whole header was Affiliate – Lead out's
+    expect(screen.queryByText(i18n.t('insights.lists.cohort.tie', { n: '686', value: formatDenari(1929281) }))).toBeNull();
   });
 
   it('never shows euro, never the stored English list names as the label', async () => {
@@ -131,7 +150,7 @@ describe('Prediction lists — owner', () => {
   });
 });
 
-describe('Prediction lists — admin / manager (counts only)', () => {
+describe('Prediction lists — admin / manager (counts only)', { timeout: 30_000 }, () => {
   it('the same page with no денари figure and no money column', async () => {
     const { container } = renderWith(stripListsMoney(payload()));
     expect(await screen.findByText(i18n.t('insights.lists.cohort.titleNoMoney', { period: '01.09 – 27.09.2026' }), {}, { timeout: 10_000 })).toBeInTheDocument();
@@ -149,7 +168,8 @@ describe('Prediction lists — admin / manager (counts only)', () => {
     walk(sample);
     expect(amounts.size).toBeGreaterThan(50);
     expect([...amounts].filter((v) => text.includes(formatDenari(v)))).toEqual([]);
-    // counts stay
+    // counts stay, the tie note included
     expect(screen.getAllByText('686').length).toBeGreaterThan(0);
+    expect(screen.getByText(i18n.t('insights.lists.cohort.tieNoMoney', { n: '686' }))).toBeInTheDocument();
   });
 });

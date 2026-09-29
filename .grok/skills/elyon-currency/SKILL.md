@@ -127,8 +127,9 @@ re-rendered in денари by `NotificationsDropdown`). The LeadDistribution hi
 the affiliate offer **sell price** are денари inputs that store EUR through
 `denInputToEur(text, storedEur)` — an untouched field saves the stored EUR exactly (a plain
 round trip is not exact: 34.90 € → 2.146 ден → 34.89 €). Only affiliate PAYOUT (payout,
-override, partner-portal catalogue) stays EUR. Chart axes on EUR series use `moneyAxis()`
-(`insights/shared/tabFormat.ts`). Segment list names keep their EUR band ("57d ≤26 (3+ orders)"
+override, partner-portal catalogue) stays EUR. No /insights chart plots an EUR series any more:
+they draw денари (`*_mkd`) with `f.compact` axes (the old EUR `moneyAxis()` helper,
+`insights/shared/tabFormat.ts`, was deleted 29.09 with its last user). Segment list names keep their EUR band ("57d ≤26 (3+ orders)"
 — the engine matches by exact name); `predictionListLabel()` shows "≤ 1.599 ден" on screen only.
 `orders.price` / `prediction_leads.price` are ORDER TOTALS — never × quantity (`orderTotal()`).
 

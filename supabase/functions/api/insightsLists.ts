@@ -12,7 +12,10 @@
 //                            money stripped by whitelist for a non-owner
 //
 // The numbers are THE sale cohort's (insights_sale_rows): the tab's total is
-// the Overview's ElyonCRM · prediction_list split by construction.
+// the list sales of EVERY department — Σ over the departments of the Overview's
+// prediction_list split, by construction (a list sale's department is its
+// parcel's MEX profile / series, 20260942001860 — never its agent's team).
+// `elyon_crm` is the Affiliate – Lead out card alone (the tab's footer).
 // ============================================================================
 
 import { stripInsightsMoney } from "./insightsCommon.ts";

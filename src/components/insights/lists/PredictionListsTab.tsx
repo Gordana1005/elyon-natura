@@ -17,7 +17,7 @@ import { CashFlowCard } from '../shared/CohortSecondary';
 import { useInsightsFormat } from '../shared/useInsightsFormat';
 import { useInsightsPeriod } from '../shared/useInsightsPeriod';
 import type { DrillKey } from '../shared/cohortModel';
-import { listsDrill, viewOf } from './listModel';
+import { listsDrill, listsTieParts, viewOf } from './listModel';
 import { LISTS_COLOR_VARS } from './listsPalette';
 import { ListsKpis } from './ListsKpis';
 import { ListsWorkCard } from './ListsWorkCard';
@@ -50,13 +50,16 @@ export function stripListsMoney(d: ListsResponse): ListsResponse {
  * Insights → Прогнозни списоци: which prediction lists make money.
  *
  * The prediction-list sales of THE sale cohort, in every department (GET
- * /insights/lists, migration 20260941000400; since 20260942001800 a list sale
- * counts in its agent's department — a teleshop Lead-out agent's is Телешоп –
- * Lead out): sale day (Skopje), MEX-first parts that add up to the total, value
- * = parcel COD else price × 61,5. Σ lists + "list not recorded" = the Overview's
- * prediction_list split summed over the departments; /orders links select them by
- * sale_source + detail. The footer is the Affiliate – Lead out card. Owners see
- * денари (meta.money); admins/managers the same page counted.
+ * /insights/lists, migration 20260941000400). A list sale's department is its
+ * parcel's, never its agent's team (20260942001860): on BIO NATURAL — or with no
+ * parcel yet — Affiliate – Lead out; on a NATURA parcel its series decides (9100
+ * → Телешоп – Lead in, 9108 / 1300 → Social media, else Телешоп – Lead out).
+ * Sale day (Skopje), MEX-first parts that add up to the total, value = parcel COD
+ * else price × 61,5. Σ lists + "list not recorded" = the Overview's
+ * prediction_list split summed over the departments (the header's note says so,
+ * part by part); /orders links select them by sale_source + detail. The footer
+ * is the Affiliate – Lead out card. Owners see денари (meta.money);
+ * admins/managers the same page counted.
  *
  * In a DEV build `?lsFixture=1` (or `=nomoney`) renders the typed fixture —
  * compiled out of production builds.
@@ -111,7 +114,18 @@ export default function PredictionListsTab() {
 
   const firstAttr = data?.meta.first_attr_day ?? null;
   const beforeAttribution = !!firstAttr && range.from < firstAttr;
-  const split = data?.elyon_crm.splits.find((s) => s.key === 'prediction_list');
+  // The header = Σ of the Overview's prediction_list split over the departments:
+  // Affiliate – Lead out's part, and — when list sales went out on NATURA parcels —
+  // the other departments' part, each said with its number.
+  const tie = data ? listsTieParts(data.total, data.elyon_crm.splits.find((s) => s.key === 'prediction_list')) : null;
+  const den = (v: number | null) => (v != null ? f.den(v) : '');
+  const tieNote = !tie ? null : tie.other.count > 0
+    ? t(money ? 'insights.lists.cohort.tieDepts' : 'insights.lists.cohort.tieDeptsNoMoney', {
+      n: f.int(tie.leadOut.count), value: den(tie.leadOut.value_mkd), m: f.int(tie.other.count), rest: den(tie.other.value_mkd),
+    })
+    : t(money ? 'insights.lists.cohort.tie' : 'insights.lists.cohort.tieNoMoney', {
+      n: f.int(tie.leadOut.count), value: den(tie.leadOut.value_mkd),
+    });
   const empty = !!data && data.total.count === 0 && data.total.worked === 0 && (data.outside ?? []).every((o) => o.count === 0);
 
   return (
@@ -171,9 +185,7 @@ export default function PredictionListsTab() {
                   prev={period.compare && data.prev ? data.prev : null}
                   prevLabel={prevLabel}
                   spark={spark}
-                  note={split ? t(money ? 'insights.lists.cohort.tie' : 'insights.lists.cohort.tieNoMoney', {
-                    n: f.int(split.count), value: split.value_mkd != null ? f.den(split.value_mkd) : '',
-                  }) : null}
+                  note={tieNote}
                   drillFor={(key: DrillKey | DrillKey[]) => listsDrill(allParts, key, range)}
                   f={f}
                 />

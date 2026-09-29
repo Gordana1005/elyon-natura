@@ -1,27 +1,37 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { ArrowRight } from 'lucide-react';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { OverviewSourceKey, OverviewTrendPoint } from '@/lib/api';
-import { eurToDen } from '@/lib/currency';
 import { formatDate } from '@/i18n/dates';
 import { cn } from '@/lib/utils';
 import { sourceColorVar } from './palette';
 import { ClockCaption } from '../shared/ClockCaption';
 import { dm, type OverviewFormat } from './useOverviewFormat';
 
-interface Row { bucket: string; placed: number; done: number }
+interface Row { bucket: string; sales: number; done: number }
 
 /**
- * Small multiples — one panel per source, each with its own single y-axis
- * (never dual): placed (context gray) vs collected / delivered (the source hue).
- * Both lines share one unit — денари for owners, counts otherwise.
+ * Small multiples — one panel per department, each with its own single y-axis
+ * (never dual): the cohort's SALES by sale day (context gray — the same rows the
+ * header counts, bookings included; insights_cohort's spark per department) vs
+ * MEX cash by delivery day (the department's hue — insights_overview's trend, it
+ * ties to the register). Both lines share one unit — денари for owners, counts
+ * otherwise. Without the per-department spark (an older api) it draws the cash
+ * alone and points to Sales → trend. The old "placed" line (every order created
+ * that day: "no" calls, cancels, trash and open leads included) is gone.
  */
 export function SourceTrends({
-  points, granularity, sources, money, f,
+  points, granularity, sales, sources, money, salesHref, f,
 }: {
   points: OverviewTrendPoint[];
   granularity: 'day' | 'month';
+  /** model.cohortSalesSeries: bucket → department → sales; null = cash only. */
+  sales: Map<string, Partial<Record<OverviewSourceKey, number>>> | null;
   sources: OverviewSourceKey[];
   money: boolean;
+  /** Insights → Sales (its trend by source), same period. */
+  salesHref: string | null;
   f: OverviewFormat;
 }) {
   const { t } = f;
@@ -33,6 +43,7 @@ export function SourceTrends({
     }
     return long ? dm(b, true) : dm(b);
   };
+  const withSales = sales != null;
   const rowsBy = useMemo(() => {
     const out: Record<string, Row[]> = {};
     for (const s of sources) {
@@ -40,16 +51,19 @@ export function SourceTrends({
         const c = p.by_source[s];
         return {
           bucket: p.bucket,
-          placed: money ? eurToDen(c?.placed_value_eur ?? 0) : (c?.placed_count ?? 0),
+          sales: sales?.get(p.bucket)?.[s] ?? 0,
           done: money ? (c?.delivered_cash_mkd ?? 0) : (c?.delivered_count ?? 0),
         };
       });
     }
     return out;
-  }, [points, sources, money]);
+  }, [points, sources, sales, money]);
   const value = (v: number) => (money ? f.den(v) : f.int(v));
-  const placedName = money ? t('overview.trend.placed') : t('overview.trend.placedCount');
+  const salesName = money ? t('overview.trend.sales') : t('overview.trend.salesCount');
   const doneName = money ? t('overview.trend.cash') : t('overview.trend.delivered');
+  const subtitle = withSales
+    ? (money ? t('overview.trend.subtitleSales') : t('overview.trend.subtitleSalesCount'))
+    : (money ? t('overview.trend.subtitleCashOnly') : t('overview.trend.subtitleCashOnlyCount'));
 
   return (
     <section aria-labelledby="ov-trend-title" className="space-y-3">
@@ -57,21 +71,29 @@ export function SourceTrends({
         <div>
           <h2 id="ov-trend-title" className="text-base font-semibold">{t('overview.trend.title')}</h2>
           <p className="text-xs text-muted-foreground">
-            {money ? t('overview.trend.subtitleMoney') : t('overview.trend.subtitleCount')}
+            {subtitle}
             {' · '}{granularity === 'month' ? t('overview.trend.byMonth') : t('overview.trend.byDay')}
           </p>
-          <ClockCaption clock={['created', 'delivered']} />
+          <ClockCaption clock={withSales ? ['sale', 'delivered'] : ['delivered']} />
         </div>
-        <div role="group" aria-label={t('overview.trend.viewLabel')} className="inline-flex rounded-lg border p-0.5">
-          {(['chart', 'table'] as const).map((v) => (
-            <button
-              key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}
-              className={cn('rounded-md px-2.5 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                view === v ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted')}
-            >
-              {t(`overview.trend.${v}`)}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-3">
+          {salesHref && (
+            <Link to={salesHref}
+              className="inline-flex items-center gap-1 rounded-md text-xs font-medium text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              {t('overview.trend.toSales')}<ArrowRight className="h-3 w-3" aria-hidden />
+            </Link>
+          )}
+          <div role="group" aria-label={t('overview.trend.viewLabel')} className="inline-flex rounded-lg border p-0.5">
+            {(['chart', 'table'] as const).map((v) => (
+              <button
+                key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}
+                className={cn('rounded-md px-2.5 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  view === v ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted')}
+              >
+                {t(`overview.trend.${v}`)}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -80,7 +102,9 @@ export function SourceTrends({
       ) : view === 'chart' ? (
         <>
           <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground" aria-hidden>
-            <li className="inline-flex items-center gap-1.5"><span className="h-0.5 w-4 rounded-full bg-[var(--ov-context)]" />{placedName}</li>
+            {withSales && (
+              <li className="inline-flex items-center gap-1.5"><span className="h-0.5 w-4 rounded-full bg-[var(--ov-context)]" />{salesName}</li>
+            )}
             <li className="inline-flex items-center gap-1.5">
               <span className="flex gap-0.5">
                 {sources.map((s) => <span key={s} className="h-0.5 w-2 rounded-full" style={{ background: sourceColorVar(s) }} />)}
@@ -117,15 +141,17 @@ export function SourceTrends({
                                 <div key={String(p.dataKey)} className="flex items-center gap-2">
                                   <span className="h-0.5 w-3 rounded-full" style={{ background: String(p.color) }} />
                                   <span className="font-semibold tabular-nums">{value(Number(p.value))}</span>
-                                  <span className="text-muted-foreground">{p.dataKey === 'placed' ? placedName : doneName}</span>
+                                  <span className="text-muted-foreground">{p.dataKey === 'sales' ? salesName : doneName}</span>
                                 </div>
                               ))}
                             </div>
                           ) : null
                         }
                       />
-                      <Line type="linear" dataKey="placed" stroke="var(--ov-context)" strokeWidth={2} dot={false}
-                        activeDot={{ r: 4, stroke: 'hsl(var(--card))', strokeWidth: 2 }} isAnimationActive={false} />
+                      {withSales && (
+                        <Line type="linear" dataKey="sales" stroke="var(--ov-context)" strokeWidth={2} dot={false}
+                          activeDot={{ r: 4, stroke: 'hsl(var(--card))', strokeWidth: 2 }} isAnimationActive={false} />
+                      )}
                       <Line type="linear" dataKey="done" stroke={sourceColorVar(s)} strokeWidth={2} dot={false}
                         activeDot={{ r: 4, stroke: 'hsl(var(--card))', strokeWidth: 2 }} isAnimationActive={false} />
                     </LineChart>
@@ -143,13 +169,13 @@ export function SourceTrends({
               <tr>
                 <th rowSpan={2} scope="col" className="sticky left-0 bg-muted px-3 py-2 text-left font-medium">{t('overview.trend.colPeriod')}</th>
                 {sources.map((s) => (
-                  <th key={s} colSpan={2} scope="colgroup" className="border-l px-3 pt-2 text-center font-medium">{f.source(s)}</th>
+                  <th key={s} colSpan={withSales ? 2 : 1} scope="colgroup" className="border-l px-3 pt-2 text-center font-medium">{f.source(s)}</th>
                 ))}
               </tr>
               <tr>
                 {sources.map((s) => [
-                  <th key={`${s}-p`} scope="col" className="border-l px-3 pb-2 text-right font-normal">{placedName}</th>,
-                  <th key={`${s}-d`} scope="col" className="px-3 pb-2 text-right font-normal">{doneName}</th>,
+                  withSales && <th key={`${s}-s`} scope="col" className="border-l px-3 pb-2 text-right font-normal">{salesName}</th>,
+                  <th key={`${s}-d`} scope="col" className={cn('px-3 pb-2 text-right font-normal', !withSales && 'border-l')}>{doneName}</th>,
                 ])}
               </tr>
             </thead>
@@ -158,8 +184,8 @@ export function SourceTrends({
                 <tr key={p.bucket} className="border-t">
                   <th scope="row" className="sticky left-0 bg-card px-3 py-1.5 text-left font-medium tabular-nums">{bucketLabel(p.bucket, true)}</th>
                   {sources.map((s) => [
-                    <td key={`${s}-p`} className="border-l px-3 py-1.5 text-right tabular-nums">{value(rowsBy[s][i].placed)}</td>,
-                    <td key={`${s}-d`} className="px-3 py-1.5 text-right tabular-nums">{value(rowsBy[s][i].done)}</td>,
+                    withSales && <td key={`${s}-s`} className="border-l px-3 py-1.5 text-right tabular-nums">{value(rowsBy[s][i].sales)}</td>,
+                    <td key={`${s}-d`} className={cn('px-3 py-1.5 text-right tabular-nums', !withSales && 'border-l')}>{value(rowsBy[s][i].done)}</td>,
                   ])}
                 </tr>
               ))}

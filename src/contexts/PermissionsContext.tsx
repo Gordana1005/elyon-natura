@@ -263,15 +263,17 @@ export function usePermissions() {
   return ctx;
 }
 
-/** Which parts of /insights the current login may open (owner ruling
- *  2026-09-27). `business` gates the money tabs (Sales, Pure Profit,
- *  Margin Lab, Prediction Lists, Stock, Returns) and follows canSeeBusiness
- *  ONLY (is_business_owner(): owners list + active admins). `overview` opens the connected Overview to owners
- *  (with money) and to admins/managers (without). The operational tabs keep
+/** Which parts of /insights the current login may open. `business` gates the
+ *  owners-only tabs (Pure Profit, Margin Lab) and follows canSeeBusiness ONLY
+ *  (is_business_owner(): the owners list + every active admin, 20260939000500).
+ *  `overview` opens the cohort tabs — the connected Overview, Sales, Prediction
+ *  lists, Stock, Returns — to owners (with money) and to admins/managers (the
+ *  same pages counted: every payload's meta.money). The operational tabs keep
  *  their module rules.
  *  ManagementInsightsPage and the sidebar both read this, so the two can never
- *  disagree; the server enforces the same split (GET /management-insights is
- *  owners-only except ?scope=calls). */
+ *  disagree; the server enforces the same split (GET /insights/profit and GET
+ *  /management-insights are owners-only — the latter except ?scope=calls — and
+ *  every other /insights/* endpoint strips money for a non-owner). */
 export function useInsightsAccess() {
   const { canAccessModule, canSeeBusiness, isModuleEnabled } = usePermissions();
   const { user } = useAuth();

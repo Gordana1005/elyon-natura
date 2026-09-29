@@ -3,7 +3,7 @@ import i18n from '@/i18n';
 import type { ListsResponse } from '@/lib/insightsApi/lists';
 import sample from './__fixtures__/lists.sample.json';
 import {
-  aovOf, conversionOf, groupKeyOf, groupLists, isQuiet, listLabel, listsDrill, listsHref, reachOf, recencyValueMatrix,
+  aovOf, conversionOf, groupKeyOf, groupLists, isQuiet, listLabel, listsDrill, listsHref, listsTieParts, reachOf, recencyValueMatrix,
   returnRateOf, rollup, salesPerHourOf, sortRows, staleSoldTo, trendRows, viewOf,
 } from './listModel';
 
@@ -145,5 +145,25 @@ describe('trend and matrix', () => {
     const band = views.filter((v) => v.parsed.kind === 'band');
     const cells = Object.values(m.cells).flatMap((c) => Object.values(c));
     expect(cells.reduce((a, c) => a + c!.count, 0)).toBe(band.reduce((a, v) => a + v.count, 0));
+  });
+});
+
+describe('the header\'s tie to the Overview (list sales of every department)', () => {
+  it('all in Affiliate – Lead out: one part, nothing in the other departments', () => {
+    expect(listsTieParts({ count: 686, value_mkd: 1929281 }, { count: 686, value_mkd: 1929281 }))
+      .toEqual({ leadOut: { count: 686, value_mkd: 1929281 }, other: { count: 0, value_mkd: 0 } });
+  });
+
+  it('list sales on NATURA parcels sit in the other departments: header = Lead out + the rest (1–28.09)', () => {
+    const tie = listsTieParts({ count: 715, value_mkd: 2015704 }, { count: 705, value_mkd: 1988804 })!;
+    expect(tie.leadOut).toEqual({ count: 705, value_mkd: 1988804 });
+    expect(tie.other).toEqual({ count: 10, value_mkd: 26900 });
+    expect(tie.leadOut.count + tie.other.count).toBe(715);
+  });
+
+  it('counts only for a non-owner; no Lead out split at all = every list sale elsewhere', () => {
+    expect(listsTieParts({ count: 715 }, { count: 705 })).toEqual({ leadOut: { count: 705, value_mkd: null }, other: { count: 10, value_mkd: null } });
+    expect(listsTieParts({ count: 4, value_mkd: 9000 }, undefined)).toEqual({ leadOut: { count: 0, value_mkd: 0 }, other: { count: 4, value_mkd: 9000 } });
+    expect(listsTieParts({ count: 0, value_mkd: 0 }, undefined)).toBeNull();
   });
 });

@@ -1101,72 +1101,520 @@
     {
       "d": "2026-09-15",
       "count": 221,
-      "value_mkd": 552000
+      "value_mkd": 552000,
+      "by_source": [
+        {
+          "key": "altercpa",
+          "count": 60,
+          "value_mkd": 168913
+        },
+        {
+          "key": "elyon_crm",
+          "count": 23,
+          "value_mkd": 66589
+        },
+        {
+          "key": "teleshop_out",
+          "count": 6,
+          "value_mkd": 15318
+        },
+        {
+          "key": "teleshop_other",
+          "count": 113,
+          "value_mkd": 256402
+        },
+        {
+          "key": "social",
+          "count": 5,
+          "value_mkd": 10496
+        },
+        {
+          "key": "web",
+          "count": 14,
+          "value_mkd": 34282
+        }
+      ]
     },
     {
       "d": "2026-09-16",
       "count": 251,
-      "value_mkd": 628700
+      "value_mkd": 628700,
+      "by_source": [
+        {
+          "key": "altercpa",
+          "count": 68,
+          "value_mkd": 192383
+        },
+        {
+          "key": "elyon_crm",
+          "count": 26,
+          "value_mkd": 75842
+        },
+        {
+          "key": "teleshop_out",
+          "count": 7,
+          "value_mkd": 17446
+        },
+        {
+          "key": "teleshop_other",
+          "count": 129,
+          "value_mkd": 292030
+        },
+        {
+          "key": "social",
+          "count": 5,
+          "value_mkd": 11954
+        },
+        {
+          "key": "web",
+          "count": 16,
+          "value_mkd": 39045
+        }
+      ]
     },
     {
       "d": "2026-09-17",
       "count": 238,
-      "value_mkd": 601300
+      "value_mkd": 601300,
+      "by_source": [
+        {
+          "key": "altercpa",
+          "count": 64,
+          "value_mkd": 183999
+        },
+        {
+          "key": "elyon_crm",
+          "count": 25,
+          "value_mkd": 72536
+        },
+        {
+          "key": "teleshop_out",
+          "count": 7,
+          "value_mkd": 16686
+        },
+        {
+          "key": "teleshop_other",
+          "count": 121,
+          "value_mkd": 279302
+        },
+        {
+          "key": "social",
+          "count": 5,
+          "value_mkd": 11433
+        },
+        {
+          "key": "web",
+          "count": 16,
+          "value_mkd": 37344
+        }
+      ]
     },
     {
       "d": "2026-09-18",
       "count": 240,
-      "value_mkd": 598100
+      "value_mkd": 598100,
+      "by_source": [
+        {
+          "key": "altercpa",
+          "count": 65,
+          "value_mkd": 183019
+        },
+        {
+          "key": "elyon_crm",
+          "count": 25,
+          "value_mkd": 72150
+        },
+        {
+          "key": "teleshop_out",
+          "count": 7,
+          "value_mkd": 16597
+        },
+        {
+          "key": "teleshop_other",
+          "count": 122,
+          "value_mkd": 277817
+        },
+        {
+          "key": "social",
+          "count": 5,
+          "value_mkd": 11372
+        },
+        {
+          "key": "web",
+          "count": 16,
+          "value_mkd": 37145
+        }
+      ]
     },
     {
       "d": "2026-09-19",
       "count": 262,
-      "value_mkd": 640900
+      "value_mkd": 640900,
+      "by_source": [
+        {
+          "key": "altercpa",
+          "count": 71,
+          "value_mkd": 196116
+        },
+        {
+          "key": "elyon_crm",
+          "count": 27,
+          "value_mkd": 77313
+        },
+        {
+          "key": "teleshop_out",
+          "count": 7,
+          "value_mkd": 17785
+        },
+        {
+          "key": "teleshop_other",
+          "count": 134,
+          "value_mkd": 297697
+        },
+        {
+          "key": "social",
+          "count": 6,
+          "value_mkd": 12186
+        },
+        {
+          "key": "web",
+          "count": 17,
+          "value_mkd": 39803
+        }
+      ]
     },
     {
       "d": "2026-09-20",
       "count": 201,
-      "value_mkd": 507100
+      "value_mkd": 507100,
+      "by_source": [
+        {
+          "key": "altercpa",
+          "count": 54,
+          "value_mkd": 155173
+        },
+        {
+          "key": "elyon_crm",
+          "count": 21,
+          "value_mkd": 61173
+        },
+        {
+          "key": "teleshop_out",
+          "count": 6,
+          "value_mkd": 14072
+        },
+        {
+          "key": "teleshop_other",
+          "count": 103,
+          "value_mkd": 235547
+        },
+        {
+          "key": "social",
+          "count": 4,
+          "value_mkd": 9642
+        },
+        {
+          "key": "web",
+          "count": 13,
+          "value_mkd": 31493
+        }
+      ]
     },
     {
       "d": "2026-09-21",
       "count": 228,
-      "value_mkd": 592398
+      "value_mkd": 592398,
+      "by_source": [
+        {
+          "key": "altercpa",
+          "count": 62,
+          "value_mkd": 181275
+        },
+        {
+          "key": "elyon_crm",
+          "count": 24,
+          "value_mkd": 71462
+        },
+        {
+          "key": "teleshop_out",
+          "count": 6,
+          "value_mkd": 16439
+        },
+        {
+          "key": "teleshop_other",
+          "count": 116,
+          "value_mkd": 275167
+        },
+        {
+          "key": "social",
+          "count": 5,
+          "value_mkd": 11264
+        },
+        {
+          "key": "web",
+          "count": 15,
+          "value_mkd": 36791
+        }
+      ]
     },
     {
       "d": "2026-09-22",
       "count": 214,
-      "value_mkd": 520400
+      "value_mkd": 520400,
+      "by_source": [
+        {
+          "key": "altercpa",
+          "count": 58,
+          "value_mkd": 159244
+        },
+        {
+          "key": "elyon_crm",
+          "count": 23,
+          "value_mkd": 62778
+        },
+        {
+          "key": "teleshop_out",
+          "count": 6,
+          "value_mkd": 14441
+        },
+        {
+          "key": "teleshop_other",
+          "count": 107,
+          "value_mkd": 241722
+        },
+        {
+          "key": "social",
+          "count": 5,
+          "value_mkd": 9895
+        },
+        {
+          "key": "web",
+          "count": 15,
+          "value_mkd": 32320
+        }
+      ]
     },
     {
       "d": "2026-09-23",
       "count": 241,
-      "value_mkd": 588700
+      "value_mkd": 588700,
+      "by_source": [
+        {
+          "key": "altercpa",
+          "count": 66,
+          "value_mkd": 180143
+        },
+        {
+          "key": "elyon_crm",
+          "count": 26,
+          "value_mkd": 71017
+        },
+        {
+          "key": "teleshop_out",
+          "count": 7,
+          "value_mkd": 16337
+        },
+        {
+          "key": "teleshop_other",
+          "count": 121,
+          "value_mkd": 273447
+        },
+        {
+          "key": "social",
+          "count": 5,
+          "value_mkd": 11194
+        },
+        {
+          "key": "web",
+          "count": 16,
+          "value_mkd": 36562
+        }
+      ]
     },
     {
       "d": "2026-09-24",
       "count": 226,
-      "value_mkd": 552300
+      "value_mkd": 552300,
+      "by_source": [
+        {
+          "key": "altercpa",
+          "count": 62,
+          "value_mkd": 169005
+        },
+        {
+          "key": "elyon_crm",
+          "count": 24,
+          "value_mkd": 66626
+        },
+        {
+          "key": "teleshop_out",
+          "count": 7,
+          "value_mkd": 15326
+        },
+        {
+          "key": "teleshop_other",
+          "count": 113,
+          "value_mkd": 256540
+        },
+        {
+          "key": "social",
+          "count": 5,
+          "value_mkd": 10502
+        },
+        {
+          "key": "web",
+          "count": 15,
+          "value_mkd": 34301
+        }
+      ]
     },
     {
       "d": "2026-09-25",
       "count": 212,
-      "value_mkd": 511900
+      "value_mkd": 511900,
+      "by_source": [
+        {
+          "key": "altercpa",
+          "count": 58,
+          "value_mkd": 156643
+        },
+        {
+          "key": "elyon_crm",
+          "count": 22,
+          "value_mkd": 61752
+        },
+        {
+          "key": "teleshop_out",
+          "count": 6,
+          "value_mkd": 14205
+        },
+        {
+          "key": "teleshop_other",
+          "count": 106,
+          "value_mkd": 237774
+        },
+        {
+          "key": "social",
+          "count": 6,
+          "value_mkd": 9734
+        },
+        {
+          "key": "web",
+          "count": 14,
+          "value_mkd": 31792
+        }
+      ]
     },
     {
       "d": "2026-09-26",
       "count": 166,
-      "value_mkd": 404100
+      "value_mkd": 404100,
+      "by_source": [
+        {
+          "key": "altercpa",
+          "count": 45,
+          "value_mkd": 123655
+        },
+        {
+          "key": "elyon_crm",
+          "count": 18,
+          "value_mkd": 48748
+        },
+        {
+          "key": "teleshop_out",
+          "count": 5,
+          "value_mkd": 11214
+        },
+        {
+          "key": "teleshop_other",
+          "count": 83,
+          "value_mkd": 187702
+        },
+        {
+          "key": "social",
+          "count": 4,
+          "value_mkd": 7684
+        },
+        {
+          "key": "web",
+          "count": 11,
+          "value_mkd": 25097
+        }
+      ]
     },
     {
       "d": "2026-09-27",
       "count": 153,
-      "value_mkd": 375800
+      "value_mkd": 375800,
+      "by_source": [
+        {
+          "key": "altercpa",
+          "count": 42,
+          "value_mkd": 114996
+        },
+        {
+          "key": "elyon_crm",
+          "count": 16,
+          "value_mkd": 45334
+        },
+        {
+          "key": "teleshop_out",
+          "count": 5,
+          "value_mkd": 10429
+        },
+        {
+          "key": "teleshop_other",
+          "count": 77,
+          "value_mkd": 174556
+        },
+        {
+          "key": "social",
+          "count": 3,
+          "value_mkd": 7146
+        },
+        {
+          "key": "web",
+          "count": 10,
+          "value_mkd": 23339
+        }
+      ]
     },
     {
       "d": "2026-09-28",
       "count": 125,
-      "value_mkd": 286384
+      "value_mkd": 286384,
+      "by_source": [
+        {
+          "key": "altercpa",
+          "count": 34,
+          "value_mkd": 87634
+        },
+        {
+          "key": "elyon_crm",
+          "count": 13,
+          "value_mkd": 34547
+        },
+        {
+          "key": "teleshop_out",
+          "count": 4,
+          "value_mkd": 7948
+        },
+        {
+          "key": "teleshop_other",
+          "count": 62,
+          "value_mkd": 133024
+        },
+        {
+          "key": "social",
+          "count": 3,
+          "value_mkd": 5445
+        },
+        {
+          "key": "web",
+          "count": 9,
+          "value_mkd": 17786
+        }
+      ]
     }
   ],
   "quality": [

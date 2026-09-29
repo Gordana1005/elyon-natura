@@ -44,10 +44,11 @@ const sample = () => ({
                         confirmed: 5, conversion: 0.0962, sold_value_eur: 235.77, delivered_cash_mkd: 29060,
                         last_decision_at: "2026-09-22T17:41:09Z" }] }],
   attention: [
-    { kind: "cod_mismatch", severity: "warning", count: 3, value_eur: 97.5, cod_mkd: 9000, diff_mkd: 3000,
+    // value_mkd = the rail's amount in денари (20260942001920)
+    { kind: "cod_mismatch", severity: "warning", count: 3, value_eur: 97.5, cod_mkd: 9000, value_mkd: 9000, diff_mkd: 3000,
       by_person: [{ person_id: "p1", name: "Nina", count: 3 }],
       sample: [{ display_id: "ORD-1", at: "2026-09-22T10:00:00Z", cod_mkd: 3000, price_mkd: 2000, diff_mkd: 1000, note: "COD <> price" }] },
-    { kind: "unlinked_parcels", severity: "warning", count: 2, cod_mkd: 4000, value_eur: 65.04,
+    { kind: "unlinked_parcels", severity: "warning", count: 2, cod_mkd: 4000, value_eur: 65.04, value_mkd: 4000,
       by_account: [{ account: "natura", series: "9102", count: 2, cod_mkd: 4000 }] },
   ],
   a_future_money_field: { total: 123 },
@@ -91,6 +92,9 @@ describe("stripOverviewMoney", () => {
       worked: 52, confirmed: 5, conversion: 0.0962, last_decision_at: "2026-09-22T17:41:09Z" });
     expect(out.attention[0].sample[0]).toEqual({ display_id: "ORD-1", at: "2026-09-22T10:00:00Z", note: "COD <> price" });
     expect(out.attention[1].by_account[0]).toEqual({ account: "natura", series: "9102", count: 2 });
+    // the rail's денари amount (value_mkd) is money: a non-owner's card keeps its count only
+    expect(out.attention[1]).toEqual({ kind: "unlinked_parcels", severity: "warning", count: 2,
+                                       by_account: [{ account: "natura", series: "9102", count: 2 }] });
     expect(out.freshness[0]).toEqual({ feed: "altercpa", last_ok_at: "2026-09-27T22:28:02Z", status: "ok", detail: "rolling" });
   });
 

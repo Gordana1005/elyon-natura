@@ -3,15 +3,17 @@
  * (migration 20260941000400 insights_lists + insights_lists_cash; api module
  * supabase/functions/api/insightsLists.ts).
  *
- * The prediction-list slice of the Affiliate – Lead out department (`elyon_crm`)
- * of THE sale cohort (insights_sale_rows): sale day (Skopje), MEX-first buckets
- * that add up exactly to the total, value = parcel COD else price × 61,5 — all
- * in денари (`*_mkd`, render with formatDenari, never convert again). Σ lists +
- * not_recorded = the Overview's Affiliate – Lead out · prediction_list split; +
- * elyon_crm's other splits = its Affiliate – Lead out card. A list sale shipped
- * on a NATURA 9102 / 9100 / 9108 parcel counts in Телешоп – Lead out / Lead in /
- * Social media instead (owner 28.09), so every /orders link here also carries
- * cohort_source=elyon_crm.
+ * The prediction-list sales of THE sale cohort (insights_sale_rows), in every
+ * department: sale day (Skopje), MEX-first buckets that add up exactly to the
+ * total, value = parcel COD else price × 61,5 — all in денари (`*_mkd`, render
+ * with formatDenari, never convert again). A list sale's department is its
+ * parcel's (20260942001860): BIO NATURAL or no parcel yet → Affiliate – Lead out;
+ * a NATURA parcel by its series (9100 → Телешоп – Lead in, 9108 / 1300 → Social
+ * media, else Телешоп – Lead out). Σ lists + not_recorded = the Overview's
+ * prediction_list split summed over the departments; `elyon_crm` (its splits)
+ * is the Affiliate – Lead out card, the tab's footer. The /orders links carry
+ * sale_source + detail only — never cohort_source, which would drop the list
+ * sales of the other departments.
  *
  * Money keys (`*_mkd`) are owners only: an admin/manager gets the same payload
  * with every money key ABSENT (meta.money = false).

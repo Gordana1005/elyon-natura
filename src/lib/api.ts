@@ -2238,7 +2238,13 @@ export interface OverviewAttention {
   count: number;
   /** approved_no_parcel_7d only: the rule's window in days (no_parcel_rule_days(), 20260940000300). */
   days?: number | null;
+  /** Σ price (stored EUR) — never shown; the rail shows value_mkd. */
   value_eur?: number | null;
+  /** The rail's amount in денари (20260942001920): the parcel's COD where a parcel exists, else
+   *  price × 61,5; the shop's totals for web_waiting_24h. Owners only (a money key). */
+  value_mkd?: number | null;
+  /** Σ COD of the parcels behind the card (mex_problem, cod_mismatch, unlinked_parcels, web_waiting_24h). */
+  cod_mkd?: number | null;
   by_person?: { person_id: string; name: string; count: number }[] | null;
   by_status?: { status_id: number; status_name: string; count: number }[] | null;
   sample?: { display_id: string | null; note: string; at?: string | null }[] | null;

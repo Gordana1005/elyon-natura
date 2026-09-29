@@ -3149,7 +3149,9 @@
         "title": "Shitur nga listat e parashikimit · {{period}}",
         "titleNoMoney": "Shitjet nga listat e parashikimit · {{period}}",
         "tie": "= Përmbledhja · Affiliate – Lead out · Listat e parashikimit: {{n}} · {{value}}",
-        "tieNoMoney": "= Përmbledhja · Affiliate – Lead out · Listat e parashikimit: {{n}}"
+        "tieNoMoney": "= Përmbledhja · Affiliate – Lead out · Listat e parashikimit: {{n}}",
+        "tieDepts": "= Përmbledhja · Listat e parashikimit në të gjitha departamentet: Affiliate – Lead out {{n}} · {{value}} + departamentet e tjera {{m}} · {{rest}}",
+        "tieDeptsNoMoney": "= Përmbledhja · Listat e parashikimit në të gjitha departamentet: Affiliate – Lead out {{n}} + departamentet e tjera {{m}}"
       },
       "kpi": {
         "title": "Shifrat kryesore të listave",
@@ -5897,6 +5899,13 @@
       "byMonth": "sipas muajve",
       "placed": "Të bëra (vlera)",
       "placedCount": "Të bëra (porosi)",
+      "sales": "Të shitura (vlera)",
+      "salesCount": "Shitje",
+      "subtitleSales": "Të shitura sipas ditës së shitjes kundrejt të arkëtuarave (MEX) · çdo grafik ka shkallën e vet",
+      "subtitleSalesCount": "Shitje sipas ditës së shitjes kundrejt dërgesave të dorëzuara · çdo grafik ka shkallën e vet",
+      "subtitleCashOnly": "Të arkëtuara (MEX) sipas ditës së dorëzimit · çdo grafik ka shkallën e vet",
+      "subtitleCashOnlyCount": "Dërgesa të dorëzuara sipas ditës së dorëzimit · çdo grafik ka shkallën e vet",
+      "toSales": "Hollësi: Shitjet",
       "cash": "Të arkëtuara (MEX)",
       "delivered": "Të dorëzuara (dërgesa)",
       "chart": "Grafik",
@@ -5937,6 +5946,7 @@
       "timeTitle": "Online {{online}} · aktiv {{active}} · pa aktivitet {{idle}} · pushim {{brk}}",
       "tvBoard": "Tabela TV",
       "tvNoLink": "Ende nuk ka lidhje TV — krijojeni te Cilësimet → Renditja",
+      "openAgents": "Hollësi: Agjentët",
       "empty": "Askush nga ekipi në këtë periudhë.",
       "onBreak": "{{n}} në pushim"
     },
@@ -6045,7 +6055,8 @@
         "empty": "Nuk ka shitje në këtë periudhë.",
         "bookedNote_one": "Prej tyre {{n}} është regjistruar në collabBox dhe ende pret pakon MEX — bëhet porosi kur krijohet pakoja.",
         "bookedNote_other": "Prej tyre {{n}} janë regjistruar në collabBox dhe ende presin pakon MEX — bëhen porosi kur krijohet pakoja."
-      }
+      },
+      "loadFailed": "Shitjet e periudhës nuk mund të llogariteshin, prandaj nuk shfaqen. Provoni përsëri."
     },
     "clock": {
       "placed": "Numëruar sipas ditës kur është bërë porosia (ora e Shkupit)"

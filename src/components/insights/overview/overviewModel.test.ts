@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { OverviewResponse, OverviewTeamMember } from '@/lib/api';
+import type { OverviewResponse, OverviewSourceKey, OverviewTeamMember } from '@/lib/api';
+import type { CohortSparkPoint } from '../shared/cohortTypes';
 import sample from './__fixtures__/overview.sample.json';
 import pivotSample from './__fixtures__/pivot.sample.json';
 import cohortSample from '../shared/__fixtures__/cohort.sample.json';
 import {
-  agoParts, compactParts, delta, deriveKpis, groupPivotRows, measureSetOf, ordersHref, parseDrillParams,
+  agoParts, cohortSalesSeries, compactParts, delta, deriveKpis, groupPivotRows, measureSetOf, ordersHref, parseDrillParams,
   parseOverviewParams, placedOf, preparingOf, presetRange, previousRange, primaryOf, seriesFromTrend, shareText,
   sortMembers, sourceDrill, splitDrill, stripMoney, writeOverviewParams, MAX_SPAN_DAYS, OUTCOME,
 } from './model';
@@ -279,5 +280,28 @@ describe('teams and pivot', () => {
     expect(byTeam.map((r) => r.team)).toContain('Pending — AlterCPA');   // teams come by NAME
     const byPerson = groupPivotRows(rows, ['source', 'team', 'person']);
     expect(byPerson.every((r) => 'person_id' in r)).toBe(true);           // a person keeps its id for the drill
+  });
+});
+
+describe('the trend\'s sales line = the cohort\'s spark per department (20260942001930)', () => {
+  const spark = () => structuredClone(cohortSample.spark) as unknown as CohortSparkPoint[];
+  it('денари for an owner, counts otherwise; each department over the window = its cohort total', () => {
+    const money = cohortSalesSeries(spark(), true, { spark: 'day', trend: 'day' })!;
+    const counts = cohortSalesSeries(spark(), false, { spark: 'day', trend: 'day' })!;
+    const days = spark().filter((p) => p.d >= '2026-09-22' && p.d <= '2026-09-28').map((p) => p.d);
+    for (const s of cohortSample.by_source) {
+      const key = s.key as OverviewSourceKey;
+      expect(days.reduce((a, d) => a + (counts.get(d)?.[key] ?? 0), 0)).toBe(s.total.count);
+      expect(days.reduce((a, d) => a + (money.get(d)?.[key] ?? 0), 0)).toBe(s.total.value_mkd);
+    }
+    // a day's departments add up to the day
+    const d0 = spark()[10];
+    expect(Object.values(counts.get(d0.d)!).reduce((a, n) => a + (n ?? 0), 0)).toBe(d0.count);
+  });
+  it('no per-department spark (an older api) or another granularity → null (the trend draws cash alone)', () => {
+    const old = spark().map(({ d, count, value_mkd }) => ({ d, count, value_mkd }));
+    expect(cohortSalesSeries(old, true, { spark: 'day', trend: 'day' })).toBeNull();
+    expect(cohortSalesSeries(spark(), true, { spark: 'day', trend: 'month' })).toBeNull();
+    expect(cohortSalesSeries(null, true, { trend: 'day' })).toBeNull();
   });
 });
