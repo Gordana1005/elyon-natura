@@ -393,13 +393,18 @@ SELECT (SELECT count(*) FROM y)::int AS n,
  * (tracking id, exact set of orders) with its reason and owner date
  * (scripts/lib/accepted-duplicates.mjs). An accepted pair is reported as INFO and does not
  * fail; any other double claim — a new tracking id, or a third order joining an accepted
- * one — still FAILs; an entry that no longer matches a double claim WARNs (clean the file);
+ * one — still FAILs; an entry that no longer matches a double claim WARNs (clean the file) — on
+ * a full-history run only: a date-narrowed run does not see pairs created outside its window;
  * an unreadable/invalid file FAILs (it must never silently accept everything).
  * `node scripts/verify-attribution.mjs --c8a-template` prints the SQL + ready entries.
  */
 export function judgeC8a({ doubles, accepted, narrowed = false, sampleN = SAMPLE_DEFAULT }) {
   const file = accepted.file ? String(accepted.file).split(/[\\/]/).slice(-3).join('/') : 'scripts/data/c8a-accepted-duplicates.json';
   const cls = classifyDoubleClaims(doubles, accepted.errors?.length ? [] : accepted.entries);
+  // A narrowed run only sees double claims with a holder created in the window, so an accepted pair
+  // from another month is simply out of view — staleness is judged on a full-history run only.
+  const outOfWindow = narrowed ? cls.stale.length : 0;
+  if (narrowed) cls.stale = [];
   const paidOf = (d) => d.holders.filter((h) => h.status === 'paid').map((h) => Number(h.eur) || 0);
   const excess = (d) => { const p = paidOf(d); return p.length > 1 ? p.reduce((a, b) => a + b, 0) - Math.max(...p) : 0; };
   const bad = cls.unaccepted;
@@ -428,7 +433,8 @@ export function judgeC8a({ doubles, accepted, narrowed = false, sampleN = SAMPLE
   if (cls.changed.length) notes.push(`${cls.changed.length} accepted tracking id(s) are now held by a DIFFERENT set of orders (${cls.changed.map((e) => `${e.tracking_id}: accepted ${e.orders.join('+')}, now ${e.now_held_by.join('+')}`).join('; ')}) — that is a new double claim`);
   if (cls.stale.length) notes.push(`${cls.stale.length} exception(s) no longer match any double claim (${cls.stale.map((e) => e.tracking_id).join(', ')}) — remove them from ${file}`);
   if (bad.length) notes.push(`if the owner accepts one: node scripts/verify-attribution.mjs --c8a-template, then add the entry to ${file}`);
-  if (narrowed) notes.push('only ids with at least one holder created in the window');
+  if (narrowed) notes.push('only ids with at least one holder created in the window'
+    + (outOfWindow ? `; ${outOfWindow} accepted pair(s) lie outside it (staleness is judged on a full-history run)` : ''));
   return {
     status,
     count: bad.length,

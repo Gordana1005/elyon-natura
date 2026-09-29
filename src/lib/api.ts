@@ -2408,7 +2408,8 @@ export interface HealthFeed {
   rows: Record<string, number>;
   leads_today?: number;
   jobs: HealthJob[];
-  /** null = the feed has no run log yet (collabBox until collabbox_sync_runs exists). */
+  /** Per-day run strip. Every feed has one since 20260942001400 (collabBox reads collabbox_sync_runs);
+   *  null only from an older server. */
   days: HealthDay[] | null;
 }
 export interface HealthNoParcelRun {

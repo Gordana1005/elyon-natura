@@ -106,6 +106,12 @@ describe('judgeC8a — the check itself', () => {
     expect(r.note).toMatch(/no longer match any double claim \(002-9102-100003\/2026\)/);
     expect(r.breakdown.stale_exceptions).toHaveLength(1);
   });
+  it('a date-narrowed run does not call an accepted pair outside its window stale', () => {
+    const r = judgeC8a({ doubles: three.slice(0, 2), accepted: acceptAll, narrowed: true });
+    expect(r.status).toBe('PASS');
+    expect(r.breakdown.stale_exceptions).toHaveLength(0);
+    expect(r.note).toMatch(/1 accepted pair\(s\) lie outside it/);
+  });
   it('an invalid file accepts nothing and FAILs', () => {
     const r = judgeC8a({ doubles: three, accepted: acceptedOf([entry(T1, ['ORD-1', 'ORD-2'], { reason: '' })]) });
     expect(r.status).toBe('FAIL');
