@@ -26,7 +26,7 @@ import {
 import { Check } from 'lucide-react';
 import { MobileCard, MobileCardHeader, MobileCardField, MobileCardActions } from '@/components/ui/mobile-card';
 import { apiGetOrders, apiGetAgents, apiGetProducts, apiBulkStatusUpdate, apiBulkDisposition, apiDuplicateOrder, apiPushOrderAltercpa, apiGetAppSettings, apiGetCpaAttributionDimensions, type AltercpaPushPreview, type CpaAttributionDimensions, type TrashReason, type CancellationReason } from '@/lib/api';
-import { sourceLabel, sourceBadgeVariant, affiliateLabel, offerLabel } from '@/lib/orderSource';
+import { sourceLabel, sourceBadgeVariant, affiliateLabel, offerLabel, departmentLabel, creditName } from '@/lib/orderSource';
 import { useWebmasterNames } from '@/hooks/useWebmasterNames';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 // The SAME reason pickers the Calls page and both order modals use — a bulk
@@ -92,6 +92,9 @@ interface ApiOrder {
   assigned_agent_id: string | null;
   last_action_by?: string | null;
   confirmed_by_name?: string | null;
+  /** GET /orders enrichment (order_departments, 20260942001500): who SOLD it and its department. */
+  seller_name?: string | null;
+  department?: string | null;
   confirmed_by_agent_id?: string | null;
   confirmed_at?: string | null;
   created_at: string;
@@ -982,8 +985,8 @@ export default function Orders() {
         // — orders.price is stored EUR and must never reach a COD column raw.
         'COD AMOUNT (MKD)': codFor(o.price || 0).amount,
         'PRODUCT': items,
-        'CONFIRMED BY': o.confirmed_by_name || o.last_action_by || o.assigned_agent_name || '',
-        'SOURCE': sourceLabel(t, o.source_type),
+        'CONFIRMED BY': creditName(o) || '',
+        'SOURCE': departmentLabel(t, o.department) || sourceLabel(t, o.source_type),
         // Empty rather than "—" for non-CPA orders: a spreadsheet column reads
         // better blank, and agents never receive these fields at all.
         'AFFILIATE': o.cpa_webmaster_id ? affiliateLabel(o.cpa_webmaster_id, webmasterNames) : '',
@@ -1702,19 +1705,22 @@ export default function Orders() {
                     <div className="font-bold text-primary leading-tight">{formatMoney(order.price)}</div>
                   </td>
                   <td className="px-4 py-3">
-                    {(order.confirmed_by_name || order.last_action_by || order.assigned_agent_name) ? (
-                      <span className="inline-flex items-center gap-1.5" title={order.confirmed_by_name ? 'Original sales credit (immutable after first confirm)' : 'Last actor / assigned (no confirmed_by yet)'}>
+                    {creditName(order) ? (
+                      <span className="inline-flex items-center gap-1.5" title={order.seller_name || order.confirmed_by_name ? t('ordersPage.salesCredit', { name: creditName(order) }) : t('ordersPage.confirmedByTitle')}>
                         <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
-                          {(order.confirmed_by_name || order.last_action_by || order.assigned_agent_name)!.charAt(0)}
+                          {creditName(order)!.charAt(0)}
                         </span>
-                        {order.confirmed_by_name || order.last_action_by || order.assigned_agent_name}
+                        {creditName(order)}
                       </span>
                     ) : <span className="text-muted-foreground">—</span>}
                   </td>
                   <td className="px-4 py-3">
-                    <Badge variant={sourceBadgeVariant(order.source_type)} className="text-[10px]">
-                      {sourceLabel(t, order.source_type)}
+                    <Badge variant={sourceBadgeVariant(order.source_type)} className="text-[10px]" title={sourceLabel(t, order.source_type)}>
+                      {departmentLabel(t, order.department) || sourceLabel(t, order.source_type)}
                     </Badge>
+                    {departmentLabel(t, order.department) && (
+                      <div className="mt-0.5 text-[10px] text-muted-foreground">{sourceLabel(t, order.source_type)}</div>
+                    )}
                     {/* The partner, under the chip rather than in a column of its
                         own — the table already carries eleven. Absent for agents,
                         who never receive the field. */}
@@ -1824,9 +1830,9 @@ export default function Orders() {
                             <div className="text-sm">
                               {order.assigned_agent_name || order.last_action_by || order.confirmed_by_name || '—'}
                             </div>
-                            {order.confirmed_by_name && order.assigned_agent_name !== order.confirmed_by_name && (
+                            {(order.seller_name || order.confirmed_by_name) && order.assigned_agent_name !== (order.seller_name || order.confirmed_by_name) && (
                               <div className="text-[11px] text-muted-foreground mt-0.5">
-                                {t('ordersPage.salesCredit', { name: order.confirmed_by_name })}
+                                {t('ordersPage.salesCredit', { name: order.seller_name || order.confirmed_by_name })}
                               </div>
                             )}
                           </div>
@@ -1942,8 +1948,8 @@ export default function Orders() {
           />
         ) : filteredOrders.map(order => {
           const isExpanded = expandedIds.has(order.id);
-          const cardSourceLabel = sourceLabel(t, order.source_type);
-          const confirmedBy = order.confirmed_by_name || order.last_action_by || order.assigned_agent_name;
+          const cardSourceLabel = departmentLabel(t, order.department) || sourceLabel(t, order.source_type);
+          const confirmedBy = creditName(order);
           return (
             <MobileCard key={order.id}>
               <div className="flex items-start gap-2">

@@ -5866,12 +5866,25 @@ async function handleRequest(req: Request): Promise<Response> {
         }
       }
 
+      // Each order's DEPARTMENT (cohort_order_source — the six departments) and
+      // SELLER (the write-once sold_* stamp: a collabBox order is "confirmed" by
+      // the sync, but sold by its document's author) — order_departments
+      // (20260942001500). Display only; if the RPC fails the list still answers.
+      const deptById: Record<string, { department: string | null; seller_name: string | null }> = {};
+      if (pageOrderIds.length) {
+        const { data: depts, error: deptErr } = await adminClient.rpc("order_departments", { p_ids: pageOrderIds });
+        if (deptErr) console.error("order_departments:", deptErr.message);
+        for (const d of (depts || []) as any[]) deptById[d.id] = { department: d.department ?? null, seller_name: d.seller_name ?? null };
+      }
+
       // Add is_owned flag for agents
       const enrichedOrders = stripCpaAttributionList(
         (orders || []).map((o: any) => ({
           ...o,
           is_owned: isAdminOrManager || o.assigned_agent_id === user.id,
           last_action_by: lastActionBy[o.id] || o.assigned_agent_name || null,
+          department: deptById[o.id]?.department ?? null,
+          seller_name: deptById[o.id]?.seller_name ?? null,
         })),
         isAdminOrManager,
       );
@@ -19248,9 +19261,10 @@ async function handleRequest(req: Request): Promise<Response> {
     if (req.method === "GET" && path === "operations-center") {
       if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
 
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      const todayISO = todayStart.toISOString();
+      // "Today" is the Skopje day. The edge runtime runs in UTC, so the old
+      // setHours(0) started the day at 02:00 Skopje (summer) and dated the
+      // shift logs by the UTC date (skopje-day-boundary rule, 2026-08-11).
+      const { startISO: todayISO, day: todayDateStr } = skopjeDayStart();
 
       // Today's orders by status
       const { data: todayOrders } = await adminClient
@@ -19321,8 +19335,7 @@ async function handleRequest(req: Request): Promise<Response> {
         return r.includes("agent") || r.includes("prediction_agent");
       });
 
-      // Today's shift login logs
-      const todayDateStr = new Date().toISOString().split("T")[0];
+      // Today's shift login logs (shift_date = the Skopje day, above)
       const { data: loginLogs } = await adminClient
         .from("shift_login_logs")
         .select("user_id, login_time, logout_time, shift_start_time, shift_end_time")

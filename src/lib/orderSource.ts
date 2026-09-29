@@ -42,6 +42,32 @@ export function sourceBadgeVariant(source: string | null | undefined): 'destruct
   return 'outline';
 }
 
+/** The six departments (owner law 28–29.09.2026) — the keys GET /orders sends as `department`
+ *  (order_departments → cohort_order_source). Labels are the Insights ones; the Lead-in key is
+ *  `teleshopOther` because `_other` is an i18next plural suffix. */
+const DEPARTMENT_I18N_KEY: Record<string, string> = {
+  altercpa: 'insights.common.source.altercpa',
+  elyon_crm: 'insights.common.source.elyon_crm',
+  teleshop_out: 'insights.common.source.teleshop_out',
+  teleshop_other: 'insights.common.source.teleshopOther',
+  social: 'insights.common.source.social',
+  web: 'insights.common.source.web',
+};
+
+/** The order's department label, or null when the api sent none (then show the intake label). */
+export function departmentLabel(t: TFunction, department: string | null | undefined): string | null {
+  const key = department ? DEPARTMENT_I18N_KEY[department] : undefined;
+  return key ? t(key) : null;
+}
+
+/** Who is credited with the sale, for display: the sold_* seller (a collabBox order is "confirmed"
+ *  by the sync but sold by its document's author), else the confirmer, the last actor, the assignee. */
+export function creditName(o: {
+  seller_name?: string | null; confirmed_by_name?: string | null; last_action_by?: string | null; assigned_agent_name?: string | null;
+}): string | null {
+  return o.seller_name || o.confirmed_by_name || o.last_action_by || o.assigned_agent_name || null;
+}
+
 /** The five source values the filter dropdown offers, in the order it offers them. */
 export const SOURCE_FILTER_VALUES = [
   'altercpa', 'import', 'affiliate', 'opencart', 'inbound_lead', 'prediction_lead', 'monadon_legacy',
