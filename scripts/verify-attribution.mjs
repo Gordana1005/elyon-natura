@@ -878,8 +878,11 @@ WITH u0 AS (
   WHERE p.status_id = ${MEX_DELIVERED} AND p.order_id IS NULL AND ${within('p.delivered_at', w)}
     AND ${notTestParcel(ctx, 'p')}
 ),
-u AS (   -- the owner's series rule, stated here on its own (the Overview's is cohort_parcel_split)
-  SELECT u0.*, CASE WHEN u0.web THEN 'web'
+u AS (   -- the owner's profile + series rule, stated here on its own (the Overview's is cohort_parcel_split):
+         -- BIO NATURAL is affiliate before anything else, never web / teleshop (20260942001860)
+  SELECT u0.*, CASE WHEN u0.account = 'bio_natural' AND u0.ser = '9110' THEN 'altercpa'
+                    WHEN u0.account = 'bio_natural' THEN 'elyon_crm'
+                    WHEN u0.web THEN 'web'
                     WHEN u0.ser = '9110' THEN 'altercpa'
                     WHEN u0.ser = '9103' THEN 'elyon_crm'
                     WHEN u0.ser = '9102' THEN 'teleshop_out'
