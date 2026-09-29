@@ -91,6 +91,8 @@ Verified facts for the docs are in `docs/handoff/2026-09-29/FACTS.md`.
   order_origin): department, intake, seller, sold at, AlterCPA decision, collabBox document, CRM price
   vs MEX COD, MEX profile / tracking / status / created / delivered / returned / receiver.
 - **Pure Profit cache** force-refreshed (6 months) after the backfill.
+- **09:18 collabBox nightly-mode run** (26–28.09, ok) — every feed green (AlterCPA, MEX ×2, web, collabBox).
+- **09:25 Customer 360** (`b19a069`, migration `20260942001700`): order badges show the department.
 - **Checks 09:00:** September + July — engine fixture, insights-ties, tab sales / agents / profit /
   returns / work, leaderboard-v2: PASS. verify-attribution: only the known C7 (Sep 37; Jul 655 = the
   11.08 "cancel(other) before August = paid" ruling, report only) and C8b (Sep 14, Jul 1).

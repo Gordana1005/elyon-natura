@@ -20,7 +20,7 @@ operation. It shares **nothing at runtime** with Bulgaria (own repo / own Supaba
 > Macedonian): **`docs/handoff/2026-09-29/PRASHANJA-ZA-MILE.md`**. Verified facts:
 > `docs/handoff/2026-09-29/FACTS.md`.
 
-- **Supabase:** 256 migrations, latest `20260942001600`. Since the 28.09 release:
+- **Supabase:** 257 migrations, latest `20260942001700`. Since the 28.09 release:
   - `…0900` collabBox sync (live);
   - `…1000` six departments;
   - `…1100` departments by folder;
@@ -28,7 +28,8 @@ operation. It shares **nothing at runtime** with Bulgaria (own repo / own Supaba
   - `…1300` every source every 15 min;
   - `…1400` freshness follows the schedules;
   - `…1500` `order_departments`;
-  - `…1600` `order_origin`.
+  - `…1600` `order_origin`;
+  - `…1700` Customer 360 names each order's department.
 - **Edge functions:**
   - `api` redeployed 29.09 09:05;
   - `mex-reconcile` 29.09 05:05 (folder guard);
@@ -58,7 +59,8 @@ operation. It shares **nothing at runtime** with Bulgaria (own repo / own Supaba
   - Операции counts today from the cohort and the TV board;
   - TV leaderboard v2 = one row per agent split by department, managers shown not ranked, no bonus;
   - Orders list shows each order's seller and department;
-  - the order window shows "Origin and proof".
+  - the order window shows "Origin and proof";
+  - Customer 360 badges show the department.
 - **Data, 29.09 night–morning:**
   - collabBox history 06.04 → 26.09 read through the sync (0 errors);
   - AlterCPA 90-day sweep;
