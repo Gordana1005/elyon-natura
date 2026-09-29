@@ -75,24 +75,23 @@ Verified facts for the docs are in `docs/handoff/2026-09-29/FACTS.md`.
 
 ## 🔜 NEXT — in this order
 
-1. **Leaderboard v2** was built by an agent and is **NOT applied and NOT committed**. It is in the working tree:
-   - `supabase/migrations/20260942001200_leaderboard_by_department.sql`, which adds `leaderboard_day_v2(p_day, p_department, p_team)`;
-   - `supabase/functions/api/leaderboardV2.ts` (+ test) and `index.ts`, which adds `GET /leaderboard?v=2`;
-   - `src/lib/leaderboardV2.ts` (+ test), `src/components/tvboard/*` and `src/pages/TvLeaderboardPage.tsx` (+ test);
-   - the locales (`leaderboard2.*`);
-   - `scripts/verify-leaderboard-v2.mjs`.
-
-   Finish it:
-   1. Review it.
-   2. Run `node scripts/assert-mk-target.mjs`.
-   3. Run `node scripts/apply-migration-mk.mjs --dry-run …1200…`, then apply it.
-   4. Run `npx supabase functions deploy api --project-ref bmfxhgznttcnnlqloqzp`.
-   5. Run `npm run build` and `npm test`.
-   6. Commit and push, with the VAULT §4 PAT.
-   7. Run `node scripts/verify-leaderboard-v2.mjs --from 2026-09-22 --to 2026-09-28`.
-   8. Open `/tv/leaderboard` live.
-
-   The design is one row per agent, split by department, with the collabBox bookings of the day. Managers are shown but not ranked. No bonus math.
+1. ✅ **DONE 05:10 — Leaderboard v2 LIVE** (commit `145645c`): migration `20260942001200` applied,
+   `api` deployed, Vercel Ready. `verify-leaderboard-v2` 22–29.09 = PASS on the live function (person ×
+   department = truth, board = insights_cohort per department, once only, roster, filters). Live
+   smoke: 28.09 → 65 people, 109 sales (108 credited + 1 no seller), department filter works. The old
+   response stays the api default (no ?v=2) — the TV page reads v2.
+   ✅ **DONE 05:10 — Integrations words** (in the same commit).
+   ✅ **DONE 05:10 — cross-channel parcels**: `mex-reconcile` guard deployed (commit `3ed28e4`: a dead
+   lead is revived only by its own folder's parcel — AlterCPA 9110, CRM 9103), and repair run
+   `a057bc52` applied: 145 AlterCPA leads the old reconcile had revived on NATURA teleshop / social
+   parcels (Jul–Sep, 314.730 ден COD) went back to cancelled / trashed; their parcels now count in
+   their own department. 126 of those parcels have a collabBox ledger row (outcome 'conflict') — the
+   ones dated after ~20.08 are re-read by the backfill; the rest need re-applying from their stored
+   payload (`collabbox_apply_documents(run, payloads)` under a manual run row, after the backfill) so
+   each becomes its own order with its seller. Left alone and listed for the owner: 47 same-day
+   (maybe the lead's own sale booked in a teleshop folder) + 84 imported links (no MEX flip) —
+   CSV `exports/repairs/cross-channel-parcels-2026-09-29T03-04-29-167Z.csv`.
+   ✅ AlterCPA weekly 90-day sweep: done 05:11 (5 slices).
 2. **After the backfill ends:**
    1. Run the collabBox sync in mode `nightly`, trigger `manual`, to cover 26–28.09. Post to the function with the vault secret, like `invoke_collabbox_sync`; the hour gate only lives in the invoke function. This also clears the `nightly: failing` card: the cron's first real nightly is 30.09 00:00, because the job was created after the 29.09 slot.
    2. Run mode `manual`, from `2026-09-28` to `2026-09-29`.
