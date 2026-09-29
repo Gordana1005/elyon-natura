@@ -1,0 +1,389 @@
+---
+name: elyon-collabbox-sync
+description: The collabBox (Accent Computers teleshop/office ERP) → Elyon CRM sync — the collabbox-sync Edge Function and migration 20260942000900 (+ the 15-minute schedule of 20260942001300). Covers the read-only headless client and its allow-list, the nightly 00:00 pass and the every-15-minutes full pass of yesterday + today, the retired live mode, collabbox_doc_role per document type, the writer collabbox_apply_documents / collabbox_apply_one and every ledger outcome in collabbox_documents, the rule "an order only once its MEX parcel exists", twins / conflicts / replacements / stornos / vanished documents, phones and komitent cards, seller credit, secrets and crons, freshness (collabbox_feed_state), the runbook (dry run one day, manual windows of at most 4 days, pause / resume), the known gaps, and how the collabBox history was loaded. Read before touching supabase/functions/collabbox-sync, collabbox_* tables or functions, scripts/collabbox-fetch.mjs, any collabBox import script, or anything that creates orders from collabBox.
+---
+
+# collabBox → CRM sync
+
+Built 28.09.2026 ~23:30 on the owner's order ("every day at 00:00 — recording and seeing
+everything"), live since 29.09; every 15 minutes since 29.09 ~04:30 (owner: "every source
+refreshed at least every 15 minutes; MEX stays the final proof").
+
+- Database half: `supabase/migrations/20260942000900_collabbox_nightly_sync.sql`; schedule:
+  `20260942001300_realtime_every_15_minutes.sql`; freshness and the Integrations run log:
+  `20260942001400_freshness_every_15_minutes.sql` (applied 29.09 ~04:50).
+- Function: `supabase/functions/collabbox-sync/` — `index.ts` (handler, runs, windows),
+  `client.ts` (read-only HTTP client), `collabbox.ts` (pure parsers, type roles, line
+  classification, phones — no Deno, no network), `collabbox.test.ts` (vitest; reads the migration
+  to keep the twins equal).
+- Design history + first runbook: `docs/handoff/2026-09-28/collabbox-pipeline.md` (§1–§7 are the
+  PAUSED first design; §8 is what runs). `supabase/paused/20260939000350_collabbox_sync.sql` is
+  **superseded — never apply it** (it would re-create these names with the old design).
+- Departments per type: `elyon-departments-and-sources`.
+
+## What collabBox is — and is not
+
+- The teleshop / office ERP of Accent Computers, one Tomcat web app over **plain HTTP** (base URL
+  in `client.ts` `COLLABBOX_BASE`), one login (VAULT §7), no API. Everything is a server-rendered
+  HTML form; the protocol was reverse-engineered on 28.09 (`scripts/collabbox-fetch.mjs` header,
+  PROTOCOL §0–§4).
+- A document's **DocNumber IS the MEX tracking id** of its parcel (`002-9102-177237/2026`), and its
+  **type** is the folder it was booked in. The type decides; the series in the DocNumber can lie.
+- collabBox proves **dispatch, not payment**. Status and money come only from MEX.
+- **Read-only by construction.** `client.ts isAllowed()` lets out exactly six request shapes
+  (GET/POST login, the document-header search, the line-items form + its search, the komitent
+  search by id). Saving a search, the discount form, creating documents, e-mailing or Excel
+  exports are refused before sending. Strictly sequential, 1,5 s between requests, a hard cap per
+  run (100 full / 10 live), one re-login when the short `location.href='./Login…` redirect page
+  comes back (`isLoginPage`), session ids redacted from every log line. Never widen the allow-list.
+
+## Schedule (pg_cron, verified live 29.09)
+
+| Job | UTC | Skopje gate (inside `invoke_collabbox_sync`) | Body sent |
+|---|---|---|---|
+| `collabbox-sync` | `0 22,23 * * *` | proceeds only at **00:xx**, once per Skopje day (no `nightly` run row for today) — DST-proof, one of the two slots is 00:xx | `{mode:'nightly', trigger:'cron'}` → window `collabbox_nightly_window(3, 14)` |
+| `collabbox-sync-frequent` | `*/15 4-21 * * *` | **07:00–22:59** | `{mode:'manual', trigger:'cron', from: yesterday, to: today}` — a FULL pass (headers, lines, orders once the parcel exists, seller credit, awaiting rows) |
+| ~~`collabbox-live`~~ | retired by 20260942001300 | (was 08:00–20:15, headers only → `booked`) | mode `live` stays callable by hand |
+
+Both are silent no-ops until the Vault row `collabbox_sync_secret` exists; `invoke_collabbox_sync`
+swallows its own errors so the cron never fails — a green cron run only means the HTTP call was
+queued. Truth is `collabbox_sync_runs`. The frequent pass is recorded as `kind = 'manual'`,
+`trigger_kind = 'cron'`.
+
+## One full run (nightly / manual / frequent), step by step — `index.ts runFull()`
+
+1. **Housekeeping.** A `running` row older than 20 min is closed `failed` ("abandoned"). Only one
+   full run at a time: a second nightly/manual answers **409 `already_running`** (a frequent pass
+   during a manual backfill is simply skipped; a skipped nightly is caught up by the next night's
+   window). A dry run writes no run row and skips the guard.
+2. **Window.** Manual: `from`/`to` (≤ 14 days, not after today). Nightly:
+   `collabbox_nightly_window(p_days 3, p_max_days 14)` = the last 3 complete Skopje days, widened
+   back to the day after the last ok **nightly** window and to any day still holding `booked` /
+   `no_items` rows, never more than 14 days.
+3. **Per day, sequentially:** headers of every type in `NIGHTLY_TYPES` (10036 · 10050 · 10106 ·
+   10114 · 10111 · 10055 · 10107 · 10112 · 10099 · 10063 · 10058) in ONE page
+   (`comp=searchdoc`, select values COMMA-WRAPPED or the search returns nothing; the count
+   "Вкупно пронајдени N документи" is checked), then the HTML line-items table
+   (`comp=repbydocitm`; no file is left on their server). A day whose lines fail stays `no_items`
+   and is re-read next night — never guessed. A day is skipped when time or requests run out →
+   run `partial`, warning `stopped before <day> (time budget)` or `(request cap)`.
+4. **Classify in the function** (`collabbox.ts`): line role goods / delivery / note / marker
+   (a `product_aliases` kind first — every alias row counts, `reviewed_by` is not read; then
+   8001/"ДОСТАВА" delivery, 8004/ПОЕН/КУПОН/ФЛАЕР marker, 8002/"ЗАБЕЛЕШКА" note), product via
+   `product_aliases` (source `collabbox`, then `any`) then `products.sku` (active first); stornos
+   paired inside the window.
+5. **Komitent cards** (`comp=infocc` by id) for customers the database cannot place
+   (`collabbox_komitenti_needed(docs)`, priority 1 = no phone anywhere), ≤ 60 per run, within the
+   budget. **This lookup currently finds nothing** (see Known gaps).
+6. **The writer** `collabbox_apply_documents(run, docs, dry)` in batches of 40 (≤ 200 allowed),
+   oldest first; one subtransaction per document (a bad document = an `error` ledger row, retried —
+   never an aborted batch); `elyon.bulk_repair` (no paid/returned bells) and
+   `elyon.keep_updated_at` set transaction-locally; the run's counters bumped atomically.
+7. **Vanished documents** — `collabbox_close_window(run, day, day, types, seen)` per FULLY read day
+   with at least one document: ledger rows of that day and those types that the re-read no longer
+   finds get `vanished_at` + flag `vanished_from_collabbox`; an order THIS sync created for one
+   gets a note (never deleted, never re-statused). A day that lost more than half of ≥ 10 known
+   documents is "suspicious" — reported, never marked. An empty re-read proves nothing.
+8. **Retry** — `collabbox_retry_open(run, dry, 14, 40)` up to 10 rounds: re-applies the stored
+   payload of `no_phone` · `awaiting_parcel` · `credit_pending` · `error` rows of the **last 14
+   days** (a parcel may have appeared, a holder been linked).
+9. **Close the run** — status `ok` / `partial` / `failed`, `stats` (per-day fetch figures, komitent
+   figures, storno pairs, outcome and reason counts, conflicts / no-phone / unmapped-line / storno /
+   error lists ≤ 100, vanished sample, slowest request, warnings).
+
+Budgets: background run 330 s (platform wall clock 400 s), synchronous (`"wait": true`, or a dry
+run) 115 s, 45 s kept for the writer after the last fetch. A non-dry nightly/manual call answers
+**202** with its `run_id` at once and works in the background (`EdgeRuntime.waitUntil`).
+
+## What each document TYPE does — `collabbox_doc_role()` (SQL) = `DOC_ROLES` (collabbox.ts)
+
+| Type | collabBox name | Role | What the writer does |
+|---|---|---|---|
+| 10036 | Нарачка in | `order` | an order — once its MEX parcel exists (Телешоп – Lead in) |
+| 10050 | Нарачка out | `order` | an order — once its MEX parcel exists (Телешоп – Lead out) |
+| 10106 | Нарачка Социјални Мрежи | `order` | an order — once its MEX parcel exists (Social) |
+| 10114 | LEADS-OUT Нарачка | `order_unless_held` | an order ONLY when no order holds / names its parcel (Affiliate – Lead out, whoever booked it — the team rule of `20260942001800` that briefly moved a `crm_prediction` author's LEADS-OUT was withdrawn by `…1850`); otherwise its author is credited on that order. Waits for the parcel like the others (a LEADS-OUT booked in collabBox often has a CRM twin that takes the parcel) |
+| 10111 | Нарачка LEADS | `credit` | **never an order** (the sale comes through AlterCPA): its author is credited as seller on the order holding its parcel |
+| 10055 · 10107 · 10112 · 10099 · 10063 · 10058 and any unknown | С. Мрежи-Продавница · Продавници · WEB · … | `record` | ledger only (10107 shop orders are not at MEX; 10112 web documents are worth 0) |
+
+`collabbox.test.ts` reads the migration's CASE and fails when the TS twin differs — change both.
+
+## The writer's decision, in order — `collabbox_apply_one()`
+
+**A. Storno** (negative amount, or no/zero amount and a negative line) → `storno`, never an order.
+Its original = the same komitent's earlier non-storno document worth exactly the reversed value
+(±1 ден), ≤ 120 days back, only when **exactly one** fits (inside the window first, then the
+`collabbox_documents` / `teleshop_import_documents` ledgers). The original is marked
+`reversed_by`; if THIS sync created the original's order, that order gets a note ("check it and
+cancel it if it never shipped") — never deleted, never re-statused. No unique original →
+`storno_unmatched`.
+
+**B. Record-only type** → `recorded`.
+
+**C. The document already IS an order** (idempotency key `external_source = 'collabbox'`,
+`external_order_id = DocNumber`, unique index `uniq_orders_external_ref`) → `exists` or `updated`:
+fill `collabbox_doc_type` when NULL (a different stored type is flagged `type_changed:a>b`, never
+overwritten), credit the author if nobody is stamped yet, flag `amount_edited_after_shipping`
+(MEX decides). The "edited before packing" update path exists only for an order this sync created
+as `confirmed` without a parcel — no longer possible since 29.09.
+
+**D. 10111 LEADS (credit):** holder = the order the register links the parcel to, else the single
+order naming the tracking id. Amount ≤ 0 → `replacement`. No holder → `credit_pending`
+(`no_parcel_yet` / `parcel_not_linked_yet`). Else `collabbox_credit_order()` → `credited`, or
+`recorded` with the credit verdict.
+
+**E. Order documents (10036 · 10050 · 10106 · 10114)**, first stop wins:
+
+| Check | Outcome · reason |
+|---|---|
+| reversed by a storno | `skipped · reversed_by_storno` |
+| DocNumber twice in one day's headers | `skipped · duplicate_doc_number` |
+| DocNumber not `NNN-SSSS-n/yyyy` | `skipped · bad_doc_number` |
+| the day's line items were not read | `no_items · line_items_not_read` (re-read next night) |
+| no amount | `skipped · no_amount` |
+| amount ≤ 0 or goods ≤ 0 (document value 0) | `replacement · replacement_zero_value` — never an order |
+| its parcel's COD is 0 | `replacement · replacement_cod0` — never an order |
+| another order holds (register) or names the parcel | 10114: credit that holder (`credited`/`recorded`); others: `conflict · parcel_held_by_other_order` / `tracking_named_by_other_order` |
+| a live web order claims the parcel | `conflict · parcel_claimed_by_web_order` |
+| the parcel was created at MEX BEFORE the document | `conflict · parcel_predates_document` (never linked to a later order) |
+| **no MEX parcel yet** | **`awaiting_parcel`** (`waits_for_its_parcel` / `leads_out_waits_for_its_parcel`), retried 14 nights |
+| the komitent is skipped (card, teleshop registry or header name: employee, company, deceased, wrong number, test, operator account, do-not-ship, junk name) | `skipped · komitent_<verdict>` |
+| no valid Macedonian phone | `no_phone` (`no_komitent` / `komitent_card_not_read` / `no_valid_macedonian_phone`), retried 14 days |
+| one of the owner's test phones (`report_excluded_phones`) | `skipped · test_phone` |
+| **a twin:** a CRM / AlterCPA order on the same last-8 phone, not a collabBox order, status pending / take / call_again / confirmed / shipped / delivered / paid / returned, no parcel of its own, price > 0, a real product, not a disposition, created 1 day before … 2 days after the document, with price × 61,5 equal (±3 ден) to the amount, to the amount − 150, or to the goods | `conflict · possible_twin_crm_sale` — never a second order |
+| otherwise | **`created`** (`parcel_paid` / `parcel_returned` / `parcel_shipped`) |
+
+A near CRM sale (±3 days) whose price does NOT fit is only flagged `near_crm_sale_price_differs`
+and the order is created. **Conflicts are listed, never forced.**
+
+### The rule that matters most: an order only once its MEX parcel exists
+
+Teleshop, social and LEADS-OUT are packed in collabBox, outside the CRM. A sync order without a
+parcel would sit in the CRM warehouse's Packing queue (a double-pack risk), so an order document
+waits as `awaiting_parcel` (retried for 14 nights) until MEX registers its parcel; until then the
+booking is visible only through `collabbox_booked_today()` (below). Never create a "to pack"
+(`confirmed`, no parcel) order from collabBox. (The migration header's "no parcel yet →
+confirmed" line predates this 29.09 change; the function body is the law.)
+
+### A created order
+
+- `source_type 'import'`, `external_source 'collabbox'`, `external_order_id` = DocNumber,
+  `mex_tracking_id` = DocNumber, `collabbox_doc_type` = type, `delivery_type 'home'`,
+  `created_at = confirmed_at` = the document time (Skopje wall clock, DST-exact). The department
+  comes from the insert trigger (`collabbox_department` by type).
+- **Status from MEX, never from collabBox:** parcel 2 → `paid` (`paid_at` = delivered, `paid_basis
+  'mex'`), 7 → `returned`, anything else → `shipped`; linked with
+  `mex_link_parcel(DocNumber, order, 'collabbox_import', false)` — anything but `linked`/`already`
+  rolls the insert back into `conflict · parcel_claimed_concurrently`. mex-reconcile keeps it
+  current from then on.
+- **Price** = goods value of the lines (ДОСТАВА, ЗАБЕЛЕШКА, ПОЕН / КУПОН / ФЛАЕР excluded) ÷ 61,5
+  (FROZEN). A parcel COD that fits neither the goods nor goods + 150 (±3 ден) wins
+  (`price_from_cod` — "COD ≠ price → MEX is right"). Lines → `order_items` (`collabbox_items`:
+  proportional, summing exactly to the price); unmapped lines keep their name and are listed on
+  the run; note lines → `order_notes` "collabBox: …"; one `order_history` row
+  `System (collabbox-sync)`; `customer_profiles` insert-only.
+- **Phone:** strict Macedonian 8-digit NSN (7X mobile · 2 Skopje · 3[1-4] · 4[2-8]) —
+  `collabbox_mk_phone8()` = `MK_NSN_RE` (collabbox.ts) = `scripts/lib/teleshop-import.mjs`; never
+  rewritten into a fake +389 number (unlike `normalizeMkPhone`). Source order: the komitent card
+  (read tonight or stored, `source 'card'`) → `teleshop_import_customers` → the parcel receiver →
+  `collabbox_customers` rows of `source 'parcel'`. A card phone that differs from the parcel's is
+  flagged `phone_differs_from_parcel`. Stored `+389` + 8 digits.
+- **Seller:** `sold_at` = document time, `sold_via 'collabbox'`, `sold_by_ext` = the identity's
+  own spelling, `sold_by_person_id` via `collabbox_author_identity()` (`sales_person_identities`,
+  `collabbox_author` first then `order_name`, whitespace-normalised). No agent-facing field
+  (`confirmed_by_*`, `assigned_*`). Flags `no_author` / `author_unmapped`.
+- **Stamp at write — the cron will not do it for LEADS / LEADS-OUT.** The stamping cron's
+  `collabbox_author` rule (`order_decider_plan`) keys on the STORED `sale_source = 'collabbox'`; a
+  LEADS-OUT order is stored `elyon_crm / collabbox_leads_out` and a LEADS one
+  `altercpa / collabbox_leads` since the folder reclass. This writer (and `collabbox_credit_order()`
+  below) is what credits them. Checked 29.09: every priced LEADS / LEADS-OUT order has a person
+  (2.397 / 3.351); the 120 without one are 0 ден replacement rows.
+
+### Crediting an EXISTING order — `collabbox_credit_order()`
+
+Write-once `sold_*`: NULL → value only. Verdicts: `stamped` · `stamped_no_person` ·
+`person_filled` (same author, person now known) · `already` · `other_decider` (credited by another
+rule — never overwritten) · `not_a_sale` · `doc_predates_order` (document > 48 h older than the
+order) · `parcel_shared` · `no_author`. `sold_at` = the document time unless that moves the sale
+into another Skopje month than its cohort day (AlterCPA decision, confirmed_at, created_at) —
+then the cohort day (closed months never move).
+
+## The ledger — `collabbox_documents` (PK DocNumber)
+
+One row per document ever seen; `outcome` = what the LAST pass decided; `payload` = the document as
+sent (what the retry re-applies); `created_by_sync` never cleared; `department` =
+`collabbox_department()`; `reason`, `flags`, `order_id`, `related_order_id` (the order in the way),
+`attempts`, `vanished_at`, storno links. Owners read (RLS), service role writes.
+
+| Outcome | Meaning | Retried? |
+|---|---|---|
+| `booked` | live mode: header only | by the next full pass of that day |
+| `created` / `exists` / `updated` | this pass created / found / filled the order | — |
+| `credited` / `recorded` | author credited on the holder / ledger only | — |
+| `conflict` | a holder, a web claim, an older parcel or a CRM twin is in the way | re-evaluated whenever the day is re-read |
+| `replacement` | value 0 / goods 0 / COD 0 — never an order | — |
+| `storno` | a reversal, recorded | — |
+| `skipped` | not importable (reason) | — |
+| `no_phone` · `awaiting_parcel` · `credit_pending` | open | by `collabbox_retry_open`, 14 days |
+| `no_items` | the day's lines were not read | next night's window |
+| `error` | the writer raised (reason) | 14 days |
+
+The ledger covers every document from **01.03.2026** on: the history backfill (01.03 → 26.09, 4-day
+manual windows) finished on 29.09 at 08:03 with 0 errors. Over history most rows are `exists` (the
+teleshop import already held the order), `recorded` or `credit_pending`; the orders the backfill
+created are chiefly social (10106) and LEADS-OUT (10114). For today's picture run the outcome query
+in the Runbook below.
+
+Other tables: `collabbox_sync_runs` (one row per non-dry run: kind `nightly`/`live`/`manual`,
+trigger, window, counters, `stats`, `error`, `warning`); `collabbox_customers` (komitent cards —
+phone, name, city, address, skip verdict, flags; `source` `card` or `parcel`; PII, owners only).
+
+## Freshness — `collabbox_feed_state()`
+
+Keys `feed · last_ok_at · status · detail · data_through · lag_parcels` (the contract of the
+20260939000200 stub) + `last_run_at · last_error · last_error_at · runs_24h · failed_24h ·
+live_last_ok_at · booked_today · stale_to_pack`.
+- `status`: `failed` = the last settled nightly/manual run failed (a `running` row > 20 min
+  counts) · `stale` = the run that should have finished did not — last ok older than *expected* −
+  45 min, *expected* = now (07:30–23:15 Skopje), the 22:45 run (23:15–00:45), the 00:00 nightly
+  (00:45–07:30) — since `20260942001400` (it was a flat 26 h) · `ok` · `n/a` before any run with
+  no collabBox order.
+- `last_ok_at` = the last ok nightly/manual run (frequent passes count); `data_through` = the
+  newest ledger document; `lag_parcels` = NATURA 9100/9102/9108 COD parcels > 48 h old, linked to
+  no order, not web-claimed, never seen by the sync;
+  `stale_to_pack` = orders this sync created to pack still without a parcel after 7 days (should
+  stay 0 now); `live_last_ok_at` is kept only for compatibility.
+- Read by `integrations_health()` — since 20260942001400 the collabBox card carries the run log:
+  job `rolling` = the cron's frequent pass (`kind 'manual'` + `trigger_kind 'cron'`, stale 45 min
+  past the expected slot), job `nightly` (26 h), hand-started windows as `manual`, 24 h counts,
+  last error and the 7-day strip — and overlaid on the Overview's freshness by
+  `GET /api/insights/overview` (`IC.overlayFreshness`).
+
+`collabbox_booked_today(day)` = per author / person / type, the day's documents of 10036 · 10050 ·
+10111 · 10114 · 10106 with outcome `booked` or `awaiting_parcel`, amount > 0, not storno, not
+vanished, that no order holds yet (no order with that external ref or tracking id, no linked
+parcel). Its consumer is the TV leaderboard: `leaderboard_day_v2` (`20260942001200`) keeps a
+drift-checked copy of this filter and counts a booking into the seller's total only for the
+`order` types 10036 · 10050 · 10106 (and not when the customer's CRM / AlterCPA sale already is on
+the board — the writer's twin rule); 10111 LEADS and 10114 LEADS-OUT bookings are shown apart as
+twins. Once the parcel exists the frequent pass creates the order (`sold_at` = the document time),
+the booking drops out and the order counts instead — same day, same author. See
+`elyon-presence-and-leaderboard`.
+
+## Secrets and setup
+
+- Function secrets `COLLABBOX_USER` / `COLLABBOX_PASS` (the collabBox login, `docs/VAULT.md` §7)
+  and `COLLABBOX_SYNC_SECRET` (the `x-collabbox-sync-secret` header, compared in constant time);
+  the SAME value lives in the DB Vault as `collabbox_sync_secret` for pg_cron. The function fails
+  closed (503) when any is unset, and never logs credentials.
+- `supabase/config.toml` `[functions.collabbox-sync] verify_jwt = false` (pg_cron sends no JWT;
+  the header is the gate).
+- Setup / redeploy (Macedonia only): `node scripts/assert-mk-target.mjs` →
+  `node scripts/apply-migration-mk.mjs supabase/migrations/20260942000900_collabbox_nightly_sync.sql`
+  (only on a fresh project) → `npx supabase secrets set COLLABBOX_USER=… COLLABBOX_PASS=…
+  COLLABBOX_SYNC_SECRET=<64 hex> --project-ref bmfxhgznttcnnlqloqzp` →
+  `npx supabase functions deploy collabbox-sync --project-ref bmfxhgznttcnnlqloqzp` →
+  `select vault.create_secret('<the same 64 hex>', 'collabbox_sync_secret');` →
+  `node scripts/engine-fixture-mk.mjs`.
+- `scripts/collabbox-fetch.mjs` (the Node twin of the client, same allow-list idea) reads the
+  credentials at runtime from VAULT §7 and writes to `exports/collabbox/` (gitignored, PII).
+
+## Runbook
+
+**Dry run of ONE past day** (reads collabBox, writes NOTHING — no order, ledger or run row;
+answers in ~30–90 s; keep the secret in an environment variable, keep the output out of git — it
+holds customer data):
+
+```bash
+curl -s -X POST https://bmfxhgznttcnnlqloqzp.supabase.co/functions/v1/collabbox-sync \
+  -H "x-collabbox-sync-secret: $COLLABBOX_SYNC_SECRET" -H "Content-Type: application/json" \
+  -d '{"mode":"manual","from":"2026-09-27","to":"2026-09-27","dry_run":true}' > dry-2026-09-27.json
+```
+
+Read `days[].headers / items / items_error`, `requests` (≤ 100), `outcomes` / `reasons` (a day the
+CRM already holds is mostly `exists` / `recorded` / `credited`), every `plan[]` row with
+`outcome: "created"` (status, price_eur, department, flags), the `conflicts`, `no_phone`,
+`unmapped` lists, `komitenti` (needed vs found), `warnings`, `slowest_ms`.
+
+**A real manual window:** same body without `dry_run` (add `"wait": true` to get the summary back
+instead of `202` + `run_id`). **Keep a window to ≤ 4 days per call** — the size the Mar→Sep
+backfill used. Every day costs two paced requests (headers + line items) plus card lookups and the
+writer, and a run stops at its time budget (115 s synchronous, 330 s in the background) or its
+100-request cap: a longer window ends `partial` with the warning `stopped before <day> (…)`, and
+the rest must be run again from that day. The code accepts up to 14 days (`MAX_WINDOW_DAYS`).
+Only one nightly/manual run at a time: a second call — and every `collabbox-sync-frequent` pass
+meanwhile — gets **409 `already_running`**. So run backfills in the night gap — 23:00–23:55, or
+after the 00:00 nightly has finished and before 07:00 Skopje — never across 00:00 (the nightly
+would get 409 and wait a day) and never into 07:00 (the day's passes would be skipped); one window
+after another, reading each result before the next.
+
+**Check a run:**
+```sql
+select kind, trigger_kind, status, window_from, window_to, fetched, created, updated, unchanged,
+       conflicts, replacements, no_phone, credited, recorded, skipped, pending, stornos, errors,
+       vanished, komitenti_fetched, error, warning, duration_ms
+  from collabbox_sync_runs order by started_at desc limit 10;
+select outcome, reason, count(*) from collabbox_documents group by 1, 2 order by 3 desc;
+select public.collabbox_feed_state();
+```
+
+**Re-evaluate old open rows** (older than 14 days, e.g. the backfill's `credit_pending`): run a
+manual window over their days — the writer re-reads and re-applies every document.
+
+**Pause:** `select cron.unschedule('collabbox-sync'); select cron.unschedule('collabbox-sync-frequent');`
+(or delete the Vault row). Re-applying 20260942000900 / 20260942001300 re-creates the jobs.
+Tripwire first; the function and the crons target Macedonia only (the URL in
+`invoke_collabbox_sync` is this project).
+
+## Known gaps (29.09)
+
+1. **The komitent-card lookup finds nothing** (found 0 so far); `collabbox_customers` holds only
+   `source 'parcel'` rows. Phones come from the teleshop registry and the parcel; a document with
+   neither stays `no_phone`. An owner item.
+2. **Do-not-contact is flagged, not trashed.** A card / name marked do-not-contact creates the order
+   with flag `banned_customer_do_not_contact`; the sync does NOT create the sticky-trash marker the
+   history import made (598 markers). A new such customer enters the calling lists until a manager
+   trashes the phone.
+3. **Open rows older than 14 days are never retried by the cron** — e.g. the historical 10111
+   `credit_pending` rows from the Mar→Sep backfill. Re-run a manual window over their days.
+4. Settings → Integrations: the SQL card has the run log since 20260942001400 and the words follow
+   the 15-minute schedules (`145645c`: `feedDesc.collabbox`, `expect.cbx_15m`). Since 29.09
+   afternoon the UI shows it like every other feed — "Last success" = the last ok run, runs / failed
+   in 24 h, a "Newest document" row for `data_through`, the strip and the `rolling` / `nightly` /
+   `manual` jobs (`elyon-customer360-and-integrations`). Closed.
+5. The live mode never ran from cron (retired at 04:30 on 29.09, before its 08:00 window);
+   `live_last_ok_at` is NULL.
+6. Social history before March 2026 (no MEX) is not imported; the sync backfill started 01.03.2026.
+7. The repair-kit "quiet window" (20:55–07:00) predates the 15-minute passes: collabBox runs until
+   22:59 and MEX from 06:00 — see `docs/OPERATIONS_RUNBOOK.md`.
+
+## How the collabBox history got into the CRM
+
+| When | Tool (run) | What |
+|---|---|---|
+| 12.08 | `create-missing-orders-from-collabbox.mjs` | 5.563 pre-September register orders (LEADS / LEADS-OUT / teleshop), 4.605 `paid` with no MEX proof under the 12.08 operator rule — shown as "paid – history" |
+| ~18.09 | `import-collabbox-teleshop.mjs` | the 02–17.09 teleshop/social import (2.644 orders) — superseded |
+| 28.09 17:10–19:40 | `import-teleshop-collabbox.mjs` (run `8bb49e8e`, ledger 20260942000300) | **247.001 orders** from 10036 / 10050 (series 9100 / 9102), 01.2023 → 27.09.2026: 214.700 paid – history (`paid_basis legacy_import`, before MEX coverage), 28.577 MEX-paid, 3.311 returned, 413 in transit; 56.699 new customers; 598 do-not-contact / deceased trash markers; 1.432 conflicts and 7.777 skipped recorded in `teleshop_import_documents` (258.705 rows) / `teleshop_import_customers` (71.669). `--rollback --run <id>` |
+| 28.09 | `import-leads-out-collabbox.mjs` (run `954707fd`) | 64 LEADS-OUT orders booked only in collabBox |
+| 28.09 | `backfill-sellers-collabbox.mjs` (run `5b29ca75`) | 506 sales credited to their collabBox author; 40 former teleshop authors (2023–24) added as people; 40.702 history orders filled by the stamping function |
+| 28.09 night | `backfill-collabbox-doc-types.mjs` | `orders.collabbox_doc_type` for 255.243 orders |
+| 28.09 night | `reclass-by-folder.mjs` | every collabBox order to its department by type |
+| 29.09 from 03:48 Skopje | the sync, `mode manual` | first run 27–28.09 (28.09: 350 documents, 207 awaiting their parcel); then 01.03 → 26.09 in 4-day windows, finished 08:03 with 0 errors — mostly `exists` / `recorded` / `credit_pending`; the orders it created are chiefly social (10106) and LEADS-OUT (10114). 06.04 failed twice on a draft document without a number until `20ad77d` (the header check now tolerates ≤ max(3, 5 %) incomplete rows per day, dropped and counted) |
+| 29.09 08:46 | the sync, re-apply (run `4cdb427f`) | the 125 documents whose parcels the cross-channel repair `a057bc52` took off dead AlterCPA leads became their own teleshop / social orders with their sellers (`elyon-departments-and-sources`) |
+
+**Do not re-run** `match-collabbox.mjs` with `--apply` (superseded — it once put 2.512 orders live
+as paid) or the two August/September importers above. `reconcile-collabbox-mex.mjs` and
+`audit-collabbox-paid.mjs` only report.
+
+## Red flags
+
+- Any request to collabBox outside the allow-list, any write to collabBox, credentials in a log,
+  a file or a commit.
+- Creating an order without its MEX parcel, or setting a status / `paid` from collabBox.
+- Forcing a conflict, linking a parcel created before its document, a second order for one
+  DocNumber.
+- Changing `DOC_ROLES` without `collabbox_doc_role()` (or the reverse), or deciding a department by
+  series when the type is known.
+- `× 61,5` on a COD or a document amount (they are already денари).
+- Applying anything from `supabase/paused/`.
+- Anything aimed at the Bulgarian project.

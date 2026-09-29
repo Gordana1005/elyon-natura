@@ -3,7 +3,7 @@ name: elyon-logistics-costs
 description: Use for any shipping/return/courier cost, the Pure Profit (Чиста добивка) P&L, the Margins (Маржи) tab, the courier rate card, VAT, product cost (COGS) coverage, or how delivery & return losses are charged. Covers the MEX rate card (150 ден per delivered parcel, 0 on return), the two P&L clocks (cohort vs cash), the cost-share estimate for uncosted packages, and today's commission line. Read before touching GET /api/insights/profit, insights_profit(), courier_rates, loadCourierRates or anything that totals what we pay to ship.
 ---
 
-# Elyon Logistics Costs & Pure Profit — Macedonian rules (2026-09-28)
+# Elyon Logistics Costs & Pure Profit — Macedonian rules (29.09.2026)
 
 **Macedonia ships with MEX Poshta only.** The Speedy / Econt table further down
 is the inherited Bulgarian calibration — history, never a Macedonian cost.
@@ -43,7 +43,8 @@ The cohort strip ties to `insights_cohort` bucket by bucket; cash ties to its
 
 ```
 + revenue        (above; денари, parcel COD / price × 61,5 / shop total)
-− VAT            revenue × r / (1 + r)   — r = index.ts VAT_RATE (0,18, pending the accountant)
+− VAT            revenue × r / (1 + r)   — r = index.ts VAT_RATE (0,18 — CONFIRMED by the owner 28.09;
+                 insightsProfit.ts VAT_CONFIRMED = true)
 − COGS known     Σ packages × products.cost_price (> 0 only) × 61,5
 − COGS estimated uncosted revenue × (known COGS ÷ costed revenue) of the same view — LABELLED
 − courier        delivered parcels × 150 ден
@@ -60,17 +61,22 @@ The cohort strip ties to `insights_cohort` bucket by bucket; cash ties to its
   one pseudo line for a MEX parcel with no order = "contents unknown"); the sale's
   value is split by price weight (ppu × qty, else total_price; all zero → by
   packages), so Σ lines = the sale value to the denar.
-- **Keys.** `product_key()` (product_id / a REVIEWED product_aliases row), else the
-  catalogue product whose `product_alias_norm(name)` is exactly the line's (case /
-  spaces ignored), else `n:<name>`. Spelling variants wait for reviewed aliases.
-- **Kinds.** A reviewed alias decides. Until then the obvious collabBox / CRM
+- **Keys.** `product_key()` (the line's product_id, else a `product_aliases` row —
+  ANY row: `reviewed_by` is never read, so an applied alias counts at once; all
+  1.744 aliases are unreviewed on 29.09), else the catalogue product whose
+  `product_alias_norm(name)` is exactly the line's (case / spaces ignored), else
+  `n:<name>`. The comments in the SQL still say "reviewed alias" — the bodies do
+  not filter on it.
+- **Kinds.** An alias's `kind` decides. Without one, the obvious collabBox / CRM
   non-product lines are recognised by name — `поен…` loyalty points, `достав…`
   delivery charge, `забелешк…` note, `флаер…` flyer — and are NOT packages;
   a web GIFT line is a gift. A product / gift line with no price weight in a
   priced sale is a FREE package.
 - **Cost coverage.** In September 2026 only ~33 % of packages had a
   `cost_price` (the teleshop / Bionatural catalogue has none; the AlterCPA
-  offers all carry €2,93, which looks like a placeholder). The tab therefore
+  offers all carry €2,93, which looks like a placeholder). The owner sets cost
+  prices later; every product created on 28.09 (the 8 AlterCPA offers and the
+  325 of `complete-catalogue.mjs`) has cost 0. The tab therefore
   shows THREE honest numbers: net with uncosted packages estimated (headline,
   hatched), net on the costed packages alone, and the upper bound with
   uncosted at 0. **Never invent a cost** and never let an uncosted product
@@ -95,8 +101,15 @@ The cohort strip ties to `insights_cohort` bucket by bucket; cash ties to its
   once, snapped to 0,0001; product name / kind = byte-order minimum (COLLATE "C").
 - Freshness: a row is used only while `version` = `insights_profit_cache_version()`
   (bump it when the P&L logic changes) and `sig` = `insights_profit_cache_sig()`
-  (catalogue names / cost prices, reviewed aliases, test phones — entering a cost
-  price invalidates every month). Closed months still move (late MEX, repairs):
+  (catalogue names / cost prices, every alias row, test phones — entering a cost
+  price or applying an alias invalidates every month). **Version is 4** since
+  `20260942001000` (six departments: a month cached with five sources had no
+  `teleshop_out` block); the cache was refreshed by hand at v4 on 29.09, and the
+  last 6 months again after the collabBox history backfill. The cache
+  sums per SOURCE, and a department reclass (`reclass-by-folder.mjs`,
+  `reclass-department-sources.mjs`) moves `sale_source` without touching
+  `orders.updated_at` — the nightly job cannot see it, so refresh the affected
+  months by hand after any reclass. Closed months still move (late MEX, repairs):
   the nightly cron `insights-profit-monthly` (03:40 Skopje, DST-proof gate)
   refreshes the last 3 closed months, every month `insights_profit_touched()`
   flags since its refresh, stale version / sig, and missing months of the last

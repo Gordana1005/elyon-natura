@@ -28,6 +28,16 @@ Built 2026-08-06, live the same day. Four operator decisions define its shape:
    order they already approved, cancelled or trashed has been decided — importing it would drop
    a finished order into the calling queue, and for phase 3 would book revenue and commission our
    agents never earned. Everything else stays in the ledger, fully visible in reports.
+   (`import_scope = 'pending_only'` — it must stay that way.) The same holds when an offer is
+   mapped late: its leads decided before the mapping are **not back-imported**.
+
+**Department.** Everything this bridge creates is the **Affiliate – Lead in** department (cohort key
+`altercpa`: `altercpa/bridge` + the history import `altercpa/history`), together with collabBox
+10111 "Нарачка LEADS" (`altercpa/collabbox_leads`). Re-sales our agents make in the CRM to those
+customers are **Affiliate – Lead out** (`elyon_crm`) when they ship on BIO NATURAL, as nearly all do;
+on a NATURA parcel the series decides (owner 29.09: the MEX profile decides). The rules — by folder
+and MEX profile, never by the seller or her team — are in
+`.grok/skills/elyon-departments-and-sources`.
 
 ---
 
@@ -55,7 +65,8 @@ Built 2026-08-06, live the same day. Four operator decisions define its shape:
 `orders` and filter foreign ones out downstream — is the `monadon_legacy` pattern
 (`source_type IS DISTINCT FROM …`, repeated in every segment-engine migration since
 `20260627000000`). It would mean auditing the engine, prediction lists, the assigner, Insights,
-commissions, payouts and stock against 80.360 live orders. Ledger-first has **zero blast radius**
+commissions, payouts and stock against every live order (80.360 when the bridge was built; 354.048
+on 29.09). Ledger-first has **zero blast radius**
 on all of them.
 
 It also contains a live data-corruption hazard. `normalizeMkPhone`
@@ -107,7 +118,15 @@ touches the affiliate drain.
 - **`altercpa_leads`** — the ledger. Every record, every geo, `payload` jsonb so any decision is
   replayable without re-fetching. `skip_reason` says why a row is not an order.
 - **`altercpa_offer_map`** — `(account, geo, offer name) → product`. Self-populating: a new offer
-  name is recorded on first sighting and appears in the admin queue.
+  name is recorded on first sighting and appears in the admin queue. Unique on
+  `(account_id, geo, lower(btrim(offer_name)))`; `is_mapped` is generated from `product_id`.
+  A lead of an unmapped offer is mirrored with `skip_reason = 'unmapped_offer'` and never becomes an
+  order. The 10 MK offers that had arrived unmapped since 17.09 (GlucoCare alone had 202 leads)
+  were mapped on 28.09, with 8 new products — GlucoCare, MenCare, ProstaCare, NeuroCare, Arthriva,
+  Collagen Peptides Bionatural, Neurofix 1+1 and Prostafix 1+1 (the 1+1 are bundles of 2) — in
+  category "AlterCPA — нови понуди (28.09.2026)": active, stock placeholder 1000, cost price 0
+  until the owner sets it. From the mapping on, their pending leads enter the CRM; decided ones
+  stay in the ledger.
 - **`altercpa_sync_runs`** — what each run fetched, created and skipped. For a sweep: one row
   per invocation ("slice"), `sweep_id` set.
 - **`altercpa_sweeps`** (2026-09-28) — one row per nightly/weekly sweep: its fixed window, the
@@ -180,6 +199,12 @@ The card shows a red **No token** badge if that secret is not actually present �
 configured without its secret is the single most likely reason for a bridge that reports success
 and imports nothing.
 
+**Live state:** the main merchant token was revoked; since the 18.09 fix the account reads AND
+pushes with `ALTERCPA_PUSH_TOKEN_DRAGANA` — both `token_secret_name` and `push_token_secret_name`
+name that secret (the 25.08 → 18.09 outage was caught up: 4.443 orders). The API takes the token as
+`comp/list.json?id=<token>` — `?token=` makes a good token look dead. "No leads came" is usually the
+wrong diagnosis: compare `altercpa_leads` with `orders` first.
+
 Both secrets are recorded in `docs/VAULT.md` §2 (gitignored).
 
 ## Schedule
@@ -187,15 +212,17 @@ Both secrets are recorded in `docs/VAULT.md` §2 (gitignored).
 | Job | Cron (UTC) | Window |
 |---|---|---|
 | `altercpa-sync-rolling` | `*/2 * * * *` | `last_synced_at − 45 min → now` |
-| `altercpa-sync-nightly` | `15 1 * * *` | opens a sweep over the last 7 days |
-| `altercpa-sync-weekly` | `45 2 * * 0` | opens a sweep over the last 90 days |
+| `altercpa-sync-nightly` | `15 1 * * *` | 03:15 Skopje (summer): opens a sweep over the last 7 days |
+| `altercpa-sync-weekly` | `45 2 * * 0` | Sunday 04:45 Skopje (summer): opens a sweep over the last 90 days |
 | `altercpa-sync-continue` | `1-59/2 * * * *` | works an open sweep on from its cursor; no HTTP at all while none is open (2026-09-28) |
-| `altercpa-sync-status` | `*/5 * * * *` | not a window — our open orders, by `oid` |
-| `mex-reconcile` | `7,37 * * * *` | MEX shipments by `updated_from`, both accounts (see below) |
+| `altercpa-sync-status` | `*/5 * * * *` | acts 07:00–20:55 Skopje; not a window — our open orders, by `oid` |
+| `mex-reconcile` | `7,22,37,52 * * * *` | acts 06:00–22:59 Skopje; MEX shipments by `updated_from`, both accounts (see below) |
 
 **`mex-reconcile`** (`20260918000100`, edge fn `supabase/functions/mex-reconcile`; the pure
 matching rules live in `match.ts`, tested by `match.test.ts`) is the courier ground-truth
-corrector: twice an hour (07:00–20:55 Skopje gate, plus a Sunday sweep of the last 60 days) it
+corrector: **every 15 minutes, 06:00–22:59 Skopje** (`20260942001300`, 29.09 — owner: every source
+at least every 15 minutes, MEX is the final proof; it was twice an hour 07:00–20:55 before), plus a
+Sunday sweep of the last 60 days (`mex-reconcile-weekly`, 08:15 UTC), it
 pulls every shipment MEX updated since the cursor from BOTH accounts (BIO NATURAL = the Elyon
 business, series 9110/9103; NATURA = teleshop/social/web), upserts each into the parcel register
 `mex_parcels`, then matches it — never guessing:
@@ -203,7 +230,13 @@ business, series 9110/9103; NATURA = teleshop/social/web), upserts each into the
 1. **remembered** — the order whose `orders.mex_tracking_id` is the parcel (`tracking`);
 2. **fresh** — phone → E.164, unlinked orders created within [−3d … +75d], **real sales only**
    (price > 0, a real product name, not `duplicated`):
-   - COD = round(price€ × 61.5) [+150 delivery] ±3 ден → `phone_cod`, nearest date wins;
+   - COD = round(price€ × 61.5) [+150 delivery] ±3 ден → `phone_cod`, nearest date wins —
+     but a **cancelled or trashed** order fits only its OWN folder's parcel (`mayReviveWith`,
+     29.09): an AlterCPA lead a series 9110 parcel (either account), a CRM sale a 9103 one. A
+     teleshop (9102 / 9100), social (9108 / 1300) or web parcel on the same phone is another
+     department's sale and never revives the lead (the old match had revived July leads on
+     September teleshop parcels; repair `scripts/repair-cross-channel-parcels.mjs` run `a057bc52`
+     reverted 145 of them, and their collabBox documents became their own orders);
    - no COD fit, exactly ONE real sale on the phone, open/shipped/delivered → `phone_single`;
    - **upsell revive** (owner rule 2026-09-28) — no COD fit, exactly ONE real sale on the phone,
      it is our own no-parcel cancel (10 days since 28.09) (`no_parcel_7d`) of an AlterCPA order, and the parcel

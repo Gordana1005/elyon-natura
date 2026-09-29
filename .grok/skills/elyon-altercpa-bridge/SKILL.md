@@ -10,6 +10,17 @@ Shipped 2026-08-06. Full reference: `docs/ALTERCPA-BRIDGE.md`.
 Leads arrive at AlterCPA from the affiliate network and keep arriving there. This pulls a copy
 into Elyon so the CRM is one place. **We poll them; nothing is configured on their side.**
 
+**Department (owner law 28–29.09, see `elyon-departments-and-sources`):** every order this bridge
+creates — `altercpa/bridge`, and the 2025-04 → 2026-08 history `altercpa/history` — is
+**Affiliate – Lead in** (cohort key `altercpa`), together with collabBox 10111 "Нарачка LEADS"
+(`altercpa/collabbox_leads`; the collabBox sync never creates a 10111 order, it only credits the
+seller on the order holding its parcel). A re-sale our agents make in the CRM to an affiliate
+customer is **Affiliate – Lead out** (`elyon_crm`) when it ships on BIO NATURAL, as nearly all do
+(on NATURA its series decides — the MEX profile rule, 20260942001860), never this department, even
+when the customer arrived through AlterCPA — and even when the seller sits in the AlterCPA team
+(that override was withdrawn, 20260942001100). An ad lead from an existing client is still a new
+lead here.
+
 ## The five decisions (do not re-litigate)
 
 1. **Ledger first, orders second.** EVERY record lands in `altercpa_leads` — every geo, with the
@@ -41,7 +52,10 @@ into Elyon so the CRM is one place. **We poll them; nothing is configured on the
      an operator name**, so the edit write signs with
      `altercpa_accounts.push_token_secret_name` (secret `ALTERCPA_PUSH_TOKEN_DRAGANA`, value in
      VAULT §2) → their panel attributes pushes to Dragana. Falls back to `token_secret_name`
-     when NULL. Reads (crons + the post-push read-back) stay on the main token. The confirming
+     when NULL. **Reads use the same token since 18.09:** the main merchant token was revoked, and
+     the account's `token_secret_name` now also names `ALTERCPA_PUSH_TOKEN_DRAGANA`. The API
+     takes the token as `?id=`, not `?token=` — a wrong parameter makes a good token look dead
+     (the 25.08 → 18.09 outage was caught up: 4.443 orders). The confirming
      agent additionally travels as a server-forced `comment` prefix `Agent: <name>`
      (`confirmed_by_name ?? assigned_agent_name`) — the only per-order vehicle their API has.
    - **One order per CALL; bulk = client loop (2026-08-18, reversing the 08-14 one-per-press
@@ -96,9 +110,12 @@ into Elyon so the CRM is one place. **We poll them; nothing is configured on the
      dropped until the POST fix.
    - `comp/status.json` (coarser: approve/hold/cancel/trash + free-text fields) exists but is
      not used by the button.
-4. **Pendings only** (`import_scope='pending_only'`). Only phase 1/2 become orders. Phase 3/4/5
+4. **Pendings only** (`import_scope='pending_only'` — it must stay that way). Only phase 1/2
+   become orders. Phase 3/4/5
    are already decided on their side; importing them would drop finished orders into the calling
    queue and book revenue our agents never earned. They stay in the ledger as `not_pending`.
+   This also holds for a newly mapped offer: its leads that were decided before the mapping are
+   **not back-imported** — only its pendings from then on enter the CRM.
    ⚠️ **A skip means "do not CREATE an order", never "leave an existing one orphaned."**
    `upsertLead()` used to set `order_id` only when it created the order, so a skipped lead whose
    order already existed from an earlier path stayed unlinked — and the `status` kind's candidate
@@ -201,6 +218,15 @@ AlterCPA `no_parcel_7d` cancel. Rules: `supabase/functions/mex-reconcile/match.t
 (`pickCandidate`, `shipGate`). The no-parcel ledger (`no_parcel_rule_items`) is never rewritten
 by a reopen: its `cancelled` row stays the true record of that night.
 
+**Only the lead's own parcel reopens it (29.09, `mayReviveWith`).** A cancelled or trashed
+AlterCPA lead fits a fresh parcel on its phone only when the parcel is series **9110** ("Нарачка
+LEADS", either account). A teleshop (9102 / 9100), social (9108 / 1300) or web parcel on the same
+phone is another department's sale: before the guard the phone + COD match had revived July leads
+on September teleshop parcels (money in Affiliate – Lead in, the teleshop seller never credited).
+The repair `scripts/repair-cross-channel-parcels.mjs` run `a057bc52` put 145 such leads back to
+their pre-flip status and unlinked the parcels; their collabBox documents became their own orders
+(`elyon-departments-and-sources`).
+
 ## Why foreign leads must stay out of `orders`
 
 Two independent reasons, either one sufficient:
@@ -210,7 +236,7 @@ Two independent reasons, either one sufficient:
   `+38940721234567` — stored, dialled and matched that way, permanently and silently. It is
   called on *every* intake path in `supabase/functions/api/index.ts`.
 - **Blast radius.** The segment engine, prediction lists, the assigner, Insights, commissions,
-  payouts and stock all read `orders` unconditionally against 80.360 live rows. Filtering foreign
+  payouts and stock all read `orders` unconditionally (354.048 rows on 29.09). Filtering foreign
   rows out downstream is the `monadon_legacy` pattern (`source_type IS DISTINCT FROM …` repeated
   in every engine migration) and would mean auditing all of them.
 
@@ -260,8 +286,10 @@ date to get right**. Do not invent a new key.
   table. The **id** is stored and the name resolved at display time, so renaming a partner is
   one row. Backfilled from `scripts/data/altercpa-mk-raw.jsonl` by
   `scripts/backfill-cpa-attribution.mjs` and `scripts/backfill-cpa-stream.mjs` (idempotent;
-  suppress triggers via `session_replication_role = replica` so `trg_orders_updated_at` does not
-  stamp 82k rows — `GET /call-agains` reports `orders.updated_at` as `last_call_at`).
+  they suppressed triggers via `session_replication_role = replica` so `trg_orders_updated_at`
+  did not stamp 82k rows — `GET /call-agains` reports `orders.updated_at` as `last_call_at`. New
+  bulk work uses `SET LOCAL elyon.keep_updated_at = 'on'` instead: `session_replication_role`
+  cannot be set inside functions on MK).
   **Admin/manager only**: `stripCpaAttribution()` deletes all four fields on the way out of
   `GET /orders` and `GET /orders/:id` for every other role.
 - **Streams have NO names and NO registry, on purpose** (operator decision 2026-08-19: "the
@@ -295,13 +323,23 @@ date to get right**. Do not invent a new key.
 - **An unmapped offer must never import with `product_id = NULL`.** That order is invisible to
   every product and stock report and nothing surfaces the gap. Mirror it, set
   `skip_reason='unmapped_offer'`, and let `altercpa_offer_map` be the work queue.
+  **28.09:** the 10 MK offers that had been arriving unmapped since 17.09 (their leads never
+  entered the CRM — GlucoCare had 202) were mapped; 8 new products were created for them
+  (GlucoCare, MenCare, ProstaCare, NeuroCare, Arthriva, Collagen Peptides Bionatural, Neurofix
+  1+1, Prostafix 1+1 — the 1+1 are bundles of 2) in category "AlterCPA — нови понуди
+  (28.09.2026)": active, stock placeholder 1000, cost price 0 (the owner sets it). Map a new offer
+  on /altercpa; from then on its pending leads enter the CRM — its leads decided before the mapping
+  are not back-imported (`pending_only`).
 - **A currency with no rate yields `price_eur = NULL`**, never a guessed number. Once a fabricated
   figure is in a report there is nothing to distinguish it from a real one. Extend `FX_TO_EUR`
   deliberately, per currency.
 - **A backfill must not advance `last_synced_at`** — it looks at the past, and moving the cursor
   skips everything between the backfill's end and now.
-- **Disable `trg_orders_segments_insert` before any backfill** (`scripts/segment-trigger-mk.mjs
-  --disable`, then `--recompute`), or you get one full segment recompute per imported row.
+- **Never recompute segments per row in a backfill.** The August import disabled the trigger
+  (`scripts/segment-trigger-mk.mjs --disable`, then `--recompute`); since 28.09 a bulk writer sets
+  `SET LOCAL elyon.defer_segments = 'on'` instead and drains `segment_recompute_queue` with
+  `segment_recompute_drain()` afterwards (`20260942000300`, `elyon-segments-and-prediction`).
+  Either way, never one full segment recompute per imported row.
 - **The merchant token lives in a Supabase function secret**, and `altercpa_accounts` stores only
   its NAME. A token can read every order in the account — never put it in a table or a body.
 - **`altercpa_*` tables are admin/manager only**, deliberately NOT `is_internal_staff`:
@@ -336,7 +374,10 @@ run row "stale: still running after 10 minutes". Now (`20260940000100`, `altercp
   the cursor checkpointed after every page of 100, **100 s** of new work per invocation. The
   cron **`altercpa-sync-continue`** (`1-59/2 * * * *`) POSTs `{kind:'continue'}` through
   `invoke_altercpa_sync()` only while a sweep is open and unleased; otherwise it makes no HTTP
-  call. The nightly/weekly crons keep their schedules and now OPEN a sweep.
+  call. The nightly/weekly crons keep their schedules and now OPEN a sweep:
+  `altercpa-sync-nightly` `15 1 * * *` UTC (03:15 Skopje in summer, the last 7 days) and
+  `altercpa-sync-weekly` `45 2 * * 0` (Sunday 04:45, 90 days). The first 90-day sweep under this
+  code (started by hand 29.09 04:48) finished at 05:11; the Sunday runs had failed since 16.08.
 - **One run row per invocation** (kind = the sweep's, `sweep_id`), ok once its chunks are written.
   An ok row ≠ a finished sweep: read `altercpa_sweeps.status`.
 - **One open sweep per account.** A start while one is open continues it, except weekly-over-

@@ -1,6 +1,6 @@
 ---
 name: elyon-customer360-and-integrations
-description: Customer 360 (one timeline per phone — customer_timeline, GET /api/customers/timeline, src/components/customer360) and Settings → Integrations health (integrations_health(), per-feed freshness that must stay in step with insights_overview's freshness block, the collabbox_feed_state() stub, every pg_cron job, the 7-day no-parcel rule card and the owners' Report ↔ Apply switch), and who may see what on both. Read before touching the timeline, a feed's freshness threshold, the no-parcel switch, or any owner-only money key on these surfaces.
+description: Customer 360 (one timeline per phone — customer_timeline, GET /api/customers/timeline, src/components/customer360, every order badged with its department) and Settings → Integrations health (integrations_health(), per-feed freshness that must stay in step with insights_overview's freshness block, collabbox_feed_state() — the real collabBox run log since 29.09, shown like every other feed — every pg_cron job, the 10-day no-parcel rule card and the owners' Report ↔ Apply switch), and who may see what on both. Read before touching the timeline, a feed's freshness threshold, the no-parcel switch, or any owner-only money key on these surfaces.
 ---
 
 # Customer 360 & Settings → Integrations health — MACEDONIA
@@ -11,8 +11,9 @@ at d91b0a9 — HANDOFF §2).
 ## Customer 360 — everything we hold on one phone
 
 **Path:** `CustomerHistoryDialog` → tab "timeline" (Orders and Prediction Leads pages; fetched
-only when the tab opens) → `GET /api/customers/timeline?phone=` (`api/index.ts:12065`) →
-`customer_timeline(p_phone, p_include_money)` (20260939000100; SECURITY DEFINER, service_role +
+only when the tab opens) → `GET /api/customers/timeline?phone=` (`api/index.ts:12241`) →
+`customer_timeline(p_phone, p_include_money)` (20260939000100, last re-emitted by
+20260942001800 behind a drift guard; SECURITY DEFINER, service_role +
 the read-only harness only) → `C360.shapeTimeline()` (`supabase/functions/api/customer360.ts`) →
 `src/components/customer360/CustomerTimeline.tsx` (+ pure `timelineModel.ts`).
 
@@ -22,10 +23,10 @@ the read-only harness only) → `C360.shapeTimeline()` (`supabase/functions/api/
 
 | Kind | What | Nested |
 |---|---|---|
-| `order` | every CRM order on the phone, any source; 0 ден call-outcome rows flagged `disposition` | its MEX parcel(s) (register rows by `order_id` or tracking id; else the order's own `mex_*` copy, `from_order: true`), its latest AlterCPA ledger row (`lead`), items, reasons, `sold_by/sold_at/sold_via`, `paid_basis`, human-note count + newest 3 `System…` notes |
+| `order` | every CRM order on the phone, any source; 0 ден call-outcome rows flagged `disposition`; `department` = `cohort_order_source(sale_source, detail, mex_tracking_id, dept_override)` (`20260942001700`, the override passed since `…1800` — a CRM sale follows its MEX profile, `…1860`) — the badge shows the department label (`departmentLabel`, `src/lib/orderSource.ts`), the stored `source` / `source_detail` words are only the fallback | its MEX parcel(s) (register rows by `order_id` or tracking id; else the order's own `mex_*` copy, `from_order: true`), its latest AlterCPA ledger row (`lead`), items, reasons, `sold_by/sold_at/sold_via`, `paid_basis`, human-note count + newest 3 `System…` notes |
 | `web_order` | `web_orders` on `phone8`, not deleted; `status` = `web_order_outcome()` | its parcel by `mex_tracking_id` |
 | `altercpa_lead` | a ledger row that is NOT one of this customer's orders (never promoted, skipped, or promoted onto an order with another phone); geo `MK` unless promoted; `decided_by` via the `altercpa_user` identity | — |
-| `parcel` | a MEX parcel on the phone owned by none of the above — a MEX-only sale, or `linked_elsewhere` (linked to another phone's order); `channel` from NTMK / series (web, teleshop, social, leads_out, leads, crm, other) | — |
+| `parcel` | a MEX parcel on the phone owned by none of the above — a MEX-only sale, or `linked_elsewhere` (linked to another phone's order); `channel` from NTMK / series (web, teleshop = 9100 and 9102, social, leads_out, leads, crm, other) — the timeline's own words, older than the six departments (it does not split Телешоп – Lead in / out; `20260942001700` changed only the order events; the department rule by series is in `elyon-departments-and-sources`) | — |
 | `call` | `call_logs` on the phone — timing is agent-reported while VOIP is off, never proof anyone answered | — |
 | `note` | `order_notes` written by a person (`System…` notes stay inside their order) | — |
 | `list` | the prediction lists the customer sits on NOW (members matched by the exact phone strings of the orders, plus `+389` + last 8) | — |
@@ -68,51 +69,93 @@ the read-only harness only) → `C360.shapeTimeline()` (`supabase/functions/api/
 **Path:** Settings tab `integrations` (rendered when `canSeeBusiness`) →
 `IntegrationsHealthTab.tsx` (refetch 60 s, not in background; `issueCount()` counts every
 stale/failing feed, job, the rule and every active cron job) → `GET /api/integrations/health`
-(`api/index.ts:16961`, `isBusinessOwner()` else 403 `owners_only`) → `integrations_health()`
-(20260939000200:877, service_role only) → `{generated_at, today, feeds[], no_parcel, cron[]}`.
+(`api/index.ts:17248`, `isBusinessOwner()` else 403 `owners_only`) → `integrations_health()`
+(first 20260939000200:877, last re-emitted by 20260942001400; service_role only) →
+`{generated_at, today, feeds[], no_parcel, cron[]}`.
 
 ### Feed cards — status `ok | stale | failing | n/a`
 
 Headline thresholds are **the Overview's freshness formulas** (`frj` in `insights_overview()`,
-20260936000000:989-1090). **KEEP THE TWO IN STEP** — a change in one is a change in both. The
-Overview says `failed` where this page says `failing`.
+first in 20260936000000, last re-emitted by 20260942001400; `integrations_health()` likewise).
+**KEEP THE TWO IN STEP** — a change in one is a change in both. The Overview says `failed` where
+this page says `failing`.
 
 | Feed | failing | stale |
 |---|---|---|
 | `altercpa` | no ok `rolling` run, or the last rolling run is not ok | last ok rolling run > 15 min ago |
-| `mex_bio_natural`, `mex_natura` | no last ok, or the newest settled MEX run (any kind, 10 days) is not ok | last ok (a run that fetched THIS account, else the register's last sighting) < *expected* − 45 min; *expected* = now between 07:45 and 21:00 Skopje, else the last 20:40 |
+| `mex_bio_natural`, `mex_natura` | no last ok, or the newest settled MEX run (any kind, 10 days) is not ok | last ok (a run that fetched THIS account, else the register's last sighting) < *expected* − 45 min; *expected* = now between 06:30 and 23:00 Skopje, else the last 22:52 run (the schedule of `20260942001300`: every 15 min 06:00–22:59) |
 | `web` | no ok/partial run, or the last settled run failed | last ok/partial run > 45 min ago |
-| `collabbox` | `collabbox_feed_state()` says `failed` | newest collabBox document > 7 days old; none at all → `n/a` |
+| `collabbox` | `collabbox_feed_state()` says `failed`: the last settled nightly/manual sync run failed (a `running` row > 20 min counts) | the helper says `stale`: the last ok nightly/manual run is older than *expected* − 45 min; *expected* = now 07:30–23:15 Skopje, the 22:45 run from 23:15 to 00:45, the 00:00 nightly from 00:45 to 07:30. `n/a` only before the first run with no collabBox order |
+
+Both freshness sets follow the 15-minute schedules since **`20260942001400`** (29.09 ~04:50):
+`integrations_health()` (MEX job expectation `daytime_15m`, the collabBox run log) and
+`insights_overview`'s `frj` / `fr_mex_expect` (MEX detail "mex-reconcile every 15 min 06:00-22:59
+(both accounts, one sweep)") were re-emitted together, drift-guarded — keep doing it that way.
 
 - **One deliberate refinement:** a run still `running` and < 15 min old is ignored when reading
   "the last run's status"; ≥ 15 min it counts as failed (hung).
 - **MEX runs are shared** by both accounts: an ok run counts for the account it fetched
   (`skipped ? fetched_<acct>`); a failed run fails both.
-- **Per-job rows** (the expected cron jobs + any other kind seen this week as `manual`):
-  AlterCPA `rolling` (15 min), `status` (30 min before the expected 07:30–21:00 / 20:55 slot),
-  `nightly` (26 h), `weekly` (8 days); MEX `rolling` (45 min before expected), `backfill` (8 days);
-  web `incremental` (45 min), `backfill` (26 h). Each: last ok, last run, last error (red only
+- **Per-job rows** (the expected cron jobs + any other kind seen this week as `manual`), stale
+  thresholds by expectation: AlterCPA `rolling` (`rolling_2m`: 15 min), `status` (`daytime_5m`:
+  30 min before the expected slot — now 07:30–21:00, else the 20:55 run), `nightly` (26 h),
+  `weekly` (8 days); MEX `rolling` (`daytime_15m`: 45 min before expected), `backfill` (8 days);
+  web `incremental` (`every_15m`: 45 min), `backfill` (26 h); **collabBox** (since 20260942001400)
+  `rolling` = the cron's frequent pass (`kind 'manual'` + `trigger_kind 'cron'`; `cbx_15m`: 45 min
+  before expected — now 07:30–23:00, else the 22:45 run), `nightly` (26 h), and hand-started
+  windows as `manual`. Each: last ok, last run, last error (red only
   when newer than the last success — `errorIsCurrent`), runs / failed / rows in 24 h, a 7-day
-  ok/failed strip. Expect the AlterCPA `nightly`/`weekly` rows to read failing: every sweep since
-  18.09 ends "stale: still running after 10 minutes" (HANDOFF §4.2).
+  ok/failed strip. From 18.09 to 28.09 every AlterCPA `nightly`/`weekly` sweep ended "stale: still
+  running after 10 minutes"; since the resumable sweeps (`20260940000100`) a run row is one slice
+  and an ok row does not mean the sweep finished — read `altercpa_sweeps.status`
+  (`elyon-altercpa-bridge`).
 - **`cron[]`:** every pg_cron job from the newest 50 000 `job_run_details` (8 days):
   `failing` if its last run failed, `n/a` if inactive or never run. A `succeeded` `invoke_*` job
   only means the HTTP call was queued — the feed card says whether the sync itself worked.
 
-### `collabbox_feed_state()` — THE collabBox freshness (a stub today)
+### `collabbox_feed_state()` — THE collabBox freshness (real since 29.09)
 
-- Today collabBox is a manual import: `ok` / `stale` (> 7 days) / `n/a` from the newest
-  `orders.sale_source = 'collabbox'` `created_at`; `lag_parcels` = NATURA 9100/9102/9108 parcels
-  with COD > 0, > 48 h old, linked to no order and not claimed by a live web order.
-- Keys `feed · last_ok_at · status · detail · data_through · lag_parcels` are a contract: the
-  Overview is to read the same function. The overlay (`IC.overlayFreshness` in
-  `GET /insights/overview`) is in the WIP `index.ts` only; the deployed d91b0a9 Overview still
-  computes collabBox freshness in `insights_overview`'s own `fr_cb` (same 7-day rule, no lag).
-- The real run log would replace the body via `supabase/paused/20260939000350_collabbox_sync.sql`
-  — **PAUSED by the owner 28.09** (`supabase/paused/README.md`; never applied). The deployed
-  `collabbox-sync` function is a one-GET reachability probe.
+The stub of 20260939000200 was replaced by `20260942000900` (the collabBox sync — see
+`elyon-collabbox-sync`); the key contract is kept.
 
-### The no-parcel rule card (10 days since 28.09; code `no_parcel_7d`) and the owners' Report ↔ Apply switch
+- Keys `feed · last_ok_at · status · detail · data_through · lag_parcels` (the contract) +
+  `last_run_at · last_error · last_error_at · runs_24h · failed_24h · live_last_ok_at ·
+  booked_today · stale_to_pack`.
+- `status`: `failed` (the last settled nightly/manual run in `collabbox_sync_runs` failed, or a
+  `running` row is older than 20 min) · `stale` (the run that should have finished did not: last
+  ok older than *expected* − 45 min, *expected* = now 07:30–23:15 Skopje, the 22:45 run until
+  00:45, the 00:00 nightly until 07:30 — 20260942001400; it was a flat 26 h) · `ok` · `n/a`
+  (never run and no collabBox order). The every-15-minutes pass (`collabbox-sync-frequent`,
+  07:00–22:59 Skopje) is recorded as `kind 'manual'`, so it keeps `last_ok_at` fresh during the
+  day; the 00:00 nightly covers the night. `detail` reads "full sync every 15 min 07:00-22:59
+  (yesterday + today) + nightly 00:00 (last 3 days); last ok …; documents through …; N NATURA
+  parcels without a document …"; `live_last_ok_at` stays only for compatibility (the headers-only
+  live read is retired).
+- `last_ok_at` = the last ok nightly/manual run; `data_through` = the newest document in the
+  ledger; `lag_parcels` = NATURA 9100/9102/9108 COD parcels > 48 h old, linked to no order, not
+  claimed by a live web order and never seen by the sync; `stale_to_pack` = orders the sync created
+  to pack that still have no parcel after 7 days (the sync no longer creates such orders).
+- **Integrations card** (`integrations_health()`, re-emitted by 20260942001400): the helper's
+  `status` (`failed` → `failing`), `detail`, `last_ok_at`, `data_through`, `lag_parcels`, PLUS the run
+  log from `collabbox_sync_runs` — `last_run_at`, `last_error`, `runs_24h` / `failed_24h`, the jobs
+  above and the 7-day strip (rows in 24 h = created + updated + credited). The words follow the
+  15-minute schedules since `145645c` (`settings.integrations.feedDesc.*`, `expect.daytime_15m`
+  "every 15 min, 06:00–23:00", `expect.cbx_15m` "every 15 min, 07:00–23:00", in all four locales).
+  **The UI reads it like every other feed (29.09 afternoon):** "Last success" (`lastOk`) = the
+  last ok sync run, "Runs, 24 h" with the failures in red, then a "Newest document" row
+  (`newestDoc`) for `data_through`; the 7-day strip and the jobs `rolling` (the 15-minute pass,
+  `cbx_15m`), `nightly` and `manual` (hand-started windows, `expect.manual`) as on every card. The
+  one collabBox difference left in `IntegrationsHealthTab.tsx` (`isCb`): its single row
+  (`lag_parcels`) is a backlog, not a 24 h count, so it has no "Came in, 24 h" heading. Before, the
+  card labelled `last_ok_at` "Newest document" and hid its run count — a leftover of the stub era.
+  Test: `OwnerSettingsTabs.test.tsx` renders a live-shaped collabBox card (run log, three jobs, an
+  old error) and asserts all of it.
+- **Overview:** `GET /api/insights/overview` calls `collabbox_feed_state()` and overlays it on the
+  Overview's freshness list (`IC.overlayFreshness`, `insightsCommon.ts`), replacing the old
+  7-day `fr_cb` reading of `insights_overview`.
+- `supabase/paused/20260939000350_collabbox_sync.sql` is **superseded — never apply it**.
+
+### The no-parcel rule card (10 days since 28.09, APPLY mode; code `no_parcel_7d`) and the owners' Report ↔ Apply switch
 
 - **The rule** (20260938000000): `apply_no_parcel_rule()`, cron `no-parcel-rule` at :10 every
   hour, self-gated to `settings.hour` (21 → 21:10 Skopje), one scheduled run per Skopje day.

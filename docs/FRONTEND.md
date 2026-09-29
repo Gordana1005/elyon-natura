@@ -11,18 +11,23 @@
 
 ```
 QueryClientProvider (staleTime 30s, refetchOnWindowFocus off, retry 1)
- └ TooltipProvider
-   └ Toaster + Sonner            (two toast systems: shadcn useToast + sonner)
-     └ BrowserRouter
-       └ AuthProvider            (session + roles)
-         └ PermissionsProvider   (module/role/financial permissions)
-           └ VoipProvider        (the call engine — live, RealVoipEngine/sip.js)
-             └ Suspense          (route-level code splitting via React.lazy)
-               └ Routes
+ └ ThemeProvider                 (light / dark, per device)
+   └ TooltipProvider
+     └ Toaster + Sonner          (two toast systems: shadcn useToast + sonner)
+       └ BrowserRouter
+         └ AuthProvider          (session + roles)
+           └ LanguageProvider
+             └ PermissionsProvider   (module/role permissions, business owner)
+               └ VoipProvider        (the call engine; MK: VITE_USE_REAL_VOIP=false)
+                 └ AppErrorBoundary  (a render error → message + Reload, never a white page — 29.09)
+                   └ Suspense        (route-level code splitting via React.lazy)
+                     └ Routes
 ```
 
-Only `LoginPage` and `NotFound` are eager; **every other page is `React.lazy`** → its own chunk, loaded
-on first navigation. (Vite's automatic chunking is used deliberately — no manual `manualChunks`.)
+Only `LoginPage`, `StartPage` and `NotFound` are eager; **every other page is `React.lazy`** → its own
+chunk, loaded on first navigation. (Vite's automatic chunking is used deliberately — no manual
+`manualChunks`.) A tab opened before a deploy may ask for a chunk that no longer exists: `main.tsx`
+reloads once on `vite:preloadError` (not twice within 60 s — `sessionStorage` `elyon:chunk-reload-at`).
 
 > **One cross‑context wire:** `VoipProvider` sits *below* `AuthProvider`, so it can't call up. Instead
 > `VoipContext` writes every softphone state transition into the dependency‑free module store
@@ -41,13 +46,15 @@ Each route is wrapped in `<ProtectedRoute moduleKey="…">`. The `moduleKey` tie
 
 | Path | moduleKey | Page | Audience |
 |---|---|---|---|
-| `/` | dashboard | Dashboard | all |
+| `/start` | — | StartPage — where every login lands (below) | all |
+| `/tv/leaderboard` | — (token `?key=`) | TvLeaderboardPage — the office TV, no login, no chrome | public |
+| `/` | dashboard | Dashboard (admins: the Insights Overview) | all |
 | `/orders` | orders | Orders (+ Daily Fulfilment CSV) | all (agents see own) |
 | `/calls` | calls | CallsPage | agents |
 | `/personal-list` | calls | PersonalListPage | agents |
 | `/call-again` | calls | CallAgainPage | agents |
-| `/assigned` | assigned | AssignedPage | agents |
-| `/prediction-leads` | prediction_leads | PredictionLeadsPage | agents |
+| `/assigned` | — | redirects to `/calls` — "Assigned to me" retired 29.09 (the page file and its permission rows stay) | — |
+| `/prediction-leads` | — | redirects to `/calls` — hidden 2026-08-19 (`prediction_leads` has 0 rows) | — |
 | `/search-prediction` | search_prediction | SearchPredictionPage | all |
 | `/segments` · `/segments/:id` | segments | SegmentsPage / SegmentDetailPage | admin/manager |
 | `/assigner` | assigner | AssignerPage | admin/manager |
@@ -59,16 +66,32 @@ Each route is wrapped in `<ProtectedRoute moduleKey="…">`. The `moduleKey` tie
 | `/warehouse` | warehouse | WarehousePage | warehouse/admin |
 | `/insights` | insights | ManagementInsightsPage | admin/manager |
 | `/operations` | operations | OperationsPage | admin/manager |
-| `/performance` | performance | AgentPerformancePage | admin/manager |
+| `/performance` · `/agent-activity` | — | redirect to `/insights?tab=agents` · `?tab=call-activity` | — |
 | `/users` | users | UsersPage | admin/manager |
 | `/shifts` | shifts | ShiftsManagementPage | admin/manager |
 | `/my-shifts` | my_shifts | MyShiftsPage | agents |
 | `/call-scripts` | call_scripts | CallScriptsPage | admin/manager + agents (read) |
 | `/call-history` | call_history | CallHistoryPage | all (agents see own) |
-| `/recordings` | recordings | RecordingsPage (shell) | agents |
+| `/recordings` | — | redirects to `/call-history` | — |
 | `/settings` | settings | SettingsPage (RBAC admin) | admin |
 | `/ads` | — | redirects to `/webhooks` | — |
 | `*` | — | NotFound | — |
+
+**Where a login lands (29.09.2026, `6fbbcd5`).** The login navigates to `/start`, which waits for the
+session, the profile (roles) and THIS login's permissions, then goes to `homePath()`
+([../src/lib/homePath.ts](../src/lib/homePath.ts)): admins / managers / business owners → `/insights`
+(else `/operations` when they may open it), call agents → `/calls`, warehouse → `/warehouse`, ads admin → `/webhooks`, an
+affiliate → `/affiliate`, else the first of `/calls`, `/`, `/orders`, `/warehouse`, `/webhooks` the
+login may open, else `NoAccessScreen` (a message and Sign out). A profile that never arrives ends
+on that screen after 8 s. `ProtectedRoute` bounces a login without access to the same `homePath()`,
+never to the page it is on — the old fixed bounce sent every agent to `/assigned`, which prediction
+agents cannot open: a redirect loop that rendered a white screen. `PermissionsContext` reports
+`loading` until the permissions are loaded for the current user id.
+
+**Layout.** `AppLayout`'s `h-screen` frame and its `<main>` (the only scrolling element) are
+`position: relative` (`81f4182`), so absolutely positioned descendants — the sr-only captions and
+table twins of the Insights tabs — stay inside the scrolling content instead of stretching the
+page into an empty grey area. The TV board frame likewise.
 
 ---
 

@@ -21,7 +21,8 @@ Stock is real money and real warehouse capacity. Mistakes here have physical con
 - The api's status blocks below are gated by `stockByStatus()` and **stop once `from` is set** —
   do not "restore" them, a parcel would be deducted twice.
 - Free units (0-price / web GIFT lines of a catalogue product) are deducted unless
-  `free_units = 'skip'`; a reviewed `product_aliases` row of kind `gift` skips one name.
+  `free_units = 'skip'`; a `product_aliases` row of kind `gift` skips one name — ANY such row:
+  `order_line_kind()` never reads `reviewed_by`, so an unreviewed alias counts at once.
 - Proof: `node scripts/verify-stock.mjs` (on-hand = last count + movements; one ledger row per key).
 
 ## Core Stock Rules (before the first count)

@@ -1,6 +1,6 @@
 ---
 name: elyon-security
-description: Use when working on authentication, authorization, RLS policies, webhook security, audit logging, permission systems, secret handling, CORS, rate limiting, or any security-related changes. Covers the business-owners model (is_business_owner — every active admin is an owner, managers are not), the money strip for non-owners, the owner-only app_settings guard and the database guard that stops AlterCPA from creating money. Critical for protecting customer data, financial information, and operational integrity.
+description: Use when working on authentication, authorization, RLS policies, webhook security, audit logging, permission systems, secret handling, CORS, rate limiting, or any security-related changes. Covers the business-owners model (is_business_owner — every active admin is an owner, managers are not), the money strip for non-owners (incl. the order window's Origin and proof), the owner-only app_settings guard, the database guard that stops AlterCPA from creating money, and where a login lands (/start + homePath, the permission-loading race, the no-access screen, AppErrorBoundary, the stale-chunk reload). Critical for protecting customer data, financial information, and operational integrity.
 ---
 
 # Elyon Security Skill
@@ -97,7 +97,8 @@ on everything except `affiliate/*` and `GET /me`. See `elyon-affiliates`.
 - **Owners-only routes:** `/business-owners`, `/presence/day`, `/sales-people/*`,
   `/integrations/*`, `/insights/pivot`, `/management-insights` (a non-owner admin/manager gets
   only `?scope=calls` with the `call_activity` module); money inside `/insights/overview`,
-  `/customers/timeline` (and the WIP `/insights/cohort`).
+  `/customers/timeline`, the `origin` block of `GET /orders/:id` (`edfa901`) and the Операции
+  money tiles (and the WIP `/insights/cohort`).
 - **Owners-only UI:** Settings → Owners / Teams / Integrations, the top-bar "Who is working"
   button, the /insights money tabs (`useInsightsAccess().business` / `.money`).
 
@@ -115,6 +116,11 @@ the way down (`/insights/pivot`, Settings → Owners / Teams / Integrations) are
 - `supabase/functions/api/customer360.ts` `shapeTimeline()`: rule-based — every `_mkd` / `_eur`
   key plus `currency` and `price`, except `amount_eur` on a CRM order event; the SQL also omits
   them (`p_include_money`). Belt and braces.
+- The order window's **"Origin and proof"** (`order_origin(id)`, attached by `GET /orders/:id` for
+  admin / manager): for a non-owner the api deletes `price_mkd`, `parcel.cod_mkd` and
+  `collabbox.amount_mkd` (`edfa901`, 29.09); the panel shows "—". ⚠️ This one is a DENY list of
+  three keys, not the whitelist / suffix rule above — a money key added to `order_origin` later
+  reaches managers until it is added to that delete list.
 - The UI renders money only when the key is present or `meta.money` is true — never by its own
   role check. Money keys must carry the `_eur` / `_mkd` suffix or the strips cannot see them.
 
@@ -148,6 +154,38 @@ paid / returned.** Enforced twice:
   confirm-rate notification triggers for a repair transaction — transaction-local only, never a
   session SET on a pooled connection.
 
+### 10. Where a login lands — and never a white screen (`6fbbcd5`, 29.09)
+
+Owner: "agents land on /calls and it must work; managers and admins land on Insights; never a white
+screen, never an unwanted page." The route guards are UX, not the security boundary (the api
+checks every call), but a bad bounce locks people out of their work.
+
+- **One rule, `homePath(user, {canAccessModule, canSeeBusiness})`** (`src/lib/homePath.ts`, tested
+  in `homePath.test.ts`): external affiliate → `/affiliate` (if `affiliate_portal`); admin /
+  manager / business owner → `/insights` (any of `insights` · `performance` · `agent_activity` ·
+  `call_activity`, or being an owner), else `/operations` when they may open it; a call agent (`agent`,
+  `pending_agent`, `prediction_agent`, `inbound_agent`) → `/calls`; warehouse → `/warehouse`;
+  ads admin → `/webhooks`; affiliate → `/affiliate`; else the first of `/calls`, `/`, `/orders`,
+  `/warehouse`, `/webhooks` the login may open; else `null` = no page at all.
+- **The login goes to `/start`** (`src/pages/StartPage.tsx`, eager): it waits for the session, the
+  profile (roles) and THIS login's permissions, then navigates to `homePath`. A session whose
+  profile never arrives ends on the no-access screen after 8 s — never a loop.
+- **The race it fixed:** permissions load in an effect AFTER the render in which a login appears,
+  so for one render `loading` was false with empty permissions; every `ProtectedRoute` saw "no
+  access" and bounced agents to `/assigned` — which prediction agents cannot open: `/assigned` →
+  `/assigned` → … renders nothing. `PermissionsContext` now reports `loading` until the
+  permissions are loaded for the CURRENT user id (`loadedFor`).
+- **`ProtectedRoute`** bounces a login without access to `homePath` — never to the page it is on;
+  with no home it renders **`NoAccessScreen`** (`src/components/NoAccessScreen.tsx`: a message and
+  Sign out). Never hard-code a fallback page in a guard again.
+- **"Assigned to me" is retired** (the last 100 orders, unfiltered — a Bulgarian leftover): gone from
+  the menu; `/assigned` redirects to `/calls`; the page file and its permission rows stay.
+- **`AppErrorBoundary`** (`src/components/AppErrorBoundary.tsx`, around every route in `App.tsx`):
+  a render error shows `appError.*` and a Reload button instead of unmounting the app.
+  **`main.tsx`** reloads once on `vite:preloadError` (a tab opened before a deploy asking for a lazy
+  chunk that no longer exists), guarded by `sessionStorage` `elyon:chunk-reload-at` (not twice in
+  60 s).
+
 ## Common Security Gotchas in This Project
 
 - Using `supabase` client instead of `adminClient` in the Edge Function when you need cross-user data.
@@ -160,6 +198,9 @@ paid / returned.** Enforced twice:
   `is_business_owner()`.
 - A new table without `REVOKE ALL … FROM PUBLIC, anon, authenticated` — default privileges
   hand it to `anon`/`authenticated` in full (see `elyon-notifications` Rule 4).
+- A route guard that redirects to a fixed page, or reads permissions before they are loaded for
+  the current user — the 29.09 white-screen loop. Bounce through `homePath()`; show
+  `NoAccessScreen` when it returns null (§10).
 - Storing secrets in `.env` that gets committed (use the proper Supabase secrets + local `.env` that is gitignored).
 
 ## When This Skill Applies
@@ -182,7 +223,9 @@ paid / returned.** Enforced twice:
 - Migrations `20260934000000_business_owners.sql`, `20260934000200_money_guards.sql`,
   `20260939000500_admins_are_owners.sql`; RLS policies throughout (search for `CREATE POLICY`)
 - Permission checks in the frontend use `useAuth()` and `PermissionsContext`
-  (`canSeeBusiness`, `useInsightsAccess()`)
+  (`canSeeBusiness`, `useInsightsAccess()`); landing and bounces: `src/lib/homePath.ts`,
+  `src/pages/StartPage.tsx`, `src/components/ProtectedRoute.tsx`, `NoAccessScreen.tsx`,
+  `AppErrorBoundary.tsx`
 
 ## Decision Table
 

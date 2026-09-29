@@ -1,180 +1,301 @@
-# Operations runbook
+# Operations runbook — Macedonia
 
-> Deploy, migrate, configure, and unbreak. Pair this with [VAULT.md](VAULT.md) (credentials) and
-> [../PBX-SETUP.md](../PBX-SETUP.md) (telephony server).
+> Deploy, migrate, schedule, repair, verify, unbreak. Rewritten 29.09.2026 against the live
+> project (cron table read from `cron.job` at ~04:30 Skopje, after `20260942001300`). Credentials:
+> [VAULT.md](VAULT.md) (gitignored — never copy a value out of it). Constitution: `../CLAUDE.md`.
+>
+> 🛑 **Bulgaria is off limits.** Supabase `sxymaloycddnoxudxaqp`, `elyoncall.com`, the Vercel project
+> `elyoncrm` and the folder `C:\Users\Mile\Desktop\elyoncrm` are the LIVE Bulgarian system. The
+> access token in `.env` can write to BOTH projects — only the command line protects Bulgaria.
 
 ---
 
 ## 1. Where everything runs
 
-| Thing | Host | Identifier |
+| Thing | Where | Identifier |
 |---|---|---|
-| Frontend | Vercel | project `elyon-natura` (`prj_cwxmm4jb74hUHmAb6YzbUG7PuDy3`), scope `gordanas-projects-a53c0208` |
-| Domains | Vercel | `elyon-natura.vercel.app` (legacy alias `elyon-macedonia.vercel.app`) |
-| DB + Edge Function + Auth | Supabase | project ref `bmfxhgznttcnnlqloqzp` |
-| PBX | — | none: Macedonian telephony is deferred (Phase 2) |
-| Repo | GitHub (private) | `github.com/Gordana1005/elyon-natura`, default branch `main` (push = Vercel production) |
+| Frontend (React SPA) | Vercel | project `elyon-natura` (`prj_cwxmm4jb74hUHmAb6YzbUG7PuDy3`), scope `gordanas-projects-a53c0208` → https://elyon-natura.vercel.app (legacy alias `elyon-macedonia.vercel.app`); push to `main` = production |
+| DB + Auth + Edge Functions | Supabase | ref **`bmfxhgznttcnnlqloqzp`** — Pro plan, Small compute (t4g.small, 2 GB) since 18.08, daily backups, disk 8 GB since 28.09 |
+| Edge Functions | Supabase | `api` (the one REST router — ONE deployable shared by every screen), `altercpa-sync`, `mex-reconcile`, `web-sync`, `collabbox-sync` |
+| Repo | GitHub | `Gordana1005/elyon-natura`, branch `main`; local folder `D:\Dev\archives\elyon-natura` |
+| AlterCPA | api.cpa.moe | read by `altercpa-sync` (+ the manual CPA push) |
+| MEX Poshta | JSON API, two accounts | BIO NATURAL (`MEX_API_KEY`) and NATURA (`MEX_API_KEY_2`), read by `mex-reconcile` |
+| naturatherapy.mk shop | Supabase `kctgthpoeysmhmkrnkil` — **not ours** | read only through schema `crm_export` as `elyon_crm_reader` (`web-sync`) |
+| collabBox (Accent Computers) | plain-HTTP Tomcat | read only by `collabbox-sync` / `scripts/collabbox-fetch.mjs` |
+| Telephony | — | deferred (Phase 2); `VITE_USE_REAL_VOIP=false` |
 
-> 🛑 This runbook was inherited from Bulgaria. `elyoncrm`, `elyoncall.com`, `pbx.elyoncall.com`,
-> `sxymaloycddnoxudxaqp` and `C:\Users\Mile\Desktop\elyoncrm` are the **live Bulgarian system —
-> never touch them**. Run `node scripts/assert-mk-target.mjs` before every state-changing command.
+## 2. Before any write
 
----
+1. `node scripts/assert-mk-target.mjs` — checks `supabase/config.toml`, `.env`,
+   `.vercel/project.json` and the remote row counts; exits non-zero on anything Bulgarian.
+2. **Pass the target explicitly.** The shell's working directory resets between tool calls
+   (often to the BG repo): `git -C "D:\Dev\archives\elyon-natura" …`,
+   `vercel … --cwd "D:\Dev\archives\elyon-natura" --scope gordanas-projects-a53c0208`,
+   `--project-ref bmfxhgznttcnnlqloqzp`. Read back the target the tool echoes.
+3. **Several sessions work on this repo at once.** `git status` and the file's mtime before editing
+   shared files (`supabase/functions/api/index.ts`, `src/lib/api.ts`, the locales, CLAUDE.md), and
+   deploy `api` only when `index.ts` holds finished work.
+4. **Read-only SQL** for any check: POST
+   `https://api.supabase.com/v1/projects/bmfxhgznttcnnlqloqzp/database/query` with
+   `{query, read_only: true}`, or `sqlRead` from `scripts/lib/repair-kit.mjs`.
 
-## 2. Local development
+## 3. Local development and gates
+
 ```bash
 npm install
-npm run dev        # Vite dev server → http://localhost:8080
-npm run build      # production build → dist/
-npm run preview    # preview the prod build
-npm test           # vitest (currently 1 trivial test)
-npm run lint       # eslint (currently red: 643 errors, mostly `any`)
-npm run smoke      # Playwright smoke test against the deployed app
+npm run dev          # Vite → http://localhost:8080
+npm test             # vitest (the real unit gate; also enforces i18n parity)
+npm run build        # the real type/bundle gate — `tsc` alone is a NO-OP here (root tsconfig "files": [])
+node scripts/smoke-render.mjs   # render every route headless; fails on a white screen (a missing import / TDZ read passes the build)
+npm run lint         # eslint — not a CI gate
 ```
-`.env` must contain `VITE_SUPABASE_URL`, `VITE_SUPABASE_PROJECT_ID`, `VITE_SUPABASE_PUBLISHABLE_KEY`
-(safe/public) and `SUPABASE_SERVICE_ROLE_KEY` + `SUPABASE_ACCESS_TOKEN` (server‑only, for scripts/CLI).
-Values: [VAULT.md](VAULT.md).
 
----
+`.env` holds the `VITE_*` values (public) and `SUPABASE_SERVICE_ROLE_KEY` + `SUPABASE_ACCESS_TOKEN`
+(server-only, for scripts and the CLI). CI (`.github/workflows/ci.yml`) runs build + test on `main`.
 
-## 3. Deploy
+## 4. Deploy
 
-### Frontend (automatic)
-Push to `main` → Vercel builds (`npm run build`) and deploys. PRs get preview deploys (whose origins the
-Edge Function's CORS regex already allows). Build‑time `VITE_*` vars come from Vercel project settings, not
-the repo.
+**Frontend** — push to `main`; Vercel builds and deploys. The cached git credential gets 403: push
+with the repo-scoped PAT from VAULT §4 inline and filter it out of the output; never write it into
+`.git/config`.
 
-### Edge Function (manual)
-The function is **not** redeployed by a frontend push — deploy it explicitly after changing
-`supabase/functions/api/index.ts` (or `ALLOWED_ORIGINS`, or any role logic):
 ```bash
-# PowerShell — load the access token from .env, then deploy
-$env:SUPABASE_ACCESS_TOKEN = (Select-String '^SUPABASE_ACCESS_TOKEN=' .env).Line.Split('=')[1].Trim('"')
-npx supabase functions deploy api --project-ref bmfxhgznttcnnlqloqzp
+PAT=$(grep -oE 'github_pat_[A-Za-z0-9_]+' docs/VAULT.md | head -1)
+git -C "D:/Dev/archives/elyon-natura" push "https://x-access-token:${PAT}@github.com/Gordana1005/elyon-natura.git" main 2>&1 | sed -E "s|${PAT}|***|g"
 ```
+
+**Edge Functions** (after the tripwire):
 ```bash
-# bash equivalent
-SUPABASE_ACCESS_TOKEN=$(grep '^SUPABASE_ACCESS_TOKEN=' .env | cut -d= -f2 | tr -d '"') \
-  npx supabase functions deploy api --project-ref bmfxhgznttcnnlqloqzp
+npx supabase functions deploy <api|altercpa-sync|mex-reconcile|web-sync|collabbox-sync> --project-ref bmfxhgznttcnnlqloqzp --use-api
 ```
-> The CLI reads the token from the **environment**, not from `.env` automatically. A stale `supabase login`
-> session for a *different* account causes a 403 ("account does not have the necessary privileges").
+The CLI reads `SUPABASE_ACCESS_TOKEN` from the environment; a stale `supabase login` for another
+account gives 403. Every function except `api` is called by pg_cron with a shared-secret header and
+has `verify_jwt = false` in `supabase/config.toml`.
 
-### Database migrations (manual)
+**Migrations** — `supabase db push` cannot run (the DB password was never recorded). One file = one
+transaction through the Management API:
 ```bash
-npx supabase db push --linked            # apply pending migrations
-npx supabase migration new <slug>        # scaffold a new one
-# if ordering complaints:
-npx supabase migration repair --status reverted <timestamp>   # then retry push
+node scripts/assert-mk-target.mjs
+node scripts/apply-migration-mk.mjs supabase/migrations/<file>.sql      # --dry-run to preview
+node scripts/engine-fixture-mk.mjs                                     # after EVERY bundle
 ```
-**Never** `npx supabase db reset --linked` on production. Regenerate types after schema changes:
-```bash
-npx supabase gen types typescript --linked > src/integrations/supabase/types.ts
-```
+Recent migrations re-emit live function bodies behind an md5 **drift guard** — a refusal means
+another session changed the function since: re-emit from the live body and merge, never force.
+Finished-but-paused work lives in `supabase/paused/` (never applied; the collabBox file there is
+superseded). **260 migrations applied on 29.09, latest `20260942001860`** (~12:00 Skopje). The
+28–29.09 bundle: `…0900` collabBox sync · `…1000` six departments · `…1100` departments by folder ·
+`…1200` leaderboard v2 · `…1300` every source every 15 min · `…1400` freshness · `…1500`
+`order_departments` · `…1600` `order_origin` · `…1700` Customer 360 names each order's department ·
+`…1800` `orders.dept_override` + the 4-argument `cohort_order_source` in 15 report functions (its
+agent-team rule withdrawn by `…1850`) · `…1860` a CRM-made sale follows its MEX profile (BIO
+NATURAL = affiliate, NATURA = by series). The `api` runs v83 (29.09 11:37, `edfa901`).
 
-### Edge‑Function secrets
-```bash
-npx supabase secrets set WEBHOOK_SECRET=… --project-ref bmfxhgznttcnnlqloqzp
-npx supabase secrets list --project-ref bmfxhgznttcnnlqloqzp
-```
-The function also reads `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY` from its env
-(Supabase provides the first two; ensure `SUPABASE_ANON_KEY` and `WEBHOOK_SECRET` are set).
+**Secrets** (names only — values in VAULT): function secrets `WEBHOOK_SECRET`,
+`ALTERCPA_SYNC_SECRET` + the AlterCPA token named by `altercpa_accounts.token_secret_name`
+(`ALTERCPA_PUSH_TOKEN_DRAGANA` since 18.09), `MEX_API_KEY`, `MEX_API_KEY_2`, `MEX_SYNC_SECRET`,
+`WEB_SHOP_DB_URL`, `WEB_SYNC_SECRET` (+ `WEB_SHOP_DB_CA`), `COLLABBOX_USER`, `COLLABBOX_PASS`,
+`COLLABBOX_SYNC_SECRET`. Each cron-called function's secret is ALSO a DB Vault row that
+`invoke_*()` reads: `altercpa_sync_secret`, `mex_sync_secret`, `web_sync_secret`,
+`collabbox_sync_secret` (+ `postback_drain_secret`). A missing Vault row = the cron silently does
+nothing. Set with `npx supabase secrets set NAME=… --project-ref bmfxhgznttcnnlqloqzp` (Vercel env:
+the REST API, never PowerShell-piped stdin).
 
----
+## 5. Every cron job (pg_cron, verified live 29.09)
 
-## 4. CI/CD
-`.github/workflows/ci.yml` runs on push/PR to `main`: `npm ci` → **`npm run build`** (with placeholder
-`VITE_*` so it compiles) → **`npm test`**. **It does NOT run `npm run lint`** — that's why lint can be red
-without blocking. Vercel deploys independently of CI.
+pg_cron runs in **UTC**. Skopje is CEST (UTC+2) until **25.10.2026**, then CET (UTC+1). Jobs with a
+gate check Skopje time inside the function, so their local hours never shift; the others move one
+hour earlier in Skopje in winter. A `succeeded` `invoke_*` run only means the HTTP call was queued —
+the feed's own run table says whether the sync worked. Owner rule 29.09: every source at least
+every 15 minutes; MEX (both accounts) is the final proof.
 
----
+| Job | UTC | Skopje (summer / winter) | Gate | What |
+|---|---|---|---|---|
+| `altercpa-sync-rolling` | `*/2 * * * *` | every 2 min | — | new AlterCPA leads (creation-time window) |
+| `altercpa-sync-status` | `*/5 * * * *` | acts 07:00–20:55 | Skopje hour 7–20 | outcomes of our open mirrored orders by `oid` (B′ map) |
+| `altercpa-sync-continue` | `1-59/2 * * * *` | odd minutes | only while a sweep is open and unleased | works an open resumable sweep |
+| `altercpa-sync-nightly` | `15 1 * * *` | 03:15 / 02:15 | — | opens a 7-day sweep |
+| `altercpa-sync-weekly` | `45 2 * * 0` | Sun 04:45 / 03:45 | — | opens a 90-day sweep |
+| `altercpa-rate-verdicts` | `5 * * * *` | acts 10:05 and 23:05 | Skopje hour 10 / 23 | AlterCPA confirm-rate bells |
+| `mex-reconcile` | `7,22,37,52 * * * *` | **every 15 min 06:00–22:59** | Skopje hour 6–22 | both MEX accounts in one sweep → `mex_parcels` → links → shipped / paid / returned, rule C, upsell revive; a cancelled / trashed order is revived only by its own folder's parcel (29.09) (`20260942001300`; was :07/:37, 07:00–20:55) |
+| `mex-reconcile-weekly` | `15 8 * * 0` | Sun 10:15 / 09:15 | — | 60-day MEX re-sweep |
+| `web-sync` | `3,18,33,48 * * * *` | every 15 min, 24/7 | — | incremental shop mirror |
+| `web-sync-nightly` | `1,11,21,31,41,51 1 * * *` | 03:01–03:51 / 02:01–02:51 | — | resumable full sweep, deletions, parcel links |
+| `collabbox-sync-frequent` | `*/15 4-21 * * *` | **every 15 min 07:00–22:59** | 07:00–22:59 | full collabBox pass of yesterday + today (`20260942001300`) |
+| `collabbox-sync` | `0 22,23 * * *` | **00:00** | 00:xx, once per Skopje day | nightly pass, last 3 days (catch-up ≤ 14) |
+| ~~`collabbox-live`~~ | — | — | — | retired by `20260942001300` (headers-only mode still callable) |
+| `no-parcel-rule` | `10 * * * *` | acts **21:10** | `settings.hour` 21, once a day | the 10-day no-parcel rule, APPLY mode |
+| `nightly-segment-recompute` | `0 0 * * *` | 02:00 / 01:00 | — | `recompute_all_segments()` (engine v3.7-mk) |
+| `nightly-segment-recompute-shadow` | `30 0 * * *` | 02:30 / 01:30 | — | the v4 shadow engine |
+| `insights-profit-monthly` | `40 1,2 * * *` | 03:40 | 03:xx Skopje | Pure Profit monthly cache (version 4) |
+| `stamp-order-deciders` | `1-59/5 * * * *` | every 5 min | — | `sold_*` stamps for the last 14 days (≤ 1.000 rows) |
+| `stamp-order-deciders-full` | `23 2 * * *` | 04:23 / 03:23 | — | the whole book (≤ 5.000 rows) |
+| `lead-auto-distribute` | `* * * * *` | every minute | 09:00–19:59 only if `working_hours_only` (ships OFF) | `distribute_pending_leads(500)` |
+| `presence-stale-sweep` | `*/2 * * * *` | every 2 min | — | closes presence sessions with no beat for > 3 min |
+| `unpaid-delivery-chase` | `0 * * * *` | acts 09:00–11:59 | Skopje hour 9–11 | `shipped_unpaid` bells + one digest per admin (age = hours since the last ok MEX run) |
+| `stock-mex-apply` | `12,42 * * * *` | :12 / :42 | returns at once while the setting is off | dark (stock is the placeholder until the owner's count) |
+| `affiliate-postback-drain` | `* * * * *` | every minute | — | BG-inherited partner postback queue; nothing to send here |
+| `reconcile-recording-links` | `*/10 * * * *` | every 10 min | — | recordings reconciler; idle while VOIP is off |
 
-## 5. Routine ops
+No Vercel crons. Check a job: `select * from cron.job_run_details where jobid = (select jobid from
+cron.job where jobname = '<name>') order by start_time desc limit 5;` — then the feed's run table
+(`altercpa_sync_runs` / `altercpa_sweeps`, `mex_sync_runs`, `web_sync_runs`,
+`collabbox_sync_runs`) or **Settings → Integrations**.
 
-| Task | Command |
+**The night, Skopje summer:** 21:10 no-parcel rule → MEX and collabBox passes until 22:52 / 22:45 →
+23:05 rate verdicts → **00:00 collabBox nightly** → 02:00 segment recompute → 02:30 shadow →
+03:01–03:51 web nightly (03:15 AlterCPA nightly sweep opens, continued every 2 min) → 03:40 profit
+cache → 04:23 full stamp → Sunday 04:45 AlterCPA weekly → 06:00 MEX resumes → 07:00 AlterCPA status
+and collabBox frequent resume. Always on: AlterCPA rolling, web-sync, stamping, distribution,
+presence.
+
+## 6. Bulk writes
+
+- **Never move `orders.updated_at`** in bookkeeping or repair writes (GET /call-agains reads it as
+  `last_call_at`): `SET LOCAL elyon.keep_updated_at = 'on'` (honoured since `20260939000300`).
+  `session_replication_role` is refused inside functions on this project.
+- Silence alert triggers with `SET LOCAL elyon.bulk_repair = 'on'`; a `sale_source` move needs
+  `elyon.allow_source_change`, a seller correction `elyon.allow_sold_change`, a bulk order load
+  `elyon.defer_segments` (then `segment_recompute_drain()`). All transaction-local — never a
+  session SET on a pooled connection.
+- **When.** The repair-kit refuses to start while `recompute_all_segments` or
+  `apply_no_parcel_rule` runs, and (unless `--outside-quiet-window`) outside its quiet window
+  **20:55–07:00 Skopje**. That window predates `20260942001300`: `mex-reconcile` now writes every
+  15 minutes until 22:59 (and from 06:00) and `collabbox-sync-frequent` until 22:59. The calm
+  stretches are **23:00–23:55** and **00:15 until the 02:00 recompute** (01:00 in winter); check
+  `pg_stat_activity` and the run tables first. The 02:00 recompute once deadlocked a repair.
+- Before a big import check the disk (`node scripts/db-size-mk.mjs`): the teleshop import filled the
+  2 GB disk on 28.09 and the DB went read-only until it was raised to 8 GB.
+- Measure database load by diffing `sum(total_exec_time)` in `pg_stat_statements`, never by a top-N
+  listing.
+
+## 7. The repair protocol and every repair
+
+Protocol (`scripts/lib/repair-kit.mjs`): **dry run** (default — CSVs in `exports/repairs/`, a
+`data_repair_runs` row with a `candidate_hash`, prints the run id) → **`--apply --run <id>`**
+(refuses unless the set still hashes the same; ≤ 200-order transactions; `data_repair_rows` before /
+after / evidence; an order note; an `audit_log` row; quiet window) → **rollback**
+`node scripts/rollback-repair.mjs --run <id> [--apply]` (restores an order only while it still
+equals `after`; `--only ORD-1,ORD-2` restricts to those orders' units; `--loose` compares status,
+timestamps, reasons, tracking id and `paid_basis` but not the `mex_*` facts the cron refreshes). The
+rollback is itself a recorded run (`rollback-<key>`).
+
+| Script (key) | What it repairs | Applied runs |
+|---|---|---|
+| `repair-mex-ghost-links.mjs` (`mex-ghost-links`) | MEX parcels taken back off 0 ден "ghost" rows and given to the order they shipped for | `7d59b83a` 27.09 — 290 |
+| `repair-altercpa-catchup-paid.mjs` (`altercpa-catchup-paid`; `--population unproven-paid` → `altercpa-unproven-paid`) | the 18.09 AlterCPA "paid" catch-up proven or cancelled; the "paid without MEX proof" population | `e3f23a0c` 27.09 — 1.128 · `c1a90c3d` 28.09 (`--evidence-guards`) — 132 → 45 cancelled, C7 132 → 74 |
+| `repair-ghost-manual.mjs` (`ghost-manual`) | ghost-parcel leftovers decided case by case (collabBox document times) | `5edf77ba` 28.09 — 18 |
+| `repair-test-phones.mjs` (`test-phones`) | deletes the CRM orders of the owner's two test phones (snapshot first) | `becf69c8` 28.09 — 6; undo `--restore <run>` |
+| `repair-cod-price.mjs` (`cod-price`) | CRM price := MEX COD when they differ (not COD = price × 61,5 + 150, not COD 0; `order_items` scaled; `--include-zero-price`; trusts a teleshop parcel on another order only when the collabBox document names it — `collab_twin`) | `1220de9c` — 478 · `456038d9` (`--include-zero-price`) — 5 · `8e059bfe` — 34 · `f29eb4dd` — 325 |
+| `repair-teleshop-twin-links.mjs` (`teleshop-twin-links`) | teleshop-import conflicts whose sale is already a CRM/AlterCPA order: link the document's parcel to that order, status from MEX | `c8dc9345` — 57; 8 rolled back (the parcel was older than the order) |
+| `repair-crm-collabbox-twins.mjs` (`crm-collabbox-twins`) | one sale booked twice (CRM order + collabBox copy): the CRM order takes the parcel, the copy → `duplicated` | `3c32f8d3` — 6 |
+| `repair-link-elyon-parcels.mjs` (`link-elyon-parcels`) | BIO NATURAL 9110 / 9103 parcels no order held although the sale is in the CRM (cancel-then-ship, malformed phones, re-sends) | `8db253cc` — 141; 17 listed for a human |
+| `repair-revived-cross-channel.mjs` (`revived-cross-channel`) | old AlterCPA leads MEX revived on another channel's parcel (teleshop 9102 / web NTMK) — unlinked | `de9f07ca` — 3 |
+| `repair-cross-channel-parcels.mjs` (`cross-channel-parcels`) | the whole class: AlterCPA leads the pre-guard reconcile revived out of a cancel / trash on a NATURA teleshop / social parcel (9102 · 9100 · 9108 · 1300) more than 2 days from the lead → back to their pre-flip status, parcel unlinked; same-day parcels and imported links only listed | `a057bc52` 29.09 — 145; their 125 collabBox documents then re-applied by the sync as their own orders (run `4cdb427f`) |
+
+Imports and reclasses have their own rollbacks — see [IMPORT_EXPORT.md](IMPORT_EXPORT.md) and
+`.grok/skills/elyon-departments-and-sources`. **After any apply:** `engine-fixture-mk`, the ties
+(§8), and — when sources or prices moved in closed months — a Pure Profit cache refresh.
+
+## 8. The checks and what a FAIL means
+
+All read-only (exit 0 = no FAIL, 1 = FAIL, 2 = refused / unreachable) except `engine-fixture-mk`,
+which writes two throwaway customers and removes them. **State 29.09 09:00, September and July:**
+engine fixture, `verify-insights-ties`, every `verify-tab-*` and `verify-leaderboard-v2` PASS;
+`verify-attribution` shows only the standing leftovers noted below (C7 July 655 is the 11.08
+"cancel(other) before August = paid" ruling, report only). After `…1800` (11:44, `40f1425`):
+`verify-tab-lists` L1–L8 and the board 22–29.09 PASS (before the `…1850` / `…1860` reversal).
+
+| Check | A FAIL means |
 |---|---|
-| Refresh courier offices | `node --env-file=.env scripts/scrape-courier-offices.mjs --commit` |
-| Re‑seed product webhooks (after new products) | `node --env-file=.env scripts/create-webhooks-for-products.mjs --commit` |
-| Import/refresh products | `node --env-file=.env scripts/import-products-bigarena.mjs --commit` |
-| Daily BigArena order status reconciliation (closes shipped → paid/returned loop) | UI: Warehouse → Incoming (or Orders) → upload the partner's tracking export CSV/XLSX. Preview then apply. Only affects shipped orders. See ORDERS_AND_CLIENTS.md. |
-| Verify analytics/segments | `node --env-file=.env scripts/check-insights-accuracy.mjs` · `…/check-segment-counts.mjs` |
-| Recompute segments (also in UI) | `POST /segments/recompute` (admin) |
-| Create a user | UI `/users`, or `POST /users/create` |
-| Smoke test prod | `npm run smoke` |
+| `node scripts/engine-fixture-mk.mjs` | the segment engine's list-name contract broke — a drifted list name wipes members silently. Stop and fix before anything else |
+| `node scripts/verify-insights-ties.mjs --from … --to …` | T1–T5: the cohort no longer adds up (a bucket / department rule broke) · D1: a sale in two buckets or a parcel owned twice · D2/D3: the `/orders` twin drifted from the SQL (change both) · D4: a test phone leaked into a figure · D5: cash ≠ the MEX register · D6: a shared parcel valued twice |
+| `node scripts/verify-attribution.mjs [--from … --to …]` | C1: Overview tiles ≠ Σ departments / SQL truth · C2: MEX-only cash by series does not tie (a parcel rule changed without the checker) · C3: the Lists tab ≠ Σ departments · prediction_list, or its footer ≠ the Affiliate – Lead out card · C6: proven cash ≠ Σ COD · C7: paid without MEX proof (**standing 37** pre-existing AlterCPA rows — a list for a human, not a mass fix) · C8a: one parcel on 2+ live orders (3 owner-accepted pairs in `scripts/data/c8a-accepted-duplicates.json`) · C8b: a tracking id MEX does not know (**standing 14**) · C8c: link disagrees (WARN for re-sends) · C9: AlterCPA wrote money · C10: a ghost parcel · C12: an order without `sale_source` (the insert classifier failed) · C13: < 99 % of decisions have a person · C14: the web block ≠ the shop's classifier · C4 / C5: the two legacy v1 boards (`leaderboard_day`, still the api's default response) no longer tie to the sales ledger |
+| `node scripts/verify-leaderboard-v2.mjs [--from … --to …]` | the TV board v2 (`leaderboard_day_v2`): L1 a person × department cell ≠ the truth recomputed from orders + `v_sales_work` + collabBox bookings · L2 Σ board per department ≠ `insights_cohort` · L3 a sale counted twice or missed · L4 rank / a manager ranked · L5 a team member or an active login missing · L6 `no_department` or `bookings_filter_drift` ≠ 0 (the booking filter copy drifted from `collabbox_booked_today`) · L7 a filter shows the wrong people |
+| `node scripts/verify-tab-sales.mjs` · `-agents` · `-profit [--cache]` · `-lists` · `-returns [--year]` · `-work` | that tab's RPC no longer ties to the cohort for the same window. `verify-tab-lists` L8 flickers only while the lists recompute (02:00) |
+| `node scripts/verify-stamp-parity.mjs` | the stamping cron and `backfill-order-deciders.mjs` disagree |
+| `node scripts/verify-altercpa-bridge.mjs --days 7` · `verify-altercpa-status.mjs` | the ledger / orders miss leads the API has, a foreign lead has an order, or outcomes disagree |
+| `node scripts/verify-sticky-trash-mk.mjs` | one of the 8 sticky-trash / cancel behaviour cases broke |
+| `node scripts/audit-segments-integrity.mjs` | engine drift, label / band violations, pollution, missing customers, dead cron (baselines in `.grok/skills/elyon-segments-and-prediction`) |
+| `node scripts/verify-stock.mjs` | meaningful once the owner's stock count exists |
 
-Full script reference: [IMPORT_EXPORT.md](IMPORT_EXPORT.md).
-
-### Unpaid‑delivery chase (returns prevention)
-
-Every morning between 09:00 and 11:00 Sofia, pg_cron job `unpaid-delivery-chase` reminds each
-agent about their own deliveries that shipped ≥ N days ago and are **still unpaid** (= the client
-has not collected the parcel and it is heading for a return), and gives every superadmin one
-digest. Reminders repeat daily until the order becomes paid/returned or ages past the stop
-threshold. Nothing to run by hand.
-
-**It only knows what the BigArena tracking upload told it.** If that daily upload is skipped,
-collected orders still look unpaid and the counts overstate the problem — the admin digest
-therefore reports how many hours old the last sync was. Alerts are deliberately *not* muted when
-the sync is stale, because muting would hide real returns.
+## 9. Routine operations
 
 | Task | How |
 |---|---|
-| Retune the window | UI: Settings → **Unpaid Delivery Chase** (admin only). "Remind after" 1–30 days, "Stop reminding after" ≥ that, max 999. Stored in `app_settings`; the job picks it up on the next run — no deploy. |
-| See what would be sent, without sending | `SELECT public.notify_unpaid_shipped_orders(true, true);` → returns the number of agent reminders, writes nothing |
-| Send now (outside the morning window) | `SELECT public.notify_unpaid_shipped_orders(true);` — safe to repeat, one ping per order per day |
-| Did it run? | `SELECT * FROM cron.job_run_details WHERE jobid = (SELECT jobid FROM cron.job WHERE jobname='unpaid-delivery-chase') ORDER BY start_time DESC LIMIT 5;` |
-| What was sent | `SELECT alert_date, count(*) FROM order_unpaid_alerts GROUP BY 1 ORDER BY 1 DESC LIMIT 7;` |
-| **Pause it** | `SELECT cron.unschedule('unpaid-delivery-chase');` — stops everything instantly; the table, column and UI go inert. Re‑enable by re‑running the schedule block in migration `20260905000100`. |
+| Is a feed alive? | Settings → Integrations (owners), or `select public.collabbox_feed_state();` and the run tables — never the cron's green tick |
+| collabBox: dry-run a day, run a window, pause | below, and `.grok/skills/elyon-collabbox-sync` §Runbook (windows ≤ 4 days per call; never across 00:00 Skopje) |
+| The no-parcel rule | preview `select public.apply_no_parcel_rule(false, true);` · mode switch only in Settings → Integrations (audited; a trigger blocks direct `app_settings` edits) · report CSV `GET /api/integrations/no-parcel-rule/report` |
+| Refresh the Pure Profit cache | owners' button, or `POST /api/insights/profit/refresh?from&to` — after any reclass or department-rule change that reaches a closed month (they keep `updated_at`, so the nightly refresh does not see them) |
+| Recompute the lists | the nightly cron; by hand in batches (111k phones) — never concurrently with a bulk writer |
+| Create a user | /users, or `node scripts/create-user-mk.mjs` (public signup is off). Suspend does NOT block sign-in — ban in auth to lock someone out |
+| Unpaid-delivery chase | automatic 09:00–11:59; preview `select public.notify_unpaid_shipped_orders(true, true);`; pause `select cron.unschedule('unpaid-delivery-chase');` |
 
----
+### A manual collabBox window (catch-up or backfill)
 
-## 6. PBX ops (telephony)
-See [../PBX-SETUP.md](../PBX-SETUP.md). Quick:
-```powershell
-ssh -i $env:USERPROFILE\.ssh\elyon_vps root@104.152.48.222
-```
-```bash
-fwconsole restart                          # first thing to try if FreePBX misbehaves
-systemctl restart httpd php-fpm            # second
-asterisk -rx "pjsip show registrations"    # trunk status
-asterisk -rx "pjsip show endpoints"        # extensions
-certbot certificates                       # TLS
-```
-Don't change Apache user (`asterisk`), PHP (7.4), SELinux (Permissive), or non‑`*_custom.conf` files.
+The crons already re-read yesterday + today every 15 minutes (07:00–22:59) and the last 3 days at
+00:00, and `collabbox_retry_open` retries open rows of the last 14 days. Run a window by hand only
+for older days — a missed stretch, open rows older than 14 days, or a history backfill.
 
----
+1. **When:** 23:00–23:55, or after the 00:00 nightly has finished and before 07:00 Skopje. Only
+   one nightly/manual run at a time: a second one — and every frequent pass meanwhile — gets
+   **409 `already_running`**. Never let a window run across 00:00 (the nightly waits a day) or into
+   07:00 (the day's passes are skipped).
+2. **Dry-run one day first** — it writes nothing (no order, ledger or run row); the output holds
+   customer data, keep it out of git:
+   ```bash
+   curl -s -X POST https://bmfxhgznttcnnlqloqzp.supabase.co/functions/v1/collabbox-sync \
+     -H "x-collabbox-sync-secret: $COLLABBOX_SYNC_SECRET" -H "Content-Type: application/json" \
+     -d '{"mode":"manual","from":"2026-09-20","to":"2026-09-20","dry_run":true}' > exports/collabbox/dry-2026-09-20.json
+   ```
+   The secret is the function secret `COLLABBOX_SYNC_SECRET` (= Vault `collabbox_sync_secret`,
+   value in VAULT) — keep it in an environment variable, never on a command line you paste.
+3. **Run windows of at most 4 days**, one after another, synchronously so each answers with its
+   summary:
+   ```bash
+   curl -s -X POST https://bmfxhgznttcnnlqloqzp.supabase.co/functions/v1/collabbox-sync \
+     -H "x-collabbox-sync-secret: $COLLABBOX_SYNC_SECRET" -H "Content-Type: application/json" \
+     -d '{"mode":"manual","from":"2026-09-17","to":"2026-09-20","wait":true}'
+   ```
+   A run stops at its time budget (115 s synchronous, 330 s in the background without `wait`,
+   which answers `202` + `run_id`) or at 100 requests; a longer window ends `partial` with
+   `stopped before <day> (…)` — start the next window from that day. `to` may not be in the
+   future; the code refuses more than 14 days.
+4. **Check** each run before the next: `select kind, trigger_kind, status, window_from, window_to,
+   created, updated, conflicts, credited, pending, errors, warning from collabbox_sync_runs order by
+   started_at desc limit 5;` — `failed` / `errors > 0` → read `error` / `stats` before going on.
+   Conflicts are listed for a human, never forced. When a window moved sales in closed months,
+   refresh the Pure Profit cache for them.
 
-## 7. Troubleshooting
+## 10. Troubleshooting
 
 | Symptom | Likely cause → fix |
 |---|---|
-| Every API call CORS‑errors; pages spin forever | New frontend domain not in `ALLOWED_ORIGINS`, or function not redeployed → edit array + `functions deploy api`. |
-| Webhooks 401 | `WEBHOOK_SECRET` mismatch → align sender + Supabase secret; recompute HMAC over the exact body. |
-| Webhooks silently accepted but unsigned | `WEBHOOK_SECRET` unset on the function → set it. |
-| Dashboard/segment counts look low | A non‑paginated query (e.g. `orders/stats`) truncating at 1000 → use the paginated endpoints / add pagination ([AUDIT_FINDINGS.md](AUDIT_FINDINGS.md)). |
-| Lead Distribution config save / auto‑assign → 500 | The `userId` bug ([AUDIT_FINDINGS.md](AUDIT_FINDINGS.md)) → fix to `user.id`, redeploy. |
-| `supabase functions deploy` → 403 | Stale `supabase login` for another account → rely on `SUPABASE_ACCESS_TOKEN` env, or `supabase logout`/`login` the right account. |
-| `db push` "out of order" | `migration repair --status reverted <ts>` then retry. |
-| Login works but redirects to `/login` | User has no `user_roles` row → grant a role (UI/SQL) or re‑run a create script. |
-| Cyrillic mojibake in an export | Wrong CSV BOM/encoding for that consumer — fulfilment CSV is comma + **no BOM**; generic exports are `;` + BOM ([PRODUCTS_STOCK_WAREHOUSE.md](PRODUCTS_STOCK_WAREHOUSE.md)). |
-| `3.59886e+11` phones appear | Scientific‑notation import pollution → `scripts/cleanup-polluted-phones.mjs`. |
+| Every API call CORS-errors | a new frontend origin not in the api's `ALLOWED_ORIGINS` → edit + deploy `api` |
+| `functions deploy` → 403 | stale `supabase login` for another account → rely on `SUPABASE_ACCESS_TOKEN` |
+| `git push` → 403 | the cached credential → push with the VAULT §4 PAT (§4) |
+| A feed card is red / stale | read its run table's `error` / `warning`; a `running` row older than its limit was killed (collabBox 20 min, others 10–15 min) |
+| "No AlterCPA leads came" | usually wrong: compare `altercpa_leads` with `orders`; check `skip_reason` (`unmapped_offer` → map the offer on /altercpa); the token goes as `?id=` |
+| collabBox run `failed` "… layout changed?" | a draft document without a number is tolerated (≤ max(3, 5 %) incomplete rows a day since `20ad77d`); more means collabBox changed its page — read the warning, do not loosen blindly |
+| collabBox 409 `already_running` | a manual / nightly run is in progress — wait; frequent passes skip themselves meanwhile |
+| A department figure moved but Pure Profit did not | the monthly cache: refresh the months (a reclass does not bump `updated_at`) |
+| White screen after a deploy | a missing import or a TDZ read that `npm run build` let through → `node scripts/smoke-render.mjs`. Since `6fbbcd5` a render error shows a Reload button (`AppErrorBoundary`) and a tab that asks for a lazy chunk of an older deploy reloads itself once (`vite:preloadError` in `main.tsx`) |
+| A login lands on the wrong page, loops, or sees "no page" | the landing rule is `homePath()` (`src/lib/homePath.ts`: admins / managers / owners → /insights, call agents → /calls, warehouse → /warehouse, ads admin → /webhooks, else the first page they may open); the login goes to `/start`, which waits for the permissions. "No page" = the login may open nothing → give the role a module in Settings. `/assigned` is retired → /calls |
+| An empty grey area below a page (the window scrolls, the sidebar is cut off) | an absolutely positioned element escaped the app frame: `AppLayout`'s frame and `<main>` must stay `position: relative` (`81f4182`) |
+| Order creation fails on the display id | the `LPAD` trap (fixed in `20260933000000`) — any new id code must not truncate |
+| The DB went read-only | disk full → raise it in the dashboard (owner's OK), resume the importer from its ledger |
+| `db push` refuses / asks for a password | expected — use `apply-migration-mk.mjs` |
 
----
+## 11. Backups, ledgers, disaster recovery
 
-## 8. Backups & data safety
-- Supabase provides managed Postgres backups (verify the retention tier in the dashboard for the project).
-- Before a risky bulk script: it's dry‑run by default; the CPA importers write timestamped logs enabling
-  `rollback-cpa-import.mjs`.
-- The `audit_log` and `order_history` are immutable trails for forensic/debug.
-- Keep [VAULT.md](VAULT.md) current; it's the disaster‑recovery key to rebuilding access.
-
----
-
-## 9. Standing up a fresh environment (DR / clone)
-1. Create a Supabase project; copy ref/URL/anon/service‑role/DB password.
-2. `supabase link --project-ref <ref>` → `db push` (rebuilds schema/RLS/functions/triggers) → `functions deploy api`.
-3. Set Edge secrets (`WEBHOOK_SECRET`, `SUPABASE_ANON_KEY`).
-4. Update `.env` + `supabase/config.toml` + Vercel env vars; update `ALLOWED_ORIGINS` for the new domain; redeploy.
-5. `node scripts/create-admin-users.mjs` (then rotate passwords).
-6. Seed reference data: `fetch-bg-settlements`, `scrape-courier-offices`, products import, `create-webhooks-for-products`.
-   (This same flow is the basis of the [RESELLER_GUIDE.md](RESELLER_GUIDE.md).)
+- Supabase Pro daily backups. Every data change of consequence has its own ledger:
+  `data_repair_runs` / `data_repair_rows` (repairs, catalogue runs), `teleshop_import_documents` /
+  `_customers`, `collabbox_documents` / `collabbox_sync_runs`, `sale_source_reclass`,
+  `no_parcel_rule_runs` / `_items`, `order_decider_runs`, `altercpa_sync_runs`, `mex_sync_runs`,
+  `web_sync_runs`; `audit_log` and `order_history` are append-only.
+- Output files of dry runs (`exports/…`) hold customer data: gitignored, never committed.
+- A fresh environment: a new Supabase project → apply every migration in order
+  (`apply-migration-mk.mjs`, or `db push` with a recorded password) → deploy the five functions →
+  set the function secrets AND the Vault rows → `config.toml` / `.env` / Vercel env / the api's
+  `ALLOWED_ORIGINS` → `create-user-mk.mjs` → the address stack (`import-mk-settlements.mjs`,
+  `import-mk-streets-osm.mjs`, `fetch-mex-cities.mjs`, `map-settlements-to-mex.mjs`). Point
+  `assert-mk-target.mjs` at the new ref first.
