@@ -105,6 +105,26 @@ export interface BoardV2 {
   rows: BoardRow[];
   /** true = the api still served the old per-mode board (adapted here). */
   legacy?: boolean;
+  /** The web shop's day (only with department=web; null = the api could not read it; absent = old api). */
+  web_live?: WebLive | null;
+}
+
+/** The TV board's web view (leaderboard_web_live, 20260942001940): the shop itself, it has no agents. */
+export interface WebLive {
+  day: string;
+  /** The cohort's web part of the day — the Overview's number. */
+  orders: number;
+  value_mkd?: number;
+  all_orders: number;
+  card: number;
+  cod: number;
+  by_outcome: Array<{ key: string; count: number; value_mkd?: number }>;
+  latest: Array<{
+    at: string | null; number: string | null; city: string | null; total_mkd?: number; outcome: string;
+    payment: 'card' | 'cod'; counted: boolean; source: string | null; item: string | null; items: number;
+  }>;
+  last_order_at: string | null;
+  synced_at: string | null;
 }
 
 export interface BoardFilter { department: Department | null; team: string | null }

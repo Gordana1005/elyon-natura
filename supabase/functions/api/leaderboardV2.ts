@@ -124,6 +124,26 @@ export interface LeaderboardV2Response {
   summary: Record<string, number>;
   day_totals: Record<string, unknown>;
   rows: BoardRowV2[];
+  /** The web shop's day (leaderboard_web_live, 20260942001940) — only with &department=web. */
+  web_live?: WebLiveV2 | null;
+}
+
+/** The TV board's web view: the web shop has no agents, so the board shows the shop itself. */
+export interface WebLiveV2 {
+  day: string;
+  /** = the cohort's web part of the day (the Overview's number). */
+  orders: number;
+  value_mkd: number;
+  all_orders: number;
+  card: number;
+  cod: number;
+  by_outcome: Array<{ key: string; count: number; value_mkd: number }>;
+  latest: Array<{
+    at: string | null; number: string | null; city: string | null; total_mkd: number; outcome: string;
+    payment: "card" | "cod"; counted: boolean; source: string | null; item: string | null; items: number;
+  }>;
+  last_order_at: string | null;
+  synced_at: string | null;
 }
 
 const num = (v: unknown): number => {
@@ -214,6 +234,34 @@ function normRow(v: unknown): BoardRowV2 {
   };
 }
 
+/** leaderboard_web_live's jsonb, typed and cleaned (no name / phone ever leaves it). */
+export function normWebLive(v: unknown): WebLiveV2 {
+  const w = obj(v);
+  return {
+    day: String(w.day ?? ""),
+    orders: num(w.orders),
+    value_mkd: num(w.value_mkd),
+    all_orders: num(w.all_orders),
+    card: num(w.card),
+    cod: num(w.cod),
+    by_outcome: Array.isArray(w.by_outcome)
+      ? (w.by_outcome as unknown[]).map((o) => { const x = obj(o); return { key: String(x.key ?? ""), count: num(x.count), value_mkd: num(x.value_mkd) }; })
+      : [],
+    latest: Array.isArray(w.latest)
+      ? (w.latest as unknown[]).map((o) => {
+        const x = obj(o);
+        return {
+          at: str(x.at), number: str(x.number), city: str(x.city), total_mkd: num(x.total_mkd),
+          outcome: String(x.outcome ?? ""), payment: x.payment === "card" ? "card" as const : "cod" as const,
+          counted: x.counted === true, source: str(x.source), item: str(x.item), items: num(x.items),
+        };
+      })
+      : [],
+    last_order_at: str(w.last_order_at),
+    synced_at: str(w.synced_at),
+  };
+}
+
 function numbersOf(v: unknown): Record<string, number> {
   const out: Record<string, number> = {};
   for (const [k, x] of Object.entries(obj(v))) out[k] = num(x);
@@ -241,6 +289,9 @@ export const LEADERBOARD_V2_NON_MONEY_KEYS: ReadonlySet<string> = new Set([
   "cancelled", "trashed", "callbacks", "conversion", "last_decision_at", "presence",
   "state", "online_min", "active_min", "idle_min", "break_min", "first_seen", "last_seen",
   "first_active", "last_active", "idle_alerts", "idle_streak_min", "first_login",
+  // the web view (web_live) — its counts; value_mkd / total_mkd go with the money
+  "web_live", "all_orders", "card", "cod", "by_outcome", "latest", "at", "number", "city", "outcome",
+  "payment", "counted", "source", "item", "items", "last_order_at", "synced_at",
   // the six departments (map keys)
   ...LEADERBOARD_DEPARTMENTS,
 ]);
@@ -274,6 +325,8 @@ export function buildLeaderboardV2Response(input: {
   /** false → every *_mkd key stripped (whitelist). */
   money: boolean;
   generatedAt?: string;
+  /** leaderboard_web_live's answer (the web view); undefined = not asked for. */
+  webLive?: unknown;
 }): LeaderboardV2Response {
   const rpc = obj(input.rpc);
   const filter = obj(rpc.filter);
@@ -307,5 +360,6 @@ export function buildLeaderboardV2Response(input: {
     day_totals: obj(rpc.day_totals),
     rows: Array.isArray(rpc.rows) ? (rpc.rows as unknown[]).map(normRow) : [],
   };
+  if (input.webLive !== undefined) body.web_live = input.webLive ? normWebLive(input.webLive) : null;
   return input.money ? body : stripLeaderboardV2Money(body);
 }

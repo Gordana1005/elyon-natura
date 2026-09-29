@@ -5420,6 +5420,37 @@
       "crm_prediction": "Prediction",
       "altercpa_leads": "Pending",
       "management": "Management"
+    },
+    "web": {
+      "unavailable": "The web shop data is not available right now.",
+      "sales": "Sales today",
+      "salesSub": "confirmed by the shop — the same as the Overview",
+      "value": "Value",
+      "valueSub": "confirmed orders",
+      "all": "All orders today",
+      "allSub": "{{n}} of them not counted yet",
+      "payment": "Payment",
+      "paymentValue": "{{cod}} · {{card}}",
+      "paymentSub": "cash on delivery · card",
+      "last": "Last order",
+      "lastAgo": "{{n}} min ago",
+      "synced": "refreshed {{time}}",
+      "none": "No web orders yet today.",
+      "latest": "Newest orders",
+      "notCounted": "not counted",
+      "pieces": "{{n}} pcs",
+      "payCard": "card",
+      "payCod": "cash on delivery",
+      "outcome": {
+        "awaiting": "Awaiting confirmation",
+        "preparing": "Being prepared",
+        "courier": "With the courier",
+        "delivered": "Delivered",
+        "noRecord": "No record",
+        "returned": "Returned",
+        "cancelled": "Cancelled",
+        "cardUnpaid": "Unpaid card"
+      }
     }
   },
   "leaderboard2": {

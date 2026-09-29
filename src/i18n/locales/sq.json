@@ -5420,6 +5420,37 @@
       "crm_prediction": "Parashikim",
       "altercpa_leads": "Në pritje",
       "management": "Menaxhmenti"
+    },
+    "web": {
+      "unavailable": "Të dhënat e dyqanit web nuk janë të disponueshme tani.",
+      "sales": "Shitjet sot",
+      "salesSub": "të konfirmuara nga dyqani — njësoj si në Pasqyrë",
+      "value": "Vlera",
+      "valueSub": "porosi të konfirmuara",
+      "all": "Të gjitha porositë sot",
+      "allSub": "{{n}} prej tyre ende nuk numërohen",
+      "payment": "Pagesa",
+      "paymentValue": "{{cod}} · {{card}}",
+      "paymentSub": "me para në dorë · kartë",
+      "last": "Porosia e fundit",
+      "lastAgo": "para {{n}} min",
+      "synced": "rifreskuar {{time}}",
+      "none": "Sot ende nuk ka porosi web.",
+      "latest": "Porositë më të reja",
+      "notCounted": "nuk numërohet",
+      "pieces": "{{n}} copë",
+      "payCard": "kartë",
+      "payCod": "me para në dorë",
+      "outcome": {
+        "awaiting": "Pret konfirmim",
+        "preparing": "Po përgatitet",
+        "courier": "Te korrieri",
+        "delivered": "E dorëzuar",
+        "noRecord": "Pa regjistrim",
+        "returned": "E kthyer",
+        "cancelled": "E anuluar",
+        "cardUnpaid": "Kartë e papaguar"
+      }
     }
   },
   "leaderboard2": {

@@ -142,6 +142,35 @@ describe('TV leaderboard v2', () => {
     expect(screen.queryByText(i18n.t('leaderboard2.colDepartments'))).toBeNull();   // no table header
   });
 
+  it('the Web filter shows the shop itself, live — it has no agents', async () => {
+    serve({
+      ...v2, filter: { department: 'web', team: null }, rows: [], summary: { people: 0 },
+      web_live: {
+        day: '2026-09-28', orders: 8, value_mkd: 13310, all_orders: 17, card: 1, cod: 7,
+        by_outcome: [{ key: 'awaiting', count: 7, value_mkd: 14250 }, { key: 'preparing', count: 8, value_mkd: 13310 },
+          { key: 'card_unpaid', count: 2, value_mkd: 4000 }],
+        latest: [
+          { at: now.toISOString(), number: 'NTMK62512', city: 'Демир Капија', total_mkd: 2000, outcome: 'card_unpaid',
+            payment: 'card', counted: false, source: 'facebook', item: 'Magnesium Bisglycinate', items: 3 },
+          { at: now.toISOString(), number: 'NTMK62511', city: 'Скопје', total_mkd: 1490, outcome: 'preparing',
+            payment: 'cod', counted: true, source: 'google', item: 'Neurofix', items: 1 },
+        ],
+        last_order_at: now.toISOString(), synced_at: now.toISOString(),
+      },
+    });
+    renderAt('/tv/leaderboard?key=k&dept=web');
+    const panel = await screen.findByTestId('tv-web-live');
+    const salesTile = within(panel).getByText(i18n.t('tvBoard.web.sales')).parentElement as HTMLElement;
+    expect(within(salesTile).getByText('8')).toBeInTheDocument();                 // = the Overview's web number
+    expect(within(panel).getByText(formatDenari(13310))).toBeInTheDocument();
+    expect(within(panel).getByText('17')).toBeInTheDocument();                    // every order of the day
+    expect(screen.getByTestId('web-outcome-awaiting').textContent).toContain(i18n.t('tvBoard.web.outcome.awaiting'));
+    expect(screen.getAllByTestId('tv-web-order')).toHaveLength(2);
+    expect(screen.getByText('Magnesium Bisglycinate')).toBeInTheDocument();
+    expect(screen.getByText(i18n.t('tvBoard.web.notCounted'))).toBeInTheDocument(); // the unpaid card
+    expect(screen.queryByText(i18n.t('leaderboard2.noPeople'))).toBeNull();
+  });
+
   it('still renders the old per-mode board while the api is being redeployed', async () => {
     serve(legacy);
     renderAt('/tv/leaderboard?key=k');

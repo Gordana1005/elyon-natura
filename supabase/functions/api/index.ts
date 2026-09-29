@@ -2876,15 +2876,25 @@ async function handleRequest(req: Request): Promise<Response> {
           department: url.searchParams.get("department"), team: url.searchParams.get("team"),
         });
         if (!q.ok) return json({ error: q.error }, 400);
-        const { data: v2, error: v2Err } = await adminClient.rpc("leaderboard_day_v2", {
-          p_day: lbDay, p_department: q.department, p_team: q.team,
-        });
+        // The web shop has no agents: with &department=web the board also carries the shop's own
+        // day (leaderboard_web_live, 20260942001940 — orders = the cohort's web part, the outcomes,
+        // the newest orders without name / phone).
+        const wantWeb = q.department === "web";
+        const [v2Res, webRes] = await Promise.all([
+          adminClient.rpc("leaderboard_day_v2", { p_day: lbDay, p_department: q.department, p_team: q.team }),
+          wantWeb ? adminClient.rpc("leaderboard_web_live", { p_day: lbDay }) : Promise.resolve(null),
+        ]);
+        const { data: v2, error: v2Err } = v2Res;
         if (v2Err || !v2) {
           console.error("leaderboard_day_v2 failed:", v2Err?.message);
           // 22023 = an unknown team key (the department is checked above)
           return v2Err?.code === "22023" ? json({ error: "invalid team" }, 400) : json({ error: "Leaderboard unavailable" }, 500);
         }
-        return json(LB2.buildLeaderboardV2Response({ rpc: v2, today, money: true }));
+        if (webRes?.error) console.error("leaderboard_web_live failed:", webRes.error.message);
+        return json(LB2.buildLeaderboardV2Response({
+          rpc: v2, today, money: true,
+          ...(wantWeb ? { webLive: webRes?.error ? null : webRes?.data ?? null } : {}),
+        }));
       }
 
       // The board (leaderboard_day), the per-mode bonus rules and the day's calls

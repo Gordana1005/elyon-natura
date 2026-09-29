@@ -131,4 +131,32 @@ describe("buildLeaderboardV2Response", () => {
     expect(out.day).toBe("2026-09-29");
     expect(out.filter).toEqual({ department: null, team: null });
   });
+
+  // the web view (leaderboard_web_live, 20260942001940): only with &department=web
+  const webLive = {
+    day: "2026-09-29", orders: "8", value_mkd: 13310, all_orders: 17, card: 1, cod: 7,
+    by_outcome: [{ key: "awaiting", count: 7, value_mkd: 14250 }, { key: "preparing", count: 8, value_mkd: 13310 }],
+    latest: [{ at: "2026-09-29T13:35:51Z", number: "NTMK62512", city: "Демир Капија", total_mkd: 2000, outcome: "card_unpaid",
+      payment: "card", counted: false, source: "facebook", item: "Magnesium Bisglycinate", items: 3, phone: "070000000" }],
+    last_order_at: "2026-09-29T13:35:51Z", synced_at: "2026-09-29T14:03:03Z",
+  };
+
+  it("carries the web shop's day only when it was asked for", () => {
+    expect(withMoney).not.toHaveProperty("web_live");
+    const out = buildLeaderboardV2Response({ rpc, today: "2026-09-29", money: true, webLive });
+    expect(out.web_live?.orders).toBe(8);                                 // "8" → 8
+    expect(out.web_live?.value_mkd).toBe(13310);
+    expect(out.web_live?.latest[0]).toMatchObject({ number: "NTMK62512", payment: "card", counted: false, items: 3 });
+    expect(out.web_live?.latest[0]).not.toHaveProperty("phone");          // never a phone on the wall
+    expect(buildLeaderboardV2Response({ rpc, today: "2026-09-29", money: true, webLive: null }).web_live).toBeNull();
+  });
+
+  it("keeps the web counts and drops its денари without money access", () => {
+    const out = buildLeaderboardV2Response({ rpc, today: "2026-09-29", money: false, webLive });
+    expect(out.web_live?.orders).toBe(8);
+    expect(out.web_live).not.toHaveProperty("value_mkd");
+    expect(out.web_live?.by_outcome[0]).toEqual({ key: "awaiting", count: 7 });
+    expect(out.web_live?.latest[0]).not.toHaveProperty("total_mkd");
+    expect(out.web_live?.latest[0].city).toBe("Демир Капија");
+  });
 });

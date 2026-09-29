@@ -33,6 +33,7 @@ import { TvBoardFilters } from '@/components/tvboard/TvBoardFilters';
 import { TV_GRID, teamLabel } from '@/components/tvboard/tvBoardHelpers';
 import { TvBoardRow } from '@/components/tvboard/TvBoardRow';
 import { TvBoardCard } from '@/components/tvboard/TvBoardCard';
+import { TvWebLive } from '@/components/tvboard/TvWebLive';
 
 // The vendor-prefixed fullscreen API (Safari / older TV browsers) and the wake lock.
 type FsDocument = Document & { webkitFullscreenElement?: Element | null; webkitExitFullscreen?: () => Promise<void> | void };
@@ -223,6 +224,9 @@ export default function TvLeaderboardPage() {
   const money = data?.money !== false;
   const dept = data?.legacy ? data.filter.department : filter.department;
   const n = (k: string) => Number(s[k] ?? 0) || 0;
+  // The web shop has no agents: with the Web filter the board shows the shop itself (TvWebLive).
+  // An api without the web view (web_live absent) keeps the people view.
+  const webView = dept === 'web' && data != null && data.web_live !== undefined;
 
   // Row height follows the head count so a normal day fits without paging.
   const rowVh = Math.max(3.6, Math.min(6.2, 58 / Math.max(1, rows.length + (managers.length ? 1 : 0))));
@@ -301,7 +305,13 @@ export default function TvLeaderboardPage() {
         {data?.legacy && <div className="mt-2 text-xs text-amber-300 lg:mt-[0.8vh] lg:text-[1.4vh]">{t('leaderboard2.legacyApi')}</div>}
       </div>
 
+      {/* The web view: the shop's own day instead of the (empty) agent list */}
+      {webView && !loading && !error && (
+        <TvWebLive web={data?.web_live ?? null} money={money} isToday={isToday} now={now} />
+      )}
+
       {/* KPI strip — phone 2 per row, small tablet 3, wall screen 5 */}
+      {!webView && (
       <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:mb-[1.6vh] lg:grid-cols-5 lg:gap-[1vw]">
         {presenceTile()}
         <StatCard label={t('leaderboard2.kpiSales')} value={String(n('total_count'))}
@@ -314,6 +324,7 @@ export default function TvLeaderboardPage() {
           value={money && n('no_seller') > 0 ? `${n('no_seller')} · ${formatDenari(n('no_seller_value_mkd'))}` : String(n('no_seller'))}
           sub={n('booked_no_person') > 0 ? t('leaderboard2.kpiNoSellerBooked', { n: n('booked_no_person') }) : t('leaderboard2.kpiNoSellerSub')} />
       </div>
+      )}
 
       {/* States */}
       {loading && <div className="mt-10 text-center text-base text-slate-400 lg:mt-[18vh] lg:text-[2.6vh]">{t('common.loading')}</div>}
@@ -322,12 +333,12 @@ export default function TvLeaderboardPage() {
           {error === 'Unauthorized' ? t('tvBoard.invalidKey') : error}
         </div>
       )}
-      {!loading && !error && rows.length === 0 && (
+      {!loading && !error && !webView && rows.length === 0 && (
         <div className="mt-10 text-center text-base text-slate-400 lg:mt-[18vh] lg:text-[2.6vh]">{t('leaderboard2.noPeople')}</div>
       )}
 
       {/* Phone / tablet: one card per person, the page scrolls */}
-      {!loading && !error && rows.length > 0 && compact && (
+      {!loading && !error && !webView && rows.length > 0 && compact && (
         <div className="flex flex-col gap-2 pb-2">
           {people.map((r) => (
             <TvBoardCard key={r.person_id} row={r} department={dept} money={money} isToday={isToday} now={now}
@@ -348,7 +359,7 @@ export default function TvLeaderboardPage() {
       )}
 
       {/* Wall screen: the table */}
-      {!loading && !error && rows.length > 0 && !compact && (
+      {!loading && !error && !webView && rows.length > 0 && !compact && (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
           <div className={`grid ${TV_GRID} shrink-0 items-center px-[1.6vw] py-[1.1vh] text-[1.4vh] font-semibold uppercase tracking-[0.1em] text-slate-400`}>
             <div>#</div>
