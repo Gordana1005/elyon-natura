@@ -5,7 +5,7 @@
     "person",
     "product"
   ],
-  "total_rows": 160,
+  "total_rows": 162,
   "truncated": false,
   "rows": [
     {
@@ -2279,14 +2279,14 @@
       "person": "(none)",
       "person_id": null,
       "product": "Детокс Чај",
-      "count": 104,
+      "count": 88,
       "sold": 0,
-      "placed_value_eur": 3580.8,
+      "placed_value_eur": 3027.8,
       "value_eur": 0,
-      "delivered": 63,
-      "delivered_cash_mkd": 137231,
-      "returned": 11,
-      "lost": 11
+      "delivered": 53,
+      "delivered_cash_mkd": 115521,
+      "returned": 9,
+      "lost": 9
     },
     {
       "source": "teleshop_other",
@@ -2294,14 +2294,14 @@
       "person": "(none)",
       "person_id": null,
       "product": "Колаген Бјути",
-      "count": 105,
+      "count": 91,
       "sold": 0,
-      "placed_value_eur": 3639.56,
+      "placed_value_eur": 3151.56,
       "value_eur": 0,
-      "delivered": 64,
-      "delivered_cash_mkd": 139483,
-      "returned": 11,
-      "lost": 11
+      "delivered": 55,
+      "delivered_cash_mkd": 119963,
+      "returned": 10,
+      "lost": 10
     },
     {
       "source": "teleshop_other",
@@ -2317,6 +2317,36 @@
       "delivered_cash_mkd": 130832,
       "returned": 11,
       "lost": 11
+    },
+    {
+      "source": "teleshop_out",
+      "team": "(none)",
+      "person": "(none)",
+      "person_id": null,
+      "product": "Детокс Чај",
+      "count": 16,
+      "sold": 0,
+      "placed_value_eur": 553,
+      "value_eur": 0,
+      "delivered": 10,
+      "delivered_cash_mkd": 21710,
+      "returned": 2,
+      "lost": 2
+    },
+    {
+      "source": "teleshop_out",
+      "team": "(none)",
+      "person": "(none)",
+      "person_id": null,
+      "product": "Колаген Бјути",
+      "count": 14,
+      "sold": 0,
+      "placed_value_eur": 488,
+      "value_eur": 0,
+      "delivered": 9,
+      "delivered_cash_mkd": 19520,
+      "returned": 1,
+      "lost": 1
     },
     {
       "source": "social",

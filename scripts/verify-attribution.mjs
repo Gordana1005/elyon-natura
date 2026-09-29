@@ -27,15 +27,17 @@
  *
  * The connected Overview (migration 20260936000000) — C1/C2/C3/C6 call public.insights_overview
  * read-only for the window, exactly as GET /api/insights/overview does, and tie it out:
- *   C1   KPI tiles = Σ of the five sources = single-statement SQL over the same rows (placed,
+ *   C1   KPI tiles = Σ of the six departments = single-statement SQL over the same rows (placed,
  *        confirmed, delivered cash) and Σ buckets = placed; lists delivered parcels whose order
  *        the Overview cannot book as delivered cash
- *   C2   MEX-only cash = Σ COD of delivered parcels no order owns, and each source's share of
- *        them by the owner's series rule (28.09.2026, migration 20260942000500): web claim /
- *        NTMK… / M… → web · 9110 → AlterCPA · 9102, 9103 → Lead out · 9108, 1300 → Social
- *        media · anything else → Lead in
- *   C3   Prediction-lists tab (insights_lists, 20260941000400) = the cohort's ElyonCRM ·
- *        prediction_list split, exactly (sale clock); the "list not recorded" rows are listed.
+ *   C2   MEX-only cash = Σ COD of delivered parcels no order owns, and each department's share
+ *        of them by the owner's series rule (28.09.2026, migrations 20260942000500 and
+ *        20260942001000): web claim / NTMK… / M… → web · 9110 → Affiliate – Lead in · 9103 →
+ *        Affiliate – Lead out · 9102 → Телешоп – Lead out · 9108, 1300 → Social media ·
+ *        anything else (9100 …) → Телешоп – Lead in
+ *   C3   Prediction-lists tab (insights_lists, 20260941000400) = the cohort's Affiliate –
+ *        Lead out (elyon_crm) · prediction_list split, exactly (sale clock); the "list not
+ *        recorded" rows are listed.
  *        Before that migration: the old tab (insights_orders_rollup) vs the Overview's split
  *   C6   proven cash = Σ COD of linked delivered parcels; COD − price × 61.5 splits into exact /
  *        +150 delivery fee / listed mismatches
@@ -851,7 +853,7 @@ SELECT (SELECT n FROM placed) + ${Number(shop.count) || 0} AS placed_n,
     status: bad.length ? 'FAIL' : t.odd_n ? 'WARN' : 'PASS',
     count: bad.length,
     sample: t.odd,
-    note: `KPI tiles vs Σ of the five sources vs single-statement SQL over the same rows (placed = created, confirmed = sold_at `
+    note: `KPI tiles vs Σ of the six departments vs single-statement SQL over the same rows (placed = created, confirmed = sold_at `
       + `→ confirmed_at → created_at, delivered = MEX delivered_at, else paid_at). ${bad.length} figure(s) disagree`
       + (t.odd_n ? `; ${fmtNum(t.odd_n)} delivered parcel(s) sit on an order the overview cannot book as delivered cash (listed)` : ''),
     window: describeWindow(w),
@@ -879,7 +881,8 @@ WITH u0 AS (
 u AS (   -- the owner's series rule, stated here on its own (the Overview's is cohort_parcel_split)
   SELECT u0.*, CASE WHEN u0.web THEN 'web'
                     WHEN u0.ser = '9110' THEN 'altercpa'
-                    WHEN u0.ser IN ('9102', '9103') THEN 'elyon_crm'
+                    WHEN u0.ser = '9103' THEN 'elyon_crm'
+                    WHEN u0.ser = '9102' THEN 'teleshop_out'
                     WHEN u0.ser IN ('9108', '1300') THEN 'social'
                     ELSE 'teleshop_other' END AS src
   FROM u0
@@ -894,8 +897,8 @@ FROM u`);
   const rows = [
     tieRow('MEX-only (count)', { tile: ov.kpis.delivered.mex_only_count, sum_sources: sumSources(ov, (s) => s.cash?.mex_only_count), sql_truth: t.n }, 0),
     tieRow('MEX-only (MKD)', { tile: ov.kpis.delivered.mex_only_cod_mkd, sum_sources: sumSources(ov, (s) => s.cash?.mex_only_cod_mkd), sql_truth: num(t.mkd) }, OV_MKD_TOL),
-    // each source's parcels with no order, by the series rule (owner 28.09.2026)
-    ...['altercpa', 'elyon_crm', 'teleshop_other', 'social', 'web'].map((k) =>
+    // each department's parcels with no order, by the series rule (owner 28.09.2026)
+    ...['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web'].map((k) =>
       tieRow(`${k} parcels (count)`, { source: num(src(k).mex_only_count), sql_truth: num(t.by_src?.[k]) }, 0)),
   ];
   const bad = rows.filter((r) => !r.ok);
@@ -904,15 +907,15 @@ FROM u`);
     count: t.n,
     sample: [],
     note: `delivered MEX parcels no order owns, delivered in the window: ${fmtNum(t.n)} = ${fmtNum(t.mkd)} MKD `
-      + `(${fmtNum(t.web_n)} the web shop's, ${fmtNum(t.n - t.web_n)} credited by series to the other four sources)`,
+      + `(${fmtNum(t.web_n)} the web shop's, ${fmtNum(t.n - t.web_n)} credited by series to the other five departments)`,
     window: describeWindow(w),
     breakdown: { tie_out: rows, by_series: t.by_series },
   };
 }
 
 /** C3 since the rebuild (migration 20260941000400): the Prediction-lists tab reads THE sale
- *  cohort (insights_lists over insights_sale_rows), so it must EQUAL the cohort's ElyonCRM ·
- *  prediction_list split — sale clock, exact — and Σ its lists + "list not recorded" must be
+ *  cohort (insights_lists over insights_sale_rows), so it must EQUAL the cohort's Affiliate –
+ *  Lead out (elyon_crm) · prediction_list split — sale clock, exact — and Σ its lists + "list not recorded" must be
  *  its total. Every remaining row is explained (a sale whose list was not recorded, with the
  *  original it was duplicated from). Until the migration is applied, the pre-rebuild
  *  comparison below runs instead. */
@@ -937,11 +940,11 @@ SELECT public.insights_lists(${from}, ${to}, NULL, NULL, true, 7) AS lists,
   const nr = L.not_recorded ?? { count: 0, value_mkd: 0, samples: [] };
   const sumLists = (k) => (L.lists ?? []).reduce((a, l) => a + num(l[k]), 0);
   const rows = [
-    tieRow('tab sales = Overview ElyonCRM · prediction_list', { tab: num(L.total?.count), overview: num(split.count) }, 0),
-    tieRow('tab денари = Overview ElyonCRM · prediction_list', { tab: num(L.total?.value_mkd), overview: num(split.value_mkd) }, 0),
+    tieRow('tab sales = Overview Affiliate – Lead out · prediction_list', { tab: num(L.total?.count), overview: num(split.count) }, 0),
+    tieRow('tab денари = Overview Affiliate – Lead out · prediction_list', { tab: num(L.total?.value_mkd), overview: num(split.value_mkd) }, 0),
     tieRow('Σ lists + list not recorded = tab (sales)', { lists: sumLists('count') + num(nr.count), tab: num(L.total?.count) }, 0),
     tieRow('Σ lists + list not recorded = tab (денари)', { lists: sumLists('value_mkd') + num(nr.value_mkd), tab: num(L.total?.value_mkd) }, 0),
-    tieRow('tab ElyonCRM footer = Overview ElyonCRM card', { tab: num(L.elyon_crm?.count), overview: num(card.count) }, 0),
+    tieRow('tab Affiliate – Lead out footer = Overview Affiliate – Lead out card', { tab: num(L.elyon_crm?.count), overview: num(card.count) }, 0),
   ];
   const bad = rows.filter((r) => !r.ok);
   return {
@@ -951,7 +954,7 @@ SELECT public.insights_lists(${from}, ${to}, NULL, NULL, true, 7) AS lists,
       display_id: s.display_id,
       why: `list not recorded — shown on the tab in its own row, inside the total${s.dup_of ? `; duplicate of ${s.dup_of}${s.dup_of_list ? ` (list "${s.dup_of_list}")` : ''}` : ''}`,
     })),
-    note: `Prediction-lists tab (sale clock) ${fmtNum(L.total?.count)} sales / ${fmtNum(L.total?.value_mkd)} ден = Overview ElyonCRM · `
+    note: `Prediction-lists tab (sale clock) ${fmtNum(L.total?.count)} sales / ${fmtNum(L.total?.value_mkd)} ден = Overview Affiliate – Lead out · `
       + `prediction_list ${fmtNum(split.count)} / ${fmtNum(split.value_mkd)} ден; ${fmtNum(nr.count)} of them carry no list `
       + `("list not recorded" row — the /orders duplicate endpoint copies the list since 28.09.2026)`,
     window: describeWindow(w),
@@ -1322,7 +1325,7 @@ SELECT (SELECT count(*) FROM p)::int AS placed_n, (SELECT round(coalesce(sum(tot
 export const CHECKS = [
   { id: 'C1', title: 'Overview: Σ sources = KPI tiles = SQL truth', run: c1SourcesTieOut },
   { id: 'C2', title: 'Overview: MEX-only cash = unlinked delivered parcels', run: c2MexOnlyCash },
-  { id: 'C3', title: 'Overview: Prediction-lists tab = ElyonCRM list portion', run: c3PredictionListsTab },
+  { id: 'C3', title: 'Overview: Prediction-lists tab = Affiliate – Lead out list portion', run: c3PredictionListsTab },
   { id: 'C6', title: 'Overview: proven cash = COD of linked delivered parcels', run: c6ProvenCash },
   { id: 'C7', title: 'paid without MEX proof', run: c7PaidWithoutProof },
   { id: 'C8a', title: 'one parcel, one order: tracking id on 2+ live orders', run: c8aSharedTracking },

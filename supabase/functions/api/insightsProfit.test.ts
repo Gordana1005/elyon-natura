@@ -298,7 +298,7 @@ describe("Social media — a source of its own (migration 20260942000500)", () =
 
   it("has its own P&L column, in the fixed order, and the columns still add up to the total", () => {
     const c = buildClock(SOC, null, SETTINGS);
-    expect(c.by_source.map((r) => r.key)).toEqual(["altercpa", "elyon_crm", "teleshop_other", "social", "web"]);
+    expect(c.by_source.map((r) => r.key)).toEqual(["altercpa", "elyon_crm", "teleshop_out", "teleshop_other", "social", "web"]);
     const soc = c.by_source.find((r) => r.key === "social")!;
     expect(soc).toMatchObject({ sales: 2, revenue_mkd: 4000, returned: 1, returned_mkd: 1500 });
     const tel = c.by_source.find((r) => r.key === "teleshop_other")!;
@@ -315,6 +315,34 @@ describe("Social media — a source of its own (migration 20260942000500)", () =
     const zinc = productRows(SOC, SETTINGS, costRatioOf(SOC.agg)).rows.find((p) => p.key === "n:zinc")!;
     expect(zinc.sources).toEqual(["elyon_crm", "teleshop_other", "social"]);
     expect(distributionOf(SOC.hist, "social").packages).toBe(3);
+  });
+});
+
+describe("Телешоп – Lead out — a department of its own (migration 20260942001000)", () => {
+  // collabBox "Нарачка out" documents (and a CRM sale shipped on a 9102 parcel) left
+  // Affiliate – Lead out for their own column: one collected sale and one returned.
+  const OUT: ProfitRpc = {
+    ...COHORT,
+    agg: [
+      ...COHORT.agg!,
+      agg("collected", "s", "teleshop_out", { n: 3, rev: 6000, pw: 3, ru: 6000, pu: 4 }),
+      agg("returned", "s", "teleshop_out", { n: 1, rev: 2000, pw: 1 }),
+    ],
+    strip: [...COHORT.strip!, { s: "teleshop_out", b: "paid", n: 3, v: 6000, c: 6000, no: 3, nw: 0, nm: 0 }],
+    hist: [...COHORT.hist!, { s: "teleshop_out", u: 1500, q: 4, v: 6000 }],
+  };
+
+  it("sits between Affiliate – Lead out and Телешоп – Lead in, and the columns still add up", () => {
+    const c = buildClock(OUT, null, SETTINGS);
+    expect(c.by_source.map((r) => r.key)).toEqual([...PROFIT_SOURCES]);
+    expect(PROFIT_SOURCES.indexOf("teleshop_out")).toBe(PROFIT_SOURCES.indexOf("elyon_crm") + 1);
+    expect(c.by_source.find((r) => r.key === "teleshop_out")).toMatchObject({ sales: 3, revenue_mkd: 6000, returned: 1, returned_mkd: 2000 });
+    for (const k of ["sales", "revenue_mkd", "vat_mkd", "courier_mkd", "net_mkd"] as const) {
+      expect(Math.abs(c.by_source.reduce((t, r) => t + (r[k] as number), 0) - (c.total[k] as number))).toBeLessThanOrEqual(PROFIT_SOURCES.length);
+    }
+    expect(c.total.revenue_mkd).toBe(53000 + 6000);
+    expect(buildStrip(OUT.strip).by_source.find((r) => r.key === "teleshop_out")!.total).toMatchObject({ count: 3, orders: 3 });
+    expect(distributionOf(OUT.hist, "teleshop_out").packages).toBe(4);
   });
 });
 

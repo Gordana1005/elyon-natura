@@ -4,7 +4,7 @@
  * network: model.test.ts covers it against the live-shaped fixture.
  */
 import type {
-  NoSellerRow, PeopleBuckets, PeopleMeasures, PeopleMember, PeoplePerson, PeopleResponse, PeopleTeam,
+  NoSellerRow, PeopleBuckets, PeopleMeasures, PeopleMember, PeoplePerson, PeopleResponse, PeopleSourceKey, PeopleTeam,
 } from '@/lib/insightsApi/agents';
 import { DRILL_LABEL_PARAM } from '../overview/model';
 import type { DayRange } from '../shared/period';
@@ -98,8 +98,8 @@ export const memberIsWhole = (member: PeopleMember, person: PeoplePerson | undef
 
 // ── teams ───────────────────────────────────────────────────────────────────
 
-// the SQL's order (insights_people tj): the two lead teams, the Teleshop (Lead in) and Social
-// media pseudo-groups, management, any other team, nobody's
+// the SQL's order (insights_people tj): the two lead teams, the Телешоп (Lead in and Lead out)
+// and Social media pseudo-groups, management, any other team, nobody's
 const TEAM_ORDER: Record<string, number> = { altercpa_leads: 1, crm_prediction: 2, teleshop: 3, social: 4, management: 5, none: 9 };
 export const teamOrder = (key: string) => TEAM_ORDER[key] ?? 6;
 export const sortTeams = (teams: PeopleTeam[]) => [...teams].sort((a, b) => teamOrder(a.key) - teamOrder(b.key) || a.key.localeCompare(b.key));
@@ -237,10 +237,12 @@ export function reconcile(d: Pick<PeopleResponse, 'totals' | 'people' | 'no_sell
   };
 }
 
+/** The six departments in the owner's order — every per-source list on this tab. */
+export const PEOPLE_SOURCES: readonly PeopleSourceKey[] = ['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web'];
+
 /** The no-seller rows grouped by source, in the fixed source order. */
 export function noSellerBySource(rows: NoSellerRow[]): { source: NoSellerRow['source']; rows: NoSellerRow[]; count: number; value_mkd: number | null }[] {
-  const order = ['altercpa', 'elyon_crm', 'teleshop_other', 'social', 'web'] as const;
-  return order.map((source) => {
+  return PEOPLE_SOURCES.map((source) => {
     const list = rows.filter((r) => r.source === source);
     const anyValue = list.some((r) => r.value_mkd != null);
     return {

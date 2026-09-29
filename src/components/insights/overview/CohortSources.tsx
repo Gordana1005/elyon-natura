@@ -15,7 +15,7 @@ import type { InsightsFormat } from '../shared/useInsightsFormat';
 import { DrillLink } from './DrillLink';
 import { sourceColorVar } from './palette';
 import { CohortTile, whyNoLink } from './CohortTiles';
-import { splitDrill, tileBuckets, tilePart, workedOf } from './cohortOverview';
+import { hasLeadFunnel, splitDrill, tileBuckets, tilePart, workedOf } from './cohortOverview';
 
 type SourcesView = 'cards' | 'table';
 const VIEW_KEY = 'elyon.overview.sourcesView';
@@ -111,10 +111,8 @@ function SourceCard({ row, grand, money, range, f }: {
   const mexOnly = mexOnlyCount(row);
   const isWeb = row.key === 'web';
   const leads = row.leads_in;
-  // Teleshop / collabBox has no lead funnel: every Нарачка document IS a sale, so "came in =
-  // became sales = 100 %" would be a tautology (owner, 28.09.2026). Nor does Social media —
-  // its orders are collabBox social documents too (its own source since 28.09.2026).
-  const noFunnel = row.key === 'teleshop_other' || row.key === 'social';
+  // Телешоп (Lead in and Lead out) and Social media have no lead funnel (hasLeadFunnel).
+  const noFunnel = !hasLeadFunnel(row.key);
   const splits = row.splits ?? [];
   // A split's words come from the shared vocabulary (insights.common.split.*);
   // a key it does not know yet (a new collabBox series) shows as sent.
@@ -234,7 +232,7 @@ function SourceCard({ row, grand, money, range, f }: {
         ) : (
           <p className="mt-1 text-xs text-muted-foreground">{t('overview.cohort.leads.none')}</p>
         )}
-        {/* ElyonCRM's "no" calls are decisions too (Обработени), never sales. */}
+        {/* The CRM's "no" calls are decisions too (Обработени), never sales. */}
         {(leads?.disposition ?? 0) > 0 && (
           <p className="mt-1 text-[11px] text-muted-foreground">
             {t('insights.common.leads.dispositionNote', { n: f.int(leads!.disposition), count: leads!.disposition })}

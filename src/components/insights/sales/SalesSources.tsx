@@ -15,7 +15,7 @@ import type { InsightsFormat } from '../shared/useInsightsFormat';
 import { paidRate, returnRate, sourceViews, type SourceView } from './salesModel';
 
 /**
- * "По извор" — the five sources, each with its share of the period, the change
+ * "По извор" — the six departments, each with its share of the period, the change
  * against the previous period, where its sales are now (the same parts as the
  * header), its average sale, paid and return rates, and what it is made of
  * (sub-channels; MEX parcels with no order are marked and never link).

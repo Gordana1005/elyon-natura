@@ -17,8 +17,9 @@ type Line = {
 };
 
 /**
- * The P&L as a statement: one column per source (AlterCPA · Teleshop – Lead
- * out · Teleshop – Lead in · Social media · Web shop) and the total, one row per line — revenue, every
+ * The P&L as a statement: one column per department, the owner's six in his
+ * order (Affiliate – Lead in · Affiliate – Lead out · Teleshop – Lead out ·
+ * Teleshop – Lead in · Social media · Web shop) and the total, one row per line — revenue, every
  * cost, net and margin — then the unit economics of each source (average
  * sale, cost and profit per sale, return rate, packages, cost coverage).
  * Σ source columns = the total column. The first column stays put on a phone.
@@ -64,7 +65,7 @@ export function SourcePLTable({ clockRows, total, meta, clockLabel, f }: {
         <p className="text-xs text-muted-foreground">{clockLabel}</p>
       </div>
       <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
-        <table className="w-full min-w-[720px] text-sm">
+        <table className="w-full min-w-[880px] text-sm">
           <thead>
             <tr className="border-b text-[11px] uppercase tracking-wide text-muted-foreground">
               <th scope="col" className="sticky left-0 z-10 bg-card px-3 py-2 text-left font-medium">{t('insights.profit.table.line')}</th>

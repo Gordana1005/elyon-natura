@@ -400,10 +400,12 @@ export interface OrdersDrillParams {
    *  sold_from / sold_to are the cohort's sale day and the list holds exactly
    *  the order part the cohort counted (migration 20260940000000). */
   cohort_bucket?: string;
-  /** Insights sources (csv of altercpa | elyon_crm | teleshop_other |
-   *  social | web): the api's twin of cohort_order_source(sale_source,
-   *  detail) — collabBox is two sources, Social media and Teleshop – Lead in
-   *  (migration 20260942000500), so a sale_source list cannot say it. */
+  /** Insights departments (csv of altercpa | elyon_crm | teleshop_out |
+   *  teleshop_other | social | web — owner 28.09.2026): the api's twin of
+   *  cohort_order_source(sale_source, detail). A department is not one
+   *  sale_source (collabBox documents fall in several; a CRM sale shipped on a
+   *  9102 parcel is Телешоп – Lead out), so a sale_source list cannot say it;
+   *  GET /orders ANDs it with sale_source / sale_source_detail. */
   cohort_source?: string;
 }
 export const ORDERS_DRILL_KEYS: (keyof OrdersDrillParams)[] = [
@@ -2065,7 +2067,10 @@ export const apiGetInsightsCalls = (params?: { from?: string; to?: string }, sig
 // denars (`*_mkd`, shown via formatDenari). THREE CLOCKS: placed (created day)
 // drives buckets/placed/to_collect/lost; sold (sold_at) drives confirmed; cash
 // (MEX delivered_at) drives delivered, unproven_paid, sources[].cash, trend cash.
-export type OverviewSourceKey = 'altercpa' | 'elyon_crm' | 'web' | 'social' | 'teleshop_other';
+/** The owner's six departments (28.09.2026): Affiliate – Lead in (altercpa) ·
+ *  Affiliate – Lead out (elyon_crm) · Телешоп – Lead out (teleshop_out) ·
+ *  Телешоп – Lead in (teleshop_other) · Social media · Web shop. */
+export type OverviewSourceKey = 'altercpa' | 'elyon_crm' | 'teleshop_out' | 'teleshop_other' | 'social' | 'web';
 /** Disjoint: `preparing` = confirmed, NOT packed ("to pack"); `packed` =
  *  confirmed and packed. The shop panel's "preparing" is the two together, and
  *  Σ buckets = placed. (`mex_only` sits beside them, never in placed.) */
@@ -2121,8 +2126,10 @@ export interface OverviewFreshness {
   status: OverviewFeedStatus;
   detail?: string | null;
 }
-/** cohort_source: set when a sale_source list cannot say it (collabBox is Social
- *  media + Teleshop – Lead in) — GET /orders ANDs it with sale_source. */
+/** cohort_source: the department the numbers belong to — every source row and
+ *  split (except web) carries it, since a sale_source list cannot say it (e.g.
+ *  elyon_crm = sale_source [elyon_crm, altercpa, affiliate] + cohort_source
+ *  [elyon_crm]). GET /orders ANDs it with sale_source / detail. */
 export interface OverviewDrill { sale_source: string[]; detail?: string[] | null; cohort_source?: string[] | null }
 export interface OverviewSplit {
   key: string;
@@ -2212,7 +2219,7 @@ export interface OverviewTeam {
   /** altercpa_leads | crm_prediction | management | unassigned | … */
   team_key: string;
   name: string;
-  /** Board mode: 'pending' (AlterCPA leads) | 'prediction' (ElyonCRM) | null. */
+  /** Board mode: 'pending' (Affiliate – Lead in leads) | 'prediction' (Affiliate – Lead out) | null. */
   mode: string | null;
   /** online + idle right now (break counted apart). */
   online_now: number;

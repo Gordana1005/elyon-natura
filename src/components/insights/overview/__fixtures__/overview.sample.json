@@ -267,6 +267,9 @@
         "sale_source": [
           "altercpa",
           "affiliate"
+        ],
+        "cohort_source": [
+          "altercpa"
         ]
       },
       "web_block": null
@@ -349,6 +352,9 @@
             ],
             "detail": [
               "prediction_list"
+            ],
+            "cohort_source": [
+              "elyon_crm"
             ]
           }
         },
@@ -365,6 +371,9 @@
             ],
             "detail": [
               "direct"
+            ],
+            "cohort_source": [
+              "elyon_crm"
             ]
           }
         },
@@ -381,22 +390,30 @@
             ],
             "detail": [
               "disposition"
+            ],
+            "cohort_source": [
+              "elyon_crm"
             ]
           }
         }
       ],
       "drill": {
         "sale_source": [
+          "elyon_crm",
+          "altercpa",
+          "affiliate"
+        ],
+        "cohort_source": [
           "elyon_crm"
         ]
       },
       "web_block": null
     },
     {
-      "key": "teleshop_other",
+      "key": "teleshop_out",
       "placed": {
-        "count": 480,
-        "value_eur": 16655.9
+        "count": 30,
+        "value_eur": 1041
       },
       "buckets": {
         "awaiting": {
@@ -404,25 +421,134 @@
           "value_eur": 0
         },
         "preparing": {
-          "count": 18,
-          "value_eur": 633.6
+          "count": 2,
+          "value_eur": 69.4
         },
         "packed": {
           "count": 0,
           "value_eur": 0
         },
         "courier": {
-          "count": 105,
-          "value_eur": 3656.7
+          "count": 6,
+          "value_eur": 208.2
         },
         "delivered": {
-          "count": 294,
-          "value_eur": 10312.2,
-          "cod_mkd": 638320
+          "count": 19,
+          "value_eur": 659.3,
+          "cod_mkd": 41230
         },
         "returned": {
-          "count": 51,
-          "value_eur": 1707
+          "count": 3,
+          "value_eur": 104.1
+        },
+        "cancelled": {
+          "count": 0,
+          "value_eur": 0
+        },
+        "trashed": {
+          "count": 0,
+          "value_eur": 0
+        },
+        "mex_only": {
+          "count": 5,
+          "cod_mkd": 10840
+        }
+      },
+      "money": {
+        "collected_mkd": 41230,
+        "collected_proven_mkd": 41230,
+        "collected_unproven_mkd": 0,
+        "to_collect_eur": 277.6,
+        "lost_eur": 104.1
+      },
+      "cash": {
+        "count": 26,
+        "cod_mkd": 56370,
+        "proven_count": 26,
+        "proven_cod_mkd": 56370,
+        "unproven_count": 0,
+        "unproven_cod_mkd": 0,
+        "mex_only_count": 7,
+        "mex_only_cod_mkd": 15140
+      },
+      "worked": 0,
+      "cohort_sold": 0,
+      "conversion": null,
+      "confirmed": 0,
+      "confirmed_value_eur": 0,
+      "aov_eur": null,
+      "splits": [
+        {
+          "key": "teleshop_out",
+          "basis": "placed",
+          "count": 30,
+          "value_eur": 1041,
+          "sold_count": 0,
+          "sold_value_eur": 0,
+          "drill": {
+            "sale_source": [
+              "collabbox"
+            ],
+            "detail": [
+              "teleshop_out"
+            ],
+            "cohort_source": [
+              "teleshop_out"
+            ]
+          }
+        },
+        {
+          "key": "mex_only_unlinked",
+          "basis": "placed",
+          "count": 5,
+          "cod_mkd": 10840,
+          "drill": null
+        }
+      ],
+      "drill": {
+        "sale_source": [
+          "collabbox",
+          "elyon_crm",
+          "altercpa",
+          "affiliate"
+        ],
+        "cohort_source": [
+          "teleshop_out"
+        ]
+      },
+      "web_block": null
+    },
+    {
+      "key": "teleshop_other",
+      "placed": {
+        "count": 450,
+        "value_eur": 15614.9
+      },
+      "buckets": {
+        "awaiting": {
+          "count": 0,
+          "value_eur": 0
+        },
+        "preparing": {
+          "count": 16,
+          "value_eur": 564.2
+        },
+        "packed": {
+          "count": 0,
+          "value_eur": 0
+        },
+        "courier": {
+          "count": 99,
+          "value_eur": 3448.5
+        },
+        "delivered": {
+          "count": 275,
+          "value_eur": 9652.9,
+          "cod_mkd": 597090
+        },
+        "returned": {
+          "count": 48,
+          "value_eur": 1602.9
         },
         "cancelled": {
           "count": 12,
@@ -433,26 +559,26 @@
           "value_eur": 0
         },
         "mex_only": {
-          "count": 66,
-          "cod_mkd": 143020
+          "count": 61,
+          "cod_mkd": 132180
         }
       },
       "money": {
-        "collected_mkd": 638320,
-        "collected_proven_mkd": 638320,
+        "collected_mkd": 597090,
+        "collected_proven_mkd": 597090,
         "collected_unproven_mkd": 0,
-        "to_collect_eur": 4290.3,
-        "lost_eur": 2053.4
+        "to_collect_eur": 4012.7,
+        "lost_eur": 1949.3
       },
       "cash": {
-        "count": 423,
-        "cod_mkd": 922470,
-        "proven_count": 423,
-        "proven_cod_mkd": 922470,
+        "count": 397,
+        "cod_mkd": 866100,
+        "proven_count": 397,
+        "proven_cod_mkd": 866100,
         "unproven_count": 0,
         "unproven_cod_mkd": 0,
-        "mex_only_count": 106,
-        "mex_only_cod_mkd": 229740
+        "mex_only_count": 99,
+        "mex_only_cod_mkd": 214600
       },
       "worked": 0,
       "cohort_sold": 0,
@@ -464,8 +590,8 @@
         {
           "key": "teleshop",
           "basis": "placed",
-          "count": 402,
-          "value_eur": 13936.4,
+          "count": 372,
+          "value_eur": 12895.4,
           "sold_count": 0,
           "sold_value_eur": 0,
           "drill": {
@@ -474,6 +600,9 @@
             ],
             "detail": [
               "teleshop"
+            ],
+            "cohort_source": [
+              "teleshop_other"
             ]
           }
         },
@@ -490,6 +619,9 @@
             ],
             "detail": [
               "leads_out"
+            ],
+            "cohort_source": [
+              "teleshop_other"
             ]
           }
         },
@@ -506,21 +638,27 @@
             ],
             "detail": [
               "leads"
+            ],
+            "cohort_source": [
+              "teleshop_other"
             ]
           }
         },
         {
           "key": "mex_only_unlinked",
           "basis": "placed",
-          "count": 66,
-          "cod_mkd": 143020,
+          "count": 61,
+          "cod_mkd": 132180,
           "drill": null
         }
       ],
       "drill": {
         "sale_source": [
           "collabbox",
-          "legacy"
+          "legacy",
+          "elyon_crm",
+          "altercpa",
+          "affiliate"
         ],
         "cohort_source": [
           "teleshop_other"
@@ -610,6 +748,9 @@
             ],
             "detail": [
               "social"
+            ],
+            "cohort_source": [
+              "social"
             ]
           }
         },
@@ -623,7 +764,10 @@
       ],
       "drill": {
         "sale_source": [
-          "collabbox"
+          "collabbox",
+          "elyon_crm",
+          "altercpa",
+          "affiliate"
         ],
         "cohort_source": [
           "social"
@@ -752,11 +896,17 @@
             "delivered_count": 45,
             "delivered_cash_mkd": 111432
           },
+          "teleshop_out": {
+            "placed_count": 5,
+            "placed_value_eur": 173.5,
+            "delivered_count": 5,
+            "delivered_cash_mkd": 10249
+          },
           "teleshop_other": {
-            "placed_count": 80,
-            "placed_value_eur": 2775.99,
-            "delivered_count": 77,
-            "delivered_cash_mkd": 167721
+            "placed_count": 75,
+            "placed_value_eur": 2602.49,
+            "delivered_count": 72,
+            "delivered_cash_mkd": 157472
           },
           "social": {
             "placed_count": 20,
@@ -787,11 +937,17 @@
             "delivered_count": 48,
             "delivered_cash_mkd": 117005
           },
+          "teleshop_out": {
+            "placed_count": 5,
+            "placed_value_eur": 181.76,
+            "delivered_count": 5,
+            "delivered_cash_mkd": 10762
+          },
           "teleshop_other": {
-            "placed_count": 85,
-            "placed_value_eur": 2908.18,
-            "delivered_count": 81,
-            "delivered_cash_mkd": 176108
+            "placed_count": 80,
+            "placed_value_eur": 2726.42,
+            "delivered_count": 76,
+            "delivered_cash_mkd": 165346
           },
           "social": {
             "placed_count": 20,
@@ -822,11 +978,17 @@
             "delivered_count": 43,
             "delivered_cash_mkd": 105861
           },
+          "teleshop_out": {
+            "placed_count": 5,
+            "placed_value_eur": 173.5,
+            "delivered_count": 4,
+            "delivered_cash_mkd": 9737
+          },
           "teleshop_other": {
-            "placed_count": 80,
-            "placed_value_eur": 2775.99,
-            "delivered_count": 73,
-            "delivered_cash_mkd": 159336
+            "placed_count": 75,
+            "placed_value_eur": 2602.49,
+            "delivered_count": 69,
+            "delivered_cash_mkd": 149599
           },
           "social": {
             "placed_count": 20,
@@ -857,11 +1019,17 @@
             "delivered_count": 50,
             "delivered_cash_mkd": 122577
           },
+          "teleshop_out": {
+            "placed_count": 5,
+            "placed_value_eur": 165.24,
+            "delivered_count": 5,
+            "delivered_cash_mkd": 11274
+          },
           "teleshop_other": {
-            "placed_count": 76,
-            "placed_value_eur": 2643.79,
-            "delivered_count": 85,
-            "delivered_cash_mkd": 184495
+            "placed_count": 71,
+            "placed_value_eur": 2478.55,
+            "delivered_count": 80,
+            "delivered_cash_mkd": 173221
           },
           "social": {
             "placed_count": 19,
@@ -892,11 +1060,17 @@
             "delivered_count": 35,
             "delivered_cash_mkd": 89146
           },
+          "teleshop_out": {
+            "placed_count": 4,
+            "placed_value_eur": 140.45,
+            "delivered_count": 4,
+            "delivered_cash_mkd": 8199
+          },
           "teleshop_other": {
-            "placed_count": 64,
-            "placed_value_eur": 2247.22,
-            "delivered_count": 61,
-            "delivered_cash_mkd": 134177
+            "placed_count": 60,
+            "placed_value_eur": 2106.77,
+            "delivered_count": 57,
+            "delivered_cash_mkd": 125978
           },
           "social": {
             "placed_count": 16,
@@ -927,9 +1101,15 @@
             "delivered_count": 0,
             "delivered_cash_mkd": 0
           },
+          "teleshop_out": {
+            "placed_count": 3,
+            "placed_value_eur": 115.67,
+            "delivered_count": 0,
+            "delivered_cash_mkd": 0
+          },
           "teleshop_other": {
-            "placed_count": 53,
-            "placed_value_eur": 1850.65,
+            "placed_count": 50,
+            "placed_value_eur": 1734.98,
             "delivered_count": 0,
             "delivered_cash_mkd": 0
           },
@@ -962,11 +1142,17 @@
             "delivered_count": 26,
             "delivered_cash_mkd": 66859
           },
+          "teleshop_out": {
+            "placed_count": 3,
+            "placed_value_eur": 90.88,
+            "delivered_count": 3,
+            "delivered_cash_mkd": 6149
+          },
           "teleshop_other": {
-            "placed_count": 42,
-            "placed_value_eur": 1454.08,
-            "delivered_count": 46,
-            "delivered_cash_mkd": 100633
+            "placed_count": 39,
+            "placed_value_eur": 1363.2,
+            "delivered_count": 43,
+            "delivered_cash_mkd": 94484
           },
           "social": {
             "placed_count": 10,

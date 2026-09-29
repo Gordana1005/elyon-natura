@@ -16,13 +16,16 @@
  * them) — so the numbers can be proven before and after the deploy.
  *
  * What it proves, for the window:
- *   L1  the tab's total = the Overview's ElyonCRM · prediction_list split (insights_cohort),
+ *   L1  the tab's total = the Overview's Affiliate – Lead out (elyon_crm) · prediction_list split
+ *       (insights_cohort),
  *       count and денари, and its parts = the cohort rows' parts (insights_sale_rows)
  *   L2  Σ lists + "list not recorded" = the total (sales, денари, cash, worked, paid, returned,
  *       units, stale); Σ parts = total; every list's parts = its sales; worked = sale + no + trash
- *   L3  the tab's ElyonCRM footer = the Overview's ElyonCRM card (count, денари, splits)
+ *   L3  the tab's Affiliate – Lead out footer = the Overview's card (count, денари, splits)
  *   L4  an independent recount from public.orders (no foundation function): per list,
- *       sales and денари on the cohort's sale day, parcel COD else price × 61,5
+ *       sales and денари on the cohort's sale day, parcel COD else price × 61,5 — a list sale
+ *       shipped on a NATURA 9102 / 9100 / 9108 / 1300 parcel is another department's (owner
+ *       28.09.2026, migration 20260942001000) and not the tab's
  *   L5  worked decisions per list = v_sales_work recounted
  *   L6  every per-list link and the stale link open EXACTLY the counted orders: the api's
  *       own /orders filter (insightsCommon.ts cohortOrdersFilter) + prediction_list, in SQL
@@ -46,6 +49,9 @@ const MIGRATION = join(ROOT, 'supabase', 'migrations', '20260941000400_insights_
 const LISTS_SIG = 'public.insights_lists(timestamptz,timestamptz,timestamptz,timestamptz,boolean,integer)';
 const CASH_SIG = 'public.insights_lists_cash(timestamptz,timestamptz,boolean)';
 const STALE_DAYS = 7;
+/** The NATURA series that take a CRM-made sale to another department (migration
+ *  20260942001000: 9102 Телешоп – Lead out · 9100 Lead in · 9108 / 1300 Social), as LIKE patterns. */
+const NATURA_LIKE = ['9102', '9100', '9108', '1300'].map((s) => `'___-${s}-%'`).join(', ');
 const EXIT = { OK: 0, FAIL: 1, ERROR: 2 };
 
 class UsageError extends Error {}
@@ -132,14 +138,14 @@ FROM (SELECT r.bucket, count(*)::int AS n, round(coalesce(sum(r.value_mkd), 0)):
        GROUP BY r.bucket) x`);
     const parts = parse(p.parts) ?? {};
     const lines = [
-      tie('sales = Overview ElyonCRM · prediction_list', n(split.count), n(L.total.count)),
-      tie('денари = Overview ElyonCRM · prediction_list', n(split.value_mkd), n(L.total.value_mkd)),
+      tie('sales = Overview Affiliate – Lead out · prediction_list', n(split.count), n(L.total.count)),
+      tie('денари = Overview Affiliate – Lead out · prediction_list', n(split.value_mkd), n(L.total.value_mkd)),
     ];
     for (const b of [...(L.buckets ?? []), ...(L.outside ?? [])]) {
       lines.push(tie(`part ${b.key}: count = cohort rows`, n(parts[b.key]?.n), n(b.count)));
       lines.push(tie(`part ${b.key}: денари = cohort rows`, n(parts[b.key]?.v), n(b.value_mkd)));
     }
-    results.push({ id: 'L1', title: 'the tab = the Overview\'s ElyonCRM · prediction_list split', status: statusOf(lines), lines });
+    results.push({ id: 'L1', title: 'the tab = the Overview\'s Affiliate – Lead out · prediction_list split', status: statusOf(lines), lines });
   }
 
   // L2 — the payload adds up
@@ -160,17 +166,17 @@ FROM (SELECT r.bucket, count(*)::int AS n, round(coalesce(sum(r.value_mkd), 0)):
     results.push({ id: 'L2', title: 'Σ lists + not recorded = total; parts add up', status: statusOf(lines), lines });
   }
 
-  // L3 — the ElyonCRM footer = the Overview's ElyonCRM card
+  // L3 — the Affiliate – Lead out footer = the Overview's card
   {
     const lines = [
-      tie('ElyonCRM sales = Overview card', n(src.total?.count), n(L.elyon_crm?.count)),
-      tie('ElyonCRM денари = Overview card', n(src.total?.value_mkd), n(L.elyon_crm?.value_mkd)),
+      tie('Affiliate – Lead out sales = Overview card', n(src.total?.count), n(L.elyon_crm?.count)),
+      tie('Affiliate – Lead out денари = Overview card', n(src.total?.value_mkd), n(L.elyon_crm?.value_mkd)),
     ];
     for (const s of src.splits ?? []) {
       const mine = (L.elyon_crm?.splits ?? []).find((x) => x.key === s.key);
       lines.push(tie(`split ${s.key}: sales`, n(s.count), n(mine?.count)));
     }
-    results.push({ id: 'L3', title: 'ElyonCRM footer = the Overview\'s ElyonCRM card', status: statusOf(lines), lines });
+    results.push({ id: 'L3', title: 'Affiliate – Lead out footer = the Overview\'s card', status: statusOf(lines), lines });
   }
 
   // L4 — independent recount from public.orders
@@ -185,6 +191,8 @@ o AS (
          x.mex_status_id AS ms, x.mex_cod_mkd AS cod, x.mex_delivered_at AS md
   FROM public.orders x
   WHERE x.sale_source = 'elyon_crm' AND x.sale_source_detail = 'prediction_list'
+    -- the owner's department rule, restated: a list sale on a NATURA teleshop / social parcel is not the tab's
+    AND NOT coalesce(x.mex_tracking_id LIKE ANY (ARRAY[${NATURA_LIKE}]), false)
     AND coalesce(x.sold_at, x.confirmed_at, x.created_at) BETWEEN ${ts(w.fromIso)} AND ${ts(w.toEndIso)}
     AND NOT coalesce(right(regexp_replace(x.customer_phone, '[^0-9]', '', 'g'), 8) = ANY ((SELECT public.report_excluded_phone8s())::text[]), false)
     AND NOT coalesce(x.mex_tracking_id IN (SELECT p.tracking_id FROM public.mex_parcels p
@@ -242,7 +250,8 @@ GROUP BY 1`);
   {
     const window = { fromIso: w.fromIso, toEndIso: w.toEndIso };
     const probes = [];
-    const base = (keys) => drillPredicateParts(IC, { keys, saleSources: ['elyon_crm'], detail: 'prediction_list', window, ex });
+    // the tab's links carry cohort_source=elyon_crm (listModel.ts listsHref, 20260942001000)
+    const base = (keys) => drillPredicateParts(IC, { keys, cohortSources: ['elyon_crm'], saleSources: ['elyon_crm'], detail: 'prediction_list', window, ex });
     const total = IC.parseCohortBucketParam('total').values;
     probes.push({ label: 'slice total', want: n(L.total.count), parts: base(total) });
     for (const b of L.buckets ?? []) {
@@ -261,7 +270,7 @@ GROUP BY 1`);
       const [endRow] = await sql(`SELECT ((${q(soldTo)}::date + 1)::timestamp AT TIME ZONE 'Europe/Skopje') - interval '1 microsecond' AS t`);
       const sw = { fromIso: w.fromIso, toEndIso: new Date(endRow.t).toISOString() };
       probes.push({ label: `stale to pack (sold ≤ ${soldTo})`, want: n(L.total.stale_to_pack),
-        parts: drillPredicateParts(IC, { keys: ['to_pack'], saleSources: ['elyon_crm'], detail: 'prediction_list', window: sw, ex }) });
+        parts: drillPredicateParts(IC, { keys: ['to_pack'], cohortSources: ['elyon_crm'], saleSources: ['elyon_crm'], detail: 'prediction_list', window: sw, ex }) });
     }
     const live = probes.filter((p) => p.parts);
     const cols = live.map((p, i) => `count(*) FILTER (WHERE ${p.parts.join(' AND ')})::int AS p${i}`);
@@ -283,7 +292,8 @@ WHERE p.delivered_at BETWEEN ${ts(w.fromIso)} AND ${ts(w.toEndIso)}
         ORDER BY x.created_at, x.id LIMIT 1) = 'prediction_list'
   AND (SELECT x.sale_source FROM public.orders x
         WHERE x.mex_tracking_id = p.tracking_id AND x.sale_source_detail IS DISTINCT FROM 'disposition'
-        ORDER BY x.created_at, x.id LIMIT 1) = 'elyon_crm'`);
+        ORDER BY x.created_at, x.id LIMIT 1) = 'elyon_crm'
+  AND NOT (p.tracking_id LIKE ANY (ARRAY[${NATURA_LIKE}]))`);
     const lines = [
       tie('parcels = MEX register', n(r.n), n(cash.parcels)),
       tie('COD = MEX register', n(r.cod), n(cash.cod_mkd)),
@@ -323,7 +333,7 @@ function printText({ headline: h, results }, exitCode) {
   const out = [`verify-tab-lists — ${h.window} (Skopje) via ${h.via}`, ''];
   out.push(`  sales ${h.sales} · ${h.value_mkd} ден · MEX cash ${h.cash_mkd} ден · paid ${h.paid} · returned ${h.returned}`);
   out.push(`  worked ${h.worked} · conversion ${h.conversion == null ? '—' : (h.conversion * 100).toFixed(1) + '%'} · stale to pack ${h.stale_to_pack} · list not recorded ${h.not_recorded}`);
-  out.push(`  ElyonCRM ${h.elyon_crm} ден · cash flow ${h.cash_flow} ден`);
+  out.push(`  Affiliate – Lead out ${h.elyon_crm} ден · cash flow ${h.cash_flow} ден`);
   out.push(`  parts ${JSON.stringify(h.buckets)}`);
   for (const t of h.top) out.push(`  top: ${t}`);
   out.push('');

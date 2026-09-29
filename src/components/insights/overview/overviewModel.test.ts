@@ -62,17 +62,19 @@ describe('drill-down links: bucket → /orders', () => {
   const d = fixture();
   const byKey = (k: string) => d.sources.find((s) => s.key === k)!;
 
-  it('a bucket opens exactly that source, outcome and created window', () => {
+  it('a bucket opens exactly that department, outcome and created window', () => {
+    // a department is not one sale_source: every row but the web shop's names it (cohort_source)
     expect(ordersHref(sourceDrill(byKey('altercpa'), range, { outcome: 'delivered' })))
-      .toBe('/orders?sale_source=altercpa%2Caffiliate&outcome=delivered&created_from=2026-09-22&created_to=2026-09-28');
-    // collabBox is two sources: the row's cohort_source tells Lead in from Social media
+      .toBe('/orders?sale_source=altercpa%2Caffiliate&outcome=delivered&created_from=2026-09-22&created_to=2026-09-28&cohort_source=altercpa');
     expect(ordersHref(sourceDrill(byKey('teleshop_other'), range, { outcome: 'courier' })))
-      .toBe('/orders?sale_source=collabbox%2Clegacy&outcome=courier&created_from=2026-09-22&created_to=2026-09-28&cohort_source=teleshop_other');
+      .toBe('/orders?sale_source=collabbox%2Clegacy%2Celyon_crm%2Caltercpa%2Caffiliate&outcome=courier&created_from=2026-09-22&created_to=2026-09-28&cohort_source=teleshop_other');
     expect(ordersHref(sourceDrill(byKey('social'), range, { outcome: 'delivered' })))
-      .toBe('/orders?sale_source=collabbox&outcome=delivered&created_from=2026-09-22&created_to=2026-09-28&cohort_source=social');
+      .toBe('/orders?sale_source=collabbox%2Celyon_crm%2Caltercpa%2Caffiliate&outcome=delivered&created_from=2026-09-22&created_to=2026-09-28&cohort_source=social');
+    expect(ordersHref(sourceDrill(byKey('teleshop_out'), range, { outcome: 'delivered' })))
+      .toBe('/orders?sale_source=collabbox%2Celyon_crm%2Caltercpa%2Caffiliate&outcome=delivered&created_from=2026-09-22&created_to=2026-09-28&cohort_source=teleshop_out');
     // the shop panel's "being prepared" = to pack + packed
     expect(ordersHref(sourceDrill(byKey('elyon_crm'), range, { outcome: OUTCOME.preparingAll })))
-      .toBe('/orders?sale_source=elyon_crm&outcome=preparing%2Cpacked&created_from=2026-09-22&created_to=2026-09-28');
+      .toBe('/orders?sale_source=elyon_crm%2Caltercpa%2Caffiliate&outcome=preparing%2Cpacked&created_from=2026-09-22&created_to=2026-09-28&cohort_source=elyon_crm');
     expect(OUTCOME.toCollect).toBe('preparing,packed,courier');
   });
   it('a row counted from the web-shop mirror (web_block) or with no drill gets no link at all', () => {
@@ -83,13 +85,22 @@ describe('drill-down links: bucket → /orders', () => {
   });
   it('a split follows the drill the server sends with it (null = not an orders filter)', () => {
     const elyon = byKey('elyon_crm');
+    // a detail can sit in two departments (prediction_list: Affiliate – Lead out, or Телешоп – Lead out
+    // on a 9102 parcel), so every chip carries its row's department
     expect(ordersHref(splitDrill(elyon, elyon.splits.find((x) => x.key === 'prediction_list')!, range)))
-      .toBe('/orders?sale_source=elyon_crm&sale_source_detail=prediction_list&created_from=2026-09-22&created_to=2026-09-28');
+      .toBe('/orders?sale_source=elyon_crm&sale_source_detail=prediction_list&created_from=2026-09-22&created_to=2026-09-28&cohort_source=elyon_crm');
     const tele = byKey('teleshop_other');
     const soc = byKey('social');
+    const out = byKey('teleshop_out');
     expect(tele.splits.find((x) => x.key === 'social')).toBeUndefined();   // Social media is a row of its own
     expect(ordersHref(splitDrill(soc, soc.splits.find((x) => x.key === 'social')!, range)))
-      .toBe('/orders?sale_source=collabbox&sale_source_detail=social&created_from=2026-09-22&created_to=2026-09-28');
+      .toBe('/orders?sale_source=collabbox&sale_source_detail=social&created_from=2026-09-22&created_to=2026-09-28&cohort_source=social');
+    expect(ordersHref(splitDrill(out, out.splits.find((x) => x.key === 'teleshop_out')!, range)))
+      .toBe('/orders?sale_source=collabbox&sale_source_detail=teleshop_out&created_from=2026-09-22&created_to=2026-09-28&cohort_source=teleshop_out');
+    expect(splitDrill(out, out.splits.find((x) => x.key === 'mex_only_unlinked')!, range)).toBeNull(); // 9102 parcels, no order
+    // an older payload's split drill without cohort_source takes its row's
+    expect(splitDrill(out, { key: 'prediction_list', count: 2, drill: { sale_source: ['elyon_crm'], detail: ['prediction_list'] } } as never, range))
+      .toMatchObject({ sale_source: 'elyon_crm', sale_source_detail: 'prediction_list', cohort_source: 'teleshop_out' });
     expect(splitDrill(byKey('altercpa'), byKey('altercpa').splits[0], range)).toBeNull();            // new vs returning
     expect(splitDrill(tele, tele.splits.find((x) => x.key === 'mex_only_unlinked')!, range)).toBeNull(); // parcels, no order
     // an older payload without per-split drills: only a detail the row lists links
@@ -151,9 +162,12 @@ describe('numbers', () => {
     expect(placedOf(noPlaced)).toEqual({ count: 1262, value_eur: expect.closeTo(51488.87, 2) }); // Σ buckets
     expect(preparingOf(a)).toEqual({ count: 173, value_eur: expect.closeTo(7066.05, 2), packed: 64, toPack: 109 });
     const tele = fixture().sources.find((s) => s.key === 'teleshop_other')!;
-    expect(tele.buckets.mex_only?.count).toBe(66);
-    expect(placedOf(tele).count).toBe(480);
-    expect(placedOf({ ...tele, placed: null }).count).toBe(480);
+    expect(tele.buckets.mex_only?.count).toBe(61);
+    expect(placedOf(tele).count).toBe(450);
+    expect(placedOf({ ...tele, placed: null }).count).toBe(450);
+    const out = fixture().sources.find((s) => s.key === 'teleshop_out')!;
+    expect(out.buckets.mex_only?.count).toBe(5);
+    expect(placedOf({ ...out, placed: null }).count).toBe(30);
     const soc = fixture().sources.find((s) => s.key === 'social')!;
     expect(soc.buckets.mex_only?.count).toBe(20);
     expect(placedOf({ ...soc, placed: null }).count).toBe(118);
@@ -176,8 +190,8 @@ describe('numbers', () => {
     expect(derived.lost.count).toBeNull();                 // not split by source
     expect(derived.unproven_paid.count).toBe(d.kpis.unproven_paid.count);
     expect(derived.unproven_paid.cod_mkd).toBe(d.kpis.unproven_paid.cod_mkd);
-    expect(d.sources.map((s) => s.key)).toEqual(['altercpa', 'elyon_crm', 'teleshop_other', 'social', 'web']);
-    const cash = seriesFromTrend(d.trend.points, ['altercpa', 'elyon_crm', 'teleshop_other', 'social', 'web'], 'delivered_cash_mkd');
+    expect(d.sources.map((s) => s.key)).toEqual(['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web']);
+    const cash = seriesFromTrend(d.trend.points, ['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web'], 'delivered_cash_mkd');
     expect(cash.reduce((a, p) => a + p.v, 0)).toBe(d.kpis.delivered.cod_mkd);
     expect(cash.map((p) => p.v)).toEqual(d.kpis.spark!.delivered_cash_mkd!.map((p) => p.v));
   });

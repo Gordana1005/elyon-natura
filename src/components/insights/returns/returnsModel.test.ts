@@ -42,13 +42,16 @@ describe('rsDrill', () => {
     expect(rsDrill({ clock: 'sale', bucket: 'returned', comp: { mex_only: 2 }, count: 2, sources: [], range }).blocked).toBe('mex_only');
   });
 
-  it('filters /orders by the selected cohort sources (collabBox is two: Social media, Teleshop / other)', () => {
-    expect(drillSourcesOf([])).toHaveLength(5);
+  it('filters /orders by the selected departments (a department is not one sale_source)', () => {
+    expect(drillSourcesOf([])).toHaveLength(6);
     const soc = rsDrill({ clock: 'sale', bucket: 'returned', comp: { orders: 2 }, count: 2, sources: ['social'], range });
     expect(params(soc.href!).cohort_source).toBe('social');
     const two = rsDrill({ clock: 'sale', bucket: 'returned', comp: { orders: 2 }, count: 2, sources: ['teleshop_other', 'altercpa'], range });
     expect(params(two.href!).cohort_source).toBe('altercpa,teleshop_other');
     expect(params(two.href!).sale_source).toBeUndefined();
+    // Телешоп – Lead out (new 28.09) sits between Affiliate – Lead out and Телешоп – Lead in
+    const out = rsDrill({ clock: 'sale', bucket: 'returned', comp: { orders: 2 }, count: 2, sources: ['teleshop_other', 'teleshop_out', 'elyon_crm'], range });
+    expect(params(out.href!).cohort_source).toBe('elyon_crm,teleshop_out,teleshop_other');
   });
 });
 

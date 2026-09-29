@@ -7,8 +7,9 @@ import { STATUS_TEXT } from '../shared/cohortPalette';
 import type { InsightsFormat } from '../shared/useInsightsFormat';
 
 /**
- * AlterCPA by webmaster — nested under the AlterCPA column of the P&L: the
- * rows add up to it (a sale with no webmaster on file is its own row). Same
+ * Affiliate – Lead in by webmaster — nested under that department's column of
+ * the P&L (`altercpa`): the rows add up to it (a sale with no webmaster on
+ * file is its own row). Same
  * cost model as the P&L; lead cost is not in it (no per-webmaster rates yet),
  * so each row is profit BEFORE what the lead cost us. Names come from
  * altercpa_webmasters; an unnamed partner shows its id.

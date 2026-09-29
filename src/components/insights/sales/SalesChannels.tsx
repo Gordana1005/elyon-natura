@@ -8,12 +8,14 @@ import { SourceMix } from './SalesProducts';
 import { channelViews, paidRate, returnRate, seriesKey } from './salesModel';
 
 /**
- * "По MEX сметка и серија" — the channel a parcel names: BIO NATURAL (the
- * Elyon account: 9110 LEADS, 9103 LEADS-OUT) and NATURA (9100 / 9102
- * teleshop, 9108 social, NTMK web, bare M… waybills), and the sales with no
+ * "По MEX сметка и серија" — the channel a parcel names: BIO NATURAL (9110
+ * LEADS, 9103 LEADS-OUT) and NATURA (9102 Телешоп – Lead out, 9100 Телешоп –
+ * Lead in, 9108 social, NTMK web, bare M… waybills), and the sales with no
  * parcel yet. It replaces "by delivery method" (every MK order is home
- * delivery). An ORDER's source stays its own — the mix shows which sources
- * ship through each series. Rows add up to the header.
+ * delivery). The mix shows which departments ship through each series — a
+ * department is mostly its order's own, except that a CRM sale shipped on a
+ * NATURA 9102 / 9100 / 9108 parcel counts in Телешоп / Social media (owner
+ * 28.09). Rows add up to the header.
  */
 export function SalesChannels({ core, money, f }: { core: SalesCore; money: boolean; f: InsightsFormat }) {
   const { t } = f;

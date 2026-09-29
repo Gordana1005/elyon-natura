@@ -12,7 +12,7 @@ import { formatMoney } from '@/lib/currency';
 import { parsePredictionListName, predictionListLabel, type ParsedListName } from '@/lib/predictionListLabel';
 import type { ListsPart, ListsRow, ListsTrendPoint } from '@/lib/insightsApi/lists';
 import { ordersSupportsCohortDrill, type CohortDrill, type DrillKey } from '../shared/cohortModel';
-import { COHORT_BUCKETS, COHORT_OUTSIDE } from '../shared/cohortTypes';
+import { COHORT_BUCKETS, COHORT_OUTSIDE, COHORT_SOURCE_PARAM } from '../shared/cohortTypes';
 import { addDays, type DayRange } from '../shared/period';
 
 const hasNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
@@ -217,11 +217,17 @@ export const salesPerHourOf = (sales: number, activeMinutes: number | null | und
 
 export const LIST_SALE_SOURCE = 'elyon_crm';
 export const LIST_DETAIL = 'prediction_list';
+/** The tab is the Affiliate – Lead out department's list sales: a list sale shipped on a
+ *  NATURA 9102 / 9100 / 9108 parcel counts in Телешоп – Lead out / Lead in / Social media
+ *  instead (owner 28.09), so sale_source + detail alone would list MORE than the tab counts. */
+export const LIST_COHORT_SOURCE = 'elyon_crm';
 
 /**
- * `/orders?cohort_bucket=…&sale_source=elyon_crm&sale_source_detail=prediction_list
- * [&prediction_list=<exact name>][&sold_by_person_id=…]&sold_from&sold_to` — the
- * order twin of a number on this tab (every list sale is an order).
+ * `/orders?cohort_bucket=…&cohort_source=elyon_crm&sale_source=elyon_crm
+ * &sale_source_detail=prediction_list[&prediction_list=<exact name>]
+ * [&sold_by_person_id=…]&sold_from&sold_to` — the order twin of a number on
+ * this tab (every list sale is an order; GET /orders ANDs cohort_source with
+ * sale_source / detail).
  */
 export function listsHref(
   key: DrillKey | DrillKey[],
@@ -231,6 +237,7 @@ export function listsHref(
   const keys = Array.isArray(key) ? key : [key];
   const sp = new URLSearchParams();
   sp.set('cohort_bucket', keys.includes('total') ? 'total' : keys.join(','));
+  sp.set(COHORT_SOURCE_PARAM, LIST_COHORT_SOURCE);
   sp.set('sale_source', LIST_SALE_SOURCE);
   sp.set('sale_source_detail', LIST_DETAIL);
   if (opts.listName) sp.set('prediction_list', opts.listName);

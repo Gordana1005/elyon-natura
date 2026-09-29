@@ -10,16 +10,23 @@
  * whenever a parcel exists. Cancelled / trashed after sale and replacements
  * (0 ден) are OUTSIDE the total. The owner's test phones are in nothing.
  *
- * Sources (HANDOFF §3; owner 28.09.2026 — migration 20260942000500), keys fixed,
- * names and order the owner's: AlterCPA (`altercpa`) · Телешоп – Lead out
- * (`elyon_crm`; an order's own sale_source, never its parcel's series) ·
- * Телешоп – Lead in (`teleshop_other`: every collabBox order that is not social,
- * legacy rows) · Социјални мрежи (`social`: collabBox social documents — detail
- * `social` = series 9108, or `1300`) · Веб-продавница (`web`: the web_orders
- * mirror). A MEX parcel no order holds belongs to the source its SERIES names:
- * 9110 → AlterCPA (`mex_leads`) · 9102 / 9103 → Lead out (`mex_out`) · 9100 →
+ * Sources = the owner's SIX departments (28.09.2026 — migrations 20260942000500
+ * and 20260942001000), keys fixed, names and order his:
+ *   Affiliate – Lead in (`altercpa`: AlterCPA lead intake) ·
+ *   Affiliate – Lead out (`elyon_crm`: sales made in the CRM — prediction lists,
+ *     direct — and collabBox LEADS-OUT) ·
+ *   Телешоп – Lead out (`teleshop_out`: collabBox "Нарачка out" documents, and a
+ *     CRM-made sale shipped on a NATURA 9102 parcel) ·
+ *   Телешоп – Lead in (`teleshop_other`: collabBox "Нарачка in" and everything
+ *     unclassified; i18n key `teleshopOther`) ·
+ *   Социјални мрежи (`social`: collabBox social documents — detail `social` =
+ *     series 9108, or `1300`) ·
+ *   Веб-продавница (`web`: the web_orders mirror).
+ * A MEX parcel no order holds belongs to the source its SERIES names: 9110 →
+ * Affiliate – Lead in (`mex_leads`) · 9103 → Affiliate – Lead out
+ * (`mex_leads_out`) · 9102 → Телешоп – Lead out (`mex_out`) · 9100 → Телешоп –
  * Lead in (`mex_in`) · 9108 / 1300 → Social media (`mex_social`) · NTMK… / M… →
- * the web shop (`mex_web`) · anything else → Lead in (`mex_other`).
+ * the web shop (`mex_web`) · anything else → Телешоп – Lead in (`mex_other`).
  *
  * Every number says what it is made of — `orders` (GET /orders can list them),
  * `web` (the shop mirror) and `mex_only` (parcels with no order) — so a number
@@ -36,7 +43,8 @@
  * builders; move it there once it is free.
  */
 
-export const COHORT_SOURCES = ['altercpa', 'elyon_crm', 'teleshop_other', 'social', 'web'] as const;
+/** The six departments, in the owner's order (overview/palette SOURCE_ORDER is the same list). */
+export const COHORT_SOURCES = ['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web'] as const;
 export type CohortSourceKey = (typeof COHORT_SOURCES)[number];
 
 /** In-total buckets, in the bar's fixed order. */
@@ -83,8 +91,9 @@ export interface CohortOutside extends CohortComposition {
 }
 
 /** order = orders of one sale_source_detail · web = the shop mirror (cod | card)
- *  · mex = MEX parcels with no order, by series (mex_leads · mex_out · mex_in ·
- *  mex_social · mex_web · mex_other). Only an order split can open /orders. */
+ *  · mex = MEX parcels with no order, by series (mex_leads · mex_leads_out ·
+ *  mex_out · mex_in · mex_social · mex_web · mex_other). Only an order split can
+ *  open /orders. */
 export type CohortSplitKind = 'order' | 'web' | 'mex';
 
 export interface CohortSplit {
@@ -104,7 +113,7 @@ export interface CohortLeadsIn {
   trashed: number;
   open: number;
   other?: number;
-  /** ElyonCRM "no" call rows among the cancelled / trashed (never sales). */
+  /** CRM "no" call rows among the cancelled / trashed (never sales). */
   disposition?: number;
   /** 0..1 (became_sales / came_in); null when nothing came in. */
   conversion: number | null;
@@ -173,14 +182,15 @@ export interface Cohort {
 
 /** The /orders param behind a source's ORDER part: GET /orders?cohort_source=
  *  <keys> is the api's twin of cohort_order_source(sale_source, detail)
- *  (insightsCommon.ts cohortSourceOrFilter). A sale_source list cannot say it
- *  since collabBox is two sources (Social media, Teleshop/Other). The web
- *  mirror and MEX-only parcels are not orders — `web` only ever lists the rare
- *  CRM-entered web order. */
+ *  (insightsCommon.ts cohortSourceOrFilter). A sale_source list cannot say it:
+ *  a department is not one sale_source (collabBox documents fall in several
+ *  departments, a CRM sale on a 9102 parcel is Телешоп – Lead out). The web mirror and
+ *  MEX-only parcels are not orders — `web` only ever lists the rare CRM-entered
+ *  web order. */
 export const COHORT_SOURCE_PARAM = 'cohort_source';
 
 /** The cohort_source value for a set of sources: the known keys in display
- *  order, or null when none or all five are asked for (no filter — the api then
+ *  order, or null when none or all six are asked for (no filter — the api then
  *  also lists an order not classified yet, as the cohort counts it). */
 export function cohortSourceParam(sources: readonly string[]): string | null {
   const known = COHORT_SOURCES.filter((k) => sources.includes(k));

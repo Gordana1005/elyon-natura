@@ -30,7 +30,7 @@ export interface RsDrill {
 }
 
 /** The cohort sources a drill covers: the selected ones (none selected = all
- *  five — the link then sends no cohort_source). */
+ *  six departments — the link then sends no cohort_source). */
 export const drillSourcesOf = (sources: readonly string[] | null | undefined): readonly string[] =>
   sources && sources.length ? sources : COHORT_SOURCES;
 

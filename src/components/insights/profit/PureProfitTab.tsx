@@ -29,7 +29,7 @@ import { useProfitQuery } from './useProfitQuery';
  * period and what MEX collected on them (cohort, the default), and the MONEY
  * that landed in the period (cash) — revenue → VAT → product cost (known +
  * labelled estimate) → MEX courier → returns → today's commission → lead cost
- * (not configured) → net, by source, per AlterCPA webmaster, per product, per
+ * (not configured) → net, by department, per Affiliate – Lead in webmaster, per product, per
  * day, with the cost-coverage rail. The previous render stays while a new
  * period loads.
  */

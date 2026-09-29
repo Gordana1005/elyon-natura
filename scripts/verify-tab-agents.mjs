@@ -46,8 +46,8 @@ const SIG = 'public.insights_people(timestamptz,timestamptz,timestamptz,timestam
 const DEFAULT_WINDOWS = [['2026-09-22', '2026-09-28'], ['2026-09-01', '2026-09-27']];
 const YEAR_WINDOW = ['2025-09-28', '2026-09-27'];
 const BUCKETS = ['paid', 'paid_legacy', 'paid_unproven', 'courier', 'courier_problem', 'label', 'to_pack', 'returned'];
-// the five sources in the owner's order (migration 20260942000500)
-const SOURCES = ['altercpa', 'elyon_crm', 'teleshop_other', 'social', 'web'];
+// the six departments in the owner's order (migrations 20260942000500, 20260942001000)
+const SOURCES = ['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web'];
 
 const n = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : Number(v ?? 0) || 0);
 const sum = (list, f) => (list ?? []).reduce((a, x) => a + n(typeof f === 'function' ? f(x) : x?.[f]), 0);

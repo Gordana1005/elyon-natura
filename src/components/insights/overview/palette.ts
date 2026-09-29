@@ -5,34 +5,51 @@
  * Colour is never the only channel: every bucket also has a label + value in text,
  * the status buckets carry an icon, and every chart has a table twin.
  *
- * 1. SOURCES — identity, fixed order, never cycled. The owner's order and names
- *    (28.09.2026): AlterCPA · Телешоп – Lead out (elyon_crm) · Телешоп – Lead in
+ * 1. SOURCES — identity, fixed order, never cycled. The owner's six departments and
+ *    their order (28.09.2026): Affiliate – Lead in (altercpa) · Affiliate – Lead out
+ *    (elyon_crm) · Телешоп – Lead out (teleshop_out) · Телешоп – Lead in
  *    (teleshop_other) · Социјални мрежи (social) · Веб-продавница (web).
- *    altercpa · elyon_crm · teleshop_other · social · web
- *    light #2a78d6 #eb6834 #1baf7a #4a3aa7 #eda100 · dark #3987e5 #d95926 #199e70 #8b5cf6 #c98500
- *    = the reference theme's slots 1, 2, 3, then violet (slot 7) for Social media, and
- *    slot 4 (yellow) for the web shop. With the new order the old hues could not stay:
- *    Lead out (orange) beside Lead in (then yellow) is the pair the reference theme
- *    fails (dark CVD 4.8, light normal 13.7), so Lead in and the web shop swapped hues
- *    (aqua ↔ yellow) — the least repainting that passes (AlterCPA and Lead out keep
- *    theirs); an exhaustive search over the documented hues found nothing that
- *    repaints fewer and stays ≥ 8 CVD.
+ *    altercpa · elyon_crm · teleshop_out · teleshop_other · social · web
+ *    light #2a78d6 #eb6834 #ad4f96 #1baf7a #4a3aa7 #eda100
+ *    dark  #3987e5 #d95926 #c003a0 #199e70 #8b5cf6 #c98500
+ *    Five of them are the reference theme's slots 1 (blue), 2 (orange), 3 (aqua),
+ *    violet (slot 7) for Social media and slot 4 (yellow) for the web shop — kept
+ *    as they were, so no department repaints. (Earlier, with five sources, orange
+ *    beside the then-yellow Lead in failed — dark CVD 4.8, light normal 13.7 — so
+ *    Lead in and the web shop swapped hues, aqua ↔ yellow.)
  *    Social = violet, light #4a3aa7 as documented. Its documented dark step #9085e9
  *    sits 12.3 normal ΔE from the context gray (floor 15), so dark is held at the
- *    same hue one step deeper, #8b5cf6: vs gray CVD 20.8 / normal 21.8. Magenta
- *    (slot 5) collapses beside aqua under deutan (dark ΔE 1.6); green and red fail
- *    the normal floor beside aqua / yellow in dark.
+ *    same hue one step deeper, #8b5cf6: vs gray CVD 20.8 / normal 21.8.
+ *    Телешоп – Lead out (new 28.09, between orange and aqua) = MAGENTA, a step no
+ *    slot documents, because every documented free slot fails there: magenta
+ *    (slot 5, #e87ba4 / #d55181) collapses beside aqua under deutan (CVD 6.1 light,
+ *    1.6 dark) and sits 12.9 normal from orange (light); green (slot 6) is CVD
+ *    3.2 / 2.7 from orange; red (slot 8) CVD 5.6 / 6.6, normal 7.1 / 7.1 from orange.
+ *    A teal-blue passes beside its neighbours but not all-pairs vs Affiliate – Lead
+ *    in blue (normal 13.0 light / 14.1 dark). The magenta is held deeper than slot 5
+ *    (OKLCH L .570 C .150 light, L .549 C .240 dark, hue 338° both), so under CVD it
+ *    parts from orange and aqua by lightness.
  *    Adjacent (the order above), validated against #ffffff / #171b26: worst CVD
- *    9.2 light / 9.4 dark (target 8), worst normal 27.6 / 26.5 (floor 15), both on
- *    orange↔aqua; violet↔aqua CVD 31.1 / 23.5, normal 35.8 / 31.7 · violet↔yellow
- *    CVD 41.0 / 33.4, normal 45.9 / 34.7 (light / dark). Every hue vs the context
- *    gray: ≥ 8.0 CVD / 15.4 normal both modes. Violet clears 3:1 in both modes.
- *    Light aqua/yellow sit under 3:1 → relief = direct labels + the table views.
+ *    12.6 light / 12.2 dark (magenta↔aqua; target 8), worst normal 19.8 / 23.2
+ *    (orange↔magenta; floor 15) · orange↔magenta CVD 19.4 / 21.0 · magenta↔aqua
+ *    normal 30.7 / 37.4 · violet↔aqua CVD 31.1 / 23.5, normal 35.8 / 31.7 ·
+ *    violet↔yellow CVD 41.0 / 33.4, normal 45.9 / 34.7 (light / dark). Orange↔aqua
+ *    (adjacent until 28.09) is now all-pairs: CVD 9.2 / 9.4, normal 27.6 / 26.5.
+ *    Magenta vs EVERY other hue passes too: worst CVD 10.9 light / 11.0 dark (both vs
+ *    blue), worst normal 19.8 light (orange) / 18.6 dark (violet). Every hue vs the
+ *    context gray: ≥ 8.0 CVD / 15.4 normal both modes (magenta 13.7 / 20.5 light,
+ *    16.0 / 28.7 dark). Violet and magenta clear 3:1 in both modes (magenta 4.84 /
+ *    3.08). Light aqua/yellow sit under 3:1 → relief = direct labels + the table views.
  *    The trend small multiples put ONE source hue per panel (plus the context gray),
  *    so the all-pairs cap never binds; the panel title names the source. (Not
- *    adjacent, and failing all-pairs: orange↔yellow (Lead out ↔ web) and dark
- *    violet↔blue (Social ↔ AlterCPA, CVD 4.1) — they meet only when the sources
+ *    adjacent, and failing all-pairs: orange↔yellow (Affiliate – Lead out ↔ web:
+ *    light normal 13.7; dark CVD 4.8 / normal 10.6) and dark violet↔blue (Social ↔
+ *    Affiliate – Lead in, CVD 4.1 / normal 13.5) — they meet only when the sources
  *    between them are 0, and every mark carries its source's name.)
+ *    Status neighbour: magenta is not the cohort's returned PINK (#f472b6 / #db2777:
+ *    CVD 13.8 / normal 16.1 light, 10.0 / 10.1 dark). They never share a mark — a
+ *    source hue is an identity dash beside its name or a series in a source-only
+ *    chart; the pink is a returned part (dot, segment, rate bar) with its word.
  *
  * 2. PIPELINE — an ordinal one-hue ramp (indigo), awaiting → preparing → courier.
  *    light #818cf8 → #4f46e5 → #312e81 · dark #4f46e5 → #818cf8 → #c7d2fe
@@ -52,12 +69,15 @@
  */
 import type { OverviewBucketKey, OverviewSourceKey } from '@/lib/api';
 
-export const SOURCE_ORDER: OverviewSourceKey[] = ['altercpa', 'elyon_crm', 'teleshop_other', 'social', 'web'];
+/** The six departments in the owner's order (28.09.2026) — every source list, chip,
+ *  column and colour follows it (shared/cohortTypes COHORT_SOURCES is the same list). */
+export const SOURCE_ORDER: OverviewSourceKey[] = ['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web'];
 
-/** CSS custom properties, set once on the Overview root (light + .dark). */
+/** CSS custom properties, set once on the Overview root (light + .dark). Literal
+ *  strings, one per source, so Tailwind emits every one of them. */
 export const OVERVIEW_COLOR_VARS =
-  '[--ov-src-altercpa:#2a78d6] [--ov-src-elyon_crm:#eb6834] [--ov-src-teleshop_other:#1baf7a] [--ov-src-social:#4a3aa7] [--ov-src-web:#eda100] ' +
-  'dark:[--ov-src-altercpa:#3987e5] dark:[--ov-src-elyon_crm:#d95926] dark:[--ov-src-teleshop_other:#199e70] dark:[--ov-src-social:#8b5cf6] dark:[--ov-src-web:#c98500] ' +
+  '[--ov-src-altercpa:#2a78d6] [--ov-src-elyon_crm:#eb6834] [--ov-src-teleshop_out:#ad4f96] [--ov-src-teleshop_other:#1baf7a] [--ov-src-social:#4a3aa7] [--ov-src-web:#eda100] ' +
+  'dark:[--ov-src-altercpa:#3987e5] dark:[--ov-src-elyon_crm:#d95926] dark:[--ov-src-teleshop_out:#c003a0] dark:[--ov-src-teleshop_other:#199e70] dark:[--ov-src-social:#8b5cf6] dark:[--ov-src-web:#c98500] ' +
   '[--ov-context:#94a3b8] [--ov-grid:#e5e7eb] dark:[--ov-grid:#262c3b] [--ov-axis:#6b7280] dark:[--ov-axis:#8b93a7]';
 
 export const sourceColorVar = (key: OverviewSourceKey | string) => `var(--ov-src-${key})`;

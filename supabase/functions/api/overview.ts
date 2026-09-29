@@ -20,8 +20,9 @@
 //                          20260936000000). Change one → change the other.
 // ============================================================================
 
-/** The five sources in the owner's display order (28.09.2026 — 20260942000500). */
-export const OVERVIEW_SOURCES = ["altercpa", "elyon_crm", "teleshop_other", "social", "web"] as const;
+/** The six departments in the owner's display order (28.09.2026 — 20260942000500,
+ *  20260942001000). */
+export const OVERVIEW_SOURCES = ["altercpa", "elyon_crm", "teleshop_out", "teleshop_other", "social", "web"] as const;
 
 /** orders.sale_source vocabulary (migration 20260935000000). */
 export const SALE_SOURCES = ["altercpa", "web", "elyon_crm", "collabbox", "affiliate", "legacy"] as const;
@@ -184,7 +185,7 @@ const NON_MONEY_KEYS = new Set<string>([
   "basis", "sold_count", "bought_before", "sale_source", "cohort_source",
   // trend
   "points", "bucket", "by_source", "placed_count", "delivered_count",
-  "altercpa", "elyon_crm", "teleshop_other", "social", "web",
+  "altercpa", "elyon_crm", "teleshop_out", "teleshop_other", "social", "web",
   // teams
   "team_key", "name", "mode", "online_now", "break_now", "unmapped_decisions", "members",
   "person_id", "user_id", "is_manager", "role", "online_state",

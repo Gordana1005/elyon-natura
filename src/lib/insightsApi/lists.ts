@@ -3,12 +3,15 @@
  * (migration 20260941000400 insights_lists + insights_lists_cash; api module
  * supabase/functions/api/insightsLists.ts).
  *
- * The ElyonCRM prediction-list slice of THE sale cohort (insights_sale_rows):
- * sale day (Skopje), MEX-first buckets that add up exactly to the total, value
- * = parcel COD else price × 61,5 — all in денари (`*_mkd`, render with
- * formatDenari, never convert again). Σ lists + not_recorded = the Overview's
- * ElyonCRM · prediction_list split; + elyon_crm's other splits = its ElyonCRM
- * card.
+ * The prediction-list slice of the Affiliate – Lead out department (`elyon_crm`)
+ * of THE sale cohort (insights_sale_rows): sale day (Skopje), MEX-first buckets
+ * that add up exactly to the total, value = parcel COD else price × 61,5 — all
+ * in денари (`*_mkd`, render with formatDenari, never convert again). Σ lists +
+ * not_recorded = the Overview's Affiliate – Lead out · prediction_list split; +
+ * elyon_crm's other splits = its Affiliate – Lead out card. A list sale shipped
+ * on a NATURA 9102 / 9100 / 9108 parcel counts in Телешоп – Lead out / Lead in /
+ * Social media instead (owner 28.09), so every /orders link here also carries
+ * cohort_source=elyon_crm.
  *
  * Money keys (`*_mkd`) are owners only: an admin/manager gets the same payload
  * with every money key ABSENT (meta.money = false).
@@ -191,7 +194,7 @@ export interface ListsResponse {
   outside: CohortOutside[];
   lists: ListsRow[];
   not_recorded: ListsNotRecorded;
-  /** The whole ElyonCRM source (= the Overview's ElyonCRM card). */
+  /** The whole Affiliate – Lead out department (= the Overview's card of `elyon_crm`). */
   elyon_crm: { count: number; value_mkd?: number; splits: { key: string; count: number; value_mkd?: number; cash_mkd?: number }[] };
   prev: { count: number; value_mkd?: number; cash_mkd?: number } | null;
   trend: ListsTrendPoint[];

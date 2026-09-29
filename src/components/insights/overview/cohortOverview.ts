@@ -3,19 +3,26 @@
  * which buckets a tile adds up, where a split chip may link, and the lead
  * outcomes. Pure — cohortOverview.test.ts covers it; the cards only lay it out.
  *
- * Split keys (by_source[].splits, each with its `kind`):
- *   order  a sale_source_detail — altercpa `bridge` / `history` / `partner` /
- *          `team_prediction` / `team_collabbox_out` / `team_collabbox_leads_out`
- *          / `collabbox_leads`, elyon_crm (Lead out) `prediction_list` /
- *          `direct` / `collabbox_out` / `collabbox_leads_out` (collabBox "out"
- *          documents of agents who work in the CRM, owner 28.09), social
- *          `social` (/ `1300`), teleshop_other (Lead in) `teleshop` / `leads` /
- *          `leads_out` / a series, legacy `<source_type>`; `none` = no detail
- *          recorded (no filter can name it)
+ * Split keys (by_source[].splits, each with its `kind`) — the six departments
+ * of 28.09.2026:
+ *   order  a sale_source_detail — altercpa (Affiliate – Lead in) `bridge` /
+ *          `history` / `partner` / `collabbox_leads` · elyon_crm (Affiliate –
+ *          Lead out) `prediction_list` / `direct` / `collabbox_leads_out`, and
+ *          until the data reclass `team_prediction` / `team_collabbox_leads_out`
+ *          · teleshop_out (Телешоп – Lead out) `teleshop_out` (collabBox
+ *          "Нарачка out"; `collabbox_out` before the reclass) /
+ *          `team_collabbox_out` / `prediction_list` / `direct` (a CRM sale on a
+ *          9102 parcel) · teleshop_other (Телешоп – Lead in) `teleshop` /
+ *          `leads` / `leads_out` / a series, and a CRM sale on a 9100 parcel ·
+ *          social `social` (/ `1300`), and a CRM sale on a 9108 parcel · legacy
+ *          `<source_type>`; `none` = no detail recorded (no filter can name it).
+ *          The same detail can sit in two departments, so a chip's link always
+ *          carries its row's cohort_source.
  *   web    the shop mirror by payment: `cod`, `card` — never /orders
- *   mex    parcels with no order, in the source their series names (owner
- *          28.09): AlterCPA `mex_leads` (9110) · Lead out `mex_out` (9102 /
- *          9103) · Lead in `mex_in` (9100) and `mex_other` (no series …) ·
+ *   mex    parcels with no order, in the department their series names (owner
+ *          28.09): Affiliate – Lead in `mex_leads` (9110) · Affiliate – Lead
+ *          out `mex_leads_out` (9103) · Телешоп – Lead out `mex_out` (9102) ·
+ *          Телешоп – Lead in `mex_in` (9100) and `mex_other` (no series …) ·
  *          Social media `mex_social` (9108 / 1300) · web `mex_web` (NTMK… / M…)
  *          — never /orders
  * Anything else renders with its label (or raw key) and no link.
@@ -32,6 +39,15 @@ const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0
 
 /** A sale_source_detail GET /orders accepts as a filter (overview.ts DETAIL_RE). */
 const DETAIL_RE = /^[a-z0-9_.-]{1,40}$/i;
+
+/**
+ * Whether a department has a lead funnel (came in → worked → became a sale).
+ * Телешоп — Lead in AND Lead out — has none: every collabBox Нарачка document
+ * IS a sale, so "came in = became sales = 100 %" would be a tautology (owner,
+ * 28.09.2026). Nor does Social media: its orders are collabBox social documents.
+ */
+export const NO_FUNNEL_SOURCES: readonly string[] = ['teleshop_out', 'teleshop_other', 'social'];
+export const hasLeadFunnel = (key: string) => !NO_FUNNEL_SOURCES.includes(key);
 
 /** The buckets a tile adds up: "Кај курирот" = moving + problem (MEX 1/4/10 and 3/9/13). */
 export const tileBuckets = (k: CohortBucketKey): CohortBucketKey[] => (k === 'courier' ? ['courier', 'courier_problem'] : [k]);

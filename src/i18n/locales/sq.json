@@ -2721,7 +2721,7 @@
       },
       "list": {
         "title": "Kthimet sipas listës së parashikimit",
-        "sub": "Shitjet Teleshop – Lead out nga listat",
+        "sub": "Shitjet Affiliate – Lead out nga listat",
         "empty": "Nuk ka shitje nga listat në këtë periudhë."
       },
       "dow": {
@@ -3049,7 +3049,7 @@
       },
       "timing": {
         "title": "Kur shesim",
-        "subtitle": "Dita e javës × ora (ora e Shkupit) për {{n}} shitje me moment të vërtetë — vendim në AlterCPA / ElyonCRM ose porosi në web.",
+        "subtitle": "Dita e javës × ora (ora e Shkupit) për {{n}} shitje me moment të vërtetë — vendim i agjentit ose porosi në web.",
         "empty": "Nuk ka shitje me orë në këtë periudhë.",
         "peak": "Më e ngarkuara: {{day}} në {{hour}}:00 — {{n}}",
         "legendLow": "Pak",
@@ -3092,15 +3092,15 @@
         "series": {
           "s9110": "9110 LEADS",
           "s9103": "9103 LEADS-OUT",
-          "s9100": "9100 Teleshop",
-          "s9102": "9102 Teleshop",
+          "s9100": "9100 Teleshop – Lead in",
+          "s9102": "9102 Teleshop – Lead out",
           "s9108": "9108 Rrjete sociale",
           "ntmk": "NTMK — dyqani në web",
           "m": "M… — dyqani i vjetër / tjetër",
           "other": "Tjetër",
           "none": "Ende pa dërgesë"
         },
-        "note": "Porosia e ruan burimin e vet — shiriti tregon cilat burime dërgojnë përmes secilës seri."
+        "note": "Shiriti tregon cilat burime dërgojnë përmes secilës seri. Burimi është i porosisë — përveç një shitjeje nga CRM me dërgesë NATURA (9102 / 9100 / 9108): ajo numërohet te Teleshop ose Rrjetet sociale."
       },
       "quality": {
         "title": "Mbulimi i tabelave",
@@ -3134,8 +3134,8 @@
       "cohort": {
         "title": "Shitur nga listat e parashikimit · {{period}}",
         "titleNoMoney": "Shitjet nga listat e parashikimit · {{period}}",
-        "tie": "= Përmbledhja · Teleshop – Lead out · Listat e parashikimit: {{n}} · {{value}}",
-        "tieNoMoney": "= Përmbledhja · Teleshop – Lead out · Listat e parashikimit: {{n}}"
+        "tie": "= Përmbledhja · Affiliate – Lead out · Listat e parashikimit: {{n}} · {{value}}",
+        "tieNoMoney": "= Përmbledhja · Affiliate – Lead out · Listat e parashikimit: {{n}}"
       },
       "kpi": {
         "title": "Shifrat kryesore të listave",
@@ -3270,11 +3270,11 @@
           "lists": "Σ {{n}} lista",
           "notRecorded": "Lista nuk është regjistruar (një dublikatë që e humbi listën)",
           "slice": "= Të gjitha shitjet nga listat e parashikimit",
-          "tieOk": "= Përmbledhja · Teleshop – Lead out · Listat e parashikimit",
+          "tieOk": "= Përmbledhja · Affiliate – Lead out · Listat e parashikimit",
           "tieBad": "Nuk përputhet me totalin — ju lutemi raportojeni",
-          "other": "Teleshop – Lead out · {{split}} (pa listë)",
-          "elyon": "= Teleshop – Lead out gjithsej",
-          "elyonHint": "Karta Teleshop – Lead out e Përmbledhjes: çdo shitje Teleshop – Lead out, me ose pa listë."
+          "other": "Affiliate – Lead out · {{split}} (pa listë)",
+          "elyon": "= Affiliate – Lead out gjithsej",
+          "elyonHint": "Karta Affiliate – Lead out e Përmbledhjes: çdo shitje Affiliate – Lead out, me ose pa listë."
         }
       },
       "detail": {
@@ -3409,8 +3409,9 @@
         "loading": "Po ngarkohet"
       },
       "source": {
-        "altercpa": "AlterCPA",
-        "elyon_crm": "Teleshop – Lead out",
+        "altercpa": "Affiliate – Lead in",
+        "elyon_crm": "Affiliate – Lead out",
+        "teleshop_out": "Teleshop – Lead out",
         "web": "Dyqani online",
         "social": "Rrjetet sociale",
         "teleshopOther": "Teleshop – Lead in"
@@ -3434,22 +3435,24 @@
       "split": {
         "prediction_list": "Listat e parashikimit",
         "direct": "Direkt",
-        "collabbox_out": "Teleshop out (collabBox)",
+        "collabbox_out": "Porosi out (collabBox)",
+        "teleshop_out": "Porosi out (collabBox)",
         "collabbox_leads_out": "LEADS-OUT (collabBox)",
         "mex_teleshop": "Teleshop (MEX)",
         "mex_social": "Rrjete sociale (MEX)",
         "mex_leads": "Pako të palidhura (LEADS)",
-        "mex_out": "Pako të palidhura (out / LEADS-OUT)",
-        "mex_in": "Pako të palidhura (in)",
+        "mex_leads_out": "Pako të palidhura (LEADS-OUT)",
+        "mex_out": "Pako të palidhura (Porosi out)",
+        "mex_in": "Pako të palidhura (Porosi in)",
         "mexOther": "Tjetër (MEX)",
         "cod": "Pagesë në dorëzim",
         "card": "Kartë",
         "bridge": "Ura e drejtpërdrejtë",
         "history": "Import 08.2026",
         "partner": "Partnerë (affiliate)",
-        "team_prediction": "Parashikim nga agjentët e AlterCPA",
-        "team_collabbox_out": "Lead out (collabBox) nga agjentët e AlterCPA",
-        "team_collabbox_leads_out": "LEADS-OUT (collabBox) nga agjentët e AlterCPA",
+        "team_prediction": "Parashikim nga agjentët e ekipit Në pritje",
+        "team_collabbox_out": "Porosi out nga agjentët e ekipit Në pritje",
+        "team_collabbox_leads_out": "LEADS-OUT nga agjentët e ekipit Në pritje",
         "collabbox_leads": "LEADS (collabBox)",
         "teleshop": "Teleshop",
         "social": "Rrjete sociale",
@@ -3504,8 +3507,8 @@
         "trashed": "Në kosh",
         "other": "Tjetër",
         "worked": "Të përpunuara (me vendim): {{n}}",
-        "dispositionNote_one": "prej tyre {{n}} telefonatë pa shitje në ElyonCRM — vendim, kurrë shitje",
-        "dispositionNote_other": "prej tyre {{n}} telefonata pa shitje në ElyonCRM — vendime, kurrë shitje"
+        "dispositionNote_one": "prej tyre {{n}} telefonatë pa shitje në CRM — vendim, kurrë shitje",
+        "dispositionNote_other": "prej tyre {{n}} telefonata pa shitje në CRM — vendime, kurrë shitje"
       },
       "cash": {
         "title": "Hyrje nga MEX në periudhë",
@@ -3713,8 +3716,8 @@
         "all": "Të gjitha ekipet"
       },
       "team": {
-        "pending": "Në pritje (lead-e AlterCPA)",
-        "prediction": "Parashikim (ElyonCRM)",
+        "pending": "Në pritje (Affiliate – Lead in)",
+        "prediction": "Parashikim (Affiliate – Lead out)",
         "management": "Menaxhmenti",
         "unassigned": "Ende pa ekip",
         "teleshop": "Teleshop"
@@ -4007,11 +4010,11 @@
       },
       "team": {
         "byKey": {
-          "altercpa_leads": "Në pritje — lidet AlterCPA",
-          "crm_prediction": "Parashikime — ElyonCRM",
+          "altercpa_leads": "Në pritje — Affiliate – Lead in",
+          "crm_prediction": "Parashikime — Affiliate – Lead out",
           "management": "Menaxhmenti",
           "social": "Rrjetet sociale / collabBox",
-          "teleshop": "Teleshop – Lead in / collabBox",
+          "teleshop": "Teleshop / collabBox",
           "none": "Pa ekip"
         }
       },
@@ -4027,13 +4030,13 @@
         "noLinkGroup": "Ky grup nuk është ekip në Cilësimet — nuk ka listë te Porositë sipas ekipit.",
         "partOfPerson": "Një pjesë e shitjeve të këtij personi janë në ekip tjetër — hapni personin.",
         "mode": {
-          "pending": "Lide nga AlterCPA",
+          "pending": "Lide nga Affiliate – Lead in",
           "prediction": "Thirrje nga listat e parashikimit",
           "none": "Shfaqet, nuk renditet"
         },
         "kind": {
           "social": "Autorë në collabBox të shitjeve nga rrjetet sociale jashtë ekipit",
-          "teleshop": "Autorë në collabBox të shitjeve Lead in jashtë ekipit",
+          "teleshop": "Autorë në collabBox të shitjeve teleshop (Lead in dhe Lead out) jashtë ekipit",
           "none": "Aktivitet i personave jashtë ekipit"
         }
       },
@@ -4068,7 +4071,7 @@
         "sales": "Shitje",
         "salesHint": "Shitje që i atribuohen personit, sipas ditës së shitjes — njësoj si Pasqyra",
         "sources": "Burimet",
-        "sourcesHint": "AlterCPA · Teleshop – Lead out · Teleshop – Lead in · Rrjetet sociale",
+        "sourcesHint": "Affiliate – Lead in · Affiliate – Lead out · Teleshop – Lead out · Teleshop – Lead in · Rrjetet sociale · Dyqani online",
         "paid": "Paguar",
         "paidHint": "MEX e dorëzoi pakon dhe e arkëtoi",
         "paidShare": "Paguar",
@@ -4178,7 +4181,7 @@
         },
         "hint": {
           "web_shop": "Porositë nga interneti nuk kanë agjent nga natyra.",
-          "mex_only": "Pako që s'i mban asnjë porosi — numërohen te burimi që emërton seria e tyre (LEADS, out, in, rrjetet sociale, dyqani online).",
+          "mex_only": "Pako që s'i mban asnjë porosi — numërohen te burimi që emërton seria e tyre (LEADS, LEADS-OUT, Porosi out, Porosi in, rrjetet sociale, dyqani online).",
           "altercpa_cancelled": "AlterCPA thotë anuluar ose kosh, prandaj askush nuk merr meritë — por MEX e mori pakon, pra është shitje.",
           "awaiting_stamp": "Miratuar në AlterCPA; shitësi caktohet çdo 5 minuta.",
           "unmapped": "Shitësi njihet vetëm me një emër ose numër që askush ende nuk e ka lidhur me person.",
@@ -4327,15 +4330,15 @@
         "note": "Kolonat mblidhen në totalin. Çdo burim përfshin dërgesat MEX pa porosi të serisë së vet (përmbajtja e tyre nuk dihet, prandaj kosto e tyre vlerësohet)."
       },
       "aff": {
-        "title": "AlterCPA sipas uebmasterit",
-        "subtitle": "Nën kolonën AlterCPA — rreshtat mblidhen në të.",
+        "title": "Affiliate – Lead in sipas uebmasterit",
+        "subtitle": "Nën kolonën Affiliate – Lead in — rreshtat mblidhen në të.",
         "partner": "Uebmasteri",
         "sales": "Shitje",
         "collected": "Të arkëtuara",
         "parcels": "Dërgesa",
         "returnRate": "Norma e kthimit",
         "net": "Fitimi para kostos së lead-eve",
-        "sum": "Gjithsej AlterCPA",
+        "sum": "Gjithsej Affiliate – Lead in",
         "none": "Pa uebmaster në regjistër",
         "unnamed": "WM {{id}}",
         "openN": "{{n}} të hapura",
@@ -4416,7 +4419,7 @@
           "non_product_lines": "Pikët e besnikërisë, tarifat e dërgesës, shënimet dhe fletushkat nuk numërohen si paketa. Një alias produkti i shqyrtuar e ndryshon këtë.",
           "orders_without_lines": "Vlera e tyre bartet nga produkti i vetë porosisë.",
           "vat_unconfirmed": "18% për çdo shitje derisa kontabilisti të konfirmojë nëse suplementet hyjnë në normën 5% ose 10%.",
-          "lead_cost_missing": "Fitimi i AlterCPA është para asaj që kushtojnë lead-et: ende nuk ka çmim për lead.",
+          "lead_cost_missing": "Fitimi i Affiliate – Lead in është para asaj që kushtojnë lead-et: ende nuk ka çmim për lead.",
           "return_fee_unconfirmed": "Tarifat e MEX japin 0 për një kthim. Konfirmoni nëse MEX e faturon dërgesën për dërgesat e kthyera."
         }
       },
@@ -4425,7 +4428,7 @@
         "summaryHint": "Çdo rresht sipas burimit, për shitjet në periudhë dhe për paratë që mbërritën",
         "products": "Produktet",
         "productsHint": "Fitimi sipas produktit, mbulimi me çmim dhe kthimet",
-        "affiliates": "Uebmasterët e AlterCPA",
+        "affiliates": "Uebmasterët e Affiliate – Lead in",
         "affiliatesHint": "Fitimi sipas uebmasterit para kostos së lead-eve"
       },
       "cache": {
@@ -5756,15 +5759,16 @@
       "of": "{{a}} nga {{b}}"
     },
     "source": {
-      "altercpa": "AlterCPA",
-      "elyon_crm": "Teleshop – Lead out",
+      "altercpa": "Affiliate – Lead in",
+      "elyon_crm": "Affiliate – Lead out",
+      "teleshop_out": "Teleshop – Lead out",
       "web": "Dyqani online",
       "social": "Rrjetet sociale",
       "teleshopOther": "Teleshop – Lead in"
     },
     "saleSource": {
-      "altercpa": "AlterCPA",
-      "elyon_crm": "Teleshop – Lead out",
+      "altercpa": "Affiliate – Lead in",
+      "elyon_crm": "Affiliate – Lead out",
       "collabbox": "collabBox",
       "web": "Web",
       "affiliate": "Afiliat",
@@ -5777,8 +5781,13 @@
       "returning": "Klientë të kthyer",
       "prediction_list": "Listat e parashikimit",
       "direct": "Direkt",
-      "collabbox_out": "Teleshop out (collabBox)",
+      "collabbox_out": "Porosi out (collabBox)",
+      "teleshop_out": "Porosi out (collabBox)",
       "collabbox_leads_out": "LEADS-OUT (collabBox)",
+      "collabbox_leads": "LEADS (collabBox)",
+      "team_prediction": "Parashikim nga agjentët e ekipit Në pritje",
+      "team_collabbox_out": "Porosi out nga agjentët e ekipit Në pritje",
+      "team_collabbox_leads_out": "LEADS-OUT nga agjentët e ekipit Në pritje",
       "disposition": "Rezultate thirrjesh",
       "teleshop": "Teleshop",
       "social": "Rrjete sociale",
@@ -5829,8 +5838,8 @@
       "onlineNow": "{{n}} online tani",
       "peopleOnline": "{{n}} persona · {{online}} online",
       "mode": {
-        "pending": "Në pritje · lead-e AlterCPA",
-        "prediction": "Parashikim · ElyonCRM",
+        "pending": "Në pritje · Affiliate – Lead in",
+        "prediction": "Parashikim · Affiliate – Lead out",
         "management": "Menaxhmenti",
         "unassigned": "Ende pa ekip"
       },

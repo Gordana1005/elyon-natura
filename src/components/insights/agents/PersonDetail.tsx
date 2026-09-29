@@ -16,7 +16,7 @@ import { STATUS_TEXT } from '../shared/cohortPalette';
 import { COHORT_SOURCE_PARAM } from '../shared/cohortTypes';
 import type { DayRange } from '../shared/period';
 import type { InsightsFormat } from '../shared/useInsightsFormat';
-import { personHref, ratesOf, type PartKey } from './model';
+import { PEOPLE_SOURCES, personHref, ratesOf, type PartKey } from './model';
 import { DECISIONS, DECISION_TONE, decisionVar, type DecisionKey } from './palette';
 import { BucketLegend, BucketsBar, PersonBadges, TimeCell, teamName } from './parts';
 
@@ -42,8 +42,8 @@ export function PersonDetail({ person, detail, range, money, granularity, f }: {
   const r = ratesOf(person);
   const href = (k: PartKey | PartKey[], label: string) => personHref(person.person_id, k, range, `${person.name} · ${label}`);
   const allHref = person.sales > 0 ? personHref(person.person_id, 'total', range, person.name) : null;
-  // one source's part of the person's sales: GET /orders?cohort_source= (collabBox is two
-  // sources — Social media and Teleshop – Lead in — so a sale_source list cannot say it)
+  // one department's part of the person's sales: GET /orders?cohort_source= (a department is
+  // not one sale_source — collabBox documents fall in several — so a sale_source list cannot say it)
   const srcHref = (source: string) => {
     const u = new URL(personHref(person.person_id, 'total', range, person.name), 'http://x');
     u.searchParams.set(COHORT_SOURCE_PARAM, source);
@@ -96,7 +96,7 @@ export function PersonDetail({ person, detail, range, money, granularity, f }: {
             <p className="text-[11px] tabular-nums text-muted-foreground">{t('insights.agents.drill.paidValue', { v: f.den(person.paid_mkd) })}</p>
           )}
           <ul className="flex flex-wrap gap-x-4 gap-y-1 pt-1 text-xs">
-            {(['altercpa', 'elyon_crm', 'teleshop_other', 'social'] as const).filter((k) => (person.by_source[k] ?? 0) > 0).map((k) => (
+            {PEOPLE_SOURCES.filter((k) => (person.by_source?.[k] ?? 0) > 0).map((k) => (
               <li key={k} className="inline-flex items-center gap-1.5">
                 <span className="h-[3px] w-3 rounded-full" style={{ background: sourceColorVar(k) }} aria-hidden />
                 {f.sourceLabel(k)}

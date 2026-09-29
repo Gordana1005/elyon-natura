@@ -65,6 +65,8 @@ const DENARS = /\d ден(?![а-яѓќљњџѕ])/;
 const PERIOD = '22.09 – 28.09.2026';
 const WIN = 'sold_from=2026-09-22&sold_to=2026-09-28';
 const card = (name: string) => screen.getByRole('article', { name });
+// the departments' names (owner 28.09.2026) — Affiliate – Lead in is the AlterCPA intake
+const ALTER = i18n.t('insights.common.source.altercpa');
 
 describe('Overview on the sales cohort — owner', () => {
   it('leads with the period\'s sales and shows each source on the same cohort', async () => {
@@ -75,7 +77,7 @@ describe('Overview on the sales cohort — owner', () => {
     expect(screen.getByRole('heading', { name: i18n.t('overview.cohort.sources.title') })).toBeInTheDocument();
 
     // A source card's header is its cohort total — never the worked count.
-    const alter = card('AlterCPA');
+    const alter = card(ALTER);
     expect(within(alter).getByText(i18n.t('overview.cohort.sources.header', { n: '365', count: 365, value: formatDenari(991320) }))).toBeInTheDocument();
     // …its parts are the header's parts, the courier tile carrying its problem part.
     expect(within(alter).getByText(i18n.t('insights.common.cohort.problemPart', { n: '36' }))).toBeInTheDocument();
@@ -89,15 +91,21 @@ describe('Overview on the sales cohort — owner', () => {
     expect(within(alter).getByText(i18n.t('insights.common.split.bridge'))).toBeInTheDocument();
     expect(within(alter).queryByText(i18n.t('insights.common.split.mex_leads'))).toBeNull();
 
-    // Lead out (elyon_crm): its sales are 142; its 1.638 "no" calls are decisions, said apart, never sales.
+    // Affiliate – Lead out (elyon_crm): its sales are 142; its 1.638 "no" calls are decisions, said apart, never sales.
     const elyon = card(i18n.t('insights.common.source.elyon_crm'));
     expect(within(elyon).getByText(i18n.t('overview.cohort.sources.header', { n: '142', count: 142, value: formatDenari(390802) }))).toBeInTheDocument();
     expect(within(elyon).getByText(i18n.t('insights.common.leads.dispositionNote', { n: '1.638', count: 1638 }))).toBeInTheDocument();
-    // Lead in (teleshop_other) holds its series' parcels with no order: 9100 (mex_in) and none (mex_other).
+    // Телешоп – Lead in (teleshop_other) holds its series' parcels with no order: 9100 (mex_in) and none (mex_other).
     const tele = card(i18n.t('insights.common.source.teleshopOther'));
     expect(within(tele).getByText(i18n.t('insights.common.split.mex_in'))).toBeInTheDocument();
     expect(within(tele).getByText(i18n.t('insights.common.split.mexOther'))).toBeInTheDocument();
-    expect(within(tele).getByText(i18n.t('overview.cohort.sources.mexOnlyNote', { n: '709', count: 709 }))).toBeInTheDocument();
+    expect(within(tele).getByText(i18n.t('overview.cohort.sources.mexOnlyNote', { n: '669', count: 669 }))).toBeInTheDocument();
+    // Телешоп – Lead out (teleshop_out, new 28.09) is its own card: its 9102 parcels, no lead funnel, no links.
+    const out = card(i18n.t('insights.common.source.teleshop_out'));
+    expect(within(out).getByText(i18n.t('insights.common.split.mex_out'))).toBeInTheDocument();
+    expect(within(out).getByText(i18n.t('overview.cohort.sources.mexOnlyNote', { n: '40', count: 40 }))).toBeInTheDocument();
+    expect(within(out).getByText(i18n.t('overview.cohort.leads.noFunnel'))).toBeInTheDocument();
+    expect(within(out).queryAllByRole('link')).toHaveLength(0);
     expect(within(tele).queryByText(i18n.t('insights.common.split.mex_social'))).toBeNull();
     expect(within(tele).queryAllByRole('link')).toHaveLength(0);
     // Social media is its own card (owner 28.09.2026): its 9108 parcels, no lead funnel, no links.
@@ -122,11 +130,11 @@ describe('Overview on the sales cohort — owner', () => {
   it('every number that is all orders opens exactly its sales; a mixed one opens its order part', async () => {
     renderWith(payload());
     await screen.findByText(i18n.t('overview.cohort.title', { period: PERIOD }), {}, { timeout: 10_000 });
-    const alter = card('AlterCPA');
-    const paid = within(alter).getByRole('link', { name: `AlterCPA · ${i18n.t('insights.common.bucket.paid')}: 70` });
+    const alter = card(ALTER);
+    const paid = within(alter).getByRole('link', { name: `${ALTER} · ${i18n.t('insights.common.bucket.paid')}: 70` });
     expect(paid.getAttribute('href')).toBe(`/orders?cohort_bucket=paid&cohort_source=altercpa&${WIN}`);
     expect(paid.getAttribute('title')).toBeNull();
-    const courier = within(alter).getByRole('link', { name: `AlterCPA · ${i18n.t('insights.common.bucket.courier')}: 56` });
+    const courier = within(alter).getByRole('link', { name: `${ALTER} · ${i18n.t('insights.common.bucket.courier')}: 56` });
     expect(courier.getAttribute('href')).toContain('cohort_bucket=courier%2Ccourier_problem');
     // A split that IS orders links to itself through the cohort filter; parcels without an order never do.
     const elyon = card(i18n.t('insights.common.source.elyon_crm'));
@@ -146,7 +154,7 @@ describe('Overview on the sales cohort — owner', () => {
     await withoutCohortDrill(async () => {
       renderWith(payload());
       await screen.findByText(i18n.t('overview.cohort.title', { period: PERIOD }), {}, { timeout: 10_000 });
-      const alter = card('AlterCPA');
+      const alter = card(ALTER);
       expect(within(alter).queryAllByRole('link')).toHaveLength(0);
       expect(within(alter).getByText('70').getAttribute('title')).toBe(i18n.t('overview.cohort.link.unsupported'));
     });
@@ -167,10 +175,10 @@ describe('Overview on the sales cohort — owner', () => {
     fireEvent.click(within(toggle()).getByRole('button', { name: i18n.t('overview.cohort.sources.view.table') }));
     const tableSection = screen.getByRole('heading', { name: i18n.t('overview.cohort.sources.tableTitle') }).closest('section')!;
     expect(within(tableSection).getByRole('table')).toBeInTheDocument();
-    expect(within(tableSection).getByRole('rowheader', { name: /AlterCPA/ })).toBeInTheDocument();
-    expect(screen.queryByRole('article', { name: 'AlterCPA' })).toBeNull();
+    expect(within(tableSection).getByRole('rowheader', { name: (n) => n.startsWith(ALTER) })).toBeInTheDocument();
+    expect(screen.queryByRole('article', { name: ALTER })).toBeNull();
     fireEvent.click(within(toggle()).getByRole('button', { name: i18n.t('overview.cohort.sources.view.cards') }));
-    expect(card('AlterCPA')).toBeInTheDocument();
+    expect(card(ALTER)).toBeInTheDocument();
   }, 30_000);
 });
 
@@ -181,7 +189,7 @@ describe('Overview on the sales cohort — admin/manager without money', () => {
     expect(screen.getByRole('heading', { name: i18n.t('overview.cohort.sources.titleNoMoney') })).toBeInTheDocument();
     expect(container.textContent).not.toMatch(DENARS);
     expect(screen.getAllByText('1.337').length).toBeGreaterThan(0);
-    const alter = card('AlterCPA');
+    const alter = card(ALTER);
     expect(within(alter).getByText(i18n.t('overview.cohort.ordersN', { n: '365', count: 365 }))).toBeInTheDocument();
     expect(within(alter).getByText('715')).toBeInTheDocument();
     expect(within(alter).getByText('301')).toBeInTheDocument();

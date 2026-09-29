@@ -100,8 +100,9 @@ export function sourceDrill(
   const ss = src.drill?.sale_source ?? [];
   // web_block: the row's numbers come from the shop mirror, which is not `orders`.
   if (!ss.length || src.web_block === true) return null;
-  // collabBox is two sources (Social media, Teleshop – Lead in): the api then also sends the
-  // cohort_source that tells them apart (GET /orders ANDs the two).
+  // A department is not one sale_source (elyon_crm = sale_source elyon_crm + altercpa +
+  // affiliate, collabBox documents fall in four): the api sends the row's cohort_source too,
+  // and GET /orders ANDs the two.
   const cs = src.drill?.cohort_source ?? [];
   return {
     sale_source: ss.join(','), ...(cs.length ? { cohort_source: cs.join(',') } : {}),
@@ -111,7 +112,9 @@ export function sourceDrill(
 
 /**
  * A split chip's filter. The server says so per split (`drill`, null = not an
- * orders filter); an older payload without it links only when the key is a
+ * orders filter), with the row's cohort_source (the same detail can sit in two
+ * departments — prediction_list is Affiliate – Lead out, or Телешоп – Lead out
+ * on a 9102 parcel); an older payload without it links only when the key is a
  * sale_source_detail the row lists.
  */
 export function splitDrill(src: OverviewSource, split: OverviewSplit | string, range: DayRange): OrdersDrillParams | null {
@@ -120,10 +123,13 @@ export function splitDrill(src: OverviewSource, split: OverviewSplit | string, r
   if ('drill' in sp) {
     const d = sp.drill;
     if (!d || !(d.sale_source ?? []).length) return null;
+    // A chip counts inside its row: a split drill sent without a cohort_source (an
+    // older payload) takes the row's, so the list never reaches into another department.
+    const cs = (d.cohort_source ?? []).length ? d.cohort_source! : (src.drill?.cohort_source ?? []);
     return {
       sale_source: d.sale_source.join(','),
       ...((d.detail ?? []).length ? { sale_source_detail: d.detail!.join(',') } : {}),
-      ...((d.cohort_source ?? []).length ? { cohort_source: d.cohort_source!.join(',') } : {}),
+      ...(cs.length ? { cohort_source: cs.join(',') } : {}),
       created_from: range.from, created_to: range.to,
     };
   }

@@ -14,7 +14,7 @@ import { STATUS_TEXT } from '../shared/cohortPalette';
 import type { DayRange } from '../shared/period';
 import type { InsightsFormat } from '../shared/useInsightsFormat';
 import {
-  DEFAULT_SORT, filterPeople, lastActivityOf, peopleCsv, personHref, ratesOf, sortPeople,
+  DEFAULT_SORT, PEOPLE_SOURCES, filterPeople, lastActivityOf, peopleCsv, personHref, ratesOf, sortPeople,
   type CsvCol, type PeopleFilter, type PeopleSort, type PeopleSortKey, type PartKey,
 } from './model';
 import { PersonBadges, PresenceIcon, SourceSplit, TimeCell, teamName } from './parts';
@@ -94,10 +94,8 @@ export function PeopleTable({ people, teams, range, money, filter, onFilter, onP
       { header: t('insights.agents.csv.trashDecisions'), get: (p) => p.trash_decisions },
       { header: t('insights.agents.csv.conversionPct'), get: (p) => pct(ratesOf(p).conversion) },
       { header: t('insights.agents.col.sales'), get: (p) => p.sales },
-      { header: f.sourceLabel('altercpa'), get: (p) => p.by_source.altercpa },
-      { header: f.sourceLabel('elyon_crm'), get: (p) => p.by_source.elyon_crm },
-      { header: f.sourceLabel('teleshop_other'), get: (p) => p.by_source.teleshop_other },
-      { header: f.sourceLabel('social'), get: (p) => p.by_source.social ?? 0 },
+      // one column per department, the owner's six in his order (they add up to the sales)
+      ...PEOPLE_SOURCES.map((k): CsvCol => ({ header: f.sourceLabel(k), get: (p) => p.by_source?.[k] ?? 0 })),
       { header: f.bucketLabel('paid'), get: (p) => p.buckets.paid },
       { header: f.bucketLabel('paid_legacy'), get: (p) => p.buckets.paid_legacy },
       { header: f.bucketLabel('paid_unproven'), get: (p) => p.buckets.paid_unproven },

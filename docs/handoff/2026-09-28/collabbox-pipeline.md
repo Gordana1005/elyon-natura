@@ -158,3 +158,76 @@ Source: `C:\Users\Mile\collab_out\orders\type_*.csv` (header crawl of 09-10) joi
 4. Stop mex-reconcile from fresh-matching series 9100/9102/9108. This changes a cron rule, and those are supposed to stay as they are. It currently causes 0 new links.
 5. What are the M-prefix parcels and document type 10099?
 6. Which transport for collabBox: the vendor feed or an office runner?
+
+## 8. Runbook — the nightly sync (built 28.09.2026 ~23:30, owner: "every day at 00:00")
+
+Sections 1–7 above are the investigation and the first (paused) design; what runs is this:
+`supabase/migrations/20260942000900_collabbox_nightly_sync.sql` (ledger `collabbox_documents`, cards
+`collabbox_customers`, runs `collabbox_sync_runs`, the writer, `collabbox_booked_today`, the freshness,
+the crons) + `supabase/functions/collabbox-sync/` (`index.ts` handler, `client.ts` read-only collabBox
+client, `collabbox.ts` parsers/classification, `collabbox.test.ts`). The paused
+`supabase/paused/20260939000350_collabbox_sync.sql` is superseded — never apply it.
+
+**What it does.** `collabbox-sync` cron `0 22,23 * * *` UTC → only the 00:xx Skopje slot proceeds,
+once a day. It re-reads the last 3 Skopje days (widened back after a missed night, max 14): headers +
+HTML line items of 10036 · 10050 · 10106 · 10114 · 10111 · 10055 · 10107 · 10112 · 10099 · 10063 ·
+10058, reads komitent cards it needs, and writes through `collabbox_apply_documents` (orders for
+10036/10050/10106, 10114 only when no order holds its parcel, credits for 10111, everything else
+recorded). `collabbox-live` cron `*/30 6-19 * * *` UTC → 08:00–20:00 Skopje: today's headers of
+10036 · 10050 · 10111 · 10114 · 10106 → ledger `booked` → `collabbox_booked_today(day)` for the
+leaderboard. Status always from MEX; departments from `collabbox_department(type, …)`.
+
+**Deploy (Macedonia only — run the tripwire first, pass the ref explicitly):**
+```
+node scripts/assert-mk-target.mjs
+node scripts/apply-migration-mk.mjs supabase/migrations/20260942000900_collabbox_nightly_sync.sql
+node scripts/engine-fixture-mk.mjs
+npx supabase secrets set COLLABBOX_USER=<VAULT §7 user> COLLABBOX_PASS=<VAULT §7 password> COLLABBOX_SYNC_SECRET=<new 64 hex> --project-ref bmfxhgznttcnnlqloqzp
+npx supabase functions deploy collabbox-sync --project-ref bmfxhgznttcnnlqloqzp
+```
+A 64-hex secret: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
+`supabase/config.toml` sets `verify_jwt = false` for this function (pg_cron sends no JWT; the
+`x-collabbox-sync-secret` header is checked in code and the function fails closed without it).
+
+**Test before enabling — a dry run of ONE past day (reads collabBox, writes NOTHING):**
+```
+# bash — keep the secret in an environment variable, never in a file
+curl -s -X POST https://bmfxhgznttcnnlqloqzp.supabase.co/functions/v1/collabbox-sync \
+  -H "x-collabbox-sync-secret: $COLLABBOX_SYNC_SECRET" -H "Content-Type: application/json" \
+  -d '{"mode":"manual","from":"2026-09-27","to":"2026-09-27","dry_run":true}' > dry-2026-09-27.json
+# PowerShell
+Invoke-RestMethod -Method Post -Uri https://bmfxhgznttcnnlqloqzp.supabase.co/functions/v1/collabbox-sync `
+  -Headers @{ 'x-collabbox-sync-secret' = $env:COLLABBOX_SYNC_SECRET } -ContentType 'application/json' `
+  -Body '{"mode":"manual","from":"2026-09-27","to":"2026-09-27","dry_run":true}' | ConvertTo-Json -Depth 8 > dry-2026-09-27.json
+```
+Answers in ~30–90 s. Check in the JSON (the file holds customer data — keep it out of git):
+- `days[0].headers` / `items` = what collabBox shows for that day; `items_error` empty; `requests` ≤ 100.
+- `outcomes`: a day the history import already covered is mostly `exists` / `recorded` / `credited`
+  (the orders are there); `created` should be only documents the CRM does not have. Read every
+  `plan[]` row with `outcome: "created"` (status, price_eur, department, flags) and the `conflicts`,
+  `no_phone`, `unmapped` lists.
+- `komitenti`: `needed` vs `found` / `not_found`. **The card search (comp=infocc by Шифра) is the one
+  request shape not yet exercised live**: if `found` is 0 while `needed` > 0, the search does not
+  filter by id — say so before enabling (documents then wait for their parcel's phone: `no_phone`,
+  retried 14 days).
+- `warnings` empty; `slowest_ms` well under 60.000.
+Then, during the day, the live mode: `{"mode":"live","dry_run":true}` → `headers`, `by_type`.
+Optionally one real (non-dry) past day: `{"mode":"manual","from":"2026-09-27","to":"2026-09-27"}` — a
+run that writes answers 202 with its `run_id` and works in the background (`"wait": true` keeps it
+synchronous) — then `select * from collabbox_sync_runs order by started_at desc limit 1;` and
+`select outcome, reason, count(*) from collabbox_documents group by 1, 2 order by 3 desc;`.
+
+**Types of the existing collabBox orders (once, quiet window after 20:55):**
+`node scripts/backfill-collabbox-doc-types.mjs` (dry run: 255.267 of 255.272 typed from the local
+harvest + fetches on 28.09, 5 unknown) → `… --apply` (writes only `orders.collabbox_doc_type`).
+
+**Turn the crons on** (both are scheduled by the migration and are no-ops until this row exists):
+```
+select vault.create_secret('<the same 64 hex as COLLABBOX_SYNC_SECRET>', 'collabbox_sync_secret');
+```
+**Check the next morning:** `select kind, status, window_from, window_to, fetched, created, updated,
+conflicts, replacements, no_phone, credited, unmapped_lines, error from collabbox_sync_runs order by
+started_at desc limit 5;` · `select public.collabbox_feed_state();` (Settings → Integrations and the
+Overview read it) · `node scripts/engine-fixture-mk.mjs`.
+**Pause:** `select cron.unschedule('collabbox-sync'); select cron.unschedule('collabbox-live');` (or
+delete the Vault row). Re-applying the migration re-creates both jobs.

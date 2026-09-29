@@ -11,6 +11,14 @@ const STATUS_TONE: Partial<Record<BarBucket, string>> = {
   delivered: TONE_TEXT.good, returned: TONE_TEXT.critical, cancelled: TONE_TEXT.warning,
 };
 
+/** A split chip's words: the Overview's own (new / returning, shop, …), else the
+ *  shared cohort vocabulary (a department's sub-channels), else the key as sent.
+ *  A key ending in `_other` is looked up camelCased there (i18next plural suffix). */
+const splitLabel = (t: OverviewFormat['t'], key: string) =>
+  t(`overview.split.${key}`, {
+    defaultValue: t(`insights.common.split.${key.replace(/_other$/, 'Other')}`, { defaultValue: key }),
+  });
+
 /** "Од каде дојдоа парите" — one row per source, the shop panel's outcome card each. */
 export function SourceRows({
   sources, range, money, f,
@@ -191,7 +199,7 @@ function SourceRow({ s, range, money, f }: { s: OverviewSource; range: DayRange;
                     sp.count === 0 && 'opacity-50',
                   )}
                 >
-                  <span className="text-muted-foreground">{t(`overview.split.${sp.key}`, { defaultValue: sp.key })}</span>
+                  <span className="text-muted-foreground">{splitLabel(t, sp.key)}</span>
                   <b className="font-semibold tabular-nums">{f.int(sp.count)}</b>
                   {money && splitMoney && <span className="tabular-nums text-muted-foreground">· {splitMoney}</span>}
                 </DrillLink>

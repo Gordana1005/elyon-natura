@@ -25,7 +25,7 @@ export function cohortWhy(f: InsightsFormat, d: { href: string | null; blocked: 
  */
 export function OrdersPartLink({ drill, label, f, className }: {
   drill: Pick<CohortDrill, 'ordersHref' | 'orders'>;
-  /** What the number is ("AlterCPA · Наплатено"), for the link's accessible name. */
+  /** What the number is ("Affiliate – Lead in · Наплатено"), for the link's accessible name. */
   label?: string;
   f: InsightsFormat;
   className?: string;

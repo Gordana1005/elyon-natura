@@ -36,7 +36,7 @@ const stripMoneyDeep = <T,>(v: T): T => stripCohortMoney(v as unknown as Cohort)
 
 /**
  * Insights → Продажби: "what did we sell". THE sale cohort (sale day, Skopje,
- * five sources, MEX-first parts that add up to the total) — the header is the
+ * six departments, MEX-first parts that add up to the total) — the header is the
  * Overview's own number for the period, then where it came from, how it moved,
  * what was sold, where, to whom, in what basket, when, and through which MEX
  * channel. Owners see денари (meta.money); admins/managers the same page counted.

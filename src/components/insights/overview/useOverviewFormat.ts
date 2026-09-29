@@ -35,7 +35,8 @@ export function useOverviewFormat() {
     };
     const period = (from: string, to: string) => (from === to ? dm(from, true) : `${dm(from)} – ${dm(to, true)}`);
     const bucketLabel = (b: string) => t(`overview.bucket.${b}`);
-    // `teleshop_other` would read as an i18next plural form, so its key is camelCase.
+    // `teleshop_other` would read as an i18next plural form, so its key is camelCase
+    // (`teleshop_out` is no plural suffix: its key is itself).
     const source = (k: string) => t(`overview.source.${k === 'teleshop_other' ? 'teleshopOther' : k}`, { defaultValue: k });
     return {
       t, lang,

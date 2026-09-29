@@ -68,6 +68,8 @@ describe("buildPeopleResponse", () => {
     const all = keysDeep(rpc());
     const missing = [...all].filter((k) => !/(_mkd|_eur)$/.test(k) && !PEOPLE_NON_MONEY_KEYS.has(k));
     expect(missing).toEqual([]);
+    // by_source is an object keyed by the six departments (20260942001000)
+    for (const k of ["altercpa", "elyon_crm", "teleshop_out", "teleshop_other", "social", "web"]) expect(PEOPLE_NON_MONEY_KEYS.has(k), k).toBe(true);
   });
 
   it("self: only their own row and drill, no teams, no totals, no money", () => {

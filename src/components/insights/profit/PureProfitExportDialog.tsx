@@ -15,17 +15,15 @@ import { toCsv, downloadCsv, type CsvColumn } from '@/lib/csv';
 import { cn } from '@/lib/utils';
 import type { PLRow, ProfitResponse } from '@/lib/insightsApi/profit';
 import { dm } from '../overview/useOverviewFormat';
+import { EXPORT_AFFILIATES_SHEET, EXPORT_SOURCE_NAME } from './profitModel';
 
 type SectionKey = 'summary' | 'products' | 'affiliates';
 type Section = { name: string; rows: Record<string, unknown>[]; widths: number[] };
 const SECTIONS: SectionKey[] = ['summary', 'products', 'affiliates'];
 const pct = (x: number | null | undefined) => (x == null ? '' : Math.round(x * 1000) / 10);
 
-// the owner's source names (28.09.2026) — the export's columns stay English
-const SOURCE_NAME: Record<string, string> = {
-  altercpa: 'AlterCPA', elyon_crm: 'Teleshop – Lead out', teleshop_other: 'Teleshop – Lead in', social: 'Social media',
-  web: 'Web shop', total: 'Total',
-};
+// the owner's department names (28.09.2026) — the export's columns stay English
+const SOURCE_NAME: Record<string, string> = EXPORT_SOURCE_NAME;
 
 function plLines(clock: string, rows: PLRow[]): Record<string, unknown>[] {
   const line = (metric: string, get: (r: PLRow) => number | string | null, unit: 'MKD' | 'count' | '%') => {
@@ -71,7 +69,8 @@ export default function PureProfitExportDialog({ data }: { data: ProfitResponse 
     if (picked.summary) {
       out.push({
         name: 'P&L',
-        widths: [10, 44, 7, 14, 14, 14, 16, 14],
+        // Clock · Line · Unit, then one column per department (+ Total), wide enough for its name
+        widths: [10, 44, 7, 21, 22, 21, 20, 14, 14, 14],
         rows: [
           ...plLines('Cohort (sale day)', [...data.cohort.by_source, data.cohort.total]),
           ...plLines('Cash (MEX delivery day)', [...data.cash.by_source, data.cash.total]),
@@ -101,7 +100,7 @@ export default function PureProfitExportDialog({ data }: { data: ProfitResponse 
     }
     if (picked.affiliates && data.cohort.affiliates.length) {
       out.push({
-        name: 'AlterCPA webmasters',
+        name: EXPORT_AFFILIATES_SHEET,
         widths: [24, 10, 10, 10, 14, 14, 9],
         rows: data.cohort.affiliates.map((a) => ({
           'Webmaster': a.key === '__none__' ? 'No webmaster on file' : (a.name ?? `WM ${a.key}`),

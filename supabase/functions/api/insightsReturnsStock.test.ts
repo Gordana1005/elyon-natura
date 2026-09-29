@@ -152,6 +152,8 @@ describe("buildStockResponse", () => {
   it("the whitelist never lets a money key (or the valuation) through", () => {
     for (const k of STOCK_NON_MONEY_KEYS) expect(MONEY_KEY_RE.test(k)).toBe(false);
     expect(STOCK_NON_MONEY_KEYS.has("valuation")).toBe(false);
+    // a product's / the trend's by_source is an object keyed by the six departments (20260942001000)
+    for (const k of ["altercpa", "elyon_crm", "teleshop_out", "teleshop_other", "social", "web"]) expect(STOCK_NON_MONEY_KEYS.has(k), k).toBe(true);
   });
 
   it("the queue's ages add up to its stage and its sources", () => {

@@ -23,10 +23,11 @@
 //   cohortExcludedPhoneOr()  their PostgREST twins for GET /orders
 //                            ?cohort_bucket&sold_from&sold_to
 //   cohortSourceOrFilter()   the twin of cohort_order_source(sale_source,
-//                            sale_source_detail) for GET /orders?cohort_source=
-//                            (migration 20260942000500: Social media is a
-//                            source of its own, so a card's orders are no
-//                            longer a sale_source list)
+//                            sale_source_detail, mex_tracking_id) for GET
+//                            /orders?cohort_source= (migrations 20260942000500,
+//                            20260942001000: the six departments — a card's
+//                            orders are no sale_source list, and a CRM-made
+//                            sale moves with its parcel's NATURA series)
 //   cohortOrdersFilter()     all of them, assembled ONCE: index.ts applies it
 //                            to the /orders query and scripts/verify-insights-
 //                            ties.mjs translates the very same filter to SQL
@@ -39,11 +40,12 @@ import type { CsvResult, OverviewWindow } from "./overview.ts";
 
 export type { OverviewWindow as InsightsWindow } from "./overview.ts";
 
-/** The five sale sources, in the owner's display order (28.09.2026 — migration
- *  20260942000500): AlterCPA · elyon_crm ("Телешоп – Lead out") · teleshop_other
- *  ("Телешоп – Lead in") · social (Social media, a department of its own) · web.
- *  The keys never change; the app names them. */
-export const INSIGHTS_SOURCES = ["altercpa", "elyon_crm", "teleshop_other", "social", "web"] as const;
+/** The six departments, in the owner's display order (28.09.2026 — migrations
+ *  20260942000500, 20260942001000): altercpa ("Affiliate – Lead in") · elyon_crm
+ *  ("Affiliate – Lead out") · teleshop_out ("Телешоп – Lead out") ·
+ *  teleshop_other ("Телешоп – Lead in") · social (Social media) · web. The keys
+ *  never change; the app names them. */
+export const INSIGHTS_SOURCES = ["altercpa", "elyon_crm", "teleshop_out", "teleshop_other", "social", "web"] as const;
 export type InsightsSource = (typeof INSIGHTS_SOURCES)[number];
 
 /** The collabBox details that make an order Social media's: 'social' (series
@@ -51,28 +53,89 @@ export type InsightsSource = (typeof INSIGHTS_SOURCES)[number];
  *  which classify_sale_source leaves as its bare series). */
 export const SOCIAL_DETAILS = ["social", "1300"] as const;
 
-/** Each source's ORDER part as ONE PostgREST `or` term — the twin of
- *  cohort_order_source(sale_source, sale_source_detail). web orders live in
- *  web_orders (not orders); 'web' here only ever matches CRM-entered web
- *  orders (0 today). Teleshop / other is everything else, NULL included (the
- *  SQL's ELSE): a NULL sale_source / detail never matches not.in / neq, so
- *  the NULLs are named. */
-export const COHORT_SOURCE_TERM: Record<InsightsSource, string> = {
-  altercpa: "sale_source.in.(altercpa,affiliate)",
-  elyon_crm: "sale_source.eq.elyon_crm",
-  web: "sale_source.eq.web",
-  social: `and(sale_source.eq.collabbox,sale_source_detail.in.(${SOCIAL_DETAILS.join(",")}))`,
-  teleshop_other: "or(sale_source.is.null,and(sale_source.not.in.(altercpa,affiliate,elyon_crm,web),"
-    + `or(sale_source.neq.collabbox,sale_source_detail.is.null,sale_source_detail.not.in.(${SOCIAL_DETAILS.join(",")}))))`,
+/** The NATURA series that move a CRM-made sale to another department by its
+ *  parcel (the tracking id's second segment, NNN-SSSS-…) — owner 28.09.2026:
+ *  9102 "Нарачка out" → Телешоп – Lead out · 9100 "Нарачка in" → Телешоп –
+ *  Lead in · 9108 / 1300 → Social media. Any other series (9103, 9110, NTMK…)
+ *  or no parcel: the sale stays Affiliate – Lead out. */
+export const CRM_PARCEL_SERIES = { "9102": "teleshop_out", "9100": "teleshop_other", "9108": "social", "1300": "social" } as const;
+
+/** A tracking id on a series, as the SQL writes it (LIKE '___-9102-%'; `_` is
+ *  LIKE's one-character wildcard in PostgREST too, `*` its `%`). */
+const onSeries = (s: string) => `mex_tracking_id.like.___-${s}-*`;
+/** A CRM-made sale: elyon_crm prediction_list | direct, or the same sale stored
+ *  as altercpa team_prediction by the withdrawn team rule (20260942000700). */
+const CRM_MADE = "or(and(sale_source.eq.elyon_crm,sale_source_detail.in.(prediction_list,direct)),"
+  + "and(sale_source.in.(altercpa,affiliate),sale_source_detail.eq.team_prediction))";
+/** Where a CRM-made sale's parcel puts it: Affiliate – Lead out when the parcel
+ *  is on none of the NATURA series (no parcel counts as none), else the
+ *  department its series names. The five conditions cover every tracking id. */
+const CRM_PARCEL: Partial<Record<InsightsSource, string[]>> = {
+  elyon_crm: [`or(mex_tracking_id.is.null,and(${Object.keys(CRM_PARCEL_SERIES)
+    .map((s) => `mex_tracking_id.not.like.___-${s}-*`).join(",")}))`],
+  ...Object.entries(CRM_PARCEL_SERIES).reduce<Partial<Record<InsightsSource, string[]>>>((acc, [s, k]) => {
+    (acc[k] ??= []).push(onSeries(s));
+    return acc;
+  }, {}),
 };
+/** The AlterCPA-team details of 20260942000700 — never the Affiliate – Lead in
+ *  card (team_collabbox_out is a Нарачка out document, the other two are
+ *  Affiliate – Lead out). */
+const TEAM_DETAILS = "team_prediction,team_collabbox_out,team_collabbox_leads_out";
+/** Everything but the CRM-made sales, per department. */
+const REST_PARTS: Record<InsightsSource, string[]> = {
+  altercpa: [`and(sale_source.in.(altercpa,affiliate),or(sale_source_detail.is.null,sale_source_detail.not.in.(${TEAM_DETAILS})))`],
+  elyon_crm: [
+    "and(sale_source.eq.elyon_crm,or(sale_source_detail.is.null,sale_source_detail.not.in.(prediction_list,direct,collabbox_out)))",
+    "and(sale_source.in.(altercpa,affiliate),sale_source_detail.eq.team_collabbox_leads_out)",
+  ],
+  // collabBox "Нарачка out" by its folder: as stored after the reclass, and before it
+  teleshop_out: [
+    "and(sale_source.eq.collabbox,sale_source_detail.eq.teleshop_out)",
+    "and(sale_source.eq.elyon_crm,sale_source_detail.eq.collabbox_out)",
+    "and(sale_source.in.(altercpa,affiliate),sale_source_detail.eq.team_collabbox_out)",
+  ],
+  teleshop_other: [
+    "sale_source.is.null",
+    "and(sale_source.not.in.(altercpa,affiliate,elyon_crm,web),"
+      + `or(sale_source.neq.collabbox,sale_source_detail.is.null,sale_source_detail.not.in.(${SOCIAL_DETAILS.join(",")},teleshop_out)))`,
+  ],
+  social: [`and(sale_source.eq.collabbox,sale_source_detail.in.(${SOCIAL_DETAILS.join(",")}))`],
+  web: ["sale_source.eq.web"],
+};
+
+/** The union of some departments as PostgREST `or` terms: their non-CRM parts,
+ *  and ONE CRM-made part over the union of their parcel conditions (all of
+ *  them = every CRM-made sale), so a link naming several departments stays
+ *  short. */
+function departmentTerms(keys: readonly InsightsSource[]): string[] {
+  const parcel = keys.flatMap((k) => CRM_PARCEL[k] ?? []);
+  const crmAll = keys.filter((k) => CRM_PARCEL[k]).length === Object.keys(CRM_PARCEL).length;
+  const crm = !parcel.length ? []
+    : crmAll ? [CRM_MADE]
+    : [`and(${CRM_MADE},${parcel.length === 1 ? parcel[0] : `or(${parcel.join(",")})`})`];
+  return [...crm, ...keys.flatMap((k) => REST_PARTS[k])];
+}
+
+/** Each department's ORDER part as ONE PostgREST `or` term — the twin of
+ *  cohort_order_source(sale_source, sale_source_detail, mex_tracking_id)
+ *  (20260942001000). web orders live in web_orders (not orders); 'web' here
+ *  only ever matches CRM-entered web orders (0 today). Телешоп – Lead in is
+ *  everything else, NULL included (the SQL's ELSE): a NULL sale_source /
+ *  detail / tracking id never matches not.in / neq / not.like, so the NULLs
+ *  are named. The six terms partition every order (insightsCommon.test.ts). */
+export const COHORT_SOURCE_TERM = Object.fromEntries(INSIGHTS_SOURCES.map((k) => {
+  const t = departmentTerms([k]);
+  return [k, t.length === 1 ? t[0] : `or(${t.join(",")})`];
+})) as Record<InsightsSource, string>;
 
 /** GET /orders?cohort_source=a,b → one PostgREST `or` expression selecting
  *  exactly the orders cohort_order_source() puts in those sources; null when
- *  none is asked for or all five are (no filter: every order is in one). */
+ *  none is asked for or all six are (no filter: every order is in one). */
 export function cohortSourceOrFilter(keys: readonly string[]): string | null {
   const known = INSIGHTS_SOURCES.filter((k) => keys.includes(k));
   if (!known.length || known.length === INSIGHTS_SOURCES.length) return null;
-  return known.map((k) => COHORT_SOURCE_TERM[k]).join(",");
+  return departmentTerms(known).join(",");
 }
 
 /** ?cohort_source=social,teleshop_other → validated source keys; empty /
@@ -97,7 +160,7 @@ export function insightsAccess(isOwner: boolean, isAdminOrManager: boolean): Ins
   return "forbidden";
 }
 
-/** ?source=altercpa,web → validated sources; empty/absent/"all" → all five. */
+/** ?source=altercpa,web → validated sources; empty/absent/"all" → all six. */
 export function parseSourcesParam(raw: string | null): CsvResult {
   const r = parseCsvParam(raw, INSIGHTS_SOURCES);
   if (!r.ok) return r;

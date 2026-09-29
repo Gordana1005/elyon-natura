@@ -42,8 +42,8 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MIGRATION = join(ROOT, 'supabase', 'migrations', '20260941000500_insights_returns_stock.sql');
 const SIG_RETURNS = 'public.insights_returns(timestamptz,timestamptz,text,timestamptz,timestamptz,text[],boolean)';
 const DEFAULT_WINDOWS = [['2026-09-22', '2026-09-28'], ['2026-09-01', '2026-09-27']];
-// the five sources in the owner's order (migration 20260942000500)
-const SOURCES = ['altercpa', 'elyon_crm', 'teleshop_other', 'social', 'web'];
+// the six departments in the owner's order (migrations 20260942000500, 20260942001000)
+const SOURCES = ['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web'];
 const EXCLUDED = '(SELECT public.report_excluded_phone8s())::text[]';
 
 const n = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : Number(v ?? 0) || 0);

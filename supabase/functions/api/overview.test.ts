@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   addDaysYmd, attentionFilter, buildOverviewResponse, cashWindowOrFilter, daysInclusive, isSafeText, isUuid, isValidYmd, outcomeOrFilter,
-  NO_PARCEL_DEFAULT_DAYS, noParcelDays, overviewWindows, parseAttentionExclusions, parseCsvParam, parseDetailParam, parsePivotBy, SALE_SOURCES,
+  NO_PARCEL_DEFAULT_DAYS, noParcelDays, OVERVIEW_SOURCES, overviewWindows, parseAttentionExclusions, parseCsvParam, parseDetailParam, parsePivotBy, SALE_SOURCES,
   skopjeDayEndIso, skopjeMidnightIso, skopjeTodayYmd, soldWindowOrFilter, stripOverviewMoney,
 } from "./overview.ts";
 import type { OverviewWindow } from "./overview.ts";
@@ -107,6 +107,24 @@ describe("stripOverviewMoney", () => {
     expect(out.sources[1].drill).toEqual({ sale_source: ["collabbox"], cohort_source: ["social"] });
     expect(out.sources[1].splits[0].drill).toEqual({ sale_source: ["collabbox"], detail: ["social"] });
     expect(out.trend.points[0].by_source.social).toEqual({ placed_count: 12, delivered_count: 4 });
+    expect(moneyKeys(out)).toEqual([]);
+  });
+
+  it("Телешоп – Lead out (the sixth, 20260942001000): its series, its department drills survive, its money does not", () => {
+    const p = sample();
+    p.sources.push({
+      ...p.sources[0], key: "teleshop_out",
+      splits: [{ ...p.sources[0].splits[0], key: "prediction_list",
+                 drill: { sale_source: ["elyon_crm"], detail: ["prediction_list"], cohort_source: ["teleshop_out"] } }],
+      drill: { sale_source: ["collabbox", "elyon_crm", "altercpa", "affiliate"], cohort_source: ["teleshop_out"] } as never,
+    });
+    (p.trend.points[0].by_source as Record<string, unknown>).teleshop_out =
+      { placed_count: 30, placed_value_eur: 900, delivered_count: 9, delivered_cash_mkd: 22000 };
+    const out = stripOverviewMoney(p) as any;
+    expect(OVERVIEW_SOURCES).toEqual(["altercpa", "elyon_crm", "teleshop_out", "teleshop_other", "social", "web"]);
+    expect(out.sources[1].drill).toEqual({ sale_source: ["collabbox", "elyon_crm", "altercpa", "affiliate"], cohort_source: ["teleshop_out"] });
+    expect(out.sources[1].splits[0].drill).toEqual({ sale_source: ["elyon_crm"], detail: ["prediction_list"], cohort_source: ["teleshop_out"] });
+    expect(out.trend.points[0].by_source.teleshop_out).toEqual({ placed_count: 30, delivered_count: 9 });
     expect(moneyKeys(out)).toEqual([]);
   });
 

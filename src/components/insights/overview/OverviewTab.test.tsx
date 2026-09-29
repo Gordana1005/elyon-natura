@@ -43,6 +43,8 @@ function renderWith(payload: OverviewResponse) {
   );
 }
 const owner = () => structuredClone(sample) as unknown as OverviewResponse;
+// the departments' names (owner 28.09.2026) — Affiliate – Lead in is the AlterCPA intake
+const ALTER = i18n.t('overview.source.altercpa');
 // Any amount in denars: a digit, a space, "ден" as a whole word.
 const DENARS = /\d ден(?![а-яѓќљњџѕ])/;
 
@@ -55,12 +57,12 @@ describe('Overview — owner', () => {
     expect(overview).toHaveBeenCalledWith({ from: '2026-09-22', to: '2026-09-28', compare: true }, expect.anything());
 
     expect(screen.getByRole('heading', { name: i18n.t('overview.sources.title') })).toBeInTheDocument();
-    const alter = screen.getByRole('article', { name: 'AlterCPA' });
-    const delivered = within(alter).getByRole('link', { name: `AlterCPA · ${i18n.t('overview.bucket.delivered')}: 196` });
+    const alter = screen.getByRole('article', { name: ALTER });
+    const delivered = within(alter).getByRole('link', { name: `${ALTER} · ${i18n.t('overview.bucket.delivered')}: 196` });
     expect(delivered.getAttribute('href'))
-      .toBe('/orders?sale_source=altercpa%2Caffiliate&outcome=delivered&created_from=2026-09-22&created_to=2026-09-28');
+      .toBe('/orders?sale_source=altercpa%2Caffiliate&outcome=delivered&created_from=2026-09-22&created_to=2026-09-28&cohort_source=altercpa');
     // "Being prepared" is to pack + packed, and opens both.
-    const prep = within(alter).getByRole('link', { name: `AlterCPA · ${i18n.t('overview.bucket.preparing')}: 173` });
+    const prep = within(alter).getByRole('link', { name: `${ALTER} · ${i18n.t('overview.bucket.preparing')}: 173` });
     expect(prep.getAttribute('href')).toContain('outcome=preparing%2Cpacked');
     // Money line and splits are there for the owner.
     expect(within(alter).getAllByText(formatDenari(498760)).length).toBe(2); // delivered tile + Наплатено
@@ -75,7 +77,13 @@ describe('Overview — owner', () => {
 
     // MEX-only parcels sit beside the bar, never in it.
     const tele = screen.getByRole('article', { name: i18n.t('overview.source.teleshopOther') });
-    expect(within(tele).getByText(i18n.t('overview.sources.mexOnlyChip', { n: '66' }), { exact: false })).toBeInTheDocument();
+    expect(within(tele).getByText(i18n.t('overview.sources.mexOnlyChip', { n: '61' }), { exact: false })).toBeInTheDocument();
+    // Телешоп – Lead out (new 28.09): its Нарачка out documents open by their department, its 9102 parcels sit beside
+    const out = screen.getByRole('article', { name: i18n.t('overview.source.teleshop_out') });
+    expect(within(out).getByText(i18n.t('overview.sources.mexOnlyChip', { n: '5' }), { exact: false })).toBeInTheDocument();
+    const outHrefs = within(out).getAllByRole('link').map((a) => a.getAttribute('href')).filter((h): h is string => !!h);
+    expect(outHrefs.length).toBeGreaterThan(0);
+    for (const h of outHrefs) expect(h).toContain('cohort_source=teleshop_out');
     // Social media is a card of its own (owner 28.09.2026): its collabBox orders open by cohort_source
     const soc = screen.getByRole('article', { name: i18n.t('overview.source.social') });
     expect(within(soc).getByText(i18n.t('overview.sources.mexOnlyChip', { n: '20' }), { exact: false })).toBeInTheDocument();
@@ -109,9 +117,9 @@ describe('Overview — admin/manager without money', () => {
 
     // What stays: parcel count as the hero, counts in every tile, the rates, teams, attention.
     expect(screen.getAllByText('1.285').length).toBeGreaterThan(0);   // proven parcels
-    expect(screen.getAllByText(i18n.t('overview.rates.delivery')).length).toBe(5);
-    const alter = screen.getByRole('article', { name: 'AlterCPA' });
-    expect(within(alter).getByRole('link', { name: `AlterCPA · ${i18n.t('overview.bucket.delivered')}: 196` })).toBeInTheDocument();
+    expect(screen.getAllByText(i18n.t('overview.rates.delivery')).length).toBe(6);   // one per department
+    const alter = screen.getByRole('article', { name: ALTER });
+    expect(within(alter).getByRole('link', { name: `${ALTER} · ${i18n.t('overview.bucket.delivered')}: 196` })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Pending — AlterCPA' })).toBeInTheDocument();
     expect(screen.getByText(i18n.t('overview.attention.kind.cod_mismatch'))).toBeInTheDocument();
     // No presence data = "—", never a fake 0 minutes.

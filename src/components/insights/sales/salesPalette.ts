@@ -1,6 +1,6 @@
 /**
  * Colour roles of Insights → Продажби that the shared palettes do not cover.
- * Everything else is reused as validated: the five sources are the Overview's
+ * Everything else is reused as validated: the six departments are the Overview's
  * fixed identity hues (overview/palette.ts, --ov-src-*), the cohort parts the
  * shared cohort ramp (shared/cohortPalette.ts).
  *
@@ -16,7 +16,7 @@
  * never carries a number alone; a legend names the scale.
  *
  * NEUTRAL — a single-series bar that is not a source (packages per sale):
- * slate, so it never reads as one of the five source hues.
+ * slate, so it never reads as one of the six source hues.
  */
 
 /** Literal class strings (Tailwind generates them). Index 0 = no sale. */

@@ -36,6 +36,7 @@ import { CashFlowCard, LeadsInCard } from '../shared/CohortSecondary';
 import { CohortSources } from './CohortSources';
 import { QualityRail } from '../shared/QualityRail';
 import { cohortDrill, cohortView, stripCohortMoney } from '../shared/cohortModel';
+import { cohortSourceParam } from '../shared/cohortTypes';
 import type { Cohort, CohortQualityKind } from '../shared/cohortTypes';
 
 type FixtureMode = '1' | 'nomoney';
@@ -289,7 +290,11 @@ export default function OverviewTab() {
 
 /**
  * A tile links only when the link is exact: every selected source that adds to
- * the number must be counted from `orders` (the web-shop mirror is not).
+ * the number must be counted from `orders` (the web-shop mirror is not). A
+ * department is not one sale_source (elyon_crm = sale_source elyon_crm +
+ * altercpa + affiliate), so the link also carries the departments in play as
+ * cohort_source (a row's key IS its department; none when all six are in play)
+ * — GET /orders ANDs the two.
  */
 function tileHrefs(sources: OverviewSource[], range: DayRange, filtered: boolean): Partial<Record<TileKey, string | null>> {
   const contributes: Record<Exclude<TileKey, 'unproven_paid' | 'delivered'>, (s: OverviewSource) => number> = {
@@ -299,15 +304,17 @@ function tileHrefs(sources: OverviewSource[], range: DayRange, filtered: boolean
     to_collect: (s) => preparingOf(s).count + (s.buckets.courier?.count ?? 0),
     lost: (s) => (s.buckets.returned?.count ?? 0) + (s.buckets.cancelled?.count ?? 0) + (s.buckets.trashed?.count ?? 0),
   };
-  const base = (k: keyof typeof contributes): string | null => {
+  const base = (k: keyof typeof contributes): Pick<OrdersDrillParams, 'sale_source' | 'cohort_source'> | null => {
     const inPlay = sources.filter((s) => contributes[k](s) > 0);
     if (!inPlay.length || inPlay.some((s) => !sourceDrill(s, range))) return null;
-    return [...new Set(inPlay.flatMap((s) => s.drill.sale_source))].join(',');
+    const sale_source = [...new Set(inPlay.flatMap((s) => s.drill.sale_source))].join(',');
+    const cohort_source = cohortSourceParam(inPlay.map((s) => s.key));
+    return { sale_source, ...(cohort_source ? { cohort_source } : {}) };
   };
   const cr = { created_from: range.from, created_to: range.to };
   const make = (k: keyof typeof contributes, extra: OrdersDrillParams) => {
-    const ss = base(k);
-    return ss ? ordersHref({ sale_source: ss, ...extra }) : null;
+    const b = base(k);
+    return b ? ordersHref({ ...b, ...extra }) : null;
   };
   return {
     placed: make('placed', cr),

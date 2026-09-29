@@ -1,5 +1,5 @@
 import { Circle, CircleDashed, Clock, Coffee, Minus, type LucideIcon } from 'lucide-react';
-import type { PeopleBuckets, PeopleMeasures, PeoplePerson, PresenceState } from '@/lib/insightsApi/agents';
+import type { PeopleBuckets, PeopleMeasures, PeoplePerson, PeopleSourceKey, PresenceState } from '@/lib/insightsApi/agents';
 import { cn } from '@/lib/utils';
 import { DrillLink } from '../overview/DrillLink';
 import { sourceColorVar } from '../overview/palette';
@@ -7,7 +7,7 @@ import { StackedBar, type StackSegment } from '../shared/StackedBar';
 import { COHORT_HATCH, COHORT_TONE, OUTSIDE_TONE } from '../shared/cohortPalette';
 import { COHORT_ICON } from '../shared/CohortBar';
 import type { InsightsFormat } from '../shared/useInsightsFormat';
-import type { PartKey } from './model';
+import { PEOPLE_SOURCES, type PartKey } from './model';
 
 /** The Overview's presence vocabulary — a dot colour + a distinct shape + a word. */
 export const PRESENCE: Record<PresenceState, { icon: LucideIcon; tone: string; key: string }> = {
@@ -108,18 +108,20 @@ export function BucketLegend({
   );
 }
 
-/** A person's sales by source as tiny identity dashes + counts (non-zero only). */
+/** A person's sales by department as tiny identity dashes + counts (non-zero only),
+ *  in the owner's order — the People table's "sources" column. */
 export function SourceSplit({ m, f }: { m: Pick<PeopleMeasures, 'by_source'>; f: InsightsFormat }) {
-  const keys = (['altercpa', 'elyon_crm', 'teleshop_other', 'social', 'web'] as const).filter((k) => (m.by_source?.[k] ?? 0) > 0);
+  const n = (k: PeopleSourceKey) => m.by_source?.[k] ?? 0;
+  const keys = PEOPLE_SOURCES.filter((k) => n(k) > 0);
   if (!keys.length) return <span className="text-muted-foreground">—</span>;
   return (
     <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-0.5"
-      title={keys.map((k) => `${f.sourceLabel(k)}: ${f.int(m.by_source[k])}`).join(' · ')}>
+      title={keys.map((k) => `${f.sourceLabel(k)}: ${f.int(n(k))}`).join(' · ')}>
       {keys.map((k) => (
         <span key={k} className="inline-flex items-center gap-1 tabular-nums">
           <span className="h-[3px] w-2.5 rounded-full" style={{ background: sourceColorVar(k) }} aria-hidden />
           <span className="sr-only">{f.sourceLabel(k)}:</span>
-          {f.int(m.by_source[k])}
+          {f.int(n(k))}
         </span>
       ))}
     </span>
@@ -149,7 +151,7 @@ export function TimeCell({ m, f }: { m: Pick<PeopleMeasures, 'presence'>; f: Ins
   );
 }
 
-/** The person's badges: no CRM login (AlterCPA-only / collabBox author), manager, inactive. */
+/** The person's badges: no CRM login (works only in the AlterCPA panel / collabBox author), manager, inactive. */
 export function PersonBadges({ p, f }: { p: Pick<PeoplePerson, 'has_login' | 'is_manager' | 'is_active' | 'identity_kinds'>; f: InsightsFormat }) {
   const { t } = f;
   const badge = 'inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium leading-none';

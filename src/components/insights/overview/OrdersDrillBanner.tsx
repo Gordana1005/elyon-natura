@@ -23,8 +23,8 @@ export function OrdersDrillBanner({ drill, label, onClear }: { drill: OrdersDril
   const parts: string[] = [];
   if (label) parts.push(label);
   if (drill.cohort_source) {
-    // the Insights sources (Social media, Teleshop – Lead in, …) say it better than a sale_source list
-    // (`teleshop_other` would read as an i18next plural form, so its key is camelCase)
+    // the Insights departments (Affiliate – Lead out, Телешоп – Lead out, …) say it better than a
+    // sale_source list (`teleshop_other` would read as an i18next plural form, so its key is camelCase)
     parts.push(drill.cohort_source.split(',').map((s) =>
       t(`insights.common.source.${s === 'teleshop_other' ? 'teleshopOther' : s}`, { defaultValue: s })).join(' + '));
   } else if (drill.sale_source) {

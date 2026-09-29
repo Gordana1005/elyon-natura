@@ -9,10 +9,10 @@
  *   courier's problem part into courier, so the adjacent pairs are a subset of
  *   the pairs validated there (all pairs checked, both modes).
  * - Magnitude with no parts (the recency × value matrix bars): ONE hue, the
- *   ElyonCRM source colour of the Overview (overview/palette.ts, --ov-src-
- *   elyon_crm #eb6834 / #d95926) — length carries the value, the number is
- *   printed beside it, so no sequential colour ramp (and no text-on-fill
- *   contrast problem) is needed.
+ *   Affiliate – Lead out source colour of the Overview (overview/palette.ts,
+ *   --ov-src-elyon_crm #eb6834 / #d95926 — the lists are that department's) —
+ *   length carries the value, the number is printed beside it, so no
+ *   sequential colour ramp (and no text-on-fill contrast problem) is needed.
  * - Decisions (the work card): sale = paid emerald, "no" = the red of
  *   Откажани, trash = the grey of Во корпа — the LeadsInCard trio.
  *
@@ -27,5 +27,5 @@ export const LISTS_COLOR_VARS =
 
 export const trendColorVar = (k: TrendPart) => `var(--ls-${k})`;
 
-/** The matrix bars: ElyonCRM's source hue (literal classes so Tailwind emits them). */
+/** The matrix bars: Affiliate – Lead out's source hue (literal classes so Tailwind emits them). */
 export const MAGNITUDE_BAR = 'bg-[#eb6834] dark:bg-[#d95926]';

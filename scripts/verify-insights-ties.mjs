@@ -239,8 +239,10 @@ export const pgrstOrToSql = (expr, alias = 'o') => pgrstTermToSql(`or(${expr})`,
 
 /** What GET /orders?cohort_bucket=<keys>&cohort_source=<keys>&sale_source=<ss>&sale_source_detail=<d>
  *  &sold_from&sold_to selects, as SQL predicates over public.orders <alias> (ANDed) — built from the
- *  api's own cohortOrdersFilter() + cohortSourceOrFilter() (the twin of cohort_order_source,
- *  migration 20260942000500) plus the plain column filters the handler adds. */
+ *  api's own cohortOrdersFilter() + cohortSourceOrFilter() (the twin of cohort_order_source(
+ *  sale_source, detail, mex_tracking_id), migrations 20260942000500 / 20260942001000 — its
+ *  parcel test is `like` / `not.like`, which the translator carries verbatim) plus the plain
+ *  column filters the handler adds. */
 export function drillPredicateParts(IC, { keys, cohortSources = [], saleSources = [], detail = null, window = null, ex }, alias = 'o') {
   const f = IC.cohortOrdersFilter(keys, ex, window);
   const parts = f.or.map((e) => pgrstOrToSql(e, alias));

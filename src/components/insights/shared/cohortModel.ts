@@ -137,7 +137,7 @@ export function sumLeads(list: CohortLeadsIn[]): CohortLeadsIn {
 }
 
 /** "Обработени": the leads that got a decision — became a sale, were cancelled
- *  or trashed (an ElyonCRM "no" call is a cancel); open ones are not worked yet. */
+ *  or trashed (a CRM "no" call is a cancel); open ones are not worked yet. */
 export const workedOf = (l: CohortLeadsIn | null | undefined) =>
   num(l?.became_sales) + num(l?.cancelled) + num(l?.trashed);
 
@@ -198,9 +198,9 @@ export const ordersSupportsCohortDrill = (keys: readonly string[] = ORDERS_DRILL
 
 /**
  * A split made of MEX parcels with no order (the api's kind 'mex', by series:
- * mex_leads · mex_out · mex_in · mex_social · mex_web · mex_other — and the
- * pre-28.09 mex_teleshop / elyon_unlinked of an older payload). It never links
- * to /orders.
+ * mex_leads (9110) · mex_leads_out (9103) · mex_out (9102) · mex_in (9100) ·
+ * mex_social · mex_web · mex_other — and the pre-28.09 mex_teleshop /
+ * elyon_unlinked of an older payload). It never links to /orders.
  */
 export const isMexOnlySplit = (s: Pick<CohortSplit, 'key' | 'kind'> | string) => {
   const sp = typeof s === 'string' ? { key: s } : s;

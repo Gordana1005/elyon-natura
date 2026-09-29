@@ -20,7 +20,8 @@ export function useInsightsFormat() {
   const { t } = f;
   return useMemo(() => ({
     ...f,
-    // `teleshop_other` would read as an i18next plural form, so its key is camelCase.
+    // `teleshop_other` would read as an i18next plural form, so its key is camelCase
+    // (`teleshop_out` is no plural suffix: its key is itself).
     sourceLabel: (k: string) =>
       t(`insights.common.source.${k === 'teleshop_other' ? 'teleshopOther' : k}`, { defaultValue: k }),
     bucketLabel: (k: CohortBucketKey | string) => t(`insights.common.bucket.${k}`, { defaultValue: k }),

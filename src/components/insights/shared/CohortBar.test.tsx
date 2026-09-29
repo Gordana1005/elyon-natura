@@ -86,14 +86,20 @@ describe('CohortBar — owner, the whole business', () => {
     // the total: "507 во Нарачки" = every order of the period, whatever its source
     const totalPart = within(bar).getAllByRole('link').find((a) => a.textContent === partLink('507'))!;
     expect(totalPart.getAttribute('href')).toBe(`/orders?cohort_bucket=total&${WIN}`);
-    // The table twin: the web row, Social media and Teleshop/Other (parcels only) never link; AlterCPA does, exactly.
+    // The table twin: the web row, Social media and both Телешоп rows (parcels only) never link;
+    // Affiliate – Lead in (AlterCPA) does, exactly.
     const table = screen.getByRole('table');
+    // a row's links are named "<department> · <part>: n" — matched by the department's own label
+    const named = (key: string) => (name: string) => name.startsWith(`${i18n.t(`insights.common.source.${key}`)} ·`);
     expect(within(table).queryByRole('link', { name: /Веб-продавница/ })).toBeNull();
-    expect(within(table).queryByRole('link', { name: /Lead in/ })).toBeNull();
+    expect(within(table).queryByRole('link', { name: named('teleshopOther') })).toBeNull();
+    expect(within(table).queryByRole('link', { name: named('teleshop_out') })).toBeNull();
+    // …and Телешоп – Lead out (its 9102 parcels only, this week) is a row of its own
+    expect(within(table).getByText(i18n.t('insights.common.source.teleshop_out'))).toBeInTheDocument();
     // Social media (its 9108 parcels only, this week) is a row of its own and never links either
     expect(within(table).getByText(i18n.t('insights.common.source.social'))).toBeInTheDocument();
     expect(within(table).queryByRole('link', { name: /Социјални/ })).toBeNull();
-    const alterPaid = within(table).getByRole('link', { name: `AlterCPA · ${i18n.t('insights.common.bucket.paid')}: 70` });
+    const alterPaid = within(table).getByRole('link', { name: `${i18n.t('insights.common.source.altercpa')} · ${i18n.t('insights.common.bucket.paid')}: 70` });
     expect(alterPaid.getAttribute('href')).toBe(`/orders?cohort_bucket=paid%2Cpaid_legacy&cohort_source=altercpa&${WIN}`);
     expect(alterPaid.getAttribute('title')).toBeNull();
   });

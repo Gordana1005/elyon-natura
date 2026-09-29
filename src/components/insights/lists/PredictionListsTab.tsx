@@ -49,10 +49,13 @@ export function stripListsMoney(d: ListsResponse): ListsResponse {
 /**
  * Insights → Прогнозни списоци: which prediction lists make money.
  *
- * The ElyonCRM prediction-list slice of THE sale cohort (GET /insights/lists,
- * migration 20260941000400): sale day (Skopje), MEX-first parts that add up
- * to the total, value = parcel COD else price × 61,5. Σ lists + "list not
- * recorded" = the Overview's ElyonCRM · prediction_list split. Owners see
+ * The prediction-list slice of the Affiliate – Lead out department
+ * (`elyon_crm`) of THE sale cohort (GET /insights/lists, migration
+ * 20260941000400): sale day (Skopje), MEX-first parts that add up to the total,
+ * value = parcel COD else price × 61,5. Σ lists + "list not recorded" = the
+ * Overview's Affiliate – Lead out · prediction_list split, and every /orders
+ * link carries cohort_source=elyon_crm (a list sale shipped on a NATURA 9102 /
+ * 9100 / 9108 parcel is Телешоп / Social media, not this tab). Owners see
  * денари (meta.money); admins/managers the same page counted.
  *
  * In a DEV build `?lsFixture=1` (or `=nomoney`) renders the typed fixture —

@@ -27,7 +27,7 @@ const LEADS_PARTS = [
 
 /** "Дојдени во периодот" — the leads that came in, and what became of them
  *  (the parts are a partition of came_in). A separate small figure: leads are
- *  not sales and never add to the total. An ElyonCRM "no" call is a worked
+ *  not sales and never add to the total. A CRM "no" call is a worked
  *  decision (a cancel), said in its own line. */
 export function LeadsInCard({ leads, prev, f, className }: {
   leads: CohortLeadsIn | null | undefined;

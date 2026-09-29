@@ -157,7 +157,7 @@ export function floorStatus(u: UnitEconomics | null, targetMkd: number): FloorSt
  * courier − commission(P) = target, i.e. P = (1+r)(target + cost + courier +
  * commission). Commission is today's tier of the resulting price (1/2/3 € per
  * package) times the share of this product's packages that earn one (γ, from
- * the P&L: most teleshop / AlterCPA sellers are not agents). null without a cost.
+ * the P&L: most Телешоп / Affiliate – Lead in sellers are not agents). null without a cost.
  */
 export function floorPrice(cost: number | null, courier: number, target: number, vatRate: number, gamma: number): number | null {
   if (cost == null) return null;
@@ -230,3 +230,17 @@ export function simPriceFor(x: SimInput, targetPerPackage: number): number | nul
 }
 
 export const SOURCE_KEYS = PROFIT_SOURCES;
+
+/** The Pure Profit export's column names — the owner's six departments (28.09.2026),
+ *  kept English on purpose (export file content, elyon-i18n); no system names. */
+export const EXPORT_SOURCE_NAME: Record<(typeof PROFIT_SOURCES)[number] | 'total', string> = {
+  altercpa: 'Affiliate – Lead in',
+  elyon_crm: 'Affiliate – Lead out',
+  teleshop_out: 'Teleshop – Lead out',
+  teleshop_other: 'Teleshop – Lead in',
+  social: 'Social media',
+  web: 'Web shop',
+  total: 'Total',
+};
+/** The export's webmaster sheet (an Excel sheet name: ≤ 31 characters, no : \ / ? * [ ]). */
+export const EXPORT_AFFILIATES_SHEET = 'Affiliate – Lead in webmasters';

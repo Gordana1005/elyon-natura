@@ -2721,7 +2721,7 @@
       },
       "list": {
         "title": "Returns by prediction list",
-        "sub": "Teleshop – Lead out sales from the lists",
+        "sub": "Affiliate – Lead out sales from the lists",
         "empty": "No list sales in this period."
       },
       "dow": {
@@ -3049,7 +3049,7 @@
       },
       "timing": {
         "title": "When we sell",
-        "subtitle": "Weekday × hour (Skopje time) of {{n}} sales with a real moment — an AlterCPA / ElyonCRM decision or a web checkout.",
+        "subtitle": "Weekday × hour (Skopje time) of {{n}} sales with a real moment — an agent's decision or a web checkout.",
         "empty": "No timed sales in this period.",
         "peak": "Busiest: {{day}} at {{hour}}:00 — {{n}}",
         "legendLow": "Few",
@@ -3092,15 +3092,15 @@
         "series": {
           "s9110": "9110 LEADS",
           "s9103": "9103 LEADS-OUT",
-          "s9100": "9100 Teleshop",
-          "s9102": "9102 Teleshop",
+          "s9100": "9100 Teleshop – Lead in",
+          "s9102": "9102 Teleshop – Lead out",
           "s9108": "9108 Social media",
           "ntmk": "NTMK — web shop",
           "m": "M… — old web shop / other",
           "other": "Other",
           "none": "No parcel yet"
         },
-        "note": "An order keeps its own source — the bar shows which sources ship through each series."
+        "note": "The bar shows which sources ship through each series. The source is the order's own — except a CRM sale on a NATURA parcel (9102 / 9100 / 9108): it counts in Teleshop or Social media."
       },
       "quality": {
         "title": "Table coverage",
@@ -3134,8 +3134,8 @@
       "cohort": {
         "title": "Sold from the prediction lists · {{period}}",
         "titleNoMoney": "Sales from the prediction lists · {{period}}",
-        "tie": "= Overview · Teleshop – Lead out · Prediction lists: {{n}} · {{value}}",
-        "tieNoMoney": "= Overview · Teleshop – Lead out · Prediction lists: {{n}}"
+        "tie": "= Overview · Affiliate – Lead out · Prediction lists: {{n}} · {{value}}",
+        "tieNoMoney": "= Overview · Affiliate – Lead out · Prediction lists: {{n}}"
       },
       "kpi": {
         "title": "Key figures of the lists",
@@ -3270,11 +3270,11 @@
           "lists": "Σ {{n}} lists",
           "notRecorded": "List not recorded (a duplicate that lost its list)",
           "slice": "= All prediction-list sales",
-          "tieOk": "= Overview · Teleshop – Lead out · Prediction lists",
+          "tieOk": "= Overview · Affiliate – Lead out · Prediction lists",
           "tieBad": "Does not add up to the total — please report it",
-          "other": "Teleshop – Lead out · {{split}} (no list)",
-          "elyon": "= Teleshop – Lead out total",
-          "elyonHint": "The Overview's Teleshop – Lead out card: every Teleshop – Lead out sale, with or without a list."
+          "other": "Affiliate – Lead out · {{split}} (no list)",
+          "elyon": "= Affiliate – Lead out total",
+          "elyonHint": "The Overview's Affiliate – Lead out card: every Affiliate – Lead out sale, with or without a list."
         }
       },
       "detail": {
@@ -3409,8 +3409,9 @@
         "loading": "Loading"
       },
       "source": {
-        "altercpa": "AlterCPA",
-        "elyon_crm": "Teleshop – Lead out",
+        "altercpa": "Affiliate – Lead in",
+        "elyon_crm": "Affiliate – Lead out",
+        "teleshop_out": "Teleshop – Lead out",
         "web": "Web shop",
         "social": "Social media",
         "teleshopOther": "Teleshop – Lead in"
@@ -3434,22 +3435,24 @@
       "split": {
         "prediction_list": "Prediction lists",
         "direct": "Direct",
-        "collabbox_out": "Teleshop out (collabBox)",
+        "collabbox_out": "Order out (collabBox)",
+        "teleshop_out": "Order out (collabBox)",
         "collabbox_leads_out": "LEADS-OUT (collabBox)",
         "mex_teleshop": "Teleshop (MEX)",
         "mex_social": "Social media (MEX)",
         "mex_leads": "Unlinked parcels (LEADS)",
-        "mex_out": "Unlinked parcels (out / LEADS-OUT)",
-        "mex_in": "Unlinked parcels (in)",
+        "mex_leads_out": "Unlinked parcels (LEADS-OUT)",
+        "mex_out": "Unlinked parcels (Order out)",
+        "mex_in": "Unlinked parcels (Order in)",
         "mexOther": "Other (MEX)",
         "cod": "Cash on delivery",
         "card": "Card",
         "bridge": "Live bridge",
         "history": "Import 08.2026",
         "partner": "Partners (affiliate)",
-        "team_prediction": "Prediction by AlterCPA agents",
-        "team_collabbox_out": "Lead out (collabBox) by AlterCPA agents",
-        "team_collabbox_leads_out": "LEADS-OUT (collabBox) by AlterCPA agents",
+        "team_prediction": "Prediction by the Pending agents",
+        "team_collabbox_out": "Order out by the Pending agents",
+        "team_collabbox_leads_out": "LEADS-OUT by the Pending agents",
         "collabbox_leads": "LEADS (collabBox)",
         "teleshop": "Teleshop",
         "social": "Social media",
@@ -3504,8 +3507,8 @@
         "trashed": "Trashed",
         "other": "Other",
         "worked": "Worked (a decision taken): {{n}}",
-        "dispositionNote_one": "of which {{n}} ElyonCRM call without a sale — a decision, never a sale",
-        "dispositionNote_other": "of which {{n}} ElyonCRM calls without a sale — decisions, never sales"
+        "dispositionNote_one": "of which {{n}} CRM call without a sale — a decision, never a sale",
+        "dispositionNote_other": "of which {{n}} CRM calls without a sale — decisions, never sales"
       },
       "cash": {
         "title": "Cash in from MEX in the period",
@@ -3713,8 +3716,8 @@
         "all": "All teams"
       },
       "team": {
-        "pending": "Pending (AlterCPA leads)",
-        "prediction": "Prediction (ElyonCRM)",
+        "pending": "Pending (Affiliate – Lead in)",
+        "prediction": "Prediction (Affiliate – Lead out)",
         "management": "Management",
         "unassigned": "No team yet",
         "teleshop": "Teleshop"
@@ -4007,11 +4010,11 @@
       },
       "team": {
         "byKey": {
-          "altercpa_leads": "Pending — AlterCPA leads",
-          "crm_prediction": "Prediction — ElyonCRM",
+          "altercpa_leads": "Pending — Affiliate – Lead in",
+          "crm_prediction": "Prediction — Affiliate – Lead out",
           "management": "Management",
           "social": "Social media / collabBox",
-          "teleshop": "Teleshop – Lead in / collabBox",
+          "teleshop": "Teleshop / collabBox",
           "none": "No team"
         }
       },
@@ -4027,13 +4030,13 @@
         "noLinkGroup": "This group is not a team in Settings — there is no Orders list by team.",
         "partOfPerson": "Part of this person's sales are in another team — open the person.",
         "mode": {
-          "pending": "Leads from AlterCPA",
+          "pending": "Leads from Affiliate – Lead in",
           "prediction": "Calls from the prediction lists",
           "none": "Shown, not ranked"
         },
         "kind": {
           "social": "collabBox authors of social-media sales outside a team",
-          "teleshop": "collabBox authors of Lead in sales outside a team",
+          "teleshop": "collabBox authors of teleshop sales (Lead in and Lead out) outside a team",
           "none": "Activity of people outside a team"
         }
       },
@@ -4068,7 +4071,7 @@
         "sales": "Sales",
         "salesHint": "Sales credited to the person, by sale day — the same as the Overview",
         "sources": "Sources",
-        "sourcesHint": "AlterCPA · Teleshop – Lead out · Teleshop – Lead in · Social media",
+        "sourcesHint": "Affiliate – Lead in · Affiliate – Lead out · Teleshop – Lead out · Teleshop – Lead in · Social media · Web shop",
         "paid": "Paid",
         "paidHint": "MEX delivered the parcel and collected the COD",
         "paidShare": "Paid",
@@ -4178,7 +4181,7 @@
         },
         "hint": {
           "web_shop": "Web orders have no agent by nature.",
-          "mex_only": "Parcels no order holds — counted under the source their series names (LEADS, out, in, social media, web shop).",
+          "mex_only": "Parcels no order holds — counted under the source their series names (LEADS, LEADS-OUT, Order out, Order in, social media, web shop).",
           "altercpa_cancelled": "AlterCPA says cancelled or trash, so nobody is credited — but MEX took the parcel, so it is a sale.",
           "awaiting_stamp": "Approved in AlterCPA; the seller is assigned every 5 minutes.",
           "unmapped": "The seller is known only by a name or number nobody has linked to a person yet.",
@@ -4327,15 +4330,15 @@
         "note": "The columns add up to the total. Each source includes the MEX parcels with no order of its own series (their contents are unknown, so their cost is estimated)."
       },
       "aff": {
-        "title": "AlterCPA by webmaster",
-        "subtitle": "Under the AlterCPA column — the rows add up to it.",
+        "title": "Affiliate – Lead in by webmaster",
+        "subtitle": "Under the Affiliate – Lead in column — the rows add up to it.",
         "partner": "Webmaster",
         "sales": "Sales",
         "collected": "Collected",
         "parcels": "Parcels",
         "returnRate": "Return rate",
         "net": "Profit before lead cost",
-        "sum": "AlterCPA total",
+        "sum": "Affiliate – Lead in total",
         "none": "No webmaster on file",
         "unnamed": "WM {{id}}",
         "openN": "{{n}} open",
@@ -4416,7 +4419,7 @@
           "non_product_lines": "Loyalty points, delivery charges, notes and flyers are not counted as packages. A reviewed product alias overrides this.",
           "orders_without_lines": "Their value is carried by the order's own product.",
           "vat_unconfirmed": "18% on every sale until the accountant confirms whether supplements fall under the 5% or 10% rate.",
-          "lead_cost_missing": "AlterCPA profit is before what the leads cost: no price per lead is entered yet.",
+          "lead_cost_missing": "Affiliate – Lead in profit is before what the leads cost: no price per lead is entered yet.",
           "return_fee_unconfirmed": "The MEX rate card charges 0 for a return. Confirm whether MEX bills the delivery fee on returned parcels."
         }
       },
@@ -4425,7 +4428,7 @@
         "summaryHint": "Every line by source, for sales in the period and for money that arrived",
         "products": "Products",
         "productsHint": "Profit by product, cost coverage and returns",
-        "affiliates": "AlterCPA webmasters",
+        "affiliates": "Affiliate – Lead in webmasters",
         "affiliatesHint": "Profit per webmaster before lead cost"
       },
       "cache": {
@@ -5756,15 +5759,16 @@
       "of": "{{a}} of {{b}}"
     },
     "source": {
-      "altercpa": "AlterCPA",
-      "elyon_crm": "Teleshop – Lead out",
+      "altercpa": "Affiliate – Lead in",
+      "elyon_crm": "Affiliate – Lead out",
+      "teleshop_out": "Teleshop – Lead out",
       "web": "Web shop",
       "social": "Social media",
       "teleshopOther": "Teleshop – Lead in"
     },
     "saleSource": {
-      "altercpa": "AlterCPA",
-      "elyon_crm": "Teleshop – Lead out",
+      "altercpa": "Affiliate – Lead in",
+      "elyon_crm": "Affiliate – Lead out",
       "collabbox": "collabBox",
       "web": "Web",
       "affiliate": "Affiliate",
@@ -5777,8 +5781,13 @@
       "returning": "Returning customers",
       "prediction_list": "Prediction lists",
       "direct": "Direct",
-      "collabbox_out": "Teleshop out (collabBox)",
+      "collabbox_out": "Order out (collabBox)",
+      "teleshop_out": "Order out (collabBox)",
       "collabbox_leads_out": "LEADS-OUT (collabBox)",
+      "collabbox_leads": "LEADS (collabBox)",
+      "team_prediction": "Prediction by the Pending agents",
+      "team_collabbox_out": "Order out by the Pending agents",
+      "team_collabbox_leads_out": "LEADS-OUT by the Pending agents",
       "disposition": "Call outcomes",
       "teleshop": "Teleshop",
       "social": "Social media",
@@ -5829,8 +5838,8 @@
       "onlineNow": "{{n}} online now",
       "peopleOnline": "{{n}} people · {{online}} online",
       "mode": {
-        "pending": "Pending · AlterCPA leads",
-        "prediction": "Prediction · ElyonCRM",
+        "pending": "Pending · Affiliate – Lead in",
+        "prediction": "Prediction · Affiliate – Lead out",
         "management": "Management",
         "unassigned": "Not on a team yet"
       },

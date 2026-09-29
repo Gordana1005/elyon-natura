@@ -53,8 +53,10 @@ function compile(term: string): Pred {
   if (!m) throw new Error("cannot parse " + t);
   const [, col, neg, op, val] = m;
   const list = op === "in" ? splitTop(val.replace(/^\(|\)$/g, "")) : [];
-  // PostgREST `like`: * is the wildcard (SQL %); the values we send hold only digits
-  const like = op === "like" ? new RegExp(`^${val.split("*").map((x) => x.replace(/\W/g, "\\$&")).join(".*")}$`, "s") : null;
+  // PostgREST `like`: * is SQL's % (any run), _ stays SQL LIKE's one-character wildcard
+  const like = op === "like"
+    ? new RegExp(`^${val.split("*").map((x) => [...x].map((ch) => (ch === "_" ? "." : ch.replace(/\W/g, "\\$&"))).join("")).join(".*")}$`, "s")
+    : null;
   return (row) => {
     const v = row[col];
     let r: boolean | null;
@@ -352,27 +354,113 @@ describe("the verify script translates the twin to SQL faithfully", () => {
   });
 });
 
-// ── the five sources on /orders (migration 20260942000500) ──────────────────
-/** cohort_order_source(sale_source, sale_source_detail), verbatim. */
-const sqlSource = (ss: string | null, d: string | null): string =>
-  ss === "altercpa" || ss === "affiliate" ? "altercpa"
-    : ss === "elyon_crm" ? "elyon_crm"
-    : ss === "web" ? "web"
-    : ss === "collabbox" && (d === "social" || d === "1300") ? "social"
-    : "teleshop_other";
+// ── the six departments on /orders (migrations 20260942000500, 20260942001000) ─
+/** cohort_order_source(sale_source, sale_source_detail, mex_tracking_id), verbatim. */
+const sqlLike = (tr: string | null, s: string) => tr != null && new RegExp(`^...-${s}-`, "s").test(tr);
+const sqlSource = (ss: string | null, d: string | null, tr: string | null = null): string => {
+  const crm = (ss === "elyon_crm" && (d === "prediction_list" || d === "direct"))
+    || ((ss === "altercpa" || ss === "affiliate") && d === "team_prediction");
+  if (crm && ["9102", "9100", "9108", "1300"].some((s) => sqlLike(tr, s))) {
+    return sqlLike(tr, "9102") ? "teleshop_out" : sqlLike(tr, "9100") ? "teleshop_other" : "social";
+  }
+  if (ss === "collabbox" && d === "teleshop_out") return "teleshop_out";
+  if (ss === "elyon_crm" && d === "collabbox_out") return "teleshop_out";
+  if ((ss === "altercpa" || ss === "affiliate") && d === "team_collabbox_out") return "teleshop_out";
+  if ((ss === "altercpa" || ss === "affiliate") && (d === "team_prediction" || d === "team_collabbox_leads_out")) return "elyon_crm";
+  if (ss === "altercpa" || ss === "affiliate") return "altercpa";
+  if (ss === "elyon_crm") return "elyon_crm";
+  if (ss === "web") return "web";
+  if (ss === "collabbox" && (d === "social" || d === "1300")) return "social";
+  return "teleshop_other";
+};
 const SALE_SOURCES_ALL = ["altercpa", "affiliate", "elyon_crm", "web", "collabbox", "legacy", null];
-const DETAILS_ALL = ["social", "1300", "teleshop", "leads", "leads_out", "9225", "unknown", "bridge", "history",
-  "prediction_list", "direct", "collabbox_out", "collabbox_leads_out", "monadon_legacy", null];
-const SOURCE_ROWS: Row[] = SALE_SOURCES_ALL.flatMap((ss) => DETAILS_ALL.map((d) => ({ sale_source: ss, sale_source_detail: d })));
+const DETAILS_ALL = ["social", "1300", "teleshop", "teleshop_out", "leads", "leads_out", "9225", "unknown", "bridge", "history",
+  "partner", "prediction_list", "direct", "disposition", "collabbox_out", "collabbox_leads_out", "collabbox_leads",
+  "team_prediction", "team_collabbox_out", "team_collabbox_leads_out", "monadon_legacy", null];
+const TRACKINGS_ALL = [null, "002-9102-1/2026", "002-9100-1/2026", "002-9108-1/2026", "002-1300-1/2026", "002-9103-1/2026",
+  "002-9110-1/2026", "001-9102-1/2026", "NTMK62463", "M1234567", "3040231", "12-9102-1", "002-91021-1/2026"];
+const SOURCE_ROWS: Row[] = SALE_SOURCES_ALL.flatMap((ss) => DETAILS_ALL.flatMap((d) =>
+  TRACKINGS_ALL.map((tr) => ({ sale_source: ss, sale_source_detail: d, mex_tracking_id: tr }))));
+const srcOf = (r: Row) => sqlSource(r.sale_source as string | null, r.sale_source_detail as string | null, r.mex_tracking_id as string | null);
 
-describe("cohort_source — the twin of cohort_order_source(sale_source, detail)", () => {
-  it("every (sale_source, detail) lands in exactly the source SQL gives it, NULLs included", () => {
+/** Migration 20260942001000's install check ($check$), row for row. */
+const RULE_CASES: [string | null, string | null, string | null, string][] = [
+  ["elyon_crm", "prediction_list", "002-9102-1/2026", "teleshop_out"],
+  ["elyon_crm", "direct", "002-9102-1/2026", "teleshop_out"],
+  ["elyon_crm", "direct", "002-9100-1/2026", "teleshop_other"],
+  ["elyon_crm", "prediction_list", "002-9108-1/2026", "social"],
+  ["elyon_crm", "prediction_list", "002-1300-1/2026", "social"],
+  ["elyon_crm", "prediction_list", "002-9103-1/2026", "elyon_crm"],
+  ["elyon_crm", "prediction_list", "002-9110-1/2026", "elyon_crm"],
+  ["elyon_crm", "prediction_list", "NTMK62463", "elyon_crm"],
+  ["elyon_crm", "prediction_list", null, "elyon_crm"],
+  ["elyon_crm", "direct", null, "elyon_crm"],
+  ["altercpa", "team_prediction", "002-9102-5/2026", "teleshop_out"],
+  ["altercpa", "team_prediction", "002-9100-5/2026", "teleshop_other"],
+  ["altercpa", "team_prediction", "002-9103-5/2026", "elyon_crm"],
+  ["altercpa", "team_prediction", null, "elyon_crm"],
+  ["elyon_crm", "collabbox_leads_out", "002-9102-1/2026", "elyon_crm"],
+  ["elyon_crm", "collabbox_leads_out", null, "elyon_crm"],
+  ["elyon_crm", "disposition", "002-9100-1/2026", "elyon_crm"],
+  ["elyon_crm", null, null, "elyon_crm"],
+  ["altercpa", "bridge", "002-9102-1/2026", "altercpa"],
+  ["altercpa", "history", "002-9100-1/2026", "altercpa"],
+  ["altercpa", "collabbox_leads", null, "altercpa"],
+  ["altercpa", null, null, "altercpa"],
+  ["affiliate", "partner", null, "altercpa"],
+  ["altercpa", "team_collabbox_leads_out", "002-9103-1/2026", "elyon_crm"],
+  ["collabbox", "teleshop_out", "002-9102-1/2026", "teleshop_out"],
+  ["collabbox", "teleshop_out", null, "teleshop_out"],
+  ["elyon_crm", "collabbox_out", "002-9102-1/2026", "teleshop_out"],
+  ["elyon_crm", "collabbox_out", null, "teleshop_out"],
+  ["altercpa", "team_collabbox_out", null, "teleshop_out"],
+  ["collabbox", "teleshop", "002-9100-1/2026", "teleshop_other"],
+  ["collabbox", "teleshop", "002-9102-1/2026", "teleshop_other"],
+  ["collabbox", "leads", null, "teleshop_other"],
+  ["collabbox", "leads_out", null, "teleshop_other"],
+  ["collabbox", null, null, "teleshop_other"],
+  ["collabbox", "social", "002-9108-1/2026", "social"],
+  ["collabbox", "1300", null, "social"],
+  ["legacy", "social", null, "teleshop_other"],
+  ["legacy", "prediction_list", "002-9102-1/2026", "teleshop_other"],
+  ["web", "opencart", null, "web"],
+  ["web", "prediction_list", "002-9102-1/2026", "web"],
+  [null, null, null, "teleshop_other"],
+];
+
+describe("cohort_source — the twin of cohort_order_source(sale_source, detail, mex_tracking_id)", () => {
+  it("the migration's install table holds for the TS restatement", () => {
+    for (const [ss, d, tr, want] of RULE_CASES) expect(sqlSource(ss, d, tr), `${ss}/${d}/${tr}`).toBe(want);
+  });
+  it("every (sale_source, detail, parcel) lands in exactly the department SQL gives it, NULLs included", () => {
+    expect(SOURCE_ROWS.length).toBeGreaterThan(1500);
     for (const r of SOURCE_ROWS) {
       const hits = INSIGHTS_SOURCES.filter((k) => orMatches(COHORT_SOURCE_TERM[k], r));
-      expect(hits, JSON.stringify(r)).toEqual([sqlSource(r.sale_source as string | null, r.sale_source_detail as string | null)]);
+      expect(hits, JSON.stringify(r)).toEqual([srcOf(r)]);
     }
   });
-  it("collabBox is two sources: social documents (9108 / 1300) are Social media, the rest Teleshop / other", () => {
+  it("a CRM-made sale follows its parcel's NATURA series; nothing else does", () => {
+    const out = cohortSourceOrFilter(["teleshop_out"])!;
+    const lead = cohortSourceOrFilter(["elyon_crm"])!;
+    const row = (ss: string, d: string | null, tr: string | null) => ({ sale_source: ss, sale_source_detail: d, mex_tracking_id: tr });
+    expect(orMatches(out, row("elyon_crm", "prediction_list", "002-9102-177628/2026"))).toBe(true);
+    expect(orMatches(lead, row("elyon_crm", "prediction_list", "002-9102-177628/2026"))).toBe(false);
+    expect(orMatches(lead, row("elyon_crm", "prediction_list", "002-9103-177243/2026"))).toBe(true);
+    expect(orMatches(lead, row("elyon_crm", "prediction_list", null))).toBe(true);
+    expect(orMatches(cohortSourceOrFilter(["social"])!, row("elyon_crm", "direct", "002-9108-3481/2026"))).toBe(true);
+    expect(orMatches(cohortSourceOrFilter(["teleshop_other"])!, row("altercpa", "team_prediction", "002-9100-176395/2026"))).toBe(true);
+    // not CRM-made: an AlterCPA lead / a LEADS-OUT document stays put whatever its parcel
+    expect(orMatches(cohortSourceOrFilter(["altercpa"])!, row("altercpa", "bridge", "002-9102-1/2026"))).toBe(true);
+    expect(orMatches(lead, row("elyon_crm", "collabbox_leads_out", "002-9102-1/2026"))).toBe(true);
+    // Нарачка out by its folder, as stored before and after the reclass
+    for (const r of [row("collabbox", "teleshop_out", null), row("elyon_crm", "collabbox_out", null), row("altercpa", "team_collabbox_out", null)]) {
+      expect(orMatches(out, r), JSON.stringify(r)).toBe(true);
+    }
+    // only the MEX shape NNN-SSSS-… names a series (what LIKE '___-9102-%' reads; every live id has it)
+    expect(orMatches(out, row("elyon_crm", "prediction_list", "12-9102-1"))).toBe(false);
+    expect(orMatches(out, row("elyon_crm", "prediction_list", "002-91021-1/2026"))).toBe(false);
+  });
+  it("collabBox is four departments: Нарачка out, Lead in, Social media — by detail", () => {
     const f = cohortSourceOrFilter(["social"])!;
     expect(orMatches(f, { sale_source: "collabbox", sale_source_detail: "social" })).toBe(true);
     expect(orMatches(f, { sale_source: "collabbox", sale_source_detail: "1300" })).toBe(true);
@@ -384,26 +472,31 @@ describe("cohort_source — the twin of cohort_order_source(sale_source, detail)
     expect(orMatches(t, { sale_source: "legacy", sale_source_detail: "monadon_legacy" })).toBe(true);
     expect(orMatches(t, { sale_source: null, sale_source_detail: null })).toBe(true);
     expect(orMatches(t, { sale_source: "collabbox", sale_source_detail: "social" })).toBe(false);
-    // ElyonCRM's collabBox "out" documents (owner 28.09) are ElyonCRM's, never Teleshop's
+    expect(orMatches(t, { sale_source: "collabbox", sale_source_detail: "teleshop_out" })).toBe(false);
     expect(orMatches(t, { sale_source: "elyon_crm", sale_source_detail: "collabbox_out" })).toBe(false);
     expect(orMatches(cohortSourceOrFilter(["elyon_crm"])!, { sale_source: "elyon_crm", sale_source_detail: "collabbox_leads_out" })).toBe(true);
   });
-  it("several keys = any of them; none or all five = no filter; unknown keys are refused", () => {
-    const f = cohortSourceOrFilter(["social", "altercpa"])!;
-    for (const r of SOURCE_ROWS) {
-      const want = ["social", "altercpa"].includes(sqlSource(r.sale_source as string | null, r.sale_source_detail as string | null));
-      expect(orMatches(f, r), JSON.stringify(r)).toBe(want);
+  it("several keys = any of them; none or all six = no filter; unknown keys are refused", () => {
+    for (const keys of [["social", "altercpa"], ["elyon_crm", "teleshop_out"], ["teleshop_out", "teleshop_other", "web"]]) {
+      const f = cohortSourceOrFilter(keys)!;
+      for (const r of SOURCE_ROWS) expect(orMatches(f, r), `${keys} ${JSON.stringify(r)}`).toBe(keys.includes(srcOf(r)));
     }
     expect(cohortSourceOrFilter([])).toBeNull();
     expect(cohortSourceOrFilter([...INSIGHTS_SOURCES])).toBeNull();
     expect(parseCohortSourceParam(null)).toEqual({ ok: true, values: [] });
     expect(parseCohortSourceParam("social,teleshop_other")).toEqual({ ok: true, values: ["social", "teleshop_other"] });
+    expect(parseCohortSourceParam("teleshop_out")).toEqual({ ok: true, values: ["teleshop_out"] });
     expect(parseCohortSourceParam("collabbox")).toEqual({ ok: false, bad: "collabbox" });
   });
-  it("the verify script translates it (the same SQL PostgREST runs)", () => {
+  it("the verify script translates it (the same SQL PostgREST runs), and the URL stays short", () => {
     for (const k of INSIGHTS_SOURCES) expect(() => pgrstOrToSql(cohortSourceOrFilter([k])!)).not.toThrow();
-    expect(pgrstOrToSql(cohortSourceOrFilter(["social"])!))
-      .toBe("(((o.sale_source = 'collabbox') AND (o.sale_source_detail::text IN ('social', '1300'))))");
+    expect(pgrstTermToSql("mex_tracking_id.like.___-9102-*")).toBe("(o.mex_tracking_id LIKE '___-9102-%')");
+    expect(pgrstTermToSql("mex_tracking_id.not.like.___-9102-*")).toBe("(NOT (o.mex_tracking_id LIKE '___-9102-%'))");
+    // the longest cohort_source a link can carry: five of the six departments
+    for (const k of INSIGHTS_SOURCES) {
+      const five = cohortSourceOrFilter(INSIGHTS_SOURCES.filter((x) => x !== k))!;
+      expect(five.length, k).toBeLessThan(1800);
+    }
   });
 });
 
@@ -414,8 +507,9 @@ describe("access, sources, windows", () => {
     expect(insightsAccess(false, true)).toBe("counts");
     expect(insightsAccess(false, false)).toBe("forbidden");
   });
-  it("sources default to all five and reject unknown keys", () => {
-    expect(parseSourcesParam(null)).toEqual({ ok: true, values: ["altercpa", "elyon_crm", "teleshop_other", "social", "web"] });
+  it("sources default to all six and reject unknown keys", () => {
+    expect(parseSourcesParam(null)).toEqual({ ok: true, values: ["altercpa", "elyon_crm", "teleshop_out", "teleshop_other", "social", "web"] });
+    expect(parseSourcesParam("teleshop_out")).toEqual({ ok: true, values: ["teleshop_out"] });
     expect(parseSourcesParam("social")).toEqual({ ok: true, values: ["social"] });
     expect(parseSourcesParam("web,altercpa")).toEqual({ ok: true, values: ["web", "altercpa"] });
     expect(parseSourcesParam("collabbox").ok).toBe(false);

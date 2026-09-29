@@ -16,7 +16,8 @@
 import { apiFetch } from '@/lib/api';
 import type { CohortBucket, CohortOutside } from '@/components/insights/shared/cohortTypes';
 
-export const PROFIT_SOURCES = ['altercpa', 'elyon_crm', 'teleshop_other', 'social', 'web'] as const;
+/** The six departments, in the owner's order (28.09.2026) — the P&L's columns. */
+export const PROFIT_SOURCES = ['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web'] as const;
 export type ProfitSourceKey = (typeof PROFIT_SOURCES)[number];
 
 export interface PLRow {

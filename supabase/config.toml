@@ -19,3 +19,9 @@ verify_jwt = false
 # the read-only elyon_crm_reader role (WEB_SHOP_DB_URL) — never writes to it.
 [functions.web-sync]
 verify_jwt = false
+
+# collabBox nightly sync + live bookings (20260942000900): pg_cron caller, x-collabbox-sync-secret
+# header checked in code (fails closed when COLLABBOX_SYNC_SECRET is unset). Reads collabBox
+# read-only (COLLABBOX_USER / COLLABBOX_PASS) - never writes to it.
+[functions.collabbox-sync]
+verify_jwt = false

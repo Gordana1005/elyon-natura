@@ -11,7 +11,8 @@ const DOWS = [1, 2, 3, 4, 5, 6, 7] as const;
 
 /**
  * "Кога продаваме" — weekday × hour (Skopje) of the sales that carry a real
- * moment: an AlterCPA / ElyonCRM decision, a web checkout. collabBox orders
+ * moment: an agent's decision (in the CRM or the AlterCPA panel), a web
+ * checkout. collabBox orders
  * carry a date only and a MEX-only parcel's time is its label, so they are
  * counted apart — never smeared into the grid. The grid is a table: every
  * cell prints its number; the blue ramp only helps the eye (legend below).

@@ -10,7 +10,8 @@
  * v_sales_work decisions (conversion = sale decisions ÷ worked); time =
  * agent_presence_days (recorded since `meta.presence_since`). A team counts
  * each event in the team the person was in THAT day ('teleshop' = collabBox
- * sales outside a team, 'none' = anything else outside a team).
+ * Телешоп sales — Lead in and Lead out — outside a team, 'social' = collabBox
+ * social-media sales outside a team, 'none' = anything else outside a team).
  *
  * Money keys (`*_mkd`, денари — render with formatDenari, never convert) are
  * owners only: an admin / manager gets the same payload with every money key
@@ -36,14 +37,23 @@ export interface PeopleOutside {
   trashed_after_sale: number;
   replacement: number;
 }
+/** A person's (a team's) sales per department — the owner's six (28.09.2026). */
 export interface PeopleBySource {
+  /** Affiliate – Lead in. */
   altercpa: number;
+  /** Affiliate – Lead out. */
   elyon_crm: number;
+  /** Телешоп – Lead out: collabBox "Нарачка out" documents, CRM sales on a 9102 parcel (new 28.09). */
+  teleshop_out: number;
+  /** Телешоп – Lead in. */
+  teleshop_other: number;
   /** Social media — collabBox social documents (+ their MEX-only parcels), migration 20260942000500. */
   social: number;
-  teleshop_other: number;
   web: number;
 }
+
+/** The department keys, in the owner's order. */
+export type PeopleSourceKey = keyof PeopleBySource;
 export interface PeoplePresence {
   days: number;
   online_min: number | null;
@@ -106,7 +116,7 @@ export interface PeopleMember extends PeopleMeasures {
 }
 
 /** social / teleshop: the pseudo-groups of sellers with no team whose sales are Social media /
- *  Teleshop (collabBox authors); none: anyone else outside a team. */
+ *  Телешоп — Lead in or Lead out (collabBox authors); none: anyone else outside a team. */
 export type TeamKind = 'team' | 'social' | 'teleshop' | 'none';
 
 export interface PeopleTeam extends PeopleMeasures {
@@ -129,7 +139,7 @@ export type NoSellerReason =
 
 export interface NoSellerRow {
   reason: NoSellerReason;
-  source: 'altercpa' | 'elyon_crm' | 'web' | 'social' | 'teleshop_other';
+  source: PeopleSourceKey;
   /** web: cod | card · mex_only: the channel split · unmapped: sold_via. */
   detail: string | null;
   count: number;
@@ -147,7 +157,7 @@ export interface PeopleTotals {
   with_person_mkd?: number;
   without_person: number;
   without_person_mkd?: number;
-  by_source: { key: 'altercpa' | 'elyon_crm' | 'web' | 'social' | 'teleshop_other'; sales: number; with_person: number; value_mkd?: number; with_person_mkd?: number }[];
+  by_source: { key: PeopleSourceKey; sales: number; with_person: number; value_mkd?: number; with_person_mkd?: number }[];
   worked: number;
   sale_decisions: number;
   cancel_decisions: number;
