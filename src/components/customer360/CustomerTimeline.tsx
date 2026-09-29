@@ -7,6 +7,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { departmentLabel } from '@/lib/orderSource';
 import {
   AlertTriangle, ChevronDown, ChevronRight, Copy, ExternalLink, Globe, ListChecks, Loader2,
   MapPin, Megaphone, PhoneCall, ShoppingBag, StickyNote, Truck, Wallet,
@@ -65,13 +66,16 @@ function Pill({ tone, children, title }: { tone: Tone; children: ReactNode; titl
   );
 }
 
-function SourceBadge({ e }: { e: Pick<TimelineEvent, 'kind' | 'source' | 'source_detail'> }) {
+function SourceBadge({ e }: { e: Pick<TimelineEvent, 'kind' | 'source' | 'source_detail' | 'department'> }) {
   const { t } = useTranslation();
+  // An order names its DEPARTMENT (the six, by collabBox folder / MEX profile); the stored
+  // source vocabulary is only the fallback for an older api and for non-order events.
+  const dept = e.kind === 'order' ? departmentLabel(t, e.department) : null;
   const key = sourceKey(e);
-  if (!key) return null;
+  if (!dept && !key) return null;
   return (
     <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-medium">
-      {t(`customer360.source.${key}`)}
+      {dept || t(`customer360.source.${key}`)}
     </Badge>
   );
 }

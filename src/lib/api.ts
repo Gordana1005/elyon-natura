@@ -1196,6 +1196,8 @@ export interface TimelineEvent {
   status?: string;
   source?: string;
   source_detail?: string;
+  /** The order's department (cohort_order_source, 20260942001700) — order events only. */
+  department?: string | null;
   title?: string;
   who?: string;
   text?: string;
