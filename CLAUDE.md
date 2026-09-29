@@ -133,6 +133,17 @@ target **explicitly** and verify it before running:
   - Superseded — never reintroduce: the AlterCPA-team override (`team_*` details, withdrawn by
     `20260942001100`), "Lead out = CRM + 9102 + 9103", the `crm_since` gate (information only).
   - The 10-day no-parcel rule keeps its population (AlterCPA approvals only).
+  - **A dead order is revived only by its own folder's parcel** (`mayReviveWith`,
+    `supabase/functions/mex-reconcile/match.ts`, 29.09): a cancelled / trashed AlterCPA lead by a
+    9110 parcel, a CRM sale by a 9103 one — a teleshop / social / web parcel on the same phone is
+    another department's sale (repair `a057bc52` reverted 145 such revivals).
+  - Every order shows its department and seller: `order_departments(ids)` (the Orders list) and
+    `order_origin(id)` (the order window's "Origin and proof": MEX profile, status, COD, receiver,
+    collabBox document, AlterCPA decision). Display only — `confirmed_by_*` stay untouched.
+- **One calculation everywhere (owner, 29.09):** Табла for admins IS the Insights Overview; Операции
+  counts today from `insights_cohort` (the Skopje day) + `leaderboard_day_v2`; the TV leaderboard is
+  `leaderboard_day_v2` (one row per agent split by department, managers shown not ranked, no bonus).
+  Never add a figure that counts orders another way — read the cohort.
 - **Every source refreshes at least every 15 minutes (owner, 29.09; `20260942001300`)**; MEX — both
   APIs, BIO NATURAL and NATURA — is the final proof of shipped / paid / returned. AlterCPA: new leads
   every 2 min, outcomes every 5 min 07:00–20:55. MEX: both accounts in one sweep every 15 min
@@ -193,7 +204,7 @@ before non-trivial work on money, phones, warehouse, stock, webhooks, or fulfilm
 - `elyon-affiliates` — The CPA/partner system and the hard wall that keeps external logins out of staff surfaces.
 - `elyon-altercpa-bridge` — The AlterCPA lead mirror: ledger-first, callable geos, offer mapping, and why foreign leads must never reach `orders`. Read before touching `altercpa_*` or multi-country intake.
 - `elyon-logistics-costs` — Courier rate card, return round-trip loss, and Pure Profit actuals.
-- `elyon-presence-and-leaderboard` — Presence minutes + the 30-min idle alert, sales people / identities / teams, the write-once `orders.sold_*` stamps (who is credited with a sale, the stamping cron), the TV leaderboard and Settings → Teams.
+- `elyon-presence-and-leaderboard` — Presence minutes + the 30-min idle alert, sales people / identities / teams, the write-once `orders.sold_*` stamps (who is credited with a sale, the stamping cron), the TV leaderboard v2 (`leaderboard_day_v2`, one row per agent split by department) and Settings → Teams.
 - `elyon-web-shop-bridge` — The read-only naturatherapy.mk mirror (`web_orders`, web-sync every 15 min, `crm_export` on the shop side). Web orders are NOT CRM orders; the live shop gets no changes.
 - `elyon-customer360-and-integrations` — Customer 360 (`customer_timeline`, last-8 matching, money stripped for non-owners) and Settings → Integrations health (freshness thresholds kept in step with the Overview, the 7-day rule's owner switch).
 - `elyon-departments-and-sources` — The six departments (collabBox folder + MEX profile), `cohort_order_source`, the parcel split, `sale_source_reclass` and its rollbacks. Law for anything that says where a sale belongs.

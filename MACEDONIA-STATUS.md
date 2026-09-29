@@ -14,7 +14,70 @@ operation. It shares **nothing at runtime** with Bulgaria (own repo / own Supaba
 
 ---
 
-## 🟢 Current state: 28.09.2026 release
+## 🟢 Current state: 29.09.2026
+
+> Where to continue: **`docs/handoff/2026-09-29/CONTINUE-HERE.md`**. The owner's open decisions (in
+> Macedonian): **`docs/handoff/2026-09-29/PRASHANJA-ZA-MILE.md`**. Verified facts:
+> `docs/handoff/2026-09-29/FACTS.md`.
+
+- **Supabase:** 256 migrations, latest `20260942001600`. Since the 28.09 release:
+  - `…0900` collabBox sync (live);
+  - `…1000` six departments;
+  - `…1100` departments by folder;
+  - `…1200` leaderboard v2;
+  - `…1300` every source every 15 min;
+  - `…1400` freshness follows the schedules;
+  - `…1500` `order_departments`;
+  - `…1600` `order_origin`.
+- **Edge functions:**
+  - `api` redeployed 29.09 09:05;
+  - `mex-reconcile` 29.09 05:05 (folder guard);
+  - `collabbox-sync` 28.09;
+  - `altercpa-sync` / `web-sync` unchanged.
+- **Six departments, by the collabBox FOLDER and the MEX profile** (owner law 28–29.09, whole history):
+  Affiliate – Lead in · Affiliate – Lead out · Телешоп – Lead out · Телешоп – Lead in · Социјални мрежи ·
+  Web. See CLAUDE.md and the skill `elyon-departments-and-sources`.
+  - September 01–28 (cohort, 04:55, before the cross-channel repair; the repair moved ~10 parcels):
+
+    | Department | Sales | Денари |
+    |---|---:|---:|
+    | Affiliate in | 2.391 | 7.153.500 |
+    | Affiliate out | 834 | 2.367.046 |
+    | Телешоп out | 2.172 | 4.987.661 |
+    | Телешоп in | 1.387 | 2.864.465 |
+    | Social | 225 | 424.560 |
+    | Web | 447 | 940.504 |
+    | **Total** | **7.456** | **18.737.736** |
+- **Every source at least every 15 min, MEX both accounts = final proof:**
+  - MEX: every 15 min, 06:00–22:59;
+  - collabBox: a full pass every 15 min, 07:00–22:59, plus 00:00;
+  - AlterCPA: every 2 min, and every 5 min for statuses;
+  - web: every 15 min.
+- **One calculation everywhere:**
+  - Табла for admins = the Insights Overview;
+  - Операции counts today from the cohort and the TV board;
+  - TV leaderboard v2 = one row per agent split by department, managers shown not ranked, no bonus;
+  - Orders list shows each order's seller and department;
+  - the order window shows "Origin and proof".
+- **Data, 29.09 night–morning:**
+  - collabBox history 06.04 → 26.09 read through the sync (0 errors);
+  - AlterCPA 90-day sweep;
+  - MEX 60-day sweep, both accounts.
+- **Repairs, 29.09:**
+  - `cross-channel-parcels` `a057bc52`: 145 AlterCPA leads that the old reconcile had revived on
+    NATURA teleshop / social parcels were reverted;
+  - their 125 collabBox documents were re-applied as their own orders (run `4cdb427f`);
+  - Pure Profit cache refreshed.
+- **Checks, 29.09 09:00, September and July:** engine fixture, insights-ties, every verify-tab and
+  verify-leaderboard-v2 PASS. The only open ones:
+  - `verify-attribution` C7 / C8b are the known AlterCPA leftovers and the 11.08 ruling;
+  - lists L8 flickers while lists recompute.
+
+  1.169 tests pass (7 Insights tests time out only under parallel load).
+- **Deferred by the owner:** payouts / bonus (new metrics coming); costs and lead cost; stock count
+  (placeholder 1.000).
+
+## 🟢 Earlier state: 28.09.2026 release
 
 > How the system works now: **`docs/how-it-works.md`**. Steps still to do and what to check:
 > **`docs/handoff/2026-09-28/FINISH-FROM-VSCODE.md`**.
