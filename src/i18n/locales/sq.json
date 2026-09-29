@@ -1140,7 +1140,17 @@
     "offlineAgents": "Agjentë offline ({{count}})",
     "offline": "Offline",
     "pending": "Në pritje",
-    "today": "Sot"
+    "today": "Sot",
+    "salesToday": "Shitje sot",
+    "salesValueToday": "Vlera e shitjeve sot",
+    "toPackToday": "Në magazinë për paketim",
+    "collectedToday": "Të arkëtuara sot (MEX)",
+    "collectedValueToday": "Para të arkëtuara sot (MEX)",
+    "returnsToday": "Të kthyera sot (MEX)",
+    "sales": "Shitje",
+    "worked": "Të punuara",
+    "byDepartment": "Shitje sot sipas departamentit",
+    "kpiNote": "Të njëjtat shifra si Insights → Pasqyra: dita e shitjes, gjashtë departamentet, MEX është prova."
   },
   "segments": {
     "category": {

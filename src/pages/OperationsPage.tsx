@@ -6,7 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { apiGetOperationsCenter, apiGetActiveCallViews } from '@/lib/api';
 import { cn } from '@/lib/utils';
-import { formatMoney } from '@/lib/currency';
+import { formatDenari } from '@/lib/currency';
+import { departmentLabel } from '@/lib/orderSource';
 import { EmptyState } from '@/components/EmptyState';
 import {
   Activity, Users, ShoppingCart, Truck, RotateCcw, Banknote,
@@ -23,18 +24,24 @@ interface AgentInfo {
   in_call?: boolean;
   login_time: string | null;
   active_leads: number;
-  today_confirmed: number;
-  today_total: number;
+  /** The day's credited sales (sales + counted collabBox bookings) and worked
+   *  decisions — leaderboard_day_v2, the TV board's numbers. */
+  sales_today: number;
+  worked_today: number;
 }
 
 interface OpsData {
+  /** Today in the Overview's terms (GET /operations-center, 29.09.2026): the sale
+   *  cohort of the Skopje day, the MEX money that landed, the MEX returns. The
+   *  *_mkd keys come only for business owners. */
   kpi: {
-    total_orders_today: number;
-    confirmed_today: number;
-    shipped_today: number;
+    sales_today: number;
+    sales_value_today_mkd?: number;
+    to_pack_today: number;
+    collected_today: number;
+    collected_value_today_mkd?: number;
     returned_today: number;
-    paid_today: number;
-    revenue_today: number;
+    by_department: { key: string; count: number }[];
   };
   agents: AgentInfo[];
   agents_online: number;
@@ -97,12 +104,16 @@ export default function OperationsPage() {
   const offlineAgents = agents.filter(a => !a.is_online);
 
   const kpiCards = [
-    { label: t('ops.ordersToday'), value: kpi?.total_orders_today || 0, icon: ShoppingCart, color: 'bg-primary/10 text-primary' },
-    { label: t('status.confirmed'), value: kpi?.confirmed_today || 0, icon: CheckCircle2, color: 'bg-emerald-500/10 text-emerald-600' },
-    { label: t('status.shipped'), value: kpi?.shipped_today || 0, icon: Truck, color: 'bg-blue-500/10 text-blue-600' },
-    { label: t('status.paid'), value: kpi?.paid_today || 0, icon: Banknote, color: 'bg-violet-500/10 text-violet-600' },
-    { label: t('ops.returns'), value: kpi?.returned_today || 0, icon: RotateCcw, color: (kpi?.returned_today || 0) > 0 ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground' },
-    { label: t('ops.todaysRevenue'), value: formatMoney(kpi?.revenue_today || 0), icon: TrendingUp, color: 'bg-emerald-500/10 text-emerald-600' },
+    { label: t('ops.salesToday'), value: kpi?.sales_today || 0, icon: ShoppingCart, color: 'bg-primary/10 text-primary' },
+    ...(kpi?.sales_value_today_mkd != null
+      ? [{ label: t('ops.salesValueToday'), value: formatDenari(kpi.sales_value_today_mkd), icon: TrendingUp, color: 'bg-primary/10 text-primary' }]
+      : []),
+    { label: t('ops.toPackToday'), value: kpi?.to_pack_today || 0, icon: CheckCircle2, color: 'bg-amber-500/10 text-amber-600' },
+    { label: t('ops.collectedToday'), value: kpi?.collected_today || 0, icon: Truck, color: 'bg-emerald-500/10 text-emerald-600' },
+    ...(kpi?.collected_value_today_mkd != null
+      ? [{ label: t('ops.collectedValueToday'), value: formatDenari(kpi.collected_value_today_mkd), icon: Banknote, color: 'bg-emerald-500/10 text-emerald-600' }]
+      : []),
+    { label: t('ops.returnsToday'), value: kpi?.returned_today || 0, icon: RotateCcw, color: (kpi?.returned_today || 0) > 0 ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground' },
   ];
 
   return (
@@ -133,7 +144,8 @@ export default function OperationsPage() {
           </div>
         </div>
 
-        {/* KPI Grid */}
+        {/* KPI Grid — the Overview's numbers for today */}
+        <p className="text-xs text-muted-foreground -mb-3">{t('ops.kpiNote')}</p>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {kpiCards.map(card => (
             <Card key={card.label} className="border-none shadow-sm">
@@ -149,6 +161,18 @@ export default function OperationsPage() {
             </Card>
           ))}
         </div>
+
+        {(kpi?.by_department?.length ?? 0) > 0 && (
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="text-muted-foreground">{t('ops.byDepartment')}:</span>
+            {kpi!.by_department.map((d) => (
+              <Badge key={d.key} variant="outline" className="gap-1.5 font-normal">
+                {departmentLabel(t, d.key) || d.key}
+                <span className="font-semibold tabular-nums">{d.count}</span>
+              </Badge>
+            ))}
+          </div>
+        )}
 
         {/* Live Agent Activity Widget */}
         <Card className="border-none shadow-sm">
@@ -236,12 +260,12 @@ export default function OperationsPage() {
                         <p className="text-muted-foreground">{t('ops.active')}</p>
                       </div>
                       <div className="text-center">
-                        <p className="font-bold text-emerald-600">{agent.today_confirmed}</p>
-                        <p className="text-muted-foreground">{t('status.confirmed')}</p>
+                        <p className="font-bold text-emerald-600">{agent.sales_today}</p>
+                        <p className="text-muted-foreground">{t('ops.sales')}</p>
                       </div>
                       <div className="text-center">
-                        <p className="font-bold">{agent.today_total}</p>
-                        <p className="text-muted-foreground">{t('ops.total')}</p>
+                        <p className="font-bold">{agent.worked_today}</p>
+                        <p className="text-muted-foreground">{t('ops.worked')}</p>
                       </div>
                     </div>
                   </div>
@@ -279,8 +303,8 @@ export default function OperationsPage() {
                         <p className="text-muted-foreground">{t('ops.pending')}</p>
                       </div>
                       <div className="text-center">
-                        <p className="font-bold">{agent.today_total}</p>
-                        <p className="text-muted-foreground">{t('ops.today')}</p>
+                        <p className="font-bold">{agent.sales_today}</p>
+                        <p className="text-muted-foreground">{t('ops.sales')}</p>
                       </div>
                     </div>
                   </div>

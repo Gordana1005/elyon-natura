@@ -19264,53 +19264,43 @@ async function handleRequest(req: Request): Promise<Response> {
       // "Today" is the Skopje day. The edge runtime runs in UTC, so the old
       // setHours(0) started the day at 02:00 Skopje (summer) and dated the
       // shift logs by the UTC date (skopje-day-boundary rule, 2026-08-11).
-      const { startISO: todayISO, day: todayDateStr } = skopjeDayStart();
+      const { day: todayDateStr } = skopjeDayStart();
 
-      // Today's orders by status
-      const { data: todayOrders } = await adminClient
-        .from("orders")
-        .select("id, status, price, assigned_agent_id, assigned_agent_name, updated_at, created_at")
-        .gte("created_at", todayISO);
-
-      const confirmed = (todayOrders || []).filter((o: any) => o.status === "confirmed").length;
-      const shipped = (todayOrders || []).filter((o: any) => o.status === "shipped").length;
-      const returned = (todayOrders || []).filter((o: any) => o.status === "returned").length;
-      const paid = (todayOrders || []).filter((o: any) => o.status === "paid").length;
-      const todayRevenue = (todayOrders || [])
-        .filter((o: any) => ["shipped", "paid"].includes(o.status))
-        .reduce((s: number, o: any) => s + Number(o.price || 0), 0);
-      const totalToday = (todayOrders || []).length;
-
-      // Daily activity KPIs — strictly from actual status *transitions* recorded today via order_history.
-      // This is the accurate "what we closed / processed today" (e.g. via BigArena CSV upload).
-      // An order appears here on the calendar day its status actually became 'paid'/'returned' etc.
-      // This prevents duplication and gives real operational visibility separate from cohort-by-created_at numbers.
-      const todayHistory = await adminClient
-        .from("order_history")
-        .select("order_id, to_status, changed_at")
-        .gte("changed_at", todayISO)
-        .in("to_status", ["confirmed", "shipped", "paid", "returned"]);
-
-      const todayTransitionOrderIds = new Set((todayHistory.data || []).map((h: any) => h.order_id));
-
-      // Fetch current details only for orders that had relevant transitions today
-      let todayTransitionOrders: any[] = [];
-      if (todayTransitionOrderIds.size > 0) {
-        const ids = Array.from(todayTransitionOrderIds);
-        const { data: ords } = await adminClient
-          .from("orders")
-          .select("id, status, price")
-          .in("id", ids);
-        todayTransitionOrders = ords || [];
+      // Today, in the Overview's terms (owner 29.09.2026: "Табла, Insights and Operations —
+      // synchronised, one calculation"): the sale cohort of the Skopje day (insights_cohort —
+      // sale day, the six departments, MEX first), the MEX money that landed today, the MEX
+      // returns today, and per person the day's credited sales and worked decisions
+      // (leaderboard_day_v2 — the TV board's numbers). Money keys only for business owners.
+      const opsOwner = await isBusinessOwner(user.id);
+      const opsDay = skopjeDayRange(todayDateStr);
+      const [opsCohortRes, opsBoardRes, opsReturnedRes] = await Promise.all([
+        adminClient.rpc("insights_cohort", {
+          p_from: opsDay.startISO, p_to_end: opsDay.endISO, p_prev_from: null, p_prev_to_end: null,
+          p_sources: [...IC.INSIGHTS_SOURCES], p_money: opsOwner,
+        }),
+        adminClient.rpc("leaderboard_day_v2", { p_day: todayDateStr, p_department: null, p_team: null }),
+        adminClient.from("mex_parcels").select("tracking_id", { count: "exact", head: true })
+          .gte("returned_at", opsDay.startISO).lt("returned_at", opsDay.endISO),
+      ]);
+      if (opsCohortRes.error) console.error("operations-center insights_cohort:", opsCohortRes.error.message);
+      if (opsBoardRes.error) console.error("operations-center leaderboard_day_v2:", opsBoardRes.error.message);
+      const opsCo = (opsCohortRes.data ?? {}) as any;
+      const opsBucket = (k: string) => ((opsCo.buckets || []) as any[]).find((x) => x.key === k) ?? {};
+      const opsKpi: Record<string, unknown> = {
+        sales_today: Number(opsCo.total?.count ?? 0),
+        to_pack_today: Number(opsBucket("to_pack").count ?? 0),
+        collected_today: Number(opsCo.cash_flow?.parcels ?? 0),
+        returned_today: Number(opsReturnedRes.count ?? 0),
+        by_department: ((opsCo.by_source || []) as any[]).map((x) => ({ key: x.key, count: Number(x.total?.count ?? 0) })),
+      };
+      if (opsOwner) {
+        opsKpi.sales_value_today_mkd = Number(opsCo.total?.value_mkd ?? 0);
+        opsKpi.collected_value_today_mkd = Number(opsCo.cash_flow?.cod_mkd ?? 0);
       }
-
-      const confirmedToday = todayTransitionOrders.filter((o: any) => o.status === "confirmed").length;
-      const shippedToday = todayTransitionOrders.filter((o: any) => o.status === "shipped").length;
-      const returnedToday = todayTransitionOrders.filter((o: any) => o.status === "returned").length;
-      const paidToday = todayTransitionOrders.filter((o: any) => o.status === "paid").length;
-      const revenueToday = todayTransitionOrders
-        .filter((o: any) => o.status === "paid")
-        .reduce((s: number, o: any) => s + Number(o.price || 0), 0);
+      const opsByUser: Record<string, { sales: number; worked: number }> = {};
+      for (const r of (((opsBoardRes.data as any)?.rows) || []) as any[]) {
+        if (r.user_id) opsByUser[r.user_id] = { sales: Number(r.total_count ?? 0), worked: Number(r.worked ?? 0) };
+      }
 
       // Online agents with today's activity
       const { data: profiles } = await adminClient
@@ -19346,15 +19336,6 @@ async function handleRequest(req: Request): Promise<Response> {
         loginMap[log.user_id] = log;
       }
 
-      // Agent activity: orders touched today
-      const agentActivity: Record<string, { confirmed: number; total: number }> = {};
-      for (const o of todayOrders || []) {
-        if (!o.assigned_agent_id) continue;
-        if (!agentActivity[o.assigned_agent_id]) agentActivity[o.assigned_agent_id] = { confirmed: 0, total: 0 };
-        agentActivity[o.assigned_agent_id].total++;
-        if (o.status === "confirmed") agentActivity[o.assigned_agent_id].confirmed++;
-      }
-
       // Active lead counts
       const { data: activeCounts } = await adminClient
         .from("orders")
@@ -19379,7 +19360,7 @@ async function handleRequest(req: Request): Promise<Response> {
       const nowMs = Date.now();
       const agentList = agentProfiles.map((p: any) => {
         const login = loginMap[p.user_id];
-        const activity = agentActivity[p.user_id] || { confirmed: 0, total: 0 };
+        const activity = opsByUser[p.user_id] || { sales: 0, worked: 0 };
         const lastSeen = p.last_seen_at ? new Date(p.last_seen_at).getTime() : 0;
         const isOnline = lastSeen > 0 && (nowMs - lastSeen) < ONLINE_WINDOW_MS;
         const stateAt = p.voip_state_at ? new Date(p.voip_state_at).getTime() : 0;
@@ -19396,21 +19377,14 @@ async function handleRequest(req: Request): Promise<Response> {
           login_time: login?.login_time || null,
           last_seen_at: p.last_seen_at || null,
           active_leads: activeMap[p.user_id] || 0,
-          today_confirmed: activity.confirmed,
-          today_total: activity.total,
+          sales_today: activity.sales,
+          worked_today: activity.worked,
         };
       });
 
       return json({
-        kpi: {
-          total_orders_today: totalToday,
-          confirmed_today: confirmedToday,
-          shipped_today: shippedToday,
-          returned_today: returnedToday,
-          paid_today: paidToday,
-          revenue_today: revenueToday,
-        },
-        agents: agentList.sort((a: any, b: any) => b.today_total - a.today_total),
+        kpi: opsKpi,
+        agents: agentList.sort((a: any, b: any) => (b.sales_today - a.sales_today) || (b.worked_today - a.worked_today)),
         agents_online: agentList.filter((a: any) => a.is_online).length,
         agents_total: agentList.length,
       });

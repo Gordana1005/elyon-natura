@@ -1140,7 +1140,17 @@
     "offlineAgents": "Offline Agents ({{count}})",
     "offline": "Offline",
     "pending": "Pending",
-    "today": "Today"
+    "today": "Today",
+    "salesToday": "Sales today",
+    "salesValueToday": "Sales value today",
+    "toPackToday": "In the warehouse to pack",
+    "collectedToday": "Collected today (MEX)",
+    "collectedValueToday": "Money collected today (MEX)",
+    "returnsToday": "Returned today (MEX)",
+    "sales": "Sales",
+    "worked": "Worked",
+    "byDepartment": "Sales today by department",
+    "kpiNote": "The same numbers as Insights → Overview: the sale day, the six departments, MEX is the proof."
   },
   "segments": {
     "category": {

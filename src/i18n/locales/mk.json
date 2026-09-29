@@ -1096,7 +1096,17 @@
     "offlineAgents": "Офлајн агенти ({{count}})",
     "offline": "Офлајн",
     "pending": "На чекање",
-    "today": "Денес"
+    "today": "Денес",
+    "salesToday": "Продажби денес",
+    "salesValueToday": "Вредност на продажбите денес",
+    "toPackToday": "Во магацин за пакување",
+    "collectedToday": "Наплатено денес (MEX)",
+    "collectedValueToday": "Наплатени пари денес (MEX)",
+    "returnsToday": "Вратени денес (MEX)",
+    "sales": "Продажби",
+    "worked": "Обработени",
+    "byDepartment": "Продажби денес по оддел",
+    "kpiNote": "Истите бројки како Insights → Преглед: денот на продажбата, шесте оддели, MEX е доказот."
   },
   "segments": {
     "category": {
