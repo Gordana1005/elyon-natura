@@ -112,35 +112,34 @@ Verified facts for the docs are in `docs/handoff/2026-09-29/FACTS.md`.
   2.393.446 ден, Телешоп – Lead out 2.292 / 5.246.701 ден, total unchanged.
 - **11:45** order origin money owner-only (`edfa901`).
 
-## 🏃 Running at ~11:50 (agents; results come back to the main session)
-- **Bookings in the cohort** (owner Q3): collabBox documents booked but without a MEX parcel count
-  immediately (bucket to_pack, kind 'booking', department by folder, 10114 by the author's team,
-  twins of CRM/AlterCPA sales excluded) → migration `20260942001900_bookings_in_cohort.sql` + TS/UI +
-  verify scripts. NOT applied until reviewed.
-- **Follow-ups + docs:** Integrations collabBox card (last ok run, runs, strip); the stamping gap
-  (LEADS-OUT / LEADS orders not credited to their collabBox author → maybe migration `…2000`); docs
-  and skills for everything above.
-- Full September verification after 1800.
+- **12:05 docs + skills** (`1726025`): CLAUDE.md (MEX-profile law, one calculation, 15-min rule,
+  collabbox-sync live, stock deferred), new skills `elyon-departments-and-sources` + `elyon-collabbox-sync`,
+  8 skills and 7 docs brought to 29.09. Integrations collabBox card reads like the other feeds (`4e3ad2e`).
+- **12:20 owner questions** (`8d9efb8`, `PRASHANJA-ZA-MILE.md`): + 1ж, the seller names with no person
+  (Dance Krstevska 188, Simona Krstevska 132 — old AlterCPA, collabBox names another author; Kristina
+  Ilievska 122 social). The stamping-gap probe found NO gap in the LEADS / LEADS-OUT credit.
+- **12:40 hygiene** (`5cd01e9`, migration `20260942001870`, applied): 14.674 paid orders with their own
+  delivered MEX parcel now carry `paid_basis = 'mex'` — the DO block refused on any bucket move; none
+  moved. Left NULL on purpose: 3 web-claimed + 4 fact-less parcels (their basis decides their bucket).
+  C8a: a date-narrowed run no longer calls the 3 owner-accepted August pairs "stale".
+
+## 🏃 Running at ~12:45 (agents; both were cut by a network drop at ~12:30 and resumed)
+- **Bookings in the cohort** (owner Q3, "Да, веднаш", whole history): collabBox documents booked but
+  without a MEX parcel count immediately (bucket to_pack, kind 'booking', department by folder — no team
+  exception, 10114 → Affiliate – Lead out; twins of CRM/AlterCPA sales excluded; the board never double
+  counts) → migration `20260942001900_bookings_in_cohort.sql` + TS/UI (33 files uncommitted in the
+  working tree) + verify scripts. NOT applied until reviewed.
+- **Insights tabs audit** (read-only report): every widget of every tab against the six-department cohort
+  model; outdated widgets to remove/hide; tabs with no tie check.
 
 ## 🔜 STILL TO DO
 
-1. Owner questions document — `docs/handoff/2026-09-29/PRASHANJA-ZA-MILE.md` (Macedonian; draft
-   written, finish + commit at the end).
-2. Insights tabs audit (the audit agent died on the rate limit, no report): check each tab against the
-   six-department model; remove outdated widgets.
-3. Hygiene (no figure changes): 14.797 paid orders with a delivered MEX parcel have `paid_basis`
-   NULL; `scripts/data/c8a-accepted-duplicates.json` has 3 stale exceptions.
-4. **Docs LAST** (owner: "we leave the docs for the end"). The docs agent was STOPPED at ~05:00; its
-   partial edits are uncommitted in the working tree — never commit them together with code; review
-   them at the end. `CLAUDE.md` is current (`d058832`) except: add the new functions
-   (order_departments, order_origin), the Табла = Overview change, Operations, the reconcile guard.
-   Then: `MACEDONIA-STATUS.md` (new 29.09 section), `docs/how-it-works.md` (§8 crons),
-   `docs/OPERATIONS_RUNBOOK.md`, the `elyon-presence-and-leaderboard` skill (leaderboard v2),
-   FACTS `## Leaderboard`, `MEMORY.md`. Partially rewritten by the stopped agent (uncommitted):
-   skills `elyon-departments-and-sources` + `elyon-collabbox-sync` (new), `altercpa-bridge`,
-   `customer360-and-integrations`, `logistics-costs`, `segments-and-prediction`, README;
-   `docs/ALTERCPA-BRIDGE.md`, `docs/IMPORT_EXPORT.md`, `docs/INSIGHTS_ANALYTICS.md`,
-   `docs/ARCHITECTURE.md`, `docs/OPERATIONS_RUNBOOK.md`, `docs/PRODUCTS_STOCK_WAREHOUSE.md`.
+1. Bookings: review → tripwire → `apply-migration-mk.mjs --dry-run` → apply `…1900` → deploy `api` →
+   `npm test` + `npm run build` → commit/push → verify (engine fixture, insights-ties, tab-*, lists,
+   leaderboard-v2, attribution) for September AND today.
+2. Apply the audit's fixes (owner-decision items go to `PRASHANJA-ZA-MILE.md` §7).
+3. `MACEDONIA-STATUS.md`: the 29.09 afternoon (login, layout, 1800 → 1850 → 1860, bookings, hygiene).
+4. Final report to the owner (Macedonian) with the link to the questions document.
 
 ## 🧑‍💼 Open owner items (decisions only he can make)
 

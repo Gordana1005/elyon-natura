@@ -20,7 +20,7 @@ operation. It shares **nothing at runtime** with Bulgaria (own repo / own Supaba
 > Macedonian): **`docs/handoff/2026-09-29/PRASHANJA-ZA-MILE.md`**. Verified facts:
 > `docs/handoff/2026-09-29/FACTS.md`.
 
-- **Supabase:** 257 migrations, latest `20260942001700`. Since the 28.09 release:
+- **Supabase:** 261 migrations, latest `20260942001870`. Since the 28.09 release:
   - `…0900` collabBox sync (live);
   - `…1000` six departments;
   - `…1100` departments by folder;
@@ -29,26 +29,39 @@ operation. It shares **nothing at runtime** with Bulgaria (own repo / own Supaba
   - `…1400` freshness follows the schedules;
   - `…1500` `order_departments`;
   - `…1600` `order_origin`;
-  - `…1700` Customer 360 names each order's department.
+  - `…1700` Customer 360 names each order's department;
+  - `…1800` the agent-team department rule, WITHDRAWN the same morning. `…1850` reset it, and it
+    keeps the `orders.dept_override` slot and the 4-arg `cohort_order_source`;
+  - `…1860` **the MEX profile decides**: a CRM-made sale on BIO NATURAL → Affiliate – Lead out; on
+    NATURA → by series; a MEX-only BIO NATURAL parcel is always affiliate;
+  - `…1870` hygiene: `paid_basis = 'mex'` on 14.674 MEX-delivered paid orders (no figure moved).
+  - `…1900` collabBox bookings in the cohort: being built, not applied yet.
 - **Edge functions:**
-  - `api` redeployed 29.09 09:05;
+  - `api` redeployed 29.09 (after `…1860`);
   - `mex-reconcile` 29.09 05:05 (folder guard);
   - `collabbox-sync` 28.09;
   - `altercpa-sync` / `web-sync` unchanged.
+- **Frontend, 29.09 afternoon:**
+  - login lands agents on /calls and admins/managers on /insights (`/start`, `homePath`), fixing
+    the permission-loading race that sent agents to /assigned into a white loop;
+  - "Assigned to me" retired;
+  - no-access screen + error boundary + chunk-reload guard;
+  - the grey void below the Insights tabs is fixed (`relative` on the layout frame).
 - **Six departments, by the collabBox FOLDER and the MEX profile** (owner law 28–29.09, whole history):
   Affiliate – Lead in · Affiliate – Lead out · Телешоп – Lead out · Телешоп – Lead in · Социјални мрежи ·
   Web. See CLAUDE.md and the skill `elyon-departments-and-sources`.
-  - September 01–28 (cohort, 04:55, before the cross-channel repair; the repair moved ~10 parcels):
+  - September 01–28 (cohort re-read 29.09 12:44, after `…1860` and the collabBox history backfill;
+    bookings not yet counted):
 
     | Department | Sales | Денари |
     |---|---:|---:|
-    | Affiliate in | 2.391 | 7.153.500 |
-    | Affiliate out | 834 | 2.367.046 |
-    | Телешоп out | 2.172 | 4.987.661 |
-    | Телешоп in | 1.387 | 2.864.465 |
-    | Social | 225 | 424.560 |
-    | Web | 447 | 940.504 |
-    | **Total** | **7.456** | **18.737.736** |
+    | Affiliate in | 2.416 | 7.234.431 |
+    | Affiliate out | 842 | 2.393.446 |
+    | Телешоп out | 2.292 | 5.246.701 |
+    | Телешоп in | 1.447 | 2.998.655 |
+    | Social | 227 | 425.710 |
+    | Web | 472 | 999.054 |
+    | **Total** | **7.696** | **19.297.997** |
 - **Every source at least every 15 min, MEX both accounts = final proof:**
   - MEX: every 15 min, 06:00–22:59;
   - collabBox: a full pass every 15 min, 07:00–22:59, plus 00:00;
