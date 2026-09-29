@@ -222,7 +222,7 @@ export default function TvLeaderboardPage() {
   ].filter(Boolean).join(' · ');
 
   return (
-    <div className={`flex h-screen w-screen flex-col overflow-hidden bg-gradient-to-b from-slate-950 to-slate-900 px-[2.2vw] py-[2vh] font-sans text-slate-100 ${cursorHidden ? 'cursor-none' : ''}`}>
+    <div className={`relative flex h-screen w-screen flex-col overflow-hidden bg-gradient-to-b from-slate-950 to-slate-900 px-[2.2vw] py-[2vh] font-sans text-slate-100 ${cursorHidden ? 'cursor-none' : ''}`}>
       <style>{`@keyframes tv-fall{0%{transform:translateY(-12vh)}100%{transform:translateY(112vh)}}
         @keyframes tv-glow{0%,100%{background-color:rgba(52,211,153,0)}40%{background-color:rgba(52,211,153,0.16)}}`}</style>
 

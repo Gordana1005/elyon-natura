@@ -50,7 +50,11 @@ export function AppLayout({ children, title, headerActions }: AppLayoutProps) {
 
   return (
     <>
-    <div className="flex h-screen w-full overflow-hidden">
+    {/* relative: absolutely positioned descendants (the sr-only captions, headings and table
+        twins the Insights tabs carry) need a containing block INSIDE the h-screen frame — without one
+        they are placed against the page, stretch it past the viewport and the window scrolls into an
+        empty grey area below the content (seen on Insights → Агенти / Продажби, 29.09.2026). */}
+    <div className="relative flex h-screen w-full overflow-hidden">
       <AppSidebar />
       <div className="flex flex-1 flex-col overflow-hidden min-w-0">
         {/* Top bar */}
@@ -97,7 +101,7 @@ export function AppLayout({ children, title, headerActions }: AppLayoutProps) {
         {/* Superadmin telephony alert strip (quiet unless something is wrong) */}
         <VoipIncidentBanner />
         {/* Content */}
-        <main className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden bg-background p-3 sm:p-4 md:p-6">{children}</main>
+        <main className="relative flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden bg-background p-3 sm:p-4 md:p-6">{children}</main>
       </div>
     </div>
     </>
