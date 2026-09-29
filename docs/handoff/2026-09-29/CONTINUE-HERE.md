@@ -103,11 +103,13 @@ Verified facts for the docs are in `docs/handoff/2026-09-29/FACTS.md`.
   /insights — the permission-loading race that sent every agent to /assigned (and prediction agents
   into a white redirect loop) fixed; /start + homePath + no-access screen + AppErrorBoundary + chunk
   reload; "Assigned to me" retired → /calls (`6fbbcd5`).
-- **11:40 the teleshop Lead-out team's sales follow the AGENT** (owner, answered 4 questions, whole
-  history; `c7c6e42`, migration `20260942001800` applied): orders.dept_override = 'teleshop_out' for a CRM
-  sale or a LEADS-OUT by a crm_prediction-team seller on the sale day; 4-arg cohort_order_source in
-  15 report functions; the Prediction-lists tab holds the list sales of every department. September:
-  712 sales / 1.996.989 ден moved Affiliate – Lead out → Телешоп – Lead out, total unchanged.
+- **11:40 → 12:20 department rule, final: the MEX PROFILE decides.** The agent-team rule (`c7c6e42`,
+  `…1800`) was WITHDRAWN once the owner saw the CRM sales ship 98% via BIO NATURAL: BIO NATURAL = affiliate
+  in/out, NATURA = teleshop / social / web. `…1850` reset the overrides; `…1860` (`1f4d928`): a CRM-made
+  sale follows its parcel profile (BIO NATURAL → Affiliate – Lead out, NATURA → by series, no parcel →
+  Affiliate – Lead out until MEX), MEX-only BIO NATURAL parcels always affiliate. The Prediction-lists tab
+  holds the list sales of every department (kept from `…1800`). September: Affiliate – Lead out 842 /
+  2.393.446 ден, Телешоп – Lead out 2.292 / 5.246.701 ден, total unchanged.
 - **11:45** order origin money owner-only (`edfa901`).
 
 ## 🏃 Running at ~11:50 (agents; results come back to the main session)

@@ -124,12 +124,16 @@ target **explicitly** and verify it before running:
     changes. NATURA NTMK / M….
   - The TYPE decides (`orders.collabbox_doc_type`); the DocNumber series lies for ~1.100 documents. A
     CRM-made sale shipped on a NATURA parcel follows that parcel's series.
-  - **The TELESHOP Lead-out team's own sales follow the AGENT (owner, 29.09 ~10:00, whole history,
-    `20260942001800`):** a CRM-made sale (prediction_list / direct) or a collabBox LEADS-OUT booked by a
-    seller on team `crm_prediction` on the sale day is **Телешоп – Lead out** — `orders.dept_override`,
-    `order_dept_override()`, the 4-argument `cohort_order_source(…, dept_override)` that every report
-    uses. An AFFILIATE agent's CRM sale stays Affiliate – Lead out and MEX confirms it (a NATURA parcel's
-    series decides, as above). The Prediction-lists tab holds the list sales of every department. A MEX parcel with no order
+  - **The MEX PROFILE decides (owner, 29.09 ~12:05, `20260942001860`):** "every order sent via BIO
+    NATURAL is affiliate IN and OUT; no teleshop order has ever gone via BIO NATURAL; teleshop — and the
+    web shop — send via NATURA." A CRM-made sale (prediction_list / direct) on BIO NATURAL is Affiliate –
+    Lead out whatever its series; on NATURA it goes by series (9100 → Lead in, 9108/1300 → social, else →
+    Телешоп – Lead out); with no parcel yet it is Affiliate – Lead out until MEX shows the profile —
+    `orders.dept_override` (set by `order_dept_override(…, mex_account, mex_tracking_id)`, re-decided when
+    the parcel links) and the 4-argument `cohort_order_source(…, dept_override)` every report uses. A
+    MEX-only BIO NATURAL parcel is always affiliate. The "crm_prediction team → Телешоп – Lead out" rule
+    (`…1800`) was WITHDRAWN the same morning — never reintroduce a team rule for departments. The
+    Prediction-lists tab holds the list sales of every department. A MEX parcel with no order
     goes by series (9110 → Lead in · 9103 → Lead out · 9102 → Teleshop out · 9100 → Teleshop in ·
     9108/1300 → Social · NTMK/M… → Web).
   - `collabbox_department(type, doc, person, at)` classifies at INSERT; a new collabBox type goes into
