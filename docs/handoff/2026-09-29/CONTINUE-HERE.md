@@ -123,23 +123,39 @@ Verified facts for the docs are in `docs/handoff/2026-09-29/FACTS.md`.
   moved. Left NULL on purpose: 3 web-claimed + 4 fact-less parcels (their basis decides their bucket).
   C8a: a date-narrowed run no longer calls the 3 owner-accepted August pairs "stale".
 
-## 🏃 Running at ~12:45 (agents; both were cut by a network drop at ~12:30 and resumed)
-- **Bookings in the cohort** (owner Q3, "Да, веднаш", whole history): collabBox documents booked but
-  without a MEX parcel count immediately (bucket to_pack, kind 'booking', department by folder — no team
-  exception, 10114 → Affiliate – Lead out; twins of CRM/AlterCPA sales excluded; the board never double
-  counts) → migration `20260942001900_bookings_in_cohort.sql` + TS/UI (33 files uncommitted in the
-  working tree) + verify scripts. NOT applied until reviewed.
-- **Insights tabs audit** (read-only report): every widget of every tab against the six-department cohort
-  model; outdated widgets to remove/hide; tabs with no tie check.
+- **13:05 collabBox BOOKINGS count the moment they are booked** (`aabc5f5`, migration `…1900`, api
+  deployed first): a document booked without its MEX parcel is a cohort sale (kind 'booking', to pack,
+  folder's department, its author, document amount, ≤ 14 days old, never a CRM/AlterCPA sale's copy — phone
+  + amount within 14 days back / 2 forward, or the author's own sale within 10 min). `total.orders` stays
+  real orders, so /orders drills stay exact. Today 275 sales / 675.081 ден of which 138 booked; September
+  7.973 / 19.977.478 ден of which 140 booked. Remaining risk: a no-phone LEADS-OUT copy booked > 10 min
+  after its CRM sale counts twice until the parcel (~180 of 685 since 15.08) → owner question А6.
+- **13:30 Call activity lists booking authors** (`e7db35f`, migration `…1910`): a seller whose only sales
+  are bookings gets her row (Sofija Kuculovska, 5 bookings, no team).
+- **Checks after 1900/1910:** engine fixture, insights-ties, every tab-* (Sep + today), leaderboard-v2
+  22–28, attribution C1 01–28: PASS. Today-window failures were live races by one decision (W2/W8/L1/C1)
+  and pass on closed days. Open: C7 37 / C8b 14 (owner items А1 / М3).
+- **13:20 the owner's questions by department** — PDF `exports/prashanja/Prashanja-po-oddeli-2026-09-29.pdf`
+  (17 pages, 45 questions: Affiliate · Телешоп · Социјални · Магацин · Финансии · Надворешни · За тебе),
+  generated from `scratchpad/prashanja/content.mjs` + `gen.mjs` together with its Markdown twin
+  `PRASHANJA-ZA-MILE.md`; the review lists per question in `exports/prashanja/Prilozi-prashanja-2026-09-29.xlsx`
+  (customer PII — gitignored).
+
+## 🏃 Running at ~13:35
+- **Overview fixes from the Insights audit** (agent; code + migration `…1920` written, NOT applied): the
+  Prediction-lists tie note, hide the old-model drill-down, the source-trends "placed" line and the teams
+  board onto the cohort / Agents data, skip the wasted compare query, drop the old fallback tiles, attention
+  amounts in MEX COD + collabBox judged by its live feed state, dead files, stale comments.
+- **Attachment workbook** for the questions PDF (agent, read-only).
 
 ## 🔜 STILL TO DO
 
-1. Bookings: review → tripwire → `apply-migration-mk.mjs --dry-run` → apply `…1900` → deploy `api` →
-   `npm test` + `npm run build` → commit/push → verify (engine fixture, insights-ties, tab-*, lists,
-   leaderboard-v2, attribution) for September AND today.
-2. Apply the audit's fixes (owner-decision items go to `PRASHANJA-ZA-MILE.md` §7).
-3. `MACEDONIA-STATUS.md`: the 29.09 afternoon (login, layout, 1800 → 1850 → 1860, bookings, hygiene).
-4. Final report to the owner (Macedonian) with the link to the questions document.
+1. Review the Overview fixes → tripwire → dry-run + apply `…1920` → deploy `api` if touched → build + test →
+   commit/push → verify-insights-ties + tab-* for September and today.
+2. Check the attachment counts against the PDF (47 / 84 split, 63, 23, 10, 14, 30, 36, 130); regenerate the
+   PDF + Markdown if a number moved (`node gen.mjs` in `scratchpad/prashanja`); commit the Markdown.
+3. `MACEDONIA-STATUS.md`: bookings + 1910 + the audit fixes.
+4. Final report to the owner (Macedonian) with the PDF and the Excel.
 
 ## 🧑‍💼 Open owner items (decisions only he can make)
 
