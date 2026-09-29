@@ -141,21 +141,42 @@ Verified facts for the docs are in `docs/handoff/2026-09-29/FACTS.md`.
   `PRASHANJA-ZA-MILE.md`; the review lists per question in `exports/prashanja/Prilozi-prashanja-2026-09-29.xlsx`
   (customer PII — gitignored).
 
-## 🏃 Running at ~13:35
-- **Overview fixes from the Insights audit** (agent; code + migration `…1920` written, NOT applied): the
-  Prediction-lists tie note, hide the old-model drill-down, the source-trends "placed" line and the teams
-  board onto the cohort / Agents data, skip the wasted compare query, drop the old fallback tiles, attention
-  amounts in MEX COD + collabBox judged by its live feed state, dead files, stale comments.
-- **Attachment workbook** for the questions PDF (agent, read-only).
+- **13:40 attachment workbook** `exports/prashanja/Prilozi-prashanja-2026-09-29.xlsx` (11 sheets, one per
+  question; scripts `scratchpad/prilozi/build.mjs --refresh`). The PDF was regenerated with its numbers:
+  - wrong-size aliases: 64 (30 with sales, 804.851 ден), plus 39 set/gift names and 8 different-measure
+    names to confirm;
+  - М4: 37 re-sent orders / 38 old parcels;
+  - М5: zero-COD parcels are web 41 · teleshop 75 · affiliate 12 · social 2;
+  - the two NEGATIVE CODs are refunds: 3369589 −2.500 ден = ORD-94295, which still counts as paid;
+  - 28 zero-COD web-series parcels went to shops (СТОРС, ДМ), i.e. B2B;
+  - А2: only 4 of 23 have a collabBox author.
+- **14:10 Overview on one calculation** (`2c29907`, migrations `…1920` + `…1930`, both applied):
+  - source trends = the cohort's sales per department by sale day (the spark carries `by_source`);
+  - teams board = the Agents tab's TeamsPanel on the same query;
+  - drill-down hidden until it is rebuilt on the cohort;
+  - old fallback tiles gone;
+  - attention amounts in денари from the MEX COD, and collabBox judged by its live feed state;
+  - the compare request is gone;
+  - the lists tie note is fixed and dead files are removed.
 
-## 🔜 STILL TO DO
+  Checks: npm test 1.199 pass, build OK, insights-ties Sep + today PASS, tab-lists PASS, engine fixture intact;
+  attribution only C7 37 / C8b 14 (owner items А1 / М3).
 
-1. Review the Overview fixes → tripwire → dry-run + apply `…1920` → deploy `api` if touched → build + test →
-   commit/push → verify-insights-ties + tab-* for September and today.
-2. Check the attachment counts against the PDF (47 / 84 split, 63, 23, 10, 14, 30, 36, 130); regenerate the
-   PDF + Markdown if a number moved (`node gen.mjs` in `scratchpad/prashanja`); commit the Markdown.
-3. `MACEDONIA-STATUS.md`: bookings + 1910 + the audit fixes.
-4. Final report to the owner (Macedonian) with the PDF and the Excel.
+## 🔜 NEXT (nothing urgent is open; the owner's answers drive the rest)
+
+1. **The owner's answers** to `PRASHANJA-ZA-MILE.md` / the PDF. Apply them: А1 cancel/link, А2 credit, А3/А4
+   department, А5 link, teams (Т1, С3), catalogue (М2), stock count (М1), costs (Ф1–Ф3), hide pages (О12), etc.
+2. **Bonus / payouts:** the owner sends the new rules "tomorrow". Nothing was changed.
+3. **Tidy-ups found by the audit (no figure changes):**
+   - slim `insights_overview` (it still computes teams / KPIs / sources / placed series the UI no longer
+     reads, costing DB time on every Overview and Табла view);
+   - remove `GET /management-insights` and the old `apiGetManagementInsights` / `InsightsResponse`;
+   - prune the unused `overview.*` locale keys, listed in the agent report (`overview.sources.*`,
+     `overview.pivot.*`, `overview.kpi*`, `overview.teams.col.*` …);
+   - fix the `insights_lists` SQL comment about the withdrawn team rule;
+   - rebuild DrillPivot on the cohort.
+4. **Data anomaly to check:** ORD-95297 (AlterCPA, cancelled) holds the web-shop parcel NTMK62345 (COD 4.400).
+5. Bookings have no product lines or city (Sales / Stock tabs show them under "no line" / unknown city).
 
 ## 🧑‍💼 Open owner items (decisions only he can make)
 

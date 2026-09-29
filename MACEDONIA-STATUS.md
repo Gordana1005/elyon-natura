@@ -20,7 +20,7 @@ operation. It shares **nothing at runtime** with Bulgaria (own repo / own Supaba
 > Macedonian): **`docs/handoff/2026-09-29/PRASHANJA-ZA-MILE.md`**. Verified facts:
 > `docs/handoff/2026-09-29/FACTS.md`.
 
-- **Supabase:** 263 migrations, latest `20260942001910`. Since the 28.09 release:
+- **Supabase:** 265 migrations, latest `20260942001930`. Since the 28.09 release:
   - `…0900` collabBox sync (live);
   - `…1000` six departments;
   - `…1100` departments by folder;
@@ -40,6 +40,9 @@ operation. It shares **nothing at runtime** with Bulgaria (own repo / own Supaba
     14 days old, never a copy of a CRM/AlterCPA sale). Once the parcel exists it is the order, counted
     once. 29.09: today 138 of 275 sales are bookings; September has 140.
   - `…1910` Call activity lists the authors of bookings.
+  - `…1920` Overview attention amounts in денари (MEX COD), and collabBox judged by its live feed state.
+  - `…1930` the cohort's spark per department: the Overview trend is now the cohort's sales by sale day.
+    The teams board = the Agents tab, and the old-model drill-down and fallback tiles are gone (`2c29907`).
 - **Edge functions:**
   - `api` redeployed 29.09 13:00 (before `…1900`);
   - `mex-reconcile` 29.09 05:05 (folder guard);
