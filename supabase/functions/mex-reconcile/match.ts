@@ -170,6 +170,23 @@ export function isLeadsParcel(p: ParcelRef | null | undefined): boolean {
   return p?.account === "bio_natural" && mexSeries(p.tracking_id) === "9110";
 }
 
+/**
+ * May a fresh parcel revive this order? An open or settled order: yes (the
+ * usual rules decide). A cancelled / trashed one only by its OWN dispatch — an
+ * AlterCPA lead by a Нарачка LEADS parcel (series 9110, either account: NATURA
+ * carried the LEADS series before BIO NATURAL existed), a CRM sale by a
+ * LEADS-OUT parcel (9103). A parcel of another folder on the same phone —
+ * teleshop 9102 / 9100, social 9108 / 1300, web NTMK / M… — is another
+ * department's sale (owner law 28–29.09.2026: the collabBox folder decides),
+ * never the dead lead's: before this guard the phone + COD match revived
+ * July leads on September teleshop parcels (repair cross-channel-parcels).
+ */
+export function mayReviveWith(o: OrderRow, parcel?: ParcelRef | null): boolean {
+  if (o.status !== "cancelled" && o.status !== "trashed") return true;
+  const series = mexSeries(parcel?.tracking_id);
+  return isAlterCpaOrder(o) ? series === "9110" : series === "9103";
+}
+
 export type CandidateSkip = "unmatched" | "no_real_sale" | "single_not_open" | "ambiguous";
 export type CandidatePick =
   | { order: OrderRow; method: "phone_cod" | "phone_single" | "upsell_revive" }
@@ -181,6 +198,8 @@ export type CandidatePick =
  *   unlinked (no mex_tracking_id) and inside [−3d … +75d]      else 'unmatched'
  *   REAL SALES only (isRealSale)                              else 'no_real_sale'
  *   COD fits → nearest created date wins                      → 'phone_cod'
+ *     (a cancelled / trashed order fits only a parcel of its own folder —
+ *      mayReviveWith: AlterCPA 9110, CRM 9103)
  *   no fit, exactly ONE real sale, open/shipped/delivered     → 'phone_single'
  *   no fit, exactly ONE real sale, our no_parcel_7d cancel of
  *     an AlterCPA sale, parcel BIO NATURAL 9110 with a COD    → 'upsell_revive'
@@ -207,7 +226,8 @@ export function pickCandidate(
   const real = inWindow.filter(isRealSale);
   if (!real.length) return { skip: "no_real_sale" };
 
-  const fits = real.filter((o) => codOk(o.price, cod));
+  // A cancel / trash fits only its own folder's parcel (mayReviveWith).
+  const fits = real.filter((o) => codOk(o.price, cod) && mayReviveWith(o, parcel));
   if (fits.length) {
     const dist = (o: OrderRow) => Math.abs(created.getTime() - new Date(o.created_at).getTime());
     return { order: [...fits].sort((a, b) => dist(a) - dist(b))[0], method: "phone_cod" };

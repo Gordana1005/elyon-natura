@@ -148,9 +148,43 @@ describe("pickCandidate", () => {
     expect(pickCandidate([far, near], 1500, SHIP_CREATED)).toEqual({ order: near, method: "phone_cod" });
   });
 
-  it("a COD fit may be a cancelled real sale (rule C decides later)", () => {
+  it("a COD fit may be a cancelled real sale on its own folder's parcel (rule C decides later)", () => {
     const cancelled = order({ status: "cancelled" });
-    expect(pickCandidate([cancelled], 1500, SHIP_CREATED)).toEqual({ order: cancelled, method: "phone_cod" });
+    expect(pickCandidate([cancelled], 1500, SHIP_CREATED, { account: "bio_natural", tracking_id: "002-9110-176001/2026" }))
+      .toEqual({ order: cancelled, method: "phone_cod" });
+    // NATURA carried the LEADS series before BIO NATURAL existed (02.04.2026)
+    expect(pickCandidate([cancelled], 1500, SHIP_CREATED, { account: "natura", tracking_id: "002-9110-150001/2026" }))
+      .toEqual({ order: cancelled, method: "phone_cod" });
+  });
+
+  it("never revives a dead AlterCPA lead on another folder's parcel (teleshop / social / web)", () => {
+    for (const tracking_id of ["002-9102-177292/2026", "002-9100-160001/2026", "002-9108-3481/2026", "002-1300-101/2026", "NTMK62207", "002-9103-176483/2026"]) {
+      const cancelled = order({ status: "cancelled" });
+      const trashed = order({ status: "trashed" });
+      expect(pickCandidate([cancelled], 1500, SHIP_CREATED, { account: "natura", tracking_id })).toEqual({ skip: "single_not_open" });
+      expect(pickCandidate([trashed], 1500, SHIP_CREATED, { account: "natura", tracking_id })).toEqual({ skip: "single_not_open" });
+    }
+    // no parcel reference at all → no revive either
+    expect(pickCandidate([order({ status: "cancelled" })], 1500, SHIP_CREATED)).toEqual({ skip: "single_not_open" });
+  });
+
+  it("a dead CRM sale fits only a LEADS-OUT (9103) parcel", () => {
+    const crm = (o: Partial<OrderRow> = {}) => order({ status: "cancelled", source_type: "manual", external_source: null, ...o });
+    const c1 = crm();
+    expect(pickCandidate([c1], 1500, SHIP_CREATED, { account: "bio_natural", tracking_id: "002-9103-176483/2026" }))
+      .toEqual({ order: c1, method: "phone_cod" });
+    expect(pickCandidate([crm()], 1500, SHIP_CREATED, { account: "natura", tracking_id: "002-9102-177292/2026" }))
+      .toEqual({ skip: "single_not_open" });
+  });
+
+  it("the folder guard never touches open orders: a fitting open lead still takes a teleshop parcel", () => {
+    const open = order({ status: "confirmed" });
+    expect(pickCandidate([open], 1500, SHIP_CREATED, { account: "natura", tracking_id: "002-9102-177292/2026" }))
+      .toEqual({ order: open, method: "phone_cod" });
+    // a dead lead beside it does not compete for the teleshop parcel
+    const dead = order({ status: "cancelled", created_at: daysBefore(0) });
+    expect(pickCandidate([dead, open], 1500, SHIP_CREATED, { account: "natura", tracking_id: "002-9102-177292/2026" }))
+      .toEqual({ order: open, method: "phone_cod" });
   });
 
   it("excludes duplicated orders even when their COD fits", () => {
