@@ -58,7 +58,9 @@ export default function LoginPage() {
         // If shift check fails (e.g. network), allow login to proceed
       }
 
-      navigate('/', { replace: true });
+      // /start waits for this login's permissions, then picks its home (agents /calls,
+      // admins / managers /insights) — src/lib/homePath.ts.
+      navigate('/start', { replace: true });
     } catch (err: any) {
       setError(err.message || t('login.invalidCredentials'));
     } finally {

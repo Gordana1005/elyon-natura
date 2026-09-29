@@ -6299,5 +6299,14 @@
       "trashed": "në kosh",
       "cancelOther": "anuluar (tjetër)"
     }
+  },
+  "access": {
+    "noPageTitle": "Nuk keni asnjë faqe që mund ta hapni",
+    "noPageDesc": "Kësaj hyrjeje nuk i është caktuar rol ose faqe. Kontaktoni administratorin."
+  },
+  "appError": {
+    "title": "Diçka nuk u ngarkua",
+    "desc": "Faqja hasi një gabim. Rifreskojeni — puna juaj është ruajtur në server.",
+    "reload": "Rifresko faqen"
   }
 }

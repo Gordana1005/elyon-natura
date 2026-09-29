@@ -122,11 +122,17 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
   const [privacy, setPrivacy] = useState<RolePrivacy[]>([]);
   const [isBusinessOwner, setIsBusinessOwner] = useState(false);
   const [loading, setLoading] = useState(true);
+  // Whose permissions are loaded. The fetch starts in an effect AFTER the render in which a login
+  // appears, so for that one render `loading` still says false (it was false on the login page)
+  // while rolePermissions is empty — every ProtectedRoute then saw "no access" and bounced the
+  // fresh login (agents to /assigned; prediction agents, who cannot open /assigned, into a
+  // redirect loop = a white screen). Loading is therefore also "not yet loaded for THIS user".
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
   // Only the newest fetch may write state: a slow response for the previous
   // login must never land on top of the next login's permissions.
   const fetchSeq = useRef(0);
 
-  const fetchAll = useCallback(async () => {
+  const fetchAll = useCallback(async (uid: string) => {
     const seq = ++fetchSeq.current;
     try {
       // Single RPC replaces three direct table SELECTs. The RPC is
@@ -151,7 +157,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
     } catch {
       // Silently fail — permissions will default to restrictive
     } finally {
-      if (seq === fetchSeq.current) setLoading(false);
+      if (seq === fetchSeq.current) { setLoading(false); setLoadedFor(uid); }
     }
   }, []);
 
@@ -159,8 +165,8 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
     // A different login never inherits the previous one's owner flag, not
     // even for the moment its own permissions take to load.
     setIsBusinessOwner(false);
-    if (user) fetchAll();
-    else setLoading(false);
+    if (user) { setLoading(true); fetchAll(user.id); }
+    else { setLoading(false); setLoadedFor(null); }
   }, [user?.id]);
 
   const isModuleEnabled = useCallback((moduleKey: string): boolean => {
@@ -240,10 +246,11 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
 
   return (
     <PermissionsContext.Provider value={{
-      modules, rolePermissions, financialVisibility, privacy, loading,
+      modules, rolePermissions, financialVisibility, privacy,
+      loading: loading || (!!user && loadedFor !== user.id),
       isModuleEnabled, canAccessModule, canAction, canSeeFinancial, canSeePrivacy,
       canSeeBusiness,
-      refresh: fetchAll,
+      refresh: () => (user ? fetchAll(user.id) : Promise.resolve()),
     }}>
       {children}
     </PermissionsContext.Provider>

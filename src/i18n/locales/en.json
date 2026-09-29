@@ -6299,5 +6299,14 @@
       "trashed": "trashed",
       "cancelOther": "cancelled (other)"
     }
+  },
+  "access": {
+    "noPageTitle": "You have no page you can open",
+    "noPageDesc": "This login has no role or page assigned. Please contact an administrator."
+  },
+  "appError": {
+    "title": "Something did not load",
+    "desc": "The page hit an error. Reload it — your work is saved on the server.",
+    "reload": "Reload the page"
   }
 }

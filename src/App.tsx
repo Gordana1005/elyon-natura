@@ -14,6 +14,8 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 // Eager: entry-point pages that should not require an extra round-trip.
 import LoginPage from "./pages/LoginPage";
+import StartPage from "./pages/StartPage";
+import { AppErrorBoundary } from "./components/AppErrorBoundary";
 import NotFound from "./pages/NotFound";
 
 // Lazy: every other page splits into its own chunk and loads on first navigation.
@@ -24,7 +26,6 @@ const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Orders = lazy(() => import("./pages/Orders"));
 const UsersPage = lazy(() => import("./pages/UsersPage"));
 const ProductsPage = lazy(() => import("./pages/ProductsPage"));
-const AssignedPage = lazy(() => import("./pages/AssignedPage"));
 const AssignerPage = lazy(() => import("./pages/AssignerPage"));
 const PredictionListsPage = lazy(() => import("./pages/PredictionListsPage"));
 const PredictionListDetail = lazy(() => import("./pages/PredictionListDetail"));
@@ -96,16 +97,22 @@ const App = () => (
           <LanguageProvider>
           <PermissionsProvider>
             <VoipProvider>
+            <AppErrorBoundary>
             <Suspense fallback={<PageLoader />}>
               <Routes>
                 <Route path="/login" element={<LoginPage />} />
+                {/* Where every login lands: waits for the permissions, then homePath (29.09.2026). */}
+                <Route path="/start" element={<StartPage />} />
                 {/* Public wall-board for the office TV — token-gated server-side, no login/chrome. */}
                 <Route path="/tv/leaderboard" element={<TvLeaderboardPage />} />
                 <Route path="/" element={<ProtectedRoute moduleKey="dashboard"><Dashboard /></ProtectedRoute>} />
                 <Route path="/orders" element={<ProtectedRoute moduleKey="orders"><Orders /></ProtectedRoute>} />
                 <Route path="/users" element={<ProtectedRoute moduleKey="users"><UsersPage /></ProtectedRoute>} />
                 <Route path="/products" element={<ProtectedRoute moduleKey="products"><ProductsPage /></ProtectedRoute>} />
-                <Route path="/assigned" element={<ProtectedRoute moduleKey="assigned"><AssignedPage /></ProtectedRoute>} />
+                {/* "Assigned to me" is RETIRED (owner, 29.09.2026): the last 100 orders with no filter,
+                    a Bulgarian leftover — agents work in /calls and see their orders on the Dashboard.
+                    The page file and its permission rows stay; old links land on /calls. */}
+                <Route path="/assigned" element={<Navigate to="/calls" replace />} />
                 <Route path="/assigner" element={<ProtectedRoute moduleKey="assigner"><AssignerPage /></ProtectedRoute>} />
                 <Route path="/predictions" element={<ProtectedRoute moduleKey="prediction_lists"><PredictionListsPage /></ProtectedRoute>} />
                 <Route path="/predictions/:id" element={<ProtectedRoute moduleKey="prediction_lists"><PredictionListDetail /></ProtectedRoute>} />
@@ -150,6 +157,7 @@ const App = () => (
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
+            </AppErrorBoundary>
             </VoipProvider>
           </PermissionsProvider>
           </LanguageProvider>
