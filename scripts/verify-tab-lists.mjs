@@ -16,7 +16,7 @@
  * them) — so the numbers can be proven before and after the deploy.
  *
  * What it proves, for the window:
- *   L1  the tab's total = the Overview's Affiliate – Lead out (elyon_crm) · prediction_list split
+ *   L1  the tab's total = the Overview's prediction_list split summed over every department (20260942001800)
  *       (insights_cohort),
  *       count and денари, and its parts = the cohort rows' parts (insights_sale_rows)
  *   L2  Σ lists + "list not recorded" = the total (sales, денари, cash, worked, paid, returned,
@@ -51,7 +51,6 @@ const CASH_SIG = 'public.insights_lists_cash(timestamptz,timestamptz,boolean)';
 const STALE_DAYS = 7;
 /** The NATURA series that take a CRM-made sale to another department (migration
  *  20260942001000: 9102 Телешоп – Lead out · 9100 Lead in · 9108 / 1300 Social), as LIKE patterns. */
-const NATURA_LIKE = ['9102', '9100', '9108', '1300'].map((s) => `'___-${s}-%'`).join(', ');
 const EXIT = { OK: 0, FAIL: 1, ERROR: 2 };
 
 class UsageError extends Error {}
@@ -194,8 +193,7 @@ o AS (
          x.mex_status_id AS ms, x.mex_cod_mkd AS cod, x.mex_delivered_at AS md
   FROM public.orders x
   WHERE x.sale_source = 'elyon_crm' AND x.sale_source_detail = 'prediction_list'
-    -- the owner's department rule, restated: a list sale on a NATURA teleshop / social parcel is not the tab's
-    AND NOT coalesce(x.mex_tracking_id LIKE ANY (ARRAY[${NATURA_LIKE}]), false)
+    -- every list sale, in whichever department (20260942001800: the tab holds the list sales of every department)
     AND coalesce(x.sold_at, x.confirmed_at, x.created_at) BETWEEN ${ts(w.fromIso)} AND ${ts(w.toEndIso)}
     AND NOT coalesce(right(regexp_replace(x.customer_phone, '[^0-9]', '', 'g'), 8) = ANY ((SELECT public.report_excluded_phone8s())::text[]), false)
     AND NOT coalesce(x.mex_tracking_id IN (SELECT p.tracking_id FROM public.mex_parcels p
@@ -295,8 +293,7 @@ WHERE p.delivered_at BETWEEN ${ts(w.fromIso)} AND ${ts(w.toEndIso)}
         ORDER BY x.created_at, x.id LIMIT 1) = 'prediction_list'
   AND (SELECT x.sale_source FROM public.orders x
         WHERE x.mex_tracking_id = p.tracking_id AND x.sale_source_detail IS DISTINCT FROM 'disposition'
-        ORDER BY x.created_at, x.id LIMIT 1) = 'elyon_crm'
-  AND NOT (p.tracking_id LIKE ANY (ARRAY[${NATURA_LIKE}]))`);
+        ORDER BY x.created_at, x.id LIMIT 1) = 'elyon_crm'`);   // every department (20260942001800)
     const lines = [
       tie('parcels = MEX register', n(r.n), n(cash.parcels)),
       tie('COD = MEX register', n(r.cod), n(cash.cod_mkd)),

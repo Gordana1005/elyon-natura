@@ -133,7 +133,7 @@ ap AS MATERIALIZED (
 ),
 o1 AS MATERIALIZED (
   SELECT x.id, x.status::text AS status, x.price, x.sold_at, x.sold_by_person_id, x.sale_source, x.sale_source_detail,
-         x.mex_tracking_id, x.mex_status_id, x.mex_cod_mkd, x.mex_delivered_at, x.paid_basis, x.source_type,
+         x.mex_tracking_id, x.mex_status_id, x.mex_cod_mkd, x.mex_delivered_at, x.paid_basis, x.source_type, x.dept_override,
          coalesce(x.sold_at, ap.decided_at, x.confirmed_at, x.created_at) AS sale_at,
          coalesce(x.mex_tracking_id IN (SELECT wc.tr FROM wc), false) AS web_claimed
   FROM public.orders x
