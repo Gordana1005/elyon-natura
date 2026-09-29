@@ -114,7 +114,10 @@ function departmentTerms(keys: readonly InsightsSource[]): string[] {
   const crm = !parcel.length ? []
     : crmAll ? [CRM_MADE]
     : [`and(${CRM_MADE},${parcel.length === 1 ? parcel[0] : `or(${parcel.join(",")})`})`];
-  return [...crm, ...keys.flatMap((k) => REST_PARTS[k])];
+  const mapped = [...crm, ...keys.flatMap((k) => REST_PARTS[k])];
+  // The agent-team override (orders.dept_override, 20260942001800 — the 4-argument
+  // cohort_order_source): a set value decides; only NULL rows fall to the mapping.
+  return [`dept_override.in.(${keys.join(",")})`, `and(dept_override.is.null,or(${mapped.join(",")}))`];
 }
 
 /** Each department's ORDER part as ONE PostgREST `or` term — the twin of

@@ -932,16 +932,19 @@ SELECT coalesce(has_function_privilege(to_regprocedure('public.insights_lists(ti
   const to = lit(inclusiveEnd(w.toUtc));
   const [t] = await ctx.sql(`
 SELECT public.insights_lists(${from}, ${to}, NULL, NULL, true, 7) AS lists,
-       public.insights_cohort(${from}, ${to}, NULL, NULL, ARRAY['elyon_crm'], true) AS cohort`);
+       public.insights_cohort(${from}, ${to}, NULL, NULL, ARRAY['altercpa','elyon_crm','teleshop_out','teleshop_other','social','web'], true) AS cohort`);
   const L = typeof t.lists === 'string' ? JSON.parse(t.lists) : t.lists;
   const C = typeof t.cohort === 'string' ? JSON.parse(t.cohort) : t.cohort;
-  const split = (C.by_source ?? []).find((s) => s.key === 'elyon_crm')?.splits?.find((s) => s.key === 'prediction_list') ?? {};
+  // Since 20260942001800 a list sale is in the department of its agent (a teleshop Lead-out
+  // agent's → Телешоп – Lead out): the tab holds the prediction_list split of EVERY department.
+  const listSplits = (C.by_source ?? []).map((src) => src.splits?.find((x) => x.key === 'prediction_list') ?? {});
+  const split = { count: listSplits.reduce((a, x) => a + num(x.count), 0), value_mkd: listSplits.reduce((a, x) => a + num(x.value_mkd), 0) };
   const card = (C.by_source ?? []).find((s) => s.key === 'elyon_crm')?.total ?? {};
   const nr = L.not_recorded ?? { count: 0, value_mkd: 0, samples: [] };
   const sumLists = (k) => (L.lists ?? []).reduce((a, l) => a + num(l[k]), 0);
   const rows = [
-    tieRow('tab sales = Overview Affiliate – Lead out · prediction_list', { tab: num(L.total?.count), overview: num(split.count) }, 0),
-    tieRow('tab денари = Overview Affiliate – Lead out · prediction_list', { tab: num(L.total?.value_mkd), overview: num(split.value_mkd) }, 0),
+    tieRow('tab sales = Overview Σ departments · prediction_list', { tab: num(L.total?.count), overview: num(split.count) }, 0),
+    tieRow('tab денари = Overview Σ departments · prediction_list', { tab: num(L.total?.value_mkd), overview: num(split.value_mkd) }, 0),
     tieRow('Σ lists + list not recorded = tab (sales)', { lists: sumLists('count') + num(nr.count), tab: num(L.total?.count) }, 0),
     tieRow('Σ lists + list not recorded = tab (денари)', { lists: sumLists('value_mkd') + num(nr.value_mkd), tab: num(L.total?.value_mkd) }, 0),
     tieRow('tab Affiliate – Lead out footer = Overview Affiliate – Lead out card', { tab: num(L.elyon_crm?.count), overview: num(card.count) }, 0),
@@ -954,7 +957,7 @@ SELECT public.insights_lists(${from}, ${to}, NULL, NULL, true, 7) AS lists,
       display_id: s.display_id,
       why: `list not recorded — shown on the tab in its own row, inside the total${s.dup_of ? `; duplicate of ${s.dup_of}${s.dup_of_list ? ` (list "${s.dup_of_list}")` : ''}` : ''}`,
     })),
-    note: `Prediction-lists tab (sale clock) ${fmtNum(L.total?.count)} sales / ${fmtNum(L.total?.value_mkd)} ден = Overview Affiliate – Lead out · `
+    note: `Prediction-lists tab (sale clock) ${fmtNum(L.total?.count)} sales / ${fmtNum(L.total?.value_mkd)} ден = Overview Σ departments · `
       + `prediction_list ${fmtNum(split.count)} / ${fmtNum(split.value_mkd)} ден; ${fmtNum(nr.count)} of them carry no list `
       + `("list not recorded" row — the /orders duplicate endpoint copies the list since 28.09.2026)`,
     window: describeWindow(w),
@@ -1325,7 +1328,7 @@ SELECT (SELECT count(*) FROM p)::int AS placed_n, (SELECT round(coalesce(sum(tot
 export const CHECKS = [
   { id: 'C1', title: 'Overview: Σ sources = KPI tiles = SQL truth', run: c1SourcesTieOut },
   { id: 'C2', title: 'Overview: MEX-only cash = unlinked delivered parcels', run: c2MexOnlyCash },
-  { id: 'C3', title: 'Overview: Prediction-lists tab = Affiliate – Lead out list portion', run: c3PredictionListsTab },
+  { id: 'C3', title: 'Overview: Prediction-lists tab = the list sales of every department', run: c3PredictionListsTab },
   { id: 'C6', title: 'Overview: proven cash = COD of linked delivered parcels', run: c6ProvenCash },
   { id: 'C7', title: 'paid without MEX proof', run: c7PaidWithoutProof },
   { id: 'C8a', title: 'one parcel, one order: tracking id on 2+ live orders', run: c8aSharedTracking },

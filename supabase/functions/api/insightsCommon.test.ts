@@ -125,7 +125,7 @@ describe("cohort bucket twins", () => {
       checked++;
     }
     expect(checked).toBeGreaterThan(10000);
-  });
+  }, 30_000);   // a cartesian sweep of every bucket × row: ~5–6 s alone, longer under a full parallel run
 
   it("MEX decides whenever a parcel exists — even on a CRM-cancelled order", () => {
     const base: CohortOrderRow = { status: "cancelled", price: 24.23, sold_at: null, paid_basis: null, source_type: "altercpa",
@@ -429,6 +429,21 @@ const RULE_CASES: [string | null, string | null, string | null, string][] = [
 ];
 
 describe("cohort_source — the twin of cohort_order_source(sale_source, detail, mex_tracking_id)", () => {
+  it("the agent-team override decides alone when set (20260942001800), whatever the stored source says", () => {
+    const rows: Row[] = [
+      { sale_source: "elyon_crm", sale_source_detail: "prediction_list", mex_tracking_id: "002-9103-1/2026", dept_override: "teleshop_out" },
+      { sale_source: "elyon_crm", sale_source_detail: "direct", mex_tracking_id: null, dept_override: "teleshop_out" },
+      { sale_source: "elyon_crm", sale_source_detail: "collabbox_leads_out", mex_tracking_id: "002-9103-1/2026", dept_override: "teleshop_out" },
+      { sale_source: "elyon_crm", sale_source_detail: "prediction_list", mex_tracking_id: "002-9100-1/2026", dept_override: "teleshop_out" },
+    ];
+    for (const r of rows) {
+      expect(INSIGHTS_SOURCES.filter((k) => orMatches(COHORT_SOURCE_TERM[k], r)), JSON.stringify(r)).toEqual(["teleshop_out"]);
+    }
+    // NULL override = THE mapping (an affiliate agent's CRM sale stays Affiliate – Lead out)
+    expect(INSIGHTS_SOURCES.filter((k) => orMatches(COHORT_SOURCE_TERM[k],
+      { sale_source: "elyon_crm", sale_source_detail: "prediction_list", mex_tracking_id: "002-9103-1/2026", dept_override: null }))).toEqual(["elyon_crm"]);
+  });
+
   it("the migration's install table holds for the TS restatement", () => {
     for (const [ss, d, tr, want] of RULE_CASES) expect(sqlSource(ss, d, tr), `${ss}/${d}/${tr}`).toBe(want);
   });

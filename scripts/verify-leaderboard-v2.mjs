@@ -152,7 +152,7 @@ o2 AS MATERIALIZED (
                                     o1.mex_tracking_id, o1.mex_status_id, o1.mex_cod_mkd, o1.mex_delivered_at, o1.web_claimed) AS bucket,
          (o1.mex_tracking_id IS NOT NULL AND (o1.mex_status_id IS NOT NULL OR o1.mex_delivered_at IS NOT NULL)
           AND NOT o1.web_claimed) AS hp,
-         public.cohort_order_source(o1.sale_source, o1.sale_source_detail, o1.mex_tracking_id) AS dept
+         public.cohort_order_source(o1.sale_source, o1.sale_source_detail, o1.mex_tracking_id, o1.dept_override) AS dept
   FROM o1 JOIN dd ON o1.sale_at BETWEEN dd.f AND dd.t
 ),
 -- a parcel several real orders hold: each holder's share of the ONE COD, by price;
@@ -239,7 +239,7 @@ SELECT 'b', bk.day::text, bk.person_id::text, bk.dept, 0, 0, 0, 0,
 FROM bk LEFT JOIN tw ON tw.day = bk.day AND tw.person_id IS NOT DISTINCT FROM bk.person_id AND tw.doc_type = bk.doc_type
 UNION ALL
 SELECT 'w', vw.day::text, vw.person_id::text,
-       CASE WHEN o.id IS NOT NULL THEN public.cohort_order_source(o.sale_source, o.sale_source_detail, o.mex_tracking_id)
+       CASE WHEN o.id IS NOT NULL THEN public.cohort_order_source(o.sale_source, o.sale_source_detail, o.mex_tracking_id, o.dept_override)
             WHEN vw.via = 'altercpa' THEN 'altercpa' END,
        0, 0, 0, 0, 0, 0, 0, count(*), count(*) FILTER (WHERE vw.outcome = 'sale')
 FROM vw LEFT JOIN public.orders o ON o.id = vw.order_id

@@ -90,7 +90,7 @@ SELECT jsonb_build_object(
   'from_earlier_mkd', round(coalesce(sum(c.cod_mkd) FILTER (WHERE c.sale_at IS NULL OR NOT (c.sale_at BETWEEN ${ts(w.fromIso)} AND ${ts(w.toEndIso)})), 0)),
   'from_earlier', count(c.tracking_id) FILTER (WHERE c.sale_at IS NULL OR NOT (c.sale_at BETWEEN ${ts(w.fromIso)} AND ${ts(w.toEndIso)}))) AS j
 FROM public.insights_cash_rows(${ts(w.fromIso)}, ${ts(w.toEndIso)}) c
-WHERE c.source = 'elyon_crm' AND c.split = 'prediction_list'`;
+WHERE c.split = 'prediction_list'`;   // list sales of every department (20260942001800)
 
 const parse = (v) => (typeof v === 'string' ? JSON.parse(v) : v);
 
@@ -117,7 +117,7 @@ export async function verify({ from, to, sql, now = new Date(), IC: twin = null 
     ? await sql(`SELECT public.insights_lists_cash(${ts(w.fromIso)}, ${ts(w.toEndIso)}, true) AS j`)
     : await sql(CASH_BODY(w));
   const cash = parse(cr.j);
-  const [cc] = await sql(`SELECT public.insights_cohort(${ts(w.fromIso)}, ${ts(w.toEndIso)}, NULL, NULL, ARRAY['elyon_crm'], true) AS j`);
+  const [cc] = await sql(`SELECT public.insights_cohort(${ts(w.fromIso)}, ${ts(w.toEndIso)}, NULL, NULL, ARRAY['altercpa','elyon_crm','teleshop_out','teleshop_other','social','web'], true) AS j`);
   const C = parse(cc.j);
   const [exRow] = await sql(`SELECT public.insights_cohort_order_exceptions(${ts(w.fromIso)}, ${ts(w.toEndIso)}) AS ex`);
   const ex = IC.parseCohortExceptions(parse(exRow.ex));
@@ -125,7 +125,10 @@ export async function verify({ from, to, sql, now = new Date(), IC: twin = null 
 
   const results = [];
   const src = (C.by_source ?? []).find((s) => s.key === 'elyon_crm') ?? { total: {}, splits: [] };
-  const split = (src.splits ?? []).find((s) => s.key === 'prediction_list') ?? { count: 0, value_mkd: 0 };
+  // since 20260942001800 a list sale counts in its agent's department: the tab = the prediction_list
+  // split summed over every department
+  const listSplits = (C.by_source ?? []).map((x) => (x.splits ?? []).find((s) => s.key === 'prediction_list') ?? {});
+  const split = { count: listSplits.reduce((a, x) => a + n(x.count), 0), value_mkd: listSplits.reduce((a, x) => a + n(x.value_mkd), 0) };
   const sum = (list, k) => (list ?? []).reduce((a, x) => a + n(x?.[k]), 0);
 
   // L1 — the Overview's split, and the parts from the cohort rows themselves
@@ -134,7 +137,7 @@ export async function verify({ from, to, sql, now = new Date(), IC: twin = null 
 SELECT coalesce(jsonb_object_agg(x.bucket, jsonb_build_object('n', x.n, 'v', x.v)), '{}'::jsonb) AS parts
 FROM (SELECT r.bucket, count(*)::int AS n, round(coalesce(sum(r.value_mkd), 0))::bigint AS v
         FROM public.insights_sale_rows(${ts(w.fromIso)}, ${ts(w.toEndIso)}, false) r
-       WHERE r.source = 'elyon_crm' AND r.split = 'prediction_list'
+       WHERE r.split = 'prediction_list'
        GROUP BY r.bucket) x`);
     const parts = parse(p.parts) ?? {};
     const lines = [
@@ -250,8 +253,8 @@ GROUP BY 1`);
   {
     const window = { fromIso: w.fromIso, toEndIso: w.toEndIso };
     const probes = [];
-    // the tab's links carry cohort_source=elyon_crm (listModel.ts listsHref, 20260942001000)
-    const base = (keys) => drillPredicateParts(IC, { keys, cohortSources: ['elyon_crm'], saleSources: ['elyon_crm'], detail: 'prediction_list', window, ex });
+    // the tab's links carry sale_source + detail, no cohort_source (listModel.ts listsHref, 20260942001800)
+    const base = (keys) => drillPredicateParts(IC, { keys, cohortSources: [], saleSources: ['elyon_crm'], detail: 'prediction_list', window, ex });
     const total = IC.parseCohortBucketParam('total').values;
     probes.push({ label: 'slice total', want: n(L.total.count), parts: base(total) });
     for (const b of L.buckets ?? []) {
@@ -270,7 +273,7 @@ GROUP BY 1`);
       const [endRow] = await sql(`SELECT ((${q(soldTo)}::date + 1)::timestamp AT TIME ZONE 'Europe/Skopje') - interval '1 microsecond' AS t`);
       const sw = { fromIso: w.fromIso, toEndIso: new Date(endRow.t).toISOString() };
       probes.push({ label: `stale to pack (sold ≤ ${soldTo})`, want: n(L.total.stale_to_pack),
-        parts: drillPredicateParts(IC, { keys: ['to_pack'], cohortSources: ['elyon_crm'], saleSources: ['elyon_crm'], detail: 'prediction_list', window: sw, ex }) });
+        parts: drillPredicateParts(IC, { keys: ['to_pack'], cohortSources: [], saleSources: ['elyon_crm'], detail: 'prediction_list', window: sw, ex }) });
     }
     const live = probes.filter((p) => p.parts);
     const cols = live.map((p, i) => `count(*) FILTER (WHERE ${p.parts.join(' AND ')})::int AS p${i}`);

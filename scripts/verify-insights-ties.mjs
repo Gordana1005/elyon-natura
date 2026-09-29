@@ -182,7 +182,7 @@ export async function loadTwin() {
 const PGRST_COLUMNS = new Set([
   'id', 'status', 'price', 'sold_at', 'confirmed_at', 'created_at', 'paid_basis', 'source_type',
   'sale_source', 'sale_source_detail', 'mex_tracking_id', 'mex_status_id', 'mex_cod_mkd',
-  'mex_delivered_at', 'customer_phone',
+  'mex_delivered_at', 'customer_phone', 'dept_override',
 ]);
 const OPS = { eq: '=', neq: '<>', gt: '>', gte: '>=', lt: '<', lte: '<=' };
 

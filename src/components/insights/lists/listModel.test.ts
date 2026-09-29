@@ -102,10 +102,10 @@ describe('/orders links — exact or none', () => {
   it('builds the list slice filter', () => {
     const href = listsHref('total', RANGE, { listName: '57d 26+ (1-3 orders)' });
     const sp = new URLSearchParams(href.split('?')[1]);
-    // cohort_source=elyon_crm: a list sale shipped on a NATURA 9102 / 9100 / 9108 parcel is
-    // Телешоп / Social media, not this tab (owner 28.09) — detail alone would list it too
+    // no cohort_source: the tab holds the list sales of every department (a teleshop Lead-out
+    // agent's list sale is Телешоп – Lead out since 20260942001800) — source + detail select them
     expect(Object.fromEntries(sp)).toEqual({
-      cohort_bucket: 'total', cohort_source: 'elyon_crm', sale_source: 'elyon_crm', sale_source_detail: 'prediction_list',
+      cohort_bucket: 'total', sale_source: 'elyon_crm', sale_source_detail: 'prediction_list',
       prediction_list: '57d 26+ (1-3 orders)', sold_from: '2026-09-01', sold_to: '2026-09-27',
     });
     expect(listsHref(['courier', 'courier_problem'], RANGE, { personId: 'p1' })).toContain('cohort_bucket=courier%2Ccourier_problem');
