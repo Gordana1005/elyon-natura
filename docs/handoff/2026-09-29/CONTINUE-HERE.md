@@ -65,68 +65,56 @@ Verified facts for the docs are in `docs/handoff/2026-09-29/FACTS.md`.
 | Web | 447 | 940.504 |
 | **Total** | **7.456** | **18.737.736** |
 
-## ⏳ Running when this was written
+## ✅ Done since (29.09, 05:00 → 09:10) — all applied, deployed and pushed
 
-- **collabBox history backfill 06.04 → 26.09**, in 4-day windows through the sync:
-  - log `%TEMP%\claude\cbx-backfill3.log`, which ends with `BACKFILL DONE`;
-  - at 27–30.07 on 05:00; ETA ~05:20.
-  - It must end before 07:00, because only one run is allowed at a time: the frequent cron would get 409.
-- **AlterCPA weekly sweep**: `altercpa_sweeps` kind `weekly`, status `open` → `done`.
+- **05:10 Leaderboard v2 LIVE** (`145645c`, migration `20260942001200`): one row per agent split by
+  department; `verify-leaderboard-v2` 22–29.09 PASS on the live function; live smoke 28.09 → 65 people,
+  109 sales (108 credited + 1 no seller). Integrations words for the 15-min schedules in the same commit.
+- **05:10 cross-channel parcels** (`3ed28e4`): mex-reconcile guard deployed (a dead lead is revived
+  only by its own folder's parcel — AlterCPA 9110, CRM 9103) + repair run `a057bc52`: 145 AlterCPA
+  leads the old reconcile had revived on NATURA teleshop / social parcels went back to cancelled /
+  trashed. **08:46: their 125 collabBox documents re-applied** (run `4cdb427f`) → each is now its own
+  teleshop / social order with its seller (16 more were created by the backfill). Listed for the owner:
+  47 same-day + 84 imported links (CSV `exports/repairs/cross-channel-parcels-2026-09-29T03-04-29-167Z.csv`).
+- **AlterCPA weekly 90-day sweep** done 05:11; **collabBox history backfill 06.04 → 26.09** done 08:03
+  (0 errors); crons every 15 min running since 06:07 (MEX) / 07:00 (collabBox, AlterCPA status).
+- **08:53 Orders list** (`6e8bd8f`, migration `20260942001500` order_departments): every order shows its
+  SELLER (the sold_* stamp — a collabBox order was "confirmed by System (collabbox-sync)") and its
+  DEPARTMENT as the source chip (intake under it). confirmed_by_* untouched (payouts deferred).
+- **Operations day boundary** fixed (Skopje day, same commit).
+- **09:00 Табла for admins = the Insights Overview** (`981051b`): the old CEO view (CRM statuses by
+  created UTC day, "revenue" = shipped + paid, assigned-agent rankings, paging all orders) is gone.
+- **09:02 Операции** (`3463311`): today = the sale cohort of the Skopje day (sales by department, to
+  pack, MEX money collected), MEX returns today; per agent the day's credited sales + worked decisions
+  from leaderboard_day_v2. Money tiles only for owners.
+- **09:06 Order window "Origin and proof"** (`b406bc4`, `703976b`, migration `20260942001600`
+  order_origin): department, intake, seller, sold at, AlterCPA decision, collabBox document, CRM price
+  vs MEX COD, MEX profile / tracking / status / created / delivered / returned / receiver.
+- **Pure Profit cache** force-refreshed (6 months) after the backfill.
+- **Checks 09:00:** September + July — engine fixture, insights-ties, tab sales / agents / profit /
+  returns / work, leaderboard-v2: PASS. verify-attribution: only the known C7 (Sep 37; Jul 655 = the
+  11.08 "cancel(other) before August = paid" ruling, report only) and C8b (Sep 14, Jul 1).
+  tab-lists L8 off by 1 member = the live recompute (flicker).
 
-## 🔜 NEXT — in this order
+## 🔜 STILL TO DO
 
-1. ✅ **DONE 05:10 — Leaderboard v2 LIVE** (commit `145645c`): migration `20260942001200` applied,
-   `api` deployed, Vercel Ready. `verify-leaderboard-v2` 22–29.09 = PASS on the live function (person ×
-   department = truth, board = insights_cohort per department, once only, roster, filters). Live
-   smoke: 28.09 → 65 people, 109 sales (108 credited + 1 no seller), department filter works. The old
-   response stays the api default (no ?v=2) — the TV page reads v2.
-   ✅ **DONE 05:10 — Integrations words** (in the same commit).
-   ✅ **DONE 05:10 — cross-channel parcels**: `mex-reconcile` guard deployed (commit `3ed28e4`: a dead
-   lead is revived only by its own folder's parcel — AlterCPA 9110, CRM 9103), and repair run
-   `a057bc52` applied: 145 AlterCPA leads the old reconcile had revived on NATURA teleshop / social
-   parcels (Jul–Sep, 314.730 ден COD) went back to cancelled / trashed; their parcels now count in
-   their own department. 126 of those parcels have a collabBox ledger row (outcome 'conflict') — the
-   ones dated after ~20.08 are re-read by the backfill; the rest need re-applying from their stored
-   payload (`collabbox_apply_documents(run, payloads)` under a manual run row, after the backfill) so
-   each becomes its own order with its seller. Left alone and listed for the owner: 47 same-day
-   (maybe the lead's own sale booked in a teleshop folder) + 84 imported links (no MEX flip) —
-   CSV `exports/repairs/cross-channel-parcels-2026-09-29T03-04-29-167Z.csv`.
-   ✅ AlterCPA weekly 90-day sweep: done 05:11 (5 slices).
-2. **After the backfill ends:**
-   1. Run the collabBox sync in mode `nightly`, trigger `manual`, to cover 26–28.09. Post to the function with the vault secret, like `invoke_collabbox_sync`; the hour gate only lives in the invoke function. This also clears the `nightly: failing` card: the cron's first real nightly is 30.09 00:00, because the job was created after the 29.09 slot.
-   2. Run mode `manual`, from `2026-09-28` to `2026-09-29`.
-   3. Run `select public.insights_profit_refresh_nightly(true, 30)`. The backfill created social and LEADS-OUT history orders in Apr–Sep, so the Pure Profit months are stale.
-   4. Re-run the verification suite for 01–28.09 and for one earlier month.
-3. **Integrations words.** Apply them once the leaderboard's locale edits are committed: `node docs/handoff/2026-09-29/patch-locales-1400.mjs`. It updates `feedDesc.mex_bio_natural`, `mex_natura` and `collabbox`, and adds `expect.daytime_15m` and `expect.cbx_15m` in mk/en/sq/bg. Until then the Integrations tab shows the raw key for those two expects.
-4. **Audit fixes.** A read-only audit agent produces the fix list for the Dashboard, Operations and Insights. Found already on Operations (`GET /operations-center`, `OperationsPage.tsx`):
-   - "today" is `setHours(0)` / `toISOString()`: a UTC day, 02:00 Skopje;
-   - the KPIs are CRM-status transitions, not the cohort or MEX;
-   - agent activity uses `assigned_agent_id`, not the `sold_*` stamps.
-5. **Order modal: "Origin & proof" section** (the owner's 29.09 ask: "where from, how, who made it, how much; MEX is the final proof — delivered, when, where, to whom, from whom, at what price"). `GET /orders/:id` already returns every `orders` column, so the missing pieces are:
-   - the seller's name (`sales_people`, which needs the admin client);
-   - the parcel row (`mex_parcels`: receiver name/city, status name, `created_at_mex`);
-   - the UI in `OrderModal.tsx`: department label (`insights.common.source.*`), how (`sold_via`), who, when (`sold_at`), price vs MEX COD, MEX account, tracking, status, delivered/returned at, city.
-6. **Hygiene (no figure changes):** 14.797 paid orders with a delivered MEX parcel have `paid_basis` NULL. Setting `'mex'` + a writer fix would make "how it was proven" explicit.
-7. **07:15–07:45:**
-   1. Check the freshness of every feed: `integrations_health()` and `collabbox_feed_state()`. MEX's first 15-min run is at 06:07; collabBox's is at 07:00.
-   2. Run the full suite again.
-   3. Report to the owner.
-8. **Docs LAST** (owner, 29.09 ~05:00: "we leave the docs for the end once everything is done —
-   first fixes and all that"). The docs agent was STOPPED at ~05:00; its partial edits (below) are
-   uncommitted in the working tree — never commit them together with code; review them at the end.
-   `CLAUDE.md` is already current (commit `d058832`). Then:
-   - `MACEDONIA-STATUS.md`: a new 29.09 section, and "Current state" set to 29.09;
-   - `docs/how-it-works.md` (§8 is the cron table);
-   - `docs/OPERATIONS_RUNBOOK.md`;
-   - the `elyon-presence-and-leaderboard` skill (leaderboard v2);
-   - the `## Leaderboard` section of FACTS;
-   - `MEMORY.md`.
-
-   Partially rewritten by the stopped docs agent (uncommitted — review, finish, then commit):
-   - skills:
-     - new: `elyon-departments-and-sources` and `elyon-collabbox-sync`;
-     - updated: `altercpa-bridge`, `customer360-and-integrations`, `logistics-costs`, `segments-and-prediction` and the README;
-   - `docs/ALTERCPA-BRIDGE.md`, `docs/IMPORT_EXPORT.md` and `docs/INSIGHTS_ANALYTICS.md`.
+1. Owner questions document — `docs/handoff/2026-09-29/PRASHANJA-ZA-MILE.md` (Macedonian; draft
+   written, finish + commit at the end).
+2. Insights tabs audit (the audit agent died on the rate limit, no report): check each tab against the
+   six-department model; remove outdated widgets.
+3. Hygiene (no figure changes): 14.797 paid orders with a delivered MEX parcel have `paid_basis`
+   NULL; `scripts/data/c8a-accepted-duplicates.json` has 3 stale exceptions.
+4. **Docs LAST** (owner: "we leave the docs for the end"). The docs agent was STOPPED at ~05:00; its
+   partial edits are uncommitted in the working tree — never commit them together with code; review
+   them at the end. `CLAUDE.md` is current (`d058832`) except: add the new functions
+   (order_departments, order_origin), the Табла = Overview change, Operations, the reconcile guard.
+   Then: `MACEDONIA-STATUS.md` (new 29.09 section), `docs/how-it-works.md` (§8 crons),
+   `docs/OPERATIONS_RUNBOOK.md`, the `elyon-presence-and-leaderboard` skill (leaderboard v2),
+   FACTS `## Leaderboard`, `MEMORY.md`. Partially rewritten by the stopped agent (uncommitted):
+   skills `elyon-departments-and-sources` + `elyon-collabbox-sync` (new), `altercpa-bridge`,
+   `customer360-and-integrations`, `logistics-costs`, `segments-and-prediction`, README;
+   `docs/ALTERCPA-BRIDGE.md`, `docs/IMPORT_EXPORT.md`, `docs/INSIGHTS_ANALYTICS.md`,
+   `docs/ARCHITECTURE.md`, `docs/OPERATIONS_RUNBOOK.md`, `docs/PRODUCTS_STOCK_WAREHOUSE.md`.
 
 ## 🧑‍💼 Open owner items (decisions only he can make)
 
