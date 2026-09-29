@@ -2203,10 +2203,10 @@
       },
       "feedDesc": {
         "altercpa": "Pasqyra e lead-eve — lead-e të reja çdo 2 min, rezultatet çdo 5 min (07:00–20:55)",
-        "mex_bio_natural": "Pakot e Elyon — çdo 30 min, 07:00–20:55",
-        "mex_natura": "Pakot e teleshop-it dhe rrjeteve sociale — çdo 30 min, 07:00–20:55",
+        "mex_bio_natural": "Pakot e Affiliate (Lead in dhe Lead out) — çdo 15 min, 06:00–23:00",
+        "mex_natura": "Pakot e teleshopit, rrjeteve sociale dhe uebit — çdo 15 min, 06:00–23:00",
         "web": "Porositë e naturatherapy.mk — çdo 15 min",
-        "collabbox": "Import manual — i freskët derisa dokumenti më i ri është nën 7 ditë",
+        "collabbox": "Dokumentet e collabBox — kalim i plotë çdo 15 min (07:00–23:00) dhe natën në 00:00 (3 ditët e fundit)",
         "no_parcel_rule": "Shitje AlterCPA pa pako MEX pas {{days}} ditësh — çdo ditë në {{hour}}:10"
       },
       "lastOk": "Suksesi i fundit",
@@ -2250,6 +2250,8 @@
         "rolling_2m": "çdo 2 min",
         "daytime_5m": "çdo 5 min, 07:00–20:55",
         "daytime_30m": "çdo 30 min, 07:00–20:55",
+        "daytime_15m": "çdo 15 min, 06:00–23:00",
+        "cbx_15m": "çdo 15 min, 07:00–23:00",
         "every_15m": "çdo 15 min",
         "nightly": "çdo natë",
         "weekly": "çdo javë",
@@ -5397,6 +5399,57 @@
       "altercpa_leads": "Në pritje",
       "management": "Menaxhmenti"
     }
+  },
+  "leaderboard2": {
+    "title": "Renditja",
+    "allDepartments": "Të gjitha departamentet",
+    "filterAll": "Të gjitha",
+    "filterDepartments": "Departamentet",
+    "filterTeams": "Ekipet",
+    "allTeams": "Të gjitha ekipet",
+    "dept": {
+      "altercpa": "Affiliate – Lead in",
+      "elyon_crm": "Affiliate – Lead out",
+      "teleshop_out": "Teleshop – Lead out",
+      "teleshopOther": "Teleshop – Lead in",
+      "social": "Rrjetet sociale",
+      "web": "Dyqani online"
+    },
+    "deptShort": {
+      "altercpa": "Aff. in",
+      "elyon_crm": "Aff. out",
+      "teleshop_out": "Tele out",
+      "teleshopOther": "Tele in",
+      "social": "Sociale",
+      "web": "Web"
+    },
+    "team": {
+      "none": "Pa ekip"
+    },
+    "chip": "{{dept}} {{n}} · {{value}}",
+    "chipCount": "{{dept}} {{n}}",
+    "convShort": "{{pct}}%",
+    "bookedChip": "{{dept}} +{{n}} të rezervuara · {{value}}",
+    "bookedChipCount": "{{dept}} +{{n}} të rezervuara",
+    "bookedHint": "Rezervuar sot në collabBox, ende në pritje të pakos — numërohen në total; bëhen porosi sapo MEX ta ketë pakon.",
+    "cancelledHint": "Shitur atë ditë, anuluar më pas — nuk numërohen",
+    "noCrmLogin": "pa hyrje në CRM",
+    "noLoginSub": "{{n}} pa hyrje në CRM",
+    "kpiSales": "Shitjet",
+    "kpiSalesSub": "{{orders}} porosi · {{booked}} të rezervuara në collabBox",
+    "kpiValue": "Vlera",
+    "kpiCancelledSub": "{{n}} të anuluara pas shitjes — nuk numërohen",
+    "kpiConvSub": "konvertimi {{pct}}%",
+    "kpiNoSeller": "Pa shitës",
+    "kpiNoSellerSub": "shitje pa agjent të kredituar",
+    "kpiNoSellerBooked": "+ {{n}} rezervime nga autor i paemërtuar",
+    "colDepartments": "Departamentet",
+    "colTotal": "Gjithsej",
+    "managersHeading": "Menaxhmenti — shfaqet, nuk renditet",
+    "noPeople": "Askush nuk ka punuar në këtë pamje atë ditë.",
+    "legacyApi": "Serveri ende ka tabelën e vjetër — shfaqet vetëm departamenti i saj derisa të lëshohet versioni i ri.",
+    "prevDay": "Dita e mëparshme",
+    "nextDay": "Dita tjetër"
   },
   "altercpa": {
     "tabMirror": "Pasqyra",

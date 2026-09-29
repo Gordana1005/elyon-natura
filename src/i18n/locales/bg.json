@@ -2203,10 +2203,10 @@
       },
       "feedDesc": {
         "altercpa": "Огледало на лийдовете — нови лийдове на всеки 2 мин, резултати на всеки 5 мин (07:00–20:55)",
-        "mex_bio_natural": "Пратки на Elyon — на всеки 30 мин, 07:00–20:55",
-        "mex_natura": "Пратки от телешоп и социални мрежи — на всеки 30 мин, 07:00–20:55",
+        "mex_bio_natural": "Пратки на Affiliate (Lead in и Lead out) — на всеки 15 мин, 06:00–23:00",
+        "mex_natura": "Пратки на телешоп, социални мрежи и уеб — на всеки 15 мин, 06:00–23:00",
         "web": "Поръчки от naturatherapy.mk — на всеки 15 мин",
-        "collabbox": "Ръчен импорт — свеж, докато най-новият документ е под 7 дни",
+        "collabbox": "Документи от collabBox — пълно минаване на всеки 15 мин (07:00–23:00) и нощно в 00:00 (последните 3 дни)",
         "no_parcel_rule": "AlterCPA продажби без MEX пратка след {{days}} дни — всеки ден в {{hour}}:10"
       },
       "lastOk": "Последен успех",
@@ -2250,6 +2250,8 @@
         "rolling_2m": "на всеки 2 мин",
         "daytime_5m": "на всеки 5 мин, 07:00–20:55",
         "daytime_30m": "на всеки 30 мин, 07:00–20:55",
+        "daytime_15m": "на всеки 15 мин, 06:00–23:00",
+        "cbx_15m": "на всеки 15 мин, 07:00–23:00",
         "every_15m": "на всеки 15 мин",
         "nightly": "всяка нощ",
         "weekly": "всяка седмица",
@@ -5397,6 +5399,57 @@
       "altercpa_leads": "Чакащи",
       "management": "Мениджмънт"
     }
+  },
+  "leaderboard2": {
+    "title": "Класиране",
+    "allDepartments": "Всички отдели",
+    "filterAll": "Всички",
+    "filterDepartments": "Отдели",
+    "filterTeams": "Екипи",
+    "allTeams": "Всички екипи",
+    "dept": {
+      "altercpa": "Affiliate – Lead in",
+      "elyon_crm": "Affiliate – Lead out",
+      "teleshop_out": "Телешоп – Lead out",
+      "teleshopOther": "Телешоп – Lead in",
+      "social": "Социални мрежи",
+      "web": "Онлайн магазин"
+    },
+    "deptShort": {
+      "altercpa": "Aff. in",
+      "elyon_crm": "Aff. out",
+      "teleshop_out": "Тел. out",
+      "teleshopOther": "Тел. in",
+      "social": "Социални",
+      "web": "Уеб"
+    },
+    "team": {
+      "none": "Без екип"
+    },
+    "chip": "{{dept}} {{n}} · {{value}}",
+    "chipCount": "{{dept}} {{n}}",
+    "convShort": "{{pct}}%",
+    "bookedChip": "{{dept}} +{{n}} резервирани · {{value}}",
+    "bookedChipCount": "{{dept}} +{{n}} резервирани",
+    "bookedHint": "Резервирани днес в collabBox, все още чакат пратка — броят се в общото; стават поръчка щом MEX получи пратката.",
+    "cancelledHint": "Продадени този ден, отказани след това — не се броят",
+    "noCrmLogin": "няма вход в CRM",
+    "noLoginSub": "{{n}} без вход в CRM",
+    "kpiSales": "Продажби",
+    "kpiSalesSub": "{{orders}} поръчки · {{booked}} резервирани в collabBox",
+    "kpiValue": "Стойност",
+    "kpiCancelledSub": "{{n}} отказани след продажбата — не се броят",
+    "kpiConvSub": "конверсия {{pct}}%",
+    "kpiNoSeller": "Без продавач",
+    "kpiNoSellerSub": "продажби без кредитиран агент",
+    "kpiNoSellerBooked": "+ {{n}} резервации от неназован автор",
+    "colDepartments": "Отдели",
+    "colTotal": "Общо",
+    "managersHeading": "Мениджмънт — показва се, не се класира",
+    "noPeople": "Никой не е работил в този изглед този ден.",
+    "legacyApi": "Сървърът все още е със старото табло — показва се само неговият отдел, докато не се пусне новата версия.",
+    "prevDay": "Предишен ден",
+    "nextDay": "Следващ ден"
   },
   "altercpa": {
     "tabMirror": "Огледало",

@@ -2203,10 +2203,10 @@
       },
       "feedDesc": {
         "altercpa": "Lead mirror — new leads every 2 min, outcomes every 5 min (07:00–20:55)",
-        "mex_bio_natural": "Elyon parcels — every 30 min, 07:00–20:55",
-        "mex_natura": "Teleshop and social parcels — every 30 min, 07:00–20:55",
+        "mex_bio_natural": "Affiliate parcels (Lead in and Lead out) — every 15 min, 06:00–23:00",
+        "mex_natura": "Teleshop, social media and web parcels — every 15 min, 06:00–23:00",
         "web": "naturatherapy.mk orders — every 15 min",
-        "collabbox": "Manual import — fresh while the newest document is under 7 days old",
+        "collabbox": "collabBox documents — a full pass every 15 min (07:00–23:00) and nightly at 00:00 (last 3 days)",
         "no_parcel_rule": "AlterCPA sales with no MEX parcel after {{days}} days — daily at {{hour}}:10"
       },
       "lastOk": "Last success",
@@ -2250,6 +2250,8 @@
         "rolling_2m": "every 2 min",
         "daytime_5m": "every 5 min, 07:00–20:55",
         "daytime_30m": "every 30 min, 07:00–20:55",
+        "daytime_15m": "every 15 min, 06:00–23:00",
+        "cbx_15m": "every 15 min, 07:00–23:00",
         "every_15m": "every 15 min",
         "nightly": "nightly",
         "weekly": "weekly",
@@ -5397,6 +5399,57 @@
       "altercpa_leads": "Pending",
       "management": "Management"
     }
+  },
+  "leaderboard2": {
+    "title": "Leaderboard",
+    "allDepartments": "All departments",
+    "filterAll": "All",
+    "filterDepartments": "Departments",
+    "filterTeams": "Teams",
+    "allTeams": "All teams",
+    "dept": {
+      "altercpa": "Affiliate – Lead in",
+      "elyon_crm": "Affiliate – Lead out",
+      "teleshop_out": "Teleshop – Lead out",
+      "teleshopOther": "Teleshop – Lead in",
+      "social": "Social media",
+      "web": "Web shop"
+    },
+    "deptShort": {
+      "altercpa": "Aff. in",
+      "elyon_crm": "Aff. out",
+      "teleshop_out": "Tele out",
+      "teleshopOther": "Tele in",
+      "social": "Social",
+      "web": "Web"
+    },
+    "team": {
+      "none": "No team"
+    },
+    "chip": "{{dept}} {{n}} · {{value}}",
+    "chipCount": "{{dept}} {{n}}",
+    "convShort": "{{pct}}%",
+    "bookedChip": "{{dept}} +{{n}} booked · {{value}}",
+    "bookedChipCount": "{{dept}} +{{n}} booked",
+    "bookedHint": "Booked in collabBox today and still waiting for a parcel — counted in the total; it becomes an order once MEX has the parcel.",
+    "cancelledHint": "Sold that day, cancelled since — not counted",
+    "noCrmLogin": "no CRM login",
+    "noLoginSub": "{{n}} without a CRM login",
+    "kpiSales": "Sales",
+    "kpiSalesSub": "{{orders}} orders · {{booked}} booked in collabBox",
+    "kpiValue": "Value",
+    "kpiCancelledSub": "{{n}} cancelled after the sale — not counted",
+    "kpiConvSub": "conversion {{pct}}%",
+    "kpiNoSeller": "No seller",
+    "kpiNoSellerSub": "sales nobody is credited with",
+    "kpiNoSellerBooked": "+ {{n}} bookings by an unnamed author",
+    "colDepartments": "Departments",
+    "colTotal": "Total",
+    "managersHeading": "Management — shown, never ranked",
+    "noPeople": "Nobody worked in this view that day.",
+    "legacyApi": "The server still runs the old board — only its own department is shown until the new version is deployed.",
+    "prevDay": "Previous day",
+    "nextDay": "Next day"
   },
   "altercpa": {
     "tabMirror": "Mirror",

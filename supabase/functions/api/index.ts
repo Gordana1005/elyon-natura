@@ -10,6 +10,9 @@ import * as C360 from "./customer360.ts";
 // TV leaderboard: maps leaderboard_day() + the bonus rules into the board
 // response (pure, unit-tested in leaderboard.test.ts).
 import * as LB from "./leaderboard.ts";
+// TV leaderboard v2 (?v=2, migration 20260942001200): one row per agent split by
+// department — query validation + the money whitelist (pure, leaderboardV2.test.ts).
+import * as LB2 from "./leaderboardV2.ts";
 // Settings → Teams / Integrations health (owners only): body parsing, error
 // codes, suggestions, the no-parcel switch (pure, unit-tested).
 import * as TA from "./teamsAdmin.ts";
@@ -2861,6 +2864,28 @@ async function handleRequest(req: Request): Promise<Response> {
       const { day, today, startISO, endISO } = skopjeDayRange(url.searchParams.get("day") || "");
       // Postgres rejects an impossible date (2026-02-31) that the regex lets through.
       const lbDay = OV.isValidYmd(day) ? day : today;
+
+      // ?v=2 (owner 28–29.09.2026): ONE board, one row per agent split over the six
+      // departments + the day's collabBox bookings (leaderboard_day_v2, migration
+      // 20260942001200); &department= / &team= filter it. The response above stays
+      // the default until every TV runs the v2 page. Money: the TV token is the
+      // leaderboard's existing access rule — a valid token gets the денари, as the
+      // wall board always has; leaderboardV2.ts strips them (whitelist) otherwise.
+      if (url.searchParams.get("v") === "2") {
+        const q = LB2.parseLeaderboardV2Query({
+          department: url.searchParams.get("department"), team: url.searchParams.get("team"),
+        });
+        if (!q.ok) return json({ error: q.error }, 400);
+        const { data: v2, error: v2Err } = await adminClient.rpc("leaderboard_day_v2", {
+          p_day: lbDay, p_department: q.department, p_team: q.team,
+        });
+        if (v2Err || !v2) {
+          console.error("leaderboard_day_v2 failed:", v2Err?.message);
+          // 22023 = an unknown team key (the department is checked above)
+          return v2Err?.code === "22023" ? json({ error: "invalid team" }, 400) : json({ error: "Leaderboard unavailable" }, 500);
+        }
+        return json(LB2.buildLeaderboardV2Response({ rpc: v2, today, money: true }));
+      }
 
       // The board (leaderboard_day), the per-mode bonus rules and the day's calls
       // (call_logs, scoped to the motion via context_type — the only per-user
