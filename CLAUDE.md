@@ -63,7 +63,8 @@ target **explicitly** and verify it before running:
   `postgres` role). Record the DB password in VAULT §1 to restore the normal `db push` path.
   Finished-but-paused migrations live in `supabase/paused/` (never applied; see its README).
 - **Edge functions:** `api` (one deployable — deploy only when `index.ts` holds finished work),
-  `altercpa-sync`, `mex-reconcile`, `web-sync`, `collabbox-sync` (a probe only). Deploy with
+  `altercpa-sync`, `mex-reconcile`, `web-sync`, `collabbox-sync` (the live collabBox reader —
+  read-only against collabBox; it creates an order only once the MEX parcel exists). Deploy with
   `npx supabase functions deploy <fn> --project-ref bmfxhgznttcnnlqloqzp` after the tripwire.
 - **Read-only SQL** (verification): POST `https://api.supabase.com/v1/projects/bmfxhgznttcnnlqloqzp/database/query`
   with `{query, read_only: true}`; checkers: `scripts/verify-attribution.mjs` (C1–C14).
@@ -106,31 +107,38 @@ target **explicitly** and verify it before running:
   `supabase/functions/api/overview.ts`); owner-only surfaces (Settings → Teams / Integrations,
   `/insights/pivot`, `/management-insights` beyond `?scope=calls`, the presence day sheet) answer
   `403 owners_only`.
-- **Sale sources are the DEPARTMENTS (owner law, 28.09.2026, whole history)** — five cohort
-  sources, in this order (`cohort_order_source(sale_source, detail)` / `cohort_parcel_source()`):
-  - **AlterCPA** (`altercpa`): affiliate leads (bridge / history; an ad lead from an existing client
-    is still a LEAD; ships BIO NATURAL 9110), plus collabBox 9110 "LEADS" (`collabbox_leads`), plus
-    EVERY sale an AlterCPA-team agent makes (`team_prediction`, `team_collabbox_out`,
-    `team_collabbox_leads_out`). Her team on the sale day decides: "their prediction stays counted
-    in AlterCPA".
-  - **Телешоп – Lead out** (key `elyon_crm`): CRM-made sales (`prediction_list` / `direct`; they
-    ship as BIO NATURAL 9103 LEADS-OUT), plus collabBox 9102 "Нарачка out" (`collabbox_out`) and
-    9103 "LEADS-OUT" (`collabbox_leads_out`), whoever booked them.
-  - **Телешоп – Lead in** (key `teleshop_other`): only collabBox 9100 "Нарачка in", the TV lead-in
-    imported from collabBox.
-  - **Социјални мрежи** (`social`): collabBox 9108 / 1300. It is its own department, never teleshop.
-  - **Web shop**: the `web_orders` mirror of naturatherapy.mk. These are NOT orders, and the live
-    shop gets no changes.
-  - A MEX parcel with no order goes to its source by SERIES (9110 → AlterCPA · 9102/9103 → Lead
-    out · 9100 → Lead in · 9108 → Social · NTMK/M… → Web).
-  - `collabbox_department()` classifies at INSERT, and `tg_orders_stamp_sold` moves a CRM sale of an
-    AlterCPA-team agent to AlterCPA. Every later move of a row is logged in `sale_source_reclass`
-    (`scripts/reclass-department-sources.mjs --rollback`). One order, one source: the same row moves,
-    it is never copied.
-  - The 10-day no-parcel rule keeps its population. `team_prediction` is excluded in all three twins
-    (`apply_no_parcel_rule`, Overview `anp`, `attentionFilter`).
-  - `sales_people.crm_since` / `crm_until` record who works in the CRM. They are information, not a
-    gate.
+- **Sale sources are the SIX DEPARTMENTS (owner law, 28–29.09.2026, whole history)** — decided by
+  the collabBox FOLDER (document type) and the MEX profile; **never** by the system an order was made
+  in, never by the seller's team ("no need to mention Elyon-CRM or AlterCPA anymore"). Cohort keys,
+  in display order (`cohort_order_source(sale_source, detail, mex_tracking_id)` /
+  `cohort_parcel_source()`, migration `20260942001000`):
+  - **Affiliate – Lead in** (`altercpa`): AlterCPA affiliate leads (pending → decided; an ad lead
+    from an existing client is still a LEAD) + collabBox 10111 "Нарачка LEADS". BIO NATURAL 9110.
+  - **Affiliate – Lead out** (`elyon_crm`): re-sales to affiliate customers — CRM-made sales
+    (`prediction_list` / `direct`) + collabBox 10114 "LEADS-OUT". BIO NATURAL 9103.
+  - **Телешоп – Lead out** (`teleshop_out`): collabBox 10050 "Нарачка out", affiliate-first
+    customers included (the grey zone is teleshop out). NATURA 9102.
+  - **Телешоп – Lead in** (`teleshop_other`): collabBox 10036 "Нарачка in", the TV lead-in. NATURA 9100.
+  - **Социјални мрежи** (`social`): collabBox 10106 / 10055. NATURA 9108 / 1300. Its own department.
+  - **Web** (`web`): the `web_orders` mirror of naturatherapy.mk — NOT orders; the live shop gets no
+    changes. NATURA NTMK / M….
+  - The TYPE decides (`orders.collabbox_doc_type`); the DocNumber series lies for ~1.100 documents. A
+    CRM-made sale shipped on a NATURA parcel follows that parcel's series. A MEX parcel with no order
+    goes by series (9110 → Lead in · 9103 → Lead out · 9102 → Teleshop out · 9100 → Teleshop in ·
+    9108/1300 → Social · NTMK/M… → Web).
+  - `collabbox_department(type, doc, person, at)` classifies at INSERT; a new collabBox type goes into
+    it and into `collabbox_doc_role()`. Every later move of a row is logged in `sale_source_reclass`
+    (`scripts/reclass-by-folder.mjs --rollback`). One order, one department: the row moves, it is
+    never copied, never counted twice.
+  - Superseded — never reintroduce: the AlterCPA-team override (`team_*` details, withdrawn by
+    `20260942001100`), "Lead out = CRM + 9102 + 9103", the `crm_since` gate (information only).
+  - The 10-day no-parcel rule keeps its population (AlterCPA approvals only).
+- **Every source refreshes at least every 15 minutes (owner, 29.09; `20260942001300`)**; MEX — both
+  APIs, BIO NATURAL and NATURA — is the final proof of shipped / paid / returned. AlterCPA: new leads
+  every 2 min, outcomes every 5 min 07:00–20:55. MEX: both accounts in one sweep every 15 min
+  06:00–22:59 + a Sunday 60-day sweep. Web: every 15 min. collabBox: a full pass of yesterday + today
+  every 15 min 07:00–22:59 + the nightly 00:00 (last 3 days); only one run at a time (409), so never
+  leave a manual backfill running into 07:00. Freshness thresholds follow (`20260942001400`).
 - **"Нарачки" = only real orders**: confirmed / packed / shipped / paid, plus returned (it
   shipped). Cancels and trash are never orders or order value — shown apart as Откажани (red dot) /
   Во корпа (grey); Вратени = pink dot; worked decisions = "Обработени".
@@ -157,9 +165,9 @@ target **explicitly** and verify it before running:
   `SET LOCAL elyon.keep_updated_at = 'on'` (honoured by `update_updated_at_column()` since
   `20260939000300`). `session_replication_role` cannot be set inside functions on MK. Run bulk work
   in the quiet window after 20:55 Skopje and never while `recompute_all_segments` runs.
-- **Deferred by the owner — do not touch:** payouts / bonus / commission math; VAT, costs and
-  lead cost (he sets them later); the collabBox daily sync (paused — its migration waits in
-  `supabase/paused/`).
+- **Deferred by the owner — do not touch:** payouts / bonus / commission math; costs and lead cost
+  (he sets them later); the stock count (owner, 29.09: "don't focus on stock now" — sellable products
+  carry the placeholder 1.000 until his count arrives; keep stock working, add no detail).
 - Search the code for `TODO(mk)` to find every unfinished real-value spot.
 
 ## Grok Skills System
@@ -188,6 +196,8 @@ before non-trivial work on money, phones, warehouse, stock, webhooks, or fulfilm
 - `elyon-presence-and-leaderboard` — Presence minutes + the 30-min idle alert, sales people / identities / teams, the write-once `orders.sold_*` stamps (who is credited with a sale, the stamping cron), the TV leaderboard and Settings → Teams.
 - `elyon-web-shop-bridge` — The read-only naturatherapy.mk mirror (`web_orders`, web-sync every 15 min, `crm_export` on the shop side). Web orders are NOT CRM orders; the live shop gets no changes.
 - `elyon-customer360-and-integrations` — Customer 360 (`customer_timeline`, last-8 matching, money stripped for non-owners) and Settings → Integrations health (freshness thresholds kept in step with the Overview, the 7-day rule's owner switch).
+- `elyon-departments-and-sources` — The six departments (collabBox folder + MEX profile), `cohort_order_source`, the parcel split, `sale_source_reclass` and its rollbacks. Law for anything that says where a sale belongs.
+- `elyon-collabbox-sync` — The live collabBox reader: folders/types and roles, the document ledger, orders only once the MEX parcel exists, seller credit, the 15-minute + nightly crons, one run at a time.
 
 New skills should be added to `.grok/skills/` whenever you find yourself re-explaining the same
 complicated rule or workflow. Use `/skillify` right after completing a complex piece of work;
