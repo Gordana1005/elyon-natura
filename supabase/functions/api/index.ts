@@ -7034,6 +7034,16 @@ async function handleRequest(req: Request): Promise<Response> {
             if (!piiFlags.name) delete origin.parcel.receiver_name;
             if (!piiFlags.addr) delete origin.parcel.receiver_city;
           }
+          // Money in the origin block is for business owners only — the same rule
+          // Customer 360 applies to the parcel COD (managers see the rest).
+          if (!(await isBusinessOwner(user.id))) {
+            delete origin.price_mkd;
+            if (origin.parcel) delete origin.parcel.cod_mkd;
+            if (origin.collabbox && typeof origin.collabbox === "object") {
+              origin.collabbox = { ...origin.collabbox };
+              delete origin.collabbox.amount_mkd;
+            }
+          }
         }
       }
 
