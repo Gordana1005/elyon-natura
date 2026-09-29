@@ -63,7 +63,7 @@ export function PresenceDot({ state, compact = false }: { state: PresenceStateV2
 
 /**
  * One chip per department the person sold in ("Aff. out 3 · 9.000 ден") and the
- * collabBox bookings still waiting for a parcel ("Тел. out +5 резервирани") —
+ * collabBox bookings still waiting for a parcel ("Тел. out +5 чекаат пратка") —
  * dashed, in the department's colour. `compact` = the phone card: rem sizes and
  * a chip may wrap instead of running past a narrow screen.
  */

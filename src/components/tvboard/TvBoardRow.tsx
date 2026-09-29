@@ -1,6 +1,6 @@
 // One person on the TV board: rank (non-managers with a total), name + team
 // badge + presence, one chip per department she sold in ("Aff. out 3 · 9.000
-// ден"), the collabBox bookings still waiting for a parcel ("+5 резервирани"),
+// ден"), the collabBox bookings still waiting for a parcel ("+5 чекаат пратка"),
 // the total, the work of the whole day and the time on the CRM.
 import { BellRing } from 'lucide-react';
 import { useTranslation } from 'react-i18next';

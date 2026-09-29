@@ -5,7 +5,7 @@
 // the six departments — "how much she made that day, in which department, from
 // her own orders". Every row: rank (non-managers with a total), name, team
 // badge, one chip per department she sold in ("Aff. out 3 · 9.000 ден"), the
-// collabBox bookings still waiting for a parcel ("+5 резервирани"), the total,
+// collabBox bookings still waiting for a parcel ("+5 чекаат пратка"), the total,
 // the day's work and conversion, and the time on the CRM. Managers are listed
 // after everyone else, never ranked. Filters: all / a department / a team
 // (?dept= and ?team= pin them per TV; an old ?mode= URL opens its team).

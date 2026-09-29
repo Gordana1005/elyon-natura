@@ -90,7 +90,7 @@ describe('TV leaderboard v2', () => {
     // the department chip: "Aff. in 10 · 44.980 ден"
     expect(within(rows[1]).getByTestId('chip-altercpa').textContent)
       .toBe(i18n.t('leaderboard2.chip', { dept: i18n.t('leaderboard2.deptShort.altercpa'), n: 10, value: formatDenari(44980) }));
-    // a teleshop caller's day is her collabBox bookings: "Тел. in +23 резервирани · 51.900 ден"
+    // a teleshop caller's day is her collabBox bookings: "Тел. in +23 чекаат пратка · 51.900 ден"
     expect(within(rows[0]).getByTestId('chip-booked-teleshop_other').textContent)
       .toBe(i18n.t('leaderboard2.bookedChip', { dept: i18n.t('leaderboard2.deptShort.teleshopOther'), n: 23, value: formatDenari(51900) }));
     expect(within(rows[0]).getByText('1')).toBeInTheDocument();                    // rank 1
