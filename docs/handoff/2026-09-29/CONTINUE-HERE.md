@@ -98,6 +98,28 @@ Verified facts for the docs are in `docs/handoff/2026-09-29/FACTS.md`.
   11.08 "cancel(other) before August = paid" ruling, report only) and C8b (Sep 14, Jul 1).
   tab-lists L8 off by 1 member = the live recompute (flicker).
 
+## ✅ Done 29.09 afternoon (after the second usage limit; all pushed + deployed)
+- **09:25–09:40** layout grey void fixed (`81f4182`); login lands agents on /calls, admins/managers on
+  /insights — the permission-loading race that sent every agent to /assigned (and prediction agents
+  into a white redirect loop) fixed; /start + homePath + no-access screen + AppErrorBoundary + chunk
+  reload; "Assigned to me" retired → /calls (`6fbbcd5`).
+- **11:40 the teleshop Lead-out team's sales follow the AGENT** (owner, answered 4 questions, whole
+  history; `c7c6e42`, migration `20260942001800` applied): orders.dept_override = 'teleshop_out' for a CRM
+  sale or a LEADS-OUT by a crm_prediction-team seller on the sale day; 4-arg cohort_order_source in
+  15 report functions; the Prediction-lists tab holds the list sales of every department. September:
+  712 sales / 1.996.989 ден moved Affiliate – Lead out → Телешоп – Lead out, total unchanged.
+- **11:45** order origin money owner-only (`edfa901`).
+
+## 🏃 Running at ~11:50 (agents; results come back to the main session)
+- **Bookings in the cohort** (owner Q3): collabBox documents booked but without a MEX parcel count
+  immediately (bucket to_pack, kind 'booking', department by folder, 10114 by the author's team,
+  twins of CRM/AlterCPA sales excluded) → migration `20260942001900_bookings_in_cohort.sql` + TS/UI +
+  verify scripts. NOT applied until reviewed.
+- **Follow-ups + docs:** Integrations collabBox card (last ok run, runs, strip); the stamping gap
+  (LEADS-OUT / LEADS orders not credited to their collabBox author → maybe migration `…2000`); docs
+  and skills for everything above.
+- Full September verification after 1800.
+
 ## 🔜 STILL TO DO
 
 1. Owner questions document — `docs/handoff/2026-09-29/PRASHANJA-ZA-MILE.md` (Macedonian; draft

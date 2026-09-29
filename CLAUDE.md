@@ -123,7 +123,13 @@ target **explicitly** and verify it before running:
   - **Web** (`web`): the `web_orders` mirror of naturatherapy.mk — NOT orders; the live shop gets no
     changes. NATURA NTMK / M….
   - The TYPE decides (`orders.collabbox_doc_type`); the DocNumber series lies for ~1.100 documents. A
-    CRM-made sale shipped on a NATURA parcel follows that parcel's series. A MEX parcel with no order
+    CRM-made sale shipped on a NATURA parcel follows that parcel's series.
+  - **The TELESHOP Lead-out team's own sales follow the AGENT (owner, 29.09 ~10:00, whole history,
+    `20260942001800`):** a CRM-made sale (prediction_list / direct) or a collabBox LEADS-OUT booked by a
+    seller on team `crm_prediction` on the sale day is **Телешоп – Lead out** — `orders.dept_override`,
+    `order_dept_override()`, the 4-argument `cohort_order_source(…, dept_override)` that every report
+    uses. An AFFILIATE agent's CRM sale stays Affiliate – Lead out and MEX confirms it (a NATURA parcel's
+    series decides, as above). The Prediction-lists tab holds the list sales of every department. A MEX parcel with no order
     goes by series (9110 → Lead in · 9103 → Lead out · 9102 → Teleshop out · 9100 → Teleshop in ·
     9108/1300 → Social · NTMK/M… → Web).
   - `collabbox_department(type, doc, person, at)` classifies at INSERT; a new collabBox type goes into
