@@ -14,7 +14,7 @@ import { STATUS_TEXT } from '../shared/cohortPalette';
 import type { DayRange } from '../shared/period';
 import type { InsightsFormat } from '../shared/useInsightsFormat';
 import {
-  DEFAULT_SORT, PEOPLE_SOURCES, filterPeople, lastActivityOf, peopleCsv, personHref, ratesOf, sortPeople,
+  DEFAULT_SORT, PEOPLE_SOURCES, filterPeople, lastActivityOf, peopleCsv, personHref, personLinkable, ratesOf, sortPeople,
   type CsvCol, type PeopleFilter, type PeopleSort, type PeopleSortKey, type PartKey,
 } from './model';
 import { PersonBadges, PresenceIcon, SourceSplit, TimeCell, teamName } from './parts';
@@ -193,8 +193,9 @@ export function PeopleTable({ people, teams, range, money, filter, onFilter, onP
             <tbody>
               {rows.map((p) => {
                 const r = ratesOf(p);
+                // a number holding collabBox bookings awaiting their parcel opens no list (personLinkable)
                 const link = (k: PartKey | PartKey[], n: number, label: string) =>
-                  n > 0 ? personHref(p.person_id, k, range, `${p.name} · ${label}`) : null;
+                  n > 0 && personLinkable(p, k) ? personHref(p.person_id, k, range, `${p.name} · ${label}`) : null;
                 const last = lastActivityOf(p);
                 return (
                   <tr key={p.person_id} className="border-t hover:bg-muted/30">
@@ -217,7 +218,10 @@ export function PeopleTable({ people, teams, range, money, filter, onFilter, onP
                     <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">{r.conversion != null ? f.pct(r.conversion) : '—'}</td>
                     <td className="px-2 py-1.5 text-right tabular-nums">
                       <span className="inline-flex items-baseline gap-1">
-                        <DrillLink href={link('total', p.sales, t('insights.agents.col.sales'))} className="font-semibold">{f.int(p.sales)}</DrillLink>
+                        <DrillLink href={link('total', p.sales, t('insights.agents.col.sales'))} className="font-semibold"
+                          title={(p.booked ?? 0) > 0 ? t('insights.agents.people.bookedPart', { n: f.int(p.booked ?? 0), count: p.booked ?? 0 }) : undefined}>
+                          {f.int(p.sales)}
+                        </DrillLink>
                         {p.prev && <DeltaBadge d={delta(p.sales, p.prev.sales, 'up')} f={f} />}
                       </span>
                     </td>

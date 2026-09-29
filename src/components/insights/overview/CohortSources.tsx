@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { AlertTriangle, Info, LayoutGrid, Table2, Truck } from 'lucide-react';
+import { AlertTriangle, Hourglass, Info, LayoutGrid, Table2, Truck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { type CohortLeadsIn, type CohortSourceRow } from '../shared/cohortTypes';
 import {
-  bucketParts, cohortDrill, isMexOnlySplit, mexOnlyCount, outsideParts, tileKeys, type Part,
+  bookedCount, bucketParts, cohortDrill, isBookingSplit, isMexOnlySplit, mexOnlyCount, outsideParts, tileKeys, type Part,
 } from '../shared/cohortModel';
 import { COHORT_ICON, CohortBar } from '../shared/CohortBar';
 import { OrdersPartLink } from '../shared/CohortLinks';
@@ -28,7 +28,7 @@ const writeView = (v: SourcesView) => {
 
 const toPart = (m: CohortSourceRow['total'] | undefined): Part => ({
   count: m?.count ?? 0, value_mkd: m?.value_mkd ?? null, cod_mkd: m?.cod_mkd ?? null,
-  orders: m?.orders ?? null, web: m?.web ?? null, mex_only: m?.mex_only ?? null,
+  orders: m?.orders ?? null, web: m?.web ?? null, mex_only: m?.mex_only ?? null, booked: m?.booked ?? 0,
 });
 
 /** A hollow ring = still open (no outcome yet). */
@@ -109,6 +109,8 @@ function SourceCard({ row, grand, money, range, f }: {
   const outs = outsideParts(row.outside);
   const rowDrill = cohortDrill([row], 'total', range);
   const mexOnly = mexOnlyCount(row);
+  // collabBox documents booked but still waiting for their MEX parcel (20260942001900)
+  const booked = bookedCount(row);
   const isWeb = row.key === 'web';
   const leads = row.leads_in;
   // Телешоп (Lead in and Lead out) and Social media have no lead funnel (hasLeadFunnel).
@@ -164,6 +166,11 @@ function SourceCard({ row, grand, money, range, f }: {
               sourceName={name}
               f={f}
             >
+              {k === 'to_pack' && (p.booked ?? 0) > 0 && (
+                <span className="text-[11px] text-muted-foreground" title={t('insights.common.cohort.noLinkBooked')}>
+                  {t('insights.common.cohort.bookedLine', { n: f.int(p.booked), count: p.booked })}
+                </span>
+              )}
               {k === 'courier' && problem.count > 0 && (
                 <span className={cn('inline-flex items-center gap-1 text-[11px] font-medium', STATUS_TEXT.warning)}>
                   <span className={cn('h-2 w-2 shrink-0 rounded-full', COHORT_TONE.courier_problem)} aria-hidden />
@@ -245,6 +252,7 @@ function SourceCard({ row, grand, money, range, f }: {
           {splits.map((sp) => {
             const d = splitDrill(row, sp, range);
             const mex = isMexOnlySplit(sp);
+            const bk = isBookingSplit(sp);
             return (
               <li key={sp.key}>
                 <DrillLink
@@ -253,11 +261,12 @@ function SourceCard({ row, grand, money, range, f }: {
                   className={cn(
                     'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs no-underline',
                     d.href && 'hover:border-foreground/30 hover:bg-muted hover:no-underline',
-                    mex && 'border-dashed',
+                    (mex || bk) && 'border-dashed',
                     sp.count === 0 && 'opacity-50',
                   )}
                 >
                   {mex && <Truck className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />}
+                  {bk && <Hourglass className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />}
                   <span className="text-muted-foreground">{splitLabel(sp.key)}</span>
                   <b className="font-semibold tabular-nums">{f.int(sp.count)}</b>
                   {money && sp.value_mkd != null && <span className="tabular-nums text-muted-foreground">· {f.den(sp.value_mkd)}</span>}
@@ -268,7 +277,7 @@ function SourceCard({ row, grand, money, range, f }: {
         </ul>
       )}
 
-      {(isWeb || mexOnly > 0) && (
+      {(isWeb || mexOnly > 0 || booked > 0) && (
         <p className="mt-2 flex items-start gap-1 text-[11px] leading-snug text-muted-foreground">
           <Info className="mt-px h-3 w-3 shrink-0" aria-hidden />
           <span>
@@ -276,6 +285,7 @@ function SourceCard({ row, grand, money, range, f }: {
             {[
               isWeb ? t('overview.cohort.sources.webNote') : null,
               mexOnly > 0 ? t('overview.cohort.sources.mexOnlyNote', { n: f.int(mexOnly), count: mexOnly }) : null,
+              booked > 0 ? t('overview.cohort.sources.bookedNote', { n: f.int(booked), count: booked }) : null,
             ].filter(Boolean).join(' ')}
           </span>
         </p>

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import sample from './__fixtures__/cohort.sample.json';
 import {
-  bucketParts, canWeighByValue, checkSum, cohortDrill, cohortHref, cohortView, isMexOnlySplit, liveQuality, mexOnlyCount,
-  ordersSupportsCohortDrill, stripCohortMoney, sumParts, tileKeys, workedOf,
+  bookedCount, bucketParts, canWeighByValue, checkSum, cohortDrill, cohortHref, cohortView, isBookingSplit, isMexOnlySplit,
+  liveQuality, mexOnlyCount, ordersSupportsCohortDrill, stripCohortMoney, sumParts, tileKeys, workedOf,
 } from './cohortModel';
 import { COHORT_BUCKETS, type Cohort } from './cohortTypes';
 
@@ -189,6 +189,58 @@ describe('drill links: a number opens /orders only when the list holds exactly i
     expect(isMexOnlySplit('mex_out')).toBe(true);
     expect(isMexOnlySplit({ key: 'bridge', kind: 'order' })).toBe(false);
     expect(isMexOnlySplit('mex_teleshop')).toBe(true);
+  });
+});
+
+describe('collabBox bookings awaiting their parcel (20260942001900)', () => {
+  // Today's Телешоп – Lead out: 2 CRM orders to pack + 78 Нарачка out documents booked in
+  // collabBox whose MEX parcel does not exist yet — sales in "to pack", never orders.
+  const withBookings = () => {
+    const c = fixture();
+    const out = row(c, 'teleshop_out');
+    out.buckets = out.buckets.map((b) => (b.key === 'to_pack'
+      ? { ...b, count: b.count + 80, value_mkd: (b.value_mkd ?? 0) + 179000, orders: (b.orders ?? 0) + 2, booked: 78 } : b));
+    out.total = { ...out.total, count: out.total.count + 80, value_mkd: (out.total.value_mkd ?? 0) + 179000,
+      orders: (out.total.orders ?? 0) + 2, booked: 78 };
+    out.splits = [...(out.splits ?? []), { key: 'booked', kind: 'booking', count: 78, value_mkd: 174680 },
+      { key: 'teleshop_out', kind: 'order', count: 2, value_mkd: 4320 }];
+    return { c, out };
+  };
+  it('a number holding bookings never links as a whole; its order part does, exactly', () => {
+    const { out } = withBookings();
+    const d = cohortDrill([out], 'to_pack', range, true);
+    expect(d).toMatchObject({ href: null, blocked: 'booked', orders: 2, booked: 78 });
+    expect(d.ordersHref).toBe(`/orders?cohort_bucket=to_pack&cohort_source=teleshop_out&${WIN}`);
+    // bookings next to MEX-only parcels: more than one kind no list holds
+    expect(cohortDrill([out], 'total', range, true)).toMatchObject({ href: null, blocked: 'mixed', booked: 78 });
+    // a part with no bookings still links as before
+    const c = fixture();
+    expect(cohortDrill([row(c, 'altercpa')], 'to_pack', range, true).blocked).toBe(null);
+  });
+  it('the parts still add up: orders + web + MEX-only + booked = count', () => {
+    const { out } = withBookings();
+    const t = sumParts(Object.values(bucketParts(out.buckets)));
+    expect(t.orders! + t.web! + t.mex_only! + (t.booked ?? 0)).toBe(t.count);
+    expect(t.booked).toBe(78);
+    expect(checkSum(out.total, out.buckets).ok).toBe(true);
+  });
+  it('a source filter keeps the booked part', () => {
+    const { c } = withBookings();
+    const v = cohortView(c, ['teleshop_out', 'altercpa']);
+    expect(v.filtered).toBe(true);
+    expect(v.total.booked).toBe(78);
+    expect(v.buckets.find((b) => b.key === 'to_pack')).toMatchObject({ booked: 78 });
+  });
+  it('the booking split is its own kind; an older payload without `booked` holds none', () => {
+    const { out } = withBookings();
+    expect(bookedCount(out)).toBe(78);
+    expect(isBookingSplit({ key: 'booked', kind: 'booking' })).toBe(true);
+    expect(isBookingSplit('booked')).toBe(true);
+    expect(isBookingSplit({ key: 'teleshop_out', kind: 'order' })).toBe(false);
+    expect(isMexOnlySplit({ key: 'booked', kind: 'booking' })).toBe(false);
+    const c = fixture();
+    expect(bookedCount(row(c, 'teleshop_out'))).toBe(0);
+    expect(sumParts(Object.values(bucketParts(c.buckets))).booked).toBe(0);
   });
 });
 

@@ -1150,7 +1150,9 @@
     "sales": "Sales",
     "worked": "Worked",
     "byDepartment": "Sales today by department",
-    "kpiNote": "The same numbers as Insights → Overview: the sale day, the six departments, MEX is the proof."
+    "kpiNote": "The same numbers as Insights → Overview: the sale day, the six departments, MEX is the proof.",
+    "toPackBookedSub_one": "of which {{n}} booked in collabBox (awaiting parcel)",
+    "toPackBookedSub_other": "of which {{n}} booked in collabBox (awaiting parcel)"
   },
   "segments": {
     "category": {
@@ -3473,7 +3475,8 @@
         "import": "Older import",
         "none": "No sub-channel",
         "mex_web": "Web parcel, no shop order (MEX)",
-        "elyon_unlinked": "Elyon account — unlinked"
+        "elyon_unlinked": "Elyon account — unlinked",
+        "booked": "Booked in collabBox — awaiting parcel"
       },
       "clock": {
         "counted": "Counted {{clocks}} (Skopje time)",
@@ -3504,11 +3507,15 @@
         "sumBad": "The parts ({{parts}}) do not add up to the total ({{total}})",
         "noLinkWeb": "The web shop is not in the Orders list",
         "noLinkMexOnly": "MEX parcels without an order only — not in the Orders list",
-        "noLinkMixed": "Web-shop orders and MEX parcels with no order are not in the Orders list",
+        "noLinkMixed": "Web-shop orders, MEX parcels with no order and collabBox bookings awaiting their parcel are not in the Orders list",
         "noLinkUnknown": "Not known how much of this is orders — no link",
         "ordersPart": "{{n}} in Orders",
-        "ordersPartHint": "Opens only the orders behind this number — web-shop orders and MEX-only parcels are not in the list",
-        "composition": "orders {{orders}} · web shop {{web}} · MEX only {{mex}}"
+        "ordersPartHint": "Opens only the orders behind this number — web-shop orders, MEX-only parcels and collabBox bookings awaiting their parcel are not in the list",
+        "composition": "orders {{orders}} · web shop {{web}} · MEX only {{mex}}",
+        "noLinkBooked": "Includes collabBox documents that are booked but still wait for their MEX parcel — not orders yet, so not in the Orders list",
+        "compositionBooked": "orders {{orders}} · web shop {{web}} · MEX only {{mex}} · booked in collabBox {{booked}}",
+        "bookedLine_one": "incl. {{n}} booked in collabBox, awaiting its parcel",
+        "bookedLine_other": "incl. {{n}} booked in collabBox, awaiting their parcel"
       },
       "leads": {
         "title": "Came in during the period",
@@ -3562,7 +3569,8 @@
         "leadsLine": "{{in}} → {{sales}} ({{pct}})",
         "total": "Total",
         "empty": "No sales in this period.",
-        "mexOnlyTag": "MEX"
+        "mexOnlyTag": "MEX",
+        "bookedTag": "booked"
       }
     },
     "tabOverview": "Overview",
@@ -4114,7 +4122,9 @@
         "showIdle": "Show people with no activity",
         "empty": "Nobody matches the filters.",
         "csv": "CSV",
-        "openDrill": "Details for {{name}}"
+        "openDrill": "Details for {{name}}",
+        "bookedPart_one": "incl. {{n}} booked in collabBox, awaiting its parcel — not in the Orders list yet",
+        "bookedPart_other": "incl. {{n}} booked in collabBox, awaiting their parcel — not in the Orders list yet"
       },
       "csv": {
         "file": "agents",
@@ -6032,7 +6042,9 @@
         "webNote": "Counted from the web-shop mirror — these orders are not in the Orders list.",
         "mexOnlyNote_one": "{{n}} of them is a MEX-only parcel with no order — not in the Orders list.",
         "mexOnlyNote_other": "{{n}} of them are MEX-only parcels with no order — not in the Orders list.",
-        "empty": "No sales in this period."
+        "empty": "No sales in this period.",
+        "bookedNote_one": "{{n}} of them is booked in collabBox and still waits for its MEX parcel — it becomes an order when the parcel is created.",
+        "bookedNote_other": "{{n}} of them are booked in collabBox and still wait for their MEX parcel — they become orders when the parcel is created."
       }
     },
     "clock": {

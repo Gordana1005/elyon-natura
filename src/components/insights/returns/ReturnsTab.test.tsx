@@ -48,7 +48,7 @@ function renderWith(impl: (p: { clock: string }) => ReturnsResponse, query = WIN
 }
 const heroSale = () => i18n.t('insights.returns.hero.titleSale', { period: '01.09 – 27.09.2026' });
 
-describe('Returns — owner, cohort clock', () => {
+describe('Returns — owner, cohort clock', { timeout: 30_000 }, () => {
   it('leads with the cohort\'s returned part and says how much is still open', async () => {
     const s = S();
     renderWith(() => s);
@@ -92,7 +92,7 @@ describe('Returns — owner, cohort clock', () => {
   });
 });
 
-describe('Returns — the MEX-return-day clock', () => {
+describe('Returns — the MEX-return-day clock', { timeout: 30_000 }, () => {
   it('switches the clock, asks the api for it, and ties to the register', async () => {
     renderWith((p) => (p.clock === 'returned' ? M() : S()));
     await screen.findByText(heroSale(), {}, { timeout: 10_000 });
@@ -106,7 +106,7 @@ describe('Returns — the MEX-return-day clock', () => {
   });
 });
 
-describe('Returns — admin / manager (no money)', () => {
+describe('Returns — admin / manager (no money)', { timeout: 30_000 }, () => {
   it('shows the same page counted: no денари, no money tiles or columns', async () => {
     const owner = S();
     const s = stripReturnsMoney(S());

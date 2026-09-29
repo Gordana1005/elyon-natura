@@ -38,13 +38,15 @@ export interface RsMeta {
   today?: string;
 }
 
-/** A count, what it is made of (orders + web + mex_only) and, for owners, денари. */
+/** A count, what it is made of (orders + web + mex_only + booked) and, for owners, денари.
+ *  `booked` = collabBox bookings awaiting their parcel (the base only, 20260942001900). */
 export interface RsPart {
   count: number;
   value_mkd?: number;
   orders?: number;
   web?: number;
   mex_only?: number;
+  booked?: number;
 }
 
 export interface ReturnsKpis {
@@ -92,6 +94,8 @@ export interface ReturnsSourceRow {
   base_orders: number;
   base_web: number;
   base_mex_only: number;
+  /** collabBox bookings awaiting their parcel among the base (20260942001900). */
+  base_booked?: number;
   /** The returned part's composition. */
   orders: number;
   web: number;

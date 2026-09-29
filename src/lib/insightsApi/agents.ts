@@ -70,6 +70,9 @@ export interface PeoplePresence {
 /** The measures every person, team member and team carries. */
 export interface PeopleMeasures {
   sales: number;
+  /** Of the sales: collabBox documents this person booked whose MEX parcel does not exist yet
+   *  (20260942001900) — sales in "to pack", never orders. Absent on an older payload (= 0). */
+  booked?: number;
   value_mkd?: number;
   cod_mkd?: number;
   paid_mkd?: number;
@@ -150,6 +153,8 @@ export interface NoSellerRow {
 
 export interface PeopleTotals {
   sales: number;
+  /** Of the sales: collabBox bookings awaiting their parcel (20260942001900). */
+  booked?: number;
   value_mkd?: number;
   cod_mkd?: number;
   paid_mkd?: number;

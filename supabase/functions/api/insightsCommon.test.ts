@@ -586,6 +586,18 @@ describe("money strip", () => {
     expect((s.spark as unknown[])[0]).toEqual({ d: "2026-09-22", count: 3 });
     expect(((s.by_source as Record<string, unknown>[])[0].splits as unknown[])[0]).toEqual({ key: "bridge", kind: "order", count: 8, drill: "/orders?x" });
   });
+  it("a non-owner still learns how much of a number is collabBox bookings awaiting their parcel (20260942001900)", () => {
+    const withBookings = {
+      meta: {}, total: { count: 91, value_mkd: 210000, orders: 13, web: 0, mex_only: 0, booked: 78 },
+      buckets: [{ key: "to_pack", count: 91, value_mkd: 210000, orders: 13, web: 0, mex_only: 0, booked: 78, drill: "/orders?cohort_bucket=to_pack" }],
+      by_source: [{ key: "teleshop_out", total: { count: 91, booked: 78 },
+        splits: [{ key: "booked", kind: "booking", count: 78, value_mkd: 174680, drill: null }] }],
+    };
+    const s = stripInsightsMoney(withBookings);
+    expect(s.total).toEqual({ count: 91, orders: 13, web: 0, mex_only: 0, booked: 78 });
+    expect((s.buckets as unknown[])[0]).toEqual({ key: "to_pack", count: 91, orders: 13, web: 0, mex_only: 0, booked: 78, drill: "/orders?cohort_bucket=to_pack" });
+    expect(((s.by_source as Record<string, unknown>[])[0].splits as unknown[])[0]).toEqual({ key: "booked", kind: "booking", count: 78, drill: null });
+  });
   it("a whitelisted name that looks like money is still dropped", () => {
     const s = stripInsightsMoney({ meta: {}, total: { count: 1, value_mkd: 5 } }, new Set(["total", "count", "value_mkd"]));
     expect(s).toEqual({ meta: { money: false }, total: { count: 1 } });

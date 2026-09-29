@@ -42,6 +42,15 @@ describe('rsDrill', () => {
     expect(rsDrill({ clock: 'sale', bucket: 'returned', comp: { mex_only: 2 }, count: 2, sources: [], range }).blocked).toBe('mex_only');
   });
 
+  it('collabBox bookings awaiting their parcel (20260942001900) are not orders: only the order part links', () => {
+    const b = rsDrill({ clock: 'sale', bucket: 'total', comp: { orders: 5, booked: 3 }, count: 8, sources: ['teleshop_out'], range });
+    expect(b).toMatchObject({ href: null, blocked: 'booked', orders: 5 });
+    expect(params(b.ordersHref!)).toMatchObject({ cohort_bucket: 'total', cohort_source: 'teleshop_out' });
+    expect(rsDrill({ clock: 'sale', bucket: 'total', comp: { booked: 3 }, count: 3, sources: [], range }).blocked).toBe('booked');
+    expect(rsDrill({ clock: 'sale', bucket: 'total', comp: { orders: 5, mex_only: 1, booked: 3 }, count: 9, sources: [], range }).blocked)
+      .toBe('mixed');
+  });
+
   it('filters /orders by the selected departments (a department is not one sale_source)', () => {
     expect(drillSourcesOf([])).toHaveLength(6);
     const soc = rsDrill({ clock: 'sale', bucket: 'returned', comp: { orders: 2 }, count: 2, sources: ['social'], range });

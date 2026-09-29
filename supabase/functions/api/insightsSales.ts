@@ -45,8 +45,8 @@ export const SALES_NON_MONEY_KEYS: ReadonlySet<string> = new Set([
   "clock", "part", "granularity", "top_n",
   "total", "buckets", "outside", "by_source", "prev", "trend", "channels", "timing", "quality",
   "products", "cities", "customers", "basket",
-  // cohort parts / splits
-  "key", "count", "orders", "web", "mex_only", "drill", "splits", "kind",
+  // cohort parts / splits (booked = collabBox bookings awaiting their parcel, 20260942001900)
+  "key", "count", "orders", "web", "mex_only", "booked", "drill", "splits", "kind",
   // trend
   "points", "d",
   // channels

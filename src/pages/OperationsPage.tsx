@@ -37,7 +37,10 @@ interface OpsData {
   kpi: {
     sales_today: number;
     sales_value_today_mkd?: number;
+    /** Sold today, no parcel yet: CRM orders + collabBox documents booked today whose MEX
+     *  parcel does not exist yet (the second part = to_pack_booked_today, 20260942001900). */
     to_pack_today: number;
+    to_pack_booked_today?: number;
     collected_today: number;
     collected_value_today_mkd?: number;
     returned_today: number;
@@ -103,12 +106,14 @@ export default function OperationsPage() {
   const onlineAgents = agents.filter(a => a.is_online);
   const offlineAgents = agents.filter(a => !a.is_online);
 
-  const kpiCards = [
+  const bookedToday = kpi?.to_pack_booked_today ?? 0;
+  const kpiCards: { label: string; value: string | number; icon: typeof ShoppingCart; color: string; sub?: string }[] = [
     { label: t('ops.salesToday'), value: kpi?.sales_today || 0, icon: ShoppingCart, color: 'bg-primary/10 text-primary' },
     ...(kpi?.sales_value_today_mkd != null
       ? [{ label: t('ops.salesValueToday'), value: formatDenari(kpi.sales_value_today_mkd), icon: TrendingUp, color: 'bg-primary/10 text-primary' }]
       : []),
-    { label: t('ops.toPackToday'), value: kpi?.to_pack_today || 0, icon: CheckCircle2, color: 'bg-amber-500/10 text-amber-600' },
+    { label: t('ops.toPackToday'), value: kpi?.to_pack_today || 0, icon: CheckCircle2, color: 'bg-amber-500/10 text-amber-600',
+      ...(bookedToday > 0 ? { sub: t('ops.toPackBookedSub', { n: bookedToday, count: bookedToday }) } : {}) },
     { label: t('ops.collectedToday'), value: kpi?.collected_today || 0, icon: Truck, color: 'bg-emerald-500/10 text-emerald-600' },
     ...(kpi?.collected_value_today_mkd != null
       ? [{ label: t('ops.collectedValueToday'), value: formatDenari(kpi.collected_value_today_mkd), icon: Banknote, color: 'bg-emerald-500/10 text-emerald-600' }]
@@ -156,6 +161,7 @@ export default function OperationsPage() {
                 <div>
                   <p className="text-[11px] text-muted-foreground leading-tight">{card.label}</p>
                   <p className="text-xl font-bold">{card.value}</p>
+                  {card.sub && <p className="text-[11px] text-muted-foreground leading-tight">{card.sub}</p>}
                 </div>
               </CardContent>
             </Card>

@@ -25,11 +25,14 @@
  *          Телешоп – Lead in `mex_in` (9100) and `mex_other` (no series …) ·
  *          Social media `mex_social` (9108 / 1300) · web `mex_web` (NTMK… / M…)
  *          — never /orders
+ *   booking collabBox documents booked but whose MEX parcel does not exist yet
+ *          (`booked`, 20260942001900), in their folder's department — never
+ *          /orders (they become orders when the parcel is created)
  * Anything else renders with its label (or raw key) and no link.
  */
 import { COHORT_SOURCE_PARAM, COHORT_SOURCES, type CohortBucketKey, type CohortSourceRow, type CohortSplit } from '../shared/cohortTypes';
 import {
-  COHORT_DRILL_PARAM, isMexOnlySplit, ordersSupportsCohortDrill, sumParts, type DrillBlock, type Part,
+  COHORT_DRILL_PARAM, isBookingSplit, isMexOnlySplit, ordersSupportsCohortDrill, sumParts, type DrillBlock, type Part,
 } from '../shared/cohortModel';
 import type { DayRange } from '../shared/period';
 
@@ -71,6 +74,7 @@ export function splitDrill(
   if (!(num(split.count) > 0)) return { href: null, blocked: 'none' };
   if (split.kind === 'web') return { href: null, blocked: 'web' };
   if (isMexOnlySplit(split)) return { href: null, blocked: 'mex_only' };
+  if (isBookingSplit(split)) return { href: null, blocked: 'booked' };
   const known = (COHORT_SOURCES as readonly string[]).includes(row.key);
   if (split.kind !== 'order' || split.key === 'none' || !DETAIL_RE.test(split.key) || !known) {
     return { href: null, blocked: 'not_orders' };

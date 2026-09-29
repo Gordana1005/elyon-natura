@@ -41,7 +41,7 @@ const TILE_TEXT: Partial<Record<CohortBucketKey, string>> = {
 };
 
 export interface CohortBarProps {
-  total: { count: number; value_mkd?: number | null; cod_mkd?: number | null; orders?: number | null; web?: number | null; mex_only?: number | null };
+  total: { count: number; value_mkd?: number | null; cod_mkd?: number | null; orders?: number | null; web?: number | null; mex_only?: number | null; booked?: number | null };
   buckets: CohortBucket[];
   /** Cancelled after sale / replacements — shown apart, never in the total. */
   outside?: CohortOutside[];
@@ -90,7 +90,7 @@ export function CohortBar({
   const parts = bucketParts(buckets);
   const tot: Part = sumParts([{
     count: total.count, value_mkd: total.value_mkd ?? null, cod_mkd: total.cod_mkd ?? null,
-    orders: total.orders ?? null, web: total.web ?? null, mex_only: total.mex_only ?? null,
+    orders: total.orders ?? null, web: total.web ?? null, mex_only: total.mex_only ?? null, booked: total.booked ?? 0,
   }]);
   const byValue = canWeighByValue(Object.values(parts), money);
   const check = checkSum({ count: tot.count, ...(tot.value_mkd != null ? { value_mkd: tot.value_mkd } : {}) }, buckets);
@@ -162,7 +162,9 @@ export function CohortBar({
           {/* What the total is made of — why only its order part opens a list. */}
           {composed && (
             <p className="flex flex-wrap items-baseline gap-x-2 text-[11px] tabular-nums text-muted-foreground">
-              <span>{t('insights.common.cohort.composition', { orders: f.int(tot.orders), web: f.int(tot.web), mex: f.int(tot.mex_only) })}</span>
+              <span>{(tot.booked ?? 0) > 0
+                ? t('insights.common.cohort.compositionBooked', { orders: f.int(tot.orders), web: f.int(tot.web), mex: f.int(tot.mex_only), booked: f.int(tot.booked) })
+                : t('insights.common.cohort.composition', { orders: f.int(tot.orders), web: f.int(tot.web), mex: f.int(tot.mex_only) })}</span>
               <OrdersPartLink drill={totalDrill} f={f} />
             </p>
           )}
@@ -206,6 +208,11 @@ export function CohortBar({
               )}
               {k === 'paid_legacy' && (
                 <span className="text-[11px] text-muted-foreground">{t('insights.common.cohort.legacyNote')}</span>
+              )}
+              {k === 'to_pack' && (p.booked ?? 0) > 0 && (
+                <span className="text-[11px] text-muted-foreground" title={t('insights.common.cohort.noLinkBooked')}>
+                  {t('insights.common.cohort.bookedLine', { n: f.int(p.booked), count: p.booked })}
+                </span>
               )}
               {k === 'paid_unproven' && (
                 <span className={cn('text-[11px] font-medium', STATUS_TEXT.critical)}>{t('insights.common.cohort.unprovenNote')}</span>

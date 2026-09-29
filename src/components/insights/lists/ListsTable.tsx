@@ -11,7 +11,7 @@ import { CohortBar } from '../shared/CohortBar';
 import { cohortWhy } from '../shared/CohortLinks';
 import { ClockCaption } from '../shared/ClockCaption';
 import { COHORT_TONE, OUTSIDE_TONE, STATUS_TEXT } from '../shared/cohortPalette';
-import { cohortHref, isMexOnlySplit, ordersSupportsCohortDrill, type CohortDrill, type DrillKey } from '../shared/cohortModel';
+import { cohortHref, isBookingSplit, isMexOnlySplit, ordersSupportsCohortDrill, type CohortDrill, type DrillKey } from '../shared/cohortModel';
 import { splitDrill } from '../overview/cohortOverview';
 import type { CohortBucket, CohortBucketKey, CohortOutsideKey } from '../shared/cohortTypes';
 import type { DayRange } from '../shared/period';
@@ -68,12 +68,16 @@ export function ListsTable({ data, rows, range, money, f }: {
   const tieValue = !money || (allLists.value_mkd ?? 0) + (nr.value_mkd ?? 0) === (data.total.value_mkd ?? 0);
   const otherSplits = data.elyon_crm.splits.filter((s) => s.key !== 'prediction_list' && s.count > 0);
   // Affiliate – Lead out also holds its series' parcels with no order (9103 LEADS-OUT, owner
-  // 28.09): they are in no /orders list, so neither they nor a total that includes them link
-  const elyonMexOnly = otherSplits.some((s) => isMexOnlySplit(s.key));
+  // 28.09) and the LEADS-OUT documents booked in collabBox whose parcel does not exist yet
+  // (`booked`, 20260942001900): they are in no /orders list, so neither they nor a total that
+  // includes them link
+  const elyonMexOnly = otherSplits.some((s) => isMexOnlySplit(s.key) || isBookingSplit(s.key));
   // The department's other parts link as the Overview's chips do (cohort_source=elyon_crm + the
   // detail): a detail alone would also list the same detail in another department.
   const splitHref = (s: { key: string; count: number }) =>
-    splitDrill({ key: LIST_COHORT_SOURCE }, { key: s.key, count: s.count, kind: isMexOnlySplit(s.key) ? 'mex' : 'order' }, range, supported).href;
+    splitDrill({ key: LIST_COHORT_SOURCE }, {
+      key: s.key, count: s.count, kind: isMexOnlySplit(s.key) ? 'mex' : isBookingSplit(s.key) ? 'booking' : 'order',
+    }, range, supported).href;
   const elyonHref = supported && data.elyon_crm.count > 0 && !elyonMexOnly ? cohortHref('total', [LIST_COHORT_SOURCE], range) : null;
 
   const cols = money ? 13 : 11;

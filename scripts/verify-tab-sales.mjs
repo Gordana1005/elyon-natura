@@ -16,7 +16,7 @@
  *
  * What it proves, per window (Skopje days, the api's own insightsWindows()):
  *   S1  core total / 8 buckets / 3 outside = the cohort's (count, денари, COD,
- *       orders · web · MEX-only)
+ *       orders · web · MEX-only · booked)
  *   S2  core by_source (total, buckets, splits) = the cohort's
  *   S3  the core payload adds up (Σ buckets = total, Σ sources = total, Σ splits)
  *   S4  trend: Σ points = total; each point's Σ sources = the point; Σ per source
@@ -88,7 +88,8 @@ async function salesPart(ctx, part, win, money) {
   return body;
 }
 
-const PART = ['count', 'value_mkd', 'cod_mkd', 'orders', 'web', 'mex_only'];
+// booked = collabBox bookings awaiting their parcel (20260942001900); absent on both sides before it
+const PART = ['count', 'value_mkd', 'cod_mkd', 'orders', 'web', 'mex_only', 'booked'];
 
 function eqParts(lines, label, want, got, fields = PART) {
   for (const f of fields) {

@@ -74,7 +74,9 @@ export interface ProductRpcRow {
   rev: number; cm: number; sh: number; lb: number;
 }
 export interface HistRow { s: string; u: number; q: number; v: number }
-export interface StripRow { s: string; b: string; n: number; v: number; c: number; no: number; nw: number; nm: number }
+/** One (source, bucket) cell of insights_profit's cohort strip. `nb` = collabBox bookings awaiting
+ *  their parcel (20260942001900); an older body without it counts none. */
+export interface StripRow { s: string; b: string; n: number; v: number; c: number; no: number; nw: number; nm: number; nb?: number }
 export interface ProfitRpc {
   clock?: "cohort" | "cash";
   granularity?: "day" | "month";
@@ -628,9 +630,9 @@ export function buildClockTotalsOnly(rpc: ProfitRpc, s: ProfitSettings): PLRow {
 const IN_TOTAL = ["paid", "paid_unproven", "paid_legacy", "courier", "courier_problem", "label", "to_pack", "returned"] as const;
 const OUTSIDE = ["cancelled_after_sale", "trashed_after_sale", "replacement"] as const;
 
-interface StripPart { key: string; count: number; value_mkd: number; cod_mkd?: number; orders: number; web: number; mex_only: number }
+interface StripPart { key: string; count: number; value_mkd: number; cod_mkd?: number; orders: number; web: number; mex_only: number; booked: number }
 export interface ProfitStrip {
-  total: { count: number; value_mkd: number; cod_mkd: number; orders: number; web: number; mex_only: number };
+  total: { count: number; value_mkd: number; cod_mkd: number; orders: number; web: number; mex_only: number; booked: number };
   buckets: StripPart[];
   outside: StripPart[];
   by_source: { key: string; total: ProfitStrip["total"]; buckets: StripPart[]; outside: StripPart[] }[];
@@ -638,20 +640,20 @@ export interface ProfitStrip {
 
 export function buildStrip(rows: StripRow[] | undefined): ProfitStrip {
   const part = (key: string, src: string | null, withCod: boolean): StripPart => {
-    let count = 0, v = 0, c = 0, o = 0, w = 0, m = 0;
+    let count = 0, v = 0, c = 0, o = 0, w = 0, m = 0, bk = 0;
     for (const r of rows ?? []) {
       if (r.b !== key || (src !== null && r.s !== src)) continue;
-      count += num(r.n); v += num(r.v); c += num(r.c); o += num(r.no); w += num(r.nw); m += num(r.nm);
+      count += num(r.n); v += num(r.v); c += num(r.c); o += num(r.no); w += num(r.nw); m += num(r.nm); bk += num(r.nb);
     }
-    return { key, count, value_mkd: r0(v), ...(withCod ? { cod_mkd: r0(c) } : {}), orders: o, web: w, mex_only: m };
+    return { key, count, value_mkd: r0(v), ...(withCod ? { cod_mkd: r0(c) } : {}), orders: o, web: w, mex_only: m, booked: bk };
   };
   const block = (src: string | null) => {
     const buckets = IN_TOTAL.map((k) => part(k, src, true));
     const outside = OUTSIDE.map((k) => part(k, src, false));
     const total = buckets.reduce((t, b) => ({
       count: t.count + b.count, value_mkd: t.value_mkd + b.value_mkd, cod_mkd: t.cod_mkd + (b.cod_mkd ?? 0),
-      orders: t.orders + b.orders, web: t.web + b.web, mex_only: t.mex_only + b.mex_only,
-    }), { count: 0, value_mkd: 0, cod_mkd: 0, orders: 0, web: 0, mex_only: 0 });
+      orders: t.orders + b.orders, web: t.web + b.web, mex_only: t.mex_only + b.mex_only, booked: t.booked + b.booked,
+    }), { count: 0, value_mkd: 0, cod_mkd: 0, orders: 0, web: 0, mex_only: 0, booked: 0 });
     return { total, buckets, outside };
   };
   const all = block(null);
@@ -894,8 +896,8 @@ export function mergeProfitRpcs(pieces: ProfitRpc[], clock: "cohort" | "cash", g
     for (const r of p.strip ?? []) {
       const k = `${r.s}|${r.b}`;
       const cur = strip.get(k);
-      if (cur) sumInto(cur, r, ["n", "v", "c", "no", "nw", "nm"]);
-      else strip.set(k, { ...r, n: num(r.n), v: num(r.v), c: num(r.c), no: num(r.no), nw: num(r.nw), nm: num(r.nm) });
+      if (cur) sumInto(cur, r, ["n", "v", "c", "no", "nw", "nm", "nb"]);
+      else strip.set(k, { ...r, n: num(r.n), v: num(r.v), c: num(r.c), no: num(r.no), nw: num(r.nw), nm: num(r.nm), nb: num(r.nb) });
     }
     for (const r of p.products ?? []) {
       const k = `${r.s}|${r.g}|${r.k}`;

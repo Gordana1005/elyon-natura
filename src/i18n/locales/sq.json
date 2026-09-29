@@ -1150,7 +1150,9 @@
     "sales": "Shitje",
     "worked": "Të punuara",
     "byDepartment": "Shitje sot sipas departamentit",
-    "kpiNote": "Të njëjtat shifra si Insights → Pasqyra: dita e shitjes, gjashtë departamentet, MEX është prova."
+    "kpiNote": "Të njëjtat shifra si Insights → Pasqyra: dita e shitjes, gjashtë departamentet, MEX është prova.",
+    "toPackBookedSub_one": "prej tyre {{n}} e regjistruar në collabBox (pret pakon)",
+    "toPackBookedSub_other": "prej tyre {{n}} të regjistruara në collabBox (presin pakon)"
   },
   "segments": {
     "category": {
@@ -3473,7 +3475,8 @@
         "import": "Import i vjetër",
         "none": "Pa nënkanal",
         "mex_web": "Pako web pa porosi (MEX)",
-        "elyon_unlinked": "Llogaria Elyon — të palidhura"
+        "elyon_unlinked": "Llogaria Elyon — të palidhura",
+        "booked": "Regjistruar në collabBox — pret pakon"
       },
       "clock": {
         "counted": "Numëruar {{clocks}} (ora e Shkupit)",
@@ -3504,11 +3507,15 @@
         "sumBad": "Pjesët ({{parts}}) nuk mblidhen në totalin ({{total}})",
         "noLinkWeb": "Dyqani online nuk është në listën e Porosive",
         "noLinkMexOnly": "Vetëm pako MEX pa porosi — nuk janë në listën e Porosive",
-        "noLinkMixed": "Porositë e dyqanit web dhe pakot MEX pa porosi nuk janë në listën e Porosive",
+        "noLinkMixed": "Porositë e dyqanit web, pakot MEX pa porosi dhe regjistrimet në collabBox që presin pakon nuk janë në listën e Porosive",
         "noLinkUnknown": "Nuk dihet sa prej tyre janë porosi — pa lidhje",
         "ordersPart": "{{n}} te Porositë",
-        "ordersPartHint": "Hap vetëm porositë pas këtij numri — porositë e dyqanit web dhe pakot vetëm në MEX nuk janë në listë",
-        "composition": "porosi {{orders}} · dyqani web {{web}} · vetëm në MEX {{mex}}"
+        "ordersPartHint": "Hap vetëm porositë pas këtij numri — porositë e dyqanit web, pakot vetëm në MEX dhe regjistrimet në collabBox që presin pakon nuk janë në listë",
+        "composition": "porosi {{orders}} · dyqani web {{web}} · vetëm në MEX {{mex}}",
+        "noLinkBooked": "Përfshin dokumente të regjistruara në collabBox që ende presin pakon MEX — nuk janë ende porosi, prandaj nuk janë në listën e Porosive",
+        "compositionBooked": "porosi {{orders}} · dyqani web {{web}} · vetëm në MEX {{mex}} · të regjistruara në collabBox {{booked}}",
+        "bookedLine_one": "prej tyre {{n}} e regjistruar në collabBox, pret pakon",
+        "bookedLine_other": "prej tyre {{n}} të regjistruara në collabBox, presin pakon"
       },
       "leads": {
         "title": "Erdhën në periudhë",
@@ -3562,7 +3569,8 @@
         "leadsLine": "{{in}} → {{sales}} ({{pct}})",
         "total": "Gjithsej",
         "empty": "Asnjë shitje në këtë periudhë.",
-        "mexOnlyTag": "MEX"
+        "mexOnlyTag": "MEX",
+        "bookedTag": "regjistruar"
       }
     },
     "tabOverview": "Përmbledhje",
@@ -4114,7 +4122,9 @@
         "showIdle": "Shfaq edhe pa aktivitet",
         "empty": "Askush nuk përputhet me filtrat.",
         "csv": "CSV",
-        "openDrill": "Detajet për {{name}}"
+        "openDrill": "Detajet për {{name}}",
+        "bookedPart_one": "përfshin {{n}} të regjistruar në collabBox që pret pakon — ende jo në listën e Porosive",
+        "bookedPart_other": "përfshin {{n}} të regjistruara në collabBox që presin pakon — ende jo në listën e Porosive"
       },
       "csv": {
         "file": "agjentet",
@@ -6032,7 +6042,9 @@
         "webNote": "Numëruar nga pasqyra e dyqanit online — këto porosi nuk janë në listën Porositë.",
         "mexOnlyNote_one": "Prej tyre {{n}} pako është vetëm te MEX, pa porosi — nuk është në listën Porositë.",
         "mexOnlyNote_other": "Prej tyre {{n}} pako janë vetëm te MEX, pa porosi — nuk janë në listën Porositë.",
-        "empty": "Nuk ka shitje në këtë periudhë."
+        "empty": "Nuk ka shitje në këtë periudhë.",
+        "bookedNote_one": "Prej tyre {{n}} është regjistruar në collabBox dhe ende pret pakon MEX — bëhet porosi kur krijohet pakoja.",
+        "bookedNote_other": "Prej tyre {{n}} janë regjistruar në collabBox dhe ende presin pakon MEX — bëhen porosi kur krijohet pakoja."
       }
     },
     "clock": {

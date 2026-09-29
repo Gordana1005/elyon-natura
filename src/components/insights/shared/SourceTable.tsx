@@ -6,7 +6,7 @@ import { CohortBar } from './CohortBar';
 import { OrdersPartLink, cohortWhy } from './CohortLinks';
 import { COHORT_TONE, OUTSIDE_TONE } from './cohortPalette';
 import {
-  bucketParts, cohortDrill, isMexOnlySplit, outsideParts, sumParts, type CohortDrill, type DrillKey, type Part,
+  bucketParts, cohortDrill, isBookingSplit, isMexOnlySplit, outsideParts, sumParts, type CohortDrill, type DrillKey, type Part,
 } from './cohortModel';
 import type { CohortBucketKey, CohortLeadsIn, CohortSourceRow } from './cohortTypes';
 import type { DayRange } from './period';
@@ -30,8 +30,9 @@ const BASE_COLS: Col[] = [
  * The cohort by source — the table twin of the bars: one row per source
  * (sales, value, where each sale is now, cancelled / trashed after sale, and
  * the leads that came in), a total row that equals the header. Sub-channels
- * (splits) sit under the source name; MEX-only parcels are marked — they are
- * not orders, so they never link to the Orders list. A cell links only when it
+ * (splits) sit under the source name; MEX-only parcels and collabBox bookings
+ * awaiting their parcel are marked — they are not orders, so they never link to
+ * the Orders list. A cell links only when it
  * is all orders; otherwise it offers its order part.
  */
 export function SourceTable({
@@ -117,10 +118,12 @@ export function SourceTable({
                       <ul className="mt-1 flex flex-wrap gap-1 text-[11px] font-normal text-muted-foreground">
                         {splits.map((s) => (
                           <li key={`${s.kind ?? ''}:${s.key}`} className="rounded-full bg-muted px-2 py-0.5"
-                            title={isMexOnlySplit(s) ? t('insights.common.cohort.noLinkMexOnly') : undefined}>
+                            title={isMexOnlySplit(s) ? t('insights.common.cohort.noLinkMexOnly')
+                              : isBookingSplit(s) ? t('insights.common.cohort.noLinkBooked') : undefined}>
                             {f.splitLabel(s.key)}{' '}
                             <b className="tabular-nums">{f.int(s.count)}</b>
                             {isMexOnlySplit(s) && <span className="ml-1 font-semibold uppercase">{t('insights.common.table.mexOnlyTag')}</span>}
+                            {isBookingSplit(s) && <span className="ml-1 font-semibold uppercase">{t('insights.common.table.bookedTag')}</span>}
                             {money && s.value_mkd != null && <span className="tabular-nums"> · {f.den(s.value_mkd)}</span>}
                           </li>
                         ))}

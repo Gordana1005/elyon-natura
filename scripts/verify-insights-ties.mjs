@@ -15,13 +15,17 @@
  * the migration is not applied.
  *
  * What it proves, for the window (owner rules 2026-09-28, HANDOFF §3):
- *   T1  Σ buckets = total — count, value (денари), COD, and the orders / web / MEX-only parts
+ *   T1  Σ buckets = total — count, value (денари), COD, and the orders / web / MEX-only / booked
+ *       parts; every number: orders + web + MEX-only + booked = count
  *   T2  Σ by_source = total, and each source's Σ buckets = its total
  *   T3  each source's Σ splits = its total; the header's parts = Σ of the sources' parts
  *   T4  leads: sale + cancelled + trashed + open + other = came in (every source, and the sum)
  *   T5  previous period and spark add up
  *   D1  an independent recount of insights_sale_rows = the payload, and every sale lands in
- *       EXACTLY one bucket: one row per order / web order / MEX-only parcel, no parcel owned twice
+ *       EXACTLY one bucket: one row per order / web order / MEX-only parcel / collabBox booking, no
+ *       parcel owned twice; a booking (a collabBox document whose MEX parcel does not exist yet,
+ *       20260942001900) is never a document an order holds or names, never one with a parcel, never
+ *       the copy of a CRM / AlterCPA sale (the writer's possible_twin_crm_sale rule), always "to pack"
  *   D2  the order part of EVERY number (each bucket × each source, outside, splits) = the rows
  *       GET /orders?cohort_bucket&cohort_source&sold_from&sold_to lists: the api's own filter
  *       (insightsCommon.ts cohortOrdersFilter), translated to SQL, counted here
@@ -274,7 +278,8 @@ export function parseDrill(href) {
 // ── pure ties over the payload ────────────────────────────────────────────────
 
 const n = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : Number(v ?? 0) || 0);
-const PART_FIELDS = ['count', 'value_mkd', 'cod_mkd', 'orders', 'web', 'mex_only'];
+// booked = collabBox bookings awaiting their parcel (20260942001900); absent before that migration
+const PART_FIELDS = ['count', 'value_mkd', 'cod_mkd', 'orders', 'web', 'mex_only', 'booked'];
 
 function sumBy(list, field) { return (list ?? []).reduce((a, x) => a + n(x?.[field]), 0); }
 
@@ -289,6 +294,20 @@ export function payloadTies(c) {
   for (const f of PART_FIELDS) {
     if (total[f] === undefined) continue;
     out.T1.push(tie(`Σ buckets.${f} = total.${f}`, n(total[f]), sumBy(c.buckets, f)));
+  }
+  // what every number is made of adds up to it: orders + web + MEX-only (+ booked) = count
+  if (total.orders !== undefined) {
+    const madeOf = (x) => n(x?.orders) + n(x?.web) + n(x?.mex_only) + n(x?.booked);
+    out.T1.push(tie('total: orders + web + MEX-only + booked = count', n(total.count), madeOf(total)));
+    for (const list of ['buckets', 'outside']) {
+      for (const b of c[list] ?? []) {
+        if (b.orders === undefined) continue;
+        out.T1.push(tie(`${list} ${b.key}: orders + web + MEX-only + booked = count`, n(b.count), madeOf(b)));
+      }
+    }
+    // a booking is always "to pack": sold, no parcel yet
+    const bookedOutside = sumBy(c.buckets, 'booked') - n((c.buckets ?? []).find((b) => b.key === 'to_pack')?.booked) + sumBy(c.outside, 'booked');
+    out.T1.push(tie('bookings sit only in to_pack', 0, bookedOutside));
   }
   // T2 Σ by_source = total; each source's Σ buckets = its total
   for (const f of PART_FIELDS) {
@@ -378,7 +397,28 @@ SELECT count(*) FILTER (WHERE in_total)::int AS n,
   count(*) FILTER (WHERE in_total IS DISTINCT FROM (bucket IN (${IN_BUCKETS.map(quote).join(', ')}))) ::int AS bad_in_total,
   (count(*) - count(DISTINCT CASE kind WHEN 'order' THEN 'o:' || order_id::text
                                      WHEN 'web' THEN 'w:' || web_id::text
+                                     WHEN 'booking' THEN 'b:' || display_id
                                      ELSE 'm:' || tracking_id END))::int AS dup_rows,
+  count(*) FILTER (WHERE kind = 'booking')::int AS bookings,
+  count(*) FILTER (WHERE kind = 'booking' AND (bucket IS DISTINCT FROM 'to_pack' OR order_id IS NOT NULL
+                                               OR tracking_id IS NOT NULL OR display_id IS NULL))::int AS booking_bad_shape,
+  -- a booking's DocNumber (display_id) that an order holds / names, or whose MEX parcel exists
+  count(*) FILTER (WHERE kind = 'booking' AND (
+      EXISTS (SELECT 1 FROM public.orders o WHERE o.mex_tracking_id = r.display_id)
+      OR EXISTS (SELECT 1 FROM public.orders o WHERE o.external_source = 'collabbox' AND o.external_order_id = r.display_id)
+      OR EXISTS (SELECT 1 FROM public.mex_parcels p WHERE p.tracking_id = r.display_id)))::int AS booking_held,
+  -- the writer's possible_twin_crm_sale on the booking's phone: a CRM / AlterCPA sale with no
+  -- parcel of its own, a real product, a fitting price, created 1 day before … 2 days after
+  count(*) FILTER (WHERE kind = 'booking' AND phone8 IS NOT NULL AND EXISTS (
+      SELECT 1 FROM public.orders o
+       WHERE right(regexp_replace(o.customer_phone, '[^0-9]', '', 'g'), 8) = r.phone8
+         AND o.external_source IS DISTINCT FROM 'collabbox'
+         AND o.status::text IN ('confirmed', 'shipped', 'delivered', 'paid', 'returned')
+         AND o.mex_tracking_id IS NULL AND o.price > 0
+         AND NOT public.is_synthetic_product_name(o.product_name)
+         AND o.sale_source_detail IS DISTINCT FROM 'disposition'
+         AND o.created_at BETWEEN r.sale_at - interval '1 day' AND r.sale_at + interval '2 days'
+         AND (abs(round(o.price * 61.5) - r.value_mkd) <= 3 OR abs(round(o.price * 61.5) + 150 - r.value_mkd) <= 3)))::int AS booking_twin,
   (SELECT count(*) FROM (SELECT tracking_id FROM r WHERE tracking_id IS NOT NULL
                          GROUP BY tracking_id HAVING count(DISTINCT kind) > 1
                             OR count(*) FILTER (WHERE kind <> 'order') > 1) d)::int AS parcel_twice,
@@ -391,14 +431,18 @@ FROM r`);
     tie('Σ cod_mkd of those rows = payload total.cod_mkd', n(cohort.total?.cod_mkd), n(r.c)),
     tie('rows without a known bucket', 0, r.bad_bucket),
     tie('rows whose in_total disagrees with their bucket', 0, r.bad_in_total),
-    tie('a sale on more than one row (order / web order / parcel)', 0, r.dup_rows),
+    tie('a sale on more than one row (order / web order / parcel / booking)', 0, r.dup_rows),
     tie('a parcel owned twice (order+web, order+MEX-only, …; shared-by-two-orders excepted)', 0, r.parcel_twice),
+    tie('a booking not shaped as one (to pack, no order, no parcel, its DocNumber)', 0, r.booking_bad_shape),
+    tie('a booking whose DocNumber an order holds / names or whose parcel exists', 0, r.booking_held),
+    tie('a booking that is the copy of a CRM / AlterCPA sale (possible_twin_crm_sale)', 0, r.booking_twin),
+    tie('bookings in the rows = payload total.booked', n(cohort.total?.booked), r.bookings),
   ];
   for (const b of r.by_bucket) {
     const pb = [...(cohort.buckets ?? []), ...(cohort.outside ?? [])].find((x) => x.key === b.bucket);
     lines.push(tie(`bucket ${b.bucket}: rows = payload count`, n(pb?.count), b.n));
   }
-  return { status: statusOf(lines), lines, note: `${r.all_rows} sale rows (incl. outside the total) in the window` };
+  return { status: statusOf(lines), lines, note: `${r.all_rows} sale rows (incl. outside the total) in the window, ${r.bookings} of them collabBox bookings` };
 }
 
 /** D2 + D3: every order part = what GET /orders lists; every drill link = that list. */
@@ -605,8 +649,8 @@ export function headline(c) {
   const money = c.meta?.money !== false;
   const part = (b) => `${fmt(b.count)}${money && b.value_mkd !== undefined ? ` · ${fmt(b.value_mkd)} ден` : ''}`;
   out.push(`SALES ${c.meta.from} .. ${c.meta.to} (sale day, Skopje): ${part(c.total)}${c.total.cod_mkd !== undefined ? ` (COD of the parcels ${fmt(c.total.cod_mkd)})` : ''}`);
-  out.push(`  of which orders ${fmt(c.total.orders)} · web orders ${fmt(c.total.web)} · MEX-only parcels ${fmt(c.total.mex_only)}`);
-  for (const b of c.buckets ?? []) out.push(`  ${b.key.padEnd(16)} ${part(b)}   (orders ${fmt(b.orders)} · web ${fmt(b.web)} · MEX-only ${fmt(b.mex_only)})`);
+  out.push(`  of which orders ${fmt(c.total.orders)} · web orders ${fmt(c.total.web)} · MEX-only parcels ${fmt(c.total.mex_only)} · collabBox bookings awaiting their parcel ${fmt(c.total.booked ?? 0)}`);
+  for (const b of c.buckets ?? []) out.push(`  ${b.key.padEnd(16)} ${part(b)}   (orders ${fmt(b.orders)} · web ${fmt(b.web)} · MEX-only ${fmt(b.mex_only)}${b.booked ? ` · booked ${fmt(b.booked)}` : ''})`);
   out.push('  outside the total:');
   for (const b of c.outside ?? []) out.push(`  ${b.key.padEnd(20)} ${part(b)}`);
   out.push('BY SOURCE');

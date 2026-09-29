@@ -65,6 +65,14 @@ describe('split chips', () => {
     expect(splitDrill(row('altercpa'), { key: 'new customers', kind: 'order', count: 5 }, range, true).blocked).toBe('not_orders');
     expect(splitDrill(row('altercpa'), { key: 'bridge', count: 5 }, range, true).blocked).toBe('not_orders');
   });
+  it('collabBox bookings awaiting their parcel (split `booked`, 20260942001900) never link', () => {
+    // a Нарачка out booked today is a sale in "to pack" but not an order until its MEX parcel exists
+    expect(splitDrill(row('teleshop_out'), { key: 'booked', kind: 'booking', count: 78 }, range, true))
+      .toEqual({ href: null, blocked: 'booked' });
+    expect(splitDrill(row('elyon_crm'), { key: 'booked', kind: 'booking', count: 11 }, range, true).blocked).toBe('booked');
+    // even from a list that names the key alone (the Prediction-lists footer)
+    expect(splitDrill(row('elyon_crm'), { key: 'booked', count: 11 }, range, true).blocked).not.toBeNull();
+  });
 });
 
 describe('leads', () => {

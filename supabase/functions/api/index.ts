@@ -19317,7 +19317,11 @@ async function handleRequest(req: Request): Promise<Response> {
       const opsBucket = (k: string) => ((opsCo.buckets || []) as any[]).find((x) => x.key === k) ?? {};
       const opsKpi: Record<string, unknown> = {
         sales_today: Number(opsCo.total?.count ?? 0),
+        // "to pack" = sold, no parcel yet: the CRM's orders AND the collabBox documents booked today
+        // whose parcel does not exist yet (owner 29.09.2026, migration 20260942001900) — the second
+        // part apart, so the page can say how much of it is still in collabBox
         to_pack_today: Number(opsBucket("to_pack").count ?? 0),
+        to_pack_booked_today: Number(opsBucket("to_pack").booked ?? 0),
         collected_today: Number(opsCo.cash_flow?.parcels ?? 0),
         returned_today: Number(opsReturnedRes.count ?? 0),
         by_department: ((opsCo.by_source || []) as any[]).map((x) => ({ key: x.key, count: Number(x.total?.count ?? 0) })),

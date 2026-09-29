@@ -64,14 +64,14 @@ export const RETURNS_NON_MONEY_KEYS: ReadonlySet<string> = new Set([
   ...ENVELOPE,
   // kpis
   "kpis", "base", "returned", "rate", "paid", "open", "problem", "crm_only_returned", "cancelled_after_sale",
-  "trashed_after_sale", "round_trip", "prev", "count", "orders", "web", "mex_only", "parcels", "share",
+  "trashed_after_sale", "round_trip", "prev", "count", "orders", "web", "mex_only", "booked", "parcels", "share",
   "rejected", "attempted", "problematic",
   // now
   "now", "oldest",
   // breakdowns
   "by_source", "by_account", "by_product", "by_city", "by_person", "by_list", "by_weekday", "days_to_return",
   "reasons", "repeat", "trend",
-  "key", "kind", "splits", "base_orders", "base_web", "base_mex_only",
+  "key", "kind", "splits", "base_orders", "base_web", "base_mex_only", "base_booked",
   "rows", "name", "catalogue", "sold_units", "returned_units", "free_units", "free_returned_units", "others",
   "products", "total", "not_products", "units",
   "name_lat", "name_sq", "places", "unknown",

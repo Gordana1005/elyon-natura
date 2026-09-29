@@ -20,6 +20,7 @@ export function rsWhy(f: InsightsFormat, d: RsDrill): string | undefined {
   switch (d.blocked) {
     case 'web': return f.t('insights.common.cohort.noLinkWeb');
     case 'mex_only': return f.t('insights.common.cohort.noLinkMexOnly');
+    case 'booked': return f.t('insights.common.cohort.noLinkBooked');
     case 'mixed': return f.t('insights.common.cohort.noLinkMixed');
     case 'mex_day': return f.t('insights.returns.noLinkMexDay');
     default: return undefined;

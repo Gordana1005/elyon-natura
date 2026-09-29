@@ -1,4 +1,4 @@
-import { Info, Truck } from 'lucide-react';
+import { Hourglass, Info, Truck } from 'lucide-react';
 import type { SalesCore } from '@/lib/insightsApi/sales';
 import { cn } from '@/lib/utils';
 import { DrillLink } from '../overview/DrillLink';
@@ -9,7 +9,7 @@ import { ClockCaption } from '../shared/ClockCaption';
 import { CohortBar } from '../shared/CohortBar';
 import { OrdersPartLink, cohortWhy } from '../shared/CohortLinks';
 import { COHORT_TONE, OUTSIDE_TONE, STATUS_TEXT } from '../shared/cohortPalette';
-import { cohortDrill, isMexOnlySplit, outsideParts } from '../shared/cohortModel';
+import { cohortDrill, isBookingSplit, isMexOnlySplit, outsideParts } from '../shared/cohortModel';
 import type { DayRange } from '../shared/period';
 import type { InsightsFormat } from '../shared/useInsightsFormat';
 import { paidRate, returnRate, sourceViews, type SourceView } from './salesModel';
@@ -109,9 +109,11 @@ function SourceCard({ v, money, range, compare, f }: { v: SourceView; money: boo
         <ul className="flex flex-wrap gap-1.5" aria-label={t('insights.sales.sources.splits')}>
           {splits.map((sp) => {
             const mex = isMexOnlySplit(sp);
+            const bk = isBookingSplit(sp);
             const href = sp.kind === 'order' ? sp.drill ?? null : null;
             const why = href ? undefined : mex ? t('insights.common.cohort.noLinkMexOnly')
-              : sp.kind === 'web' ? t('insights.common.cohort.noLinkWeb') : t('insights.sales.sources.noDetailLink');
+              : bk ? t('insights.common.cohort.noLinkBooked')
+                : sp.kind === 'web' ? t('insights.common.cohort.noLinkWeb') : t('insights.sales.sources.noDetailLink');
             return (
               <li key={`${sp.kind ?? ''}:${sp.key}`}>
                 <DrillLink
@@ -120,10 +122,11 @@ function SourceCard({ v, money, range, compare, f }: { v: SourceView; money: boo
                   className={cn(
                     'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs no-underline',
                     href && 'hover:border-foreground/30 hover:bg-muted hover:no-underline',
-                    mex && 'border-dashed',
+                    (mex || bk) && 'border-dashed',
                   )}
                 >
                   {mex && <Truck className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />}
+                  {bk && <Hourglass className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />}
                   <span className="text-muted-foreground">{f.splitLabel(sp.key)}</span>
                   <b className="font-semibold tabular-nums">{f.int(sp.count)}</b>
                   {money && sp.value_mkd != null && <span className="tabular-nums text-muted-foreground">· {f.den(sp.value_mkd)}</span>}
@@ -134,13 +137,17 @@ function SourceCard({ v, money, range, compare, f }: { v: SourceView; money: boo
         </ul>
       )}
 
-      {(v.key === 'web' || (v.row.total.mex_only ?? 0) > 0) && (
+      {(v.key === 'web' || (v.row.total.mex_only ?? 0) > 0 || (v.row.total.booked ?? 0) > 0) && (
         <p className="flex items-start gap-1 text-[11px] leading-snug text-muted-foreground">
           <Info className="mt-px h-3 w-3 shrink-0" aria-hidden />
           <span>
-            {v.key === 'web'
-              ? t('overview.cohort.sources.webNote')
-              : t('overview.cohort.sources.mexOnlyNote', { n: f.int(v.row.total.mex_only ?? 0), count: v.row.total.mex_only ?? 0 })}
+            {[
+              v.key === 'web' ? t('overview.cohort.sources.webNote') : null,
+              v.key !== 'web' && (v.row.total.mex_only ?? 0) > 0
+                ? t('overview.cohort.sources.mexOnlyNote', { n: f.int(v.row.total.mex_only ?? 0), count: v.row.total.mex_only ?? 0 }) : null,
+              (v.row.total.booked ?? 0) > 0
+                ? t('overview.cohort.sources.bookedNote', { n: f.int(v.row.total.booked ?? 0), count: v.row.total.booked ?? 0 }) : null,
+            ].filter(Boolean).join(' ')}
           </span>
         </p>
       )}

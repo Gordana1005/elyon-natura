@@ -17,14 +17,17 @@
  *
  * What it proves, per Skopje day:
  *   L1  every person × department (sales, денари, cancelled after the sale, live-credited,
- *       collabBox bookings counted / not counted (twins), decisions, sale decisions) =
- *       the truth computed here STRAIGHT from orders (the cohort's sale clock, bucket
- *       and value rules, the sold_* stamp, an unstamped sale → the day's first v_sales_work
- *       sale decision), v_sales_work and collabbox_booked_today (+ the writer's twin
- *       rule); and the no-seller cells (sales, денари, bookings, unmapped decisions)
+ *       collabBox bookings counted / not counted, decisions, sale decisions) = the truth
+ *       computed here STRAIGHT from orders (the cohort's sale clock, bucket and value rules,
+ *       the sold_* stamp, an unstamped sale → the day's first v_sales_work sale decision),
+ *       v_sales_work, and for the bookings (20260942001900): counted = THE cohort's booking
+ *       rows (insights_sale_rows kind 'booking' — scripts/verify-insights-ties.mjs D1 proves
+ *       those rows), not counted = the rest of collabbox_booked_today's documents; and the
+ *       no-seller cells (sales, денари, bookings, unmapped decisions)
  *   L2  Σ board = THE cohort (public.insights_cohort) of the day, per department: credited
  *       + no seller = the cohort's orders, денари = its order splits, web / MEX-only parts,
- *       cancelled / trashed after the sale — so nothing is missed and nothing is extra
+ *       the collabBox bookings (count and денари) = its booked part, cancelled / trashed after
+ *       the sale — so nothing is missed, nothing is extra, and no booking is counted twice
  *   L3  once and only once: a person is one row; Σ rows' departments = the department's
  *       credited sales; a row = Σ its departments; total = sales + counted bookings;
  *       the summary = Σ the rows
@@ -48,7 +51,10 @@ import { fileURLToPath } from 'node:url';
 import { runSql } from './verify-insights-ties.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const MIGRATION = join(ROOT, 'supabase', 'migrations', '20260942001200_leaderboard_by_department.sql');
+// the file holding the LATEST body of leaderboard_day_v2 (--inline runs it): 20260942001900 counts
+// the day's collabBox bookings from THE cohort's booking rows (1200 wrote the board, 1800 passed the
+// department override through it)
+const MIGRATION = join(ROOT, 'supabase', 'migrations', '20260942001900_bookings_in_cohort.sql');
 const SIG = 'public.leaderboard_day_v2(date,text,text)';
 export const DEPARTMENTS = ['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web'];
 const YMD = /^\d{4}-\d{2}-\d{2}$/;
@@ -104,8 +110,9 @@ async function board(ctx, day, department = null, team = null) {
 
 /** Person × department × day, computed without the function: the cohort's sale
  *  clock / bucket / value rules on orders, the sold_* stamp or (unstamped) the day's
- *  first v_sales_work sale decision, the day's decisions, collabbox_booked_today with
- *  the owner's roles and the writer's twin rule. */
+ *  first v_sales_work sale decision, the day's decisions; the collabBox bookings the
+ *  cohort counts (its kind 'booking' rows, 20260942001900) and the rest of
+ *  collabbox_booked_today's documents as not counted. */
 export function truthSql(from, to) {
   if (!validYmd(from) || !validYmd(to)) throw new Error('bad window');
   return `
@@ -188,43 +195,27 @@ cr AS (
   WHERE o2.bucket IS NOT NULL
     AND (public.cohort_in_total(o2.bucket) OR o2.bucket IN ('cancelled_after_sale', 'trashed_after_sale'))
 ),
-bk AS (
-  SELECT dd.day, b.person_id, b.doc_type, sum(b.docs) AS docs, sum(b.value_mkd) AS value_mkd,
-         public.collabbox_doc_role(b.doc_type) AS role,
-         public.cohort_order_source((public.collabbox_department(b.doc_type, NULL::text, NULL::uuid, NULL::timestamptz))[1],
-                                    (public.collabbox_department(b.doc_type, NULL::text, NULL::uuid, NULL::timestamptz))[2],
-                                    NULL::text) AS dept
-  FROM dd CROSS JOIN LATERAL public.collabbox_booked_today(dd.day) b
-  GROUP BY 1, 2, 3
-),
-cand AS (   -- order-type bookings (10036 · 10050 · 10106) and their customer's phone
-  SELECT dd.day, d.author_person_id, d.doc_type_id, d.amount_mkd, d.doc_at,
-         coalesce(
-           (SELECT c.phone8 FROM public.collabbox_customers c WHERE c.komitent_id = d.komitent_id AND c.source = 'card' AND c.phone8 ~ '^[0-9]{8}$'),
-           (SELECT t.phone8 FROM public.teleshop_import_customers t WHERE t.komitent_id = d.komitent_id AND t.phone8 ~ '^[0-9]{8}$'),
-           (SELECT p.phone8 FROM public.mex_parcels p WHERE p.tracking_id = d.doc_number AND p.phone8 ~ '^[0-9]{8}$'),
-           (SELECT c.phone8 FROM public.collabbox_customers c WHERE c.komitent_id = d.komitent_id AND c.phone8 ~ '^[0-9]{8}$')) AS p8
+-- the day's collabBox documents no order holds yet: collabbox_booked_today's filter, one
+-- document at a time (the board's L6 drift check ties its own copy to the function)
+bk AS MATERIALIZED (
+  SELECT dd.day, d.doc_number, d.author_person_id AS person_id, d.amount_mkd,
+         public.cohort_order_source((public.collabbox_department(d.doc_type_id, d.doc_number, d.author_person_id, d.doc_at))[1],
+                                    (public.collabbox_department(d.doc_type_id, d.doc_number, d.author_person_id, d.doc_at))[2],
+                                    d.doc_number) AS dept
   FROM dd JOIN public.collabbox_documents d ON d.doc_at BETWEEN dd.f AND dd.t
   WHERE d.outcome IN ('booked', 'awaiting_parcel') AND d.vanished_at IS NULL AND NOT d.is_storno AND d.amount_mkd > 0
-    AND d.doc_type_id IN ('10036', '10050', '10106')
+    AND d.doc_type_id IN ('10036', '10050', '10111', '10114', '10106')
     AND NOT EXISTS (SELECT 1 FROM public.orders o WHERE o.external_source = 'collabbox' AND o.external_order_id = d.doc_number)
     AND NOT EXISTS (SELECT 1 FROM public.orders o WHERE o.mex_tracking_id = d.doc_number)
     AND NOT EXISTS (SELECT 1 FROM public.mex_parcels p WHERE p.tracking_id = d.doc_number AND p.order_id IS NOT NULL)
 ),
-tw AS (    -- the writer's 'possible_twin_crm_sale': the customer's CRM / AlterCPA sale, no parcel of its own
-  SELECT c.day, c.author_person_id AS person_id, c.doc_type_id AS doc_type, count(*) AS docs, sum(c.amount_mkd) AS value_mkd
-  FROM cand c
-  WHERE c.p8 IS NOT NULL AND EXISTS (
-    SELECT 1 FROM public.orders o
-     WHERE right(regexp_replace(o.customer_phone, '[^0-9]', '', 'g'), 8) = c.p8
-       AND o.external_source IS DISTINCT FROM 'collabbox'
-       AND o.status::text IN ('confirmed', 'shipped', 'delivered', 'paid', 'returned')
-       AND o.mex_tracking_id IS NULL AND o.price > 0
-       AND NOT public.is_synthetic_product_name(o.product_name)
-       AND o.sale_source_detail IS DISTINCT FROM 'disposition'
-       AND o.created_at BETWEEN c.doc_at - interval '1 day' AND c.doc_at + interval '2 days'
-       AND (abs(round(o.price * 61.5) - c.amount_mkd) <= 3 OR abs(round(o.price * 61.5) + 150 - c.amount_mkd) <= 3))
-  GROUP BY 1, 2, 3
+-- counted: THE cohort's booking rows (insights_sale_rows kind 'booking', 20260942001900) —
+-- each once, in its folder's department, on its author; the rest of bk is not counted (the copy
+-- of a CRM / AlterCPA sale, a 10111 LEADS document, a document whose parcel already exists …)
+bkr AS MATERIALIZED (
+  SELECT r.sale_day AS day, r.person_id, r.source AS dept, r.value_mkd, r.display_id
+  FROM bnd CROSS JOIN LATERAL public.insights_sale_rows(bnd.f, bnd.t, false) r
+  WHERE r.kind = 'booking'
 )
 SELECT 'o' AS part, cr.day::text AS day, cr.pid::text AS pid, cr.dept,
        count(*) FILTER (WHERE cr.in_total) AS sales, coalesce(sum(cr.value_mkd) FILTER (WHERE cr.in_total), 0) AS value_mkd,
@@ -232,11 +223,12 @@ SELECT 'o' AS part, cr.day::text AS day, cr.pid::text AS pid, cr.dept,
        0 AS booked, 0 AS booked_mkd, 0 AS twin, 0 AS worked, 0 AS sale_d
 FROM cr GROUP BY 1, 2, 3, 4
 UNION ALL
-SELECT 'b', bk.day::text, bk.person_id::text, bk.dept, 0, 0, 0, 0,
-       CASE WHEN bk.role = 'order' THEN bk.docs - coalesce(tw.docs, 0) ELSE 0 END,
-       CASE WHEN bk.role = 'order' THEN bk.value_mkd - coalesce(tw.value_mkd, 0) ELSE 0 END,
-       CASE WHEN bk.role = 'order' THEN coalesce(tw.docs, 0) ELSE bk.docs END, 0, 0
-FROM bk LEFT JOIN tw ON tw.day = bk.day AND tw.person_id IS NOT DISTINCT FROM bk.person_id AND tw.doc_type = bk.doc_type
+SELECT 'b', b.day::text, b.pid::text, b.dept, 0, 0, 0, 0, sum(b.booked), sum(b.booked_mkd), sum(b.twin), 0, 0
+FROM (SELECT bkr.day, bkr.person_id AS pid, bkr.dept, 1 AS booked, bkr.value_mkd AS booked_mkd, 0 AS twin FROM bkr
+      UNION ALL
+      SELECT bk.day, bk.person_id, bk.dept, 0, 0, 1 FROM bk
+       WHERE bk.doc_number NOT IN (SELECT bkr.display_id FROM bkr)) b
+GROUP BY b.day, b.pid, b.dept
 UNION ALL
 SELECT 'w', vw.day::text, vw.person_id::text,
        CASE WHEN o.id IS NOT NULL THEN public.cohort_order_source(o.sale_source, o.sale_source_detail, o.mex_tracking_id, o.dept_override)
@@ -382,7 +374,7 @@ async function verifyDay(ctx, day) {
 
   // L1
   const bad = compareCells(day, doc, ctx.truth);
-  add('L1', 'person × department = the truth (orders + v_sales_work + collabbox_booked_today)',
+  add('L1', 'person × department = the truth (orders + v_sales_work + the cohort\'s bookings + collabbox_booked_today)',
     bad.length ? bad : [tie('cells compared', 'all equal', 'all equal')]);
 
   // L2
@@ -396,6 +388,11 @@ async function verifyDay(ctx, day) {
     l2.push(tie(`${s.key}: денари = cohort order splits`, r0(ordersValue), r0(x.value_mkd)));
     l2.push(tie(`${s.key}: web shop part`, n(s.total?.web), n(x.web)));
     l2.push(tie(`${s.key}: MEX-only part`, n(s.total?.mex_only), n(x.mex_only)));
+    // the collabBox bookings awaiting their parcel (20260942001900): the board counts exactly the
+    // cohort's, once (absent on both sides before that migration)
+    const bookedValue = (s.splits ?? []).filter((sp) => sp.kind === 'booking').reduce((a, sp) => a + n(sp.value_mkd), 0);
+    l2.push(tie(`${s.key}: collabBox bookings = cohort booked part`, n(s.total?.booked), n(x.booked)));
+    l2.push(tie(`${s.key}: bookings денари = cohort booking split`, r0(bookedValue), r0(x.booked_value_mkd)));
     l2.push(tie(`${s.key}: cancelled / trashed after the sale`, n(outs.cancelled_after_sale) + n(outs.trashed_after_sale), n(x.cancelled_after_sale)));
   }
   const allOrders = (c.by_source ?? []).reduce((a, s) => a + n(s.total?.orders), 0);

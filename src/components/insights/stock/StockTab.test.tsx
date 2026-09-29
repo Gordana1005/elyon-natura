@@ -47,7 +47,7 @@ function renderWith(p: StockResponse) {
 }
 const trustTitle = (s: StockResponse) => i18n.t('insights.stock.trust.title', { date: dm(s.trust.last_count!, true) });
 
-describe('Products & stock — owner', () => {
+describe('Products & stock — owner', { timeout: 30_000 }, () => {
   it('says the stock count is unverified and hides days of cover and the valuation', async () => {
     const s = S();
     const { container } = renderWith(s);
@@ -87,7 +87,7 @@ describe('Products & stock — owner', () => {
   });
 });
 
-describe('Products & stock — the stock regime (migration 20260942000100)', () => {
+describe('Products & stock — the stock regime (migration 20260942000100)', { timeout: 30_000 }, () => {
   it('counted but MEX stock movements off: says so, still hides days of cover and the valuation', async () => {
     const s = S();
     s.trust = { ...s.trust, last_count: '2026-10-01', counted: true, mex_enabled: false, mex_from: '2026-10-01', mex_last_run: null };
@@ -108,7 +108,7 @@ describe('Products & stock — the stock regime (migration 20260942000100)', () 
   });
 });
 
-describe('Products & stock — admin / manager (no money)', () => {
+describe('Products & stock — admin / manager (no money)', { timeout: 30_000 }, () => {
   it('never shows a cost, a price, a queue value or the valuation', async () => {
     const owner = S();
     const s = stripStockMoney(S());

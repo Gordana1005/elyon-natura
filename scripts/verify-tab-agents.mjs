@@ -25,8 +25,10 @@
  *   A5  worked decisions = an independent recount of v_sales_work (test-phone
  *       orders excluded); Σ people.worked + decisions with no person = worked
  *   A6  the /orders twin: for the five biggest sellers, GET /orders?cohort_bucket=
- *       total&sold_by_person_id=…&sold_from&sold_to lists exactly their sales;
- *       for every team with drill_exact, …&team_key=… lists exactly the team's
+ *       total&sold_by_person_id=…&sold_from&sold_to lists exactly their ORDER sales
+ *       (their sales less their collabBox bookings awaiting a parcel, 20260942001900 —
+ *       sales, not orders yet); for every team with drill_exact, …&team_key=… lists
+ *       exactly the team's
  *   A7  compare: totals.prev.sales = the cohort's previous period total
  *   A8  the api's non-owner and agent payloads carry no *_mkd / *_eur key
  *   T   timings (server round trip, one-year window included: < 3 s target)
@@ -121,6 +123,8 @@ async function verifyWindow(ctx, from, to) {
   // A1
   add('A1', 'totals = the cohort (count, денари, COD, per source)', [
     tie('sales', n(c.total.count), n(t.sales)),
+    // collabBox bookings awaiting their parcel (20260942001900): absent on both sides before it
+    tie('booked (collabBox, awaiting the parcel)', n(c.total.booked), n(t.booked)),
     tie('value_mkd', n(c.total.value_mkd), n(t.value_mkd)),
     tie('cod_mkd', n(c.total.cod_mkd), n(t.cod_mkd)),
     ...SOURCES.map((s) => tie(`${s} sales`, n(c.by_source.find((x) => x.key === s)?.total?.count), n(t.by_source.find((x) => x.key === s)?.sales))),
@@ -154,6 +158,10 @@ async function verifyWindow(ctx, from, to) {
   a3.push(tie('Σ teams.sales = Σ people.sales', sum(p.people, 'sales'), sum(p.teams, 'sales')));
   a3.push(tie('Σ teams.worked = Σ people.worked', sum(p.people, 'worked'), sum(p.teams, 'worked')));
   a3.push(tie('Σ teams.packages = Σ people.packages', sum(p.people, 'packages'), sum(p.teams, 'packages')));
+  a3.push(tie('Σ teams.booked = Σ people.booked', sum(p.people, 'booked'), sum(p.teams, 'booked')));
+  a3.push(tie('Σ people.booked ≤ totals.booked (the rest have no person)', true, sum(p.people, 'booked') <= n(t.booked)));
+  // a team whose members hold bookings never claims an exact /orders list
+  a3.push(tie('teams with bookings are not drill_exact', 0, p.teams.filter((tm) => n(tm.booked) > 0 && tm.drill_exact).length));
   add('A3', 'the payload adds up (people, teams)', a3);
 
   // A4 — an independent GROUP BY of the cohort's rows
@@ -202,7 +210,8 @@ async function verifyWindow(ctx, from, to) {
   const top = [...p.people].filter((x) => x.sales > 0).sort((a, b) => b.sales - a.sales).slice(0, 5);
   const exact = p.teams.filter((tm) => tm.drill_exact);
   const probes = [
-    ...top.map((x) => ({ label: `person ${x.person_id.slice(0, 8)} (${x.sales})`, want: x.sales, pred: `o.sold_by_person_id = ${q(x.person_id)}::uuid` })),
+    ...top.map((x) => ({ label: `person ${x.person_id.slice(0, 8)} (${x.sales}${n(x.booked) ? `, ${n(x.booked)} booked` : ''})`,
+      want: x.sales - n(x.booked), pred: `o.sold_by_person_id = ${q(x.person_id)}::uuid` })),
     ...exact.map((tm) => ({
       label: `team ${tm.key} (${tm.sales})`, want: tm.sales,
       pred: `o.sold_by_person_id IN (SELECT m.person_id FROM public.sales_team_members m WHERE m.team_key = ${q(tm.key)} AND m.is_primary AND m.valid_from <= '${win.to}'::date AND (m.valid_to IS NULL OR m.valid_to >= '${win.from}'::date))`,

@@ -27,10 +27,13 @@ export interface Part {
   count: number;
   value_mkd: number | null;
   cod_mkd: number | null;
-  /** What it is made of (orders + web + mex_only = count); null when the api did not say. */
+  /** What it is made of (orders + web + mex_only + booked = count); null when the api did not say. */
   orders?: number | null;
   web?: number | null;
   mex_only?: number | null;
+  /** collabBox bookings awaiting their MEX parcel (20260942001900) - never orders. An older
+   *  payload without the key holds none: 0, never null. */
+  booked?: number;
 }
 
 type PartLike = { count?: number; value_mkd?: number | null; cod_mkd?: number | null } & CohortComposition;
@@ -42,6 +45,7 @@ const partOf = (b: PartLike | undefined): Part => ({
   orders: hasNum(b?.orders) ? b!.orders! : null,
   web: hasNum(b?.web) ? b!.web! : null,
   mex_only: hasNum(b?.mex_only) ? b!.mex_only! : null,
+  booked: num(b?.booked),
 });
 
 /** Every in-total bucket, in the bar's order, zeros included. */
@@ -60,18 +64,19 @@ export function outsideParts(outside: CohortOutside[] | undefined): Record<Cohor
 /** Σ of parts; a money sum is null when no part carries money (non-owner), a
  *  composition sum is null as soon as one part does not say what it is made of. */
 export function sumParts(parts: Part[]): Part {
-  let count = 0, value = 0, cod = 0, anyValue = false, anyCod = false;
+  let count = 0, value = 0, cod = 0, anyValue = false, anyCod = false, booked = 0;
   const comp = { orders: 0 as number | null, web: 0 as number | null, mex_only: 0 as number | null };
   for (const p of parts) {
     count += p.count;
     if (p.value_mkd != null) { value += p.value_mkd; anyValue = true; }
     if (p.cod_mkd != null) { cod += p.cod_mkd; anyCod = true; }
+    booked += num(p.booked);
     for (const k of ['orders', 'web', 'mex_only'] as const) {
       const v = p[k];
       comp[k] = comp[k] == null || v == null ? null : comp[k]! + v;
     }
   }
-  return { count, value_mkd: anyValue ? value : null, cod_mkd: anyCod ? cod : null, ...comp };
+  return { count, value_mkd: anyValue ? value : null, cod_mkd: anyCod ? cod : null, ...comp, booked };
 }
 
 /** Which tiles a bar shows, in order. */
@@ -149,6 +154,7 @@ const toBuckets = (parts: Record<string, Part>, keys: readonly string[]) =>
     ...(parts[k].orders != null ? { orders: parts[k].orders } : {}),
     ...(parts[k].web != null ? { web: parts[k].web } : {}),
     ...(parts[k].mex_only != null ? { mex_only: parts[k].mex_only } : {}),
+    ...(parts[k].booked ? { booked: parts[k].booked } : {}),
   }));
 
 /**
@@ -212,10 +218,25 @@ export const mexOnlyCount = (row: Pick<CohortSourceRow, 'splits'> & { total?: Co
   hasNum(row.total?.mex_only) ? row.total!.mex_only!
     : (row.splits ?? []).reduce((a, s) => a + (isMexOnlySplit(s) ? num(s.count) : 0), 0);
 
+/** The split of collabBox BOOKINGS (kind 'booking', key `booked`: documents booked
+ *  in collabBox whose MEX parcel does not exist yet, 20260942001900). It never
+ *  links to /orders: a booking is not an order until its parcel exists. */
+export const BOOKED_SPLIT = 'booked';
+export const isBookingSplit = (s: Pick<CohortSplit, 'key' | 'kind'> | string) => {
+  const sp = typeof s === 'string' ? { key: s } : s;
+  return sp.kind ? sp.kind === 'booking' : sp.key === BOOKED_SPLIT;
+};
+
+/** collabBox bookings awaiting their parcel among a source's sales. */
+export const bookedCount = (row: Pick<CohortSourceRow, 'splits'> & { total?: CohortSourceRow['total'] }) =>
+  hasNum(row.total?.booked) ? row.total!.booked!
+    : (row.splits ?? []).reduce((a, s) => a + (isBookingSplit(s) ? num(s.count) : 0), 0);
+
 /** Why a number has no link of its own: nothing there · /orders cannot filter
  *  the cohort yet · (part of it is) the web mirror · (part of it is) MEX
- *  parcels with no order · both · the api did not say what it is made of. */
-export type DrillBlock = 'none' | 'unsupported' | 'web' | 'mex_only' | 'mixed' | 'unknown';
+ *  parcels with no order · (part of it is) collabBox bookings awaiting their
+ *  parcel · more than one of those · the api did not say what it is made of. */
+export type DrillBlock = 'none' | 'unsupported' | 'web' | 'mex_only' | 'booked' | 'mixed' | 'unknown';
 
 export interface CohortDrill {
   /** The number itself opens /orders — ONLY when every sale behind it is an
@@ -225,9 +246,11 @@ export interface CohortDrill {
   /** A number that is only partly orders: the exact link to that part, and its size. */
   ordersHref: string | null;
   orders: number;
-  /** What no list holds: web-shop orders (the mirror) and MEX parcels with no order. */
+  /** What no list holds: web-shop orders (the mirror), MEX parcels with no order and
+   *  collabBox bookings awaiting their parcel. */
   web: number;
   mexOnly: number;
+  booked?: number;
 }
 
 export type DrillKey = CohortBucketKey | CohortOutsideKey | 'total';
@@ -255,11 +278,12 @@ export function cohortHref(key: DrillKey | DrillKey[], sources: readonly string[
 
 /**
  * The link behind one cohort number, over the source rows that make it up.
- * The number links only when it is ALL orders (web = MEX-only = 0): then the
- * /orders list holds exactly it. A number that is partly orders keeps no link
- * of its own and offers its order part (`ordersHref`, `orders`) instead; a
- * number with no orders at all, or before /orders can filter the cohort, has
- * none. The api says per number what it is made of (orders / web / mex_only).
+ * The number links only when it is ALL orders (web = MEX-only = booked = 0):
+ * then the /orders list holds exactly it. A number that is partly orders keeps
+ * no link of its own and offers its order part (`ordersHref`, `orders`)
+ * instead; a number with no orders at all, or before /orders can filter the
+ * cohort, has none. The api says per number what it is made of (orders / web /
+ * mex_only / booked).
  */
 export function cohortDrill(
   rows: CohortSourceRow[], key: DrillKey | DrillKey[], range: DayRange, supported: boolean = ordersSupportsCohortDrill(),
@@ -271,14 +295,16 @@ export function cohortDrill(
   const s = sumParts(inPlay.map((x) => x.p));
   // No composition (an older api): nobody can say the list would hold exactly this.
   if (s.orders == null || s.web == null || s.mex_only == null) return { ...none, blocked: 'unknown' };
-  const made = { orders: s.orders, web: s.web, mexOnly: s.mex_only };
+  const booked = num(s.booked);
+  const made = { orders: s.orders, web: s.web, mexOnly: s.mex_only, booked };
   if (!supported) return { href: null, ordersHref: null, ...made, blocked: 'unsupported' };
   const sources = [...new Set(inPlay.map((x) => x.r.key))];
   const href = s.orders > 0 ? cohortHref(key, sources, range) : null;
-  if (s.web === 0 && s.mex_only === 0) return { href, ordersHref: null, ...made, blocked: href ? null : 'none' };
+  if (s.web === 0 && s.mex_only === 0 && booked === 0) return { href, ordersHref: null, ...made, blocked: href ? null : 'none' };
+  const kinds = [s.web > 0, s.mex_only > 0, booked > 0].filter(Boolean).length;
   return {
     href: null, ordersHref: href, ...made,
-    blocked: s.web > 0 && s.mex_only > 0 ? 'mixed' : s.web > 0 ? 'web' : 'mex_only',
+    blocked: kinds > 1 ? 'mixed' : s.web > 0 ? 'web' : s.mex_only > 0 ? 'mex_only' : 'booked',
   };
 }
 

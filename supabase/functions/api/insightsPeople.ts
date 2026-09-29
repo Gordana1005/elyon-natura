@@ -61,8 +61,8 @@ export const PEOPLE_NON_MONEY_KEYS: ReadonlySet<string> = new Set([
   "meta", "from", "to", "prev_from", "prev_to", "prev_to_end", "partial", "days", "generated_at", "money",
   "clock", "granularity", "presence_since", "stamped_at", "person", "access", "self_unlinked",
   "totals", "teams", "people", "no_seller", "unmapped_work", "spark", "detail",
-  // totals
-  "sales", "with_person", "without_person", "by_source", "key", "worked", "sale_decisions",
+  // totals (booked = the collabBox bookings among the sales, 20260942001900)
+  "sales", "booked", "with_person", "without_person", "by_source", "key", "worked", "sale_decisions",
   "cancel_decisions", "trash_decisions", "callback_decisions", "unmapped_decisions", "conversion", "prev",
   // measures (people, members, teams)
   "packages", "buckets", "outside", "via_crm", "via_altercpa", "first_decision_at", "last_decision_at",

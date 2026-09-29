@@ -122,7 +122,8 @@ export async function verify({ from, to, sql, now = new Date() }) {
     const fails = [];
     const strip = IP.buildStrip(cohort.strip);
     const cmp = (label, a, b) => {
-      for (const k of ['count', 'value_mkd', 'cod_mkd', 'orders', 'web', 'mex_only']) {
+      // booked = collabBox bookings awaiting their parcel (20260942001900; absent before it)
+      for (const k of ['count', 'value_mkd', 'cod_mkd', 'orders', 'web', 'mex_only', 'booked']) {
         if (b?.[k] === undefined) continue;
         if (!near(a?.[k], b?.[k], 1)) fails.push(`${label}.${k}: profit ${n(a?.[k])} ≠ cohort ${n(b?.[k])}`);
       }
@@ -245,7 +246,7 @@ export function diffResponses(a, b, path = '', out = []) {
   if (/\.(generated_at|cache)$/.test(path)) return out;
   if (typeof a === 'number' || typeof b === 'number') {
     if (typeof a !== 'number' || typeof b !== 'number') { out.push(`${path}: ${a} ≠ ${b}`); return out; }
-    const exact = /_mkd$|\.(sales|count|packages|free_packages|packages_costed|packages_uncosted|returned|returned_packages|n|orders|web|mex_only|sales_total|open|agents|products_total)$/.test(path);
+    const exact = /_mkd$|\.(sales|count|packages|free_packages|packages_costed|packages_uncosted|returned|returned_packages|n|orders|web|mex_only|booked|sales_total|open|agents|products_total)$/.test(path);
     if (exact ? a !== b : Math.abs(a - b) > 1e-7) out.push(`${path}: ${a} ≠ ${b}`);
     return out;
   }

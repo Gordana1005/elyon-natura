@@ -63,8 +63,10 @@ export const hasActivity = (m: PeopleMeasures) =>
 
 export type PartKey = keyof PeopleBuckets | 'total' | 'cancelled_after_sale' | 'trashed_after_sale';
 
-/** /orders?cohort_bucket=…&sold_by_person_id=…&sold_from&sold_to — every sale a
- *  person is credited with is an order, so the list holds exactly the number. */
+/** /orders?cohort_bucket=…&sold_by_person_id=…&sold_from&sold_to — the orders a
+ *  person is credited with. Exact for every number but one that holds collabBox
+ *  bookings awaiting their parcel (20260942001900: sales in "to pack" that are
+ *  not orders yet) — see personLinkable. */
 export function personHref(personId: string, keys: PartKey | PartKey[], range: DayRange, label?: string | null): string {
   const list = Array.isArray(keys) ? keys : [keys];
   const sp = new URLSearchParams();
@@ -74,6 +76,14 @@ export function personHref(personId: string, keys: PartKey | PartKey[], range: D
   sp.set('sold_to', range.to);
   if (label) sp.set(DRILL_LABEL_PARAM, label);
   return `/orders?${sp.toString()}`;
+}
+
+/** A person's number opens /orders only when the list holds exactly it: a number
+ *  that includes "to pack" (or is the total) does not while the person has
+ *  collabBox bookings awaiting their parcel — they are sales, not orders yet. */
+export function personLinkable(m: Pick<PeopleMeasures, 'booked'>, keys: PartKey | PartKey[]): boolean {
+  const list = Array.isArray(keys) ? keys : [keys];
+  return !((m.booked ?? 0) > 0 && (list.includes('total') || list.includes('to_pack')));
 }
 
 /** A team's numbers link only when /orders?team_key lists exactly them. */

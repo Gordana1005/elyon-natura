@@ -129,7 +129,7 @@ export interface ProfitQuality {
   top?: { key: string; name: string | null; packages: number; revenue_mkd: number }[];
 }
 
-type StripTotal = { count: number; value_mkd: number; cod_mkd: number; orders: number; web: number; mex_only: number };
+type StripTotal = { count: number; value_mkd: number; cod_mkd: number; orders: number; web: number; mex_only: number; booked?: number };
 
 export interface ProfitResponse {
   meta: {

@@ -16,7 +16,7 @@ import { STATUS_TEXT } from '../shared/cohortPalette';
 import { COHORT_SOURCE_PARAM } from '../shared/cohortTypes';
 import type { DayRange } from '../shared/period';
 import type { InsightsFormat } from '../shared/useInsightsFormat';
-import { PEOPLE_SOURCES, personHref, ratesOf, type PartKey } from './model';
+import { PEOPLE_SOURCES, personHref, personLinkable, ratesOf, type PartKey } from './model';
 import { DECISIONS, DECISION_TONE, decisionVar, type DecisionKey } from './palette';
 import { BucketLegend, BucketsBar, PersonBadges, TimeCell, teamName } from './parts';
 
@@ -40,11 +40,19 @@ export function PersonDetail({ person, detail, range, money, granularity, f }: {
 }) {
   const { t } = f;
   const r = ratesOf(person);
-  const href = (k: PartKey | PartKey[], label: string) => personHref(person.person_id, k, range, `${person.name} · ${label}`);
-  const allHref = person.sales > 0 ? personHref(person.person_id, 'total', range, person.name) : null;
+  // collabBox bookings awaiting their parcel (20260942001900) are this person's sales but not
+  // orders yet: a number that holds them opens no list (personLinkable)
+  const booked = person.booked ?? 0;
+  const href = (k: PartKey | PartKey[], label: string) =>
+    personLinkable(person, k) ? personHref(person.person_id, k, range, `${person.name} · ${label}`) : null;
+  const allHref = person.sales > 0 && personLinkable(person, 'total') ? personHref(person.person_id, 'total', range, person.name) : null;
+  // the orders among the sales, when bookings keep the whole from linking
+  const ordersN = person.sales - booked;
+  const ordersHref = booked > 0 && ordersN > 0 ? personHref(person.person_id, 'total', range, person.name) : null;
   // one department's part of the person's sales: GET /orders?cohort_source= (a department is
   // not one sale_source — collabBox documents fall in several — so a sale_source list cannot say it)
   const srcHref = (source: string) => {
+    if (booked > 0) return null;
     const u = new URL(personHref(person.person_id, 'total', range, person.name), 'http://x');
     u.searchParams.set(COHORT_SOURCE_PARAM, source);
     return `${u.pathname}${u.search}`;
@@ -62,16 +70,20 @@ export function PersonDetail({ person, detail, range, money, granularity, f }: {
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         <span>{teamName(person.team_key, null, f)}</span>
         <PersonBadges p={person} f={f} />
-        {allHref && (
-          <Link to={allHref} className="ml-auto inline-flex items-center gap-1 rounded-md border px-2 py-1 font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            {t('insights.agents.drill.openOrders', { n: f.int(person.sales) })}<ExternalLink className="h-3 w-3" aria-hidden />
+        {(allHref ?? ordersHref) && (
+          <Link to={(allHref ?? ordersHref)!} className="ml-auto inline-flex items-center gap-1 rounded-md border px-2 py-1 font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            {t('insights.agents.drill.openOrders', { n: f.int(allHref ? person.sales : ordersN) })}<ExternalLink className="h-3 w-3" aria-hidden />
           </Link>
         )}
       </div>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {stat(t('insights.agents.col.sales'), <DrillLink href={allHref}>{f.int(person.sales)}</DrillLink>,
-          person.prev ? <DeltaBadge d={delta(person.sales, person.prev.sales, 'up')} f={f} /> : null)}
+        {stat(t('insights.agents.col.sales'),
+          <DrillLink href={allHref} title={booked > 0 ? t('insights.common.cohort.noLinkBooked') : undefined}>{f.int(person.sales)}</DrillLink>,
+          <>
+            {person.prev ? <DeltaBadge d={delta(person.sales, person.prev.sales, 'up')} f={f} /> : null}
+            {booked > 0 && <span className="block">{t('insights.agents.people.bookedPart', { n: f.int(booked), count: booked })}</span>}
+          </>)}
         {stat(t('insights.agents.col.worked'), f.int(person.worked),
           t('insights.agents.drill.decisionsLine', { sale: f.int(person.sale_decisions), cancel: f.int(person.cancel_decisions), trash: f.int(person.trash_decisions) }))}
         {stat(t('insights.agents.col.conversion'), r.conversion != null ? f.pct(r.conversion) : '—')}

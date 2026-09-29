@@ -15,10 +15,11 @@ const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0
 // ── Drill links ─────────────────────────────────────────────────────────────
 
 /** What a number is made of: orders (GET /orders can list them), web-shop
- *  orders (the mirror) and MEX parcels with no order. */
-export interface Composition { orders?: number; web?: number; mex_only?: number }
+ *  orders (the mirror), MEX parcels with no order and collabBox bookings
+ *  awaiting their parcel (20260942001900 — a sale in "to pack", never an order). */
+export interface Composition { orders?: number; web?: number; mex_only?: number; booked?: number }
 
-export type RsBlock = 'none' | 'web' | 'mex_only' | 'mixed' | 'mex_day';
+export type RsBlock = 'none' | 'web' | 'mex_only' | 'booked' | 'mixed' | 'mex_day';
 
 export interface RsDrill {
   /** The number itself opens /orders — only when every row behind it is an order. */
@@ -56,13 +57,16 @@ export function rsDrill(opts: {
   const orders = num(comp?.orders);
   const web = num(comp?.web);
   const mex = num(comp?.mex_only);
-  if (orders <= 0) return { ...none, blocked: web > 0 && mex > 0 ? 'mixed' : web > 0 ? 'web' : 'mex_only' };
+  const booked = num(comp?.booked);
+  const why = (): RsBlock => ([web > 0, mex > 0, booked > 0].filter(Boolean).length > 1 ? 'mixed'
+    : web > 0 ? 'web' : mex > 0 ? 'mex_only' : booked > 0 ? 'booked' : 'mex_only');
+  if (orders <= 0) return { ...none, blocked: why() };
   let href = cohortHref(bucket, drillSourcesOf(sources), range);
   const sp = new URLSearchParams();
   for (const [k, v] of Object.entries(extra ?? {})) if (v) sp.set(k, v);
   if ([...sp.keys()].length) href += `&${sp.toString()}`;
-  if (web === 0 && mex === 0) return { href, ordersHref: null, orders, blocked: null };
-  return { href: null, ordersHref: href, orders, blocked: web > 0 && mex > 0 ? 'mixed' : web > 0 ? 'web' : 'mex_only' };
+  if (web === 0 && mex === 0 && booked === 0) return { href, ordersHref: null, orders, blocked: null };
+  return { href: null, ordersHref: href, orders, blocked: why() };
 }
 
 /** The /orders list of one queue age (to pack / label printed): the cohort part

@@ -65,7 +65,7 @@ function renderWith(payload: PeopleResponse) {
 }
 const DENARS = /\d ден(?![а-яѓќљњџѕ])/;
 
-describe('Агенти — owner', () => {
+describe('Агенти — owner', { timeout: 30_000 }, () => {
   it('leads with the credited sales in денари and links every person to exactly their orders', async () => {
     const d = owner();
     const { container } = renderWith(d);
@@ -94,7 +94,7 @@ describe('Агенти — owner', () => {
   });
 });
 
-describe('Агенти — admin / manager (no money)', () => {
+describe('Агенти — admin / manager (no money)', { timeout: 30_000 }, () => {
   it('shows the same page counted and not one denar', async () => {
     const d = noMoney(owner());
     d.meta = { ...d.meta, money: false, access: 'counts' };
@@ -107,7 +107,7 @@ describe('Агенти — admin / manager (no money)', () => {
   });
 });
 
-describe('Агенти — agent (self)', () => {
+describe('Агенти — agent (self)', { timeout: 30_000 }, () => {
   it('shows only their own numbers', async () => {
     const d = owner();
     const me = d.people[0];

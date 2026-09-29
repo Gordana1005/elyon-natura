@@ -32,6 +32,10 @@
 //                            to the /orders query and scripts/verify-insights-
 //                            ties.mjs translates the very same filter to SQL
 //                            and ties every order part to its /orders count
+// A collabBox BOOKING (a document whose MEX parcel does not exist yet, cohort
+// kind 'booking', bucket to_pack — migration 20260942001900) is a sale of the
+// cohort but never an order: it has no twin here, every number says how many
+// of it are bookings (`booked`), and no /orders list ever holds one.
 // CHANGE A RULE HERE → change it in the migration too (and vice versa).
 // ============================================================================
 
@@ -181,8 +185,10 @@ export const COHORT_NON_MONEY_KEYS: ReadonlySet<string> = new Set([
   "meta", "from", "to", "prev_from", "prev_to", "prev_to_end", "generated_at", "money", "clock",
   "sources", "granularity", "partial", "days",
   "total", "buckets", "outside", "by_source", "leads_in", "cash_flow", "prev", "spark", "quality",
-  // bucket / split objects
-  "key", "count", "orders", "web", "mex_only", "drill", "splits", "kind",
+  // bucket / split objects — what a number is made of: orders (GET /orders lists them) · web
+  // (the shop mirror) · mex_only (parcels with no order) · booked (collabBox documents whose
+  // parcel does not exist yet, 20260942001900 — never an order, never in a /orders list)
+  "key", "count", "orders", "web", "mex_only", "booked", "drill", "splits", "kind",
   // leads_in
   "came_in", "became_sales", "cancelled", "trashed", "open", "conversion", "other", "disposition",
   // cash_flow (counts only)

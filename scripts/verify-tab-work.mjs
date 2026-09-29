@@ -116,7 +116,7 @@ export async function verify({ from, to }) {
           FROM r WHERE r.person_id IS NOT NULL GROUP BY 1, 2
         )
         SELECT jsonb_build_object('gran', ${gran}, 'total', (SELECT coalesce(sum(x.n), 0) FROM x),
-          'no_seller', (SELECT count(*) FROM r WHERE r.kind = 'order' AND r.person_id IS NULL),
+          'no_seller', (SELECT count(*) FROM r WHERE r.kind IN ('order', 'booking') AND r.person_id IS NULL),
           'rows', (SELECT coalesce(jsonb_agg(jsonb_build_object('p', x.person_id, 'b', to_char(x.b, 'YYYY-MM-DD'), 'n', x.n)), '[]'::jsonb) FROM x)) AS j`;
     };
     credited = (await stamp('credited', cr(win.fromIso, win.toEndIso))).j;

@@ -11,7 +11,7 @@ import { ClockCaption } from '../shared/ClockCaption';
 import { COHORT_TONE } from '../shared/cohortPalette';
 import type { DayRange } from '../shared/period';
 import type { InsightsFormat } from '../shared/useInsightsFormat';
-import { isMainTeam, memberIsWhole, personHref, ratesOf, sortTeams, teamHref, type PartKey } from './model';
+import { isMainTeam, memberIsWhole, personHref, personLinkable, ratesOf, sortTeams, teamHref, type PartKey } from './model';
 import { BucketLegend, BucketsBar, PersonBadges, PresenceIcon, SourceSplit, TimeCell, teamName } from './parts';
 
 /**
@@ -207,7 +207,7 @@ function MemberTable({ team, byId, range, money, onPerson, f }: {
             const whole = memberIsWhole(m, p);
             const name = p?.name ?? '—';
             const link = (k: PartKey | PartKey[], n: number, label: string) =>
-              n > 0 && whole ? personHref(m.person_id, k, range, `${name} · ${label}`) : null;
+              n > 0 && whole && personLinkable(m, k) ? personHref(m.person_id, k, range, `${name} · ${label}`) : null;
             const why = whole ? undefined : t('insights.agents.teams.partOfPerson');
             const r = ratesOf(m);
             return (

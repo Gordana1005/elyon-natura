@@ -29,9 +29,12 @@
  * the web shop (`mex_web`) · anything else → Телешоп – Lead in (`mex_other`).
  *
  * Every number says what it is made of — `orders` (GET /orders can list them),
- * `web` (the shop mirror) and `mex_only` (parcels with no order) — so a number
- * links to /orders only when it is all orders (exact), and otherwise offers
- * its order part alone.
+ * `web` (the shop mirror), `mex_only` (parcels with no order) and `booked`
+ * (collabBox documents booked but whose MEX parcel does not exist yet — owner
+ * 29.09.2026, migration 20260942001900: a sale NOW, in "to pack", in its
+ * folder's department, credited to its author; the parcel turns it into an
+ * order, counted once) — so a number links to /orders only when it is all
+ * orders (exact), and otherwise offers its order part alone.
  *
  * Money keys (`*_mkd`) are owners only (is_business_owner): an admin/manager
  * gets the same payload with every money key ABSENT (meta.money = false).
@@ -70,12 +73,15 @@ export interface CohortMoney {
   cod_mkd?: number;
 }
 
-/** What a number is made of: orders + web + mex_only = count. `drill` is the
- *  api's /orders link for the orders part (null when there is none). */
+/** What a number is made of: orders + web + mex_only + booked = count. `drill`
+ *  is the api's /orders link for the orders part (null when there is none).
+ *  `booked` arrived with 20260942001900 — an older payload without it holds no
+ *  bookings (read it as 0). */
 export interface CohortComposition {
   orders?: number;
   web?: number;
   mex_only?: number;
+  booked?: number;
   drill?: string | null;
 }
 
@@ -92,9 +98,10 @@ export interface CohortOutside extends CohortComposition {
 
 /** order = orders of one sale_source_detail · web = the shop mirror (cod | card)
  *  · mex = MEX parcels with no order, by series (mex_leads · mex_leads_out ·
- *  mex_out · mex_in · mex_social · mex_web · mex_other). Only an order split can
+ *  mex_out · mex_in · mex_social · mex_web · mex_other) · booking = collabBox
+ *  documents awaiting their parcel (split `booked`). Only an order split can
  *  open /orders. */
-export type CohortSplitKind = 'order' | 'web' | 'mex';
+export type CohortSplitKind = 'order' | 'web' | 'mex' | 'booking';
 
 export interface CohortSplit {
   key: string;

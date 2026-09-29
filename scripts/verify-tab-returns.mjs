@@ -128,6 +128,10 @@ function internal(label, p) {
     tie(`${label} Σ sources base = KPI base`, k.base.count, sum(p.by_source, 'base')),
     tie(`${label} Σ sources returned = KPI returned`, k.returned.count, sum(p.by_source, 'returned')),
     tie(`${label} returned = orders + web + MEX-only`, k.returned.count, n(k.returned.orders) + n(k.returned.web) + n(k.returned.mex_only)),
+    // the base, when it says what it is made of: + collabBox bookings awaiting their parcel (20260942001900)
+    ...(k.base.orders !== undefined
+      ? [tie(`${label} base = orders + web + MEX-only + booked`, k.base.count, n(k.base.orders) + n(k.base.web) + n(k.base.mex_only) + n(k.base.booked))]
+      : []),
     tie(`${label} Σ weekday base = KPI base`, k.base.count, sum(p.by_weekday, 'base')),
     tie(`${label} Σ day bins = days_to_return.count`, p.days_to_return.count, sum(p.days_to_return.bins, 'count')),
     tie(`${label} Σ trend base = KPI base`, k.base.count, sum(p.trend, 'base')),
@@ -152,6 +156,7 @@ async function verifyWindow(IC, applied, from, to, now) {
   const rs = parse(sale.rows[0].j);
   const co = parse(cohortRows[0].j);
   checks.push(tie('R1 sales = cohort total', co.total.count, rs.kpis.base.count));
+  checks.push(tie('R1 collabBox bookings in the base = cohort booked', n(co.total.booked), n(rs.kpis.base.booked)));
   checks.push(tie('R1 returned = cohort returned', bucketOf(co.buckets, 'returned').count, rs.kpis.returned.count));
   checks.push(tie('R1 returned денари = cohort returned', bucketOf(co.buckets, 'returned').value_mkd, rs.kpis.returned.value_mkd));
   checks.push(tie('R1 cancelled after sale = cohort', bucketOf(co.outside, 'cancelled_after_sale').count, rs.kpis.cancelled_after_sale.count));

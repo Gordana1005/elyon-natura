@@ -3,7 +3,7 @@ import type { PeoplePerson, PeopleResponse } from '@/lib/insightsApi/agents';
 import sample from './__fixtures__/people.sample.json';
 import {
   BOARD_MIN_CLOSED, BOARD_MIN_WORKED, DEFAULT_SORT, filterPeople, hasActivity, leaderboards, memberIsWhole,
-  noSellerBySource, peopleCsv, personHref, ratesOf, reconcile, sortPeople, sortTeams, teamHref,
+  noSellerBySource, peopleCsv, personHref, personLinkable, ratesOf, reconcile, sortPeople, sortTeams, teamHref,
 } from './model';
 
 const data = sample as unknown as PeopleResponse;
@@ -77,6 +77,16 @@ describe('links', () => {
     expect(u.searchParams.get('sold_from')).toBe('2026-09-22');
     expect(u.searchParams.get('sold_to')).toBe('2026-09-28');
     expect(new URL(personHref('p', ['total', 'paid'], range), 'http://x').searchParams.get('cohort_bucket')).toBe('total');
+  });
+  it('a number that holds collabBox bookings awaiting their parcel (20260942001900) opens no list', () => {
+    // a teleshop agent with 11 Нарачка out documents booked today, no parcel yet: sales, not orders
+    expect(personLinkable({ booked: 11 }, 'total')).toBe(false);
+    expect(personLinkable({ booked: 11 }, ['courier', 'label', 'to_pack'])).toBe(false);
+    // the parts bookings never reach still link, and so does everything without bookings
+    expect(personLinkable({ booked: 11 }, 'paid')).toBe(true);
+    expect(personLinkable({ booked: 11 }, ['courier', 'courier_problem'])).toBe(true);
+    expect(personLinkable({ booked: 0 }, 'total')).toBe(true);
+    expect(personLinkable({}, 'to_pack')).toBe(true);
   });
   it('a team links only when /orders?team_key is exact; pseudo-groups never', () => {
     expect(teamHref({ key: 'crm_prediction', kind: 'team', drill_exact: true }, 'total', range)).toContain('team_key=crm_prediction');

@@ -9,6 +9,7 @@ export function cohortWhy(f: InsightsFormat, d: { href: string | null; blocked: 
   switch (d.blocked) {
     case 'web': return f.t('insights.common.cohort.noLinkWeb');
     case 'mex_only': return f.t('insights.common.cohort.noLinkMexOnly');
+    case 'booked': return f.t('insights.common.cohort.noLinkBooked');
     case 'mixed': return f.t('insights.common.cohort.noLinkMixed');
     case 'unknown': return f.t('insights.common.cohort.noLinkUnknown');
     case 'unsupported': return f.t('overview.cohort.link.unsupported');
@@ -19,8 +20,8 @@ export function cohortWhy(f: InsightsFormat, d: { href: string | null; blocked: 
 
 /**
  * "{{n}} во Нарачки" — under a number that is only partly orders (the rest are
- * web-shop orders or MEX parcels with no order): the exact link to its order
- * part. The number itself stays plain text, so no link ever opens a list that
+ * web-shop orders, MEX parcels with no order or collabBox bookings awaiting
+ * their parcel): the exact link to its order part. The number itself stays plain text, so no link ever opens a list that
  * holds more or less than what it says.
  */
 export function OrdersPartLink({ drill, label, f, className }: {

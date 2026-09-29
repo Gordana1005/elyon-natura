@@ -272,11 +272,24 @@ describe("the realized price distribution", () => {
 describe("the strip (CohortBar)", () => {
   it("buckets add up to the total; outside stays outside", () => {
     const s = buildStrip(COHORT.strip);
-    expect(s.total).toEqual({ count: 20, value_mkd: 55000, cod_mkd: 55000, orders: 17, web: 0, mex_only: 3 });
+    expect(s.total).toEqual({ count: 20, value_mkd: 55000, cod_mkd: 55000, orders: 17, web: 0, mex_only: 3, booked: 0 });
     expect(s.buckets.reduce((t, b) => t + b.count, 0)).toBe(s.total.count);
     expect(s.outside.find((o) => o.key === "cancelled_after_sale")!.count).toBe(1);
     expect(s.by_source.map((r) => r.key)).toEqual([...PROFIT_SOURCES]);
     expect(s.by_source.find((r) => r.key === "altercpa")!.total.count).toBe(15);
+  });
+
+  it("collabBox bookings awaiting their parcel are the to-pack part's `booked` (20260942001900)", () => {
+    // two Нарачка out documents booked today, no parcel yet: sales in "to pack", never orders
+    const rows = [...COHORT.strip!, { s: "teleshop_out", b: "to_pack", n: 3, v: 6600, c: 0, no: 1, nw: 0, nm: 0, nb: 2 }];
+    const s = buildStrip(rows);
+    const tp = s.buckets.find((x) => x.key === "to_pack")!;
+    expect(tp).toMatchObject({ count: 3, orders: 1, booked: 2 });
+    expect(s.total).toMatchObject({ count: 23, orders: 18, mex_only: 3, booked: 2 });
+    expect(s.total.orders + s.total.web + s.total.mex_only + s.total.booked).toBe(s.total.count);
+    expect(s.by_source.find((r) => r.key === "teleshop_out")!.total).toMatchObject({ count: 3, booked: 2 });
+    // an older body without `nb` holds no bookings
+    expect(buildStrip(COHORT.strip).total.booked).toBe(0);
   });
 });
 
