@@ -1,25 +1,25 @@
-import { Fragment, useState, useMemo, useEffect, useRef } from 'react';
+import { Fragment, useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/i18n';
 import { AppLayout } from '@/layouts/AppLayout';
-import { ALL_STATUSES, statusLabel } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
-import { apiGetCeoDashboardStats, apiGetDashboardStats, apiGetOrderStats, apiGetAgents, apiGetProducts, apiGetRecentActivity, apiGetMyDayWork } from '@/lib/api';
+import { apiGetDashboardStats, apiGetRecentActivity, apiGetMyDayWork } from '@/lib/api';
+import { InsightsFilterBar } from '@/components/insights/shared/InsightsFilterBar';
+import OverviewTab from '@/components/insights/overview/OverviewTab';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { DateRangePicker, defaultRange, type DateRange } from '@/components/DateRangePicker';
+import { type DateRange } from '@/components/DateRangePicker';
 import {
-  CheckCircle2, Truck, Package, Users, TrendingUp, TrendingDown,
-  Target, Download, ArrowUpRight, ArrowDownRight,
+  CheckCircle2, Package, Users, TrendingUp, TrendingDown,
+  Target, ArrowUpRight, ArrowDownRight,
   Activity,
   X, MessageSquare, Phone, ArrowRightLeft, FileText,
-  AlertTriangle, Trophy, Zap, Shield, ChevronRight,
+  ChevronRight,
   ChevronLeft, Trash2, Banknote, Clock,
   PhoneForwarded, ListChecks,
 } from 'lucide-react';
@@ -95,34 +95,6 @@ const EMPTY_CHANNEL: ChannelStats = {
   packages_sold: 0, packages_awaiting: 0, packages_returned: 0, bonus_raw: 0,
 };
 
-function exportCSV(data: DashStats, period: string, label?: string) {
-  const rows = [
-    ['Metric', 'Value'],
-    ['Period', period],
-    ...(label ? [['Section', label]] : []),
-    ['Leads Created', String(data.lead_count)],
-    ['Deals Won', String(data.deals_won)],
-    ['Deals Lost', String(data.deals_lost)],
-    // total_value is stored EUR — the file carries whole денари, currency in the label.
-    ['Total Value (MKD)', String(eurToDen(data.total_value || 0))],
-    ['Calls Completed', String(data.tasks_completed)],
-    ['Total Orders', String(data.total_orders)],
-    ['', ''],
-    ['Status', 'Count'],
-    ...Object.entries(data.statusCounts).map(([s, c]) => [s, String(c)]),
-    ['', ''],
-    ['Date', 'Leads', 'Deals Won', 'Deals Lost', 'Orders', 'Calls'],
-    ...Object.entries(data.daily).sort(([a], [b]) => a.localeCompare(b)).map(([d, v]) =>
-      [d, String(v.leads), String(v.deals_won), String(v.deals_lost), String(v.orders), String(v.calls)]
-    ),
-  ];
-  const csv = rows.map(r => r.join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = `dashboard-${label || 'stats'}-${period}-${new Date().toISOString().substring(0, 10)}.csv`;
-  a.click(); URL.revokeObjectURL(url);
-}
 
 // Premium Metric Card — Phase 2 elevated treatment
 // ── "My work, split" ────────────────────────────────────────────────────────
@@ -315,10 +287,8 @@ const chartTooltipStyle = {
 };
 
 import { cn } from '@/lib/utils';
-import { eurToDen, formatMoney } from '@/lib/currency';
-import { moneyAxis } from '@/components/insights/shared/tabFormat';
-import { activityActor, activityText } from '@/lib/activityFeed';
-import { CHART_COLORS, hoverLift } from '@/lib/design-utils';
+import { formatMoney } from '@/lib/currency';
+import { activityText } from '@/lib/activityFeed';
 import { EmptyState } from '@/components/EmptyState';
 
 // Macedonia shows denars only. Routed through the shared helper so this page
@@ -328,28 +298,11 @@ const fmtCurrency = (n: number) => formatMoney(n);
 /** "2026-09-28" → "28.09" for the chart axes (Macedonian day-first order). */
 const ddmm = (ymd: string) => (ymd && ymd.length >= 10 ? `${ymd.slice(8, 10)}.${ymd.slice(5, 7)}` : ymd);
 
-/**
- * A CEO risk alert in the reader's language. The api sends English `message`
- * (kept as the fallback for an older api) plus structured `pct` / `count` /
- * `amount_eur`; the outstanding balance is stored EUR and shown in денари.
- */
-function alertText(a: { type?: string; message?: string; pct?: number; count?: number; amount_eur?: number }): string {
-  const vars: Record<string, unknown> = { pct: a.pct, n: a.count };
-  if (a.amount_eur != null) vars.amount = formatMoney(a.amount_eur);
-  // Only when the api sent the field the sentence needs (an older api sends
-  // English `message` alone) — never a sentence with a blank number in it.
-  const known = ((a.type === 'return_rate' || a.type === 'conversion') && a.pct != null)
-    || (a.type === 'pending' && a.count != null)
-    || (a.type === 'outstanding' && a.amount_eur != null);
-  if (!known) return a.message ?? '';
-  return i18n.t(`dashboard.alert.${a.type}`, { ...vars, defaultValue: a.message ?? '' });
-}
 
 export default function Dashboard() {
   const { t } = useTranslation(); // subscribes status labels to language switches
   const { user } = useAuth();
   const isAdmin = user?.isAdmin;
-  const isDualRole = user?.isAdmin && user?.isAgent;
   const [agentPeriod, setAgentPeriod] = useState<'today' | 'month' | 'start' | 'custom'>('today');
   // Day browsing (◀ ▶): UTC day string, matching the backend's UTC window math.
   // The agent's "today" is the Skopje calendar day, matching the window the API
@@ -359,37 +312,23 @@ export default function Dashboard() {
   const [agentDate, setAgentDate] = useState(todayUtc);
   // Custom range (period='custom'): defaults to this month so far, fully editable.
   const [agentRange, setAgentRange] = useState<DateRange>({ from: todayUtc.slice(0, 7) + '-01', to: todayUtc });
-  const [agentFilter, setAgentFilter] = useState('all');
-  const [chartView, setChartView] = useState<'revenue' | 'orders' | 'leads'>('revenue');
-  // Dashboard defaults to today; the range picker drives everything.
-  const [range, setRange] = useState<DateRange>(defaultRange);
+  // The admin agent filter went with the old CEO view (the Overview has its own filters).
+  const agentFilter = 'all' as string;
 
   const effectiveAgent = agentFilter !== 'all' ? agentFilter : undefined;
-
-  // CEO stats
-  const { data: ceoStats } = useQuery<any>({
-    queryKey: ['ceo-dashboard-stats', effectiveAgent, range.from, range.to],
-    queryFn: () => apiGetCeoDashboardStats({
-      // A bounded range → 'custom' (filters by status-change date); empty → 'all'.
-      period: (range.from && range.to) ? 'custom' : 'all',
-      agent_id: effectiveAgent,
-      from: range.from || undefined,
-      to: range.to || undefined,
-    }),
-    refetchInterval: 60000,
-    enabled: !!isAdmin,
-  });
 
   const { data: todayStats } = useQuery<DashStats>({
     queryKey: ['dashboard-stats', 'day', agentDate, effectiveAgent],
     queryFn: () => apiGetDashboardStats({ period: 'today', date: agentDate, agent_id: effectiveAgent }),
     refetchInterval: 30000,
+    enabled: !isAdmin,
   });
 
   const { data: monthStats } = useQuery<DashStats>({
     queryKey: ['dashboard-stats', 'month', effectiveAgent],
     queryFn: () => apiGetDashboardStats({ period: 'month', agent_id: effectiveAgent }),
     refetchInterval: 60000,
+    enabled: !isAdmin,
   });
 
   const { data: customStats } = useQuery<DashStats>({
@@ -420,23 +359,6 @@ export default function Dashboard() {
     }),
     enabled: !isAdmin,
     refetchInterval: 30_000,
-  });
-
-  const { data: orderStats } = useQuery({
-    queryKey: ['order-stats'],
-    queryFn: () => apiGetOrderStats(),
-  });
-
-  const { data: agents = [] } = useQuery<{ user_id: string; full_name: string }[]>({
-    queryKey: ['agents'],
-    queryFn: apiGetAgents,
-    enabled: !!isAdmin,
-  });
-
-  const { data: products = [] } = useQuery<any[]>({
-    queryKey: ['products'],
-    queryFn: apiGetProducts,
-    enabled: !!isAdmin,
   });
 
   const { data: recentActivity = [] } = useQuery<any[]>({
@@ -477,34 +399,6 @@ export default function Dashboard() {
     };
   }, [isAdmin, queryClient]);
 
-  const statusCounts = orderStats?.statusCounts || {};
-
-  const lowStock = products.filter((p: any) => p.stock_quantity <= p.low_stock_threshold).length;
-  const medStock = products.filter((p: any) => p.stock_quantity > p.low_stock_threshold && p.stock_quantity <= p.low_stock_threshold * 3).length;
-  const highStock = products.filter((p: any) => p.stock_quantity > p.low_stock_threshold * 3).length;
-
-  const personalToday = todayStats?.personalMetrics;
-
-  // Revenue trend chart data from CEO stats
-  const revenueTrendData = useMemo(() => {
-    if (!ceoStats?.dailyRevenue) return [];
-    return Object.entries(ceoStats.dailyRevenue)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, v]: [string, any]) => ({
-        date: ddmm(date),
-        revenue: v.revenue,
-        orders: v.orders,
-        leads: v.leads,
-      }));
-  }, [ceoStats?.dailyRevenue]);
-
-  const hasActiveFilters = agentFilter !== 'all';
-
-  const funnel = ceoStats?.funnel;
-  const topAgent = ceoStats?.topAgent;
-  const alerts = ceoStats?.alerts || [];
-  const snap = ceoStats?.todaySnapshot;
-  const agentRankings = ceoStats?.agentRankings || [];
 
   // ── Call Agent view: a purpose-built "My Performance" page (their numbers
   // only). Admins/managers fall through to the full operational dashboard. ──
@@ -854,603 +748,17 @@ export default function Dashboard() {
     );
   }
 
+  // ── Admins: the Dashboard IS the Overview (owner, 29.09.2026: "Табла, Insights and Operations
+  // synchronised — one calculation"). The old CEO tiles counted CRM statuses by created day (a UTC
+  // day), called shipped + paid "revenue" and credited the assigned agent; the Overview is the
+  // cohort — sale day, the six departments, MEX first — the same numbers as Insights → Преглед,
+  // with its own period bar and every number opening exactly its orders.
   return (
     <AppLayout title={t('nav.dashboard')}>
-      {/* Filter bar — Phase 2 elevated */}
-      {isAdmin && (
-        <div className="mb-6 flex items-center gap-2 overflow-x-auto scrollbar-thin snap-x pb-1 rounded-2xl border bg-card/80 backdrop-blur-md p-3 shadow-sm md:flex-wrap md:overflow-visible md:pb-0 md:gap-3">
-          <div className="flex items-center gap-2 shrink-0">
-            <Select value={agentFilter} onValueChange={setAgentFilter}>
-              <SelectTrigger className="w-44 h-9 text-sm rounded-xl border-border/70">
-                <Users className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
-                <SelectValue placeholder={t('dashboard.allAgents')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t('dashboard.allAgents')}</SelectItem>
-                {agents.map(a => <SelectItem key={a.user_id} value={a.user_id}>{a.full_name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <DateRangePicker value={range} onChange={setRange} />
-
-          {hasActiveFilters && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-9 rounded-xl text-xs text-muted-foreground hover:text-foreground shrink-0"
-              onClick={() => { setAgentFilter('all'); setRange(defaultRange()); }}
-            >
-              <X className="h-3.5 w-3.5 mr-1" /> {t('dashboard.clearFilters')}
-            </Button>
-          )}
-
-          <div className="shrink-0 md:ml-auto">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 rounded-xl text-sm gap-1.5 border-border/70 hover:bg-muted/50"
-              onClick={() => monthStats && exportCSV(monthStats, 'month', 'dashboard')}
-            >
-              <Download className="h-3.5 w-3.5" /> {t('dashboard.exportCsv')}
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* === 1. TOP SECTION — Approved Phase 2 Layout Refactor (Option A) === */}
-      {/* Compact 2x2 Operational Status Quadrant + Elevated Funnel (addresses horizontal card stuffing) */}
-      {isAdmin && ceoStats && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {/* Left: Compact Operational Status Quadrant (2x2) */}
-          <Card className={`border border-border/60 bg-card ${hoverLift}`}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold text-card-foreground flex items-center gap-2">
-                <Activity className="h-4 w-4 text-primary" />
-                {t('dashboard.operationalPulse')}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-1">
-              <div className="grid grid-cols-2 gap-3">
-                {/* Confirmed */}
-                <div className="flex items-center gap-3 rounded-xl border border-border/50 bg-muted/30 p-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[hsl(var(--warning))]">
-                    <CheckCircle2 className="h-4.5 w-4.5 text-primary-foreground" />
-                  </div>
-                  <div>
-                    <div className="text-2xl font-semibold tabular-nums">{ceoStats.confirmedCount || 0}</div>
-                    <div className="text-[11px] font-medium text-muted-foreground">{t('status.confirmed')}</div>
-                  </div>
-                </div>
-
-                {/* Shipped */}
-                <div className="flex items-center gap-3 rounded-xl border border-border/50 bg-muted/30 p-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[hsl(var(--info))]">
-                    <Truck className="h-4.5 w-4.5 text-primary-foreground" />
-                  </div>
-                  <div>
-                    <div className="text-2xl font-semibold tabular-nums">{ceoStats.shippedCount || 0}</div>
-                    <div className="text-[11px] font-medium text-muted-foreground">{t('status.shipped')}</div>
-                  </div>
-                </div>
-
-                {/* Paid */}
-                <div className="flex items-center gap-3 rounded-xl border border-border/50 bg-muted/30 p-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[hsl(var(--success))]">
-                    <Banknote className="h-4.5 w-4.5 text-primary-foreground" />
-                  </div>
-                  <div>
-                    <div className="text-2xl font-semibold tabular-nums">{ceoStats.paidCount || 0}</div>
-                    <div className="text-[11px] font-medium text-muted-foreground">{t('status.paid')}</div>
-                  </div>
-                </div>
-
-                {/* Returned */}
-                <div className="flex items-center gap-3 rounded-xl border border-border/50 bg-muted/30 p-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-destructive">
-                    <TrendingDown className="h-4.5 w-4.5 text-primary-foreground" />
-                  </div>
-                  <div>
-                    <div className="text-2xl font-semibold tabular-nums">{ceoStats.returnedCount || 0}</div>
-                    <div className="text-[11px] font-medium text-muted-foreground">{t('status.returned')}</div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Right: Funnel Performance (now elevated — much higher visual priority) */}
-          {funnel && (
-            <Card className="border border-border/60 shadow-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold text-card-foreground flex items-center gap-2">
-                  <Target className="h-4 w-4 text-primary" />
-                  {t('dashboard.funnelPerformance')}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="flex items-center justify-between gap-3 overflow-x-auto pb-2">
-                  {[
-                    { label: t('dashboard.funnelTaken'), count: funnel.allTaken, pct: null, color: 'bg-[hsl(var(--info))]' },
-                    { label: t('status.confirmed'), count: funnel.confirmed, pct: funnel.confirmationRate, color: 'bg-[hsl(var(--warning))]' },
-                    { label: t('status.paid'), count: funnel.paid, pct: funnel.conversionRate, color: 'bg-[hsl(var(--success))]' },
-                    { label: t('status.shipped'), count: funnel.shipped, pct: null, color: 'bg-primary' },
-                    { label: t('status.returned'), count: funnel.returned, pct: funnel.returnRate, color: 'bg-destructive' },
-                  ].map((stage, idx, arr) => (
-                    <div key={stage.label} className="flex items-center gap-3 flex-1 min-w-[92px]">
-                      <div className="flex-1 text-center">
-                        <div className={`mx-auto mb-2 h-11 w-11 rounded-2xl flex items-center justify-center text-primary-foreground font-semibold text-xl shadow-sm ${stage.color}`}>
-                          {stage.count}
-                        </div>
-                        <p className="text-xs font-medium tracking-tight text-card-foreground">{stage.label}</p>
-                        {stage.pct !== null && (
-                          <p className="text-[10px] font-medium text-muted-foreground mt-0.5">{stage.pct}%</p>
-                        )}
-                      </div>
-                      {idx < arr.length - 1 && <ChevronRight className="h-4 w-4 text-muted-foreground/60 shrink-0 mt-3" />}
-                    </div>
-                  ))}
-                </div>
-                <div className="flex flex-wrap gap-x-5 gap-y-1 mt-4 pt-4 border-t text-xs text-muted-foreground">
-                  <span>{t('dashboard.conversionShort')} <span className={`font-semibold tabular-nums ${funnel.conversionRate < 10 ? 'text-destructive' : 'text-[hsl(var(--success))]'}`}>{funnel.conversionRate}%</span></span>
-                  <span>{t('dashboard.confirmationShort')} <span className="font-semibold text-card-foreground tabular-nums">{funnel.confirmationRate}%</span></span>
-                  <span>{t('dashboard.returnShort')} <span className={`font-semibold tabular-nums ${funnel.returnRate > 20 ? 'text-destructive' : 'text-card-foreground'}`}>{funnel.returnRate}%</span></span>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      )}
-
-      {/* Financial Overview — Consolidated (approved plan 5.1.1) */}
-      {isAdmin && ceoStats && (
-        <Card className={`mb-6 border border-border/60 bg-card ${hoverLift}`}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold text-card-foreground flex items-center gap-2">
-              <Banknote className="h-4 w-4 text-primary" />
-              {t('dashboard.financialOverview')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {/* Gross Revenue - most important */}
-              <div className="rounded-xl border border-border/50 bg-muted/20 p-4">
-                <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">{t('dashboard.grossRevenue')}</div>
-                <div className="text-3xl font-semibold tabular-nums tracking-tighter text-card-foreground">
-                  {fmtCurrency(ceoStats.revenue || 0)}
-                </div>
-                <div className="text-[10px] text-muted-foreground mt-2">{t('dashboard.shippedPlusPaid')}</div>
-              </div>
-
-              {/* Outstanding */}
-              <div className="rounded-xl border border-border/50 bg-muted/20 p-4">
-                <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">{t('dashboard.outstanding')}</div>
-                <div className="text-3xl font-semibold tabular-nums tracking-tighter text-card-foreground">
-                  {fmtCurrency(ceoStats.outstanding || 0)}
-                </div>
-                <div className="text-[10px] text-muted-foreground mt-2">{t('dashboard.shippedOnly')}</div>
-              </div>
-
-              {/* Profit (highlighted) */}
-              <div className="rounded-xl border border-border/50 bg-primary/5 p-4">
-                <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1">
-                  {t('dashboard.profit')} <TrendingUp className="h-3 w-3" />
-                </div>
-                <div className="text-3xl font-semibold tabular-nums tracking-tighter text-[hsl(var(--success))]">
-                  {fmtCurrency(ceoStats.profit || 0)}
-                </div>
-                <div className="text-[10px] text-muted-foreground mt-2">{t('dashboard.clearProfit')}</div>
-              </div>
-            </div>
-
-            {/* Secondary breakdown - compact */}
-            <div className="mt-4 pt-4 border-t flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted-foreground">
-              <span>
-                <span className="font-medium text-card-foreground">{t('dashboard.paidRevenueLabel')}</span> {fmtCurrency(ceoStats.paidAmount || 0)}
-              </span>
-              <span>
-                <span className="font-medium text-destructive">{t('dashboard.returnedAmountLabel')}</span> {fmtCurrency(ceoStats.returnedAmount || 0)}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* === 6. DAILY SNAPSHOT STRIP — Phase 2 calmer premium treatment */}
-      {isAdmin && snap && (
-        <Card className="mb-6 border border-border/60 shadow-sm bg-gradient-to-r from-primary/5 via-primary/3 to-transparent">
-          <CardContent className="flex flex-wrap items-center gap-6 py-4 px-5">
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-                <Zap className="h-4 w-4 text-primary" />
-              </div>
-              <div>
-                <div className="text-sm font-semibold text-card-foreground">{t('dashboard.todaysSnapshot')}</div>
-                <div className="text-[10px] text-muted-foreground -mt-0.5">{t('dashboard.livePulse')}</div>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm pl-1">
-              <span><strong className="font-semibold text-card-foreground tabular-nums">{snap.taken}</strong> <span className="text-muted-foreground">{t('dashboard.snapTaken')}</span></span>
-              <span><strong className="font-semibold text-[hsl(var(--success))] tabular-nums">{snap.confirmed}</strong> <span className="text-muted-foreground">{t('dashboard.snapConfirmed')}</span></span>
-              <span><strong className="font-semibold text-primary tabular-nums">{snap.paid}</strong> <span className="text-muted-foreground">{t('dashboard.snapPaid')}</span></span>
-              <span><strong className="font-semibold text-[hsl(var(--success))] tabular-nums">{fmtCurrency(snap.revenue)}</strong> <span className="text-muted-foreground">{t('dashboard.snapRevenue')}</span></span>
-              <span><strong className="font-semibold text-destructive tabular-nums">{snap.returns}</strong> <span className="text-muted-foreground">{t('dashboard.snapReturns')}</span></span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Dual role personal stats strip */}
-      {isDualRole && agentFilter === 'all' && personalToday && (
-        <Card className="mb-6 border-none shadow-sm bg-gradient-to-r from-[hsl(var(--info))]/5 to-transparent">
-          <CardContent className="flex items-center gap-6 py-3 px-5">
-            <div className="flex items-center gap-2">
-              <Activity className="h-4 w-4 text-[hsl(var(--info))]" />
-              <span className="text-sm font-semibold text-card-foreground">{t('dashboard.myStatsToday')}</span>
-            </div>
-            <div className="flex gap-6 text-sm">
-              <span><strong className="text-card-foreground">{personalToday.total_orders}</strong> <span className="text-muted-foreground">{t('dashboard.statOrders')}</span></span>
-              <span><strong className="text-[hsl(var(--success))]">{personalToday.deals_won}</strong> <span className="text-muted-foreground">{t('dashboard.statWon')}</span></span>
-              <span><strong className="text-destructive">{personalToday.deals_lost}</strong> <span className="text-muted-foreground">{t('dashboard.statLost')}</span></span>
-              <span><strong className="text-[hsl(var(--info))]">{personalToday.tasks_completed}</strong> <span className="text-muted-foreground">{t('dashboard.statCalls')}</span></span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* === 2. REVENUE TREND + TOP AGENT + RISK ALERTS (now flows directly after the new top layout) === */}
-      <div className="grid gap-6 lg:grid-cols-3 mb-6">
-        {/* Revenue Trend Chart — Phase 2/3 elevated */}
-        <Card className={`lg:col-span-2 border border-border/60 shadow-sm ${hoverLift}`}>
-          <CardHeader className="pb-2 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <CardTitle className="text-sm font-semibold text-card-foreground flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-primary" />
-              {t('dashboard.salesRevenueOverTime')}
-            </CardTitle>
-            <Tabs value={chartView} onValueChange={v => setChartView(v as any)} className="w-full sm:w-auto">
-              <TabsList className="h-8 w-full sm:w-auto">
-                <TabsTrigger value="revenue" className="text-xs px-3 h-7 flex-1 sm:flex-none">{t('dashboard.tabRevenue')}</TabsTrigger>
-                <TabsTrigger value="orders" className="text-xs px-3 h-7 flex-1 sm:flex-none">{t('dashboard.tabOrders')}</TabsTrigger>
-                <TabsTrigger value="leads" className="text-xs px-3 h-7 flex-1 sm:flex-none">{t('dashboard.tabLeads')}</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </CardHeader>
-          <CardContent className="pt-2">
-            {revenueTrendData.length === 0 ? (
-              <EmptyState
-                title={t('dashboard.noDataPeriod')}
-                description={t('dashboard.noDataPeriodDesc')}
-                size="sm"
-              />
-            ) : (
-              <ResponsiveContainer width="100%" height={280}>
-                <AreaChart data={revenueTrendData}>
-                  <defs>
-                    <linearGradient id="gradRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={CHART_COLORS.primary} stopOpacity={0.28} />
-                      <stop offset="95%" stopColor={CHART_COLORS.primary} stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="gradOrders" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={CHART_COLORS.secondary} stopOpacity={0.28} />
-                      <stop offset="95%" stopColor={CHART_COLORS.secondary} stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="gradLeads" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={CHART_COLORS.info} stopOpacity={0.28} />
-                      <stop offset="95%" stopColor={CHART_COLORS.info} stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                  {/* `revenue` is stored EUR — the axis and tooltip show денари. */}
-                  <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false}
-                    width={chartView === 'revenue' ? 84 : 60}
-                    tickFormatter={chartView === 'revenue' ? (v: number) => moneyAxis(Number(v)) : undefined} />
-                  <Tooltip contentStyle={{ ...chartTooltipStyle, borderRadius: '8px' }}
-                    formatter={chartView === 'revenue' ? (v: any) => fmtCurrency(Number(v)) : undefined} />
-                  {chartView === 'revenue' && (
-                    <Area type="monotone" dataKey="revenue" stroke={CHART_COLORS.primary} strokeWidth={2} fill="url(#gradRevenue)" name={t('dashboard.revenuePaidSeries')} />
-                  )}
-                  {chartView === 'orders' && (
-                    <Area type="monotone" dataKey="orders" stroke={CHART_COLORS.secondary} strokeWidth={2} fill="url(#gradOrders)" name={t('dashboard.tabOrders')} />
-                  )}
-                  {chartView === 'leads' && (
-                    <Area type="monotone" dataKey="leads" stroke={CHART_COLORS.info} strokeWidth={2} fill="url(#gradLeads)" name={t('dashboard.tabLeads')} />
-                  )}
-                </AreaChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Right column: Top Agent + Alerts — polished */}
-        <div className="space-y-6">
-          {/* Top Agent Widget */}
-          {isAdmin && topAgent && (
-            <Card className={`border border-border/60 bg-card ${hoverLift}`}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold text-card-foreground flex items-center gap-2">
-                  <Trophy className="h-4 w-4 text-[hsl(var(--warning))]" />
-                  {t('dashboard.topAgentPeriod')}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-lg">
-                    {topAgent.name.charAt(0)}
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-card-foreground">{topAgent.name}</p>
-                    <p className="text-xs text-muted-foreground">{t('dashboard.rankByPaidRevenue', { rank: 1 })}</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2 pt-2">
-                  <div className="rounded-lg bg-muted/50 p-2 text-center">
-                    <p className="text-lg font-bold text-[hsl(var(--success))]">{fmtCurrency(topAgent.paidRevenue)}</p>
-                    <p className="text-[10px] text-muted-foreground">{t('dashboard.paidRevenue')}</p>
-                  </div>
-                  <div className="rounded-lg bg-muted/50 p-2 text-center">
-                    <p className="text-lg font-bold text-primary">{topAgent.paidCount}</p>
-                    <p className="text-[10px] text-muted-foreground">{t('dashboard.paidOrders')}</p>
-                  </div>
-                  <div className="rounded-lg bg-muted/50 p-2 text-center">
-                    <p className="text-lg font-bold text-card-foreground">{topAgent.conversionPct}%</p>
-                    <p className="text-[10px] text-muted-foreground">{t('dashboard.conversion')}</p>
-                  </div>
-                  <div className="rounded-lg bg-muted/50 p-2 text-center">
-                    <p className={`text-lg font-bold ${topAgent.returnPct > 20 ? 'text-destructive' : 'text-card-foreground'}`}>{topAgent.returnPct}%</p>
-                    <p className="text-[10px] text-muted-foreground">{t('dashboard.returnRate')}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Risk & Alert Panel */}
-          {isAdmin && (
-            <Card className={`border border-border/60 bg-card ${hoverLift}`}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold text-card-foreground flex items-center gap-2">
-                  <Shield className="h-4 w-4 text-destructive" />
-                  {t('dashboard.riskAlerts')}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {alerts.length === 0 ? (
-                  <div className="flex items-center gap-2 text-xs text-[hsl(var(--success))]">
-                    <CheckCircle2 className="h-4 w-4" />
-                    {t('dashboard.allHealthy')}
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {alerts.map((a: any, i: number) => (
-                      <div key={i} className={`flex items-start gap-2 rounded-lg p-2.5 text-xs min-w-0 ${
-                        a.level === 'red' ? 'bg-destructive/10 text-destructive' : 'bg-[hsl(var(--warning))]/10 text-[hsl(var(--warning))]'
-                      }`}>
-                        <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                        <span className="min-w-0 break-words">{alertText(a)}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-        </div>
+      <div className="space-y-5">
+        <InsightsFilterBar />
+        <OverviewTab />
       </div>
-
-      {/* === 7. TOP AGENTS TEASER + ORDER STATUSES (full detail lives in Insights) === */}
-      <div className="grid gap-6 lg:grid-cols-3 mb-6">
-        {/* Top Agents — compact teaser; the full filterable table is Insights → Agents */}
-        {isAdmin && (
-          <Card className={`lg:col-span-2 border border-border/60 bg-card ${hoverLift}`}>
-            <CardHeader className="pb-2 flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-semibold text-card-foreground flex items-center gap-2">
-                <Trophy className="h-4 w-4 text-[hsl(var(--warning))]" />
-                {t('dashboard.topAgents')}
-              </CardTitle>
-              <Link to="/insights?tab=agents" className="flex items-center gap-0.5 text-xs font-medium text-primary hover:underline">
-                {t('dashboard.viewAllAgents')} <ChevronRight className="h-3.5 w-3.5" />
-              </Link>
-            </CardHeader>
-            <CardContent>
-              {agentRankings.length === 0 ? (
-                <EmptyState
-                  title={t('dashboard.noAgentData')}
-                  description={t('dashboard.noAgentDataDesc')}
-                  size="sm"
-                />
-              ) : (
-                <div className="space-y-2">
-                  {agentRankings.slice(0, 3).map((a: any, idx: number) => (
-                    <div
-                      key={a.name}
-                      className={`flex items-center justify-between rounded-lg border border-border/50 p-3 ${idx === 0 ? 'bg-primary/5' : 'bg-muted/30'}`}
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary shrink-0">
-                          {a.name.charAt(0)}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-card-foreground truncate flex items-center gap-1.5">
-                            {a.name}
-                            {idx === 0 && <Trophy className="h-3.5 w-3.5 text-[hsl(var(--warning))] shrink-0" />}
-                          </p>
-                          <p className="text-[11px] text-muted-foreground">{t('dashboard.rankByPaidRevenue', { rank: idx + 1 })}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4 text-right shrink-0">
-                        <div>
-                          <p className="text-sm font-bold text-[hsl(var(--success))] tabular-nums">{fmtCurrency(a.paidRevenue)}</p>
-                          <p className="text-[10px] text-muted-foreground">{t('dashboard.snapRevenue')}</p>
-                        </div>
-                        <div className="hidden sm:block">
-                          <p className="text-sm font-bold tabular-nums">{a.paidCount}</p>
-                          <p className="text-[10px] text-muted-foreground">{t('dashboard.rankPaid')}</p>
-                        </div>
-                        <div className="hidden sm:block">
-                          <p className="text-sm font-bold tabular-nums">{a.conversionPct}%</p>
-                          <p className="text-[10px] text-muted-foreground">{t('dashboard.rankConv')}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Order Statuses — compact counts; full breakdown is Insights → Overview */}
-        <Card className={`border border-border/60 bg-card ${hoverLift}`}>
-          <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-semibold text-card-foreground flex items-center gap-2">
-              <FileText className="h-4 w-4 text-primary" />
-              {t('dashboard.orderStatuses')}
-            </CardTitle>
-            <Link to="/insights" className="flex items-center gap-0.5 text-xs font-medium text-primary hover:underline">
-              {t('dashboard.fullBreakdown')} <ChevronRight className="h-3.5 w-3.5" />
-            </Link>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-2">
-              {ALL_STATUSES.map(status => {
-                const count = Number(statusCounts[status] || 0);
-                return (
-                  <div key={status} className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2">
-                    <span className="text-xs font-medium text-muted-foreground truncate">{statusLabel(status)}</span>
-                    <span className="text-sm font-bold text-card-foreground tabular-nums">{count}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Stock Levels + Recent Activity — polished */}
-      <div className="grid gap-6 lg:grid-cols-3 mb-6 overflow-hidden">
-        {/* Stock Levels */}
-        {isAdmin && (
-          <Card className={`border border-border/60 bg-card ${hoverLift}`}>
-            <CardHeader className="pb-2 flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-semibold text-card-foreground flex items-center gap-2">
-                <Package className="h-4 w-4 text-primary" />
-                {t('dashboard.warehouseStock')}
-              </CardTitle>
-              <Link to="/insights?tab=stock" className="flex items-center gap-0.5 text-xs font-medium text-primary hover:underline">
-                {t('dashboard.fullReport')} <ChevronRight className="h-3.5 w-3.5" />
-              </Link>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-3">
-                {[
-                  { label: t('dashboard.lowStock'), count: lowStock, color: 'bg-destructive', textColor: 'text-destructive' },
-                  { label: t('dashboard.mediumStock'), count: medStock, color: 'bg-[hsl(var(--warning))]', textColor: 'text-[hsl(var(--warning))]' },
-                  { label: t('dashboard.highStock'), count: highStock, color: 'bg-[hsl(var(--success))]', textColor: 'text-[hsl(var(--success))]' },
-                ].map(level => (
-                  <div key={level.label} className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
-                    <div className="flex items-center gap-2.5">
-                      <span className={`h-2.5 w-2.5 rounded-full ${level.color}`} />
-                      <span className="text-sm font-medium">{level.label}</span>
-                    </div>
-                    <span className={`text-lg font-bold ${level.textColor}`}>{level.count}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="rounded-lg bg-muted/50 p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-muted-foreground">{t('dashboard.totalProducts')}</span>
-                  <span className="text-sm font-bold">{products.length}</span>
-                </div>
-                <div className="h-2 w-full rounded-full bg-muted overflow-hidden flex">
-                  {products.length > 0 && (
-                    <>
-                      <div className="h-full bg-destructive transition-all" style={{ width: `${(lowStock / products.length) * 100}%` }} />
-                      <div className="h-full bg-[hsl(var(--warning))] transition-all" style={{ width: `${(medStock / products.length) * 100}%` }} />
-                      <div className="h-full bg-[hsl(var(--success))] transition-all" style={{ width: `${(highStock / products.length) * 100}%` }} />
-                    </>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Recent Activity */}
-        <Card className={`lg:col-span-2 border border-border/60 bg-card ${hoverLift} overflow-hidden`}>
-          <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-semibold text-card-foreground flex items-center gap-2">
-              <Activity className="h-4 w-4 text-primary" />
-              {t('dashboard.recentActivity')}
-            </CardTitle>
-            <span className="text-xs text-muted-foreground">{t('dashboard.nEvents', { count: recentActivity.length })}</span>
-          </CardHeader>
-          <CardContent>
-            {recentActivity.length === 0 ? (
-              <EmptyState
-                title={t('dashboard.noRecentActivity')}
-                description={t('dashboard.noRecentActivityDesc')}
-                size="sm"
-              />
-            ) : (
-              <ScrollArea className="h-[320px] pr-3">
-                <div className="relative max-w-full overflow-hidden">
-                  <div className="absolute left-[15px] top-2 bottom-2 w-px bg-border" />
-                  <div className="space-y-1">
-                    {recentActivity.map((item: any) => {
-                      const isCall = item.type === 'call';
-                      const isNote = item.type === 'note';
-                      const icon = isCall ? Phone : isNote ? MessageSquare : ArrowRightLeft;
-                      const IconComp = icon;
-                      const iconBg = isCall
-                        ? 'bg-[hsl(var(--info))]/15 text-[hsl(var(--info))]'
-                        : isNote
-                        ? 'bg-[hsl(var(--warning))]/15 text-[hsl(var(--warning))]'
-                        : 'bg-primary/10 text-primary';
-                      const timeAgo = getTimeAgo(item.timestamp);
-
-                      return (
-                        <div key={item.id} className="flex gap-3 py-2.5 pl-0 relative group">
-                          <div className={`flex h-[30px] w-[30px] items-center justify-center rounded-full shrink-0 z-10 ${iconBg}`}>
-                            <IconComp className="h-3.5 w-3.5" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-0.5">
-                              <span className="text-xs font-semibold text-card-foreground">{activityActor(item)}</span>
-                              {item.type === 'status_change' && item.metadata?.to && (
-                                <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
-                                  item.metadata.to === 'confirmed' ? 'bg-[hsl(var(--success))]/15 text-[hsl(var(--success))]' :
-                                  item.metadata.to === 'shipped' ? 'bg-[hsl(var(--info))]/15 text-[hsl(var(--info))]' :
-                                  item.metadata.to === 'cancelled' || item.metadata.to === 'trashed' ? 'bg-destructive/15 text-destructive' :
-                                  'bg-muted text-muted-foreground'
-                                }`}>
-                                  {statusLabel(item.metadata.to)}
-                                </span>
-                              )}
-                              {isCall && item.metadata?.outcome && (
-                                <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
-                                  item.metadata.outcome === 'confirmed' ? 'bg-[hsl(var(--success))]/15 text-[hsl(var(--success))]' :
-                                  item.metadata.outcome === 'no_answer' ? 'bg-[hsl(var(--warning))]/15 text-[hsl(var(--warning))]' :
-                                  'bg-muted text-muted-foreground'
-                                }`}>
-                                  {t(`outcome.${item.metadata.outcome}`, { defaultValue: String(item.metadata.outcome).replace(/_/g, ' ') })}
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-xs text-muted-foreground truncate">{activityText(item)}</p>
-                          </div>
-                          <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0 mt-0.5">{timeAgo}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </ScrollArea>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
     </AppLayout>
   );
 }
