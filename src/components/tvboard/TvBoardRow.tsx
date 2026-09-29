@@ -5,11 +5,9 @@
 import { BellRing } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { formatDenari } from '@/lib/currency';
-import {
-  bookedChips, conversionPct, deptChips, deptKey, type BoardRow, type Department,
-} from '@/lib/leaderboardV2';
-import { PresenceDot } from './TvBoardParts';
-import { DEPT_TEXT, DEPT_TONE, RANK_ACCENT, TV_GRID, fmtDur, hhmm, initials, teamLabel } from './tvBoardHelpers';
+import { conversionPct, type BoardRow, type Department } from '@/lib/leaderboardV2';
+import { DeptChips, PresenceDot } from './TvBoardParts';
+import { RANK_ACCENT, TV_GRID, fmtDur, hhmm, initials, teamLabel } from './tvBoardHelpers';
 
 export function TvBoardRow({
   row, idx, department, money, rowVh, fontVh, isToday, now, glow,
@@ -25,8 +23,6 @@ export function TvBoardRow({
   glow: boolean;
 }) {
   const { t } = useTranslation();
-  const chips = deptChips(row, department);
-  const booked = bookedChips(row, department);
   const sold = row.total_count > 0;
   const p = row.presence;
   const quiet = !sold && !row.worked && (p.state === 'offline' || p.state === 'n/a');
@@ -95,27 +91,7 @@ export function TvBoardRow({
         )}
       </div>
       {/* Departments: sales per department + the bookings awaiting a parcel */}
-      <div className="flex min-w-0 flex-wrap items-center gap-[0.4vw] py-[0.4vh]" style={{ fontSize: `${chipVh}vh` }}>
-        {chips.map((c) => (
-          <span key={c.dept} data-testid={`chip-${c.dept}`} title={t(`leaderboard2.dept.${deptKey(c.dept)}`)}
-            className={`inline-flex items-center whitespace-nowrap rounded-md px-[0.6vw] py-[0.25vh] font-semibold ring-1 ${DEPT_TONE[c.dept]}`}>
-            {money
-              ? t('leaderboard2.chip', { dept: t(`leaderboard2.deptShort.${deptKey(c.dept)}`), n: c.sales, value: formatDenari(c.value_mkd) })
-              : t('leaderboard2.chipCount', { dept: t(`leaderboard2.deptShort.${deptKey(c.dept)}`), n: c.sales })}
-          </span>
-        ))}
-        {/* collabBox bookings still waiting for a parcel: dashed, in the department's colour */}
-        {booked.map((b) => (
-          <span key={`b-${b.dept}`} data-testid={`chip-booked-${b.dept}`}
-            title={`${t(`leaderboard2.dept.${deptKey(b.dept)}`)} — ${t('leaderboard2.bookedHint')}`}
-            className={`inline-flex items-center whitespace-nowrap rounded-md border border-dashed border-current px-[0.6vw] py-[0.2vh] font-semibold ${DEPT_TEXT[b.dept]}`}>
-            {money
-              ? t('leaderboard2.bookedChip', { dept: t(`leaderboard2.deptShort.${deptKey(b.dept)}`), n: b.booked, value: formatDenari(b.value_mkd) })
-              : t('leaderboard2.bookedChipCount', { dept: t(`leaderboard2.deptShort.${deptKey(b.dept)}`), n: b.booked })}
-          </span>
-        ))}
-        {!chips.length && !booked.length && <span className="text-slate-600">—</span>}
-      </div>
+      <DeptChips row={row} department={department} money={money} style={{ fontSize: `${chipVh}vh` }} />
       {/* Total */}
       <div className="text-right tabular-nums">
         <div className="font-bold">

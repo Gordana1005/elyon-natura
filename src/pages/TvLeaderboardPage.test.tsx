@@ -120,6 +120,28 @@ describe('TV leaderboard v2', () => {
     });
   });
 
+  it('a phone gets one card per person: nothing cut, the same chips, managers last', async () => {
+    // below 1024 px (Tailwind lg) the board is a scrolling list of cards
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query.includes('max-width: 1023px'), media: query, onchange: null,
+      addListener: () => {}, removeListener: () => {}, addEventListener: () => {}, removeEventListener: () => {}, dispatchEvent: () => false,
+    }));
+    serve(v2);
+    renderAt('/tv/leaderboard?key=k');
+    expect(await screen.findByText('Aleksandra Hristoska')).toBeInTheDocument();
+    expect(screen.queryAllByTestId('tv-row')).toHaveLength(0);
+    const cards = screen.getAllByTestId('tv-card');
+    expect(cards).toHaveLength(4);
+    expect(within(cards[1]).getByTestId('chip-altercpa').textContent)
+      .toBe(i18n.t('leaderboard2.chip', { dept: i18n.t('leaderboard2.deptShort.altercpa'), n: 10, value: formatDenari(44980) }));
+    expect(within(cards[0]).getByTestId('chip-booked-teleshop_other').textContent)
+      .toBe(i18n.t('leaderboard2.bookedChip', { dept: i18n.t('leaderboard2.deptShort.teleshopOther'), n: 23, value: formatDenari(51900) }));
+    expect(within(cards[1]).getByText(formatDenari(44980))).toBeInTheDocument();   // the card's total
+    expect(within(cards[0]).getByText('1')).toBeInTheDocument();                    // rank 1
+    expect(screen.getByText(i18n.t('leaderboard2.managersHeading'))).toBeInTheDocument();
+    expect(screen.queryByText(i18n.t('leaderboard2.colDepartments'))).toBeNull();   // no table header
+  });
+
   it('still renders the old per-mode board while the api is being redeployed', async () => {
     serve(legacy);
     renderAt('/tv/leaderboard?key=k');

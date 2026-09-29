@@ -12,6 +12,11 @@
 // Data: GET /api/leaderboard?v=2 (leaderboard_day_v2, migration 20260942001200).
 // Today updates live (~1s) via the Supabase Realtime broadcast `tv-leaderboard`,
 // with a 20 s polling fallback; a day switcher reviews previous days.
+// Every screen (owner, 29.09.2026): from 1024 px wide (lg) it is the wall board —
+// vh sizes, one grid row per person, the page never scrolls and pages itself.
+// Below that (phones, tablets) the same facts become a scrolling list of cards
+// (TvBoardCard), a two-line header, KPI tiles two / three per row and filter rows
+// that scroll sideways — nothing is cut or squeezed.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -27,6 +32,7 @@ import { Confetti, StatCard } from '@/components/tvboard/TvBoardParts';
 import { TvBoardFilters } from '@/components/tvboard/TvBoardFilters';
 import { TV_GRID, teamLabel } from '@/components/tvboard/tvBoardHelpers';
 import { TvBoardRow } from '@/components/tvboard/TvBoardRow';
+import { TvBoardCard } from '@/components/tvboard/TvBoardCard';
 
 // The vendor-prefixed fullscreen API (Safari / older TV browsers) and the wake lock.
 type FsDocument = Document & { webkitFullscreenElement?: Element | null; webkitExitFullscreen?: () => Promise<void> | void };
@@ -43,6 +49,23 @@ const addDays = (ymd: string, delta: number) => {
   const [y, m, d] = ymd.split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, d + delta)).toISOString().slice(0, 10);
 };
+
+/** Below Tailwind's `lg` (1024 px): the card layout. Kept in step with the `lg:` classes. */
+const COMPACT_QUERY = '(max-width: 1023px)';
+function useCompactBoard() {
+  const read = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    && window.matchMedia(COMPACT_QUERY).matches;
+  const [compact, setCompact] = useState(read);
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const mql = window.matchMedia(COMPACT_QUERY);
+    const onChange = () => setCompact(mql.matches);
+    onChange();
+    mql.addEventListener?.('change', onChange);
+    return () => mql.removeEventListener?.('change', onChange);
+  }, []);
+  return compact;
+}
 
 // Module-level, so it reaches for the i18n singleton directly. The page itself
 // subscribes via useTranslation(), so a language switch re-renders and re-calls it.
@@ -78,6 +101,7 @@ export default function TvLeaderboardPage() {
   const [celebrate, setCelebrate] = useState<{ agentId: string; at: number } | null>(null);
   const [isFs, setIsFs] = useState(false);
   const [cursorHidden, setCursorHidden] = useState(false);
+  const compact = useCompactBoard();
 
   const toggleFullscreen = useCallback(() => {
     const el = document.documentElement as FsElement;
@@ -178,7 +202,9 @@ export default function TvLeaderboardPage() {
 
   // More people than fit: page through them every few seconds (a wall screen
   // has no one to scroll it). Programmatic scroll works under overflow:hidden.
+  // A phone scrolls the page itself — no paging there.
   useEffect(() => {
+    if (compact) return;
     const id = window.setInterval(() => {
       const el = scrollRef.current;
       if (!el) return;
@@ -188,7 +214,7 @@ export default function TvLeaderboardPage() {
       el.scrollTo({ top: next, behavior: 'smooth' });
     }, SCROLL_EVERY_MS);
     return () => window.clearInterval(id);
-  }, []);
+  }, [compact]);
 
   const isToday = offset === 0;
   const rows = useMemo(() => data?.rows ?? [], [data]);
@@ -222,21 +248,21 @@ export default function TvLeaderboardPage() {
   ].filter(Boolean).join(' · ');
 
   return (
-    <div className={`relative flex h-screen w-screen flex-col overflow-hidden bg-gradient-to-b from-slate-950 to-slate-900 px-[2.2vw] py-[2vh] font-sans text-slate-100 ${cursorHidden ? 'cursor-none' : ''}`}>
+    <div className={`relative flex min-h-[100dvh] w-full flex-col bg-gradient-to-b from-slate-950 to-slate-900 px-3 py-3 font-sans text-slate-100 sm:px-4 lg:h-screen lg:min-h-0 lg:w-screen lg:overflow-hidden lg:px-[2.2vw] lg:py-[2vh] ${cursorHidden ? 'cursor-none' : ''}`}>
       <style>{`@keyframes tv-fall{0%{transform:translateY(-12vh)}100%{transform:translateY(112vh)}}
         @keyframes tv-glow{0%,100%{background-color:rgba(52,211,153,0)}40%{background-color:rgba(52,211,153,0.16)}}`}</style>
 
       {celebrate && isToday && <Confetti />}
 
-      {/* Header */}
-      <header className="mb-[1.4vh] flex items-center justify-between gap-[1vw]">
-        <div className="flex min-w-0 items-center gap-[1.2vw]">
-          <Trophy className="shrink-0 text-amber-300" style={{ width: '4vh', height: '4vh' }} />
+      {/* Header — phone: title + clock on top, the day switcher across the second row */}
+      <header className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 lg:mb-[1.4vh] lg:flex-nowrap lg:gap-[1vw]">
+        <div className="order-1 flex min-w-0 flex-1 items-center gap-2.5 lg:order-none lg:flex-initial lg:gap-[1.2vw]">
+          <Trophy className="h-7 w-7 shrink-0 text-amber-300 lg:h-[4vh] lg:w-[4vh]" />
           <div className="min-w-0">
-            <h1 className="truncate text-[3vh] font-bold leading-none tracking-tight">{t('leaderboard2.title')}</h1>
-            <div className="mt-[0.6vh] flex items-center gap-2 truncate text-[1.6vh] text-slate-400">
+            <h1 className="text-xl font-bold leading-tight tracking-tight lg:truncate lg:text-[3vh] lg:leading-none">{t('leaderboard2.title')}</h1>
+            <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-400 lg:mt-[0.6vh] lg:truncate lg:text-[1.6vh]">
               {isToday && <span className="inline-block h-2 w-2 shrink-0 animate-pulse rounded-full bg-emerald-400" />}
-              <span className="truncate">
+              <span className="lg:truncate">
                 {viewLabel} · {isToday ? t('tvBoard.live') : t('tvBoard.history')} ·{' '}
                 {t('tvBoard.updated', { time: data ? new Date(data.generated_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—' })}
               </span>
@@ -245,38 +271,38 @@ export default function TvLeaderboardPage() {
         </div>
 
         {/* Day switcher */}
-        <div className="flex shrink-0 items-center gap-[0.8vw]">
+        <div className="order-3 flex w-full items-center justify-between gap-2 lg:order-none lg:w-auto lg:shrink-0 lg:justify-center lg:gap-[0.8vw]">
           <button type="button" onClick={() => setOffset((o) => o + 1)} aria-label={t('leaderboard2.prevDay')}
-            className="rounded-lg border border-white/10 bg-white/5 p-[1vh] text-slate-200 transition hover:bg-white/10">
-            <ChevronLeft style={{ width: '2.6vh', height: '2.6vh' }} />
+            className="rounded-lg border border-white/10 bg-white/5 p-2 text-slate-200 transition hover:bg-white/10 lg:p-[1vh]">
+            <ChevronLeft className="h-5 w-5 lg:h-[2.6vh] lg:w-[2.6vh]" />
           </button>
-          <div className="min-w-[12vw] text-center">
-            <div className="text-[2.6vh] font-semibold leading-none">{label}</div>
-            <div className="mt-[0.5vh] text-[1.5vh] text-slate-400">{data?.day || ''}</div>
+          <div className="flex-1 text-center lg:min-w-[12vw] lg:flex-none">
+            <div className="text-base font-semibold leading-none lg:text-[2.6vh]">{label}</div>
+            <div className="mt-1 text-xs text-slate-400 lg:mt-[0.5vh] lg:text-[1.5vh]">{data?.day || ''}</div>
           </div>
           <button type="button" onClick={() => setOffset((o) => Math.max(0, o - 1))} disabled={isToday} aria-label={t('leaderboard2.nextDay')}
-            className="rounded-lg border border-white/10 bg-white/5 p-[1vh] text-slate-200 transition hover:bg-white/10 disabled:opacity-30">
-            <ChevronRight style={{ width: '2.6vh', height: '2.6vh' }} />
+            className="rounded-lg border border-white/10 bg-white/5 p-2 text-slate-200 transition hover:bg-white/10 disabled:opacity-30 lg:p-[1vh]">
+            <ChevronRight className="h-5 w-5 lg:h-[2.6vh] lg:w-[2.6vh]" />
           </button>
         </div>
 
-        <div className="flex shrink-0 items-center gap-[1vw]">
-          <div className="text-[4.4vh] font-bold leading-none tabular-nums">{now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</div>
+        <div className="order-2 flex shrink-0 items-center gap-2 lg:order-none lg:gap-[1vw]">
+          <div className="text-2xl font-bold leading-none tabular-nums lg:text-[4.4vh]">{now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</div>
           <button type="button" onClick={toggleFullscreen} title={isFs ? t('tvBoard.exitFullscreen') : t('tvBoard.fullscreen')}
-            className="rounded-lg border border-white/10 bg-white/5 p-[1vh] text-slate-300 transition hover:bg-white/10">
-            {isFs ? <Minimize2 style={{ width: '2.6vh', height: '2.6vh' }} /> : <Maximize2 style={{ width: '2.6vh', height: '2.6vh' }} />}
+            className="rounded-lg border border-white/10 bg-white/5 p-2 text-slate-300 transition hover:bg-white/10 lg:p-[1vh]">
+            {isFs ? <Minimize2 className="h-5 w-5 lg:h-[2.6vh] lg:w-[2.6vh]" /> : <Maximize2 className="h-5 w-5 lg:h-[2.6vh] lg:w-[2.6vh]" />}
           </button>
         </div>
       </header>
 
       {/* Filters */}
-      <div className="mb-[1.4vh]">
+      <div className="mb-3 lg:mb-[1.4vh]">
         <TvBoardFilters filter={filter} teams={data?.teams ?? []} onChange={(f) => { setFilter(f); }} />
-        {data?.legacy && <div className="mt-[0.8vh] text-[1.4vh] text-amber-300">{t('leaderboard2.legacyApi')}</div>}
+        {data?.legacy && <div className="mt-2 text-xs text-amber-300 lg:mt-[0.8vh] lg:text-[1.4vh]">{t('leaderboard2.legacyApi')}</div>}
       </div>
 
-      {/* KPI strip */}
-      <div className="mb-[1.6vh] grid grid-cols-5 gap-[1vw]">
+      {/* KPI strip — phone 2 per row, small tablet 3, wall screen 5 */}
+      <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:mb-[1.6vh] lg:grid-cols-5 lg:gap-[1vw]">
         {presenceTile()}
         <StatCard label={t('leaderboard2.kpiSales')} value={String(n('total_count'))}
           sub={t('leaderboard2.kpiSalesSub', { orders: n('sales'), booked: n('booked') })} />
@@ -284,24 +310,45 @@ export default function TvLeaderboardPage() {
           sub={n('cancelled_after_sale') > 0 ? t('leaderboard2.kpiCancelledSub', { n: n('cancelled_after_sale') }) : undefined} />
         <StatCard label={t('tvBoard.colWorked')} value={String(worked)}
           sub={convAll == null ? undefined : t('leaderboard2.kpiConvSub', { pct: convAll.toFixed(1) })} />
-        <StatCard label={t('leaderboard2.kpiNoSeller')}
+        <StatCard label={t('leaderboard2.kpiNoSeller')} className="col-span-2 sm:col-span-1"
           value={money && n('no_seller') > 0 ? `${n('no_seller')} · ${formatDenari(n('no_seller_value_mkd'))}` : String(n('no_seller'))}
           sub={n('booked_no_person') > 0 ? t('leaderboard2.kpiNoSellerBooked', { n: n('booked_no_person') }) : t('leaderboard2.kpiNoSellerSub')} />
       </div>
 
       {/* States */}
-      {loading && <div className="mt-[18vh] text-center text-[2.6vh] text-slate-400">{t('common.loading')}</div>}
+      {loading && <div className="mt-10 text-center text-base text-slate-400 lg:mt-[18vh] lg:text-[2.6vh]">{t('common.loading')}</div>}
       {!loading && error && (
-        <div className="mt-[18vh] text-center text-[2.6vh] text-rose-400">
+        <div className="mt-10 text-center text-base text-rose-400 lg:mt-[18vh] lg:text-[2.6vh]">
           {error === 'Unauthorized' ? t('tvBoard.invalidKey') : error}
         </div>
       )}
       {!loading && !error && rows.length === 0 && (
-        <div className="mt-[18vh] text-center text-[2.6vh] text-slate-400">{t('leaderboard2.noPeople')}</div>
+        <div className="mt-10 text-center text-base text-slate-400 lg:mt-[18vh] lg:text-[2.6vh]">{t('leaderboard2.noPeople')}</div>
       )}
 
-      {/* Table */}
-      {!loading && !error && rows.length > 0 && (
+      {/* Phone / tablet: one card per person, the page scrolls */}
+      {!loading && !error && rows.length > 0 && compact && (
+        <div className="flex flex-col gap-2 pb-2">
+          {people.map((r) => (
+            <TvBoardCard key={r.person_id} row={r} department={dept} money={money} isToday={isToday} now={now}
+              glow={!!r.user_id && isToday && celebrate?.agentId === r.user_id} />
+          ))}
+          {managers.length > 0 && (
+            <>
+              <div className="mt-2 px-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                {t('leaderboard2.managersHeading')}
+              </div>
+              {managers.map((r) => (
+                <TvBoardCard key={r.person_id} row={r} department={dept} money={money} isToday={isToday} now={now}
+                  glow={!!r.user_id && isToday && celebrate?.agentId === r.user_id} />
+              ))}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Wall screen: the table */}
+      {!loading && !error && rows.length > 0 && !compact && (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
           <div className={`grid ${TV_GRID} shrink-0 items-center px-[1.6vw] py-[1.1vh] text-[1.4vh] font-semibold uppercase tracking-[0.1em] text-slate-400`}>
             <div>#</div>
