@@ -139,6 +139,12 @@ export class CollabboxClient {
     const page = parseHeaders(html);
     const problem = headersProblem(page);
     if (problem) throw new CollabboxError(`searchdoc ${fromDmy}..${toDmy}: ${problem}`);
+    // drop the few rows that carry no DocNumber / type / time (never a key to hold an order by)
+    const complete = page.rows.filter((r) => r.docNumber && r.typeId && r.datetime);
+    if (complete.length !== page.rows.length) {
+      console.warn(`collabbox-sync: searchdoc ${fromDmy}..${toDmy}: ${page.rows.length - complete.length} row(s) without DocNumber / type / time skipped`);
+      return { ...page, rows: complete, total: page.total == null ? null : page.total - (page.rows.length - complete.length) };
+    }
     return page;
   }
 

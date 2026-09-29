@@ -175,6 +175,16 @@ describe("parseHeaders", () => {
     expect(empty.noResults).toBe(true);
     expect(headersProblem(empty)).toBeNull();
   });
+  it("one draft row without a DocNumber does not stop the day; many broken rows still do", () => {
+    const one = { total: 3, noResults: false, recognised: true, rows: [
+      { docNumber: "002-9102-1/2026", typeId: "10050", datetime: "2026-04-06T10:00:00" },
+      { docNumber: "", typeId: "10050", datetime: "2026-04-06T10:05:00" },
+      { docNumber: "002-9102-2/2026", typeId: "10050", datetime: "2026-04-06T10:10:00" },
+    ] } as unknown as Parameters<typeof headersProblem>[0];
+    expect(headersProblem(one)).toBeNull();
+    const many = { ...one, total: 5, rows: Array.from({ length: 5 }, () => ({ docNumber: "", typeId: "", datetime: "" })) } as unknown as Parameters<typeof headersProblem>[0];
+    expect(headersProblem(many)).toMatch(/5 of 5 rows without DocNumber/);
+  });
   it("the search body comma-wraps the type ids (a bare id matches nothing)", () => {
     const b = new URLSearchParams(headersSearchBody(["10036", "10050"], "27.09.2026", "27.09.2026"));
     expect(b.get("selectedDocTypes")).toBe(",10036,10050,");

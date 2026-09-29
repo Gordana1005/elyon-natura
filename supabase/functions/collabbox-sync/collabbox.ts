@@ -139,7 +139,11 @@ export function parseHeaders(html: string): HeadersPage {
 export function headersProblem(p: HeadersPage): string | null {
   if (!p.recognised) return "unrecognised answer (layout changed?)";
   if (p.total != null && p.total !== p.rows.length) return `server says ${p.total} documents, parsed ${p.rows.length}`;
-  if (p.rows.some((r) => !r.docNumber || !r.typeId || !r.datetime)) return "a row without DocNumber / type / time (layout changed?)";
+  // A single document without a number (a draft someone left in collabBox, 06.04.2026) must not stop
+  // the day: such rows are dropped by the client and counted. Only when many rows break is the layout
+  // wrong (29.09.2026).
+  const incomplete = p.rows.filter((r) => !r.docNumber || !r.typeId || !r.datetime).length;
+  if (incomplete > Math.max(3, Math.floor(p.rows.length * 0.05))) return `${incomplete} of ${p.rows.length} rows without DocNumber / type / time (layout changed?)`;
   return null;
 }
 
