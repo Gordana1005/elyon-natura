@@ -6297,7 +6297,7 @@
       "approved": "aprovuar",
       "cancelled": "anuluar",
       "trashed": "në kosh",
-      "cancel_other": "anuluar (tjetër)"
+      "cancelOther": "anuluar (tjetër)"
     }
   }
 }

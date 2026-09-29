@@ -6297,7 +6297,7 @@
       "approved": "approved",
       "cancelled": "cancelled",
       "trashed": "trashed",
-      "cancel_other": "cancelled (other)"
+      "cancelOther": "cancelled (other)"
     }
   }
 }

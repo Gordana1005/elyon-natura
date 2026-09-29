@@ -61,7 +61,8 @@ export function OrderOriginPanel({ origin, status }: { origin: OrderOrigin | nul
         {(origin.altercpa || origin.collabbox) && (
           <div className="py-1.5">
             {origin.altercpa && row('AlterCPA', [
-              origin.altercpa.decision ? t(`orderOrigin.decision.${origin.altercpa.decision}`, { defaultValue: origin.altercpa.decision }) : null,
+              // 'cancel_other' → key 'cancelOther' (_other is an i18next plural suffix)
+              origin.altercpa.decision ? t(`orderOrigin.decision.${origin.altercpa.decision === 'cancel_other' ? 'cancelOther' : origin.altercpa.decision}`, { defaultValue: origin.altercpa.decision }) : null,
               origin.altercpa.operator, dt(origin.altercpa.decided_at),
             ].filter(Boolean).join(' · '))}
             {origin.collabbox && row('collabBox', [

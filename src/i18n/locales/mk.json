@@ -6297,7 +6297,7 @@
       "approved": "одобрена",
       "cancelled": "откажана",
       "trashed": "во корпа",
-      "cancel_other": "откажана (друго)"
+      "cancelOther": "откажана (друго)"
     }
   }
 }
