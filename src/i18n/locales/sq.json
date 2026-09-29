@@ -6271,5 +6271,33 @@
       },
       "namesHint": "Lidhe emrin me një produkt nga katalogu (pseudonime produktesh) dhe ekzekutimi i radhës do ta zbresë."
     }
+  },
+  "orderOrigin": {
+    "title": "Origjina dhe prova",
+    "department": "Departamenti",
+    "intake": "Si hyri",
+    "seller": "Shitësi",
+    "soldAt": "Shitur",
+    "priceCrm": "Çmimi në CRM",
+    "codMex": "Pagesa në MEX",
+    "shippedAt": "Pakoja u krijua",
+    "delivered": "Dorëzuar dhe paguar",
+    "returned": "Kthyer",
+    "receiver": "Marrësi",
+    "noParcel": "Ende nuk ka pako MEX",
+    "paidWithoutProof": "Shënuar e paguar, por nuk ka pako MEX — nuk ka provë pagese",
+    "via": {
+      "crm": "në CRM",
+      "altercpa": "në AlterCPA",
+      "crm_push": "CRM → AlterCPA",
+      "collabbox": "në collabBox",
+      "import": "import"
+    },
+    "decision": {
+      "approved": "aprovuar",
+      "cancelled": "anuluar",
+      "trashed": "në kosh",
+      "cancel_other": "anuluar (tjetër)"
+    }
   }
 }

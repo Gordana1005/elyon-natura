@@ -7019,6 +7019,24 @@ async function handleRequest(req: Request): Promise<Response> {
         _exclude_order_id: order.id,
       });
 
+      // Where the order came from and what proves it (order_origin, 20260942001600):
+      // department, seller, the MEX parcel, the collabBox document, the AlterCPA
+      // decision. Admin / manager only (the order window's "Origin & proof");
+      // the receiver's name / city follow the same PII switches as the order.
+      let origin: Record<string, any> | null = null;
+      if (isAdminOrManager) {
+        const { data: og, error: ogErr } = await adminClient.rpc("order_origin", { p_id: order.id });
+        if (ogErr) console.error("order_origin:", ogErr.message);
+        else if (og && typeof og === "object") {
+          origin = { ...(og as Record<string, any>) };
+          if (origin.parcel && typeof origin.parcel === "object") {
+            origin.parcel = { ...origin.parcel };
+            if (!piiFlags.name) delete origin.parcel.receiver_name;
+            if (!piiFlags.addr) delete origin.parcel.receiver_city;
+          }
+        }
+      }
+
       // Mask customer identity per role; hide the status timeline + duplicate-order
       // lookups when the role can't see order history (e.g. investor managers).
       return json({
@@ -7027,6 +7045,7 @@ async function handleRequest(req: Request): Promise<Response> {
         history: showOrderHistory ? history : [],
         notes,
         phone_duplicates: showOrderHistory ? dupes : [],
+        origin,
       });
     }
 

@@ -6271,5 +6271,33 @@
       },
       "namesHint": "Map a name to a catalogue product (product aliases) and the next run deducts it."
     }
+  },
+  "orderOrigin": {
+    "title": "Origin and proof",
+    "department": "Department",
+    "intake": "How it came in",
+    "seller": "Seller",
+    "soldAt": "Sold",
+    "priceCrm": "CRM price",
+    "codMex": "MEX COD",
+    "shippedAt": "Parcel created",
+    "delivered": "Delivered and paid",
+    "returned": "Returned",
+    "receiver": "Receiver",
+    "noParcel": "No MEX parcel yet",
+    "paidWithoutProof": "Marked paid, but there is no MEX parcel — no proof of payment",
+    "via": {
+      "crm": "in the CRM",
+      "altercpa": "in AlterCPA",
+      "crm_push": "CRM → AlterCPA",
+      "collabbox": "in collabBox",
+      "import": "import"
+    },
+    "decision": {
+      "approved": "approved",
+      "cancelled": "cancelled",
+      "trashed": "trashed",
+      "cancel_other": "cancelled (other)"
+    }
   }
 }

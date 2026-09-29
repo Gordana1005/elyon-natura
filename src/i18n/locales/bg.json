@@ -6271,5 +6271,33 @@
       },
       "namesHint": "Свържете името с продукт от каталога (псевдоними на продукти) и следващото изпълнение ще го изпише."
     }
+  },
+  "orderOrigin": {
+    "title": "Произход и доказ",
+    "department": "Отдел",
+    "intake": "Как е постъпила",
+    "seller": "Продавач",
+    "soldAt": "Продадена",
+    "priceCrm": "Цена в CRM",
+    "codMex": "Наложен платеж в MEX",
+    "shippedAt": "Пратката е създадена",
+    "delivered": "Доставена и платена",
+    "returned": "Върната",
+    "receiver": "Получател",
+    "noParcel": "Все още няма MEX пратка",
+    "paidWithoutProof": "Води се платена, но няма MEX пратка — няма доказ за плащане",
+    "via": {
+      "crm": "в CRM",
+      "altercpa": "в AlterCPA",
+      "crm_push": "CRM → AlterCPA",
+      "collabbox": "в collabBox",
+      "import": "импорт"
+    },
+    "decision": {
+      "approved": "одобрена",
+      "cancelled": "отказана",
+      "trashed": "в кошчето",
+      "cancel_other": "отказана (друго)"
+    }
   }
 }

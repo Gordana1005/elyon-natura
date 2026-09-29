@@ -43,6 +43,7 @@ import { cleanNoteForDisplay } from '@/lib/notes';
 import { DeliveryMethodPicker, type DeliveryValue } from '@/components/DeliveryMethodPicker';
 import { resolveDeliveryPrefill, composeHomeAddress } from '@/lib/address';
 import { CancellationReasonPicker } from '@/components/CancellationReasonPicker';
+import { OrderOriginPanel } from '@/components/OrderOriginPanel';
 import { TrashReasonPicker } from '@/components/TrashReasonPicker';
 import { cancelReasonRequiresNote } from '@/lib/cancellationReasons';
 import { isTrashSelectionValid } from '@/lib/trashReasons';
@@ -1201,6 +1202,9 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
                 )}
               </div>
             </section>
+
+            {/* F) Origin & proof — admin / manager (GET /orders/:id origin) */}
+            {!isLead && <OrderOriginPanel origin={fullOrderData?.origin} status={fullOrderData?.status} />}
 
             {/* Notes */}
             <section>
