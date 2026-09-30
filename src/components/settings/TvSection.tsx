@@ -17,6 +17,7 @@ import { formatDayDmy } from '@/i18n/dates';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/contexts/PermissionsContext';
 import { DEPARTMENTS, deptKey } from '@/lib/leaderboardV2';
+import { isLegacyTeam, isLineKey, LINE_LANES, teamFilterValue, teamSortOrder } from '@/lib/teamLines';
 import { teamLabel } from '@/components/tvboard/tvBoardHelpers';
 import { apiGetLeaderboardAdmin, apiGetSalesTeams, apiManageLeaderboardToken, type LeaderboardAccessToken } from '@/lib/api';
 import { ConfirmDialog, SectionHeader, SettingsCard, settingsErrorText } from './settingsUi';
@@ -51,9 +52,24 @@ export function TvSection() {
 
   const active = useMemo(() => (cfgQ.data?.tokens ?? []).filter((tok) => tok.is_active), [cfgQ.data]);
   const token = active.find((tok) => tok.id === tokenId) ?? active[0] ?? null;
+  // The business lines (Phase 3, 30.09): the line itself and each of its lanes ("Телешоп лидови",
+  // "Телешоп предикција", "Социјални мрежи", "Affiliate лидови", "Affiliate предикција" — the
+  // ?team=team:lane grammar of the TV board). Legacy keys and Менаџмент (never ranked) get no link.
   const teams = useMemo(
-    () => (teamsQ.data?.teams ?? []).filter((tm) => tm.key !== 'management'),
+    () => (teamsQ.data?.teams ?? [])
+      .filter((tm) => tm.key !== 'management' && tm.kind !== 'management' && !isLegacyTeam(tm.key) && tm.kind !== 'legacy')
+      .sort((a, b) => teamSortOrder(a.key, a.sort_order) - teamSortOrder(b.key, b.sort_order)),
     [teamsQ.data],
+  );
+  const teamViews = useMemo(
+    () => teams.flatMap((tm) => [
+      { key: `t:${tm.key}`, label: teamLabel(t, tm.key, tm.name), view: { team: tm.key } },
+      ...(isLineKey(tm.key) ? LINE_LANES[tm.key] : []).map((lane) => {
+        const value = teamFilterValue(tm.key, lane);
+        return { key: `t:${value}`, label: teamLabel(t, value, tm.name), view: { team: value } };
+      }),
+    ]),
+    [teams, t],
   );
 
   const act = async (kind: 'create' | 'rotate' | 'revoke', body: Parameters<typeof apiManageLeaderboardToken>[0]) => {
@@ -83,7 +99,7 @@ export function TvSection() {
   const rows: { key: string; label: string; view: { dept?: string; team?: string } }[] = [
     { key: 'all', label: t('settingsPage.tv.all'), view: {} },
     ...DEPARTMENTS.map((d) => ({ key: `d:${d}`, label: t(`leaderboard2.dept.${deptKey(d)}`), view: { dept: d } })),
-    ...teams.map((tm) => ({ key: `t:${tm.key}`, label: teamLabel(t, tm.key, tm.name), view: { team: tm.key } })),
+    ...teamViews,
   ];
 
   return (

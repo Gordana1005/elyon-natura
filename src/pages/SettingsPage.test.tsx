@@ -54,7 +54,14 @@ vi.mock('@/lib/api', async (orig) => ({
   apiGetIntegrationsHealth: vi.fn(async () => ({ generated_at: '', today: '2026-10-01', feeds: [], no_parcel: null, cron: [] })),
   apiGetSalesUnmapped: vi.fn(async () => ({ days: 90, altercpa: [], unnamed: [], logins: [], orders: [{ ext: 'x', n: 1 }] })),
   apiGetBusinessOwners: vi.fn(async () => []),
-  apiGetLeaderboardAdmin: vi.fn(async () => ({ mode: 'prediction', roster_date: '', roster: [], rules: [], tokens: [] })),
+  apiGetLeaderboardAdmin: vi.fn(async () => ({ mode: 'prediction', roster_date: '', roster: [], rules: [],
+    tokens: [{ id: 't1', label: 'Office TV', token: 'tok123', is_active: true, created_at: '2026-06-30T10:00:00Z' }] })),
+  apiGetSalesTeams: vi.fn(async () => ({ today: '2026-10-01', accounts: [], people: [], logins: [], teams: [
+    { key: 'teleshop', name: 'Телешоп', leaderboard_mode: 'prediction', kind: 'line', sort_order: 10 },
+    { key: 'affiliate', name: 'Affiliate', leaderboard_mode: 'pending', kind: 'line', sort_order: 20 },
+    { key: 'crm_prediction', name: 'Prediction — ElyonCRM', leaderboard_mode: 'prediction', kind: 'legacy', sort_order: 41 },
+    { key: 'management', name: 'Management', leaderboard_mode: null, kind: 'management', sort_order: 90 },
+  ] })),
   apiGetCourierRates: vi.fn(async () => [{ courier: 'mex', service: 'door', deliver_cost: 2.439, return_cost: 0 }]),
   apiGetAppSettings: vi.fn(async () => ({ personal_list_max_holds: 50, unpaid_chase_days: 3, unpaid_chase_stop_days: 30, altercpa_push_enabled: true })),
   apiGetSettingsMeta: vi.fn(async () => ({ app_settings: {}, audit: {} })),
@@ -132,6 +139,21 @@ describe('Поставки — list → detail (a phone shows one at a time)', {
     renderAt('/settings?tab=leaderboard');
     await waitFor(() => expect(path).toBe('/settings/tv'));
     expect(await screen.findByRole('heading', { name: t('settingsPage.tv.title') })).toBeInTheDocument();
+  });
+
+  it('ТВ табла: a link per department, per business line and per lane — no legacy or management link', async () => {
+    renderAt('/settings/tv');
+    const links = await screen.findByRole('list', { name: t('settingsPage.tv.linksTitle') });
+    const open = (label: string) => within(links).getByRole('link', { name: `${t('settingsPage.tv.open')} · ${label}` }).getAttribute('href') ?? '';
+    const lbl = (k: string) => t(k);
+    expect(open(t('settingsPage.tv.all'))).toMatch(/\/tv\/leaderboard\?key=tok123&lang=mk$/);
+    expect(open(t('leaderboard2.dept.teleshopOther'))).toContain('dept=teleshop_other');
+    expect(open(lbl('teamLines.label.teleshop_in'))).toContain(`team=${encodeURIComponent('teleshop:in')}`);
+    expect(open(lbl('teamLines.label.affiliate_out'))).toContain(`team=${encodeURIComponent('affiliate:out')}`);
+    expect(within(links).queryByText(/ElyonCRM|стар тим|Менаџмент|Management/)).toBeNull();
+    // rotate asks first
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('settingsPage.tv.rotate')) }));
+    expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
   });
 
   it('an unknown section goes back to the list', async () => {
