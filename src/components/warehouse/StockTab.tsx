@@ -109,7 +109,7 @@ export function StockTab({ f }: { f: InsightsFormat }) {
       </div>
     );
   };
-  const threshold = (p: Product) => canThreshold ? (
+  const threshold = (p: Product) => canThreshold && p.is_active ? (
     <Input type="number" inputMode="numeric" min={0} className="h-8 w-20 text-sm tabular-nums" value={thresholdOf(p)}
       aria-label={t('warehousePage.stock.thresholdLabel', { name: p.name })} title={t('warehousePage.stock.thresholdHint')}
       onChange={(e) => onThreshold(p, e.target.value)} />
