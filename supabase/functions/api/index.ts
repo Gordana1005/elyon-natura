@@ -52,6 +52,10 @@ import * as SL from "./stockLedger.ts";
 // broadcast body (pure, unit-tested in assigner.test.ts).
 import * as ASG from "./assigner.ts";
 import * as DISP from "./dispositions.ts";
+// Product brand lines (migration 20260943001300, plan "Фаза 4"): the proposal
+// and the audited writer — query / body validation and the response shapes
+// (pure, unit-tested in brandLine.test.ts).
+import * as BL from "./brandLine.ts";
 
 // ============================================================
 // INPUT VALIDATION SCHEMAS
@@ -9389,7 +9393,50 @@ async function handleRequest(req: Request): Promise<Response> {
         if (!isAdmin) delete out.cost_price; // call agents/managers never see cost
         return out;
       });
+      // `*` carries brand_line / brand_line_set_by / brand_line_set_at
+      // (20260943001300) to every login that can read products — a line is not money.
       return json(result);
+    }
+
+    // GET /api/products/brand-line-proposal?days=180 — the brand-line suggestion
+    // per product from the MEX parcels of the last `days` days (SQL
+    // product_brand_line_proposal, 20260943001300): the parcels per account, the
+    // suggested line, the confidence and the reason, plus a summary. Read-only.
+    // Admins + owners (the ones who set lines).
+    if (req.method === "GET" && path === "products/brand-line-proposal") {
+      if (!isAdmin && !(await isBusinessOwner(user.id))) return json({ error: "owners_only" }, 403);
+      const dq = BL.parseProposalDays(url.searchParams.get("days"));
+      if (!dq.ok) return json({ error: dq.error }, 400);
+      const { data, error } = await adminClient.rpc("product_brand_line_proposal", { p_days: dq.days });
+      if (error) {
+        const e = BL.brandLineRpcError(error);
+        return json({ error: e ? e.error : sanitizeDbError(error) }, 400);
+      }
+      return json(BL.shapeProposal(data));
+    }
+
+    // POST /api/products/brand-line {ids: uuid[], line: natura_therapy |
+    // bio_natural | ad_astra | dr_becker | null} — set (null = back to
+    // undecided) the brand line of up to 1.000 products. The SQL writer
+    // (products_set_brand_line, the only writer — a trigger refuses any other)
+    // skips rows already on that line and writes ONE audit_log row
+    // (products.set_brand_line) in the same transaction. Admins + owners.
+    // Response: {line, mex_profile, requested, updated, unchanged, missing[], changes[]}.
+    if (req.method === "POST" && path === "products/brand-line") {
+      if (!isAdmin && !(await isBusinessOwner(user.id))) return json({ error: "owners_only" }, 403);
+      if (!checkUserRateLimit(user.id, "products.brand-line", 60)) {
+        return json({ error: "Rate limit exceeded — try again in a minute" }, 429);
+      }
+      let body: unknown;
+      try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
+      const parsed = BL.parseSetBrandLineBody(body);
+      if (!parsed.ok) return json({ error: parsed.error }, 400);
+      const { data, error } = await adminClient.rpc("products_set_brand_line", BL.setBrandLineRpcArgs(parsed.args, user.id));
+      if (error) {
+        const e = BL.brandLineRpcError(error);
+        return json({ error: e ? e.error : sanitizeDbError(error) }, 400);
+      }
+      return json(BL.shapeSetResult(data));
     }
 
     // POST /api/products
@@ -9426,6 +9473,9 @@ async function handleRequest(req: Request): Promise<Response> {
       const body = await req.json();
       // cost_price is admin-only — managers can edit everything else.
       if (!isAdmin && "cost_price" in body) delete body.cost_price;
+      // The brand line is set only via POST /products/brand-line (audited; a DB
+      // trigger refuses any other writer) — drop it here instead of failing.
+      BL.stripBrandLineFields(body);
 
       // If stock_quantity is changing, log it
       if (body.stock_quantity !== undefined) {

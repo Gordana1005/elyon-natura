@@ -1,44 +1,30 @@
-import { useState, useEffect } from 'react';
-import { apiErrorText } from '@/i18n/apiErrors';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { History, Loader2, Package, Plus } from 'lucide-react';
 import { AppLayout } from '@/layouts/AppLayout';
-import { Plus, Package, Loader2, Edit, History } from 'lucide-react';
-import { apiGetProducts, apiCreateProduct, apiUpdateProduct, apiGetInventoryLogs, apiGetSuppliers } from '@/lib/api';
+import { apiErrorText } from '@/i18n/apiErrors';
+import { formatDate } from '@/i18n/dates';
+import { apiGetInventoryLogs, apiGetProducts, apiGetSuppliers, apiSetBrandLine, apiUpdateProduct } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/contexts/PermissionsContext';
 import { useToast } from '@/hooks/use-toast';
-import i18n from '@/i18n';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/EmptyState';
-// Prices are STORED in EUR (frozen MKD_PER_EUR) but the euro is an internal
-// accounting unit and must never surface in this Macedonian UI. Both price
-// fields on this screen therefore take DENARI: the form state holds denars, and
-// the values are converted to EUR only at the API boundary in handleCreate /
-// handleUpdate, and back again in openEdit.
-import { formatMoney, eurToDen, denToEur } from '@/lib/currency';
-
-interface ProductRow {
-  id: string;
-  name: string;
-  description: string | null;
-  price: number;
-  cost_price: number;
-  sku: string | null;
-  stock_quantity: number;
-  low_stock_threshold: number;
-  days_of_supply_per_unit?: number;
-  is_active: boolean;
-  category: string;
-  supplier_id: string | null;
-  suppliers?: { id: string; name: string } | null;
-}
+import { LoadError } from '@/components/insights/shared/LoadError';
+import { useInsightsFormat } from '@/components/insights/shared/useInsightsFormat';
+import { cn } from '@/lib/utils';
+import {
+  LINE_NAMES, applyLineChanges, filterProducts, isLineFilter, lineCounts,
+  type BrandLine, type LineFilter, type SetBrandLineResult,
+} from '@/lib/products/brandLines';
+import { ProductsList, type ProductRow } from '@/components/products/ProductsList';
+import { BulkLineBar, ProductFilters } from '@/components/products/ProductFilters';
+import { BrandLineProposal } from '@/components/products/BrandLineProposal';
+import { ProductFormDialog } from '@/components/products/ProductFormDialog';
 
 interface InventoryLog {
   id: string;
@@ -49,117 +35,143 @@ interface InventoryLog {
   created_at: string;
 }
 
-function StockBadge({ qty, threshold }: { qty: number; threshold: number }) {
-  if (qty <= 0) return <Badge variant="destructive">{i18n.t('products.outOfStock')}</Badge>;
-  if (qty < threshold) return <Badge variant="destructive">{qty}</Badge>;
-  if (qty === threshold) return <Badge className="bg-accent text-accent-foreground border-accent">{qty}</Badge>;
-  return <Badge className="bg-primary text-primary-foreground">{qty}</Badge>;
-}
+type View = 'list' | 'proposal';
 
+/**
+ * Производи: the catalogue in the Insights look, and every product's BRAND LINE
+ * (plan 30.09.2026, "Фаза 4"; migration 20260943001300). Owner ruling 30.09:
+ * the line decides the MEX account when the CRM ships — Bio Natural and
+ * Dr.Becker via BIO NATURAL, Natura Therapy and Ad Astra via NATURA.
+ *
+ *   Производи (?view=list, the default) — search, the line chips (Сите ·
+ *     Natura Therapy · Bio Natural · Ad Astra · Dr.Becker · Неодредено, ?line=),
+ *     a table from xl / cards below, a line chip on every product, and for
+ *     admins + owners: select rows → "Постави линија".
+ *   Предлог (?view=proposal, admins + owners) — the suggestion from the MEX
+ *     parcels, accept one, accept all ≥ 90 %, or pick a line per row.
+ *
+ * Every line write goes through POST /api/products/brand-line (audited). Add /
+ * edit / enable / disable and the inventory log work as before (admins and
+ * managers; cost admins only). Stock is deferred by the owner — nothing added.
+ */
 export default function ProductsPage() {
   const { t } = useTranslation();
+  const f = useInsightsFormat();
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const { canSeeBusiness } = usePermissions();
+  const canEdit = !!(user?.isAdmin || user?.isManager);
+  // Cost price is sensitive — admins only. Managers edit products but never see cost.
+  const showCost = !!user?.isAdmin;
+  // Lines are set by admins + owners (the api's gate: isAdmin || is_business_owner()).
+  const canSetLine = !!user?.isAdmin || canSeeBusiness;
+
+  const [params, setParams] = useSearchParams();
+  const view: View = canSetLine && params.get('view') === 'proposal' ? 'proposal' : 'list';
+  const lineParam = params.get('line');
+  const line: LineFilter = isLineFilter(lineParam) ? lineParam : 'all';
+  const setParam = (key: string, value: string | null) =>
+    setParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (value == null) next.delete(key); else next.set(key, value);
+      return next;
+    }, { replace: true });
+
   const [products, setProducts] = useState<ProductRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showAdd, setShowAdd] = useState(false);
-  const [editProduct, setEditProduct] = useState<ProductRow | null>(null);
+  const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [loadError, setLoadError] = useState('');
+  const [suppliers, setSuppliers] = useState<{ id: string; name: string }[]>([]);
+  const [query, setQuery] = useState('');
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  const [busyIds, setBusyIds] = useState<ReadonlySet<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [form, setForm] = useState<{ open: boolean; product: ProductRow | null }>({ open: false, product: null });
   const [logsProduct, setLogsProduct] = useState<ProductRow | null>(null);
   const [logs, setLogs] = useState<InventoryLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
-  const [formName, setFormName] = useState('');
-  const [formDesc, setFormDesc] = useState('');
-  const [formPrice, setFormPrice] = useState('');
-  const [formCostPrice, setFormCostPrice] = useState('');
-  const [formSku, setFormSku] = useState('');
-  const [formStock, setFormStock] = useState('0');
-  const [formThreshold, setFormThreshold] = useState('5');
-  const [formSupply, setFormSupply] = useState('15');
-  const [formCategory, setFormCategory] = useState('');
-  const [formSupplierId, setFormSupplierId] = useState('');
-  const [suppliers, setSuppliers] = useState<any[]>([]);
-  const [saving, setSaving] = useState(false);
-  const { toast } = useToast();
-  const { user } = useAuth();
-  const isAdmin = user?.isAdmin || user?.isManager;
-  // Cost price is sensitive — superadmins (admin role) only. Managers can edit
-  // products but never see/enter cost.
-  const isStrictAdmin = !!user?.isAdmin;
-  // Agents' default = website retail (Selling Price) when set, else cost×3 or the
-  // floor, whichever is larger. Kept in EUR because that is what the server
-  // computes (see the same rule in the products API handler); the callers below
-  // convert the denar form values in and the result out.
-  const PRICE_FLOOR_EUR = 15;
-  const suggestedSell = (cost: any, price: any) => {
-    const pr = parseFloat(String(price)) || 0;
-    return pr > 0 ? pr : Math.max((parseFloat(String(cost)) || 0) * 3, PRICE_FLOOR_EUR);
-  };
-  // The two price fields hold DENARI; the API speaks EUR.
-  const priceEur = () => denToEur(parseFloat(formPrice) || 0);
-  const costEur = () => denToEur(parseFloat(formCostPrice) || 0);
 
-  const fetchProducts = () => {
-    setLoading(true);
+  const fetchProducts = useCallback((first = false) => {
+    if (first) setPhase('loading');
     apiGetProducts()
-      .then(setProducts)
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  };
-
-  useEffect(() => { fetchProducts(); apiGetSuppliers().then(setSuppliers).catch(() => {}); }, []);
-
-  const resetForm = () => {
-    setFormName(''); setFormDesc(''); setFormPrice(''); setFormCostPrice(''); setFormSku(''); setFormStock('0'); setFormThreshold('5'); setFormSupply('15'); setFormCategory(''); setFormSupplierId('');
-  };
-
-  const handleCreate = async () => {
-    if (!formName.trim()) return;
-    setSaving(true);
-    try {
-      await apiCreateProduct({
-        name: formName, description: formDesc, price: priceEur(),
-        cost_price: costEur(),
-        sku: formSku || null, stock_quantity: parseInt(formStock) || 0, low_stock_threshold: parseInt(formThreshold) || 5,
-        days_of_supply_per_unit: parseInt(formSupply) || 15,
-        category: formCategory, supplier_id: formSupplierId || null,
+      .then((data: ProductRow[]) => { setProducts(data ?? []); setPhase('ready'); })
+      .catch((err: unknown) => {
+        if (first) { setLoadError(apiErrorText(err)); setPhase('error'); }
+        else toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' });
       });
-      toast({ title: t('products.productCreated') });
-      setShowAdd(false); resetForm(); fetchProducts();
-    } catch (err: any) {
-      toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' });
-    } finally { setSaving(false); }
-  };
+  }, [t, toast]);
 
-  const openEdit = (p: ProductRow) => {
-    setEditProduct(p);
-    setFormName(p.name); setFormDesc(p.description || ''); setFormPrice(String(eurToDen(p.price)));
-    setFormCostPrice(String(eurToDen(p.cost_price || 0)));
-    setFormSku(p.sku || ''); setFormStock(String(p.stock_quantity)); setFormThreshold(String(p.low_stock_threshold));
-    setFormSupply(String(p.days_of_supply_per_unit ?? 15));
-    setFormCategory(p.category || ''); setFormSupplierId(p.supplier_id || '');
-  };
+  useEffect(() => {
+    fetchProducts(true);
+    apiGetSuppliers().then(setSuppliers).catch(() => {});
+  }, [fetchProducts]);
 
-  const handleUpdate = async () => {
-    if (!editProduct) return;
-    setSaving(true);
+  const counts = useMemo(() => lineCounts(products), [products]);
+  const rows = useMemo(() => filterProducts(products, { line, query }), [products, line, query]);
+
+  // A selection only ever holds shown rows: a filter change drops the rest.
+  useEffect(() => {
+    setSelected((s) => {
+      if (s.size === 0) return s;
+      const shown = new Set(rows.map((r) => r.id));
+      const next = new Set([...s].filter((id) => shown.has(id)));
+      return next.size === s.size ? s : next;
+    });
+  }, [rows]);
+
+  const toggleSelect = (id: string) =>
+    setSelected((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const selectShown = (on: boolean) => setSelected(on ? new Set(rows.map((r) => r.id)) : new Set());
+
+  const applyResult = (res: SetBrandLineResult) => setProducts((ps) => applyLineChanges(ps, res));
+
+  const savedToast = (res: SetBrandLineResult, l: BrandLine | null) => toast({
+    title: t('products.line.savedTitle'),
+    description: t('products.line.saved', {
+      line: l ? LINE_NAMES[l] : t('products.line.none'), updated: f.int(res.updated), unchanged: f.int(res.unchanged),
+    }),
+  });
+
+  const setLine = async (p: ProductRow, l: BrandLine | null) => {
+    setBusyIds((s) => new Set([...s, p.id]));
     try {
-      await apiUpdateProduct(editProduct.id, {
-        name: formName, description: formDesc, price: priceEur(),
-        cost_price: costEur(),
-        sku: formSku || null, stock_quantity: parseInt(formStock) || 0, low_stock_threshold: parseInt(formThreshold) || 5,
-        days_of_supply_per_unit: parseInt(formSupply) || 15,
-        is_active: editProduct.is_active, category: formCategory, supplier_id: formSupplierId || null,
-      });
-      toast({ title: t('products.productUpdated') });
-      setEditProduct(null); resetForm(); fetchProducts();
-    } catch (err: any) {
+      const res = await apiSetBrandLine([p.id], l);
+      applyResult(res);
+      savedToast(res, l);
+    } catch (err: unknown) {
       toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' });
-    } finally { setSaving(false); }
+    } finally {
+      setBusyIds((s) => { const n = new Set(s); n.delete(p.id); return n; });
+    }
   };
 
-  const toggleActive = async (product: ProductRow) => {
+  const setLineBulk = async (l: BrandLine | null) => {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    setBulkBusy(true);
     try {
-      await apiUpdateProduct(product.id, { is_active: !product.is_active });
+      // The api takes 1.000 per call; the catalogue is ~700.
+      let updated = 0;
+      let unchanged = 0;
+      for (let i = 0; i < ids.length; i += 1000) {
+        const res = await apiSetBrandLine(ids.slice(i, i + 1000), l);
+        applyResult(res);
+        updated += res.updated;
+        unchanged += res.unchanged;
+      }
+      savedToast({ updated, unchanged } as SetBrandLineResult, l);
+      setSelected(new Set());
+    } catch (err: unknown) {
+      toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' });
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const toggleActive = async (p: ProductRow) => {
+    try {
+      await apiUpdateProduct(p.id, { is_active: !p.is_active });
       fetchProducts();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' });
     }
   };
@@ -168,271 +180,112 @@ export default function ProductsPage() {
     setLogsProduct(p);
     setLogsLoading(true);
     try {
-      const data = await apiGetInventoryLogs(p.id);
-      setLogs(data);
+      setLogs(await apiGetInventoryLogs(p.id));
     } catch { setLogs([]); }
     finally { setLogsLoading(false); }
   };
 
-  const inputClass = "w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring";
+  const tabs: { key: View; label: string }[] = [
+    { key: 'list', label: t('products.tabs.list') },
+    ...(canSetLine ? [{ key: 'proposal' as const, label: t('products.tabs.proposal') }] : []),
+  ];
 
   return (
     <AppLayout title={t('nav.products')}>
-      <div className="mb-6 flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">{t('products.nProducts', { count: products.length })}</p>
-        {isAdmin && (
-          <button onClick={() => { resetForm(); setShowAdd(true); }} className="flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
-            <Plus className="h-4 w-4" /> {t('products.addProduct')}
-          </button>
+      <div className="min-w-0 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          {tabs.length > 1 ? (
+            <div role="tablist" aria-label={t('nav.products')} className="inline-flex rounded-lg border bg-muted/40 p-0.5">
+              {tabs.map((tab) => (
+                <button key={tab.key} type="button" role="tab" aria-selected={view === tab.key}
+                  onClick={() => setParam('view', tab.key === 'list' ? null : tab.key)}
+                  className={cn(
+                    'h-9 rounded-md px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:h-8',
+                    view === tab.key ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                  )}>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">{t('products.nProducts', { count: products.length })}</p>
+          )}
+          {canEdit && view === 'list' && (
+            <Button onClick={() => setForm({ open: true, product: null })} className="h-9">
+              <Plus className="mr-1.5 h-4 w-4" aria-hidden />{t('products.addProduct')}
+            </Button>
+          )}
+        </div>
+
+        {view === 'proposal' ? (
+          <BrandLineProposal onChanged={applyResult} f={f} />
+        ) : phase === 'error' ? (
+          <LoadError text={loadError} onRetry={() => fetchProducts(true)} />
+        ) : phase === 'loading' ? (
+          <div className="space-y-3" aria-busy="true">
+            <Skeleton className="h-24 rounded-xl" />
+            <Skeleton className="h-64 rounded-xl" />
+          </div>
+        ) : (
+          <>
+            <ProductFilters
+              query={query} onQuery={setQuery}
+              line={line} onLine={(l) => setParam('line', l === 'all' ? null : l)}
+              counts={counts} shown={rows.length} total={products.length}
+              canSelect={canSetLine} onSelectShown={() => selectShown(true)} f={f}
+            />
+            {products.length === 0 ? (
+              <EmptyState icon={<Package className="h-5 w-5" />} title={t('products.noProducts')} description={t('products.noProductsDesc')} size="sm" />
+            ) : rows.length === 0 ? (
+              <EmptyState icon={<Package className="h-5 w-5" />} title={t('products.nothingMatches')} size="sm" />
+            ) : (
+              <div className="min-w-0 space-y-3">
+                <ProductsList
+                  rows={rows} showCost={showCost} canEdit={canEdit} canSetLine={canSetLine}
+                  selected={selected} onToggleSelect={toggleSelect} onSelectShown={selectShown}
+                  busyIds={busyIds} onSetLine={setLine}
+                  onEdit={(p) => setForm({ open: true, product: p })}
+                  onToggleActive={toggleActive} onLogs={openLogs}
+                />
+                {canSetLine && (
+                  <BulkLineBar count={selected.size} busy={bulkBusy} onSet={setLineBulk} onClear={() => setSelected(new Set())} f={f} />
+                )}
+              </div>
+            )}
+          </>
         )}
       </div>
 
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
-        </div>
-      ) : (
-        <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-muted/50">
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('ordersPage.colProduct')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('products.colSku')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('products.colCategory')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('products.colSupplier')}</th>
-                {isStrictAdmin && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('products.colCostPrice')}</th>}
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('products.colSellingPrice')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('products.colStock')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('ordersPage.colStatus')}</th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.actions')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {products.map(product => (
-                <tr key={product.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-                        <Package className="h-4 w-4 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-card-foreground">{product.name}</p>
-                        <p className="text-xs text-muted-foreground">{product.description || 'No description'}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">{product.sku || '—'}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{product.category || '—'}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{product.suppliers?.name || '—'}</td>
-                  {isStrictAdmin && <td className="px-4 py-3 text-muted-foreground">{formatMoney(product.cost_price || 0)}</td>}
-                  <td className="px-4 py-3 font-semibold text-primary">{formatMoney(product.price)}</td>
-                  <td className="px-4 py-3">
-                    <StockBadge qty={product.stock_quantity} threshold={product.low_stock_threshold} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge variant={product.is_active ? "default" : "secondary"}>
-                      {product.is_active ? t('products.active') : t('products.disabled')}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => openLogs(product)} className="rounded-md p-1.5 hover:bg-muted transition-colors" title={t('products.inventoryLogs')}>
-                        <History className="h-4 w-4 text-muted-foreground" />
-                      </button>
-                      {isAdmin && (
-                        <>
-                          <button onClick={() => openEdit(product)} className="rounded-md p-1.5 hover:bg-muted transition-colors" title={t('products.edit')}>
-                            <Edit className="h-4 w-4 text-muted-foreground" />
-                          </button>
-                          <button onClick={() => toggleActive(product)} className="rounded-md p-1.5 hover:bg-muted transition-colors text-xs font-medium text-muted-foreground" title={t('products.toggleActive')}>
-                            {product.is_active ? t('products.disable') : t('products.enable')}
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {products.length === 0 && (
-                <tr>
-                  <td colSpan={isStrictAdmin ? 9 : 8} className="p-0">
-                    <EmptyState
-                      icon={<Package className="h-5 w-5" />}
-                      title={t('products.noProducts')}
-                      description={t('products.noProductsDesc')}
-                      size="sm"
-                      className="border-0 bg-transparent hover:shadow-none"
-                    />
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <ProductFormDialog
+        open={form.open}
+        onOpenChange={(open) => setForm((s) => ({ ...s, open }))}
+        product={form.product}
+        suppliers={suppliers}
+        showCost={showCost}
+        onSaved={() => fetchProducts()}
+      />
 
-      {/* Add Product Dialog */}
-      <Dialog open={showAdd} onOpenChange={setShowAdd}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>{t('products.addProduct')}</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <input value={formName} onChange={e => setFormName(e.target.value)} placeholder={t('products.productNameReq')} className={inputClass} />
-            <input value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder={t('products.description')} className={inputClass} />
-            <div className={`grid gap-3 ${isStrictAdmin ? 'grid-cols-2' : 'grid-cols-1'}`}>
-              {isStrictAdmin && (
-                <div>
-                  <label className="text-xs text-muted-foreground">{t('products.costPriceAdmin')}</label>
-                  <div className="relative">
-                    <input value={formCostPrice} onChange={e => setFormCostPrice(e.target.value)} placeholder={t('products.colCostPrice')} type="number" className={`${inputClass} pr-10`} />
-                    <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">ден</span>
-                  </div>
-                </div>
-              )}
-              <div>
-                <label className="text-xs text-muted-foreground">{t('products.sellingPriceDesc')}</label>
-                <div className="relative">
-                  <input value={formPrice} onChange={e => setFormPrice(e.target.value)} placeholder={t('products.colSellingPrice')} type="number" className={`${inputClass} pr-10`} />
-                  <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-sm text-primary">ден</span>
-                </div>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
-                  {t('products.agentDefaultHint', { amount: formatMoney(suggestedSell(costEur(), priceEur())) })}
-                </p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-muted-foreground">{t('products.skuAuto')}</label>
-                <input value={formSku} onChange={e => setFormSku(e.target.value)} placeholder={t('products.colSku')} className={inputClass} />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground">{t('products.colCategory')}</label>
-                <input value={formCategory} onChange={e => setFormCategory(e.target.value)} placeholder={t('products.colCategory')} className={inputClass} />
-              </div>
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">{t('products.colSupplier')}</label>
-              <select value={formSupplierId} onChange={e => setFormSupplierId(e.target.value)} className={inputClass}>
-                <option value="">{t('products.noSupplier')}</option>
-                {suppliers.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-muted-foreground">{t('products.stockQty')}</label>
-                <input value={formStock} onChange={e => setFormStock(e.target.value)} type="number" className={inputClass} />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground">{t('products.lowStockThreshold')}</label>
-                <input value={formThreshold} onChange={e => setFormThreshold(e.target.value)} type="number" className={inputClass} />
-              </div>
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">{t('products.daysOfSupply', { defaultValue: 'Days of supply per package' })}</label>
-              <input value={formSupply} onChange={e => setFormSupply(e.target.value)} type="number" className={inputClass} />
-              <p className="text-[10px] text-muted-foreground mt-0.5">{t('products.daysOfSupplyHint', { defaultValue: 'Used by “Due to Reorder” recall. 15 = a 30-capsule pack; a 4-pack = 60.' })}</p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAdd(false)}>{t('common.cancel')}</Button>
-            <Button onClick={handleCreate} disabled={saving}>{saving ? t('products.creating') : t('products.create')}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Product Dialog */}
-      <Dialog open={!!editProduct} onOpenChange={open => !open && setEditProduct(null)}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>{t('products.editProduct')}</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <input value={formName} onChange={e => setFormName(e.target.value)} placeholder={t('products.productNameReq')} className={inputClass} />
-            <input value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder={t('products.description')} className={inputClass} />
-            <div className={`grid gap-3 ${isStrictAdmin ? 'grid-cols-2' : 'grid-cols-1'}`}>
-              {isStrictAdmin && (
-                <div>
-                  <label className="text-xs text-muted-foreground">{t('products.costPriceAdmin')}</label>
-                  <div className="relative">
-                    <input value={formCostPrice} onChange={e => setFormCostPrice(e.target.value)} placeholder={t('products.colCostPrice')} type="number" className={`${inputClass} pr-10`} />
-                    <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">ден</span>
-                  </div>
-                </div>
-              )}
-              <div>
-                <label className="text-xs text-muted-foreground">{t('products.sellingPriceDesc')}</label>
-                <div className="relative">
-                  <input value={formPrice} onChange={e => setFormPrice(e.target.value)} placeholder={t('products.colSellingPrice')} type="number" className={`${inputClass} pr-10`} />
-                  <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-sm text-primary">ден</span>
-                </div>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
-                  {t('products.agentDefaultHint', { amount: formatMoney(suggestedSell(costEur(), priceEur())) })}
-                </p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-muted-foreground">SKU</label>
-                <input value={formSku} onChange={e => setFormSku(e.target.value)} placeholder={t('products.colSku')} className={inputClass} />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground">{t('products.colCategory')}</label>
-                <input value={formCategory} onChange={e => setFormCategory(e.target.value)} placeholder={t('products.colCategory')} className={inputClass} />
-              </div>
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">{t('products.colSupplier')}</label>
-              <select value={formSupplierId} onChange={e => setFormSupplierId(e.target.value)} className={inputClass}>
-                <option value="">{t('products.noSupplier')}</option>
-                {suppliers.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-muted-foreground">{t('products.stockQty')}</label>
-                <input value={formStock} onChange={e => setFormStock(e.target.value)} type="number" className={inputClass} />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground">{t('products.lowStockThreshold')}</label>
-                <input value={formThreshold} onChange={e => setFormThreshold(e.target.value)} type="number" className={inputClass} />
-              </div>
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">{t('products.daysOfSupply', { defaultValue: 'Days of supply per package' })}</label>
-              <input value={formSupply} onChange={e => setFormSupply(e.target.value)} type="number" className={inputClass} />
-              <p className="text-[10px] text-muted-foreground mt-0.5">{t('products.daysOfSupplyHint', { defaultValue: 'Used by “Due to Reorder” recall. 15 = a 30-capsule pack; a 4-pack = 60.' })}</p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditProduct(null)}>{t('common.cancel')}</Button>
-            <Button onClick={handleUpdate} disabled={saving}>{saving ? t('products.savingDots') : t('common.save')}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Inventory Logs Dialog */}
-      <Dialog open={!!logsProduct} onOpenChange={open => !open && setLogsProduct(null)}>
+      {/* Inventory log */}
+      <Dialog open={!!logsProduct} onOpenChange={(open) => !open && setLogsProduct(null)}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Inventory Logs – {logsProduct?.name}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="break-words pr-6">{t('products.inventoryLogsOf', { name: logsProduct?.name ?? '' })}</DialogTitle></DialogHeader>
           {logsLoading ? (
             <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
           ) : logs.length === 0 ? (
-            <EmptyState
-              icon={<History className="h-5 w-5" />}
-              title={t('products.noInventoryChanges')}
-              size="sm"
-              className="border-0 bg-transparent"
-            />
+            <EmptyState icon={<History className="h-5 w-5" />} title={t('products.noInventoryChanges')} size="sm" className="border-0 bg-transparent" />
           ) : (
-            <div className="max-h-80 overflow-y-auto space-y-2">
-              {logs.map(log => (
-                <div key={log.id} className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm">
-                  <div>
+            <div className="max-h-80 space-y-2 overflow-y-auto">
+              {logs.map((log) => (
+                <div key={log.id} className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm">
+                  <div className="min-w-0">
                     <span className={`font-semibold ${log.change_amount > 0 ? 'text-emerald-600' : 'text-destructive'}`}>
                       {log.change_amount > 0 ? '+' : ''}{log.change_amount}
                     </span>
                     <span className="ml-2 text-muted-foreground">{log.previous_stock} → {log.new_stock}</span>
                   </div>
-                  <div className="text-right">
-                    <Badge variant="secondary" className="text-xs">{log.reason}</Badge>
-                    <p className="text-xs text-muted-foreground mt-0.5">{new Date(log.created_at).toLocaleString()}</p>
+                  <div className="min-w-0 text-right">
+                    <Badge variant="secondary" className="max-w-full truncate text-xs">{log.reason}</Badge>
+                    <p className="mt-0.5 text-xs text-muted-foreground">{formatDate(log.created_at, 'dd.MM.yyyy HH:mm')}</p>
                   </div>
                 </div>
               ))}
