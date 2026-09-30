@@ -187,7 +187,8 @@ function HomeFields({ value, onChange, disabled }: { value: DeliveryValue; onCha
     // Resolve the prefilled city to a settlement id (exact name match) so the
     // street autocomplete works when editing an existing order.
     let cancelled = false;
-    const base = value.city.replace(/^\s*(гр\.?|с\.?|село|град)\s*/i, '').split(',')[0].trim();
+    // The marker needs a dot or a space after it — a bare `с.?` ate the С of Скопје.
+    const base = value.city.replace(/^\s*(?:[Гг]р\.|[Гг]р\s+|[Гг]рад\s+|[Сс]ело\s+|[Сс]\.|[Сс]\s+)\s*/, '').split(',')[0].trim();
     if (base.length < 2) return;
     apiSearchSettlements(base).then(list => {
       if (cancelled) return;

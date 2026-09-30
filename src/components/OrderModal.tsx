@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { apiErrorText } from '@/i18n/apiErrors';
 import { useTranslation } from 'react-i18next';
 import {
-  Phone, FileText, Loader2, X, ChevronDown, ChevronUp, Save,
+  Phone, FileText, Loader2, ChevronDown, ChevronUp,
   Plus, Trash2, ShoppingCart, CalendarIcon, Shield, Check
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -40,8 +40,12 @@ import {
 // Convert at the input boundary — never let a euro figure reach the screen.
 import { formatMoney, eurToDen, denToEur } from '@/lib/currency';
 import { cleanNoteForDisplay } from '@/lib/notes';
-import { DeliveryMethodPicker, type DeliveryValue } from '@/components/DeliveryMethodPicker';
 import { resolveDeliveryPrefill, composeHomeAddress } from '@/lib/address';
+import { orderFormGaps, isOfficeDelivery, type OrderFormGap } from '@/lib/orderForm';
+import { OrderFormShell } from '@/components/order/OrderFormShell';
+import { CourierNoteField } from '@/components/order/CourierNoteField';
+import { AddressFields } from '@/components/address/AddressFields';
+import { useAddressResolution, EMPTY_ADDRESS, type AddressDraft } from '@/components/address/useAddressResolution';
 import { CancellationReasonPicker } from '@/components/CancellationReasonPicker';
 import { OrderOriginPanel } from '@/components/OrderOriginPanel';
 import { TrashReasonPicker } from '@/components/TrashReasonPicker';
@@ -193,14 +197,12 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
   const [customerAddress, setCustomerAddress] = useState('');
   const [customerCity, setCustomerCity] = useState('');
   const [postalCode, setPostalCode] = useState('');
-  // Delivery method (Phase 6 — replaces the standalone street/apartment/...
-  // fields with a unified picker that also handles courier-office choices).
-  const [delivery, setDelivery] = useState<DeliveryValue>({
-    delivery_type: 'home',
-    street: '', street_number: '', quarter: '', apartment: '', floor: '', block: '', entry: '', city: '', postal_code: '',
-    home_courier: 'mex',
-    courier_office_code: '', courier_office_name: '', courier_office_city: '',
-  });
+  // The address — the same fields, picker and server-side zone as the create /
+  // confirm form (src/components/address/*). settlement_id is what the agent
+  // picked; the MEX zone is derived from it on the server.
+  const [delivery, setDelivery] = useState<AddressDraft>(EMPTY_ADDRESS);
+  const resolution = useAddressResolution(delivery, setDelivery);
+  const [addressGaps, setAddressGaps] = useState<OrderFormGap[]>([]);
   const [deliveryInstructions, setDeliveryInstructions] = useState('');
   const [giftNote, setGiftNote] = useState('');
   const [callNotes, setCallNotes] = useState('');
@@ -239,13 +241,8 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
     setCustomerCity(data.city || '');
     setPostalCode(data.postalCode || '');
     // Granular address + delivery type populated from the apiGetOrder fetch below.
-    setDelivery({
-      delivery_type: 'home',
-      street: '', street_number: '', quarter: '', apartment: '', floor: '', block: '', entry: '',
-      city: data.city || '', postal_code: data.postalCode || '',
-      home_courier: 'mex',
-      courier_office_code: '', courier_office_name: '', courier_office_city: '',
-    });
+    setDelivery({ ...EMPTY_ADDRESS, city: data.city || '', postal_code: data.postalCode || '' });
+    setAddressGaps([]);
     setDeliveryInstructions('');
     setGiftNote('');
     setCallNotes(data.notes || '');
@@ -289,7 +286,8 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
         // resolver so courier-office orders open on the courier tab and the
         // office string never lands in Home Address → City.
         if (!isLead && fullOrder) {
-          setDelivery(resolveDeliveryPrefill(fullOrder));
+          // Its picked settlement when it has one, else the stored text is resolved.
+          void resolution.hydrate({ ...resolveDeliveryPrefill(fullOrder), settlement_id: fullOrder.settlement_id || null });
           setDeliveryInstructions(fullOrder.delivery_instructions || '');
           setGiftNote(fullOrder.gift_note || '');
           // Pre-select the reasons already on the order (GET /orders/:id is a
@@ -371,6 +369,8 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
   const subtotal = activeItems.reduce((sum, i) => sum + calcRowTotal(i.quantity, i.price_per_unit), 0);
   const finalTotal = Math.round(subtotal * 100) / 100;
   const remainingBalance = Math.max(0, Math.round((finalTotal - amountPaid) * 100) / 100);
+  // MEX already has the parcel — its address can no longer change.
+  const addressLocked = !isLead && !!fullOrderData?.mex_tracking_id;
 
   // Product helpers
   const addProductRow = () => {
@@ -493,6 +493,24 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
         return;
       }
     }
+    // Turning an order INTO a confirmed one sends it to the warehouse and MEX:
+    // the same address rules as the create / confirm form (a place from the
+    // list, the district where the city needs one, street + number or building).
+    if (!isLead && !addressLocked && selectedStatus === 'confirmed' && data.status !== 'confirmed') {
+      const gaps = orderFormGaps({
+        status: 'confirmed', name: customerName, phone: customerPhone, itemCount: activeItems.length, address: delivery,
+        zone: resolution.zone ? { requires_district: resolution.zone.requires_district, district_id: resolution.zone.district_id } : null,
+      }).filter((g) => g === 'settlement' || g === 'district' || g === 'street' || g === 'office');
+      setAddressGaps(gaps);
+      if (gaps.length) {
+        toast({
+          title: t('orderForm.missing', { list: gaps.map((g) => t(`orderForm.gap.${g}`)).join(', ') }),
+          variant: 'destructive',
+        });
+        document.querySelector<HTMLElement>(`[data-testid="order-form-shell"] [data-gap="${gaps[0]}"]`)?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+        return;
+      }
+    }
 
     setSaving(true);
     try {
@@ -551,12 +569,12 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
         // Order: update customer info first. Composed customer_address kept
         // in sync so the Orders list (single-line column) keeps showing
         // something readable.
-        const composedAddress = delivery.delivery_type === 'home'
+        const composedAddress = !isOfficeDelivery(delivery.delivery_type)
           ? composeHomeAddress(delivery)
           : `[${delivery.delivery_type === 'speedy_office' ? 'Speedy' : delivery.delivery_type === 'mex_office' ? 'MEX' : 'Econt'}] ${delivery.courier_office_city} — #${delivery.courier_office_code} ${delivery.courier_office_name}`.trim();
-        await apiUpdateCustomer(data.id, {
-          customer_name: customerName.trim(),
-          customer_phone: customerPhone.trim(),
+        // Once MEX has the parcel the address is a fact at the courier: it is not
+        // sent at all (the server refuses a change too — 409 address_locked).
+        const addressFields = addressLocked ? {} : {
           customer_address: composedAddress,
           customer_city: delivery.city.trim(),
           postal_code: delivery.postal_code.trim(),
@@ -567,13 +585,18 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
           floor: delivery.floor.trim(),
           block: delivery.block.trim(),
           entry: delivery.entry.trim(),
+          settlement_id: delivery.settlement_id,
           delivery_type: delivery.delivery_type,
           home_courier: delivery.home_courier,
           courier_office_code: delivery.courier_office_code,
           courier_office_name: delivery.courier_office_name,
           courier_office_city: delivery.courier_office_city,
+        };
+        await apiUpdateCustomer(data.id, {
+          customer_name: customerName.trim(),
+          customer_phone: customerPhone.trim(),
+          ...addressFields,
           delivery_instructions: deliveryInstructions.trim(),
-          gift_note: giftNote.trim(),
           ship_after_date: shipAfterDate ? format(shipAfterDate, 'yyyy-MM-dd') : null,
         });
         // Sync items only if order is NOT in a locked status AND not transitioning TO locked
@@ -642,71 +665,73 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
 
   if (!open || !data) return null;
 
+  const headerTitle = (
+    <span className="inline-flex items-center gap-2">
+      <Phone className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+      <span className="min-w-0 break-words">
+        {t('orderModal.title')} {data.displayId ? `— ${data.displayId}` : ''}
+        {readOnly && <span className="ml-2 text-xs font-normal text-muted-foreground">{t('orderModal.viewOnly')}</span>}
+      </span>
+    </span>
+  );
+  const headerSubtitle = (
+    <span className="flex flex-wrap items-center gap-2">
+      <a href={`tel:${customerPhone}`} className="font-mono text-primary hover:underline">{customerPhone}</a>
+      {assignedAgentName && (
+        <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+          <span className="text-muted-foreground/50">·</span>
+          <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary/10 text-[8px] font-bold text-primary">
+            {assignedAgentName.charAt(0).toUpperCase()}
+          </span>
+          {assignedAgentName}
+        </span>
+      )}
+    </span>
+  );
+
   return (
-    <>
-      <div className="fixed inset-0 z-50 bg-black/60" onClick={() => onClose()} />
-
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
-        <div className={cn(
-          'relative w-full max-w-2xl bg-card border rounded-xl shadow-2xl flex flex-col max-h-[92vh] pointer-events-auto',
-          'animate-in fade-in-0 zoom-in-95 duration-200'
-        )}>
-          {/* Close */}
-          <button
-            onClick={() => onClose()}
-            className="absolute right-3 top-3 z-10 rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          >
-            <X className="h-4 w-4" />
-          </button>
-
-          {/* Header */}
-          <div className="flex items-center gap-3 border-b px-5 py-3 pr-10">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 shrink-0">
-              <Phone className="h-4 w-4 text-primary" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <h2 className="font-semibold text-card-foreground text-sm truncate">
-                 {t('orderModal.title')} {data.displayId ? `— ${data.displayId}` : ''}
-                 {readOnly && <span className="text-xs font-normal text-muted-foreground ml-2">{t('orderModal.viewOnly')}</span>}
-               </h2>
-              <div className="flex items-center gap-2 flex-wrap">
-                <a href={`tel:${customerPhone}`} className="text-xs font-mono text-primary hover:underline">
-                  {customerPhone}
-                </a>
-                {assignedAgentName && (
-                  <span className="text-[10px] text-muted-foreground inline-flex items-center gap-1">
-                    <span className="text-muted-foreground/50">·</span>
-                    <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary/10 text-[8px] font-bold text-primary">
-                      {assignedAgentName.charAt(0).toUpperCase()}
-                    </span>
-                    {assignedAgentName}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Scrollable body */}
-          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+    <OrderFormShell
+      open={open}
+      onClose={() => onClose()}
+      title={headerTitle}
+      subtitle={headerSubtitle}
+      total={formatMoney(finalTotal)}
+      secondary={[{ key: 'close', label: readOnly ? t('common.close') : t('common.cancel'), onClick: () => onClose() }]}
+      primary={isEditable ? {
+        key: 'save',
+        label: t('common.save'),
+        onClick: handleSave,
+        loading: saving,
+        disabled: saving || ((isLead || !isAdmin) && !selectedOutcome && !(!isLead && selectedStatus === 'confirmed')),
+      } : undefined}
+    >
+          <div className="space-y-5">
             {/* A) Customer Info */}
             <section>
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{t('orderModal.customerInfo')}</h3>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="min-w-0">
                   <label className="text-xs text-muted-foreground mb-1 block">{t('orderModal.name')}</label>
-                  <Input value={customerName} onChange={e => setCustomerName(e.target.value)} className="h-8 text-sm" disabled={!isEditable} />
+                  <Input value={customerName} onChange={e => setCustomerName(e.target.value)} className="h-11 text-base md:h-8 md:text-sm" disabled={!isEditable} />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <label className="text-xs text-muted-foreground mb-1 block">{t('orderModal.phone')}</label>
-                  <Input value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} className="h-8 text-sm font-mono" disabled={!isEditable} />
+                  <Input value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} className="h-11 text-base font-mono md:h-8 md:text-sm" disabled={!isEditable} />
                 </div>
               </div>
 
-              {/* Delivery method picker (Phase 6) — handles home address fields
-                  AND courier-office selection in one component. */}
+              {/* The address — the same fields, picker and server-side MEX zone as
+                  the create / confirm form; read-only once MEX has the parcel. */}
               {!isLead && (
                 <div className="mt-3">
-                  <DeliveryMethodPicker value={delivery} onChange={setDelivery} disabled={!isEditable} />
+                  <AddressFields
+                    value={delivery}
+                    onChange={setDelivery}
+                    resolution={resolution}
+                    gaps={addressGaps}
+                    locked={addressLocked}
+                    disabled={!isEditable}
+                  />
                 </div>
               )}
 
@@ -724,17 +749,16 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
                 </div>
               )}
 
-              {/* Delivery instructions + gift (orders only) */}
+              {/* "За курирот" — MEX Opis, the only text the courier sees. A gift
+                  is no longer taken on orders; an old one stays visible. */}
               {!isLead && (
-                <div className="grid grid-cols-1 gap-2 mt-3">
-                  <div>
-                    <label className="text-[10px] text-muted-foreground mb-0.5 block uppercase tracking-wide">{t('orderModal.deliveryInfo')}</label>
-                    <Textarea value={deliveryInstructions} onChange={e => setDeliveryInstructions(e.target.value)} className="text-sm min-h-[44px]" placeholder={t('orderModal.deliveryPlaceholder')} disabled={!isEditable} />
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-muted-foreground mb-0.5 block uppercase tracking-wide">{t('orderModal.giftVoucher')}</label>
-                    <Input value={giftNote} onChange={e => setGiftNote(e.target.value)} className="h-8 text-sm" placeholder={t('orderModal.giftPlaceholder')} disabled={!isEditable} />
-                  </div>
+                <div className="mt-3 space-y-2">
+                  <CourierNoteField value={deliveryInstructions} onChange={setDeliveryInstructions} disabled={!isEditable} />
+                  {giftNote && (
+                    <div className="rounded-md border bg-muted/30 px-2.5 py-1.5 text-xs">
+                      <span className="text-muted-foreground">{t('orderForm.giftReadOnly')}:</span> {giftNote}
+                    </div>
+                  )}
                 </div>
               )}
             </section>
@@ -1298,26 +1322,6 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
               </section>
             )}
           </div>
-
-          {/* Footer */}
-          <div className="border-t px-5 py-3 flex items-center justify-end gap-2 bg-card rounded-b-xl">
-            <Button variant="outline" size="sm" onClick={() => onClose()}>
-              {readOnly ? t('common.close') : t('common.cancel')}
-            </Button>
-            {isEditable && (
-              <Button
-                size="sm"
-                onClick={handleSave}
-                disabled={saving || ((isLead || !isAdmin) && !selectedOutcome && !(!isLead && selectedStatus === 'confirmed'))}
-                className="gap-1.5"
-              >
-                {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                {t('common.save')}
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
-    </>
+    </OrderFormShell>
   );
 }
