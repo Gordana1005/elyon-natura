@@ -16,6 +16,7 @@
  *
  *   node scripts/apply-brand-lines.mjs                          # dry run (default): what would be set
  *   node scripts/apply-brand-lines.mjs --days 180 --min-parcels 10
+ *   node scripts/apply-brand-lines.mjs --min-parcels 10 --bio-by-name-only   (Bio Natural only by name)
  *   node scripts/apply-brand-lines.mjs --from-json proposal.json  # dry run from a saved proposal (offline)
  *   node scripts/apply-brand-lines.mjs --apply --actor <admin auth uuid>
  *
@@ -83,7 +84,7 @@ async function loadProposal(days, fromJson) {
 }
 
 async function main() {
-  const args = parseArgs(process.argv.slice(2), { flags: ['apply', 'help'], values: ['actor', 'days', 'min-parcels', 'from-json'] });
+  const args = parseArgs(process.argv.slice(2), { flags: ['apply', 'help', 'bio-by-name-only'], values: ['actor', 'days', 'min-parcels', 'from-json'] });
   if (args.help) { console.log('usage: see the header of scripts/apply-brand-lines.mjs'); return; }
   const APPLY = !!args.apply;
   const days = args.days ? Number(args.days) : 180;
@@ -104,7 +105,13 @@ async function main() {
     ` · conflicts ${s.conflicts} · hints Ad Astra ${s.hints?.ad_astra ?? 0} / Dr.Becker ${s.hints?.dr_becker ?? 0} · already decided ${s.decided}`);
 
   const rows = proposal.rows;
-  const { plan, skipped } = planBrandLines(rows, { minParcels });
+  const planned = planBrandLines(rows, { minParcels });
+  // --bio-by-name-only: a Bio Natural line only from a Bio Natural NAME (the anchors). A product that merely
+  // shipped via BIO NATURAL may be an affiliate sale of a Natura Therapy product — the owner decides those.
+  const plan = args['bio-by-name-only']
+    ? planned.plan.map((c) => (c.line === 'bio_natural' ? { ...c, rows: c.rows.filter((r) => r.confidence === 'anchor') } : c))
+    : planned.plan;
+  const skipped = planned.skipped;
   const total = plan.reduce((n, c) => n + c.rows.length, 0);
 
   console.log(bold(`\nWould set ${total} lines`) + ` (min parcels for a ≥90% row: ${minParcels}):`);
