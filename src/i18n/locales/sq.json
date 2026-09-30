@@ -1539,6 +1539,10 @@
       "title": "Pa aktivitet për {{minutes}} minuta",
       "body": "Në ekran nuk është bërë asgjë prej {{minutes}} minutash. Nëse je në pushim, shtyp 'Bëj pushim'."
     },
+    "shiftsRunway": {
+      "title": "Turnet po mbarojnë",
+      "body": "{{count}} agjentë nuk kanë turn pas {{date}} — pa turn nuk mund të hyjnë. Kaloni muajin te Turnet."
+    },
     "orderPaid": {
       "title": "Porosia u pagua",
       "body": "Porosia {{order}} ({{customer}}) u pagua — {{amount}}."
@@ -4248,8 +4252,8 @@
       },
       "team": {
         "byKey": {
-          "altercpa_leads": "Në pritje — Affiliate – Lead in",
-          "crm_prediction": "Parashikime — Affiliate – Lead out",
+          "altercpa_leads": "Affiliate",
+          "crm_prediction": "Teleshop",
           "management": "Menaxhmenti",
           "social": "Rrjetet sociale / collabBox",
           "teleshop": "Teleshop / collabBox",
@@ -5633,8 +5637,8 @@
     "targetEarners": "e marrin {{n}} anëtarë të ekipit me shitje",
     "reversedHint": "Të kthyera ose të anuluara pas shitjes — nuk numërohen",
     "team": {
-      "crm_prediction": "Parashikim",
-      "altercpa_leads": "Në pritje",
+      "crm_prediction": "Teleshop",
+      "altercpa_leads": "Affiliate",
       "management": "Menaxhmenti"
     },
     "web": {

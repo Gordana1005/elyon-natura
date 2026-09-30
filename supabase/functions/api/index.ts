@@ -51,6 +51,7 @@ import * as SL from "./stockLedger.ts";
 // validation, the exact response shapes, notifications, audit, the realtime
 // broadcast body (pure, unit-tested in assigner.test.ts).
 import * as ASG from "./assigner.ts";
+import * as DISP from "./dispositions.ts";
 
 // ============================================================
 // INPUT VALIDATION SCHEMAS
@@ -5293,10 +5294,26 @@ async function handleRequest(req: Request): Promise<Response> {
         resolvedCustomerName = (await resolveKnownCustomerName(body.customer_phone)) || resolvedCustomerName;
       }
 
+      // A /calls cancel/trash record carries the customer's LAST PURCHASED product.
+      // The page can't see it (RLS scopes an agent's GET /orders to their own
+      // orders), so it sends a placeholder; fill it here from the full history —
+      // last-8 match, the sale before now (migration 20260943000200).
+      let resolvedProductId = body.product_id;
+      if (body.customer_phone && DISP.needsServerProduct({ status, hasItems: !!hasItems, productName: productSummary })) {
+        const { data: lastSale } = await adminClient
+          .rpc("last_sale_product", { p_phone: body.customer_phone })
+          .maybeSingle();
+        const filled = DISP.productFromLastSale(lastSale as any);
+        if (filled) {
+          productSummary = filled.productName;
+          resolvedProductId = filled.productId ?? undefined;
+        }
+      }
+
       const { data: order, error: orderErr } = await adminClient
         .from("orders")
         .insert({
-          product_id: body.product_id,
+          product_id: resolvedProductId,
           product_name: productSummary,
           customer_name: resolvedCustomerName,
           customer_phone: body.customer_phone,
@@ -14523,6 +14540,18 @@ async function handleRequest(req: Request): Promise<Response> {
       const body = await req.json();
       const source = body._source; // "order" or "prediction_lead"
 
+      // Status is NOT set from the warehouse (owner audit 30.09.2026): this route had an
+      // any-status dropdown (paid included) that skipped every rule of
+      // /orders/:id/status, and a "Mark shipped" with no parcel. MEX decides
+      // shipped / paid / returned; other status changes go through the order window.
+      // The status branches below stay unreachable until the packing tab is rebuilt.
+      if (body.status !== undefined) {
+        return json({
+          error: "Status is not changed from the warehouse. MEX decides shipped / paid / returned; use the order window for anything else.",
+          code: "warehouse_status_disabled",
+        }, 400);
+      }
+
       if (source === "prediction_lead") {
         // Packing applies to orders only — an unconverted lead has no orders row.
         if (body.packed !== undefined) {
@@ -14775,9 +14804,25 @@ async function handleRequest(req: Request): Promise<Response> {
 
     // DELETE /api/warehouse/incoming-orders/:id
     if (req.method === "DELETE" && segments[0] === "warehouse" && segments[1] === "incoming-orders" && segments.length === 3) {
-      if (!canViewModule("warehouse_incoming")) return json({ error: "Forbidden" }, 403);
+      // Hard delete of an order with its notes + history: admins only, and audited
+      // (owner audit 30.09.2026 — view permission used to be enough, for any order,
+      // paid included, and it left no trace).
+      if (!isAdmin) return json({ error: "Only an admin can delete an order", code: "admin_only" }, 403);
       const itemId = segments[2];
       const source = url.searchParams.get("source");
+
+      if (source !== "prediction_lead") {
+        const { data: doomed } = await adminClient.from("orders")
+          .select("id, display_id, status, customer_name, customer_phone, price, sale_source, mex_tracking_id, created_at")
+          .eq("id", itemId).maybeSingle();
+        if (!doomed) return json({ error: "Order not found" }, 404);
+        await adminClient.from("audit_log").insert({
+          actor_id: user.id, actor_email: user.email,
+          action: "order.hard_delete", target_type: "order", target_id: itemId,
+          target_name: doomed.display_id ?? null,
+          payload: { via: "warehouse", order: doomed },
+        });
+      }
 
       if (source === "prediction_lead") {
         // Delete linked order first if exists

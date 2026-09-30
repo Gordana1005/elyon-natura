@@ -69,8 +69,8 @@ describe('AgentBoard', () => {
   it('shows the live counters, the translated team badge and the shift in the title', () => {
     render(<Harness agents={BOARD_AGENTS} />);
     const ana = screen.getByTitle(/^Ана Петровска · /);
-    // the team as the TV board names it, in Macedonian — never the English DB name
-    expect(ana).toHaveTextContent('На чекање');
+    // the team as the TV board names it (the business line, owner 30.09) — never the English DB name
+    expect(ana).toHaveTextContent('Affiliate');
     expect(ana).not.toHaveTextContent('Pending — AlterCPA leads');
     // the shift rides in the tile's title (the compact tile has no room for it)
     expect(ana.getAttribute('title')).toContain('08:00–16:00');

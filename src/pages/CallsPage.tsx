@@ -23,7 +23,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useActiveCallView } from '@/hooks/useActiveCallView';
 import { hoverLift } from '@/lib/design-utils';
-import { isSyntheticProductName } from '@/lib/utils';
 import { EmptyState } from '@/components/EmptyState';
 import { sortPendingQueue, pickNextPending as pickNextFromSorted } from '@/lib/pendingQueue';
 import { predictionListLabel } from '@/lib/predictionListLabel';
@@ -779,27 +778,6 @@ export default function CallsPage() {
     [ordersData]
   );
 
-  // Most recent REAL product this customer ordered — used as the product on
-  // cancel/trash records (never a placeholder / first-in-catalogue default).
-  //
-  // It must skip EVERY synthetic placeholder, not just '—'. A cancel record is
-  // the customer's newest order, so on the next call it is the first row scanned;
-  // treating its "No prior product on file" as a product copied that placeholder
-  // forward forever and hid the real purchase sitting one row below.
-  const lastRealProduct = (orders: any[]): { name: string; productId: string | null } => {
-    for (const o of orders || []) {
-      const items = o.order_items || [];
-      if (items.length > 0) {
-        const named = items.filter((i: any) => i.product_name && !isSyntheticProductName(i.product_name));
-        if (named.length > 0) {
-          return { name: named.map((i: any) => i.product_name).join(', '), productId: named.length === 1 ? (named[0].product_id ?? null) : null };
-        }
-      }
-      if (!isSyntheticProductName(o.product_name)) return { name: o.product_name, productId: o.product_id ?? null };
-    }
-    return { name: '', productId: null };
-  };
-
   // Human labels for the cancellation reasons (used when creating synthetic records
   // so the expanded view on /orders shows nice full text instead of just the key).
   // Shared source of truth — see @/lib/cancellationReasons.
@@ -847,9 +825,10 @@ export default function CallsPage() {
     });
   }, [phoneReady, selectedPhone, currentPendingOrderId, activePendingOrder, chooseOpenOrder]);
 
-  // Fetch this customer's recent orders fresh so the recorded name + product
-  // always match the customer on screen (not a lagging memo). Returns the
-  // best name + their most recent real product.
+  // Fetch this customer's recent orders fresh so the recorded name always matches
+  // the customer on screen (not a lagging memo). The PRODUCT is not decided here:
+  // POST /orders fills the last purchase from the full history (an agent's order
+  // search only returns their own orders — see the cancel handler below).
   const resolveCustomerForRecord = useCallback(async (phone: string) => {
     let recent: any[] = ordersData?.orders || [];
     try {
@@ -857,8 +836,7 @@ export default function CallsPage() {
       if (data?.orders?.length) recent = data.orders;
     } catch { /* fall back to cached */ }
     const name = recent[0]?.customer_name || currentCustomerName || undefined;
-    const product = lastRealProduct(recent);
-    return { name, product };
+    return { name };
   }, [ordersData, currentCustomerName]);
 
   // Cancel → record a cancelled order (reason + note + the customer's past
@@ -895,20 +873,21 @@ export default function CallsPage() {
     }
 
     try {
-      const { name, product } = await resolveCustomerForRecord(phone);
-      const priorName = product.name || '';
+      const { name } = await resolveCustomerForRecord(phone);
       const reasonLabel = cancelReasonLabel(reason);
       const fullReasonText = notes ? `${reasonLabel}\n\n${notes}` : reasonLabel;
 
+      // The product is the customer's LAST PURCHASE, filled by POST /orders from the
+      // full history (last_sale_product). This page can't see it: RLS scopes an
+      // agent's order search to their own orders, which is how 7.170 records ended
+      // up as the placeholder below (owner audit, 30.09.2026).
       await apiCreateOrder({
-        product_id: product.productId,
-        product_name: priorName || 'No prior product on file',
+        product_name: 'No prior product on file',
         customer_name: name,
         customer_phone: phone,
         status: 'cancelled',
         cancellation_reason: reason,
         cancellation_reason_notes: fullReasonText,
-        notes: priorName ? `Prior product: ${priorName}` : undefined,
       });
       toast({ title: t('callsPage.cancellationRecorded'), description: t('callsPage.savedToHistory') });
       finishOutcome(phone, 'cancelled');
@@ -952,17 +931,15 @@ export default function CallsPage() {
     }
 
     try {
-      const { name, product } = await resolveCustomerForRecord(phone);
-      const priorName = product.name || '';
+      const { name } = await resolveCustomerForRecord(phone);
+      // Product = last purchase, filled server-side (see the cancel handler above).
       await apiCreateOrder({
-        product_id: product.productId,
-        product_name: priorName || 'No prior product on file',
+        product_name: 'No prior product on file',
         customer_name: name,
         customer_phone: phone,
         status: 'trashed',
         trash_reason: trashReason,
         trash_reason_notes: trashNotes,
-        notes: priorName ? `Prior product: ${priorName}` : undefined,
       });
       toast({ title: t('callsPage.markedTrash'), description: t('callsPage.savedToHistory') });
       finishOutcome(phone, 'trash');

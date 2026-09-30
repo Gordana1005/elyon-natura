@@ -1495,6 +1495,10 @@
       "title": "Без активност {{minutes}} минути",
       "body": "На екранот ништо не е направено веќе {{minutes}} минути. Ако си на пауза, притисни „Земи пауза“."
     },
+    "shiftsRunway": {
+      "title": "Смените истекуваат",
+      "body": "{{count}} агенти немаат смена по {{date}} — без смена не можат да се најават. Пренесете го месецот во Смени."
+    },
     "orderPaid": {
       "title": "Нарачката е платена",
       "body": "Нарачката {{order}} ({{customer}}) е платена — {{amount}}."
@@ -4204,8 +4208,8 @@
       },
       "team": {
         "byKey": {
-          "altercpa_leads": "На чекање — Affiliate – Lead in",
-          "crm_prediction": "Прогнози — Affiliate – Lead out",
+          "altercpa_leads": "Affiliate",
+          "crm_prediction": "Телешоп",
           "management": "Менаџмент",
           "social": "Социјални мрежи / collabBox",
           "teleshop": "Телешоп / collabBox",
@@ -5589,8 +5593,8 @@
     "targetEarners": "го добиваат {{n}} членови на тимот со продажба",
     "reversedHint": "Вратени или откажани по продажбата — не се бројат",
     "team": {
-      "crm_prediction": "Прогнози",
-      "altercpa_leads": "На чекање",
+      "crm_prediction": "Телешоп",
+      "altercpa_leads": "Affiliate",
       "management": "Менаџмент"
     },
     "web": {

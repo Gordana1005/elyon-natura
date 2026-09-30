@@ -1539,6 +1539,10 @@
       "title": "Inactive for {{minutes}} minutes",
       "body": "Nothing has been done on the screen for {{minutes}} minutes. If you are on a break, press Take Break."
     },
+    "shiftsRunway": {
+      "title": "Shifts are running out",
+      "body": "{{count}} agent(s) have no shift after {{date}} — without a shift they cannot log in. Roll the month over in Shifts."
+    },
     "orderPaid": {
       "title": "Order paid",
       "body": "Order {{order}} ({{customer}}) was paid — {{amount}}."
@@ -4248,8 +4252,8 @@
       },
       "team": {
         "byKey": {
-          "altercpa_leads": "Pending — Affiliate – Lead in",
-          "crm_prediction": "Prediction — Affiliate – Lead out",
+          "altercpa_leads": "Affiliate",
+          "crm_prediction": "Teleshop",
           "management": "Management",
           "social": "Social media / collabBox",
           "teleshop": "Teleshop / collabBox",
@@ -5633,8 +5637,8 @@
     "targetEarners": "paid to {{n}} team members with a sale",
     "reversedHint": "Returned or cancelled after the sale — not counted",
     "team": {
-      "crm_prediction": "Prediction",
-      "altercpa_leads": "Pending",
+      "crm_prediction": "Teleshop",
+      "altercpa_leads": "Affiliate",
       "management": "Management"
     },
     "web": {
