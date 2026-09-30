@@ -32,7 +32,11 @@ export const SINGLE_FALLBACK_STATUSES: ReadonlySet<string> = new Set([...OPEN_FO
 
 /** How a parcel came to belong to an order in THIS run's logic. */
 export type LinkMethod = "tracking" | "phone_cod" | "phone_single" | "upsell_revive";
-export type Target = "paid" | "returned" | "shipped";
+/** 'at_mex' = MEX 8 "Shipment created": за пакување — the order is (or becomes) confirmed,
+ *  never shipped, until the courier takes the parcel (owner 30.09.2026). */
+export type Target = "paid" | "returned" | "shipped" | "at_mex";
+/** MEX 8 "Shipment created" — registered, not collected by a driver yet. */
+export const AT_MEX_STATUS = 8;
 
 /** A list_shipments.php row, exactly as MEX returns it (`cod` is a STRING). */
 export interface MexShipment {
@@ -60,6 +64,8 @@ export interface OrderRow {
   source_type?: string | null;
   external_source?: string | null;
   cancellation_reason?: string | null;
+  /** When the parcel was created at MEX (20260943001200); stamped at MEX 8 if still NULL. */
+  mex_sent_at?: string | null;
 }
 
 /** MEX timestamps are Skopje local ("YYYY-MM-DD HH:MM:SS"). +02:00 is exact in
@@ -292,11 +298,34 @@ export function shipGate(o: OrderRow, method: LinkMethod): "open" | "rule_c" | n
   return null;
 }
 
-/** MEX status → CRM target: 2 Delivered → paid, 7 Returned → returned, any
- * other status → shipped (the parcel exists at the courier). */
+/** MEX status → CRM target (owner 30.09.2026 — the naturatherapy.mk semantics):
+ *   8 Shipment created                     → at_mex   (за пакување: confirmed, not shipped)
+ *   4 / 10 / 9 / 1 / 3 (and any other id)  → shipped  (the courier has the parcel)
+ *   2 Delivered                            → paid
+ *   7 Returned                             → returned */
 export function targetFor(statusId: unknown): Target {
   const id = Number(statusId);
-  return id === 2 ? "paid" : id === 7 ? "returned" : "shipped";
+  return id === 2 ? "paid" : id === 7 ? "returned" : id === AT_MEX_STATUS ? "at_mex" : "shipped";
+}
+
+/**
+ * What a parcel at MEX 8 does to its order. NEVER a status change:
+ *   'stamp'       — confirmed (or already shipped): mex_sent_at is stamped if NULL. A 'shipped'
+ *                   order at 8 stays shipped (forward-only — the ~260 of 30.09 are moved back
+ *                   once, by scripts/repair-shipped-at-mex8.mjs, never by the sweep).
+ *   'wait_pickup' — pending / take / call_again, or a cancel / trash rule C would revive: the
+ *                   order is left as it is until the courier takes the parcel (4/10/9/1/3), when
+ *                   shipGate moves it to shipped exactly as before. Confirming it here instead
+ *                   would stamp sold_at "now" and credit the old assigned agent —
+ *                   tg_orders_stamp_sold only skips a MEX revival into shipped / paid / returned
+ *                   (the leaderboard audit of 28.09, 20260942000800). AlterCPA confirms the open
+ *                   ones within minutes anyway, and the cohort (MEX-first) already counts the
+ *                   parcel as 'label'.
+ *   null          — nothing (paid / returned / delivered / duplicated, or rule C not satisfied).
+ */
+export function atMexGate(o: OrderRow, method: LinkMethod): "stamp" | "wait_pickup" | null {
+  if (o.status === "confirmed" || o.status === "shipped") return "stamp";
+  return shipGate(o, method) ? "wait_pickup" : null;
 }
 
 /** One row per tracking id, the LAST occurrence winning and keeping its later

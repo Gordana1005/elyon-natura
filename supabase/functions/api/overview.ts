@@ -251,9 +251,11 @@ export function buildOverviewResponse(
  *  buckets so a tile's link lists exactly what the tile counted. */
 const OUTCOME_CLAUSES: Record<string, string[]> = {
   awaiting: ["status.in.(pending,take,call_again,duplicated)"],
-  preparing: ["and(status.eq.confirmed,packed_at.is.null)"],
-  packed: ["and(status.eq.confirmed,packed_at.not.is.null)"],
-  courier: ["status.eq.shipped"],
+  // 'packed' = the parcel sits at MEX 8 "Shipment created" (за пакување) — 20260943001220, the
+  // cohort's 'label'; it replaced orders.packed_at (a click never used: 0 packed orders ever).
+  preparing: ["and(status.eq.confirmed,or(mex_tracking_id.is.null,mex_status_id.is.null,mex_status_id.neq.8))"],
+  packed: ["and(status.in.(confirmed,shipped),mex_tracking_id.not.is.null,mex_status_id.eq.8)"],
+  courier: ["and(status.eq.shipped,or(mex_tracking_id.is.null,mex_status_id.is.null,mex_status_id.neq.8))"],
   delivered: ["status.in.(paid,delivered)"],
   returned: ["status.eq.returned"],
   cancelled: ["status.eq.cancelled"],

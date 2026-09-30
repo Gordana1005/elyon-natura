@@ -47,8 +47,13 @@
  *    a prediction agent's 0 ден "No prior product on file" cancel — and flipped
  *    it to paid/returned (182 ghost rows by 2026-09-27).
  *
- * 3. APPLY — the truth the 2026-08-11 reconciliation established:
- *    any non-terminal status → shipped  (the parcel EXISTS at the courier —
+ * 3. APPLY — the truth the 2026-08-11 reconciliation established, with MEX 8 split off
+ *    (owner 30.09.2026, the naturatherapy.mk semantics — match.ts targetFor / atMexGate):
+ *    8 Shipment created → за пакување: NO status change. A confirmed (or shipped) order gets
+ *                       orders.mex_sent_at (the parcel's creation) if NULL; an open one, or a
+ *                       cancel rule C would revive, waits for the pickup (then → shipped as
+ *                       below). NEVER shipped at 8: the courier has not taken it yet.
+ *    4/10/9/1/3/… → shipped  (the courier HAS the parcel —
  *                       forward-only from pending/take/call_again/confirmed.
  *                       Rule C, MEX outranks AlterCPA: also from an AlterCPA
  *                       cancelled/trashed order, or one cancelled 'no_parcel_7d',
@@ -68,7 +73,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
-  COD_TOLERANCE_MKD, DAY, DELIVERY_MKD, MKD_PER_EUR, dedupeShipments, hasSaleValue,
+  COD_TOLERANCE_MKD, DAY, DELIVERY_MKD, MKD_PER_EUR, atMexGate, dedupeShipments, hasSaleValue,
   isNegativeCod, isRegisterOnlyRun, mexDate, mkE164, parseCod, pickCandidate,
   rememberedLinkMethod, resolveHolder, shipGate, targetFor,
 } from "./match.ts";
@@ -84,7 +89,7 @@ const REGISTER_BATCH = 500;        // mex_upsert_parcels takes ≤ 500 rows per 
 const KINDS = ["rolling", "backfill", "manual", "register"];
 // What matching reads, on remembered holders and fresh candidates alike. One
 // literal on purpose: supabase-js types a select from its literal string.
-const ORDER_COLS = "id, status, price, created_at, mex_tracking_id, customer_phone, product_name, source_type, external_source, cancellation_reason";
+const ORDER_COLS = "id, status, price, created_at, mex_tracking_id, customer_phone, product_name, source_type, external_source, cancellation_reason, mex_sent_at";
 
 /** A fetched shipment tagged with the account whose list it came from. */
 type FetchedShipment = MexShipment & { account: string };
@@ -169,7 +174,7 @@ serve(async (req: Request) => {
   }
 
   const stats = {
-    fetched: 0, matched: 0, paid_applied: 0, returned_applied: 0, shipped_applied: 0,
+    fetched: 0, matched: 0, paid_applied: 0, returned_applied: 0, shipped_applied: 0, at_mex_applied: 0,
     register: { upserted: 0, delivered_new: 0, returned_new: 0, orders_synced: 0 },
     skipped: {} as Record<string, number>,
   };
@@ -354,6 +359,25 @@ serve(async (req: Request) => {
           }
         }
 
+        // MEX 8 "Shipment created" = за пакување (owner 30.09.2026): the parcel exists but no
+        // driver has it, so the order is confirmed — never shipped — until 4/10/9/1/3 arrives.
+        // Never a status change at 8 (match.ts atMexGate): a confirmed / shipped order only gets
+        // mex_sent_at; an open or cancelled one waits for the pickup, when shipGate moves it.
+        if (target === "at_mex") {
+          const gate = atMexGate(order, method);
+          if (gate === "wait_pickup") { bump("at_mex_waits_for_pickup"); continue; }
+          if (!gate) { bump("at_mex_no_op"); continue; }
+          if (order.mex_sent_at) { bump("unchanged"); continue; }
+          if (dry) { bump("would_stamp_mex_sent_at"); continue; }
+          const sentAt = (mexDate(s.created_at) ?? when).toISOString();
+          const { error: stampErr } = await admin.from("orders").update({ mex_sent_at: sentAt })
+            .eq("id", order.id).is("mex_sent_at", null);
+          if (stampErr) { bump("update_failed"); console.error(`mex-reconcile stamp ${s.tracking_id}:`, stampErr.message); continue; }
+          order.mex_sent_at = sentAt;
+          stats.at_mex_applied++;
+          continue;
+        }
+
         if (order.status === target) { bump("unchanged"); continue; }
         if (order.status === "duplicated") { bump("duplicated_conflict"); continue; }
         // Courier MONEY truth never lands on a price-0 row. Fresh matching can no
@@ -388,6 +412,7 @@ serve(async (req: Request) => {
             // shipped_at from the courier's own creation stamp, or the NULL-only
             // trigger would date an April parcel today.
             status: "shipped", shipped_at: (mexDate(s.created_at) ?? when).toISOString(), ...cleared,
+            mex_sent_at: order.mex_sent_at ?? (mexDate(s.created_at) ?? when).toISOString(),
           };
         const { error: updErr } = await admin.from("orders").update(upd).eq("id", order.id);
         if (updErr) { bump("update_failed"); console.error(`mex-reconcile ${s.tracking_id}:`, updErr.message); continue; }
@@ -440,6 +465,8 @@ serve(async (req: Request) => {
     add("register_delivered_new", stats.register.delivered_new);
     add("register_returned_new", stats.register.returned_new);
     add("register_orders_synced", stats.register.orders_synced);
+    // MEX 8 (за пакување): orders.mex_sent_at stamps ride in the skipped jsonb (no column for them)
+    if (stats.at_mex_applied) add("mex_sent_at_stamped", stats.at_mex_applied);
   }
   if (registerOnly) stats.skipped.register_only = 1;
 

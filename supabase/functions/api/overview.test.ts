@@ -238,10 +238,11 @@ describe("overviewWindows", () => {
 
 describe("drill-down filters", () => {
   it("each bucket maps to exactly one clause; compound outcomes expand", () => {
-    expect(outcomeOrFilter(["preparing"])).toBe("and(status.eq.confirmed,packed_at.is.null)");
-    expect(outcomeOrFilter(["packed"])).toBe("and(status.eq.confirmed,packed_at.not.is.null)");
+    // packed = MEX 8 "Shipment created" (20260943001220 — the twin of insights_overview's CASE)
+    expect(outcomeOrFilter(["preparing"])).toBe("and(status.eq.confirmed,or(mex_tracking_id.is.null,mex_status_id.is.null,mex_status_id.neq.8))");
+    expect(outcomeOrFilter(["packed"])).toBe("and(status.in.(confirmed,shipped),mex_tracking_id.not.is.null,mex_status_id.eq.8)");
     expect(outcomeOrFilter(["awaiting"])).toBe("status.in.(pending,take,call_again,duplicated)");
-    expect(outcomeOrFilter(["delivered", "courier"])).toBe("status.in.(paid,delivered),status.eq.shipped");
+    expect(outcomeOrFilter(["delivered", "courier"])).toBe("status.in.(paid,delivered),and(status.eq.shipped,or(mex_tracking_id.is.null,mex_status_id.is.null,mex_status_id.neq.8))");
     expect(outcomeOrFilter(["lost"])).toBe("status.eq.returned,and(status.in.(cancelled,trashed),sold_at.not.is.null)");
     expect(outcomeOrFilter(["returned", "lost"])).toBe("status.eq.returned,and(status.in.(cancelled,trashed),sold_at.not.is.null)");
     expect(outcomeOrFilter([])).toBeNull();
