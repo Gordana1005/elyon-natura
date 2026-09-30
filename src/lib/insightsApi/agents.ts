@@ -106,9 +106,14 @@ export interface PeoplePerson extends PeopleMeasures {
   is_manager: boolean;
   is_active: boolean;
   identity_kinds: ('altercpa_user' | 'collabbox_author' | 'order_name')[];
-  /** The team shown on the person's row (a real team key, 'teleshop' or 'none'). */
+  /** The team shown on the person's row: a real team key (teleshop / affiliate / management / a
+   *  legacy key), or a group outside a team — teleshop_unassigned / social_unassigned / none. */
   team_key: string;
   team_role: string | null;
+  /** The lane inside the business line (in | out | social) — absent from an older api. */
+  team_lane?: string | null;
+  /** sales_teams.kind of the shown team: line | management | legacy (null = outside a team). */
+  team_kind?: string | null;
   online_state: PresenceState;
   /** Every group their activity in the window fell in. */
   groups: string[];
@@ -116,11 +121,18 @@ export interface PeoplePerson extends PeopleMeasures {
 
 export interface PeopleMember extends PeopleMeasures {
   person_id: string;
+  /** Their lane inside this team (20260943000950). */
+  lane?: string | null;
 }
 
-/** social / teleshop: the pseudo-groups of sellers with no team whose sales are Social media /
- *  Телешоп — Lead in or Lead out (collabBox authors); none: anyone else outside a team. */
-export type TeamKind = 'team' | 'social' | 'teleshop' | 'none';
+/** team: a key in sales_teams (a business line, management or a legacy key).
+ *  teleshop_unassigned / social_unassigned: sellers with no team whose sales are Телешоп
+ *  (Lead in or Lead out) / Social media (collabBox authors); none: anyone else outside a team.
+ *  'teleshop' / 'social' are the same groups as an api before 20260943000950 named them. */
+export type TeamKind = 'team' | 'teleshop_unassigned' | 'social_unassigned' | 'social' | 'teleshop' | 'none';
+
+/** People per lane of a team (20260943000950); `none` = members without a lane. */
+export interface TeamLanes { in: number; out: number; social: number; none: number }
 
 export interface PeopleTeam extends PeopleMeasures {
   key: string;
@@ -128,6 +140,10 @@ export interface PeopleTeam extends PeopleMeasures {
   name: string | null;
   mode: 'pending' | 'prediction' | null;
   kind: TeamKind;
+  /** sales_teams.kind: line | management | legacy (absent from an older api / a pseudo-group). */
+  team_kind?: string | null;
+  sort_order?: number | null;
+  lanes?: TeamLanes | null;
   people: number;
   online_now: number;
   break_now: number;
@@ -193,7 +209,10 @@ export interface PeopleDetail {
   days: PeopleDetailDay[];
   products: { name: string; count: number; value_mkd?: number }[];
   identities: { kind: string; value: string }[];
-  memberships: { team_key: string; name: string | null; from: string; to: string | null; role: string; primary: boolean }[];
+  memberships: {
+    team_key: string; name: string | null; from: string; to: string | null; role: string; primary: boolean;
+    lane?: string | null; kind?: string | null;
+  }[];
 }
 
 export interface PeopleResponse {

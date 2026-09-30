@@ -5,7 +5,9 @@
  */
 import type {
   NoSellerRow, PeopleBuckets, PeopleMeasures, PeopleMember, PeoplePerson, PeopleResponse, PeopleSourceKey, PeopleTeam,
+  TeamLanes,
 } from '@/lib/insightsApi/agents';
+import { LANES, teamSortOrder, type Lane } from '@/lib/teamLines';
 import { DRILL_LABEL_PARAM } from '../overview/model';
 import type { DayRange } from '../shared/period';
 
@@ -108,14 +110,30 @@ export const memberIsWhole = (member: PeopleMember, person: PeoplePerson | undef
 
 // ── teams ───────────────────────────────────────────────────────────────────
 
-// the SQL's order (insights_people tj): the two lead teams, the Телешоп (Lead in and Lead out)
-// and Social media pseudo-groups, management, any other team, nobody's
-const TEAM_ORDER: Record<string, number> = { altercpa_leads: 1, crm_prediction: 2, teleshop: 3, social: 4, management: 5, none: 9 };
-export const teamOrder = (key: string) => TEAM_ORDER[key] ?? 6;
-export const sortTeams = (teams: PeopleTeam[]) => [...teams].sort((a, b) => teamOrder(a.key) - teamOrder(b.key) || a.key.localeCompare(b.key));
+// the SQL's order (insights_people tj, 20260943000950): sales_teams.sort_order — Телешоп,
+// Affiliate, the legacy teams, then the groups outside a team (Телешоп / social sellers with no
+// team), management, nobody's. An older payload without sort_order keeps the seeded order.
+export const teamOrder = (key: string, sortOrder?: number | null) => teamSortOrder(key, sortOrder);
+/** A group outside a team sorts by its kind (an older api named them 'teleshop' / 'social', and a
+ *  real team is called teleshop now). */
+const PSEUDO_ORDER_KEY: Record<string, string> = { teleshop: 'teleshop_unassigned', social: 'social_unassigned' };
+const orderOf = (t: Pick<PeopleTeam, 'key' | 'kind' | 'sort_order'>) =>
+  !t.kind || t.kind === 'team' ? teamOrder(t.key, t.sort_order) : teamOrder(PSEUDO_ORDER_KEY[t.kind] ?? t.kind);
+export const sortTeams = (teams: PeopleTeam[]) =>
+  [...teams].sort((a, b) => orderOf(a) - orderOf(b) || a.key.localeCompare(b.key));
 
-/** The call teams go side by side; management and the pseudo-groups below. */
-export const isMainTeam = (t: Pick<PeopleTeam, 'mode'>) => t.mode === 'pending' || t.mode === 'prediction';
+/** The call teams go side by side — the business lines (and a legacy team still holding people);
+ *  management and the groups outside a team below. An older payload: by its board mode. */
+export const isMainTeam = (t: Pick<PeopleTeam, 'mode'> & Partial<Pick<PeopleTeam, 'team_kind' | 'kind'>>) =>
+  t.team_kind
+    ? t.team_kind === 'line' || t.team_kind === 'legacy'
+    : t.mode === 'pending' || t.mode === 'prediction';
+
+/** A team's people per lane, in the lane order, only the lanes someone is in ("лидови 5 · предикција 17"). */
+export function laneSummary(lanes: TeamLanes | null | undefined): { lane: Lane; n: number }[] {
+  if (!lanes) return [];
+  return LANES.map((lane) => ({ lane, n: num(lanes[lane]) })).filter((x) => x.n > 0);
+}
 
 // ── the people table ────────────────────────────────────────────────────────
 

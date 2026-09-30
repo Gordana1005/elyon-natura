@@ -31,6 +31,8 @@ export interface AssignerBoardAgent {
   is_manager: boolean;
   team_key: string | null;
   team_name: string | null;
+  /** The lane inside the business line (in | out | social) — the badge only (20260943000950). */
+  team_lane?: string | null;
   /** last_seen_at within 2 minutes — the /agents/online rule. */
   online: boolean;
   /** Softphone dialing / in call, under 3 minutes old. */
@@ -90,6 +92,7 @@ function normAgent(a: Partial<AssignerBoardAgent> & Record<string, unknown>): As
     is_manager: !!a.is_manager,
     team_key: str(a.team_key),
     team_name: str(a.team_name),
+    team_lane: str(a.team_lane),
     online: !!a.online,
     in_call: !!a.in_call,
     last_seen_at: str(a.last_seen_at),

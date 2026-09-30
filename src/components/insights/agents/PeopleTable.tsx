@@ -17,7 +17,7 @@ import {
   DEFAULT_SORT, PEOPLE_SOURCES, filterPeople, lastActivityOf, peopleCsv, personHref, personLinkable, ratesOf, sortPeople,
   type CsvCol, type PeopleFilter, type PeopleSort, type PeopleSortKey, type PartKey,
 } from './model';
-import { PersonBadges, PresenceIcon, SourceSplit, TimeCell, teamName } from './parts';
+import { PersonBadges, PresenceIcon, SourceSplit, TimeCell, teamLaneName, teamName } from './parts';
 
 const chip = 'inline-flex h-7 items-center gap-1 rounded-full border px-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
@@ -54,6 +54,11 @@ export function PeopleTable({ people, teams, range, money, filter, onFilter, onP
     const names = new Map(teams.map((tm) => [tm.key, tm.name]));
     return (k: string) => teamName(k, names.get(k) ?? null, f);
   }, [teams, f]);
+  // a person's team with their lane ("Телешоп предикција") — the row and the CSV
+  const personTeam = useMemo(() => {
+    const names = new Map(teams.map((tm) => [tm.key, tm.name]));
+    return (p: PeoplePerson) => teamLaneName(p.team_key, p.team_lane, names.get(p.team_key) ?? null, f);
+  }, [teams, f]);
   const rows = useMemo(() => sortPeople(filterPeople(people, filter), sort, teamLabel), [people, filter, sort, teamLabel]);
   const hidden = people.length - filterPeople(people, { ...filter, search: '', teams: [] }).length;
 
@@ -85,7 +90,7 @@ export function PeopleTable({ people, teams, range, money, filter, onFilter, onP
     const pct = (v: number | null) => (v == null ? '' : Math.round(v * 1000) / 10);
     const csvCols: CsvCol[] = [
       { header: t('insights.agents.col.person'), get: (p) => p.name },
-      { header: t('insights.agents.csv.team'), get: (p) => teamLabel(p.team_key) },
+      { header: t('insights.agents.csv.team'), get: (p) => personTeam(p) },
       { header: t('insights.agents.csv.onlineMin'), get: (p) => p.presence?.online_min ?? '' },
       { header: t('insights.agents.csv.activeMin'), get: (p) => p.presence?.active_min ?? '' },
       { header: t('insights.agents.col.worked'), get: (p) => p.worked },
@@ -208,7 +213,7 @@ export function PeopleTable({ people, teams, range, money, filter, onFilter, onP
                         </button>
                       </span>
                       <span className="flex flex-wrap items-center gap-1">
-                        <span className="text-[10px] font-normal text-muted-foreground">{teamLabel(p.team_key)}</span>
+                        <span className="text-[10px] font-normal text-muted-foreground">{personTeam(p)}</span>
                         <PersonBadges p={p} f={f} />
                       </span>
                     </th>

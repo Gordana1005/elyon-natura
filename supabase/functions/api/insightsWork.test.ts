@@ -241,13 +241,35 @@ describe("buildWorkResponse", () => {
 });
 
 describe("helpers", () => {
-  it("teamOrder follows the Overview: pending, prediction, others, management, unassigned", () => {
+  it("teamOrder = sales_teams.sort_order: Телешоп, Affiliate, legacy, management, unassigned", () => {
     const keys = [
-      { team_key: "unassigned", mode: null }, { team_key: "management", mode: null },
-      { team_key: "teleshop", mode: null }, { team_key: "crm_prediction", mode: "prediction" },
-      { team_key: "altercpa_leads", mode: "pending" },
+      { team_key: "unassigned" }, { team_key: "management", sort_order: 90 },
+      { team_key: "affiliate", sort_order: 20 }, { team_key: "crm_prediction", sort_order: 41 },
+      { team_key: "altercpa_leads", sort_order: 40 }, { team_key: "teleshop", sort_order: 10 },
     ].sort((a, b) => teamOrder(a) - teamOrder(b)).map((t) => t.team_key);
-    expect(keys).toEqual(["altercpa_leads", "crm_prediction", "teleshop", "management", "unassigned"]);
+    expect(keys).toEqual(["teleshop", "affiliate", "altercpa_leads", "crm_prediction", "management", "unassigned"]);
+    // an older payload without sort_order keeps the seeded order
+    expect([{ team_key: "management" }, { team_key: "affiliate" }, { team_key: "teleshop" }]
+      .sort((a, b) => teamOrder(a) - teamOrder(b)).map((t) => t.team_key)).toEqual(["teleshop", "affiliate", "management"]);
+  });
+  it("a legacy team nobody is in any more is not listed; one with members is", () => {
+    const win = overviewWindows("2026-09-26", "2026-09-27", false, NOW);
+    if ("error" in win) throw new Error(win.error);
+    const body = buildWorkResponse({
+      meta: {}, totals: {},
+      teams: [
+        { team_key: "teleshop", name: "Телешоп", mode: "prediction", kind: "line", sort_order: 10 },
+        { team_key: "altercpa_leads", name: "old", mode: "pending", kind: "legacy", sort_order: 40 },
+        { team_key: "crm_prediction", name: "old", mode: "prediction", kind: "legacy", sort_order: 41 },
+      ],
+      people: [
+        { person_id: P_ANITA, name: "Anita", team_key: "teleshop", team_lane: "out", worked: 3 },
+        { person_id: P_NINA, name: "Nina", team_key: "crm_prediction", worked: 1 },
+      ],
+    }, null, null, win, { self: false, now: NOW }) as any;
+    expect(body.teams.map((t: any) => t.team_key)).toEqual(["teleshop", "crm_prediction"]);
+    expect(body.teams[0].members[0]).toMatchObject({ team_key: "teleshop", team_lane: "out" });
+    expect(body.teams[0]).toMatchObject({ kind: "line", sort_order: 10 });
   });
   it("parseCredited drops malformed rows", () => {
     expect(parseCredited({ total: "3", rows: [{ p: "x", b: "2026-09-01", n: "3" }, { p: 1 }] }))

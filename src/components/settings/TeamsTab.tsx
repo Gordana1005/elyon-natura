@@ -29,32 +29,65 @@ import { apiErrorText } from '@/i18n/apiErrors';
 import i18n from '@/i18n';
 import { cn } from '@/lib/utils';
 import {
-  apiAddSalesIdentity, apiCreateSalesPerson, apiDeleteSalesMembership, apiGetSalesTeams, apiGetSalesUnmapped,
+  apiAddSalesIdentity, apiApplyTeamLines, apiCreateSalesPerson, apiDeleteSalesMembership, apiGetSalesTeams, apiGetSalesUnmapped,
   apiMoveSalesPerson, apiRemoveSalesIdentity, apiUpdateSalesPerson,
-  type SalesIdentityInput, type SalesIdentityKind, type SalesMembership, type SalesPerson, type SalesTeamsOverview,
-  type SalesUnmapped,
+  type SalesIdentityInput, type SalesIdentityKind, type SalesMembership, type SalesPerson, type SalesTeam, type SalesTeamsOverview,
+  type SalesUnmapped, type TeamLane,
 } from '@/lib/api';
+import { isLegacyTeam, laneLabel, teamLaneLabel } from '@/lib/teamLines';
 import {
-  altercpaIds, currentPrimary, dmy, identityKindForVia, movePreview, nextPrimary, personMatches,
-  skopjeTodayYmd, teamColumns,
+  altercpaIds, currentPrimary, dmy, identityKindForVia, movePreview, needsLineDecision, nextPrimary, personMatches,
+  skopjeTodayYmd, teamColumns, visibleColumns,
 } from './teamsModel';
+import { isCompletePick, laneAfterTeamChange, lanesFor, membershipHasLane, targetTeams } from './teamLinesModel';
+import { TeamLinesProposal } from './TeamLinesProposal';
 import { agoText } from './integrationsHealthModel';
 
 const KINDS: SalesIdentityKind[] = ['altercpa_user', 'order_name', 'collabbox_author'];
 const NONE = '__none__';
 
-/** The routes answer with error CODES; settings.teams.err.<code> are their words. */
+/** The routes answer with error CODES; teamLines.err.<code> / settings.teams.err.<code> are their words. */
 function useErrorText() {
   const { t } = useTranslation();
   return (err: unknown) => {
     const code = err instanceof Error ? err.message : '';
+    if (code && i18n.exists(`teamLines.err.${code}`)) return t(`teamLines.err.${code}`);
     return code && i18n.exists(`settings.teams.err.${code}`) ? t(`settings.teams.err.${code}`) : apiErrorText(err);
   };
 }
 
+/** A team key in the reader's language (the words every board uses — teams = business lines). */
+function useTeamText(teams: SalesTeam[]) {
+  const { t } = useTranslation();
+  return (key: string | null | undefined) => (key
+    ? t(`insights.agents.team.byKey.${key}`, { defaultValue: teams.find((x) => x.key === key)?.name ?? key })
+    : t('settings.teams.noTeam'));
+}
+
+/** A lane picker for a business line (nothing for a team without lanes). */
+function LaneSelect({ teamKey, value, onChange, disabled, label, className }: {
+  teamKey: string | null; value: TeamLane | null; onChange: (l: TeamLane) => void; disabled?: boolean; label: string; className?: string;
+}) {
+  const { t } = useTranslation();
+  const lanes = lanesFor(teamKey);
+  if (!lanes.length) return null;
+  return (
+    <Select value={value ?? NONE} onValueChange={(v) => v !== NONE && onChange(v as TeamLane)} disabled={disabled}>
+      <SelectTrigger className={cn('h-9', className)} aria-label={label}><SelectValue placeholder={t('teamLines.proposal.pickLane')} /></SelectTrigger>
+      <SelectContent>
+        {!value && <SelectItem value={NONE} disabled>{t('teamLines.proposal.pickLane')}</SelectItem>}
+        {lanes.map((l) => <SelectItem key={l} value={l}>{laneLabel(t, l)}</SelectItem>)}
+      </SelectContent>
+    </Select>
+  );
+}
+
 const ymdOf = (iso: string | null | undefined) => (iso ? skopjeTodayYmd(new Date(iso)) : '');
 
-interface AddPreset { display_name?: string; user_id?: string | null; identity?: SalesIdentityInput | null; team_key?: string | null }
+interface AddPreset {
+  display_name?: string; user_id?: string | null; identity?: SalesIdentityInput | null;
+  team_key?: string | null; team_lane?: TeamLane | null;
+}
 
 export function TeamsTab() {
   const { t } = useTranslation();
@@ -82,8 +115,12 @@ export function TeamsTab() {
     () => (data?.people ?? []).filter((p) => (showInactive || p.is_active) && personMatches(p, search)),
     [data, showInactive, search],
   );
-  const columns = useMemo(() => teamColumns(visible, data?.teams ?? [], today), [visible, data, today]);
+  // a legacy team (crm_prediction / altercpa_leads) is listed only while someone is still in it
+  const columns = useMemo(() => visibleColumns(teamColumns(visible, data?.teams ?? [], today)), [visible, data, today]);
   const openPerson = data?.people.find((p) => p.id === openId) ?? null;
+  const teamText = useTeamText(data?.teams ?? []);
+  // the proposal opens by itself while an active person still waits for a business line
+  const pending = useMemo(() => (data?.people ?? []).some((p) => needsLineDecision(p, today)), [data, today]);
 
   return (
     <div className="space-y-5">
@@ -117,6 +154,8 @@ export function TeamsTab() {
         </div>
       </div>
 
+      {data && <TeamLinesProposal key={String(pending)} teams={data.teams} defaultOpen={pending} onApplied={reload} />}
+
       {teamsQ.isLoading ? (
         <div className="flex items-center justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
       ) : teamsQ.isError ? (
@@ -126,10 +165,21 @@ export function TeamsTab() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {columns.map((col) => (
-            <section key={col.key} className="rounded-xl border bg-card shadow-sm">
-              <header className="flex items-center justify-between border-b px-3 py-2">
-                <h3 className="text-sm font-semibold">{col.team ? col.team.name : t('settings.teams.noTeam')}</h3>
-                <span className="text-xs text-muted-foreground">{t('settings.teams.people', { count: col.entries.length })}</span>
+            <section key={col.key} className="min-w-0 rounded-xl border bg-card shadow-sm">
+              <header className="border-b px-3 py-2">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="min-w-0 truncate text-sm font-semibold" title={col.team ? teamText(col.team.key) : undefined}>
+                    {col.team ? teamText(col.team.key) : t('settings.teams.noTeam')}
+                  </h3>
+                  <span className="shrink-0 text-xs text-muted-foreground">{t('settings.teams.people', { count: col.entries.length })}</span>
+                </div>
+                {col.team && lanesFor(col.team.key).length > 0 && (
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    {lanesFor(col.team.key)
+                      .map((l) => `${laneLabel(t, l)} ${col.entries.filter((e) => e.membership?.lane === l).length}`)
+                      .join(' · ')}
+                  </p>
+                )}
               </header>
               {col.entries.length === 0 ? (
                 <p className="px-3 py-6 text-center text-sm text-muted-foreground">{t('settings.teams.empty')}</p>
@@ -142,7 +192,7 @@ export function TeamsTab() {
                         membership={e.membership}
                         secondary={e.secondary}
                         today={today}
-                        teamName={(k) => data?.teams.find((x) => x.key === k)?.name ?? k}
+                        teamName={teamText}
                         onOpen={() => setOpenId(e.person.id)}
                       />
                     </li>
@@ -213,6 +263,7 @@ function PersonRow({
         {person.is_manager && (
           <Badge variant="outline" className="h-5 gap-1 px-1.5 text-[10px]"><Crown className="h-3 w-3" />{t('settings.teams.badge.manager')}</Badge>
         )}
+        {membership?.lane && <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-normal">{laneLabel(t, membership.lane)}</Badge>}
         {membership?.role === 'lead' && <Badge variant="outline" className="h-5 px-1.5 text-[10px]">{t('settings.teams.badge.lead')}</Badge>}
         {secondary && <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">{t('settings.teams.badge.secondary')}</Badge>}
         {!person.is_active && <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">{t('settings.teams.badge.inactive')}</Badge>}
@@ -260,8 +311,11 @@ function PersonDrawer({
   const [removeId, setRemoveId] = useState<{ id: string; value: string } | null>(null);
   const [deleteRow, setDeleteRow] = useState<SalesMembership | null>(null);
   const [moveTeam, setMoveTeam] = useState<string>(NONE);
+  const [moveLane, setMoveLane] = useState<TeamLane | null>(null);
   const [moveFrom, setMoveFrom] = useState(today);
   const [moveRole, setMoveRole] = useState<'member' | 'lead'>('member');
+  const teamName = useTeamText(data.teams);
+  const targets = useMemo(() => targetTeams(data.teams), [data.teams]);
 
   useEffect(() => {
     if (!person) return;
@@ -273,7 +327,9 @@ function PersonDrawer({
     setIdValue('');
     setIdAccount(data.accounts[0]?.id ?? '');
     const cur = currentPrimary(person.memberships, today);
-    setMoveTeam(data.teams.find((x) => x.key !== cur?.team_key)?.key ?? NONE);
+    const first = targets.find((x) => x.key !== cur?.team_key)?.key ?? NONE;
+    setMoveTeam(first);
+    setMoveLane(first === NONE ? null : laneAfterTeamChange(first, cur?.lane ?? null));
     setMoveFrom(today);
     setMoveRole('member');
     // Re-seed only when a different person opens, never on a background refetch.
@@ -282,7 +338,6 @@ function PersonDrawer({
 
   if (!person) return null;
 
-  const teamName = (k: string | null) => (k ? data.teams.find((x) => x.key === k)?.name ?? k : t('settings.teams.noTeam'));
   const accountName = (id: string | null) => data.accounts.find((a) => a.id === id)?.name ?? '';
   const run = async (key: string, fn: () => Promise<unknown>, ok: (r: any) => string) => {
     setBusy(key);
@@ -329,7 +384,12 @@ function PersonDrawer({
         : t('settings.teams.drawer.preview.close', { current: teamName(cur!.team_key), date: dmy(prev.closeOn), team, from });
     }
   })();
-  const moveBlocked = prev.kind === 'blocked' || prev.kind === 'same' || (prev.kind === 'none' && moveTeam === NONE) || !moveFrom;
+  const moveBlocked = prev.kind === 'blocked' || prev.kind === 'same' || (prev.kind === 'none' && moveTeam === NONE) || !moveFrom
+    || (moveTeam !== NONE && !isCompletePick(moveTeam, moveLane));
+  // one membership's lane (the per-row selector): re-keys only that row, with its own audit row
+  const setRowLane = (m: SalesMembership, lane: TeamLane) =>
+    void run(`lane-${m.id}`, () => apiApplyTeamLines([{ person_id: person.id, membership_id: m.id, team_key: m.team_key, lane }]),
+      () => t('teamLines.drawer.laneSaved'));
 
   return (
     <Sheet open={!!person} onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -483,17 +543,23 @@ function PersonDrawer({
           {/* Move */}
           <section className="space-y-2">
             <h4 className="text-sm font-semibold flex items-center gap-2"><ArrowRightLeft className="h-4 w-4" /> {t('settings.teams.drawer.move')}</h4>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <div className="space-y-1">
                 <Label className="text-xs">{t('settings.teams.drawer.moveTeam')}</Label>
-                <Select value={moveTeam} onValueChange={setMoveTeam}>
+                <Select value={moveTeam} onValueChange={(v) => { setMoveTeam(v); setMoveLane(v === NONE ? null : laneAfterTeamChange(v, moveLane)); }}>
                   <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {data.teams.map((tm) => <SelectItem key={tm.key} value={tm.key}>{tm.name}</SelectItem>)}
+                    {targets.map((tm) => <SelectItem key={tm.key} value={tm.key}>{teamName(tm.key)}</SelectItem>)}
                     <SelectItem value={NONE}>{t('settings.teams.drawer.moveNoTeam')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+              {lanesFor(moveTeam).length > 0 && (
+                <div className="space-y-1">
+                  <Label className="text-xs">{t('teamLines.drawer.lane')}</Label>
+                  <LaneSelect teamKey={moveTeam} value={moveLane} onChange={setMoveLane} label={t('teamLines.drawer.lane')} />
+                </div>
+              )}
               <div className="space-y-1">
                 <Label className="text-xs" htmlFor="tp-from">{t('settings.teams.drawer.moveFrom')}</Label>
                 <Input id="tp-from" type="date" className="h-9" value={moveFrom} onChange={(e) => setMoveFrom(e.target.value)} />
@@ -514,6 +580,7 @@ function PersonDrawer({
               size="sm" disabled={moveBlocked || busy === 'move'}
               onClick={() => void run('move', () => apiMoveSalesPerson(person.id, {
                 team_key: moveTeam === NONE ? null : moveTeam, from: moveFrom, role: moveRole,
+                ...(moveTeam !== NONE && lanesFor(moveTeam).length ? { lane: moveLane } : {}),
               }), () => t('settings.teams.drawer.moved'))}
             >
               {busy === 'move' && <Loader2 className="h-4 w-4 mr-1 animate-spin" />} {t('settings.teams.drawer.moveButton')}
@@ -533,14 +600,22 @@ function PersonDrawer({
                     <li key={m.id} className="relative">
                       <span className={cn('absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-background', live ? 'bg-primary' : 'bg-muted-foreground/40')} aria-hidden />
                       <div className="flex items-center justify-between gap-2">
-                        <div className="text-sm">
-                          <span className="font-medium">{teamName(m.team_key)}</span>
+                        <div className="min-w-0 text-sm">
+                          <span className="font-medium">{teamLaneLabel(t, m.team_key, m.lane, teamName(m.team_key))}</span>
                           {m.role === 'lead' && <Badge variant="outline" className="ml-1.5 h-5 px-1.5 text-[10px]">{t('settings.teams.badge.lead')}</Badge>}
                           {!m.is_primary && <Badge variant="secondary" className="ml-1.5 h-5 px-1.5 text-[10px]">{t('settings.teams.drawer.secondary')}</Badge>}
                           <div className="text-xs text-muted-foreground tabular-nums">
                             {dmy(m.valid_from)} – {m.valid_to ? dmy(m.valid_to) : t('settings.teams.drawer.now')}
                             {m.note && <span className="ml-1.5">· {m.note}</span>}
                           </div>
+                          {isLegacyTeam(m.team_key) && <p className="text-[11px] text-muted-foreground">{t('teamLines.drawer.legacyHint')}</p>}
+                          {membershipHasLane(m) && (
+                            <div className="mt-1 w-40">
+                              <LaneSelect teamKey={m.team_key} value={m.lane ?? null} onChange={(l) => setRowLane(m, l)}
+                                disabled={busy === `lane-${m.id}`} className="h-8 text-xs"
+                                label={t('teamLines.drawer.laneOf', { team: teamName(m.team_key), from: dmy(m.valid_from) })} />
+                            </div>
+                          )}
                         </div>
                         <Button
                           variant="ghost" size="icon" className="h-7 w-7 shrink-0"
@@ -623,7 +698,12 @@ function AddPersonDialog({
   const [name, setName] = useState(preset.display_name ?? '');
   const [login, setLogin] = useState(preset.user_id ?? NONE);
   const [manager, setManager] = useState(false);
-  const [team, setTeam] = useState(preset.team_key ?? (preset.identity?.kind === 'altercpa_user' ? 'altercpa_leads' : NONE));
+  // an AlterCPA operator opens on Affiliate · лидови (the pending leads) — teams = business lines
+  const [team, setTeam] = useState(preset.team_key ?? (preset.identity?.kind === 'altercpa_user' ? 'affiliate' : NONE));
+  const [lane, setLane] = useState<TeamLane | null>(
+    preset.team_lane ?? (team === NONE ? null : laneAfterTeamChange(team, preset.identity?.kind === 'altercpa_user' ? 'in' : null)));
+  const teamName = useTeamText(data.teams);
+  const targets = useMemo(() => targetTeams(data.teams), [data.teams]);
   const [from, setFrom] = useState(today);
   const [role, setRole] = useState<'member' | 'lead'>('member');
   const [idKind, setIdKind] = useState<SalesIdentityKind>(preset.identity?.kind ?? 'order_name');
@@ -641,6 +721,7 @@ function AddPersonDialog({
       const r = await apiCreateSalesPerson({
         display_name: name.trim(), user_id: login === NONE ? null : login, is_manager: manager,
         team_key: team === NONE ? null : team, team_from: team === NONE ? null : from, team_role: role, identities,
+        ...(team !== NONE && lanesFor(team).length ? { team_lane: lane } : {}),
       });
       const title = t('settings.teams.add.created', { name: name.trim() });
       toast({ title: r.backstamped > 0 ? `${title} · ${t('settings.teams.backstamped', { count: r.backstamped })}` : title });
@@ -682,17 +763,23 @@ function AddPersonDialog({
               </SelectContent>
             </Select>
           </div>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <div className="space-y-1">
               <Label className="text-xs">{t('settings.teams.add.team')}</Label>
-              <Select value={team} onValueChange={setTeam}>
+              <Select value={team} onValueChange={(v) => { setTeam(v); setLane(v === NONE ? null : laneAfterTeamChange(v, lane)); }}>
                 <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={NONE}>{t('settings.teams.add.noTeamOption')}</SelectItem>
-                  {data.teams.map((tm) => <SelectItem key={tm.key} value={tm.key}>{tm.name}</SelectItem>)}
+                  {targets.map((tm) => <SelectItem key={tm.key} value={tm.key}>{teamName(tm.key)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
+            {lanesFor(team).length > 0 && (
+              <div className="space-y-1">
+                <Label className="text-xs">{t('teamLines.drawer.lane')}</Label>
+                <LaneSelect teamKey={team} value={lane} onChange={setLane} label={t('teamLines.drawer.lane')} />
+              </div>
+            )}
             <div className="space-y-1">
               <Label className="text-xs" htmlFor="ap-from">{t('settings.teams.add.from')}</Label>
               <Input id="ap-from" type="date" className="h-9" value={from} onChange={(e) => setFrom(e.target.value)} disabled={team === NONE} />
@@ -729,7 +816,7 @@ function AddPersonDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>{t('common.cancel')}</Button>
-          <Button onClick={create} disabled={!name.trim() || busy || (team !== NONE && !from)}>
+          <Button onClick={create} disabled={!name.trim() || busy || (team !== NONE && (!from || !isCompletePick(team, lane)))}>
             {busy && <Loader2 className="h-4 w-4 mr-1 animate-spin" />} {t('settings.teams.add.create')}
           </Button>
         </DialogFooter>

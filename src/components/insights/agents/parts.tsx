@@ -1,6 +1,7 @@
 import { Circle, CircleDashed, Clock, Coffee, Minus, type LucideIcon } from 'lucide-react';
 import type { PeopleBuckets, PeopleMeasures, PeoplePerson, PeopleSourceKey, PresenceState } from '@/lib/insightsApi/agents';
 import { cn } from '@/lib/utils';
+import { teamLaneLabel } from '@/lib/teamLines';
 import { DrillLink } from '../overview/DrillLink';
 import { sourceColorVar } from '../overview/palette';
 import { StackedBar, type StackSegment } from '../shared/StackedBar';
@@ -175,4 +176,10 @@ export function PersonBadges({ p, f }: { p: Pick<PeoplePerson, 'has_login' | 'is
  *  Settings → Teams, with no translation yet, shows its own name). */
 export function teamName(key: string, name: string | null | undefined, f: InsightsFormat): string {
   return f.t(`insights.agents.team.byKey.${key}`, { defaultValue: name || key });
+}
+
+/** A team with the person's lane in it, in the owner's words (teams = business lines, 30.09.2026):
+ *  "Телешоп предикција", "Affiliate лидови", "Социјални мрежи"; no lane → the team alone. */
+export function teamLaneName(key: string, lane: string | null | undefined, name: string | null | undefined, f: InsightsFormat): string {
+  return teamLaneLabel(f.t, key, lane, teamName(key, name, f));
 }

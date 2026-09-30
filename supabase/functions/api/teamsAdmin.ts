@@ -5,7 +5,27 @@
 // 20260939000200_teams_admin_integrations.sql; every write there returns
 // {ok:false, error:<code>} for a business-rule refusal.
 
+import { isLane, isLegacyTeam, LINE_LANES, MANAGEMENT_KEY } from "./teamLines.ts";
+
 export const TEAM_ROLES = ["member", "lead"] as const;
+
+/**
+ * The lane that goes with a team a person is moved / created into (teams =
+ * business lines, 20260943000900): a line needs one of its lanes, management
+ * and "no team" take none, a legacy key is never a new membership. A team key
+ * the API does not know yet passes (the SQL knows the teams).
+ */
+export function laneFor(teamKey: string | null, raw: unknown): { ok: true; lane: string | null } | { ok: false; error: string } {
+  const lane = raw == null || raw === "" ? null : raw;
+  if (lane !== null && !isLane(lane)) return { ok: false, error: "bad_lane" };
+  if (teamKey === null) return lane === null ? { ok: true, lane: null } : { ok: false, error: "lane_not_allowed" };
+  if (isLegacyTeam(teamKey)) return { ok: false, error: "legacy_team" };
+  if (teamKey === MANAGEMENT_KEY) return lane === null ? { ok: true, lane: null } : { ok: false, error: "lane_not_allowed" };
+  const allowed = LINE_LANES[teamKey];
+  if (allowed && lane === null) return { ok: false, error: "lane_required" };
+  if (allowed && !allowed.includes(lane as never)) return { ok: false, error: "lane_not_allowed" };
+  return { ok: true, lane: lane as string | null };
+}
 export const IDENTITY_KINDS = ["altercpa_user", "collabbox_author", "order_name"] as const;
 export type IdentityKind = (typeof IDENTITY_KINDS)[number];
 
@@ -42,6 +62,9 @@ export function statusForCode(code: string | null | undefined): number {
       return 409;
     case "login_not_staff":
     case "no_membership_to_end":
+    case "legacy_team":
+    case "lane_required":
+    case "lane_not_allowed":
       return 422;
     default:
       return 400;
@@ -94,6 +117,8 @@ export interface CreateInput {
   team_key: string | null;
   team_from: string | null;
   team_role: string;
+  /** The lane of the first membership (a line needs one; see laneFor). */
+  team_lane: string | null;
   identities: IdentityInput[];
 }
 
@@ -108,6 +133,8 @@ export function parseCreate(body: unknown): { ok: true; value: CreateInput } | {
   if (teamKey !== null && !isYmd(b.team_from)) return { ok: false, error: "bad_date" };
   const role = b.team_role == null ? "member" : b.team_role;
   if (typeof role !== "string" || !(TEAM_ROLES as readonly string[]).includes(role)) return { ok: false, error: "bad_role" };
+  const ln = laneFor(teamKey as string | null, b.team_lane);
+  if (!ln.ok) return { ok: false, error: ln.error };
   const rawIds = b.identities == null ? [] : b.identities;
   if (!Array.isArray(rawIds) || rawIds.length > 20) return { ok: false, error: "bad_identities" };
   const identities: IdentityInput[] = [];
@@ -126,6 +153,7 @@ export function parseCreate(body: unknown): { ok: true; value: CreateInput } | {
       team_key: teamKey as string | null,
       team_from: teamKey !== null ? (b.team_from as string) : null,
       team_role: role,
+      team_lane: ln.lane,
       identities,
     },
   };
@@ -164,7 +192,7 @@ export function parsePatch(body: unknown): { ok: true; value: Record<string, unk
   return { ok: true, value: out };
 }
 
-export interface MoveInput { team_key: string | null; from: string; role: string; note: string | null }
+export interface MoveInput { team_key: string | null; from: string; role: string; note: string | null; lane: string | null }
 
 export function parseMove(body: unknown): { ok: true; value: MoveInput } | { ok: false; error: string } {
   if (!body || typeof body !== "object" || Array.isArray(body)) return { ok: false, error: "bad_body" };
@@ -174,7 +202,9 @@ export function parseMove(body: unknown): { ok: true; value: MoveInput } | { ok:
   if (!isYmd(b.from)) return { ok: false, error: "bad_date" };
   const role = b.role == null ? "member" : b.role;
   if (typeof role !== "string" || !(TEAM_ROLES as readonly string[]).includes(role)) return { ok: false, error: "bad_role" };
-  return { ok: true, value: { team_key: teamKey as string | null, from: b.from as string, role, note: str(b.note, 300) } };
+  const ln = laneFor(teamKey as string | null, b.lane);
+  if (!ln.ok) return { ok: false, error: ln.error };
+  return { ok: true, value: { team_key: teamKey as string | null, from: b.from as string, role, note: str(b.note, 300), lane: ln.lane } };
 }
 
 /** ?days= for the unmapped queue: 1–400, default 90. */

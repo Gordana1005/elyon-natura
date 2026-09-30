@@ -81,7 +81,7 @@ export function TvBoardRow({
         </span>
         <span className="truncate font-semibold">{row.name}</span>
         <span className="shrink-0 rounded bg-white/10 px-[0.5vw] py-[0.2vh] text-[1.2vh] font-medium uppercase tracking-wide text-slate-300">
-          {teamLabel(t, row.team_key, row.team_name)}
+          {teamLabel(t, row.team_key, row.team_name, row.team_lane)}
         </span>
         {isToday && p.state === 'idle' && (p.idle_streak_min ?? 0) > 0 && (
           <span className="shrink-0 rounded bg-amber-400/15 px-[0.5vw] py-[0.2vh] text-[1.2vh] font-semibold text-amber-300">{t('tvBoard.idleFor', { n: p.idle_streak_min })}</span>

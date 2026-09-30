@@ -19,16 +19,15 @@ export const DAY_PARAM = 'wday';
 
 // ── team filter ─────────────────────────────────────────────────────────────
 
-/** A team's name in the reader's language: its kind (the board it plays on), else its own name. */
+/** A team's name in the reader's language — the same words as every other board (teams =
+ *  business lines, 30.09.2026: Телешоп / Affiliate / Менаџмент, insights.agents.team.byKey),
+ *  never a board mode or a department; a team with no translation yet shows its own name. */
 export function teamLabel(
-  tm: { team_key: string; name: string | null; mode: string | null },
-  t: (k: string) => string,
+  tm: { team_key: string; name: string | null; mode?: string | null },
+  t: (k: string, o?: Record<string, unknown>) => string,
 ): string {
-  if (tm.mode === 'pending') return t('insights.calls.team.pending');
-  if (tm.mode === 'prediction') return t('insights.calls.team.prediction');
-  if (tm.team_key === 'management') return t('insights.calls.team.management');
   if (tm.team_key === 'unassigned') return t('insights.calls.team.unassigned');
-  return tm.name ?? tm.team_key;
+  return t(`insights.agents.team.byKey.${tm.team_key}`, { defaultValue: tm.name ?? tm.team_key });
 }
 
 export function teamsFor(data: WorkResponse, team: string): WorkTeam[] {

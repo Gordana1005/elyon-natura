@@ -56,6 +56,8 @@ export interface WorkPerson extends WorkCounts, WorkRates {
   is_manager: boolean;
   is_active: boolean;
   team_key: string;
+  /** The lane inside the business line (in | out | social) — absent from an older api. */
+  team_lane?: string | null;
   role: string;
   online_state: WorkOnlineState | string;
   days_active: number;
@@ -74,6 +76,9 @@ export interface WorkTeam {
   team_key: string;
   name: string | null;
   mode: 'pending' | 'prediction' | string | null;
+  /** sales_teams.kind: line | management | legacy (absent from an older api). */
+  kind?: string | null;
+  sort_order?: number | null;
   totals: WorkCounts & WorkRates & { people: number; active_people: number };
   members: WorkPerson[];
 }

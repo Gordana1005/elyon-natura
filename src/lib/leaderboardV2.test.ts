@@ -80,6 +80,11 @@ describe('initialFilter', () => {
     expect(f('department=social&team=crm_prediction')).toEqual({ department: 'social', team: 'crm_prediction' });
     expect(f('team=none')).toEqual({ department: null, team: 'none' });
   });
+  it('a business line and its lane pin as team:lane (20260943000950)', () => {
+    expect(f('team=teleshop:out')).toEqual({ department: null, team: 'teleshop:out' });
+    expect(f('team=affiliate:in&dept=altercpa')).toEqual({ department: 'altercpa', team: 'affiliate:in' });
+    expect(f('team=teleshop:up')).toEqual({ department: null, team: null });
+  });
   it('an old ?mode= URL opens its team; unknown values are ignored', () => {
     expect(f('mode=prediction')).toEqual({ department: null, team: 'crm_prediction' });
     expect(f('mode=pending')).toEqual({ department: null, team: 'altercpa_leads' });

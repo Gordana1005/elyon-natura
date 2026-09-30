@@ -12,6 +12,7 @@
 // Money: every amount is ALREADY денари (*_mkd) — render with formatDenari,
 // never formatMoney (that would multiply by the peg a second time).
 import { eurToDen } from '@/lib/currency';
+import { TEAM_FILTER_RE } from '@/lib/teamLines';
 
 const API_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api`;
 
@@ -62,6 +63,10 @@ export interface BoardRow {
   name: string;
   team_key: string | null;       // primary team that day — a badge only
   team_name: string | null;
+  /** The lane inside the business line (in | out | social) — absent from an older api. */
+  team_lane?: string | null;
+  /** sales_teams.kind: line | management | legacy. */
+  team_kind?: string | null;
   is_member: boolean;
   is_manager: boolean;           // shown, never ranked
   rank: number | null;
@@ -88,7 +93,16 @@ export interface BoardRow {
   presence: PresenceV2;
 }
 
-export interface BoardTeam { key: string; name: string | null; people: number }
+/** A team on the filter bar in sales_teams.sort_order order; a business line carries its lanes
+ *  (lane.key = 'team:lane' is itself a filter value, 20260943000950). */
+export interface BoardTeam {
+  key: string;
+  name: string | null;
+  people: number;
+  kind?: string | null;
+  sort_order?: number | null;
+  lanes?: Array<{ lane: string; key: string; people: number }>;
+}
 
 export interface BoardV2 {
   version: 2;
@@ -315,14 +329,18 @@ export const webConfirmed = (w: Pick<WebLive, 'orders' | 'awaiting'>): number =>
 export const conversionPct = (row: Pick<BoardRow, 'conversion'>): number | null =>
   row.conversion == null || !Number.isFinite(Number(row.conversion)) ? null : Math.round(Number(row.conversion) * 1000) / 10;
 
-/** The old TV URLs carried ?mode=prediction|pending (one board per team): they
- *  open the v2 board on that team. ?dept= / ?department= and ?team= win. */
-const LEGACY_MODE_TEAM: Record<string, string> = { prediction: 'crm_prediction', pending: 'altercpa_leads' };
+/** The old TV URLs carried ?mode=prediction|pending (one board per team): they open the v2
+ *  board on that team's ALIAS — the teams became business lines on 30.09.2026 and the server
+ *  (sales_team_filter_matches, 20260943000950) reads altercpa_leads as the old team + Affiliate
+ *  lane in ("Affiliate лидови"), crm_prediction as the old team + lane out on every line
+ *  ("предикција"), so an old link shows the same people before and after the re-key.
+ *  ?dept= / ?department= and ?team= win; ?team= takes 'team:lane' too. */
+export const LEGACY_MODE_TEAM: Record<string, string> = { prediction: 'crm_prediction', pending: 'altercpa_leads' };
 export function initialFilter(params: URLSearchParams): BoardFilter {
   const dRaw = params.get('dept') ?? params.get('department');
   const department = isDepartment(dRaw) ? dRaw : null;
   const tRaw = (params.get('team') ?? '').trim();
-  const team = /^[a-z0-9_]{1,40}$/.test(tRaw) ? tRaw : null;
+  const team = TEAM_FILTER_RE.test(tRaw) ? tRaw : null;
   if (department || team) return { department, team };
   const mode = params.get('mode') ?? '';
   return { department: null, team: LEGACY_MODE_TEAM[mode] ?? null };

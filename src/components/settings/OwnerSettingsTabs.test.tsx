@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import i18n from '@/i18n';
 import { formatMoney } from '@/lib/currency';
-import type { IntegrationsHealth, SalesTeamsOverview, SalesUnmapped } from '@/lib/api';
+import type { IntegrationsHealth, LineProposal, SalesTeamsOverview, SalesUnmapped } from '@/lib/api';
 
 // Render smoke tests for Settings → Teams and Settings → Integrations health
 // against synthetic payloads shaped like the SQL functions' (no real people).
@@ -13,16 +13,21 @@ const setMode = vi.fn(async (mode: string) => ({ ok: true, mode, preview: null }
 const preview = vi.fn(async () => ({ candidates: 569, to_cancel: 522, needs_linking: 47, value_eur: 14295.13, mode: 'report', days: 7 }));
 const addIdentity = vi.fn(async () => ({ ok: true, identity: {}, backstamped: 3 }));
 const move = vi.fn(async () => ({ ok: true }));
+const applyLines = vi.fn(async () => ({ ok: true, changed: 1, inserted: 0, unchanged: 0, people: 1 }));
 
 const TODAY = '2026-09-28';
 const m = (team_key: string, valid_from: string, valid_to: string | null = null) =>
   ({ id: `${team_key}-${valid_from}`, team_key, valid_from, valid_to, role: 'member', is_primary: true, note: null, created_at: '' });
 const teams: SalesTeamsOverview = {
   today: TODAY,
+  // teams = business lines (20260943000900): the two lines, a legacy key still holding Ana, an
+  // emptied legacy key (not listed), management — in sales_teams.sort_order
   teams: [
-    { key: 'altercpa_leads', name: 'Pending — AlterCPA leads', leaderboard_mode: 'pending' },
-    { key: 'crm_prediction', name: 'Prediction — ElyonCRM', leaderboard_mode: 'prediction' },
-    { key: 'management', name: 'Management', leaderboard_mode: null },
+    { key: 'teleshop', name: 'Телешоп', leaderboard_mode: 'prediction', kind: 'line', sort_order: 10 },
+    { key: 'affiliate', name: 'Affiliate', leaderboard_mode: 'pending', kind: 'line', sort_order: 20 },
+    { key: 'altercpa_leads', name: 'Pending — AlterCPA leads', leaderboard_mode: 'pending', kind: 'legacy', sort_order: 40 },
+    { key: 'crm_prediction', name: 'Prediction — ElyonCRM', leaderboard_mode: 'prediction', kind: 'legacy', sort_order: 41 },
+    { key: 'management', name: 'Management', leaderboard_mode: null, kind: 'management', sort_order: 90 },
   ],
   accounts: [{ id: 'acc', name: 'main', is_active: true }],
   people: [
@@ -49,6 +54,24 @@ const unmapped: SalesUnmapped = {
   orders: [{ ext: 'Ана  Тест', sold_via: 'collabbox', stamped: true, sale_source: 'collabbox', n: 61,
              first_at: '2026-09-01T07:00:00Z', last_at: '2026-09-18T07:00:00Z', sample: [{ id: 'o1', display_id: 'ORD-1' }],
              suggestion: { person_id: 'p1', display_name: 'Ana Test', match: 'near' } }],
+};
+const proposal: LineProposal = {
+  generated_at: '2026-09-28T00:10:00Z', days: 60, since: '2026-07-30T00:10:00Z',
+  thresholds: { sure: 0.8, likely: 0.6, min_sales: 5 },
+  summary: { people: 2, sure: 1, likely: 0, decide: 1, unchanged: 0, legacy: 1, no_team: 1 },
+  rows: [
+    { person_id: 'p1', display_name: 'Ana Test', has_login: true, is_active: true, is_manager: false, identity_kinds: ['altercpa_user'],
+      current: { team_key: 'altercpa_leads', lane: null, kind: 'legacy', memberships: 1, lines: 0, legacy: true },
+      basis: 'window', span: 'window',
+      counts: { altercpa: 97, elyon_crm: 3, teleshop_other: 0, teleshop_out: 0, social: 0, other: 0, total: 100 },
+      window_sales: 100, history_sales: 400, first_sale_at: null, last_sale_at: null,
+      line_share: 1, lane_share: 0.97, share: 0.97, confidence: 'sure', proposed: { team_key: 'affiliate', lane: 'in' }, unchanged: false },
+    { person_id: 'p3', display_name: 'Loose Test', has_login: false, is_active: true, is_manager: false, identity_kinds: [],
+      current: { team_key: null, lane: null, kind: null, memberships: 0, lines: 0, legacy: false },
+      basis: 'none', span: 'window', counts: { altercpa: 0, elyon_crm: 0, teleshop_other: 0, teleshop_out: 0, social: 0, other: 0, total: 0 },
+      window_sales: 0, history_sales: 0, first_sale_at: null, last_sale_at: null,
+      line_share: null, lane_share: null, share: null, confidence: 'decide', proposed: { team_key: null, lane: null }, unchanged: false },
+  ],
 };
 const day = (d: string, ok: number, failed = 0) => ({ d, ok, failed });
 const days = ['2026-09-22', '2026-09-23', '2026-09-24', '2026-09-25', '2026-09-26', '2026-09-27', TODAY];
@@ -98,6 +121,8 @@ vi.mock('@/lib/api', async (orig) => ({
   apiGetSalesUnmapped: vi.fn(async () => unmapped),
   apiAddSalesIdentity: (...a: unknown[]) => addIdentity(...(a as [])),
   apiMoveSalesPerson: (...a: unknown[]) => move(...(a as [])),
+  apiGetLineProposal: vi.fn(async () => proposal),
+  apiApplyTeamLines: (...a: unknown[]) => applyLines(...(a as [])),
   apiGetIntegrationsHealth: vi.fn(async () => health),
   apiGetNoParcelPreview: () => preview(),
   apiSetNoParcelMode: (mode: string) => setMode(mode),
@@ -119,10 +144,14 @@ describe('Settings → Teams', () => {
   it('lists people by team, a no-team column, and the unmapped queue with its hint', async () => {
     wrap(<TeamsTab />);
     expect((await screen.findAllByText('Ana Test', {}, { timeout: 10_000 })).length).toBeGreaterThan(0);
-    expect(screen.getByRole('heading', { name: 'Pending — AlterCPA leads' })).toBeInTheDocument();
+    // teams by their words (never the English DB name), legacy marked; an emptied legacy team is not listed
+    expect(screen.getByRole('heading', { name: new RegExp(`^${i18n.t('insights.agents.team.byKey.altercpa_leads').replace(/[()]/g, '\\$&')}`) })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /Pending — AlterCPA leads/ })).toBeNull();
+    expect(screen.queryByRole('heading', { name: new RegExp(`^${i18n.t('insights.agents.team.byKey.crm_prediction').replace(/[()]/g, '\\$&')}`) })).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Телешоп' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: i18n.t('settings.teams.noTeam') })).toBeInTheDocument();
     expect(screen.getByText('#4222')).toBeInTheDocument();
-    expect(screen.getByText(i18n.t('settings.teams.badge.manager'))).toBeInTheDocument();
+    expect(within(screen.getByRole('button', { name: /^Boss Test/ })).getByText(i18n.t('settings.teams.badge.manager'))).toBeInTheDocument();
     expect(await screen.findByText(i18n.t('settings.teams.unmapped.suggestNear', { name: 'Ana Test' }))).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'ORD-1' }).getAttribute('href')).toBe('/orders?search=ORD-1');
   }, 30_000);
@@ -136,17 +165,36 @@ describe('Settings → Teams', () => {
   }, 30_000);
 });
 
-describe('Settings → Teams — person drawer', () => {
-  it('opens a person and moves them to a team from today, previewing the change', async () => {
+describe('Settings → Teams — the business-line proposal', () => {
+  it('opens by itself while someone waits for a line, shows the evidence and accepts one row', async () => {
     wrap(<TeamsTab />);
-    fireEvent.click(await screen.findByRole('button', { name: /Loose Test/ }, { timeout: 10_000 }));
+    const panel = await screen.findByRole('region', { name: i18n.t('teamLines.proposal.title') }, { timeout: 10_000 });
+    expect(await within(panel).findByText(i18n.t('teamLines.proposal.count.sure', { n: 1 }), {}, { timeout: 10_000 })).toBeInTheDocument();
+    expect(within(panel).getByText(`${i18n.t('leaderboard2.deptShort.altercpa')} 97`)).toBeInTheDocument();
+    expect(within(panel).getByRole('button', { name: i18n.t('teamLines.proposal.acceptAllSure', { n: 1 }) })).toBeEnabled();
+    // Ana's row: Affiliate · лидови proposed, accepted as is
+    const ana = within(panel).getByText('Ana Test').closest('li')!;
+    expect(within(ana).getByText(i18n.t('teamLines.proposal.confidence.sure'), { exact: false })).toBeInTheDocument();
+    fireEvent.click(within(ana).getByRole('button', { name: i18n.t('teamLines.proposal.accept') }));
+    await waitFor(() => expect(applyLines).toHaveBeenCalledWith([{ person_id: 'p1', team_key: 'affiliate', lane: 'in' }]));
+    // Loose Test has nothing to go by: no team proposed, nothing to accept until one is picked
+    const loose = within(panel).getByText('Loose Test').closest('li')!;
+    expect(within(loose).getByRole('button', { name: i18n.t('teamLines.proposal.accept') })).toBeDisabled();
+  }, 30_000);
+});
+
+describe('Settings → Teams — person drawer', () => {
+  it('opens a person and moves them into a business line with its lane, previewing the change', async () => {
+    wrap(<TeamsTab />);
+    fireEvent.click(await screen.findByRole('button', { name: /^Loose Test/ }, { timeout: 10_000 }));
     const dlg = await screen.findByRole('dialog');
     expect(within(dlg).getByText(i18n.t('settings.teams.drawer.move'))).toBeInTheDocument();
     expect(within(dlg).getByText(i18n.t('settings.teams.drawer.historyEmpty'))).toBeInTheDocument();
-    // default target = the first team; nothing to close for someone with no team
-    expect(within(dlg).getByText(i18n.t('settings.teams.drawer.preview.none', { team: 'Pending — AlterCPA leads', from: '28.09.2026' }))).toBeInTheDocument();
+    // default target = the first business line (Телешоп), its first lane; nothing to close for someone with no team
+    expect(within(dlg).getByText(i18n.t('settings.teams.drawer.preview.none', { team: 'Телешоп', from: '28.09.2026' }))).toBeInTheDocument();
+    expect(within(dlg).getByText(i18n.t('teamLines.drawer.lane'))).toBeInTheDocument();
     fireEvent.click(within(dlg).getByRole('button', { name: i18n.t('settings.teams.drawer.moveButton') }));
-    await waitFor(() => expect(move).toHaveBeenCalledWith('p3', { team_key: 'altercpa_leads', from: expect.any(String), role: 'member' }));
+    await waitFor(() => expect(move).toHaveBeenCalledWith('p3', { team_key: 'teleshop', from: expect.any(String), role: 'member', lane: 'in' }));
   }, 30_000);
 });
 

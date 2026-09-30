@@ -2,6 +2,7 @@
 // Dates are Skopje calendar days as YYYY-MM-DD; valid_to is INCLUSIVE and
 // NULL means "still a member" (sales_team_members, migration 20260935000100).
 import type { SalesIdentityKind, SalesMembership, SalesPerson, SalesTeam } from '@/lib/api';
+import { isLegacyTeam, isLineKey } from '@/lib/teamLines';
 
 /** Today as YYYY-MM-DD in Europe/Skopje. */
 export function skopjeTodayYmd(now: Date = new Date()): string {
@@ -66,6 +67,22 @@ export function teamColumns(people: SalesPerson[], teams: SalesTeam[], day: stri
   for (const c of cols) c.entries.sort(byName);
   if (none.length) cols.push({ key: NO_TEAM, team: null, entries: none.sort(byName) });
   return cols;
+}
+
+/** Teams = business lines (30.09.2026): a legacy team column (crm_prediction / altercpa_leads)
+ *  is shown only while someone is still in it. */
+export function visibleColumns(cols: TeamColumn[]): TeamColumn[] {
+  return cols.filter((c) => !(c.team && (c.team.kind === 'legacy' || isLegacyTeam(c.team.key)) && c.entries.length === 0));
+}
+
+/** An active person who still waits for a business line today: no team, a legacy team, or a
+ *  line membership without its lane. Opens Settings → Teams → Предлог by itself. */
+export function needsLineDecision(p: SalesPerson, day: string): boolean {
+  if (!p.is_active) return false;
+  const cur = currentPrimary(p.memberships, day);
+  if (!cur) return true;
+  if (isLegacyTeam(cur.team_key)) return true;
+  return isLineKey(cur.team_key) && !cur.lane;
 }
 
 /** AlterCPA ids of a person, as "#4222" labels. */

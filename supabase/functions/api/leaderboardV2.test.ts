@@ -73,6 +73,40 @@ describe("parseLeaderboardV2Query", () => {
     expect(parseLeaderboardV2Query({ department: "altercpa;drop" }).ok).toBe(false);
     expect(parseLeaderboardV2Query({ team: "Crm Prediction" }).ok).toBe(false);
     expect(parseLeaderboardV2Query({ team: "x".repeat(41) }).ok).toBe(false);
+    expect(parseLeaderboardV2Query({ team: "teleshop:up" }).ok).toBe(false);
+    expect(parseLeaderboardV2Query({ team: "management:in" }).ok).toBe(false);
+  });
+  it("takes a business line's lane (team:lane, 20260943000950)", () => {
+    expect(parseLeaderboardV2Query({ team: "teleshop:out" })).toEqual({ ok: true, department: null, team: "teleshop:out" });
+    expect(parseLeaderboardV2Query({ team: " affiliate:in ", department: "altercpa" }))
+      .toEqual({ ok: true, department: "altercpa", team: "affiliate:in" });
+  });
+});
+
+describe("teams = business lines on the board", () => {
+  const lined = {
+    ...rpc,
+    teams: [
+      { key: "teleshop", name: "Телешоп", people: 3, kind: "line", sort_order: 10,
+        lanes: [{ lane: "in", key: "teleshop:in", people: 1 }, { lane: "out", people: 2 }, { people: 9 }] },
+      { key: "management", name: "Management", people: 1, kind: "management", sort_order: 90, lanes: [] },
+      { key: "none", name: null, people: 1 },
+    ],
+    rows: [{ ...rpc.rows[0], team_key: "teleshop", team_lane: "in", team_kind: "line" }, rpc.rows[1]],
+  };
+  it("keeps each team's kind, order and lanes (a lane's key defaults to team:lane) and each row's lane", () => {
+    const out = buildLeaderboardV2Response({ rpc: lined, today: "2026-09-29", money: true });
+    expect(out.teams[0]).toEqual({ key: "teleshop", name: "Телешоп", people: 3, kind: "line", sort_order: 10,
+      lanes: [{ lane: "in", key: "teleshop:in", people: 1 }, { lane: "out", key: "teleshop:out", people: 2 }] });
+    expect(out.teams[2]).toEqual({ key: "none", name: null, people: 1, kind: null, sort_order: null, lanes: [] });
+    expect(out.rows[0]).toMatchObject({ team_key: "teleshop", team_lane: "in", team_kind: "line" });
+    expect(out.rows[1]).toMatchObject({ team_key: null, team_lane: null, team_kind: null });
+  });
+  it("the lanes survive the money strip (they are counts)", () => {
+    const out = buildLeaderboardV2Response({ rpc: lined, today: "2026-09-29", money: false });
+    expect(out.teams[0].lanes).toEqual([{ lane: "in", key: "teleshop:in", people: 1 }, { lane: "out", key: "teleshop:out", people: 2 }]);
+    expect(out.teams[0].sort_order).toBe(10);
+    expect(out.rows[0]).toMatchObject({ team_lane: "in", team_kind: "line" });
   });
 });
 

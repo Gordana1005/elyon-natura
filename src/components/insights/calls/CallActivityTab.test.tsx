@@ -131,7 +131,7 @@ describe('Insights → Work', { timeout: 30_000 }, () => {
     expect(link.getAttribute('href')).toBe(`/orders?sold_by_person_id=${ANITA}&sold_from=2026-09-22&sold_to=2026-09-28&cohort_bucket=total&lbl=Anita+Koligova`);
 
     // Teams side by side + the Teleshop placeholder.
-    expect(screen.getAllByText(i18n.t('insights.calls.team.pending')).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(i18n.t('insights.agents.team.byKey.altercpa_leads')).length).toBeGreaterThan(0);
     expect(screen.getByText(i18n.t('insights.calls.teams.teleshopNote'))).toBeInTheDocument();
 
     // The call-again queues (now) and the quality rail (no seller yet = 80).
@@ -157,6 +157,6 @@ describe('Insights → Work', { timeout: 30_000 }, () => {
     work.mockResolvedValue(payload());
     workDay.mockResolvedValue(dayPayload());
     renderTab('/insights?tab=call-activity&range=custom&from=2026-09-22&to=2026-09-28&wteam=altercpa_leads');
-    expect(await screen.findByText(i18n.t('insights.calls.kpi.filtered', { team: i18n.t('insights.calls.team.pending') }), {}, { timeout: 10_000 })).toBeInTheDocument();
+    expect(await screen.findByText(i18n.t('insights.calls.kpi.filtered', { team: i18n.t('insights.agents.team.byKey.altercpa_leads') }), {}, { timeout: 10_000 })).toBeInTheDocument();
   });
 });

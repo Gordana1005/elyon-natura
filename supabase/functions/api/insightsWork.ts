@@ -24,6 +24,7 @@
 
 import { overviewWindows, skopjeTodayYmd } from "./overview.ts";
 import type { OverviewWindow } from "./overview.ts";
+import { teamSortOrder } from "./teamLines.ts";
 
 // ── access ──────────────────────────────────────────────────────────────────
 
@@ -110,6 +111,8 @@ export interface WorkPerson extends WorkCounts, WorkRates {
   is_manager: boolean;
   is_active: boolean;
   team_key: string;
+  /** The lane inside the business line (in | out | social); null for management / legacy / none. */
+  team_lane: string | null;
   role: string;
   online_state: string;
   days_active: number;
@@ -127,6 +130,9 @@ export interface WorkTeam {
   team_key: string;
   name: string | null;
   mode: string | null;
+  /** sales_teams.kind: line | management | legacy (null = unassigned / an older api). */
+  kind: string | null;
+  sort_order: number | null;
   totals: WorkCounts & WorkRates & { people: number; active_people: number };
   members: WorkPerson[];
 }
@@ -233,14 +239,10 @@ function sumCounts(rows: WorkCounts[]): WorkCounts {
   };
 }
 
-/** Board order: the AlterCPA lead team (pending), the prediction team, other
- *  teams, management, then nobody's. The Overview TeamsBoard's order. */
-export function teamOrder(t: { team_key: string; mode: string | null }): number {
-  if (t.mode === "pending") return 0;
-  if (t.mode === "prediction") return 1;
-  if (t.team_key === "management") return 7;
-  if (t.team_key === "unassigned") return 9;
-  return 5;
+/** Board order = sales_teams.sort_order (teams = business lines, 20260943000950): Телешоп,
+ *  Affiliate, the legacy teams, management, then nobody's (unassigned last). */
+export function teamOrder(t: { team_key: string; sort_order?: number | null }): number {
+  return teamSortOrder(t.team_key, t.sort_order);
 }
 
 /** Most decisions first; ties → call logs, then name. */
@@ -304,6 +306,7 @@ export function buildWorkResponse(
       is_manager: r.is_manager === true,
       is_active: r.is_active !== false,
       team_key: str(r.team_key) ?? "unassigned",
+      team_lane: str(r.team_lane),
       role: str(r.role) ?? "member",
       online_state: str(r.online_state) ?? "n/a",
       days_active: days,
@@ -326,15 +329,19 @@ export function buildWorkResponse(
   let creditedUnlisted = 0;
   for (const [p, n] of byPerson) if (!personTeam.has(p)) creditedUnlisted += n;
 
-  // teams: every sales team (even empty), + unassigned when someone is in it
+  // teams: every sales team (even empty) — except a legacy key nobody is in any more (the teams
+  // became business lines, 20260943000950) — + unassigned when someone is in it
   const teamDefs = arr(rpc.teams).map((t) => obj(t)).map((t) => ({
     team_key: String(t.team_key ?? ""), name: str(t.name), mode: str(t.mode),
-  })).filter((t) => t.team_key);
+    kind: str(t.kind), sort_order: numOrNull(t.sort_order),
+  })).filter((t) => t.team_key && !(t.kind === "legacy" && !people.some((p) => p.team_key === t.team_key)));
   if (people.some((p) => p.team_key === "unassigned") && !teamDefs.some((t) => t.team_key === "unassigned")) {
-    teamDefs.push({ team_key: "unassigned", name: null, mode: null });
+    teamDefs.push({ team_key: "unassigned", name: null, mode: null, kind: null, sort_order: null });
   }
   for (const p of people) {
-    if (!teamDefs.some((t) => t.team_key === p.team_key)) teamDefs.push({ team_key: p.team_key, name: null, mode: null });
+    if (!teamDefs.some((t) => t.team_key === p.team_key)) {
+      teamDefs.push({ team_key: p.team_key, name: null, mode: null, kind: null, sort_order: null });
+    }
   }
   const teams: WorkTeam[] = teamDefs
     .map((t) => {
@@ -459,7 +466,8 @@ export interface WorkDayCall { at: string; o: string | null; timed: boolean; e: 
 export function buildWorkDayResponse(rpcRaw: unknown, day: WorkDay, opts: { self: boolean; now?: Date }): Record<string, unknown> {
   const rpc = obj(rpcRaw);
   const meta = obj(rpc.meta);
-  const teamRank = (k: string) => (k === "altercpa_leads" ? 0 : k === "crm_prediction" ? 1 : k === "management" ? 7 : k === "unassigned" ? 9 : 5);
+  // insights_work_day names the team only: the seeded sort_order (teamLines.TEAM_SORT_FALLBACK)
+  const teamRank = (k: string) => teamSortOrder(k);
   const people = arr(rpc.people).map((raw) => {
     const r = obj(raw);
     const decisions: WorkDayDecision[] = arr(r.decisions).map((x) => obj(x))

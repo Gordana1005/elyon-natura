@@ -16,6 +16,7 @@ import * as LB2 from "./leaderboardV2.ts";
 // Settings → Teams / Integrations health (owners only): body parsing, error
 // codes, suggestions, the no-parcel switch (pure, unit-tested).
 import * as TA from "./teamsAdmin.ts";
+import * as TL from "./teamLines.ts";
 import * as IH from "./integrationsHealth.ts";
 // Insights foundation (migration 20260940000000): the sale cohort's windows,
 // owner gate, money-strip whitelist and the /orders cohort twins (pure,
@@ -17240,6 +17241,37 @@ async function handleRequest(req: Request): Promise<Response> {
           payload: { person: (data as any).person, identities: (data as any).identities,
                      membership: (data as any).membership, backstamped: (data as any).backstamped },
         });
+        // A business line's lane goes on the new membership (sales_team_lines_apply writes its own audit row).
+        const newMid = (data as any).membership?.id;
+        if (c.team_lane && c.team_key && TA.isUuid(newMid)) {
+          const { data: ln, error: lnErr } = await adminClient.rpc("sales_team_lines_apply", {
+            p_rows: [{ person_id: (data as any).person?.id, membership_id: newMid, team_key: c.team_key, lane: c.team_lane }],
+            p_actor: user.id,
+          });
+          if (lnErr || !(ln as any)?.ok) return json({ ...(data as any), lane_error: (ln as any)?.error ?? "lane_failed" });
+        }
+        return json(data);
+      }
+
+      // GET /api/sales-people/line-proposal?days=60 → teams = business lines: per person, the
+      // proposed line + lane + confidence from their credited sales by department (read-only).
+      if (req.method === "GET" && segments.length === 2 && segments[1] === "line-proposal") {
+        const { data, error } = await adminClient.rpc("sales_team_line_proposal", {
+          p_days: TL.parseProposalDays(url.searchParams.get("days")),
+        });
+        if (error) return json({ error: `sales_team_line_proposal: ${sanitizeDbError(error)}` }, 500);
+        return json(TL.shapeLineProposal(data));
+      }
+
+      // POST /api/sales-people/line-apply { rows: [{ person_id, team_key, lane, membership_id? }] } →
+      // re-keys the memberships IN PLACE (the whole history, or one membership); all-or-nothing;
+      // the SQL writes the audit_log row with this owner as the actor.
+      if (req.method === "POST" && segments.length === 2 && segments[1] === "line-apply") {
+        const p = TL.parseLineApply(await taBody());
+        if (!p.ok) return json({ error: p.error, index: p.index ?? null }, TL.statusForLineCode(p.error));
+        const { data, error } = await adminClient.rpc("sales_team_lines_apply", { p_rows: p.rows, p_actor: user.id });
+        if (error) return json({ error: sanitizeDbError(error) }, 400);
+        if (!(data as any)?.ok) return json({ ...(data as any), error: (data as any)?.error || "failed" }, TL.statusForLineCode((data as any)?.error));
         return json(data);
       }
 
@@ -17303,6 +17335,15 @@ async function handleRequest(req: Request): Promise<Response> {
           payload: { request: p.value, closed: (data as any).closed, replaced: (data as any).replaced,
                      opened: (data as any).opened },
         });
+        // Moving into a business line: its lane goes on the opened membership.
+        const openedId = (data as any).opened?.id;
+        if (p.value.lane && p.value.team_key && TA.isUuid(openedId)) {
+          const { data: ln, error: lnErr } = await adminClient.rpc("sales_team_lines_apply", {
+            p_rows: [{ person_id: segments[1], membership_id: openedId, team_key: p.value.team_key, lane: p.value.lane }],
+            p_actor: user.id,
+          });
+          if (lnErr || !(ln as any)?.ok) return json({ ...(data as any), lane_error: (ln as any)?.error ?? "lane_failed" });
+        }
         return json(data);
       }
 

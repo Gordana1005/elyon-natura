@@ -4,6 +4,7 @@
 import type { TFunction } from 'i18next';
 import i18n from '@/i18n';
 import type { Department } from '@/lib/leaderboardV2';
+import { isLegacyTeam, splitTeamFilter, teamLaneLabel } from '@/lib/teamLines';
 
 /** The board's columns: rank · person · departments · total · worked · time on the CRM. */
 export const TV_GRID = 'grid-cols-[4%_25%_35%_13%_9%_14%]';
@@ -49,7 +50,23 @@ export const RANK_ACCENT: Record<number, string> = {
   3: 'bg-orange-400/15 text-orange-300 ring-orange-400/30',
 };
 
-export function teamLabel(t: TFunction, key: string | null, name?: string | null): string {
+/**
+ * A team as the board names it; with a lane, the owner's words for the pair ("Телешоп
+ * предикција", "Affiliate лидови", "Социјални мрежи"). A filter value 'team:lane' works too,
+ * and so do the legacy aliases of an old TV link (tvBoard.alias.*).
+ */
+export function teamLabel(t: TFunction, key: string | null, name?: string | null, lane?: string | null): string {
   if (!key || key === 'none') return t('leaderboard2.team.none');
-  return t(`tvBoard.team.${key}`, { defaultValue: name || key });
+  const { team, lane: fromKey } = splitTeamFilter(key);
+  const l = lane ?? fromKey;
+  if (!team) return t('leaderboard2.team.none');
+  const base = t(`tvBoard.team.${team}`, { defaultValue: name || team });
+  return teamLaneLabel(t, team, l, base);
+}
+
+/** The label of a filter value on the bar: a legacy alias (an old ?team= / ?mode= link) says what
+ *  it shows now — the old team's rows plus the lane it became. */
+export function filterTeamLabel(t: TFunction, key: string, name?: string | null): string {
+  if (isLegacyTeam(key)) return t(`tvBoard.alias.${key}`, { defaultValue: teamLabel(t, key, name) });
+  return teamLabel(t, key, name);
 }

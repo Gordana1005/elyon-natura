@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { PeoplePerson, PeopleResponse } from '@/lib/insightsApi/agents';
 import sample from './__fixtures__/people.sample.json';
 import {
-  BOARD_MIN_CLOSED, BOARD_MIN_WORKED, DEFAULT_SORT, filterPeople, hasActivity, leaderboards, memberIsWhole,
-  noSellerBySource, peopleCsv, personHref, personLinkable, ratesOf, reconcile, sortPeople, sortTeams, teamHref,
+  BOARD_MIN_CLOSED, BOARD_MIN_WORKED, DEFAULT_SORT, filterPeople, hasActivity, isMainTeam, laneSummary, leaderboards,
+  memberIsWhole, noSellerBySource, peopleCsv, personHref, personLinkable, ratesOf, reconcile, sortPeople, sortTeams, teamHref,
 } from './model';
 
 const data = sample as unknown as PeopleResponse;
@@ -93,6 +93,9 @@ describe('links', () => {
     expect(teamHref({ key: 'crm_prediction', kind: 'team', drill_exact: false }, 'total', range)).toBeNull();
     expect(teamHref({ key: 'teleshop', kind: 'teleshop', drill_exact: true }, 'total', range)).toBeNull();
     expect(teamHref({ key: 'social', kind: 'social', drill_exact: true }, 'total', range)).toBeNull();
+    // teams = business lines: 'teleshop' is a team now, its sellers outside a team a pseudo-group
+    expect(teamHref({ key: 'teleshop', kind: 'team', drill_exact: true }, 'total', range)).toContain('team_key=teleshop');
+    expect(teamHref({ key: 'teleshop_unassigned', kind: 'teleshop_unassigned', drill_exact: true }, 'total', range)).toBeNull();
   });
   it('a member row links to the person only when it is their whole period', () => {
     const t = data.teams!.find((x) => x.members.length > 0)!;
@@ -126,16 +129,34 @@ describe('sorting and filtering', () => {
     expect(rows.length).toBeGreaterThan(0);
     expect(rows.every((p) => p.team_key === 'altercpa_leads' || p.groups.includes('altercpa_leads'))).toBe(true);
   });
-  it('teams: the two call teams first, "no team" last', () => {
+  it('teams: the call teams first, "no team" last (an older payload: the old keys and pseudo-groups)', () => {
     const keys = sortTeams(data.teams!).map((t) => t.key);
     expect(keys[0]).toBe('altercpa_leads');
     expect(keys[keys.length - 1]).toBe('none');
-    // the pseudo-groups: Teleshop (Lead in) before Social media (the source order), both before management
+  });
+  it('teams = business lines: sort_order, then the groups outside a team, management last', () => {
+    const base = data.teams![0];
     const g = sortTeams([
-      { ...data.teams![0], key: 'management' }, { ...data.teams![0], key: 'teleshop' },
-      { ...data.teams![0], key: 'social' }, { ...data.teams![0], key: 'crm_prediction' },
+      { ...base, key: 'management', kind: 'team', team_kind: 'management', sort_order: 90 },
+      { ...base, key: 'social_unassigned', kind: 'social_unassigned', sort_order: null },
+      { ...base, key: 'teleshop_unassigned', kind: 'teleshop_unassigned', sort_order: null },
+      { ...base, key: 'crm_prediction', kind: 'team', team_kind: 'legacy', sort_order: 41 },
+      { ...base, key: 'affiliate', kind: 'team', team_kind: 'line', sort_order: 20 },
+      { ...base, key: 'teleshop', kind: 'team', team_kind: 'line', sort_order: 10 },
     ]).map((t) => t.key);
-    expect(g).toEqual(['crm_prediction', 'teleshop', 'social', 'management']);
+    expect(g).toEqual(['teleshop', 'affiliate', 'crm_prediction', 'teleshop_unassigned', 'social_unassigned', 'management']);
+  });
+  it('the call teams side by side: the lines (and a legacy team still holding people); an older payload by mode', () => {
+    expect(isMainTeam({ mode: 'prediction', team_kind: 'line' })).toBe(true);
+    expect(isMainTeam({ mode: 'pending', team_kind: 'legacy' })).toBe(true);
+    expect(isMainTeam({ mode: null, team_kind: 'management' })).toBe(false);
+    expect(isMainTeam({ mode: 'pending' })).toBe(true);
+    expect(isMainTeam({ mode: null })).toBe(false);
+  });
+  it('laneSummary: people per lane, in order, only the lanes someone is in', () => {
+    expect(laneSummary({ in: 5, out: 17, social: 0, none: 1 })).toEqual([{ lane: 'in', n: 5 }, { lane: 'out', n: 17 }]);
+    expect(laneSummary({ in: 0, out: 0, social: 2, none: 0 })).toEqual([{ lane: 'social', n: 2 }]);
+    expect(laneSummary(null)).toEqual([]);
   });
 });
 
