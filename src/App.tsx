@@ -33,8 +33,7 @@ const PredictionListDetail = lazy(() => import("./pages/PredictionListDetail"));
 // prediction_leads table is empty. Deleting the page would make restoring it
 // a rewrite rather than a one-line route change.
 const ImportOrdersPage = lazy(() => import("./pages/ImportOrdersPage"));
-const ShiftsManagementPage = lazy(() => import("./pages/ShiftsManagementPage"));
-const MyShiftsPage = lazy(() => import("./pages/MyShiftsPage"));
+const ShiftsPage = lazy(() => import("./pages/ShiftsPage"));
 const CallScriptsPage = lazy(() => import("./pages/CallScriptsPage"));
 const CallHistoryPage = lazy(() => import("./pages/CallHistoryPage"));
 const WarehousePage = lazy(() => import("./pages/WarehousePage"));
@@ -127,8 +126,8 @@ const App = () => (
                 {/* Performance + Agent Activity merged into Insights (2026-06). Keep old paths working. */}
                 <Route path="/performance" element={<Navigate to="/insights?tab=agents" replace />} />
                 <Route path="/agent-activity" element={<Navigate to="/insights?tab=call-activity" replace />} />
-                <Route path="/shifts" element={<ProtectedRoute moduleKey="shifts"><ShiftsManagementPage /></ProtectedRoute>} />
-                <Route path="/my-shifts" element={<ProtectedRoute moduleKey="my_shifts"><MyShiftsPage /></ProtectedRoute>} />
+                <Route path="/shifts" element={<ProtectedRoute moduleKey="shifts" moduleKeysAny={["my_shifts"]}><ShiftsPage /></ProtectedRoute>} />
+                <Route path="/my-shifts" element={<Navigate to="/shifts" replace />} />
                 <Route path="/call-scripts" element={<ProtectedRoute moduleKey="call_scripts"><CallScriptsPage /></ProtectedRoute>} />
                 <Route path="/call-history" element={<ProtectedRoute moduleKey="call_history"><CallHistoryPage /></ProtectedRoute>} />
                 <Route path="/warehouse" element={<ProtectedRoute moduleKey="warehouse"><WarehousePage /></ProtectedRoute>} />
