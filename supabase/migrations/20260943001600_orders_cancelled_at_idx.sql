@@ -1,0 +1,15 @@
+-- ============================================================================
+-- /orders (Phase 11 A) — index for the "Откажани" chip and the "Сите" window.
+--
+-- The list dates a cancelled order by cancelled_at (Skopje days, ordersList.ts
+-- viewOps). Without an index the chip's count walks all 38k cancelled rows:
+-- rolled-back test 01.10.2026 00:30 (scratchpad agents/orders/t1600_indexes.sql,
+-- last-7-days window, warm): cancelled 25.4 → 1.9 ms, the all-status window
+-- (every chip's union) 41.0 → 7.2 ms together with 001610. Build ≈ 0.3 s.
+--
+-- ONE statement per file: CREATE INDEX CONCURRENTLY cannot run inside a
+-- transaction block, and scripts/apply-migration-mk.mjs POSTs the whole file as
+-- one query (same pattern as 20260912000001). Afterwards check nothing was left
+-- INVALID:  SELECT indexrelid::regclass FROM pg_index WHERE NOT indisvalid;
+-- ============================================================================
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_orders_cancelled_at ON public.orders (cancelled_at) WHERE status = 'cancelled';

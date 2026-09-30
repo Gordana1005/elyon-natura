@@ -1,32 +1,30 @@
-import { useState, useEffect, useMemo, Fragment } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AppLayout } from '@/layouts/AppLayout';
-import { StatusBadge } from '@/components/StatusBadge';
 import { orderReasonText as sharedOrderReasonText } from '@/lib/orderReason';
 import { SmartPagination } from '@/components/SmartPagination';
-import { ALL_STATUSES, statusLabel, STATUS_COLORS, OrderStatus } from '@/types';
-import { Badge } from '@/components/ui/badge';
+import { statusLabel, OrderStatus } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { cn, formatProductWithQuantity, buildProductNameLookups, isSyntheticProductName } from '@/lib/utils';
 import { format, addDays } from 'date-fns'; // raw format: fulfilment CSV + machine payloads only
 import { formatDate, formatDayDmy } from '@/i18n/dates';
 import { apiErrorText } from '@/i18n/apiErrors';
 import { planExportWindow, clampPageRange, estimateExportRows } from '@/lib/exportPageRange';
 import {
-  Download, ChevronLeft, ChevronRight, ChevronDown, Filter, Search, Loader2,
-  CalendarIcon, X, User, Users, Plus, MoreVertical, History, Lock, Copy, CopyPlus, Banknote, Package, Send, Waypoints,
+  Download, Filter, Search, Loader2, CalendarIcon, X, Plus, History, Lock, Copy, CopyPlus, Package, Send,
+  ChevronDown, ListCollapse, Truck, Trash2, Ban,
 } from 'lucide-react';
-import { Check } from 'lucide-react';
-import { MobileCard, MobileCardHeader, MobileCardField, MobileCardActions } from '@/components/ui/mobile-card';
-import { apiGetOrders, apiGetAgents, apiGetProducts, apiBulkStatusUpdate, apiBulkDisposition, apiDuplicateOrder, apiPushOrderAltercpa, apiGetAppSettings, apiGetCpaAttributionDimensions, type AltercpaPushPreview, type CpaAttributionDimensions, type TrashReason, type CancellationReason } from '@/lib/api';
-import { sourceLabel, sourceBadgeVariant, affiliateLabel, offerLabel, departmentLabel, creditName } from '@/lib/orderSource';
+import {
+  apiGetOrders, apiGetOrderViewCounts, apiGetOrderSellers, apiGetAgents, apiGetProducts, apiBulkStatusUpdate,
+  apiBulkDisposition, apiDuplicateOrder, apiPushOrderAltercpa, apiGetAppSettings, apiGetCpaAttributionDimensions,
+  type AltercpaPushPreview, type CpaAttributionDimensions, type TrashReason, type CancellationReason,
+} from '@/lib/api';
+import { sourceLabel, affiliateLabel, offerLabel, departmentLabel, creditName } from '@/lib/orderSource';
 import { useWebmasterNames } from '@/hooks/useWebmasterNames';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 // The SAME reason pickers the Calls page and both order modals use — a bulk
@@ -36,30 +34,38 @@ import { TrashReasonPicker } from '@/components/TrashReasonPicker';
 import { CancellationReasonPicker } from '@/components/CancellationReasonPicker';
 import { isTrashSelectionValid } from '@/lib/trashReasons';
 import { isCancelSelectionValid } from '@/lib/cancellationReasons';
-import { Trash2, Ban } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
-// The price filter talks EUR to the API (orders are stored in EUR) but the
-// operator picks and types denari — convert at the boundary, show ден only.
-import { formatMoney, formatDenari, eurToDen, denToEur, codFor } from '@/lib/currency';
+import { formatMoney, formatDenari, codFor } from '@/lib/currency';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { buildMexImportColumns } from '@/lib/mexImportCsv';
 import { validateOrderForFulfilment } from '@/lib/fulfilmentValidation';
 import { FulfilmentValidationDialog, type InvalidOrder } from '@/components/FulfilmentValidationDialog';
-import { Truck } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/contexts/PermissionsContext';
 import { OrderModal, OrderModalData } from '@/components/OrderModal';
 import { CreateOrderModal } from '@/components/CreateOrderModal';
 import { CustomerHistoryDialog } from '@/components/CustomerHistoryDialog';
 import { OrderCallsPanel } from '@/components/OrderCallsPanel';
-import { ActiveViewBadge } from '@/components/ActiveViewBadge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { EmptyState } from '@/components/EmptyState';
 // Drill-down from Insights → Overview: /orders?sale_source=…&outcome=…&created_from=…
 import { parseDrillParams, DRILL_LABEL_PARAM } from '@/components/insights/overview/model';
 import { OrdersDrillBanner } from '@/components/insights/overview/OrdersDrillBanner';
+import { OVERVIEW_COLOR_VARS } from '@/components/insights/overview/palette';
+import { periodText, skopjeToday } from '@/components/insights/shared/period';
+import { ResponsivePager } from '@/components/assigner/parts';
+import {
+  activeFilterCount, clearDrillParams, clearListParams, effectiveRange, effectiveView, phoneLast8, readListParams,
+  toApiParams, writeListParams, type ListPatch,
+} from '@/lib/ordersList/listParams';
+import { fmtCount, skopjeDayTime } from '@/lib/ordersList/rowModel';
+import { OrderViewChips, OrdersFilterFields, ActiveFilterChips, type FilterSources } from '@/components/orders/OrdersFilters';
+import { OrdersList, MexBadge, DeptLine, type RowAction } from '@/components/orders/OrdersList';
+import { useActiveViews } from '@/components/orders/useActiveViews';
+import type { ApiOrder } from '@/components/orders/types';
 
 const PAGE_SIZE = 20;
 
@@ -68,70 +74,17 @@ const PAGE_SIZE = 20;
 // need (a whole filtered year of Shipped is a few thousand rows), and the
 // operator is TOLD when the cap bites rather than quietly receiving a short
 // file — which is the bug this whole export change exists to fix.
-// Module scope, not component scope: the row estimate reads it during render,
-// above the export handlers.
 const EXPORT_ROW_CAP = 20000;
+
+/** How long the URL trails the last keystroke in the search box. */
+const SEARCH_DELAY_MS = 350;
 
 // Statuses whose expanded row shows the Delivery Details section; the inline
 // Calls panel sits beside it there, and stands alone for every other status.
 const DELIVERY_STATUSES = ['confirmed', 'shipped', 'delivered', 'paid', 'returned'];
 
-interface ApiOrder {
-  id: string;
-  display_id: string;
-  product_name: string;
-  price: number;
-  quantity: number;
-  status: OrderStatus;
-  customer_name: string;
-  customer_phone: string;
-  customer_city: string;
-  customer_address: string;
-  postal_code?: string;
-  assigned_agent_name: string | null;
-  assigned_agent_id: string | null;
-  last_action_by?: string | null;
-  confirmed_by_name?: string | null;
-  /** GET /orders enrichment (order_departments, 20260942001500): who SOLD it and its department. */
-  seller_name?: string | null;
-  department?: string | null;
-  confirmed_by_agent_id?: string | null;
-  confirmed_at?: string | null;
-  created_at: string;
-  source_type?: string;
-  source_lead_id?: string | null;
-  // AlterCPA linkage (GET /orders selects *; these power the CPA push button)
-  external_source?: string | null;
-  external_order_id?: string | null;
-  // CPA provenance — which affiliate sent the lead, for which offer, through
-  // which traffic source. The server omits all four for anyone below manager,
-  // so treat absent as "not allowed to see" rather than "no attribution".
-  cpa_webmaster_id?: string | null;
-  cpa_offer_id?: string | null;
-  cpa_offer_name?: string | null;
-  // Publisher/stream code (tracking.exts) — raw, no names exist upstream.
-  cpa_stream_id?: string | null;
-  ship_after_date?: string | null;
-  // Reason pairs — orderReasonText() composes the CPA push comment from these
-  cancellation_reason?: string | null;
-  cancellation_reason_notes?: string | null;
-  trash_reason?: string | null;
-  trash_reason_notes?: string | null;
-  return_reason?: string | null;
-  return_reason_notes?: string | null;
-  duplicated_from?: string | null;
-  duplicated_from_display?: string | null;
-  notes?: string | null;
-  delivery_type?: string | null;
-  home_courier?: string | null;
-  courier_office_name?: string | null;
-  courier_office_city?: string | null;
-  courier_office_code?: string | null;
-  order_items?: any[];
-}
-
-// Filter chips + dropdown use the same canonical palette as the table badges.
-const STATUS_CHIP_COLORS: Record<OrderStatus, string> = { ...STATUS_COLORS };
+/** The MEX profile a parcel was sent on (reference_mex_two_accounts). */
+const MEX_ACCOUNT_LABEL: Record<string, string> = { bio_natural: 'BIO NATURAL', natura: 'NATURA' };
 
 // The CPA push preview's unit price is in the LEAD's own currency (the api
 // computes it for AlterCPA). Денари when it is mkd — every lead that reaches
@@ -170,6 +123,22 @@ function orderToModalData(order: ApiOrder): OrderModalData {
   };
 }
 
+/**
+ * Нарачки — every order, in the Insights look (Phase 11 A, 01.10.2026).
+ *
+ * Opens on "Нарачки" (confirmed · packed · shipped · paid · returned) for the
+ * last 7 Skopje days; leads, cancels and trash are their own chips, each with
+ * its count, and "Сите" is their sum. Everything that narrows the list lives in
+ * the URL (lib/ordersList/listParams.ts) and is applied by the api
+ * (supabase/functions/api/ordersList.ts): department, seller, MEX status,
+ * source, assignee, price, CPA provenance, the period. A phone in the search
+ * box matches by its last 8 digits. An Insights drill-down or a ?search= link
+ * lists every status and date unless the URL says otherwise.
+ *
+ * A table from md (columns join as the screen widens), compact cards below; a
+ * row opens the order. Bulk trash / cancel, the CPA push, the MEX import CSV
+ * and "Export view" work on the ticked rows / the current filters as before.
+ */
 export default function Orders() {
   const { t } = useTranslation(); // also subscribes status chips/labels to language switches
   const { user } = useAuth();
@@ -179,49 +148,59 @@ export default function Orders() {
   const canEditOrders = canAction('orders', 'edit');
   // Inline Calls panel on expanded rows — recording-permission roles only.
   const showCallsPanel = canSeePrivacy('can_hear_recordings') || canSeePrivacy('can_hear_own_recordings');
-  const isAdmin = user?.isAdmin || user?.isManager;
+  const isAdmin = !!(user?.isAdmin || user?.isManager);
   const isAgent = !isAdmin;
   // Backend gates POST /orders/bulk-status-update to admin/manager/warehouse,
   // so the "auto-mark shipped" toggle is only meaningful for those roles.
   const canBulkUpdateStatus = !!(user?.isAdmin || user?.isManager || user?.isWarehouse);
 
-  // Overview drill-down (and ?search= from its examples) arrive in the URL.
-  // The drill restricts the list to exactly the orders a number counted; the
-  // toolbar filters still narrow it further.
+  // ── the list's state: the URL ─────────────────────────────────────────────
   const [searchParams, setSearchParams] = useSearchParams();
   const drill = useMemo(() => parseDrillParams(searchParams), [searchParams]);
   const drillKey = drill ? JSON.stringify(drill) : '';
   const drillLabel = searchParams.get(DRILL_LABEL_PARAM);
-  const clearDrill = () => setSearchParams((prev) => {
-    const next = new URLSearchParams(prev);
-    for (const k of [...next.keys()]) if (k !== 'search') next.delete(k);
-    return next;
-  }, { replace: true });
+  const state = useMemo(() => readListParams(searchParams), [searchParams]);
+  const today = skopjeToday();
+  const ctx = useMemo(() => ({ drill: !!drill }), [drill]);
+  const view = effectiveView(state, ctx);
+  const period = effectiveRange(state, today, ctx);
+  const page = state.page;
+  const patch = useCallback(
+    (p: ListPatch) => setSearchParams((prev) => writeListParams(prev, p), { replace: true }),
+    [setSearchParams],
+  );
+  const clearDrill = () => setSearchParams((prev) => clearDrillParams(prev), { replace: true });
 
-  const [search, setSearch] = useState(() => searchParams.get('search') ?? '');
-  const [debouncedSearch, setDebouncedSearch] = useState(() => searchParams.get('search') ?? '');
-  const [selectedStatuses, setSelectedStatuses] = useState<OrderStatus[]>([]);
-  const [sourceFilter, setSourceFilter] = useState('all');
-  // CPA provenance filters — admin/manager only, like the columns they filter on.
-  const [affiliateFilter, setAffiliateFilter] = useState('all');
-  const [offerFilter, setOfferFilter] = useState('all');
-  const [publisherFilter, setPublisherFilter] = useState('all');
-  const [agentFilter, setAgentFilter] = useState('all');
-  const [myOrdersOnly, setMyOrdersOnly] = useState(isAgent); // agents default to my orders
-  const [dateFrom, setDateFrom] = useState<Date | undefined>();
-  const [dateTo, setDateTo] = useState<Date | undefined>();
-  const [priceMin, setPriceMin] = useState<number | null>(null);
-  const [priceMax, setPriceMax] = useState<number | null>(null);
-  const [priceMinDraft, setPriceMinDraft] = useState('');
-  const [priceMaxDraft, setPriceMaxDraft] = useState('');
-  const [page, setPage] = useState(1);
+  // The search box answers every keystroke; the URL (and the query) follow.
+  const [searchText, setSearchText] = useState(state.search);
+  const writtenSearch = useRef(state.search.trim());
+  useEffect(() => {
+    const q = state.search.trim();
+    if (q === writtenSearch.current) return;
+    writtenSearch.current = q;
+    setSearchText(state.search);
+  }, [state.search]);
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      const next = searchText.trim();
+      if (next === writtenSearch.current) return;
+      writtenSearch.current = next;
+      patch({ search: next });
+    }, SEARCH_DELAY_MS);
+    return () => window.clearTimeout(id);
+  }, [searchText, patch]);
+  const searchFor = (text: string) => { writtenSearch.current = text.trim(); setSearchText(text); patch({ search: text }); };
+
+  const apiParams = useMemo(
+    () => toApiParams(state, { ...ctx, today, isAgent, userId: user?.id }),
+    [state, ctx, today, isAgent, user?.id],
+  );
+  const listKey = JSON.stringify(apiParams) + drillKey;
 
   // ── "Export view" scope ───────────────────────────────────────────────────
-  // The XLSX export used to dump `filteredOrders`, which is ONE page (20 rows),
-  // so a 57-order Shipped view exported 20 rows and silently dropped the rest.
-  // The export now walks the server pages itself, using the exact same filters
-  // the list is showing. 'all' = every matching row; 'range' = the operator's
-  // page window, numbered the same as the pager at the bottom of the screen.
+  // The export walks the server pages itself, using the exact same filters the
+  // list is showing. 'all' = every matching row; 'range' = the operator's page
+  // window, numbered the same as the pager at the bottom of the screen.
   const [exportScope, setExportScope] = useState<'all' | 'range'>('all');
   // Kept as strings so the inputs can be emptied while typing; clamped on use.
   const [exportPageFrom, setExportPageFrom] = useState('1');
@@ -235,9 +214,11 @@ export default function Orders() {
   const [orders, setOrders] = useState<ApiOrder[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [modalOrder, setModalOrder] = useState<ApiOrder | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [historyOrder, setHistoryOrder] = useState<{ phone: string; name: string } | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const isMobile = useIsMobile();
 
   // Expandable rows state - supports multiple rows open at once
@@ -247,7 +228,7 @@ export default function Orders() {
   const tryOpenOrder = async (order: ApiOrder) => {
     // Clean up expired locks first
     await supabase.rpc('cleanup_expired_order_locks');
-    
+
     // Check if already locked by someone else
     const { data: existingLock } = await supabase
       .from('order_locks')
@@ -291,7 +272,7 @@ export default function Orders() {
       await supabase.from('order_locks').delete().eq('order_id', modalOrder.id).eq('locked_by', user.id);
     }
     setModalOrder(null);
-    if (saved) fetchOrders();
+    if (saved) refresh();
   };
 
   // Duplicate order (admin/manager only) — server creates a copy with the next
@@ -304,25 +285,24 @@ export default function Orders() {
     try {
       const dup = await apiDuplicateOrder(order.id);
       toast({ title: t('ordersPage.duplicateCreated', { id: dup.display_id }) });
-      fetchOrders();
+      refresh();
     } catch (e: any) {
-      toast({ title: e.message || 'Error', variant: 'destructive' });
+      toast({ title: e.message || t('common.error'), variant: 'destructive' });
     } finally {
       setDuplicatingId(null);
     }
   };
 
-  // Manual "CPA" push (admin/manager, feature-flagged). Strictly one order per
-  // press — no bulk variant exists, by operator decision 2026-08-14. The button
-  // first fetches a dry-run preview (the server-assembled payload, so the
-  // dialog cannot lie) and only the explicit Confirm fires the live call.
+  // Manual "CPA" push (admin/manager, feature-flagged). The button first fetches
+  // a dry-run preview (the server-assembled payload, so the dialog cannot lie)
+  // and only the explicit Confirm fires the live call.
   const { data: appSettings } = useQuery({
     queryKey: ['app-settings'],
     queryFn: apiGetAppSettings,
-    enabled: !!isAdmin,
+    enabled: isAdmin,
     staleTime: 60_000,
   });
-  const cpaPushEnabled = !!isAdmin && appSettings?.altercpa_push_enabled === true;
+  const cpaPushEnabled = isAdmin && appSettings?.altercpa_push_enabled === true;
   // call_again added 2026-08-19 → their status 3 Callback; the server refuses
   // it for leads AlterCPA has already moved past phase 2 (no regressions).
   const CPA_PUSHABLE = ['confirmed', 'call_again', 'shipped', 'delivered', 'paid', 'returned', 'cancelled', 'trashed'];
@@ -364,39 +344,35 @@ export default function Orders() {
   const toggleRowExpansion = (orderId: string) => {
     setExpandedIds(prev => {
       const next = new Set(prev);
-      if (next.has(orderId)) {
-        next.delete(orderId);
-      } else {
-        next.add(orderId);
-      }
+      if (next.has(orderId)) next.delete(orderId); else next.add(orderId);
       return next;
     });
   };
 
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search), 350);
-    return () => clearTimeout(t);
-  }, [search]);
-
-  useEffect(() => { setPage(1); }, [debouncedSearch, selectedStatuses, sourceFilter, affiliateFilter, offerFilter, publisherFilter, agentFilter, myOrdersOnly, dateFrom, dateTo, priceMin, priceMax, drillKey]);
-
   const { data: agentsData } = useQuery({
     queryKey: ['agents'],
     queryFn: apiGetAgents,
-    enabled: !!isAdmin,
+    enabled: isAdmin,
+  });
+  // The seller filter: sales_people (who is CREDITED with a sale).
+  const { data: sellersData } = useQuery({
+    queryKey: ['order-sellers'],
+    queryFn: apiGetOrderSellers,
+    enabled: isAdmin,
+    staleTime: 300_000,
   });
 
   // Affiliate names. AlterCPA gives us only a numeric `wm` and has no directory
   // endpoint, so these come from altercpa_webmasters. Agents never receive the
   // ids, so the request is skipped for them entirely.
-  const webmasterNames = useWebmasterNames(!!isAdmin);
+  const webmasterNames = useWebmasterNames(isAdmin);
 
-  // The two provenance dropdowns, grouped in Postgres — 82k rows must not be
+  // The provenance dropdowns, grouped in Postgres — 80k rows must not be
   // counted in the browser.
   const { data: cpaDimensions } = useQuery<CpaAttributionDimensions>({
     queryKey: ['cpa-attribution-dimensions'],
     queryFn: apiGetCpaAttributionDimensions,
-    enabled: !!isAdmin,
+    enabled: isAdmin,
     staleTime: 300_000,
   });
 
@@ -406,89 +382,66 @@ export default function Orders() {
     queryKey: ['products'],
     queryFn: apiGetProducts,
   });
-  const skuById = useMemo(() => {
-    const m: Record<string, string> = {};
-    for (const p of productsData || []) if (p.id && p.sku) m[p.id] = p.sku;
-    return m;
-  }, [productsData]);
-
-  const { nameById, resolveToCleanCatalogueName, resolveSku } = useMemo(() => {
+  const { nameById, resolveToCleanCatalogueName } = useMemo(() => {
     return buildProductNameLookups(productsData || []);
   }, [productsData]);
 
-  // The filter set behind the on-screen list. Extracted so "Export view" can
-  // re-run the EXACT same query across every page instead of formatting
-  // whatever 20 rows happen to be loaded — the two can never drift apart now.
-  const currentFilterParams = () => {
-    // When agent is searching, don't restrict by agent_id (global search)
-    const isSearching = !!debouncedSearch;
-    const effectiveAgentId = isSearching && isAgent
-      ? undefined
-      : (myOrdersOnly && user?.id ? user.id : (agentFilter !== 'all' ? agentFilter : undefined));
-    return {
-      status: selectedStatuses.length > 0 ? selectedStatuses.join(',') : undefined,
-      source: sourceFilter !== 'all' ? sourceFilter : undefined,
-      cpa_webmaster: affiliateFilter !== 'all' ? affiliateFilter : undefined,
-      cpa_offer: offerFilter !== 'all' ? offerFilter : undefined,
-      cpa_stream: publisherFilter !== 'all' ? publisherFilter : undefined,
-      search: debouncedSearch || undefined,
-      agent_id: effectiveAgentId,
-      from: dateFrom ? format(dateFrom, "yyyy-MM-dd'T'00:00:00") : undefined,
-      to: dateTo ? format(dateTo, "yyyy-MM-dd'T'23:59:59") : undefined,
-      price_min: priceMin ?? undefined,
-      price_max: priceMax ?? undefined,
-      drill: drill ?? undefined,
-    };
-  };
+  // The filter set behind the on-screen list. "Export view" re-runs the EXACT
+  // same query across every page — the two can never drift apart.
+  const currentFilterParams = () => ({ ...apiParams, drill: drill ?? undefined });
 
-  const fetchOrders = () => {
+  // ── the page ──────────────────────────────────────────────────────────────
+  const seq = useRef(0);
+  const fetchOrders = useCallback(() => {
+    const mine = ++seq.current;
     setLoading(true);
-    apiGetOrders({
-      ...currentFilterParams(),
-      page,
-      limit: PAGE_SIZE,
-    })
+    apiGetOrders({ ...apiParams, drill: drill ?? undefined, page, limit: PAGE_SIZE })
       .then((data) => {
+        if (mine !== seq.current) return; // a newer filter answered first
         setOrders(data.orders || []);
         setTotal(data.total || 0);
+        setLoadError(null);
       })
       .catch((err) => {
+        if (mine !== seq.current) return;
         console.error('Failed to fetch orders:', err);
+        setLoadError(apiErrorText(err));
       })
-      .finally(() => setLoading(false));
-  };
+      .finally(() => { if (mine === seq.current) setLoading(false); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listKey, page]);
+  useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
-  useEffect(() => { fetchOrders(); }, [page, selectedStatuses, sourceFilter, affiliateFilter, offerFilter, publisherFilter, debouncedSearch, agentFilter, myOrdersOnly, dateFrom, dateTo, priceMin, priceMax, drillKey]);
+  // One count per status chip, for the same filters (the chips' numbers).
+  const { data: countsData, refetch: refetchCounts } = useQuery({
+    queryKey: ['orders-view-counts', listKey],
+    queryFn: () => apiGetOrderViewCounts({ ...apiParams, drill: drill ?? undefined }),
+    staleTime: 30_000,
+  });
+  const refresh = () => { fetchOrders(); refetchCounts(); };
 
-  // Status filtering (single or multi-select) is now done server-side, so the
-  // page already contains exactly the orders that match — and total/pagination
-  // are correct. No client-side status filtering needed.
-  const filteredOrders = orders;
+  // "Who is viewing" — one request for the whole page.
+  const views = useActiveViews(useMemo(() => orders.map((o) => o.customer_phone), [orders]));
 
   // Count duplicate phones in current results
   const phoneCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    for (const o of filteredOrders) {
+    for (const o of orders) {
       const p = o.customer_phone?.replace(/[^0-9+]/g, '');
       if (p && p.length >= 6) counts[p] = (counts[p] || 0) + 1;
     }
     return counts;
-  }, [filteredOrders]);
-
+  }, [orders]);
   const getPhoneDupCount = (phone: string) => {
     const p = phone?.replace(/[^0-9+]/g, '');
     return p ? (phoneCounts[p] || 0) : 0;
   };
 
-  // Resolve the product label for an order (shared by the desktop table cell and
-  // the mobile card). Handles real line items, clean names, and synthetic
-  // cancelled/trashed rows that stash the prior product in notes.
-  //
-  // reasonFallback: on a legacy row with no product of its own this falls back to
-  // the reason text, which is better than an empty cell — but the Product & Reason
-  // cell already prints the reason on its own second line, so it passes false to
-  // avoid saying the same thing twice. Recovering a real product out of a
-  // "Prior product:" note still runs either way.
+  // Resolve the product label for an order (the table cell and the card).
+  // Handles real line items, clean names, and synthetic cancelled/trashed rows
+  // that stash the prior product in notes. reasonFallback: on a legacy row with
+  // no product of its own this falls back to the reason text; the product cell
+  // prints the reason on its own line, so it passes false there.
   const productOnlyLabel = (order: any, opts?: { reasonFallback?: boolean }): string => {
     const reasonFallback = opts?.reasonFallback !== false;
     if (order.order_items && order.order_items.length > 0) {
@@ -503,9 +456,6 @@ export default function Orders() {
     }
     const isOutcomeSynthetic = ['cancelled', 'trashed', 'returned', 'call_again'].includes(order.status);
     if (isOutcomeSynthetic) {
-      // Structured trash reason (orders.trash_reason) — translated for display.
-      // Replaces the old "No prior product on file" placeholder on trashed rows
-      // that carry no product of their own.
       if (reasonFallback && order.status === 'trashed' && order.trash_reason) {
         const label = t(`trashReason.${order.trash_reason}`, { defaultValue: order.trash_reason });
         const extra = (order.trash_reason_notes || '').trim();
@@ -523,81 +473,38 @@ export default function Orders() {
     return formatProductWithQuantity(resolveToCleanCatalogueName(pn), order.quantity || 1) || '—';
   };
 
-  // What goes in the Product & Reason column.
-  //
-  // Both facts matter on a row that ended badly: which product it was, and why it
-  // died. The cell stacks them — product on top in the normal size, reason (coded
-  // label + whatever the agent typed) underneath, smaller and muted. An earlier
-  // version showed the reason INSTEAD of the product, with the product demoted to
-  // a hover title, which meant a cancel list could not be scanned for the product
-  // at all.
-  //
-  // Returned rows are included even though none carry a reason today — the status
-  // is set by the MEX reconciliation cron, which learns a parcel came back but not
-  // why. They render product-only until someone records a return_reason, which the
-  // order-update endpoint already accepts.
+  // Product on top, the reason (cancel / trash / return) under it — a cancel
+  // list must stay scannable by product.
   const isTerminated = (order: any) =>
     order.status === 'cancelled' || order.status === 'trashed' || order.status === 'returned';
-
   const productCellParts = (order: any): { product: string; reason: string | null } => {
     const reason = isTerminated(order) ? sharedOrderReasonText(order) : null;
     return { product: productOnlyLabel(order, { reasonFallback: !reason }), reason };
   };
-
-  // Human text for the rich reason panel on cancelled/trashed rows (desktop
-  // expanded row + mobile card). Trashed orders carry a STRUCTURED reason in
-  // orders.trash_reason (translated with the same trashReason.* labels as the
-  // picker) + optional free-text note; cancelled ones keep the legacy
-  // free-text chain.
-  // Shared with the status-badge tooltip (src/lib/orderReason.ts) so the panel
-  // and the hover can never disagree about the same order.
+  // The rich reason panel on cancelled/trashed rows (src/lib/orderReason.ts, shared
+  // with the status-badge tooltip so the two never disagree).
   const orderReasonText = (order: any): string | null =>
     sharedOrderReasonText(order) || order.notes || null;
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   // Rows the current export settings would produce, shown before they click.
-  // A page window is clamped to the pages that actually exist, so "1–999" on a
-  // 3-page view reads as the real 57, not a fantasy number.
   const exportEstimate = useMemo(() => {
     const { pageFrom, pageTo } = clampPageRange(exportPageFrom, exportPageTo, totalPages);
     return estimateExportRows(exportScope, pageFrom, pageTo, total, PAGE_SIZE, EXPORT_ROW_CAP);
   }, [exportScope, exportPageFrom, exportPageTo, total, totalPages]);
 
-  const toggleStatus = (s: OrderStatus) => {
-    setSelectedStatuses(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
-  };
-  const hasActiveFilters = !!drill || search.trim() || selectedStatuses.length > 0 || sourceFilter !== 'all' || affiliateFilter !== 'all' || offerFilter !== 'all' || publisherFilter !== 'all' || agentFilter !== 'all' || (myOrdersOnly && isAdmin) || dateFrom || dateTo || priceMin != null || priceMax != null;
+  const filterCount = activeFilterCount(state, isAgent);
+  const hasActiveFilters = !!drill || !!state.search.trim() || state.view != null || filterCount > 0;
   const clearAllFilters = () => {
-    if (searchParams.toString()) setSearchParams({}, { replace: true });
-    setSearch(''); setSelectedStatuses([]); setSourceFilter('all'); setAffiliateFilter('all'); setOfferFilter('all'); setPublisherFilter('all'); setAgentFilter('all'); if (isAdmin) setMyOrdersOnly(false); setDateFrom(undefined); setDateTo(undefined);
-    setPriceMin(null); setPriceMax(null); setPriceMinDraft(''); setPriceMaxDraft('');
+    writtenSearch.current = '';
+    setSearchText('');
+    setSearchParams((prev) => clearListParams(prev), { replace: true });
   };
 
-  const priceLabel = priceMin != null && priceMax != null
-    ? `${formatMoney(priceMin)}–${formatMoney(priceMax)}`
-    : priceMin != null
-      ? `${formatMoney(priceMin)}+`
-      : priceMax != null
-        ? `≤ ${formatMoney(priceMax)}`
-        : null;
-
-  const applyPricePreset = (min: number | null, max: number | null) => {
-    setPriceMin(min); setPriceMax(max);
-    setPriceMinDraft(min != null ? String(eurToDen(min)) : '');
-    setPriceMaxDraft(max != null ? String(eurToDen(max)) : '');
-  };
-
-  const applyPriceCustom = () => {
-    const minN = priceMinDraft.trim() === '' ? null : denToEur(Number(priceMinDraft));
-    const maxN = priceMaxDraft.trim() === '' ? null : denToEur(Number(priceMaxDraft));
-    setPriceMin(Number.isFinite(minN as number) ? (minN as number) : null);
-    setPriceMax(Number.isFinite(maxN as number) ? (maxN as number) : null);
-  };
-
-  // Daily fulfilment export — pulls confirmed orders within a date range and
-  // writes a CSV in the format the warehouse / fulfilment company expects.
-  // Independent of the active page filters.
+  // Daily fulfilment export — pulls orders of one status within a date range
+  // (Skopje days) and writes the CSV the MEX portal imports. Independent of the
+  // list's filters.
   const [fulfilFrom, setFulfilFrom] = useState<Date | undefined>(new Date());
   const [fulfilTo, setFulfilTo] = useState<Date | undefined>(new Date());
   const [fulfilStatus, setFulfilStatus] = useState<OrderStatus>('confirmed');
@@ -607,19 +514,15 @@ export default function Orders() {
   // status filter is 'confirmed' — exporting other statuses doesn't auto-flip.
   const [markShippedAfterExport, setMarkShippedAfterExport] = useState(true);
   // "Ready to ship by" cutoff. Orders with a postponed ship_after_date later
-  // than this are excluded from today's CSV — they'll come up naturally when
-  // their date arrives. Defaults to today+2 to honor the "1-2 days is fine to
-  // ship immediately" rule. Orders with no ship_after_date are always included.
+  // than this are excluded from today's CSV. Defaults to today+2 ("1-2 days is
+  // fine to ship immediately"). Orders with no ship_after_date always pass.
   const [readyByDate, setReadyByDate] = useState<Date | undefined>(addDays(new Date(), 2));
-  // Manual selection for the fulfilment export. 'range' = classic date-range
-  // dump; 'selected' = export exactly the ticked orders. The map stores the
-  // FULL order object (not just the id) so the CSV has every field even after
-  // the row scrolls off-page or the filters change — selections accumulate
-  // across pages/dates.
+  // 'range' = classic date-range dump; 'selected' = exactly the ticked orders.
+  // The map stores the FULL order object so the CSV has every field even after
+  // the row scrolls off-page or the filters change.
   const [fulfilSource, setFulfilSource] = useState<'range' | 'selected'>('range');
   const [selectedExport, setSelectedExport] = useState<Map<string, any>>(new Map());
-  // Pending validation result when an export batch has incomplete orders. The
-  // dialog lets the operator fix them first or export the valid ones only.
+  // Pending validation result when an export batch has incomplete orders.
   const [exportValidation, setExportValidation] = useState<{
     valid: any[];
     invalid: InvalidOrder[];
@@ -630,12 +533,19 @@ export default function Orders() {
     if (next.has(order.id)) next.delete(order.id); else next.set(order.id, order);
     return next;
   });
+  const toggleAllOnPage = () => {
+    const allSel = orders.length > 0 && orders.every(o => selectedExport.has(o.id));
+    setSelectedExport(prev => {
+      const next = new Map(prev);
+      if (allSel) orders.forEach(o => next.delete(o.id));
+      else orders.forEach(o => next.set(o.id, o));
+      return next;
+    });
+  };
   const clearExportSelect = () => setSelectedExport(new Map());
 
   // ── Bulk trash / cancel (rule 8: no order is junked without a reason) ──────
-  // Rides on the row selection that already exists for the fulfilment CSV, so
-  // there is one selection model on this page, not two.
-  const canDisposeOrders = !!(user?.isAdmin || user?.isManager);
+  const canDisposeOrders = isAdmin;
   // Mirrors DISPOSABLE in POST /orders/bulk-disposition. Anything shipped and
   // beyond belongs to the warehouse Returned flow.
   const DISPOSABLE_STATUSES = ['pending', 'take', 'call_again', 'duplicated', 'confirmed'];
@@ -644,12 +554,11 @@ export default function Orders() {
   const [dispCancelReason, setDispCancelReason] = useState<CancellationReason | null>(null);
   const [dispNotes, setDispNotes] = useState('');
   const [dispBusy, setDispBusy] = useState(false);
-  // What the server will actually act on, so the dialog can say "3 of 5" rather
-  // than promising a number it won't deliver.
   const disposableSelected = useMemo(
     () => Array.from(selectedExport.values()).filter(
       (o: any) => DISPOSABLE_STATUSES.includes(o.status) && o.status !== dispositionAction,
     ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [selectedExport, dispositionAction],
   );
   const openDisposition = (action: 'trashed' | 'cancelled') => {
@@ -677,7 +586,7 @@ export default function Orders() {
       });
       setDispositionAction(null);
       clearExportSelect();
-      fetchOrders();
+      refresh();
     } catch (err: any) {
       toast({ title: t('common.error'), description: err?.message, variant: 'destructive' });
     } finally {
@@ -691,15 +600,15 @@ export default function Orders() {
     [selectedExport],
   );
 
-  // Bulk Send-to-CPA (operator decision 2026-08-18, reversing the 08-14
-  // one-per-press rule): the SELECTION drives a sequential client-side loop
-  // over the same single-order endpoint — one server call per order, so every
-  // order keeps its own payload, note, audit row and read-back verification.
-  // There is still NO automatic hook: only this explicit button loops.
+  // Bulk Send-to-CPA (operator decision 2026-08-18): the SELECTION drives a
+  // sequential client-side loop over the same single-order endpoint — one call
+  // per order, so every order keeps its own payload, note, audit row and
+  // read-back verification. There is still NO automatic hook.
   const [cpaBulk, setCpaBulk] = useState<{ eligible: ApiOrder[]; skipped: number } | null>(null);
   const [cpaBulkProgress, setCpaBulkProgress] = useState<{ done: number; total: number } | null>(null);
   const cpaPushableSelected = useMemo(
     () => Array.from(selectedExport.values()).filter((o: any) => canPushCpa(o)) as ApiOrder[],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [selectedExport, cpaPushEnabled],
   );
   const runCpaBulk = async () => {
@@ -717,7 +626,7 @@ export default function Orders() {
         else if (res.noop) noop++;
         else ok++;
       } catch (e: any) {
-        failed.push(`${o.display_id}: ${e?.message || 'error'}`);
+        failed.push(`${o.display_id}: ${e?.message || t('common.error')}`);
       }
       setCpaBulkProgress({ done: i + 1, total: eligible.length });
     }
@@ -730,51 +639,43 @@ export default function Orders() {
     setCpaBulk(null);
     setCpaBulkProgress(null);
     clearExportSelect();
-    fetchOrders();
+    refresh();
   };
+
   // Build the CSV from the given orders, download it, and (for the confirmed
   // bucket) flip them → shipped. Shared by the direct export and the "Export
   // valid only" path of the validation dialog, so both behave identically.
   const runFulfilmentExport = async (
-    orders: any[],
-    ctx: { isSelected: boolean; readyByStr: string | null; heldBackPostponed: number; heldBackInvalid: number },
+    rows: any[],
+    fctx: { isSelected: boolean; readyByStr: string | null; heldBackPostponed: number; heldBackInvalid: number },
   ) => {
-    const { isSelected, readyByStr, heldBackPostponed, heldBackInvalid } = ctx;
+    const { isSelected, readyByStr, heldBackPostponed, heldBackInvalid } = fctx;
 
     // MEX Poshta CLIENT-PORTAL import file — the 8 fixed columns their bulk
     // importer accepts (Kod na pratka … Tezina), comma-separated, no BOM, and
-    // never a quoted field. The whole column contract — Latin transliteration,
-    // integer Otkup, Grad matched by zone NAME, and why this replaced the
-    // add_shipment.php parameter layout — lives in src/lib/mexImportCsv.ts.
-    // This page only decides WHICH orders go in.
-    const csv = toCsv(orders, buildMexImportColumns(), ',', false);
+    // never a quoted field. The whole column contract lives in
+    // src/lib/mexImportCsv.ts. This page only decides WHICH orders go in.
+    const csv = toCsv(rows, buildMexImportColumns(), ',', false);
 
-    const today = format(new Date(), 'yyyy-MM-dd');
-    const fromStr = fulfilFrom ? format(fulfilFrom, 'yyyy-MM-dd') : today;
-    const toStr = fulfilTo ? format(fulfilTo, 'yyyy-MM-dd') : today;
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const fromStr = fulfilFrom ? format(fulfilFrom, 'yyyy-MM-dd') : todayStr;
+    const toStr = fulfilTo ? format(fulfilTo, 'yyyy-MM-dd') : todayStr;
     const fname = isSelected
-      ? `mex_shipments_selected_${today}_${orders.length}orders.csv`
+      ? `mex_shipments_selected_${todayStr}_${rows.length}orders.csv`
       : (fromStr === toStr
         ? `mex_shipments_${fulfilStatus}_${fromStr}.csv`
         : `mex_shipments_${fulfilStatus}_${fromStr}_to_${toStr}.csv`);
     downloadCsv(fname, csv);
 
-    // Flip confirmed → shipped after a successful download so the warehouse
-    // hand-off is captured in the system. We only do this when exporting the
-    // 'confirmed' bucket — exporting other statuses is a re-export, not a
-    // hand-off, and shouldn't move anything.
-    // Two kinds of held-back orders never leave: postponed (ship_after_date in
-    // the future) and incomplete (failed pre-export validation). Both stay
-    // confirmed and re-surface for a clean re-export.
+    // Flip confirmed → shipped after a successful download (the warehouse
+    // hand-off). Held-back orders (postponed, or incomplete) never leave: they
+    // stay confirmed and re-surface for a clean re-export.
     const postponedSuffix = heldBackPostponed > 0
       ? ` · ${t('ordersPage.exportPostponedPast', { n: heldBackPostponed, date: readyByStr ? readyByStr.split('-').reverse().join('.') : '' })}`
       : '';
     const invalidSuffix = heldBackInvalid > 0 ? ` · ${t('ordersPage.exportedWithHeldBack', { held: heldBackInvalid })}` : '';
     const heldBackSuffix = `${postponedSuffix}${invalidSuffix}`;
-    // Flip → shipped: in range mode the order set is the chosen 'confirmed'
-    // bucket; in selected mode only the picked orders that are confirmed (a
-    // manual selection can be mixed-status).
-    const flipIds = (isSelected ? orders.filter(o => o.status === 'confirmed') : orders).map(o => o.id);
+    const flipIds = (isSelected ? rows.filter(o => o.status === 'confirmed') : rows).map(o => o.id);
     const shouldFlip = markShippedAfterExport && canBulkUpdateStatus && flipIds.length > 0
       && (isSelected || fulfilStatus === 'confirmed');
     if (shouldFlip) {
@@ -785,7 +686,7 @@ export default function Orders() {
           description: `${t('ordersPage.exportedShippedDesc', { count: flipIds.length, file: fname })}${heldBackSuffix}`,
         });
         if (isSelected) clearExportSelect();
-        fetchOrders();
+        refresh();
       } catch (flipErr: any) {
         toast({
           title: t('ordersPage.exportedStatusFailed'),
@@ -796,7 +697,7 @@ export default function Orders() {
     } else {
       toast({
         title: t('ordersPage.exported'),
-        description: `${t('ordersPage.exportedDesc', { count: orders.length, file: fname })}${heldBackSuffix}`,
+        description: `${t('ordersPage.exportedDesc', { count: rows.length, file: fname })}${heldBackSuffix}`,
       });
       if (isSelected) clearExportSelect();
     }
@@ -830,23 +731,20 @@ export default function Orders() {
     setFulfilLoading(true);
     try {
       // Source: the ticked orders (manual), or all matching pages for the date
-      // range — fulfilment dumps can be a few thousand rows.
+      // range — fulfilment dumps can be a few thousand rows. The range is in
+      // Skopje days (each order by its own date), like the list.
       let all: any[] = [];
       if (isSelected) {
         all = Array.from(selectedExport.values());
       } else {
         const PAGE = 200;
-        for (let page = 1; ; page++) {
-          const data = await apiGetOrders({
-            status: fulfilStatus,
-            from: format(fulfilFrom!, "yyyy-MM-dd'T'00:00:00"),
-            to: format(fulfilTo!, "yyyy-MM-dd'T'23:59:59"),
-            page,
-            limit: PAGE,
-          });
-          const orders = data.orders || [];
-          all.push(...orders);
-          if (orders.length < PAGE) break;
+        let a = format(fulfilFrom!, 'yyyy-MM-dd'), b = format(fulfilTo!, 'yyyy-MM-dd');
+        if (a > b) [a, b] = [b, a];
+        for (let p = 1; ; p++) {
+          const data = await apiGetOrders({ status: fulfilStatus, day_from: a, day_to: b, page: p, limit: PAGE });
+          const batch = data.orders || [];
+          all.push(...batch);
+          if (batch.length < PAGE) break;
           if (all.length >= 10000) break; // hard safety cap
         }
       }
@@ -856,11 +754,7 @@ export default function Orders() {
         return;
       }
 
-      // Apply the "Ready to ship by" cutoff. Orders without ship_after_date go
-      // through (they were never postponed); ones with a date pass only when
-      // it's <= the cutoff. Lexicographic compare works because both sides are
-      // in 'yyyy-MM-dd'.
-      // Ready-by cutoff applies only to date-range exports; manual picks are explicit.
+      // The "Ready to ship by" cutoff (date-range exports only; manual picks are explicit).
       const readyByStr = (!isSelected && readyByDate) ? format(readyByDate, 'yyyy-MM-dd') : null;
       const eligible = readyByStr
         ? all.filter(o => !o.ship_after_date || String(o.ship_after_date) <= readyByStr)
@@ -875,10 +769,8 @@ export default function Orders() {
         return;
       }
 
-      // Pre-export validation: split the eligible set into ready-to-ship vs
-      // incomplete. BigArena rejects a file with any bad row, so incomplete
-      // orders must never be exported or flipped — they stay confirmed and the
-      // operator fixes + re-exports them (no more reverting good orders by hand).
+      // Pre-export validation: incomplete orders are never exported or flipped —
+      // they stay confirmed and the operator fixes + re-exports them.
       const valid: any[] = [];
       const invalid: InvalidOrder[] = [];
       for (const o of eligible) {
@@ -886,14 +778,12 @@ export default function Orders() {
         if (res.ok) valid.push(o); else invalid.push({ order: o, missing: res.missing });
       }
 
-      const ctx = { isSelected, readyByStr, heldBackPostponed };
+      const fctx = { isSelected, readyByStr, heldBackPostponed };
       if (invalid.length > 0) {
-        // Hand off to the dialog: "Fix first" (cancel) or "Export valid (N)".
-        // The continuation lives in handleExportValidOnly.
-        setExportValidation({ valid, invalid, ctx });
+        setExportValidation({ valid, invalid, ctx: fctx });
         return;
       }
-      await runFulfilmentExport(eligible, { ...ctx, heldBackInvalid: 0 });
+      await runFulfilmentExport(eligible, { ...fctx, heldBackInvalid: 0 });
     } catch (err: any) {
       toast({ title: t('ordersPage.exportFailed'), description: err?.message || t('common.unknownError'), variant: 'destructive' });
     } finally {
@@ -902,12 +792,8 @@ export default function Orders() {
   };
 
   /** Fetch every row matching the current filters, over `pageFrom..pageTo` of
-   *  the on-screen pager (or all pages when `scope === 'all'`).
-   *
-   *  Page numbers are the ones the operator sees, i.e. PAGE_SIZE rows each, but
-   *  we fetch in 200-row chunks and slice — 1 request per 10 screen pages
-   *  instead of 1 per page. `total` is only an estimate when nothing is
-   *  filtered, so the loop stops on a short chunk rather than trusting it. */
+   *  the on-screen pager (or all pages when `scope === 'all'`), in 200-row
+   *  chunks; the loop stops on a short chunk rather than trusting `total`. */
   const fetchOrdersForExport = async (
     scope: 'all' | 'range',
     pageFrom: number,
@@ -931,8 +817,6 @@ export default function Orders() {
       if (collected.length >= EXPORT_ROW_CAP + startRow) { capped = true; break; }
     }
 
-    // `collected` starts at row (firstChunk-1)*CHUNK, which is at or before
-    // startRow — trim the head, then the tail.
     let rows = collected.slice(offsetIntoChunk);
     if (endRow !== Infinity) rows = rows.slice(0, endRow - startRow);
     if (rows.length > EXPORT_ROW_CAP) { rows = rows.slice(0, EXPORT_ROW_CAP); capped = true; }
@@ -941,10 +825,7 @@ export default function Orders() {
 
   const exportXLSX = async () => {
     if (exportLoading) return;
-    // Empty, reversed and out-of-range windows all resolve to something sane
-    // instead of exporting nothing. See exportPageRange.test.ts.
     const { pageFrom: pFrom, pageTo: pTo } = clampPageRange(exportPageFrom, exportPageTo, totalPages);
-
     setExportLoading(true);
     setExportProgress(0);
     try {
@@ -987,6 +868,8 @@ export default function Orders() {
         'PRODUCT': items,
         'CONFIRMED BY': creditName(o) || '',
         'SOURCE': departmentLabel(t, o.department) || sourceLabel(t, o.source_type),
+        'MEX TRACKING': o.mex_tracking_id || '',
+        'MEX STATUS': o.mex_status_id != null ? t(`customer360.mexStatus.${o.mex_status_id}`, { defaultValue: String(o.mex_status_id) }) : '',
         // Empty rather than "—" for non-CPA orders: a spreadsheet column reads
         // better blank, and agents never receive these fields at all.
         'AFFILIATE': o.cpa_webmaster_id ? affiliateLabel(o.cpa_webmaster_id, webmasterNames) : '',
@@ -1001,566 +884,496 @@ export default function Orders() {
     XLSX.writeFile(wb, `orders_export_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
   };
 
-  return (
-    <AppLayout title={t('nav.orders')}>
-      {drill && <OrdersDrillBanner drill={drill} label={drillLabel} onClear={clearDrill} />}
-      {/* Filter Bar */}
-      <div className="sticky top-0 z-10 mb-4 space-y-3">
-        <div className="rounded-xl border bg-card/80 backdrop-blur-sm p-3 shadow-sm">
-          <div className="flex items-center gap-2.5 overflow-x-auto pb-1 scrollbar-thin md:flex-wrap md:overflow-visible">
-            <div className="relative flex-1 min-w-[140px] max-w-[200px]">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input placeholder={t('ordersPage.searchPlaceholder')} value={search} onChange={(e) => setSearch(e.target.value)} className="h-9 pl-8 text-sm rounded-lg bg-background" />
+  // ── row pieces ────────────────────────────────────────────────────────────
+  const rowActions = (order: ApiOrder): RowAction[] => [
+    { key: 'open', label: t('ordersPage.openOrder'), icon: Lock, onClick: () => tryOpenOrder(order) },
+    {
+      key: 'details', label: expandedIds.has(order.id) ? t('ordersList.hideDetails') : t('ordersList.details'),
+      icon: ListCollapse, onClick: () => toggleRowExpansion(order.id),
+    },
+    { key: 'history', label: t('ordersPage.seeHistory'), icon: History, onClick: () => setHistoryOrder({ phone: order.customer_phone, name: order.customer_name }) },
+    { key: 'dups', label: t('ordersPage.viewDuplicates'), icon: Copy, onClick: () => searchFor(order.customer_phone) },
+    ...(isAdmin ? [{ key: 'duplicate', label: t('ordersPage.duplicateOrder'), icon: CopyPlus, onClick: () => handleDuplicateOrder(order), disabled: duplicatingId !== null }] : []),
+    ...(canPushCpa(order) ? [{ key: 'cpa', label: t('ordersPage.pushCpa'), icon: Send, onClick: () => handleCpaPreview(order), disabled: cpaLoadingId !== null }] : []),
+  ];
+
+  const renderDetails = (order: ApiOrder) => {
+    const created = skopjeDayTime(order.created_at);
+    return (
+      <div className="border-l-4 border-primary/70 bg-background/50 px-3 py-3 text-sm md:px-5 md:py-4">
+        <div className="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="min-w-0">
+            <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{t('ordersPage.customerSection')}</div>
+            <div className="break-words font-medium">{order.customer_name || '—'}</div>
+            <div className="break-all font-mono text-xs text-muted-foreground">{order.customer_phone}</div>
+            <div className="mt-1 break-words text-xs leading-tight">
+              {order.customer_address}<br />
+              {order.customer_city}{order.postal_code ? `, ${order.postal_code}` : ''}
             </div>
-
-            {isMobile && (
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-lg text-sm font-normal">
-                    <Filter className="h-3.5 w-3.5" /> {t('ordersPage.filters')}
-                    {hasActiveFilters && <span className="ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">!</span>}
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="bottom" className="h-[80vh] overflow-y-auto">
-                  <SheetHeader>
-                    <SheetTitle>{t('ordersPage.filters')}</SheetTitle>
-                  </SheetHeader>
-                  <div className="space-y-4 py-4">
-                    {/* Status, Assignee, My Orders, Date, Price will be duplicated here for mobile sheet. For simplicity in this fix, the popovers are still available but this button hints; full extraction would duplicate controls. */}
-                    <div className="text-xs text-muted-foreground">{t('ordersPage.mobileSheetHint')}</div>
-                    {/* To fully implement, extract FilterControls component and render here + desktop. For now, this + responsive fixes viewport. */}
-                  </div>
-                </SheetContent>
-              </Sheet>
+          </div>
+          <div className="min-w-0">
+            <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{t('ordersPage.orderInfoSection')}</div>
+            <div className="space-y-0.5 text-sm">
+              <div><span className="text-muted-foreground">{t('ordersPage.created')}</span> <span className="tabular-nums">{created.day} {created.time}</span></div>
+              <div><span className="text-muted-foreground">{t('ordersPage.statusField')}</span> <span className="font-medium">{statusLabel(order.status)}</span></div>
+              {order.department && <div className="flex flex-wrap items-center gap-1"><DeptLine o={order} /></div>}
+              {order.source_type && <div><span className="text-muted-foreground">{t('ordersPage.sourceField')}</span> {sourceLabel(t, order.source_type)}</div>}
+              {order.cpa_webmaster_id && (
+                <div className="break-words">
+                  <span className="text-muted-foreground">{t('ordersPage.affiliateField')}</span>{' '}
+                  <span className="font-medium">{affiliateLabel(order.cpa_webmaster_id, webmasterNames)}</span>
+                  <span className="ml-1 text-xs text-muted-foreground">#{order.cpa_webmaster_id}</span>
+                </div>
+              )}
+              {(order.cpa_offer_name || order.cpa_offer_id) && (
+                <div className="break-words">
+                  <span className="text-muted-foreground">{t('ordersPage.offerField')}</span>{' '}
+                  <span className="font-medium">{offerLabel(order)}</span>
+                </div>
+              )}
+              {order.cpa_stream_id && (
+                <div className="break-all"><span className="text-muted-foreground">{t('ordersPage.publisherField')}</span> <span className="font-mono text-xs">{order.cpa_stream_id}</span></div>
+              )}
+              {order.ship_after_date && (
+                <div><span className="text-muted-foreground">{t('ordersPage.shipAfterField')}</span> {formatDayDmy(order.ship_after_date)}</div>
+              )}
+            </div>
+          </div>
+          <div className="min-w-0">
+            <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{t('ordersPage.agentSection')}</div>
+            <div className="break-words">{order.assigned_agent_name || order.last_action_by || order.confirmed_by_name || '—'}</div>
+            {(order.seller_name || order.confirmed_by_name) && order.assigned_agent_name !== (order.seller_name || order.confirmed_by_name) && (
+              <div className="mt-0.5 text-[11px] text-muted-foreground">
+                {t('ordersPage.salesCredit', { name: order.seller_name || order.confirmed_by_name })}
+              </div>
             )}
+          </div>
 
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-lg text-sm font-normal">
-                  <Filter className="h-3.5 w-3.5" /> Status
-                  {selectedStatuses.length > 0 && <span className="ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">{selectedStatuses.length}</span>}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-56 p-2" align="start">
-                <div className="space-y-1">
-                  {(isAdmin ? [...ALL_STATUSES, 'duplicated' as OrderStatus] : ALL_STATUSES).map(s => (
-                    <button key={s} onClick={() => toggleStatus(s)} className={cn('flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors', selectedStatuses.includes(s) ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted text-foreground')}>
-                      <div className={cn('h-3.5 w-3.5 rounded border-2 flex items-center justify-center transition-colors', selectedStatuses.includes(s) ? 'border-primary bg-primary' : 'border-muted-foreground/30')}>
-                        {selectedStatuses.includes(s) && <Check className="h-2.5 w-2.5 text-primary-foreground" />}
-                      </div>
-                      <span className={cn('inline-flex items-center rounded-full border px-3 py-0 text-[11px] font-semibold leading-4', STATUS_CHIP_COLORS[s])}>{statusLabel(s)}</span>
-                    </button>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
+          {(order.status === 'cancelled' || order.status === 'trashed') && (
+            <div className="border-t pt-3 sm:col-span-2 lg:col-span-3">
+              <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-rose-600">
+                {order.status === 'cancelled' ? t('ordersPage.cancellationReason') : t('ordersPage.trashReason')}
+              </div>
+              <div className="whitespace-pre-line break-words rounded-md border border-rose-200 bg-rose-50 p-3 text-sm dark:border-rose-900 dark:bg-rose-950/30">
+                {orderReasonText(order) || t('ordersPage.noReasonRecorded')}
+              </div>
+            </div>
+          )}
 
-            {/* Source filter — isolate affiliate/lead clients from prediction-list clients */}
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-lg text-sm font-normal">
-                  <Filter className="h-3.5 w-3.5" /> {t('ordersPage.colSource')}
-                  {sourceFilter !== 'all' && <span className="ml-1 h-2 w-2 rounded-full bg-primary" />}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-48 p-2" align="start">
-                <div className="space-y-1">
-                  {([
-                    ['all', t('ordersPage.allSources')],
-                    // AlterCPA is THIS market's lead source and `import` is the
-                    // 80k-row history — both were missing, so the two biggest
-                    // populations in the table could not be filtered at all.
-                    ['altercpa', t('ordersPage.sourceAltercpa')],
-                    ['import', t('ordersPage.sourceImport')],
-                    ['affiliate', t('ordersPage.sourceAffiliate')],
-                    ['opencart', t('ordersPage.sourceSite')],
-                    ['inbound_lead', t('ordersPage.sourceWebhook')],
-                    ['prediction_lead', t('ordersPage.sourceLead')],
-                    ['monadon_legacy', 'MONADLIST'],
-                  ] as [string, string][]).map(([val, label]) => (
-                    <button
-                      key={val}
-                      onClick={() => setSourceFilter(val)}
-                      className={cn('flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors', sourceFilter === val ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted text-foreground')}
-                    >
-                      <div className={cn('h-3.5 w-3.5 rounded-full border-2 flex items-center justify-center', sourceFilter === val ? 'border-primary' : 'border-muted-foreground/30')}>
-                        {sourceFilter === val && <div className="h-1.5 w-1.5 rounded-full bg-primary" />}
-                      </div>
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            {/* Affiliate + Offer — which partner and which offer is producing the
-                work in front of the agents. Admin/manager only, matching the
-                columns themselves; the server ignores both params for anyone
-                else, so this is presentation, not the access control. */}
-            {isAdmin && (cpaDimensions?.webmasters?.length ?? 0) > 0 && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-lg text-sm font-normal">
-                    <Users className="h-3.5 w-3.5" />
-                    {affiliateFilter === 'all'
-                      ? t('ordersPage.colAffiliate')
-                      : affiliateLabel(affiliateFilter, webmasterNames)}
-                    {affiliateFilter !== 'all' && <span className="ml-1 h-2 w-2 rounded-full bg-primary" />}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-64 p-2" align="start">
-                  <div className="space-y-0.5 max-h-72 overflow-y-auto">
-                    <button onClick={() => setAffiliateFilter('all')} className={cn('flex w-full rounded-lg px-3 py-2 text-sm transition-colors', affiliateFilter === 'all' ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted')}>{t('ordersPage.allAffiliates')}</button>
-                    {(cpaDimensions?.webmasters || []).map((w) => (
-                      <button
-                        key={w.wm_id}
-                        onClick={() => setAffiliateFilter(w.wm_id)}
-                        className={cn('flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors', affiliateFilter === w.wm_id ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted')}
-                      >
-                        <span className="flex-1 text-left truncate">{w.name || `#${w.wm_id}`}</span>
-                        <span className="text-[11px] tabular-nums text-muted-foreground shrink-0">{w.orders.toLocaleString()}</span>
-                      </button>
-                    ))}
+          {DELIVERY_STATUSES.includes(order.status) && (
+            <div className="grid grid-cols-1 gap-x-8 gap-y-3 border-t pt-3 sm:col-span-2 lg:col-span-3 lg:grid-cols-3">
+              <div className="min-w-0">
+                <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-600">{t('ordersPage.deliveryDetails')}</div>
+                <div className="space-y-1 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">{t('ordersPage.sentBy')}</span>{' '}
+                    {order.delivery_type === 'mex_office' ? t('ordersPage.mexOffice') : t('ordersList.delivery.home')}
+                    {order.courier_office_name && ` → ${order.courier_office_name}`}
                   </div>
-                </PopoverContent>
-              </Popover>
-            )}
-
-            {isAdmin && (cpaDimensions?.offers?.length ?? 0) > 0 && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-lg text-sm font-normal">
-                    <Package className="h-3.5 w-3.5" />
-                    {offerFilter === 'all'
-                      ? t('ordersPage.colOffer')
-                      : (cpaDimensions?.offers || []).find((o) => o.offer_id === offerFilter)?.name || `#${offerFilter}`}
-                    {offerFilter !== 'all' && <span className="ml-1 h-2 w-2 rounded-full bg-primary" />}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-72 p-2" align="start">
-                  <div className="space-y-0.5 max-h-72 overflow-y-auto">
-                    <button onClick={() => setOfferFilter('all')} className={cn('flex w-full rounded-lg px-3 py-2 text-sm transition-colors', offerFilter === 'all' ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted')}>{t('ordersPage.allOffers')}</button>
-                    {(cpaDimensions?.offers || []).map((o) => (
-                      <button
-                        key={o.offer_id}
-                        onClick={() => setOfferFilter(o.offer_id)}
-                        className={cn('flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors', offerFilter === o.offer_id ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted')}
-                      >
-                        <span className="flex-1 text-left truncate">{o.name || `#${o.offer_id}`}</span>
-                        <span className="text-[11px] tabular-nums text-muted-foreground shrink-0">{o.orders.toLocaleString()}</span>
-                      </button>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
-            )}
-
-            {/* Publisher — the traffic-source code under the affiliate
-                (tracking.exts). Raw codes by design: no names exist upstream,
-                so the entry shows the mono code plus whose traffic it is. */}
-            {isAdmin && (cpaDimensions?.streams?.length ?? 0) > 0 && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-lg text-sm font-normal">
-                    <Waypoints className="h-3.5 w-3.5" />
-                    {publisherFilter === 'all'
-                      ? t('ordersPage.colPublisher')
-                      : <span className="font-mono text-xs max-w-32 truncate">{publisherFilter}</span>}
-                    {publisherFilter !== 'all' && <span className="ml-1 h-2 w-2 rounded-full bg-primary" />}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80 p-2" align="start">
-                  <div className="space-y-0.5 max-h-72 overflow-y-auto">
-                    <button onClick={() => setPublisherFilter('all')} className={cn('flex w-full rounded-lg px-3 py-2 text-sm transition-colors', publisherFilter === 'all' ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted')}>{t('ordersPage.allPublishers')}</button>
-                    {(cpaDimensions?.streams || []).map((s) => (
-                      <button
-                        key={`${s.stream_id}|${s.wm_id ?? ''}`}
-                        onClick={() => setPublisherFilter(s.stream_id)}
-                        className={cn('flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors', publisherFilter === s.stream_id ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted')}
-                      >
-                        <span className="flex-1 text-left truncate font-mono text-xs">{s.stream_id}</span>
-                        <span className="text-[11px] text-muted-foreground truncate max-w-24">{affiliateLabel(s.wm_id, webmasterNames)}</span>
-                        <span className="text-[11px] tabular-nums text-muted-foreground shrink-0">{s.orders.toLocaleString()}</span>
-                      </button>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
-            )}
-
-            {isAdmin && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-lg text-sm font-normal">
-                    <User className="h-3.5 w-3.5" />
-                    {agentFilter === 'all' ? 'Assignee' : (agentsData || []).find((a: any) => a.user_id === agentFilter)?.full_name || 'Assignee'}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-56 p-2" align="start">
-                  <div className="space-y-0.5 max-h-60 overflow-y-auto">
-                    <button onClick={() => setAgentFilter('all')} className={cn('flex w-full rounded-lg px-3 py-2 text-sm transition-colors', agentFilter === 'all' ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted')}>{t('ordersPage.allUsers')}</button>
-                    {(agentsData || []).map((a: any) => (
-                      <button key={a.user_id} onClick={() => setAgentFilter(a.user_id)} className={cn('flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors', agentFilter === a.user_id ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted')}>
-                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary shrink-0">{a.full_name?.charAt(0)?.toUpperCase() || '?'}</span>
-                        <span className="flex-1 text-left">{a.full_name}</span>
-                      </button>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
-            )}
-
-            {/* My Orders toggle */}
-            <Button
-              variant={myOrdersOnly ? 'default' : 'outline'}
-              size="sm"
-              className="h-9 gap-1.5 rounded-lg text-sm font-normal"
-              onClick={() => !isAgent && setMyOrdersOnly(!myOrdersOnly)}
-              disabled={isAgent}
-            >
-              <User className="h-3.5 w-3.5" />
-              {t('ordersPage.myOrders')}
-            </Button>
-
-            <Popover>
-              <PopoverTrigger asChild><Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-lg text-sm font-normal"><CalendarIcon className="h-3.5 w-3.5" />{dateFrom ? formatDate(dateFrom, 'MMM d') : t('ordersPage.from')}</Button></PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} className="p-3 pointer-events-auto" /></PopoverContent>
-            </Popover>
-            <Popover>
-              <PopoverTrigger asChild><Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-lg text-sm font-normal"><CalendarIcon className="h-3.5 w-3.5" />{dateTo ? formatDate(dateTo, 'MMM d') : t('ordersPage.to')}</Button></PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={dateTo} onSelect={setDateTo} className="p-3 pointer-events-auto" /></PopoverContent>
-            </Popover>
-
-            {/* Price filter */}
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-lg text-sm font-normal">
-                  <Banknote className="h-3.5 w-3.5" />
-                  {priceLabel || t('ordersPage.price')}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-64 p-2" align="start">
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 pt-1 pb-1.5">{t('ordersPage.quickFilters')}</div>
-                <div className="space-y-0.5">
-                  {[
-                    // Thresholds are chosen as round DENAR figures and converted
-                    // to the EUR the API filters on, so the menu reads 500 ден
-                    // rather than the 615 ден that a €10 preset would produce.
-                    { label: t('ordersPage.anyPrice'), min: null, max: null },
-                    { label: '500 ден +', min: denToEur(500), max: null },
-                    { label: '1.000 ден +', min: denToEur(1000), max: null },
-                    { label: '2.000 ден +', min: denToEur(2000), max: null },
-                    { label: '5.000 ден +', min: denToEur(5000), max: null },
-                  ].map(p => {
-                    const active = priceMin === p.min && priceMax === p.max;
-                    return (
-                      <button
-                        key={p.label}
-                        onClick={() => applyPricePreset(p.min, p.max)}
-                        className={cn(
-                          'flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors',
-                          active ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted'
-                        )}
-                      >
-                        <span>{p.label}</span>
-                        {active && <Check className="h-3.5 w-3.5" />}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="border-t my-2" />
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 pb-1.5">{t('ordersPage.customRange')}</div>
-                <div className="flex items-center gap-1.5 px-2 pb-2">
-                  <Input
-                    type="number"
-                    inputMode="decimal"
-                    placeholder={t('ordersPage.min')}
-                    value={priceMinDraft}
-                    onChange={(e) => setPriceMinDraft(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') applyPriceCustom(); }}
-                    className="h-8 text-sm"
-                  />
-                  <span className="text-xs text-muted-foreground">–</span>
-                  <Input
-                    type="number"
-                    inputMode="decimal"
-                    placeholder={t('ordersPage.max')}
-                    value={priceMaxDraft}
-                    onChange={(e) => setPriceMaxDraft(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') applyPriceCustom(); }}
-                    className="h-8 text-sm"
-                  />
-                </div>
-                <Button size="sm" className="w-full h-8 text-xs" onClick={applyPriceCustom}>{t('ordersPage.applyRange')}</Button>
-              </PopoverContent>
-            </Popover>
-
-            {hasActiveFilters && <Button variant="ghost" size="sm" className="h-9 text-xs text-muted-foreground hover:text-foreground" onClick={clearAllFilters}>{t('ordersPage.clearAll')}</Button>}
-
-            {/* Daily fulfilment export — independent of the page filters. */}
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="ml-auto h-9 gap-1.5 rounded-lg text-sm"><Truck className="h-3.5 w-3.5" /> {t('ordersPage.fulfilmentCsv')}</Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80 p-3 space-y-3" align="end">
-                <div>
-                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{t('ordersPage.dailyFulfilment')}</div>
-                  <p className="text-[11px] text-muted-foreground mb-3">{t('ordersPage.fulfilmentDesc')}</p>
-                </div>
-                {/* Source: whole date range, or only the hand-picked orders. */}
-                <div className="grid grid-cols-2 gap-1">
-                  <Button variant={fulfilSource === 'range' ? 'default' : 'outline'} size="sm" className="h-7 text-xs" onClick={() => setFulfilSource('range')}>{t('ordersPage.byDateRange')}</Button>
-                  <Button variant={fulfilSource === 'selected' ? 'default' : 'outline'} size="sm" className="h-7 text-xs" onClick={() => setFulfilSource('selected')}>{t('ordersPage.selectedCount', { count: selectedExport.size })}</Button>
-                </div>
-                {fulfilSource === 'range' ? (
-                <>
-                <div className="grid grid-cols-2 gap-2">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs justify-start font-normal"><CalendarIcon className="h-3 w-3" />{t('ordersPage.from')}: {fulfilFrom ? formatDate(fulfilFrom, 'MMM d') : '—'}</Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={fulfilFrom} onSelect={setFulfilFrom} className="p-3 pointer-events-auto" /></PopoverContent>
-                  </Popover>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs justify-start font-normal"><CalendarIcon className="h-3 w-3" />To: {fulfilTo ? format(fulfilTo, 'MMM d') : '—'}</Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={fulfilTo} onSelect={setFulfilTo} className="p-3 pointer-events-auto" /></PopoverContent>
-                  </Popover>
-                </div>
-                <div>
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{t('ordersPage.colStatus')}</div>
-                  <div className="grid grid-cols-3 gap-1">
-                    {(['confirmed', 'shipped', 'paid'] as OrderStatus[]).map(s => (
-                      <Button
-                        key={s}
-                        variant={fulfilStatus === s ? 'default' : 'outline'}
-                        size="sm"
-                        className="h-7 text-xs"
-                        onClick={() => setFulfilStatus(s)}
-                      >
-                        {statusLabel(s)}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Ship-eligibility cutoff. Orders postponed past this date
-                    drop out of today's CSV and surface naturally on their
-                    actual ship date. Default = today + 2 days. */}
-                <div>
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{t('ordersPage.readyToShipBy')}</div>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" size="sm" className="w-full h-8 gap-1.5 text-xs justify-start font-normal">
-                        <CalendarIcon className="h-3 w-3" />
-                        {readyByDate ? format(readyByDate, 'EEE, MMM d') : 'Any date'}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="single" selected={readyByDate} onSelect={setReadyByDate} className="p-3 pointer-events-auto" />
-                      <div className="flex items-center justify-between gap-1 px-2 pb-2">
-                        <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={() => setReadyByDate(new Date())}>{t('ordersPage.today')}</Button>
-                        <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={() => setReadyByDate(addDays(new Date(), 2))}>+2 days</Button>
-                        <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={() => setReadyByDate(addDays(new Date(), 7))}>+7 days</Button>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                  <p className="text-[10px] text-muted-foreground mt-1 leading-tight">
-                    Orders postponed past this date are skipped — they'll appear on their scheduled ship day.
-                  </p>
-                </div>
-                </>
-                ) : (
-                <div className="rounded-md border bg-muted/30 p-2 text-[11px] space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-foreground">{selectedExport.size} order{selectedExport.size !== 1 ? 's' : ''} selected</span>
-                    {selectedExport.size > 0 && <button type="button" onClick={clearExportSelect} className="text-muted-foreground hover:text-foreground underline">{t('common.clear')}</button>}
-                  </div>
-                  <p className="text-muted-foreground leading-tight">{t('ordersPage.tickOrdersHint')}</p>
-                </div>
-                )}
-                {/* Auto-flip toggle — only meaningful when exporting confirmed
-                    orders (the warehouse hand-off step). For shipped/paid
-                    re-exports it's disabled and forced off. Hidden for roles
-                    that can't perform the bulk status update server-side. */}
-                {canBulkUpdateStatus && (() => {
-                  const flipEligible = fulfilSource === 'selected' ? selectedHasConfirmed : fulfilStatus === 'confirmed';
-                  return (
-                  <label className={cn(
-                    'flex items-start gap-2 rounded-md border p-2 text-[11px]',
-                    flipEligible ? 'cursor-pointer hover:bg-muted/40' : 'opacity-50 cursor-not-allowed',
-                  )}>
-                    <Checkbox
-                      checked={flipEligible && markShippedAfterExport}
-                      onCheckedChange={(v) => setMarkShippedAfterExport(v === true)}
-                      disabled={!flipEligible}
-                      className="mt-0.5"
-                    />
-                    <div className="leading-tight">
-                      <div className="font-medium text-foreground">{t('ordersPage.markShippedAfter')}</div>
-                      <div className="text-muted-foreground">
-                        {flipEligible
-                          ? 'After the CSV downloads, every exported confirmed order moves → shipped.'
-                          : (fulfilSource === 'selected' ? 'None of the selected orders are confirmed.' : 'Only available when exporting confirmed orders.')}
-                      </div>
-                    </div>
-                  </label>
-                  );
-                })()}
-
-                <Button size="sm" className="w-full h-8 gap-1.5" onClick={exportFulfilmentCSV} disabled={fulfilLoading || (fulfilSource === 'selected' && selectedExport.size === 0)}>
-                  {fulfilLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-                  Export CSV
-                </Button>
-              </PopoverContent>
-            </Popover>
-
-            {/* Export view — same filters as the list, but the operator picks
-                how much of it comes out. Opening it resets the page window to
-                "everything currently matching". */}
-            <Popover
-              open={exportOpen}
-              onOpenChange={(o) => {
-                setExportOpen(o);
-                if (o) { setExportPageFrom('1'); setExportPageTo(String(Math.max(1, totalPages))); }
-              }}
-            >
-              <PopoverTrigger asChild>
-                <Button size="sm" variant="outline" className="h-9 gap-1.5 rounded-lg text-sm"><Download className="h-3.5 w-3.5" /> {t('ordersPage.exportView')}</Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80 p-3 space-y-3" align="end">
-                <div>
-                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">{t('ordersPage.exportView')}</div>
-                  <p className="text-[11px] text-muted-foreground leading-tight">{t('ordersPage.exportScopeDesc')}</p>
-                </div>
-
-                {/* Date window. These are the SAME from/to as the toolbar
-                    filter, on purpose: editing them re-filters the list behind
-                    the popover, so the count and page total below always
-                    describe exactly what will land in the file. */}
-                <div>
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{t('ordersPage.exportDateRange')}</div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs justify-start font-normal">
-                          <CalendarIcon className="h-3 w-3" />{t('ordersPage.from')}: {dateFrom ? formatDate(dateFrom, 'MMM d') : '—'}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar mode="single" selected={dateFrom} onSelect={(d) => { setDateFrom(d); setPage(1); }} className="p-3 pointer-events-auto" />
-                      </PopoverContent>
-                    </Popover>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs justify-start font-normal">
-                          <CalendarIcon className="h-3 w-3" />{t('ordersPage.to')}: {dateTo ? formatDate(dateTo, 'MMM d') : '—'}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar mode="single" selected={dateTo} onSelect={(d) => { setDateTo(d); setPage(1); }} className="p-3 pointer-events-auto" />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                  {(dateFrom || dateTo) && (
-                    <button
-                      type="button"
-                      className="mt-1 text-[10px] text-muted-foreground underline hover:text-foreground"
-                      onClick={() => { setDateFrom(undefined); setDateTo(undefined); setPage(1); }}
-                    >
-                      {t('ordersPage.exportClearDates')}
-                    </button>
+                  {order.mex_account && (
+                    <div className="text-xs text-muted-foreground">{t('ordersList.delivery.profile', { name: MEX_ACCOUNT_LABEL[order.mex_account] ?? order.mex_account })}</div>
                   )}
+                  <MexBadge o={order} withTracking />
                 </div>
-
-                {/* How much of the filtered set to write out. */}
-                <div className="grid grid-cols-2 gap-1">
-                  <Button variant={exportScope === 'all' ? 'default' : 'outline'} size="sm" className="h-7 text-xs" onClick={() => setExportScope('all')}>{t('ordersPage.exportAllPages')}</Button>
-                  <Button variant={exportScope === 'range' ? 'default' : 'outline'} size="sm" className="h-7 text-xs" onClick={() => setExportScope('range')}>{t('ordersPage.exportPageRange')}</Button>
+              </div>
+              {showCallsPanel && (
+                <div className="min-w-0 lg:col-span-2">
+                  <OrderCallsPanel orderId={order.id} />
                 </div>
+              )}
+            </div>
+          )}
 
-                {exportScope === 'range' && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-muted-foreground shrink-0">{t('ordersPage.exportPagesLabel')}</span>
-                    <Input
-                      type="number" min={1} max={Math.max(1, totalPages)} value={exportPageFrom}
-                      onChange={(e) => setExportPageFrom(e.target.value)}
-                      className="h-8 w-16 text-xs" aria-label={t('ordersPage.exportPageFrom')}
-                    />
-                    <span className="text-[11px] text-muted-foreground">–</span>
-                    <Input
-                      type="number" min={1} max={Math.max(1, totalPages)} value={exportPageTo}
-                      onChange={(e) => setExportPageTo(e.target.value)}
-                      className="h-8 w-16 text-xs" aria-label={t('ordersPage.exportPageTo')}
-                    />
-                    <span className="text-[11px] text-muted-foreground whitespace-nowrap">{t('ordersPage.exportOfPages', { pages: Math.max(1, totalPages) })}</span>
+          {showCallsPanel && !DELIVERY_STATUSES.includes(order.status) && (
+            <div className="min-w-0 border-t pt-3 sm:col-span-2 lg:col-span-3">
+              <OrderCallsPanel orderId={order.id} />
+            </div>
+          )}
+
+          <div className="pt-1 sm:col-span-2 lg:col-span-3">
+            <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{t('ordersPage.productsSection')}</div>
+            {order.order_items && order.order_items.length > 0 ? (
+              <div className="text-sm">
+                {order.order_items.map((item: any, idx: number) => (
+                  <div key={idx} className="break-words">
+                    {item.product_name || '—'} × {item.quantity || 1}
+                    {item.price_per_unit && ` ${t('ordersPage.each', { price: formatMoney(item.price_per_unit) })}`}
                   </div>
-                )}
-
-                {/* What they are about to get, in rows, before they click. */}
-                <div className="rounded-md border bg-muted/30 p-2 text-[11px] leading-tight">
-                  <span className="font-medium text-foreground">{t('ordersPage.exportEstimate', { count: exportEstimate })}</span>
-                  <span className="text-muted-foreground"> · {t('ordersPage.exportKeepsFilters')}</span>
-                </div>
-
-                <Button size="sm" className="w-full h-8 gap-1.5" onClick={exportXLSX} disabled={exportLoading || total === 0}>
-                  {exportLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-                  {exportLoading
-                    ? (exportProgress > 0 ? t('ordersPage.exportingProgress', { count: exportProgress }) : t('ordersPage.exporting'))
-                    : t('ordersPage.exportView')}
-                </Button>
-              </PopoverContent>
-            </Popover>
-            <Button onClick={() => setShowCreateModal(true)} size="sm" className="h-9 gap-1.5 rounded-lg text-sm"><Plus className="h-3.5 w-3.5" /> {t('common.createOrder')}</Button>
+                ))}
+              </div>
+            ) : (
+              <div className="break-words text-sm">{order.product_name || '—'} × {order.quantity || 1}</div>
+            )}
           </div>
         </div>
+      </div>
+    );
+  };
 
-        {hasActiveFilters && (
-          <div className="flex flex-wrap items-center gap-1.5 px-1">
-            {selectedStatuses.map(s => <Badge key={s} variant="secondary" className={cn('gap-1 cursor-pointer border text-xs', STATUS_CHIP_COLORS[s])} onClick={() => toggleStatus(s)}>{statusLabel(s)}<X className="h-3 w-3" /></Badge>)}
-            {agentFilter !== 'all' && <Badge variant="secondary" className="gap-1 cursor-pointer text-xs" onClick={() => setAgentFilter('all')}>{t('ordersPage.assigneeChip', { name: (agentsData || []).find((a: any) => a.user_id === agentFilter)?.full_name || agentFilter.slice(0, 8) })}<X className="h-3 w-3" /></Badge>}
-            {dateFrom && <Badge variant="secondary" className="gap-1 cursor-pointer text-xs" onClick={() => setDateFrom(undefined)}>{t('ordersPage.fromChip', { date: formatDate(dateFrom, 'MMM d') })}<X className="h-3 w-3" /></Badge>}
-            {dateTo && <Badge variant="secondary" className="gap-1 cursor-pointer text-xs" onClick={() => setDateTo(undefined)}>{t('ordersPage.toChip', { date: formatDate(dateTo, 'MMM d') })}<X className="h-3 w-3" /></Badge>}
-            {priceLabel && <Badge variant="secondary" className="gap-1 cursor-pointer text-xs" onClick={() => applyPricePreset(null, null)}>{t('ordersPage.priceChip', { label: priceLabel })}<X className="h-3 w-3" /></Badge>}
-            {search.trim() && <Badge variant="secondary" className="gap-1 cursor-pointer text-xs" onClick={() => setSearch('')}>"{search}"<X className="h-3 w-3" /></Badge>}
-            <span className="ml-auto text-xs text-muted-foreground">{t('ordersPage.ofOrders', { shown: filteredOrders.length, total })}</span>
+  // ── the filter sheet (phone) — edits a draft, "Примени" writes the URL ────
+  const [draftSp, setDraftSp] = useState<URLSearchParams>(() => new URLSearchParams());
+  const openSheet = () => { setDraftSp(new URLSearchParams(searchParams)); setSheetOpen(true); };
+  const draft = useMemo(() => readListParams(draftSp), [draftSp]);
+  const applySheet = () => { setSearchParams(writeListParams(draftSp, { page: 1 }), { replace: true }); setSheetOpen(false); };
+  const resetSheet = () => setDraftSp((prev) => writeListParams(prev, {
+    range: null, depts: [], seller: null, mex: [], sources: [], agent: null, mine: null,
+    priceMin: null, priceMax: null, wm: null, offer: null, stream: null,
+  }));
+
+  const filterSrc: FilterSources = {
+    isAdmin, isAgent,
+    sellers: sellersData?.sellers,
+    agents: agentsData as any,
+    cpa: cpaDimensions,
+    webmasterNames,
+  };
+
+  const counts = countsData?.counts;
+  const periodLabel = period.days ? periodText(period.days) : t('ordersList.period.all');
+  const periodPresetLabel = period.preset === 'all' ? t('ordersList.period.all') : t(`insights.common.period.${period.preset}`);
+  const firstRow = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const lastRow = Math.min(total, page * PAGE_SIZE);
+  const searchIsPhone = !!phoneLast8(searchText);
+
+  const csvButton = (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-lg px-2.5 text-sm lg:px-3" aria-label={t('ordersPage.fulfilmentCsv')}>
+          <Truck className="h-4 w-4 shrink-0" aria-hidden /> <span className="hidden lg:inline">{t('ordersPage.fulfilmentCsv')}</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[min(20rem,calc(100vw-2rem))] space-y-3 p-3" align="end">
+        <div>
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('ordersPage.dailyFulfilment')}</div>
+          <p className="mb-3 text-[11px] text-muted-foreground">{t('ordersPage.fulfilmentDesc')}</p>
+        </div>
+        {/* Source: whole date range, or only the hand-picked orders. */}
+        <div className="grid grid-cols-2 gap-1">
+          <Button variant={fulfilSource === 'range' ? 'default' : 'outline'} size="sm" className="h-8 text-xs" onClick={() => setFulfilSource('range')}>{t('ordersPage.byDateRange')}</Button>
+          <Button variant={fulfilSource === 'selected' ? 'default' : 'outline'} size="sm" className="h-8 text-xs" onClick={() => setFulfilSource('selected')}>{t('ordersPage.selectedCount', { count: selectedExport.size })}</Button>
+        </div>
+        {fulfilSource === 'range' ? (
+          <>
+            <div className="grid grid-cols-2 gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 justify-start gap-1.5 text-xs font-normal"><CalendarIcon className="h-3 w-3" />{t('ordersPage.from')}: {fulfilFrom ? formatDayDmy(fulfilFrom).slice(0, 5) : '—'}</Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={fulfilFrom} onSelect={setFulfilFrom} weekStartsOn={1} className="pointer-events-auto p-3" /></PopoverContent>
+              </Popover>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 justify-start gap-1.5 text-xs font-normal"><CalendarIcon className="h-3 w-3" />{t('ordersList.csv.to')}: {fulfilTo ? formatDayDmy(fulfilTo).slice(0, 5) : '—'}</Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={fulfilTo} onSelect={setFulfilTo} weekStartsOn={1} className="pointer-events-auto p-3" /></PopoverContent>
+              </Popover>
+            </div>
+            <div>
+              <div className="mb-1 text-[10px] uppercase tracking-wider text-muted-foreground">{t('ordersPage.colStatus')}</div>
+              <div className="grid grid-cols-3 gap-1">
+                {(['confirmed', 'shipped', 'paid'] as OrderStatus[]).map(s => (
+                  <Button key={s} variant={fulfilStatus === s ? 'default' : 'outline'} size="sm" className="h-8 px-1 text-xs" onClick={() => setFulfilStatus(s)}>
+                    {statusLabel(s)}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            {/* Ship-eligibility cutoff: orders postponed past it drop out of today's CSV. */}
+            <div>
+              <div className="mb-1 text-[10px] uppercase tracking-wider text-muted-foreground">{t('ordersPage.readyToShipBy')}</div>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 w-full justify-start gap-1.5 text-xs font-normal">
+                    <CalendarIcon className="h-3 w-3" />
+                    {readyByDate ? formatDate(readyByDate, 'EEE, d MMM') : t('ordersList.csv.anyDate')}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={readyByDate} onSelect={setReadyByDate} weekStartsOn={1} className="pointer-events-auto p-3" />
+                  <div className="flex items-center justify-between gap-1 px-2 pb-2">
+                    <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={() => setReadyByDate(new Date())}>{t('ordersPage.today')}</Button>
+                    <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={() => setReadyByDate(addDays(new Date(), 2))}>{t('ordersList.csv.plus2')}</Button>
+                    <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={() => setReadyByDate(addDays(new Date(), 7))}>{t('ordersList.csv.plus7')}</Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+              <p className="mt-1 text-[10px] leading-tight text-muted-foreground">{t('ordersList.csv.readyHint')}</p>
+            </div>
+          </>
+        ) : (
+          <div className="space-y-1 rounded-md border bg-muted/30 p-2 text-[11px]">
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-foreground">{t('ordersList.csv.selected', { count: selectedExport.size })}</span>
+              {selectedExport.size > 0 && <button type="button" onClick={clearExportSelect} className="text-muted-foreground underline hover:text-foreground">{t('common.clear')}</button>}
+            </div>
+            <p className="leading-tight text-muted-foreground">{t('ordersPage.tickOrdersHint')}</p>
           </div>
         )}
-      </div>
+        {/* Auto-flip toggle — only meaningful when exporting confirmed orders (the
+            warehouse hand-off). Hidden for roles that can't bulk-update status. */}
+        {canBulkUpdateStatus && (() => {
+          const flipEligible = fulfilSource === 'selected' ? selectedHasConfirmed : fulfilStatus === 'confirmed';
+          return (
+            <label className={cn(
+              'flex items-start gap-2 rounded-md border p-2 text-[11px]',
+              flipEligible ? 'cursor-pointer hover:bg-muted/40' : 'cursor-not-allowed opacity-50',
+            )}>
+              <Checkbox
+                checked={flipEligible && markShippedAfterExport}
+                onCheckedChange={(v) => setMarkShippedAfterExport(v === true)}
+                disabled={!flipEligible}
+                className="mt-0.5"
+              />
+              <div className="leading-tight">
+                <div className="font-medium text-foreground">{t('ordersPage.markShippedAfter')}</div>
+                <div className="text-muted-foreground">
+                  {flipEligible
+                    ? t('ordersList.csv.flipOn')
+                    : (fulfilSource === 'selected' ? t('ordersList.csv.flipNoneSelected') : t('ordersList.csv.flipOnlyConfirmed'))}
+                </div>
+              </div>
+            </label>
+          );
+        })()}
+        <Button size="sm" className="h-9 w-full gap-1.5" onClick={exportFulfilmentCSV} disabled={fulfilLoading || (fulfilSource === 'selected' && selectedExport.size === 0)}>
+          {fulfilLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+          {t('ordersList.csv.export')}
+        </Button>
+      </PopoverContent>
+    </Popover>
+  );
 
-      {selectedExport.size > 0 && (
-        <div className="flex flex-wrap items-center gap-2 px-1 text-xs">
-          <span className="rounded-full bg-primary/10 text-primary px-2 py-0.5 font-medium">{t('ordersPage.nSelectedForExport', { count: selectedExport.size })}</span>
-          <button type="button" onClick={clearExportSelect} className="text-muted-foreground hover:text-foreground underline">{t('common.clear')}</button>
-          {canDisposeOrders && disposableSelected.length > 0 && (
-            <>
-              <span className="text-muted-foreground/50">|</span>
-              <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={() => openDisposition('trashed')}>
-                <Trash2 className="h-3.5 w-3.5" />
-                {t('ordersPage.bulkTrash', { count: disposableSelected.length })}
+  const exportButton = (
+    <Popover
+      open={exportOpen}
+      onOpenChange={(o) => {
+        setExportOpen(o);
+        if (o) { setExportPageFrom('1'); setExportPageTo(String(Math.max(1, totalPages))); }
+      }}
+    >
+      <PopoverTrigger asChild>
+        <Button size="sm" variant="outline" className="h-9 gap-1.5 rounded-lg px-2.5 text-sm lg:px-3" aria-label={t('ordersPage.exportView')}>
+          <Download className="h-4 w-4 shrink-0" aria-hidden /> <span className="hidden lg:inline">{t('ordersPage.exportView')}</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[min(20rem,calc(100vw-2rem))] space-y-3 p-3" align="end">
+        <div>
+          <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('ordersPage.exportView')}</div>
+          <p className="text-[11px] leading-tight text-muted-foreground">{t('ordersPage.exportScopeDesc')}</p>
+        </div>
+        {/* The period is the list's own (the toolbar) — what the count below describes. */}
+        <div className="rounded-md border bg-muted/30 p-2 text-[11px]">
+          <span className="text-muted-foreground">{t('ordersPage.exportDateRange')}: </span>
+          <span className="font-medium tabular-nums">{periodLabel}</span>
+          <span className="text-muted-foreground"> · {t(`ordersList.view.${view}`)}</span>
+        </div>
+        <div className="grid grid-cols-2 gap-1">
+          <Button variant={exportScope === 'all' ? 'default' : 'outline'} size="sm" className="h-8 text-xs" onClick={() => setExportScope('all')}>{t('ordersPage.exportAllPages')}</Button>
+          <Button variant={exportScope === 'range' ? 'default' : 'outline'} size="sm" className="h-8 text-xs" onClick={() => setExportScope('range')}>{t('ordersPage.exportPageRange')}</Button>
+        </div>
+        {exportScope === 'range' && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="shrink-0 text-[11px] text-muted-foreground">{t('ordersPage.exportPagesLabel')}</span>
+            <Input type="number" min={1} max={Math.max(1, totalPages)} value={exportPageFrom}
+              onChange={(e) => setExportPageFrom(e.target.value)} className="h-8 w-16 text-xs" aria-label={t('ordersPage.exportPageFrom')} />
+            <span className="text-[11px] text-muted-foreground">–</span>
+            <Input type="number" min={1} max={Math.max(1, totalPages)} value={exportPageTo}
+              onChange={(e) => setExportPageTo(e.target.value)} className="h-8 w-16 text-xs" aria-label={t('ordersPage.exportPageTo')} />
+            <span className="whitespace-nowrap text-[11px] text-muted-foreground">{t('ordersPage.exportOfPages', { pages: Math.max(1, totalPages) })}</span>
+          </div>
+        )}
+        <div className="rounded-md border bg-muted/30 p-2 text-[11px] leading-tight">
+          <span className="font-medium text-foreground">{t('ordersPage.exportEstimate', { count: exportEstimate })}</span>
+          <span className="text-muted-foreground"> · {t('ordersPage.exportKeepsFilters')}</span>
+        </div>
+        <Button size="sm" className="h-9 w-full gap-1.5" onClick={exportXLSX} disabled={exportLoading || total === 0}>
+          {exportLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+          {exportLoading
+            ? (exportProgress > 0 ? t('ordersPage.exportingProgress', { count: exportProgress }) : t('ordersPage.exporting'))
+            : t('ordersPage.exportView')}
+        </Button>
+      </PopoverContent>
+    </Popover>
+  );
+
+  return (
+    <AppLayout title={t('nav.orders')}>
+      <div className={cn('mx-auto min-w-0 max-w-[1680px] space-y-3', OVERVIEW_COLOR_VARS)}>
+        {drill && <OrdersDrillBanner drill={drill} label={drillLabel} onClear={clearDrill} />}
+
+        {/* ── the toolbar ─────────────────────────────────────────────── */}
+        <section role="search" aria-label={t('ordersList.search.label')} className="min-w-0 space-y-3 rounded-xl border bg-card/80 p-3 shadow-sm">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative min-w-0 basis-full md:flex-1 md:basis-auto lg:max-w-xl">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+              <input
+                type="search"
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Escape' && searchText) { e.preventDefault(); searchFor(''); } }}
+                placeholder={isMobile ? t('ordersList.search.short') : t('ordersList.search.placeholder')}
+                aria-label={t('ordersList.search.label')}
+                autoComplete="off"
+                spellCheck={false}
+                enterKeyHint="search"
+                className={cn(
+                  // 16 px below md: iOS Safari zooms into any smaller input on focus.
+                  'h-9 w-full rounded-lg border bg-background pl-8 text-base focus:outline-none focus:ring-2 focus:ring-ring md:text-sm [&::-webkit-search-cancel-button]:hidden',
+                  searchText ? 'pr-9' : 'pr-3',
+                )}
+              />
+              {searchText && (
+                <button type="button" onClick={() => searchFor('')} aria-label={t('ordersList.search.clear')} title={t('ordersList.search.clear')}
+                  className="absolute right-0 top-0 flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted">
+                  <X className="h-3.5 w-3.5" aria-hidden />
+                </button>
+              )}
+            </div>
+            <div className="flex min-w-0 flex-1 items-center justify-end gap-2 md:flex-none">
+              <Button variant="outline" size="sm" className="mr-auto h-9 gap-1.5 rounded-lg text-sm xl:hidden" onClick={openSheet}>
+                <Filter className="h-3.5 w-3.5" aria-hidden /> {t('ordersList.filters.open')}
+                {filterCount > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">{filterCount}</span>}
               </Button>
-              <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={() => openDisposition('cancelled')}>
-                <Ban className="h-3.5 w-3.5" />
-                {t('ordersPage.bulkCancel', { count: disposableSelected.length })}
+              {csvButton}
+              {exportButton}
+              <Button onClick={() => setShowCreateModal(true)} size="sm" className="h-9 gap-1.5 rounded-lg text-sm" aria-label={t('common.createOrder')}>
+                <Plus className="h-3.5 w-3.5" aria-hidden /> <span className="hidden sm:inline">{t('common.createOrder')}</span><span className="sm:hidden">{t('ordersList.new')}</span>
               </Button>
-            </>
-          )}
-          {cpaPushEnabled && cpaPushableSelected.length > 0 && (
-            <>
-              <span className="text-muted-foreground/50">|</span>
+            </div>
+          </div>
+          {searchIsPhone && <p className="text-[11px] text-muted-foreground">{t('ordersList.search.phone')}</p>}
+
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+            <OrderViewChips view={view} counts={counts} onChange={(v) => patch({ view: v })} />
+            <div className="flex items-center gap-3">
+              <span className="text-xs tabular-nums text-muted-foreground" aria-live="polite" data-testid="orders-shown">
+                {t('ordersList.range', { from: fmtCount(firstRow), to: fmtCount(lastRow), total: fmtCount(total) })}
+              </span>
+              {hasActiveFilters && (
+                <button type="button" onClick={clearAllFilters}
+                  className="inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 text-xs font-medium text-muted-foreground hover:bg-muted lg:h-8">
+                  <X className="h-3.5 w-3.5" aria-hidden />{t('ordersList.filters.clear')}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* xl+: every filter in view. Below xl (phones, tablets, a 1024 laptop with the sidebar open): a summary + the sheet. */}
+          <div className="hidden xl:block">
+            <OrdersFilterFields value={state} onChange={patch} today={today} drill={!!drill} src={filterSrc} layout="inline" />
+          </div>
+          <div className="space-y-2 xl:hidden">
+            <button type="button" onClick={openSheet} className="flex w-full items-center justify-between gap-2 rounded-lg border bg-background px-3 py-2 text-left text-xs">
+              <span className="min-w-0">
+                <span className="text-muted-foreground">{t('ordersList.period.label')}: </span>
+                <span className="font-medium">{periodPresetLabel}</span>
+                {period.days && <span className="tabular-nums text-muted-foreground"> · {periodLabel}</span>}
+              </span>
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+            </button>
+            <ActiveFilterChips value={state} onChange={patch} src={filterSrc} />
+          </div>
+        </section>
+
+        {/* ── the selection ───────────────────────────────────────────── */}
+        {selectedExport.size > 0 && (
+          <div className="flex flex-wrap items-center gap-2 px-1 text-xs">
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary">{t('ordersPage.nSelectedForExport', { count: selectedExport.size })}</span>
+            <button type="button" onClick={clearExportSelect} className="text-muted-foreground underline hover:text-foreground">{t('common.clear')}</button>
+            {canDisposeOrders && disposableSelected.length > 0 && (
+              <>
+                <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={() => openDisposition('trashed')}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                  {t('ordersPage.bulkTrash', { count: disposableSelected.length })}
+                </Button>
+                <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={() => openDisposition('cancelled')}>
+                  <Ban className="h-3.5 w-3.5" />
+                  {t('ordersPage.bulkCancel', { count: disposableSelected.length })}
+                </Button>
+              </>
+            )}
+            {cpaPushEnabled && cpaPushableSelected.length > 0 && (
               <Button
-                size="sm" variant="outline" className="h-7 gap-1.5 text-xs"
+                size="sm" variant="outline" className="h-8 gap-1.5 text-xs"
                 onClick={() => setCpaBulk({ eligible: cpaPushableSelected, skipped: selectedExport.size - cpaPushableSelected.length })}
               >
                 <Send className="h-3.5 w-3.5" />
                 {t('ordersPage.cpaBulkSend', { count: cpaPushableSelected.length })}
               </Button>
-            </>
-          )}
-          <span className="text-muted-foreground">{t('ordersPage.openPrefix')} <span className="font-medium text-foreground">{t('ordersPage.fulfilSelectedPath')}</span> {t('ordersPage.openSuffix')}</span>
-        </div>
-      )}
+            )}
+            <span className="text-muted-foreground">{t('ordersPage.openPrefix')} <span className="font-medium text-foreground">{t('ordersPage.fulfilSelectedPath')}</span> {t('ordersPage.openSuffix')}</span>
+          </div>
+        )}
+
+        {/* ── the list ────────────────────────────────────────────────── */}
+        {loadError && !loading ? (
+          <EmptyState
+            icon={<Package className="h-5 w-5" />}
+            title={t('common.error')}
+            description={loadError}
+            size="sm"
+            action={<Button variant="outline" size="sm" onClick={refresh}>{t('common.retry')}</Button>}
+          />
+        ) : loading && orders.length === 0 ? (
+          <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" aria-label={t('insights.common.period.loading')} /></div>
+        ) : orders.length === 0 ? (
+          <EmptyState
+            icon={<Package className="h-5 w-5" />}
+            title={t('ordersPage.noOrdersFound')}
+            description={hasActiveFilters || view !== 'all' || period.days ? t('ordersList.emptyHint') : t('ordersPage.ordersAppearHere')}
+            size="sm"
+            action={hasActiveFilters ? <Button variant="outline" size="sm" onClick={clearAllFilters}>{t('ordersPage.clearFilters')}</Button> : undefined}
+          />
+        ) : (
+          <div className={cn('min-w-0 transition-opacity', loading && 'opacity-60')} aria-busy={loading}>
+            <OrdersList
+              orders={orders}
+              selected={selectedExport}
+              onToggleSelect={toggleExportSelect}
+              onToggleAll={toggleAllOnPage}
+              onOpen={tryOpenOrder}
+              expanded={expandedIds}
+              renderDetails={renderDetails}
+              actions={rowActions}
+              productParts={productCellParts}
+              views={views}
+              currentUserId={user?.id}
+              dupCount={getPhoneDupCount}
+              onSearch={searchFor}
+            />
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm text-muted-foreground">{t('ordersPage.pageOf', { page, totalPages, total: fmtCount(total) })}</p>
+            <ResponsivePager page={page} totalPages={totalPages} onPageChange={(p) => patch({ page: p })} t={t}
+              desktop={<SmartPagination page={page} totalPages={totalPages} onPageChange={(p) => patch({ page: p })} />} />
+          </div>
+        )}
+      </div>
+
+      {/* Filters — phone sheet: a draft of every filter; "Примени" writes it. */}
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent side="bottom" className={cn('flex max-h-[90dvh] flex-col gap-0 p-0', OVERVIEW_COLOR_VARS)}>
+          <SheetHeader className="border-b px-4 py-3 text-left">
+            <SheetTitle>{t('ordersList.filters.title')}</SheetTitle>
+            <SheetDescription className="text-xs">{t('ordersList.period.hint')}</SheetDescription>
+          </SheetHeader>
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+            <OrdersFilterFields
+              value={draft}
+              onChange={(p) => setDraftSp((prev) => writeListParams(prev, p))}
+              today={today} drill={!!drill} src={filterSrc} layout="sheet"
+            />
+          </div>
+          <div className="flex gap-2 border-t px-4 py-3">
+            <Button variant="outline" className="h-11" onClick={resetSheet}>{t('ordersList.filters.reset')}</Button>
+            <Button className="h-11 flex-1" onClick={applySheet}>{t('ordersList.filters.apply')}</Button>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Bulk trash / cancel — one reason for the whole selection. */}
       <Dialog open={!!dispositionAction} onOpenChange={(o) => { if (!o && !dispBusy) setDispositionAction(null); }}>
@@ -1573,10 +1386,7 @@ export default function Orders() {
             </DialogTitle>
             <DialogDescription>
               {selectedExport.size > disposableSelected.length
-                ? t('ordersPage.bulkDispositionPartial', {
-                    count: disposableSelected.length,
-                    total: selectedExport.size,
-                  })
+                ? t('ordersPage.bulkDispositionPartial', { count: disposableSelected.length, total: selectedExport.size })
                 : t('ordersPage.bulkDispositionHint')}
             </DialogDescription>
           </DialogHeader>
@@ -1603,7 +1413,7 @@ export default function Orders() {
               {t('common.cancel')}
             </Button>
             <Button onClick={runDisposition} disabled={!dispositionValid || dispBusy || disposableSelected.length === 0}>
-              {dispBusy && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              {dispBusy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {dispositionAction === 'trashed'
                 ? t('ordersPage.bulkTrash', { count: disposableSelected.length })
                 : t('ordersPage.bulkCancel', { count: disposableSelected.length })}
@@ -1611,461 +1421,6 @@ export default function Orders() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Table — desktop */}
-      <div className="hidden md:block overflow-x-auto rounded-xl border bg-card shadow-sm">
-        {loading ? (
-          <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-muted/50">
-                <th className="px-3 py-3 w-10">
-                  <Checkbox
-                    checked={filteredOrders.length > 0 && filteredOrders.every(o => selectedExport.has(o.id)) ? true : (filteredOrders.some(o => selectedExport.has(o.id)) ? 'indeterminate' : false)}
-                    onCheckedChange={() => {
-                      const allSel = filteredOrders.length > 0 && filteredOrders.every(o => selectedExport.has(o.id));
-                      setSelectedExport(prev => {
-                        const next = new Map(prev);
-                        if (allSel) filteredOrders.forEach(o => next.delete(o.id));
-                        else filteredOrders.forEach(o => next.set(o.id, o));
-                        return next;
-                      });
-                    }}
-                    aria-label={t('ordersPage.selectAllOrders')}
-                  />
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('ordersPage.colStatus')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('ordersPage.colOrderId')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('ordersPage.colCustomer')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('ordersPage.colProductReason')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('ordersPage.colQty')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('ordersPage.colTotalPrice')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground" title={t('ordersPage.confirmedByTitle')}>
-                  {t('ordersPage.colConfirmedBy')}
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('ordersPage.colSource')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('ordersPage.colDate')}</th>
-                <th className="px-4 py-3 w-10"><span className="sr-only">{t('common.actions')}</span></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredOrders.map(order => {
-                const isExpanded = expandedIds.has(order.id);
-                return (
-                  <Fragment key={order.id}>
-                    <tr 
-                      className="border-b last:border-0 hover:bg-muted/30 transition-colors cursor-pointer" 
-                      onClick={() => toggleRowExpansion(order.id)}
-                    >
-                  <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
-                    <Checkbox
-                      checked={selectedExport.has(order.id)}
-                      onCheckedChange={() => toggleExportSelect(order)}
-                      aria-label={t('ordersPage.selectOrderForExport', { id: order.display_id })}
-                    />
-                  </td>
-                  <td className="px-4 py-3"><StatusBadge status={order.status} order={order} /></td>
-                  <td className="px-4 py-3 font-mono text-xs font-semibold">
-                    {order.display_id}
-                    {order.duplicated_from && (
-                      <Badge
-                        variant="outline"
-                        className="ml-1.5 text-[9px] px-1 py-0 border-indigo-400 text-indigo-600 dark:text-indigo-400 cursor-pointer whitespace-nowrap"
-                        onClick={(e) => { e.stopPropagation(); if (order.duplicated_from_display) setSearch(order.duplicated_from_display); }}
-                      >
-                        {t('ordersPage.duplicateOf', { id: order.duplicated_from_display || '?' })}
-                      </Badge>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span>{order.customer_name}</span>
-                    {getPhoneDupCount(order.customer_phone) > 1 && (
-                      <Badge variant="destructive" className="ml-1.5 text-[9px] px-1 py-0 cursor-pointer" onClick={(e) => { e.stopPropagation(); setSearch(order.customer_phone); }}>
-                        {getPhoneDupCount(order.customer_phone)}x
-                      </Badge>
-                    )}
-                    <ActiveViewBadge phone={order.customer_phone} className="ml-2" />
-                  </td>
-                  {(() => {
-                    const { product, reason } = productCellParts(order);
-                    return (
-                      <td className="px-4 py-3">
-                        <div className="max-w-[320px] break-words">{product}</div>
-                        {reason && (
-                          <div className="mt-0.5 max-w-[320px] break-words text-xs leading-snug text-muted-foreground">
-                            {reason}
-                          </div>
-                        )}
-                      </td>
-                    );
-                  })()}
-                  <td className="px-4 py-3 text-center">{order.quantity || 1}</td>
-                  <td className="px-4 py-3">
-                    <div className="font-bold text-primary leading-tight">{formatMoney(order.price)}</div>
-                  </td>
-                  <td className="px-4 py-3">
-                    {creditName(order) ? (
-                      <span className="inline-flex items-center gap-1.5" title={order.seller_name || order.confirmed_by_name ? t('ordersPage.salesCredit', { name: creditName(order) }) : t('ordersPage.confirmedByTitle')}>
-                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
-                          {creditName(order)!.charAt(0)}
-                        </span>
-                        {creditName(order)}
-                      </span>
-                    ) : <span className="text-muted-foreground">—</span>}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge variant={sourceBadgeVariant(order.source_type)} className="text-[10px]" title={sourceLabel(t, order.source_type)}>
-                      {departmentLabel(t, order.department) || sourceLabel(t, order.source_type)}
-                    </Badge>
-                    {departmentLabel(t, order.department) && (
-                      <div className="mt-0.5 text-[10px] text-muted-foreground">{sourceLabel(t, order.source_type)}</div>
-                    )}
-                    {/* The partner, under the chip rather than in a column of its
-                        own — the table already carries eleven. Absent for agents,
-                        who never receive the field. */}
-                    {order.cpa_webmaster_id && (
-                      <div
-                        className="mt-0.5 max-w-[130px] truncate text-[11px] text-muted-foreground"
-                        title={`${affiliateLabel(order.cpa_webmaster_id, webmasterNames)} · ${offerLabel(order)}`}
-                      >
-                        {affiliateLabel(order.cpa_webmaster_id, webmasterNames)}
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    <div className="leading-tight">
-                      <div>{formatDayDmy(order.confirmed_at || order.cancelled_at || order.trashed_at || order.created_at)}</div>
-                      <div className="text-xs text-muted-foreground/70 tabular-nums">{new Date(order.confirmed_at || order.cancelled_at || order.trashed_at || order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => setHistoryOrder({ phone: order.customer_phone, name: order.customer_name })}>
-                          <History className="h-3.5 w-3.5 mr-2" /> {t('ordersPage.seeHistory')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => { setSearch(order.customer_phone); }}>
-                          <Copy className="h-3.5 w-3.5 mr-2" /> {t('ordersPage.viewDuplicates')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => tryOpenOrder(order)}>
-                          <Lock className="h-3.5 w-3.5 mr-2" /> {t('ordersPage.openOrder')}
-                        </DropdownMenuItem>
-                        {isAdmin && (
-                          <DropdownMenuItem disabled={duplicatingId !== null} onClick={() => handleDuplicateOrder(order)}>
-                            <CopyPlus className="h-3.5 w-3.5 mr-2" /> {t('ordersPage.duplicateOrder')}
-                          </DropdownMenuItem>
-                        )}
-                        {canPushCpa(order) && (
-                          <DropdownMenuItem disabled={cpaLoadingId !== null} onClick={() => handleCpaPreview(order)}>
-                            <Send className="h-3.5 w-3.5 mr-2" /> {t('ordersPage.pushCpa')}
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </td>
-                </tr>
-
-                {/* Expanded rich details row */}
-                {isExpanded && (
-                  <tr className="bg-muted/40 border-b">
-                    <td colSpan={11} className="p-0">
-                      <div className="px-6 py-5 text-sm border-l-4 border-primary/70 bg-background/50">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4">
-
-                          {/* Customer */}
-                          <div>
-                            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">{t('ordersPage.customerSection')}</div>
-                            <div className="font-medium text-base">{order.customer_name || '—'}</div>
-                            <div className="font-mono text-xs text-muted-foreground mt-0.5">{order.customer_phone}</div>
-                            <div className="text-xs mt-1 leading-tight">
-                              {order.customer_address}<br />
-                              {order.customer_city}{order.postal_code ? `, ${order.postal_code}` : ''}
-                            </div>
-                          </div>
-
-                          {/* Order Info & Timing */}
-                          <div>
-                            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">{t('ordersPage.orderInfoSection')}</div>
-                            <div className="space-y-0.5 text-sm">
-                              <div><span className="text-muted-foreground">{t('ordersPage.created')}</span> {formatDayDmy(order.created_at)} {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                              <div><span className="text-muted-foreground">{t('ordersPage.statusField')}</span> <span className="font-medium">{statusLabel(order.status)}</span></div>
-                              {order.source_type && (
-                                <div><span className="text-muted-foreground">{t('ordersPage.sourceField')}</span> {sourceLabel(t, order.source_type)}</div>
-                              )}
-                              {order.cpa_webmaster_id && (
-                                <div>
-                                  <span className="text-muted-foreground">{t('ordersPage.affiliateField')}</span>{' '}
-                                  <span className="font-medium">{affiliateLabel(order.cpa_webmaster_id, webmasterNames)}</span>
-                                  <span className="ml-1 text-xs text-muted-foreground">#{order.cpa_webmaster_id}</span>
-                                </div>
-                              )}
-                              {(order.cpa_offer_name || order.cpa_offer_id) && (
-                                <div>
-                                  <span className="text-muted-foreground">{t('ordersPage.offerField')}</span>{' '}
-                                  <span className="font-medium">{offerLabel(order)}</span>
-                                  {order.cpa_offer_id && <span className="ml-1 text-xs text-muted-foreground">#{order.cpa_offer_id}</span>}
-                                </div>
-                              )}
-                              {order.cpa_stream_id && (
-                                <div>
-                                  <span className="text-muted-foreground">{t('ordersPage.publisherField')}</span>{' '}
-                                  <span className="font-mono text-xs">{order.cpa_stream_id}</span>
-                                </div>
-                              )}
-                              {order.ship_after_date && (
-                                <div><span className="text-muted-foreground">{t('ordersPage.shipAfterField')}</span> {formatDayDmy(order.ship_after_date)}</div>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Agent */}
-                          <div>
-                            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">{t('ordersPage.agentSection')}</div>
-                            <div className="text-sm">
-                              {order.assigned_agent_name || order.last_action_by || order.confirmed_by_name || '—'}
-                            </div>
-                            {(order.seller_name || order.confirmed_by_name) && order.assigned_agent_name !== (order.seller_name || order.confirmed_by_name) && (
-                              <div className="text-[11px] text-muted-foreground mt-0.5">
-                                {t('ordersPage.salesCredit', { name: order.seller_name || order.confirmed_by_name })}
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Status-specific rich info */}
-                          {(order.status === 'cancelled' || order.status === 'trashed') && (
-                            <div className="md:col-span-2 lg:col-span-3 pt-3 border-t">
-                              <div className="text-[10px] font-semibold uppercase tracking-wider text-rose-600 mb-1.5">
-                                {order.status === 'cancelled' ? t('ordersPage.cancellationReason') : t('ordersPage.trashReason')}
-                              </div>
-                              <div className="text-sm bg-rose-50 dark:bg-rose-950/30 p-3 rounded-md border border-rose-200 dark:border-rose-900 whitespace-pre-line">
-                                {orderReasonText(order) || t('ordersPage.noReasonRecorded')}
-                              </div>
-                            </div>
-                          )}
-
-                          {DELIVERY_STATUSES.includes(order.status) && (
-                            <div className="md:col-span-2 lg:col-span-3 pt-3 border-t grid grid-cols-1 lg:grid-cols-3 gap-x-8 gap-y-4">
-                              <div>
-                                <div className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600 mb-1.5">{t('ordersPage.deliveryDetails')}</div>
-                                <div className="text-sm space-y-1">
-                                  <div>
-                                    <span className="text-muted-foreground">{t('ordersPage.sentBy')}</span>{' '}
-                                    {(() => {
-                                      const dt = order.delivery_type;
-                                      if (dt === 'speedy_office') return t('ordersPage.speedyOffice');
-                                      if (dt === 'econt_office') return t('ordersPage.econtOffice');
-                                      if (dt === 'mex_office') return t('ordersPage.mexOffice');
-                                      const hc = order.home_courier === 'speedy' ? 'Speedy'
-                                        : order.home_courier === 'econt' ? 'Econt' : null;
-                                      return hc ? t('ordersPage.homeDoor', { courier: hc }) : (dt ? dt.replace(/_/g, ' ') : t('ordersPage.notSpecified'));
-                                    })()}
-                                    {order.courier_office_name && ` → ${order.courier_office_name}`}
-                                  </div>
-                                </div>
-                              </div>
-                              {showCallsPanel && (
-                                <div className="lg:col-span-2">
-                                  <OrderCallsPanel orderId={order.id} />
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Calls panel for statuses without a delivery section
-                              (pending/call_again/cancelled/trashed — hearing what
-                              went wrong is exactly the point). */}
-                          {showCallsPanel && !DELIVERY_STATUSES.includes(order.status) && (
-                            <div className="md:col-span-2 lg:col-span-3 pt-3 border-t">
-                              <OrderCallsPanel orderId={order.id} />
-                            </div>
-                          )}
-
-                          {/* Products */}
-                          <div className="md:col-span-2 lg:col-span-3 pt-2">
-                            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">{t('ordersPage.productsSection')}</div>
-                            {order.order_items && order.order_items.length > 0 ? (
-                              <div className="text-sm">
-                                {order.order_items.map((item: any, idx: number) => (
-                                  <div key={idx}>
-                                    {item.product_name || '—'} × {item.quantity || 1}
-                                    {item.price_per_unit && ` ${t('ordersPage.each', { price: formatMoney(item.price_per_unit) })}`}
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="text-sm">{order.product_name || '—'} × {order.quantity || 1}</div>
-                            )}
-                          </div>
-
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </Fragment>
-            );
-          })}
-              {filteredOrders.length === 0 && (
-                <tr>
-                  {/* 11 real <th>s — this said 10, so the empty state sat one
-                      column short of the table it belongs to. */}
-                  <td colSpan={11} className="p-0">
-                    <EmptyState
-                      icon={<Package className="h-5 w-5" />}
-                      title={t('ordersPage.noOrdersFound')}
-                      description={hasActiveFilters ? t('ordersPage.noOrdersMatch') : t('ordersPage.ordersAppearHere')}
-                      size="sm"
-                      className="border-0 bg-transparent hover:shadow-none"
-                      action={hasActiveFilters ? (
-                        <Button variant="outline" size="sm" onClick={clearAllFilters}>{t('ordersPage.clearFilters')}</Button>
-                      ) : undefined}
-                    />
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {/* Cards — mobile */}
-      <div className="md:hidden space-y-2">
-        {loading ? (
-          <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
-        ) : filteredOrders.length === 0 ? (
-          <EmptyState
-            icon={<Package className="h-5 w-5" />}
-            title={t('ordersPage.noOrdersFound')}
-            description={hasActiveFilters ? t('ordersPage.noOrdersMatch') : t('ordersPage.ordersAppearHere')}
-            size="sm"
-            action={hasActiveFilters ? <Button variant="outline" size="sm" onClick={clearAllFilters}>{t('ordersPage.clearFilters')}</Button> : undefined}
-          />
-        ) : filteredOrders.map(order => {
-          const isExpanded = expandedIds.has(order.id);
-          const cardSourceLabel = departmentLabel(t, order.department) || sourceLabel(t, order.source_type);
-          const confirmedBy = creditName(order);
-          return (
-            <MobileCard key={order.id}>
-              <div className="flex items-start gap-2">
-                <Checkbox
-                  className="mt-1 shrink-0"
-                  checked={selectedExport.has(order.id)}
-                  onCheckedChange={() => toggleExportSelect(order)}
-                  aria-label={t('ordersPage.selectOrderForExport', { id: order.display_id })}
-                />
-                <div className="min-w-0 flex-1">
-                  <MobileCardHeader
-                    title={
-                      <span className="flex items-center gap-1.5">
-                        {order.customer_name}
-                        {getPhoneDupCount(order.customer_phone) > 1 && (
-                          <Badge variant="destructive" className="text-[9px] px-1 py-0" onClick={(e) => { e.stopPropagation(); setSearch(order.customer_phone); }}>
-                            {getPhoneDupCount(order.customer_phone)}x
-                          </Badge>
-                        )}
-                        <ActiveViewBadge phone={order.customer_phone} />
-                      </span>
-                    }
-                    subtitle={order.customer_phone}
-                    badge={<StatusBadge status={order.status} order={order} />}
-                  />
-                </div>
-              </div>
-              <MobileCardField
-                label={t('ordersPage.colOrderId')}
-                value={
-                  <span className="font-mono">
-                    {order.display_id}
-                    {order.duplicated_from && (
-                      <Badge variant="outline" className="ml-1.5 text-[9px] px-1 py-0 border-indigo-400 text-indigo-600 dark:text-indigo-400" onClick={(e) => { e.stopPropagation(); if (order.duplicated_from_display) setSearch(order.duplicated_from_display); }}>
-                        {t('ordersPage.duplicateOf', { id: order.duplicated_from_display || '?' })}
-                      </Badge>
-                    )}
-                  </span>
-                }
-              />
-              <MobileCardField
-                label={t('ordersPage.colProductReason')}
-                value={(() => {
-                  const { product, reason } = productCellParts(order);
-                  return (
-                    <>
-                      <div>{product}</div>
-                      {reason && <div className="mt-0.5 text-xs font-normal leading-snug text-muted-foreground">{reason}</div>}
-                    </>
-                  );
-                })()}
-              />
-              <MobileCardField label={t('ordersPage.colQty')} value={order.quantity || 1} />
-              <MobileCardField label={t('createOrder.total')} value={<>{formatMoney(order.price)}</>} />
-              <MobileCardField label={t('ordersPage.colConfirmedBy')} value={confirmedBy || '—'} />
-              <MobileCardField label={t('ordersPage.colSource')} value={cardSourceLabel} />
-              {order.cpa_webmaster_id && (
-                <MobileCardField label={t('ordersPage.colAffiliate')} value={affiliateLabel(order.cpa_webmaster_id, webmasterNames)} />
-              )}
-              {(order.cpa_offer_name || order.cpa_offer_id) && (
-                <MobileCardField label={t('ordersPage.colOffer')} value={offerLabel(order)} />
-              )}
-              {order.cpa_stream_id && (
-                <MobileCardField label={t('ordersPage.colPublisher')} value={<span className="font-mono text-xs">{order.cpa_stream_id}</span>} />
-              )}
-              <MobileCardField label={t('ordersPage.colDate')} value={`${formatDayDmy(order.created_at)}, ${new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`} />
-              <MobileCardActions>
-                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => tryOpenOrder(order)}>
-                  <Lock className="h-3.5 w-3.5" /> {t('ordersPage.openOrder')}
-                </Button>
-                <Button size="sm" variant="ghost" title={t('ordersPage.seeHistory')} onClick={() => setHistoryOrder({ phone: order.customer_phone, name: order.customer_name })}>
-                  <History className="h-3.5 w-3.5" />
-                </Button>
-                {canPushCpa(order) && (
-                  <Button size="sm" variant="ghost" title={t('ordersPage.pushCpa')} disabled={cpaLoadingId !== null} onClick={() => handleCpaPreview(order)}>
-                    <Send className="h-3.5 w-3.5" />
-                  </Button>
-                )}
-              </MobileCardActions>
-              <Button variant="ghost" size="sm" className="w-full justify-center text-xs text-muted-foreground" onClick={() => toggleRowExpansion(order.id)}>
-                <ChevronDown className={cn('h-3.5 w-3.5 mr-1 transition-transform', isExpanded && 'rotate-180')} />
-                {isExpanded ? 'Hide details' : 'Details'}
-              </Button>
-              {isExpanded && (
-                <div className="border-t pt-2 space-y-2 text-sm">
-                  <div>
-                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{t('ordersPage.addressSection')}</div>
-                    <div className="text-xs leading-tight">
-                      {order.customer_address}<br />
-                      {order.customer_city}{order.postal_code ? `, ${order.postal_code}` : ''}
-                    </div>
-                  </div>
-                  <div className="text-xs"><span className="text-muted-foreground">{t('ordersPage.created')}</span> {formatDayDmy(order.created_at)} {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                  {(order as any).ship_after_date && (
-                    <div className="text-xs"><span className="text-muted-foreground">{t('ordersPage.shipAfterField')}</span> {formatDayDmy((order as any).ship_after_date)}</div>
-                  )}
-                  {(order.status === 'cancelled' || order.status === 'trashed') && orderReasonText(order) && (
-                    <div className="text-xs bg-rose-50 dark:bg-rose-950/30 p-2 rounded-md border border-rose-200 dark:border-rose-900 whitespace-pre-line">
-                      {orderReasonText(order)}
-                    </div>
-                  )}
-                  {showCallsPanel && <OrderCallsPanel orderId={order.id} />}
-                </div>
-              )}
-            </MobileCard>
-          );
-        })}
-      </div>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="mt-4 flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">{t('ordersPage.pageOf', { page, totalPages, total })}</p>
-          <SmartPagination page={page} totalPages={totalPages} onPageChange={setPage} />
-        </div>
-      )}
 
       {/* Order Modal */}
       <OrderModal
@@ -2081,7 +1436,7 @@ export default function Orders() {
         open={showCreateModal}
         onClose={(created) => {
           setShowCreateModal(false);
-          if (created) fetchOrders();
+          if (created) refresh();
         }}
       />
 
@@ -2125,11 +1480,11 @@ export default function Orders() {
             const remote = cpaPreview.preview.remote;
             return (
               <div className="space-y-2">
-                <div className="space-y-1 text-sm max-h-72 overflow-y-auto">
+                <div className="max-h-72 space-y-1 overflow-y-auto text-sm">
                   {rows.filter(([, v]) => v !== undefined && v !== '').map(([label, v]) => (
                     <div key={label} className="flex justify-between gap-3">
-                      <span className="text-muted-foreground shrink-0">{label}</span>
-                      <span className="text-right break-all">{v}</span>
+                      <span className="shrink-0 text-muted-foreground">{label}</span>
+                      <span className="break-all text-right">{v}</span>
                     </div>
                   ))}
                 </div>
@@ -2154,7 +1509,7 @@ export default function Orders() {
               {t('common.cancel')}
             </Button>
             <Button disabled={cpaSending || !cpaPreview?.preview.token_present} onClick={handleCpaConfirm}>
-              {cpaSending && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+              {cpaSending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
               {t('ordersPage.cpaConfirmSend')}
             </Button>
           </DialogFooter>
@@ -2174,13 +1529,13 @@ export default function Orders() {
           </DialogHeader>
           {cpaBulkProgress && (
             <div className="space-y-1.5">
-              <div className="h-2 w-full rounded bg-muted overflow-hidden">
+              <div className="h-2 w-full overflow-hidden rounded bg-muted">
                 <div
                   className="h-full bg-primary transition-all"
                   style={{ width: `${Math.round((cpaBulkProgress.done / Math.max(1, cpaBulkProgress.total)) * 100)}%` }}
                 />
               </div>
-              <p className="text-xs text-muted-foreground text-center">
+              <p className="text-center text-xs text-muted-foreground">
                 {t('ordersPage.cpaBulkProgress', { done: cpaBulkProgress.done, total: cpaBulkProgress.total })}
               </p>
             </div>
@@ -2190,7 +1545,7 @@ export default function Orders() {
               {t('common.cancel')}
             </Button>
             <Button disabled={!!cpaBulkProgress} onClick={runCpaBulk}>
-              {cpaBulkProgress && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+              {cpaBulkProgress && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
               {t('ordersPage.cpaBulkConfirm', { count: cpaBulk?.eligible.length ?? 0 })}
             </Button>
           </DialogFooter>

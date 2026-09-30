@@ -21,20 +21,15 @@ const SOURCE_I18N_KEY: Record<string, string> = {
   manual: 'ordersPage.sourceManual',
 };
 
-/** MONADLIST is a proper noun — the imported Bulgarian legacy list — not a label to translate. */
-const SOURCE_LITERAL: Record<string, string> = { monadon_legacy: 'MONADLIST' };
-
-/** Translated label for an order source. Unknown values fall back to Manual, as before. */
+/** Translated label for an order source. Unknown values fall back to Manual, as before.
+ *  (The Bulgarian "MONADLIST" legacy list never existed in MK — 0 rows — and is gone.) */
 export function sourceLabel(t: TFunction, source: string | null | undefined): string {
   if (!source) return t('ordersPage.sourceManual');
-  const literal = SOURCE_LITERAL[source];
-  if (literal) return literal;
   return t(SOURCE_I18N_KEY[source] ?? 'ordersPage.sourceManual');
 }
 
 /** Badge variant for the source chip. Kept with the labels so the two cannot drift. */
 export function sourceBadgeVariant(source: string | null | undefined): 'destructive' | 'secondary' | 'outline' {
-  if (source === 'monadon_legacy') return 'destructive';
   if (
     source === 'prediction_lead' || source === 'inbound_lead' || source === 'opencart' ||
     source === 'opencart_abandoned' || source === 'affiliate' || source === 'altercpa'
@@ -68,10 +63,11 @@ export function creditName(o: {
   return o.seller_name || o.confirmed_by_name || o.last_action_by || o.assigned_agent_name || null;
 }
 
-/** The five source values the filter dropdown offers, in the order it offers them. */
-export const SOURCE_FILTER_VALUES = [
-  'altercpa', 'import', 'affiliate', 'opencart', 'inbound_lead', 'prediction_lead', 'monadon_legacy',
-] as const;
+/** The source values the /orders filter offers: the only source_type values that
+ *  exist in MK (import · altercpa · manual). The BG-era affiliate / opencart /
+ *  inbound_lead / prediction_lead / MONADLIST matched 0 rows and are gone
+ *  (the api refuses them: supabase/functions/api/ordersList.ts LIST_SOURCE_TYPES). */
+export const SOURCE_FILTER_VALUES = ['altercpa', 'import', 'manual'] as const;
 
 // ── CPA attribution ─────────────────────────────────────────────────────────
 // AlterCPA identifies the affiliate only by a numeric `wm`; their merchant API
