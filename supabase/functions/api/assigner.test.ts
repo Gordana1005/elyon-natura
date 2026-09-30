@@ -205,7 +205,7 @@ const rpcBoard = {
   agents: [
     {
       user_id: A1, full_name: "Stanka", roles: ["pending_agent", "prediction_agent"], is_admin: false, is_manager: false,
-      team_key: "crm_prediction", team_name: "Prediction — ElyonCRM", online: true, in_call: false,
+      team_key: "teleshop", team_name: "Телешоп", team_lane: "out", online: true, in_call: false,
       last_seen_at: "2026-09-30T14:44:26+00:00", shift: { start: "09:00", end: "20:20" },
       pendings: 3, pendings_pending: 1, pendings_take: 0, call_agains: 12, call_agains_orders: 2, call_agains_members: 10,
       list_open: 60, list_parked: 4, list_assigned: 62, worked_today: 14, secret_future_key: "x",
@@ -225,7 +225,7 @@ describe("shapeBoard", () => {
     expect(out.generated_at).toBe("2026-09-30T14:45:00+00:00");
     expect(out.agents[0]).toEqual({
       user_id: A1, full_name: "Stanka", roles: ["pending_agent", "prediction_agent"], is_admin: false, is_manager: false,
-      team_key: "crm_prediction", team_name: "Prediction — ElyonCRM", online: true, in_call: false,
+      team_key: "teleshop", team_name: "Телешоп", team_lane: "out", online: true, in_call: false,
       last_seen_at: "2026-09-30T14:44:26+00:00", shift: { start: "09:00", end: "20:20" },
       pendings: 3, pendings_pending: 1, pendings_take: 0, call_agains: 12, call_agains_orders: 2, call_agains_members: 10,
       list_open: 60, list_parked: 4, list_assigned: 62, worked_today: 14,
@@ -233,7 +233,7 @@ describe("shapeBoard", () => {
   });
   it("defaults a sparse agent (nulls, zeros, no half shift)", () => {
     const a = shapeBoard(rpcBoard).agents[1];
-    expect(a).toMatchObject({ user_id: A2, full_name: null, roles: [], online: true, in_call: false, shift: null, team_key: null, last_seen_at: null, pendings: 0, worked_today: 0 });
+    expect(a).toMatchObject({ user_id: A2, full_name: null, roles: [], online: true, in_call: false, shift: null, team_key: null, team_lane: null, last_seen_at: null, pendings: 0, worked_today: 0 });
   });
   it("totals — exactly the contract", () => {
     expect(shapeBoard(rpcBoard).totals).toEqual(rpcBoard.totals);

@@ -317,6 +317,8 @@ export interface BoardAgent {
   is_manager: boolean;
   team_key: string | null;
   team_name: string | null;
+  /** The lane inside the business line (in | out | social) — display only (20260943000950). */
+  team_lane: string | null;
   online: boolean;
   in_call: boolean;
   last_seen_at: string | null;
@@ -359,6 +361,7 @@ export function shapeBoard(raw: unknown): BoardResponse {
       is_manager: bool(a.is_manager),
       team_key: str(a.team_key),
       team_name: str(a.team_name),
+      team_lane: str(a.team_lane),
       online: bool(a.online),
       in_call: bool(a.in_call),
       last_seen_at: str(a.last_seen_at),

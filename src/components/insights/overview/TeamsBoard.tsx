@@ -72,7 +72,8 @@ export function TeamsBoard({ q, teamKeys, range, canTvLink, f }: {
   const token = lb.data?.tokens?.find((tok) => tok.is_active)?.token ?? null;
   const tvHref = (tm: PeopleTeam): string | null | undefined => {
     if (!canTvLink || !isMainTeam(tm)) return undefined;
-    return token ? `/tv/leaderboard?key=${encodeURIComponent(token)}&mode=${tm.mode}&lang=${f.lang}` : null;
+    // the team's own board (teams = business lines, 30.09.2026: ?team=<key>; a legacy key is an alias)
+    return token ? `/tv/leaderboard?key=${encodeURIComponent(token)}&team=${encodeURIComponent(tm.key)}&lang=${f.lang}` : null;
   };
 
   const aside = (

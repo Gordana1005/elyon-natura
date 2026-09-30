@@ -33,7 +33,8 @@ import {
 } from '@/lib/leaderboardV2';
 import { Confetti, StatCard } from '@/components/tvboard/TvBoardParts';
 import { TvBoardFilters } from '@/components/tvboard/TvBoardFilters';
-import { TV_GRID, teamLabel } from '@/components/tvboard/tvBoardHelpers';
+import { TV_GRID, filterTeamLabel } from '@/components/tvboard/tvBoardHelpers';
+import { splitTeamFilter } from '@/lib/teamLines';
 import { TvBoardRow } from '@/components/tvboard/TvBoardRow';
 import { TvBoardCard } from '@/components/tvboard/TvBoardCard';
 import { TvWebLive } from '@/components/tvboard/TvWebLive';
@@ -252,7 +253,7 @@ export default function TvLeaderboardPage() {
   const label = data ? dayLabel(data.day, Math.max(0, daysBetween(data.day, today))) : '';
   const viewLabel = [
     dept ? t(`leaderboard2.dept.${deptKey(dept)}`) : t('leaderboard2.allDepartments'),
-    filter.team ? teamLabel(t, filter.team, data?.teams.find((x) => x.key === filter.team)?.name) : '',
+    filter.team ? filterTeamLabel(t, filter.team, data?.teams.find((x) => x.key === splitTeamFilter(filter.team).team)?.name) : '',
   ].filter(Boolean).join(' · ');
 
   return (

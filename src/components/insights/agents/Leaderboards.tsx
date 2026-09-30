@@ -6,7 +6,7 @@ import { fmtNum } from '../overview/model';
 import { ClockCaption } from '../shared/ClockCaption';
 import type { InsightsFormat } from '../shared/useInsightsFormat';
 import { BOARD_MIN_CLOSED, BOARD_MIN_WORKED, RATE_MIN_ACTIVE_MIN, leaderboards, type BoardKey, type BoardEntry } from './model';
-import { teamName } from './parts';
+import { teamLaneName } from './parts';
 
 const BOARDS: BoardKey[] = ['sales', 'conversion', 'paid', 'return_rate', 'per_hour', 'value'];
 
@@ -73,7 +73,7 @@ function Board({ title, hint, entries, fmt, teamNames, onPerson, ascending, f }:
                   className="block max-w-full truncate rounded-sm text-left underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                   {e.person.name}
                 </button>
-                <span className="block truncate text-[10px] text-muted-foreground">{teamName(e.person.team_key, teamNames.get(e.person.team_key) ?? null, f)}</span>
+                <span className="block truncate text-[10px] text-muted-foreground">{teamLaneName(e.person.team_key, e.person.team_lane, teamNames.get(e.person.team_key) ?? null, f)}</span>
                 {/* length against the leader (ascending boards: the lowest leads) */}
                 <span className="mt-0.5 block h-1 rounded-full bg-muted" aria-hidden>
                   <span className="block h-full rounded-full bg-foreground/40"

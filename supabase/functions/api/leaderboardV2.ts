@@ -22,6 +22,8 @@
 // No bonus here: payouts / bonus / commission math are deferred by the owner.
 // ============================================================================
 
+import { parseTeamFilter } from "./teamLines.ts";
+
 /** The six departments in the owner's order (migrations 20260942000500 / 20260942001000). */
 export const LEADERBOARD_DEPARTMENTS = [
   "altercpa", "elyon_crm", "teleshop_out", "teleshop_other", "social", "web",
@@ -30,9 +32,9 @@ export type LeaderboardDepartment = typeof LEADERBOARD_DEPARTMENTS[number];
 
 export type PresenceStateV2 = "online" | "idle" | "break" | "offline" | "n/a";
 
-const TEAM_RE = /^[a-z0-9_]{1,40}$/;
-
-/** ?department= / ?team= → the RPC's arguments, or a 400. */
+/** ?department= / ?team= → the RPC's arguments, or a 400. ?team= is a team key, 'team:lane'
+ *  (a business line's lane, 20260943000950), 'none' or a legacy alias (altercpa_leads /
+ *  crm_prediction — old TV links); teamLines.parseTeamFilter owns the grammar. */
 export function parseLeaderboardV2Query(q: { department?: string | null; team?: string | null }):
   { ok: true; department: LeaderboardDepartment | null; team: string | null } | { ok: false; error: string } {
   const dept = (q.department ?? "").trim();
@@ -40,8 +42,9 @@ export function parseLeaderboardV2Query(q: { department?: string | null; team?: 
   if (dept && !(LEADERBOARD_DEPARTMENTS as readonly string[]).includes(dept)) {
     return { ok: false, error: "invalid department" };
   }
-  if (team && !TEAM_RE.test(team)) return { ok: false, error: "invalid team" };
-  return { ok: true, department: (dept || null) as LeaderboardDepartment | null, team: team || null };
+  const tf = parseTeamFilter(team);
+  if (!tf.ok) return { ok: false, error: "invalid team" };
+  return { ok: true, department: (dept || null) as LeaderboardDepartment | null, team: tf.value?.raw ?? null };
 }
 
 export interface PresenceV2 {
@@ -81,6 +84,10 @@ export interface BoardRowV2 {
   name: string;
   team_key: string | null;
   team_name: string | null;
+  /** The lane inside the business line (in | out | social); null for management / legacy / no team. */
+  team_lane: string | null;
+  /** sales_teams.kind: line | management | legacy (null = no team). */
+  team_kind: string | null;
   is_member: boolean;
   is_manager: boolean;
   /** 1… among non-managers with a total > 0 (equal numbers share a place); null otherwise. */
@@ -120,12 +127,23 @@ export interface LeaderboardV2Response {
   window: { from: string; to_end: string } | null;
   filter: { department: LeaderboardDepartment | null; team: string | null };
   departments: LeaderboardDepartment[];
-  teams: Array<{ key: string; name: string | null; people: number }>;
+  teams: BoardTeamV2[];
   summary: Record<string, number>;
   day_totals: Record<string, unknown>;
   rows: BoardRowV2[];
   /** The web shop's day (leaderboard_web_live, 20260942001940) — only with &department=web. */
   web_live?: WebLiveV2 | null;
+}
+
+/** A team on the board's filter bar (sales_teams.sort_order order); a line carries its lanes
+ *  (lane.key = 'team:lane' is itself a filter value). */
+export interface BoardTeamV2 {
+  key: string;
+  name: string | null;
+  people: number;
+  kind: string | null;
+  sort_order: number | null;
+  lanes: Array<{ lane: string; key: string; people: number }>;
 }
 
 /** The TV board's web view: the web shop has no agents, so the board shows the shop itself. */
@@ -216,6 +234,8 @@ function normRow(v: unknown): BoardRowV2 {
     name: str(r.name) ?? "Agent",
     team_key: str(r.team_key),
     team_name: str(r.team_name),
+    team_lane: str(r.team_lane),
+    team_kind: str(r.team_kind),
     is_member: !!r.is_member,
     is_manager: !!r.is_manager,
     rank: r.rank == null ? null : num(r.rank),
@@ -300,6 +320,8 @@ export const LEADERBOARD_V2_NON_MONEY_KEYS: ReadonlySet<string> = new Set([
   "no_department", "orders", "bookings", "work", "checks", "bookings_filter_drift",
   // rows
   "person_id", "user_id", "team_key", "team_name", "is_member", "is_manager", "rank",
+  // teams = business lines (20260943000950): the lane / kind of a row, a team's order and lanes
+  "team_lane", "team_kind", "sort_order", "lanes", "lane",
   "cancelled", "trashed", "callbacks", "conversion", "last_decision_at", "presence",
   "state", "online_min", "active_min", "idle_min", "break_min", "first_seen", "last_seen",
   "first_active", "last_active", "idle_alerts", "idle_streak_min", "first_login",
@@ -349,10 +371,20 @@ export function buildLeaderboardV2Response(input: {
     ? (rpc.departments as unknown[]).filter((d): d is LeaderboardDepartment =>
       (LEADERBOARD_DEPARTMENTS as readonly string[]).includes(String(d)))
     : [...LEADERBOARD_DEPARTMENTS];
-  const teams = Array.isArray(rpc.teams)
+  const teams: BoardTeamV2[] = Array.isArray(rpc.teams)
     ? (rpc.teams as unknown[]).map((t) => {
       const x = obj(t);
-      return { key: String(x.key ?? "none"), name: str(x.name), people: num(x.people) };
+      const key = String(x.key ?? "none");
+      return {
+        key, name: str(x.name), people: num(x.people), kind: str(x.kind), sort_order: numOrNull(x.sort_order),
+        lanes: Array.isArray(x.lanes)
+          ? (x.lanes as unknown[]).map((l) => {
+            const y = obj(l);
+            const lane = String(y.lane ?? "");
+            return { lane, key: str(y.key) ?? `${key}:${lane}`, people: num(y.people) };
+          }).filter((l) => l.lane)
+          : [],
+      };
     })
     : [];
   const body: LeaderboardV2Response = {

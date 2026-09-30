@@ -3958,8 +3958,6 @@
         "all": "Të gjitha ekipet"
       },
       "team": {
-        "pending": "Në pritje (Affiliate – Lead in)",
-        "prediction": "Parashikim (Affiliate – Lead out)",
         "management": "Menaxhmenti",
         "unassigned": "Ende pa ekip",
         "teleshop": "Teleshop"
@@ -4252,12 +4250,15 @@
       },
       "team": {
         "byKey": {
-          "altercpa_leads": "Affiliate",
-          "crm_prediction": "Teleshop",
+          "altercpa_leads": "Affiliate (ekip i vjetër)",
+          "crm_prediction": "Teleshop (ekip i vjetër)",
           "management": "Menaxhmenti",
           "social": "Rrjetet sociale / collabBox",
-          "teleshop": "Teleshop / collabBox",
-          "none": "Pa ekip"
+          "teleshop": "Teleshop",
+          "none": "Pa ekip",
+          "affiliate": "Affiliate",
+          "teleshop_unassigned": "Teleshop · pa ekip",
+          "social_unassigned": "Rrjetet sociale · pa ekip"
         }
       },
       "teams": {
@@ -4272,14 +4273,16 @@
         "noLinkGroup": "Ky grup nuk është ekip në Cilësimet — nuk ka listë te Porositë sipas ekipit.",
         "partOfPerson": "Një pjesë e shitjeve të këtij personi janë në ekip tjetër — hapni personin.",
         "mode": {
-          "pending": "Lide nga Affiliate – Lead in",
+          "pending": "Lead-e nga AlterCPA (Affiliate lead-e)",
           "prediction": "Thirrje nga listat e parashikimit",
           "none": "Shfaqet, nuk renditet"
         },
         "kind": {
           "social": "Autorë në collabBox të shitjeve nga rrjetet sociale jashtë ekipit",
           "teleshop": "Autorë në collabBox të shitjeve teleshop (Lead in dhe Lead out) jashtë ekipit",
-          "none": "Aktivitet i personave jashtë ekipit"
+          "none": "Aktivitet i personave jashtë ekipit",
+          "teleshop_unassigned": "Autorë në collabBox të shitjeve teleshop (Lead in dhe Lead out) jashtë ekipit",
+          "social_unassigned": "Autorë në collabBox të shitjeve nga rrjetet sociale jashtë ekipit"
         }
       },
       "boards": {
@@ -5637,9 +5640,15 @@
     "targetEarners": "e marrin {{n}} anëtarë të ekipit me shitje",
     "reversedHint": "Të kthyera ose të anuluara pas shitjes — nuk numërohen",
     "team": {
-      "crm_prediction": "Teleshop",
-      "altercpa_leads": "Affiliate",
-      "management": "Menaxhmenti"
+      "crm_prediction": "Teleshop (ekip i vjetër)",
+      "altercpa_leads": "Affiliate (ekip i vjetër)",
+      "management": "Menaxhmenti",
+      "teleshop": "Teleshop",
+      "affiliate": "Affiliate"
+    },
+    "alias": {
+      "altercpa_leads": "Affiliate lead-e",
+      "crm_prediction": "Parashikim · të gjitha linjat"
     },
     "web": {
       "unavailable": "Të dhënat e dyqanit web nuk janë të disponueshme tani.",
@@ -5930,6 +5939,97 @@
     "errNotActiveStaff": "Vetëm një llogari aktive e punonjësit mund të bëhet pronar.",
     "errNotAnOwner": "Ky person nuk është pronar.",
     "errLastOwner": "Pronari i fundit nuk mund të hiqet — shtoni së pari një pronar tjetër."
+  },
+  "teamLines": {
+    "lane": {
+      "in": "lead-e",
+      "out": "parashikim",
+      "social": "Rrjetet sociale"
+    },
+    "label": {
+      "teleshop_in": "Teleshop lead-e",
+      "teleshop_out": "Teleshop parashikim",
+      "teleshop_social": "Rrjetet sociale",
+      "affiliate_in": "Affiliate lead-e",
+      "affiliate_out": "Affiliate parashikim"
+    },
+    "allLanes": "Të gjitha",
+    "filterLanes": "Etiketat në {{team}}",
+    "legacy": "ekip i vjetër",
+    "legacyTeam": "Ekip i vjetër — vendosi njerëzit te Cilësimet → Ekipet → Propozimi",
+    "noLanes": "Ende pa etiketa (lead-e / parashikim)",
+    "drawer": {
+      "lane": "Etiketa",
+      "laneOf": "Etiketa e {{team}} nga {{from}}",
+      "laneSaved": "Etiketa u ruajt",
+      "legacyHint": "Ekip i vjetër: prano propozimin ose zhvendose personin te Teleshop / Affiliate."
+    },
+    "proposal": {
+      "title": "Propozim: ekipet janë linja biznesi",
+      "desc": "Teleshop dërgon me NATURA (lead-e · parashikim · Rrjetet sociale), Affiliate me BIO NATURAL (lead-e · parashikim), Menaxhmenti nuk renditet. Propozimi vjen nga shitjet e secilit person sipas departamentit në {{days}} ditët e fundit (nën 5 shitje: e gjithë historia). Një rresht i pranuar ndryshon ekipin dhe etiketën e TË GJITHA anëtarësimeve të personit, për të gjithë historinë — departamenti i shitjeve nuk ndryshon.",
+      "show": "Shfaq propozimin",
+      "hide": "Fshih",
+      "refresh": "Rifresko propozimin",
+      "loading": "Po llogaritet propozimi…",
+      "empty": "Asgjë për të ndryshuar — të gjithë janë vendosur.",
+      "count": {
+        "sure": "Të sigurt: {{n}}",
+        "likely": "Të mundshëm: {{n}}",
+        "decide": "Për vendim: {{n}}",
+        "unchanged": "Të pandryshuar: {{n}}"
+      },
+      "viewLabel": "Cilët persona",
+      "view": {
+        "changes": "Vetëm ndryshimet",
+        "all": "Të gjithë"
+      },
+      "acceptAllSure": "Prano të gjitha të sigurtat ({{n}})",
+      "acceptAllTitle": "Të pranohen {{n}} propozime të sigurta?",
+      "acceptAllBody": "Ekipi dhe etiketa ndryshojnë në të gjitha anëtarësimet e këtyre personave (e gjithë historia). Departamenti i çdo shitjeje mbetet i njëjtë. Çdo ndryshim shkruhet në regjistër.",
+      "accept": "Prano",
+      "accepted": "U pranua për {{n}} persona",
+      "col": {
+        "person": "Personi",
+        "now": "Tani",
+        "proposal": "Propozimi",
+        "sales": "Shitjet sipas departamentit",
+        "confidence": "Siguria"
+      },
+      "confidence": {
+        "sure": "I sigurt",
+        "likely": "I mundshëm",
+        "decide": "Vendos"
+      },
+      "share": "{{pct}} e shitjeve janë në atë ekip dhe etiketë",
+      "basis": {
+        "window": "{{days}} ditët e fundit",
+        "history": "e gjithë historia",
+        "management": "menaxhment",
+        "altercpa_team": "ekipi i vjetër AlterCPA, pa shitje",
+        "collabbox_author": "autor në collabBox, pa shitje",
+        "none": "pa të dhëna"
+      },
+      "noSales": "Pa shitje",
+      "noTeam": "Pa ekip",
+      "noLane": "pa etiketë",
+      "pickTeam": "Zgjidh ekipin",
+      "pickLane": "Zgjidh etiketën",
+      "teamFor": "Ekipi për {{name}}",
+      "laneFor": "Etiketa për {{name}}",
+      "inactive": "joaktiv",
+      "manager": "menaxher"
+    },
+    "err": {
+      "invalid_rows": "Një rresht nuk është i saktë (ose propozimi ndryshoi) — rifresko dhe provo përsëri.",
+      "multiple_lines": "Ky person ka anëtarësime në dy linja — ndryshoji një nga një te dritarja e personit.",
+      "legacy_team": "Një ekip i vjetër nuk zgjidhet më — zgjidh Teleshop, Affiliate ose Menaxhmentin.",
+      "lane_required": "Zgjidh etiketën: lead-e, parashikim ose Rrjetet sociale.",
+      "lane_not_allowed": "Kjo etiketë nuk ekziston në ekipin e zgjedhur.",
+      "bad_lane": "Etiketë e panjohur.",
+      "duplicate_row": "I njëjti person është dy herë në kërkesë.",
+      "bad_rows": "Asnjë rresht për të pranuar.",
+      "actor_not_found": "Hyrja jote nuk u gjet — hyr përsëri."
+    }
   },
   "presence": {
     "button": "Kush po punon",

@@ -13,6 +13,7 @@ import {
   agentHolds, agentLoad, filterBoard, isManagementOnly, presenceOf, sortBoardAgents, type BoardRoleFilter,
 } from '@/lib/assigner/board';
 import type { InsightsFormat } from '@/components/insights/shared/useInsightsFormat';
+import { teamLabel } from '@/components/tvboard/tvBoardHelpers';
 import { Chip, LABEL, LiveCount, PresenceMark } from './parts';
 
 /**
@@ -113,10 +114,11 @@ export function AgentBoard({
   );
 }
 
-// the team as the TV board names it (short, translated: "На чекање" / "Прогнози" / "Менаџмент"); the DB
-// team names are English; an agent with no team shows the role
+// the team + lane as the TV board names them (the owner's words, 30.09.2026: "Телешоп предикција",
+// "Affiliate лидови", "Социјални мрежи", "Менаџмент" — display only); the DB team names are not
+// translated; an agent with no team shows the role
 function roleBadge(a: AssignerBoardAgent, t: InsightsFormat['t']): string {
-  if (a.team_key) return t(`tvBoard.team.${a.team_key}`, { defaultValue: a.team_name || a.team_key });
+  if (a.team_key) return teamLabel(t, a.team_key, a.team_name, a.team_lane);
   return friendlyRoleLabel(a.roles as AppRole[]);
 }
 

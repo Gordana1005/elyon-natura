@@ -3958,8 +3958,6 @@
         "all": "All teams"
       },
       "team": {
-        "pending": "Pending (Affiliate – Lead in)",
-        "prediction": "Prediction (Affiliate – Lead out)",
         "management": "Management",
         "unassigned": "No team yet",
         "teleshop": "Teleshop"
@@ -4252,12 +4250,15 @@
       },
       "team": {
         "byKey": {
-          "altercpa_leads": "Affiliate",
-          "crm_prediction": "Teleshop",
+          "altercpa_leads": "Affiliate (old team)",
+          "crm_prediction": "Teleshop (old team)",
           "management": "Management",
           "social": "Social media / collabBox",
-          "teleshop": "Teleshop / collabBox",
-          "none": "No team"
+          "teleshop": "Teleshop",
+          "none": "No team",
+          "affiliate": "Affiliate",
+          "teleshop_unassigned": "Teleshop · no team",
+          "social_unassigned": "Social media · no team"
         }
       },
       "teams": {
@@ -4272,14 +4273,16 @@
         "noLinkGroup": "This group is not a team in Settings — there is no Orders list by team.",
         "partOfPerson": "Part of this person's sales are in another team — open the person.",
         "mode": {
-          "pending": "Leads from Affiliate – Lead in",
+          "pending": "AlterCPA leads (Affiliate leads)",
           "prediction": "Calls from the prediction lists",
           "none": "Shown, not ranked"
         },
         "kind": {
           "social": "collabBox authors of social-media sales outside a team",
           "teleshop": "collabBox authors of teleshop sales (Lead in and Lead out) outside a team",
-          "none": "Activity of people outside a team"
+          "none": "Activity of people outside a team",
+          "teleshop_unassigned": "collabBox authors of teleshop sales (Lead in and Lead out) outside a team",
+          "social_unassigned": "collabBox authors of social-media sales outside a team"
         }
       },
       "boards": {
@@ -5637,9 +5640,15 @@
     "targetEarners": "paid to {{n}} team members with a sale",
     "reversedHint": "Returned or cancelled after the sale — not counted",
     "team": {
-      "crm_prediction": "Teleshop",
-      "altercpa_leads": "Affiliate",
-      "management": "Management"
+      "crm_prediction": "Teleshop (old team)",
+      "altercpa_leads": "Affiliate (old team)",
+      "management": "Management",
+      "teleshop": "Teleshop",
+      "affiliate": "Affiliate"
+    },
+    "alias": {
+      "altercpa_leads": "Affiliate leads",
+      "crm_prediction": "Prediction · every line"
     },
     "web": {
       "unavailable": "The web shop data is not available right now.",
@@ -5930,6 +5939,97 @@
     "errNotActiveStaff": "Only an active staff account can become an owner.",
     "errNotAnOwner": "This person is not an owner.",
     "errLastOwner": "The last owner cannot be removed — add another owner first."
+  },
+  "teamLines": {
+    "lane": {
+      "in": "leads",
+      "out": "prediction",
+      "social": "Social media"
+    },
+    "label": {
+      "teleshop_in": "Teleshop leads",
+      "teleshop_out": "Teleshop prediction",
+      "teleshop_social": "Social media",
+      "affiliate_in": "Affiliate leads",
+      "affiliate_out": "Affiliate prediction"
+    },
+    "allLanes": "All",
+    "filterLanes": "Lanes in {{team}}",
+    "legacy": "old team",
+    "legacyTeam": "Old team — place its people in Settings → Teams → Proposal",
+    "noLanes": "No lanes yet (leads / prediction)",
+    "drawer": {
+      "lane": "Lane",
+      "laneOf": "Lane of {{team}} from {{from}}",
+      "laneSaved": "Lane saved",
+      "legacyHint": "Old team: accept the proposal or move the person to Teleshop / Affiliate."
+    },
+    "proposal": {
+      "title": "Proposal: teams are business lines",
+      "desc": "Teleshop ships via NATURA (leads · prediction · Social media), Affiliate via BIO NATURAL (leads · prediction), Management is not ranked. The proposal comes from each person's sales by department over the last {{days}} days (under 5 sales: the whole history). An accepted row changes the team and lane of ALL the person's memberships, for the whole history — the department of the sales does not change.",
+      "show": "Show proposal",
+      "hide": "Hide",
+      "refresh": "Refresh the proposal",
+      "loading": "Working out the proposal…",
+      "empty": "Nothing to change — everyone is placed.",
+      "count": {
+        "sure": "Sure: {{n}}",
+        "likely": "Likely: {{n}}",
+        "decide": "To decide: {{n}}",
+        "unchanged": "Unchanged: {{n}}"
+      },
+      "viewLabel": "Which people",
+      "view": {
+        "changes": "Changes only",
+        "all": "Everyone"
+      },
+      "acceptAllSure": "Accept every sure row ({{n}})",
+      "acceptAllTitle": "Accept {{n}} sure proposals?",
+      "acceptAllBody": "The team and lane change on all memberships of these people (the whole history). The department of every sale stays the same. Every change is written to the audit log.",
+      "accept": "Accept",
+      "accepted": "Accepted for {{n}} people",
+      "col": {
+        "person": "Person",
+        "now": "Now",
+        "proposal": "Proposal",
+        "sales": "Sales by department",
+        "confidence": "Confidence"
+      },
+      "confidence": {
+        "sure": "Sure",
+        "likely": "Likely",
+        "decide": "Decide"
+      },
+      "share": "{{pct}} of the sales are in that team and lane",
+      "basis": {
+        "window": "last {{days}} days",
+        "history": "whole history",
+        "management": "management",
+        "altercpa_team": "old AlterCPA team, no sales",
+        "collabbox_author": "collabBox author, no sales",
+        "none": "no data"
+      },
+      "noSales": "No sales",
+      "noTeam": "No team",
+      "noLane": "no lane",
+      "pickTeam": "Pick a team",
+      "pickLane": "Pick a lane",
+      "teamFor": "Team for {{name}}",
+      "laneFor": "Lane for {{name}}",
+      "inactive": "inactive",
+      "manager": "manager"
+    },
+    "err": {
+      "invalid_rows": "A row is not valid (or the proposal changed) — refresh and try again.",
+      "multiple_lines": "This person has memberships in two lines — change them row by row in the person drawer.",
+      "legacy_team": "An old team can no longer be picked — choose Teleshop, Affiliate or Management.",
+      "lane_required": "Pick a lane: leads, prediction or Social media.",
+      "lane_not_allowed": "That lane does not exist in the chosen team.",
+      "bad_lane": "Unknown lane.",
+      "duplicate_row": "The same person is in the request twice.",
+      "bad_rows": "No rows to accept.",
+      "actor_not_found": "Your login was not found — sign in again."
+    }
   },
   "presence": {
     "button": "Who is working",

@@ -65,7 +65,7 @@ export function TvBoardCard({
           <div className="break-words text-[15px] font-semibold leading-snug text-slate-50">{row.name}</div>
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
             <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-300">
-              {teamLabel(t, row.team_key, row.team_name)}
+              {teamLabel(t, row.team_key, row.team_name, row.team_lane)}
             </span>
             {isToday && p.state === 'idle' && (p.idle_streak_min ?? 0) > 0 && (
               <span className="rounded bg-amber-400/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300">{t('tvBoard.idleFor', { n: p.idle_streak_min })}</span>

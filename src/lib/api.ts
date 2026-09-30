@@ -2369,6 +2369,8 @@ export interface SalesIdentity {
 export interface SalesMembership {
   id: string; team_key: string; valid_from: string; valid_to: string | null;
   role: 'member' | 'lead'; is_primary: boolean; note: string | null; created_at: string;
+  /** The lane inside a business line (teams = business lines, 20260943000900); null for management / legacy. */
+  lane?: 'in' | 'out' | 'social' | null;
 }
 export interface SalesPerson {
   id: string; display_name: string; user_id: string | null;
@@ -2377,7 +2379,12 @@ export interface SalesPerson {
   last_activity_at: string | null; decisions_30d: number; sales_30d: number;
   identities: SalesIdentity[]; memberships: SalesMembership[];
 }
-export interface SalesTeam { key: string; name: string; leaderboard_mode: 'prediction' | 'pending' | null }
+export interface SalesTeam {
+  key: string; name: string; leaderboard_mode: 'prediction' | 'pending' | null;
+  /** line = a business line (lanes) · management · legacy = a pre-30.09.2026 key, never a new target. */
+  kind?: 'line' | 'management' | 'legacy';
+  sort_order?: number;
+}
 export interface SalesLogin {
   user_id: string; full_name: string | null; email: string | null; is_active: boolean; roles: string[]; person_id: string | null;
 }
@@ -2405,6 +2412,8 @@ export interface SalesIdentityInput { kind: SalesIdentityKind; value: string; ac
 export interface SalesPersonCreate {
   display_name: string; user_id?: string | null; is_manager?: boolean; notes?: string | null;
   team_key?: string | null; team_from?: string | null; team_role?: 'member' | 'lead';
+  /** The lane of the first membership — a business line needs one. */
+  team_lane?: 'in' | 'out' | 'social' | null;
   identities?: SalesIdentityInput[];
 }
 export interface SalesPersonPatch {
@@ -2421,11 +2430,53 @@ export const apiAddSalesIdentity = (personId: string, body: SalesIdentityInput):
 export const apiRemoveSalesIdentity = (identityId: string): Promise<{ ok: true; orders_keep_person: number }> =>
   apiFetch(`sales-people/identities/${encodeURIComponent(identityId)}`, { method: 'DELETE' });
 export const apiMoveSalesPerson = (
-  personId: string, body: { team_key: string | null; from: string; role?: 'member' | 'lead'; note?: string | null },
-): Promise<{ ok: true }> =>
+  personId: string,
+  body: { team_key: string | null; from: string; role?: 'member' | 'lead'; note?: string | null; lane?: 'in' | 'out' | 'social' | null },
+): Promise<{ ok: true; lane_error?: string }> =>
   apiFetch(`sales-people/${encodeURIComponent(personId)}/move`, { method: 'POST', body: JSON.stringify(body) });
 export const apiDeleteSalesMembership = (membershipId: string): Promise<{ ok: true }> =>
   apiFetch(`sales-people/memberships/${encodeURIComponent(membershipId)}`, { method: 'DELETE' });
+
+// ── Settings → Teams → Предлог: teams = business lines (owner ruling 30.09.2026; migration
+// 20260943000900). Owners only. The proposal is read-only; an apply re-keys the memberships IN
+// PLACE (the whole history, or one membership) and writes its own audit_log row.
+export type TeamLane = 'in' | 'out' | 'social';
+export type LineConfidence = 'sure' | 'likely' | 'decide';
+export interface LineProposalRow {
+  person_id: string;
+  display_name: string;
+  has_login: boolean;
+  is_active: boolean;
+  is_manager: boolean;
+  identity_kinds: string[];
+  current: { team_key: string | null; lane: TeamLane | null; kind: string | null; memberships: number; lines: number; legacy: boolean };
+  /** window / history = from the credited sales; management / altercpa_team / collabbox_author = a fallback; none = nothing to go by. */
+  basis: 'window' | 'history' | 'management' | 'altercpa_team' | 'collabbox_author' | 'none';
+  span: 'window' | 'history';
+  counts: { altercpa: number; elyon_crm: number; teleshop_other: number; teleshop_out: number; social: number; other: number; total: number };
+  window_sales: number;
+  history_sales: number;
+  first_sale_at: string | null;
+  last_sale_at: string | null;
+  line_share: number | null;
+  lane_share: number | null;
+  share: number | null;
+  confidence: LineConfidence;
+  proposed: { team_key: string | null; lane: TeamLane | null };
+  unchanged: boolean;
+}
+export interface LineProposal {
+  generated_at: string | null;
+  days: number;
+  since: string | null;
+  thresholds: { sure: number; likely: number; min_sales: number };
+  summary: { people: number; sure: number; likely: number; decide: number; unchanged: number; legacy: number; no_team: number };
+  rows: LineProposalRow[];
+}
+export interface LineApplyRow { person_id: string; team_key: string; lane: TeamLane | null; membership_id?: string | null }
+export const apiGetLineProposal = (days = 60): Promise<LineProposal> => apiFetch(`sales-people/line-proposal?days=${days}`);
+export const apiApplyTeamLines = (rows: LineApplyRow[]): Promise<{ ok: true; changed: number; inserted: number; unchanged: number; people: number }> =>
+  apiFetch('sales-people/line-apply', { method: 'POST', body: JSON.stringify({ rows }) });
 
 // ── Settings → Integrations health (owners only, 2026-09-28) ────────────────
 export type HealthStatus = 'ok' | 'stale' | 'failing' | 'n/a';

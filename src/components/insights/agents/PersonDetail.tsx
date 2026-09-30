@@ -18,7 +18,7 @@ import type { DayRange } from '../shared/period';
 import type { InsightsFormat } from '../shared/useInsightsFormat';
 import { PEOPLE_SOURCES, personHref, personLinkable, ratesOf, type PartKey } from './model';
 import { DECISIONS, DECISION_TONE, decisionVar, type DecisionKey } from './palette';
-import { BucketLegend, BucketsBar, PersonBadges, TimeCell, teamName } from './parts';
+import { BucketLegend, BucketsBar, PersonBadges, TimeCell, teamLaneName } from './parts';
 
 const DECISION_FIELD: Record<DecisionKey, 'sale_decisions' | 'callback_decisions' | 'cancel_decisions' | 'trash_decisions'> = {
   sale: 'sale_decisions', callback: 'callback_decisions', cancel: 'cancel_decisions', trash: 'trash_decisions',
@@ -68,7 +68,7 @@ export function PersonDetail({ person, detail, range, money, granularity, f }: {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-        <span>{teamName(person.team_key, null, f)}</span>
+        <span>{teamLaneName(person.team_key, person.team_lane, null, f)}</span>
         <PersonBadges p={person} f={f} />
         {(allHref ?? ordersHref) && (
           <Link to={(allHref ?? ordersHref)!} className="ml-auto inline-flex items-center gap-1 rounded-md border px-2 py-1 font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -154,7 +154,7 @@ export function PersonDetail({ person, detail, range, money, granularity, f }: {
               {detail.memberships.length === 0 && <li>{t('insights.agents.team.byKey.none')}</li>}
               {detail.memberships.map((m) => (
                 <li key={`${m.team_key}-${m.from}`}>
-                  <span className="text-foreground">{teamName(m.team_key, m.name, f)}</span>
+                  <span className="text-foreground">{teamLaneName(m.team_key, m.lane, m.name, f)}</span>
                   {' · '}{dm(m.from, true)} – {m.to ? dm(m.to, true) : t('insights.agents.drill.now')}
                   {m.role === 'lead' && ` · ${t('insights.agents.drill.lead')}`}
                 </li>

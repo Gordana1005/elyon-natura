@@ -54,7 +54,8 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 // the file holding the LATEST body of leaderboard_day_v2 (--inline runs it): 20260942001900 counts
 // the day's collabBox bookings from THE cohort's booking rows (1200 wrote the board, 1800 passed the
 // department override through it)
-const MIGRATION = join(ROOT, 'supabase', 'migrations', '20260942001900_bookings_in_cohort.sql');
+// the newest leaderboard_day_v2 body (teams = business lines: team:lane filter, lanes, 20260943000950)
+const MIGRATION = join(ROOT, 'supabase', 'migrations', '20260943000950_teams_line_consumers.sql');
 const SIG = 'public.leaderboard_day_v2(date,text,text)';
 export const DEPARTMENTS = ['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web'];
 const YMD = /^\d{4}-\d{2}-\d{2}$/;

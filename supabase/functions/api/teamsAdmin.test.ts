@@ -65,17 +65,26 @@ describe("parseCreate", () => {
   });
   it("normalises a full body", () => {
     const p = parseCreate({
-      display_name: "  Ana Petrova ", team_key: "crm_prediction", team_from: "2026-10-01",
+      display_name: "  Ana Petrova ", team_key: "teleshop", team_from: "2026-10-01", team_lane: "out",
       identities: [{ kind: "order_name", value: "Ana Petrova" }],
     });
     expect(p).toEqual({
       ok: true,
       value: {
         display_name: "Ana Petrova", user_id: null, is_manager: false, notes: null,
-        team_key: "crm_prediction", team_from: "2026-10-01", team_role: "member",
+        team_key: "teleshop", team_from: "2026-10-01", team_role: "member", team_lane: "out",
         identities: [{ kind: "order_name", account_id: null, value: "Ana Petrova", note: null }],
       },
     });
+  });
+  it("a business line needs its lane; a legacy team is no longer a target (20260943000900)", () => {
+    const base = { display_name: "Ana", team_from: "2026-10-01" };
+    expect(parseCreate({ ...base, team_key: "teleshop" })).toEqual({ ok: false, error: "lane_required" });
+    expect(parseCreate({ ...base, team_key: "affiliate", team_lane: "social" })).toEqual({ ok: false, error: "lane_not_allowed" });
+    expect(parseCreate({ ...base, team_key: "crm_prediction" })).toEqual({ ok: false, error: "legacy_team" });
+    expect(parseCreate({ ...base, team_key: "management", team_lane: "in" })).toEqual({ ok: false, error: "lane_not_allowed" });
+    expect(parseCreate({ ...base, team_key: "management" })).toMatchObject({ ok: true, value: { team_lane: null } });
+    expect(parseCreate({ display_name: "Ana", team_lane: "in" })).toEqual({ ok: false, error: "lane_not_allowed" });
   });
   it("passes a bad identity's error through", () => {
     expect(parseCreate({ display_name: "A", identities: [{ kind: "altercpa_user", value: "x" }] }))
@@ -99,11 +108,18 @@ describe("parsePatch", () => {
 describe("parseMove", () => {
   it("accepts a team or null (no team from X) and a real date", () => {
     expect(parseMove({ team_key: "management", from: "2026-10-01" }))
-      .toEqual({ ok: true, value: { team_key: "management", from: "2026-10-01", role: "member", note: null } });
+      .toEqual({ ok: true, value: { team_key: "management", from: "2026-10-01", role: "member", note: null, lane: null } });
     expect(parseMove({ team_key: null, from: "2026-10-01", role: "lead" }))
-      .toEqual({ ok: true, value: { team_key: null, from: "2026-10-01", role: "lead", note: null } });
+      .toEqual({ ok: true, value: { team_key: null, from: "2026-10-01", role: "lead", note: null, lane: null } });
     expect(parseMove({ team_key: "x", from: "2026-13-01" })).toEqual({ ok: false, error: "bad_date" });
     expect(parseMove({ team_key: "Bad Key", from: "2026-10-01" })).toEqual({ ok: false, error: "team_not_found" });
+  });
+  it("a line takes its lane with the move", () => {
+    expect(parseMove({ team_key: "teleshop", from: "2026-10-01", lane: "social" }))
+      .toMatchObject({ ok: true, value: { team_key: "teleshop", lane: "social" } });
+    expect(parseMove({ team_key: "affiliate", from: "2026-10-01" })).toEqual({ ok: false, error: "lane_required" });
+    expect(parseMove({ team_key: "altercpa_leads", from: "2026-10-01" })).toEqual({ ok: false, error: "legacy_team" });
+    expect(parseMove({ team_key: "teleshop", from: "2026-10-01", lane: "up" })).toEqual({ ok: false, error: "bad_lane" });
   });
 });
 

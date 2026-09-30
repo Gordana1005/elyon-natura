@@ -12,7 +12,8 @@ import { ClockCaption } from '../shared/ClockCaption';
 import { COHORT_TONE } from '../shared/cohortPalette';
 import type { DayRange } from '../shared/period';
 import type { InsightsFormat } from '../shared/useInsightsFormat';
-import { isMainTeam, memberIsWhole, personHref, personLinkable, ratesOf, sortTeams, teamHref, type PartKey } from './model';
+import { laneLabel } from '@/lib/teamLines';
+import { isMainTeam, laneSummary, memberIsWhole, personHref, personLinkable, ratesOf, sortTeams, teamHref, type PartKey } from './model';
 import { BucketLegend, BucketsBar, PersonBadges, PresenceIcon, SourceSplit, TimeCell, teamName } from './parts';
 
 /**
@@ -82,9 +83,17 @@ function TeamCard({ team, byId, range, money, onPerson, open, tv, alerts, f }: {
   const totalHref = teamHref(team, 'total', range, name);
   const noLink = team.kind === 'team' && !team.drill_exact ? t('insights.agents.teams.noLinkMoved') : team.kind !== 'team' ? t('insights.agents.teams.noLinkGroup') : undefined;
   const spark = (team.spark ?? []).map((p) => ({ d: p.d, v: p.sales }));
-  const kindText = team.kind === 'team'
-    ? t(`insights.agents.teams.mode.${team.mode ?? 'none'}`)
-    : t(`insights.agents.teams.kind.${team.kind}`);
+  // a business line shows its people per lane ("лидови 5 · предикција 17"), management that it is
+  // not ranked, a legacy team that it still waits for Settings → Teams; an older api: its board mode
+  const lanes = laneSummary(team.lanes);
+  const kindText = team.kind !== 'team'
+    ? t(`insights.agents.teams.kind.${team.kind}`)
+    : lanes.length
+      ? lanes.map((l) => `${laneLabel(t, l.lane)} ${f.int(l.n)}`).join(' · ')
+      : team.team_kind === 'management' ? t('insights.agents.teams.mode.none')
+        : team.team_kind === 'legacy' ? t('teamLines.legacyTeam')
+          : team.team_kind === 'line' ? t('teamLines.noLanes')
+            : t(`insights.agents.teams.mode.${team.mode ?? 'none'}`);
   const stat = (label: string, value: string, extra?: ReactNode) => (
     <div className="flex items-baseline gap-1">
       <dt>{label}</dt>
@@ -249,6 +258,9 @@ function MemberTable({ team, byId, range, money, onPerson, alerts, f }: {
                       className="truncate rounded-sm text-left underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                       {name}
                     </button>
+                    {m.lane && (
+                      <span className="shrink-0 rounded bg-muted px-1 py-px text-[10px] font-normal text-muted-foreground">{laneLabel(t, m.lane)}</span>
+                    )}
                   </span>
                   {p && <PersonBadges p={p} f={f} />}
                 </th>
