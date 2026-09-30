@@ -92,8 +92,8 @@ const sections: NavSection[] = [
     items: [
       { titleKey: 'nav.users', path: '/users', icon: Users, moduleKey: 'users' },
       // Performance → Insights "Agents" tab; Agent Activity → Insights "Call Activity" tab.
-      { titleKey: 'nav.shiftsManagement', path: '/shifts', icon: CalendarDays, moduleKey: 'shifts' },
-      { titleKey: 'nav.myShifts', path: '/my-shifts', icon: CalendarDays, moduleKey: 'my_shifts' },
+      // One "Смени" page (owner 30.09): agents see their own shifts, admins/managers the tools too.
+      { titleKey: 'nav.shiftsManagement', path: '/shifts', icon: CalendarDays, moduleKey: 'shifts', moduleKeysAny: ['my_shifts'] },
       { titleKey: 'nav.callSupportCenter', path: '/call-scripts', icon: FileText, moduleKey: 'call_scripts' },
       { titleKey: 'nav.callHistory', path: '/call-history', icon: History, moduleKey: 'call_history' },
     ],

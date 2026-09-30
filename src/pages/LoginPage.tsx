@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiCheckShiftLogin, apiLogShiftLogin } from '@/lib/api';
+import type { ShiftLoginCheck } from '@/lib/shiftsApi';
+import { shiftRefusalText } from '@/components/shifts/loginRefusal';
 import { Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,26 +31,28 @@ export default function LoginPage() {
       const loginEmail = email.includes('@') ? email : `${email}@${EMAIL_DOMAIN}`;
       await signIn(loginEmail, password);
 
-      // Check shift restrictions after successful auth
+      // Check shift restrictions after successful auth (the login gate — no shift covering
+      // "now" = no login for anyone but admins / managers).
       try {
-        const shiftCheck = await apiCheckShiftLogin();
+        const shiftCheck: ShiftLoginCheck = await apiCheckShiftLogin();
         if (!shiftCheck.allowed) {
           // Sign the user out since they can't use the system
           const { supabase } = await import('@/integrations/supabase/client');
           await supabase.auth.signOut();
-          setError(shiftCheck.message || t('login.outsideShift'));
+          setError(shiftRefusalText(t, shiftCheck));
           setLoading(false);
           return;
         }
 
-        // Log the shift login if not a bypass (admin/manager)
-        if (!shiftCheck.bypass && shiftCheck.shift_id) {
+        // The api logs the login itself since 01.10.2026 (`logged: true`). Only an older api
+        // (no `logged` in the answer) still needs the browser to write it.
+        if (!shiftCheck.bypass && shiftCheck.shift_id && shiftCheck.logged === undefined) {
           try {
             await apiLogShiftLogin({
               shift_id: shiftCheck.shift_id,
-              shift_date: shiftCheck.shift_date,
-              shift_start_time: shiftCheck.shift_start_time,
-              shift_end_time: shiftCheck.shift_end_time,
+              shift_date: shiftCheck.shift_date ?? '',
+              shift_start_time: shiftCheck.shift_start_time ?? '',
+              shift_end_time: shiftCheck.shift_end_time ?? '',
             });
           } catch {
             // Non-critical, don't block login

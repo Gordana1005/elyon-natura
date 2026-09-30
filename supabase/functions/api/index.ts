@@ -56,6 +56,9 @@ import * as DISP from "./dispositions.ts";
 // and the audited writer — query / body validation and the response shapes
 // (pure, unit-tested in brandLine.test.ts).
 import * as BL from "./brandLine.ts";
+// The one "Смени" page (plan Фаза 8, migrations 20260943001000–1100): the login gate's decision,
+// cell validation / diffing, the runway summary and the response shapes (pure, shifts.test.ts).
+import * as SH from "./shifts.ts";
 
 // ============================================================
 // INPUT VALIDATION SCHEMAS
@@ -13656,28 +13659,44 @@ async function handleRequest(req: Request): Promise<Response> {
     }
 
     // ============================================================
-    // SHIFTS
+    // SHIFTS — the one "Смени" page (plan Фаза 8, owner 30.09.2026).
+    // shifts.ts is the pure half (validation, the gate's decision, shapes); the
+    // RPCs are in 20260943001100_shifts_rpcs.sql. A shift is the LOGIN GATE:
+    // check-login keeps the rule exactly (owner kept it 30.09).
     // ============================================================
 
-    // POST /api/shifts (admin only)
+    // Who manages the roster: an admin or a manager holding the `shifts` module. Everyone else
+    // reads only their own days (GET /shifts/my) and passes the gate at login.
+    const canManageShifts = isAdminOrManager && canViewModule("shifts");
+    // The shift RPCs raise their own validation messages (22023 "fn: why", 23505 on a clash,
+    // P0002 not found) — those are ours and safe to show; anything else is sanitised.
+    const shiftBad = (detail: string) => json({ error: `shifts.invalid: ${detail}` }, 400);
+    const shiftRpcError = (error: any) => {
+      const code = String(error?.code ?? "");
+      const msg = String(error?.message ?? "");
+      const why = msg.replace(/^[a-z_]+:\s*/i, "");
+      if (code === "22023") return shiftBad(why);
+      if (code === "22P02" || code === "22007" || code === "22008") return shiftBad("bad value");
+      if (code === "P0002") return json({ error: "shifts.not_found" }, 404);
+      if (code === "23505" && /already on another shift/i.test(msg)) {
+        return json({ error: `shifts.conflict: ${why.replace(/^already on another shift that day:\s*/i, "")}` }, 409);
+      }
+      if (code === "23505") return json({ error: "shifts.conflict" }, 409);
+      return json({ error: sanitizeDbError(error) }, 400);
+    };
+
+    // POST /api/shifts — create one shift row per day of a range, with its agents (legacy form;
+    // the page paints cells instead). One shift per person per day: an agent who already works
+    // that day is moved onto the new shift.
     if (req.method === "POST" && path === "shifts") {
-      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      if (!canManageShifts) return json({ error: "Forbidden" }, 403);
       let body;
       try { body = parseBody(createShiftSchema, await req.json()); } catch (e: any) { return json({ error: e.message }, 400); }
       const { name, date, start_time, end_time, agent_ids } = body;
-
-      // Support date range
+      const last = body.date_end && body.date_end > date ? body.date_end : date;
+      if (SH.daysBetween(date, last) > 62) return shiftBad("at most 63 days");
       const dates: string[] = [];
-      if (body.date_end && body.date_end !== date) {
-        let cur = new Date(date);
-        const end = new Date(body.date_end);
-        while (cur <= end) {
-          dates.push(cur.toISOString().substring(0, 10));
-          cur.setDate(cur.getDate() + 1);
-        }
-      } else {
-        dates.push(date);
-      }
+      for (let d = date; d <= last; d = SH.addDaysYmd(d, 1)) dates.push(d);
 
       const createdShifts = [];
       for (const d of dates) {
@@ -13686,20 +13705,20 @@ async function handleRequest(req: Request): Promise<Response> {
           .insert({ name: name.trim(), date: d, start_time, end_time, created_by: user.id })
           .select()
           .single();
-        if (shiftErr) return json({ error: sanitizeDbError(shiftErr) }, 400);
-
+        if (shiftErr) return shiftRpcError(shiftErr);
         if (agent_ids?.length) {
-          const assignments = agent_ids.map((aid: string) => ({ shift_id: shift.id, user_id: aid }));
-          await adminClient.from("shift_assignments").insert(assignments);
+          const rows = [...new Set(agent_ids)].map((aid: string) => ({ shift_id: shift.id, user_id: aid }));
+          const { error: aErr } = await adminClient.from("shift_assignments").upsert(rows, { onConflict: "user_id,shift_date" });
+          if (aErr) return shiftRpcError(aErr);
         }
         createdShifts.push(shift);
       }
-
       return json(createdShifts.length === 1 ? createdShifts[0] : createdShifts);
     }
 
-    // GET /api/shifts
+    // GET /api/shifts — shift rows + their agents (roster managers only; it lists everyone's days).
     if (req.method === "GET" && path === "shifts") {
+      if (!canManageShifts) return json({ error: "Forbidden" }, 403);
       const agentFilter = url.searchParams.get("agent_id");
       const dateFrom = url.searchParams.get("from");
       const dateTo = url.searchParams.get("to");
@@ -13711,11 +13730,9 @@ async function handleRequest(req: Request): Promise<Response> {
       const { data: shifts, error } = await query;
       if (error) return json({ error: sanitizeDbError(error) }, 400);
 
-      // Get all assignments (paginated — a plain read caps at 1000 rows, which
-      // would drop assignments and render shifts as falsely "Unassigned" once the
-      // table grows past a month or two of data).
+      // Paginated — a plain read caps at 1000 rows.
       const shiftIds = (shifts || []).map((s: any) => s.id);
-      let assignments: any[] = [];
+      const assignments: any[] = [];
       if (shiftIds.length > 0) {
         for (let from = 0; ; from += 1000) {
           const { data: a } = await adminClient
@@ -13728,80 +13745,111 @@ async function handleRequest(req: Request): Promise<Response> {
         }
       }
 
-      // Get agent profiles
       const agentUserIds = [...new Set(assignments.map((a: any) => a.user_id))];
-      let agentMap: Record<string, string> = {};
+      const agentMap: Record<string, string> = {};
       if (agentUserIds.length > 0) {
         const { data: profiles } = await adminClient.from("profiles").select("user_id, full_name").in("user_id", agentUserIds);
         for (const p of profiles || []) agentMap[p.user_id] = p.full_name;
       }
-
-      const enriched = (shifts || []).map((s: any) => {
-        const sAssignments = assignments.filter((a: any) => a.shift_id === s.id);
-        return {
-          ...s,
-          agents: sAssignments.map((a: any) => ({ user_id: a.user_id, full_name: agentMap[a.user_id] || "Unknown" })),
-        };
-      });
-
-      // Filter by agent if requested
-      const result = agentFilter
-        ? enriched.filter((s: any) => s.agents.some((a: any) => a.user_id === agentFilter))
-        : enriched;
-
+      const byShift = new Map<string, any[]>();
+      for (const a of assignments) {
+        const list = byShift.get(a.shift_id) ?? [];
+        list.push({ user_id: a.user_id, full_name: agentMap[a.user_id] || "Unknown" });
+        byShift.set(a.shift_id, list);
+      }
+      const enriched = (shifts || []).map((s: any) => ({ ...s, agents: byShift.get(s.id) ?? [] }));
+      const result = agentFilter ? enriched.filter((s: any) => s.agents.some((a: any) => a.user_id === agentFilter)) : enriched;
       return json(result);
     }
 
-    // GET /api/shifts/my (agent's shifts) — enriched with clock-in time and
-    // breaks per shift so the My Shifts page can show when the agent logged in
-    // and how long they've spent on break.
-    if (req.method === "GET" && path === "shifts/my") {
-      const { data: myAssignments } = await adminClient.from("shift_assignments").select("shift_id").eq("user_id", user.id);
-      const myShiftIds = (myAssignments || []).map((a: any) => a.shift_id);
-      if (myShiftIds.length === 0) return json([]);
+    // GET /api/shifts/grid?from&to — the roster grid: people × days (default: this Skopje week).
+    if (req.method === "GET" && path === "shifts/grid") {
+      if (!canManageShifts) return json({ error: "Forbidden" }, 403);
+      const today = SH.skopjeNow().date;
+      const monday = SH.mondayOfYmd(today);
+      const range = SH.parseRange(url.searchParams.get("from"), url.searchParams.get("to"),
+        { from: monday, to: SH.addDaysYmd(monday, 6) }, SH.MAX_GRID_DAYS);
+      if (!range.ok) return shiftBad(range.error);
+      const { data, error } = await adminClient.rpc("shifts_grid", { p_from: range.from, p_to: range.to });
+      if (error) return shiftRpcError(error);
+      return json(SH.shapeGrid(data));
+    }
 
-      const { data: shifts } = await adminClient.from("shifts").select("*").in("id", myShiftIds).order("date", { ascending: true }).order("start_time", { ascending: true });
-      if (!shifts || shifts.length === 0) return json([]);
+    // POST /api/shifts/cells {cells:[{user_id, date, off | shift_id | template_id | start+end+name?}]}
+    // — the grid's atomic save; the answer carries `undo` (the same call with it reverts).
+    if (req.method === "POST" && path === "shifts/cells") {
+      if (!canManageShifts) return json({ error: "Forbidden" }, 403);
+      if (!checkUserRateLimit(user.id, "shifts.cells", 30)) return json({ error: "Too many requests" }, 429);
+      let raw: unknown;
+      try { raw = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
+      const parsed = SH.normaliseCellsBody(raw);
+      if (!parsed.ok) return shiftBad(parsed.error);
+      const { data, error } = await adminClient.rpc("shifts_set_cells", { p_cells: parsed.cells, p_actor: user.id });
+      if (error) return shiftRpcError(error);
+      return json(data);
+    }
 
-      // Earliest login per shift = the clock-in time.
-      const { data: logins } = await adminClient
-        .from("shift_login_logs")
-        .select("shift_id, login_time")
-        .eq("user_id", user.id)
-        .in("shift_id", myShiftIds)
-        .order("login_time", { ascending: true });
-      const clockInByShift: Record<string, string> = {};
-      for (const l of logins || []) {
-        if (l.shift_id && !clockInByShift[l.shift_id]) clockInByShift[l.shift_id] = l.login_time;
-      }
-
-      // Breaks per shift.
-      const { data: breaks } = await adminClient
-        .from("shift_breaks")
-        .select("id, shift_id, break_start, break_end")
-        .eq("user_id", user.id)
-        .in("shift_id", myShiftIds)
-        .order("break_start", { ascending: true });
-      const breaksByShift: Record<string, any[]> = {};
-      for (const b of breaks || []) {
-        if (!b.shift_id) continue;
-        (breaksByShift[b.shift_id] ||= []).push(b);
-      }
-
-      const enriched = shifts.map((s: any) => {
-        const shiftBreaks = breaksByShift[s.id] || [];
-        const totalBreakMs = shiftBreaks.reduce((sum: number, b: any) => {
-          const end = b.break_end ? new Date(b.break_end).getTime() : Date.now();
-          return sum + Math.max(0, end - new Date(b.break_start).getTime());
-        }, 0);
-        return {
-          ...s,
-          clock_in_time: clockInByShift[s.id] || null,
-          breaks: shiftBreaks,
-          total_break_seconds: Math.round(totalBreakMs / 1000),
-        };
+    // POST /api/shifts/copy {src_from, src_to, dst_from, mode?, apply?} — "copy the previous week".
+    // apply=false (default) = the cells the grid stages; apply=true writes them in one save.
+    if (req.method === "POST" && path === "shifts/copy") {
+      if (!canManageShifts) return json({ error: "Forbidden" }, 403);
+      let raw: unknown;
+      try { raw = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
+      const parsed = SH.parseCopyBody(raw);
+      if (!parsed.ok) return shiftBad(parsed.error);
+      if (parsed.apply && !checkUserRateLimit(user.id, "shifts.cells", 30)) return json({ error: "Too many requests" }, 429);
+      const { data, error } = await adminClient.rpc("shifts_copy_range", {
+        p_src_from: parsed.src_from, p_src_to: parsed.src_to, p_dst_from: parsed.dst_from,
+        p_mode: parsed.mode, p_apply: parsed.apply, p_actor: parsed.apply ? user.id : null,
       });
-      return json(enriched);
+      if (error) return shiftRpcError(error);
+      return json(data);
+    }
+
+    // POST /api/shifts/roll-month {apply?, src_from?, src_to?, dst_from?, dst_to?, user_ids?} —
+    // [Пренеси го месецот]: this Skopje month's pattern into the next (shifts_roll_forward).
+    // apply=false (default) = the preview (people, hours, days); apply=true after the confirm.
+    if (req.method === "POST" && path === "shifts/roll-month") {
+      if (!canManageShifts) return json({ error: "Forbidden" }, 403);
+      let raw: unknown = {};
+      try { raw = await req.json(); } catch { raw = {}; }
+      const parsed = SH.parseRollMonthBody(raw, SH.skopjeNow().date);
+      if (!parsed.ok) return shiftBad(parsed.error);
+      if (parsed.apply && !checkUserRateLimit(user.id, "shifts.roll", 5)) return json({ error: "Too many requests" }, 429);
+      const { data, error } = await adminClient.rpc("shifts_roll_forward", {
+        p_src_from: parsed.src_from, p_src_to: parsed.src_to, p_dst_from: parsed.dst_from, p_dst_to: parsed.dst_to,
+        p_user_ids: parsed.user_ids, p_apply: parsed.apply, p_actor: parsed.apply ? user.id : null, p_name: null,
+      });
+      if (error) return shiftRpcError(error);
+      return json(data);
+    }
+
+    // GET /api/shifts/runway — who runs out of shifts within 5 days (the banner + the 17:05 alert).
+    if (req.method === "GET" && path === "shifts/runway") {
+      if (!canManageShifts) return json({ error: "Forbidden" }, 403);
+      const { data, error } = await adminClient.rpc("shifts_runway", { p_warn_days: SH.RUNWAY_WARN_DAYS });
+      if (error) return shiftRpcError(error);
+      return json(SH.runwaySummary(data));
+    }
+
+    // GET /api/shifts/my?from&to — the caller's own days with clock-in and breaks (by date).
+    // Without a range: a month back to two months ahead.
+    if (req.method === "GET" && path === "shifts/my") {
+      const today = SH.skopjeNow().date;
+      const range = SH.parseRange(url.searchParams.get("from"), url.searchParams.get("to"),
+        { from: SH.addDaysYmd(today, -31), to: SH.addDaysYmd(today, 62) }, 124);
+      if (!range.ok) return shiftBad(range.error);
+      const [asg, lg, br] = await Promise.all([
+        adminClient.from("shift_assignments")
+          .select("shifts!inner(id,name,date,start_time,end_time,template_id)")
+          .eq("user_id", user.id).gte("shifts.date", range.from).lte("shifts.date", range.to),
+        adminClient.from("shift_login_logs").select("shift_date, login_time")
+          .eq("user_id", user.id).gte("shift_date", range.from).lte("shift_date", range.to),
+        adminClient.from("shift_breaks").select("id, shift_date, break_start, break_end")
+          .eq("user_id", user.id).gte("shift_date", range.from).lte("shift_date", range.to),
+      ]);
+      if (asg.error) return json({ error: sanitizeDbError(asg.error) }, 400);
+      return json(SH.shapeMyShifts((asg.data || []) as any[], (lg.data || []) as any[], (br.data || []) as any[], Date.now()));
     }
 
     // POST /api/shifts/break/start — begin a break for the current user.
@@ -13818,17 +13866,9 @@ async function handleRequest(req: Request): Promise<Response> {
         .maybeSingle();
       if (existing) return json(existing);
 
-      // Resolve today's shift (Europe/Skopje local date) to attach the break to.
-      const tzParts = new Intl.DateTimeFormat("en-CA", {
-        timeZone: "Europe/Skopje",
-        year: "numeric", month: "2-digit", day: "2-digit",
-      }).formatToParts(new Date());
-      const g = (t: string) => tzParts.find((p) => p.type === t)?.value || "";
-      const today = `${g("year")}-${g("month")}-${g("day")}`;
-
-      // Find today's assigned shift via a date-filtered join (see check-login:
-      // fetching all assignments then filtering caps at 1000 rows and misses the
-      // row once an agent has many shifts).
+      const today = SH.skopjeNow().date;
+      // Today's assigned shift via a date-filtered join (a capped fetch missed it once agents
+      // had >1000 assignment rows).
       const { data: todayAssign } = await adminClient
         .from("shift_assignments")
         .select("shifts!inner(id,date)")
@@ -13882,51 +13922,80 @@ async function handleRequest(req: Request): Promise<Response> {
       return json({ active: open || null });
     }
 
-    // PATCH /api/shifts/:id (admin only)
-    if (req.method === "PATCH" && segments[0] === "shifts" && segments.length === 2 && segments[1] !== "my") {
-      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
-      const shiftId = segments[1];
-      const body = await req.json();
-      const { agent_ids, ...shiftUpdates } = body;
-
-      if (Object.keys(shiftUpdates).length > 0) {
-        const { error } = await adminClient.from("shifts").update(shiftUpdates).eq("id", shiftId);
-        if (error) return json({ error: sanitizeDbError(error) }, 400);
+    // PATCH /api/shifts/logout-log — record logout on the latest open login log.
+    // (Before 01.10.2026 PATCH /shifts/:id sat above this route and swallowed it: an agent got a
+    // 403 and not one of 487 login logs ever got its logout_time. :id now matches a uuid only.)
+    if (req.method === "PATCH" && path === "shifts/logout-log") {
+      const { data: openLog } = await adminClient
+        .from("shift_login_logs")
+        .select("id")
+        .eq("user_id", user.id)
+        .is("logout_time", null)
+        .order("login_time", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (openLog) {
+        await adminClient.from("shift_login_logs")
+          .update({ logout_time: new Date().toISOString() })
+          .eq("id", openLog.id);
       }
-
-      if (agent_ids !== undefined) {
-        await adminClient.from("shift_assignments").delete().eq("shift_id", shiftId);
-        if (agent_ids.length > 0) {
-          const assignments = agent_ids.map((aid: string) => ({ shift_id: shiftId, user_id: aid }));
-          await adminClient.from("shift_assignments").insert(assignments);
-        }
-      }
-
       return json({ success: true });
     }
 
-    // DELETE /api/shifts/:id (admin only)
-    if (req.method === "DELETE" && segments[0] === "shifts" && segments.length === 2) {
-      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+    // PATCH /api/shifts/:id {name?, date?, start_time?, end_time?, template_id?, agent_ids?} —
+    // whitelisted and atomic (shift_update). A listed agent who works another shift that day is
+    // moved onto this one; a date move onto a day someone already works answers 409.
+    if (req.method === "PATCH" && segments[0] === "shifts" && segments.length === 2 && SH.isUuid(segments[1])) {
+      if (!canManageShifts) return json({ error: "Forbidden" }, 403);
+      let raw: any;
+      try { raw = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)) return shiftBad("body must be an object");
+      const patch: Record<string, unknown> = {};
+      for (const k of ["name", "date", "start_time", "end_time", "template_id"]) if (k in raw) patch[k] = raw[k];
+      const unknown = Object.keys(raw).filter((k) => !(k in patch) && k !== "agent_ids");
+      if (unknown.length) return shiftBad(`cannot change: ${unknown.join(", ")}`);
+      let agentIds: string[] | null = null;
+      if (raw.agent_ids !== undefined) {
+        if (!Array.isArray(raw.agent_ids) || !raw.agent_ids.every(SH.isUuid)) return shiftBad("agent_ids must be uuids");
+        agentIds = [...new Set(raw.agent_ids as string[])];
+      }
+      const { data, error } = await adminClient.rpc("shift_update", {
+        p_id: segments[1], p_patch: patch, p_agent_ids: agentIds, p_actor: user.id,
+      });
+      if (error) return shiftRpcError(error);
+      return json(data);
+    }
+
+    // DELETE /api/shifts/:id — the row and its assignments; its login history stays
+    // (shift_login_logs.shift_id → SET NULL since 20260943001000).
+    if (req.method === "DELETE" && segments[0] === "shifts" && segments.length === 2 && SH.isUuid(segments[1])) {
+      if (!canManageShifts) return json({ error: "Forbidden" }, 403);
       const shiftId = segments[1];
-      const { error } = await adminClient.from("shifts").delete().eq("id", shiftId);
+      const { data: gone, error } = await adminClient.from("shifts").delete().eq("id", shiftId).select("id, name, date, start_time, end_time").maybeSingle();
       if (error) return json({ error: sanitizeDbError(error) }, 400);
+      if (gone) {
+        try {
+          await adminClient.from("audit_log").insert({
+            actor_id: user.id, actor_email: user.email || null, action: "shifts.delete", target_type: "shift",
+            target_id: shiftId, target_name: gone.name, payload: { date: gone.date, start: SH.hm(gone.start_time), end: SH.hm(gone.end_time) },
+          });
+        } catch (_e) { /* audit is best-effort here */ }
+      }
       return json({ success: true });
     }
 
-    // GET /api/shifts/check-login — check if current user has an active shift right now
+    // GET /api/shifts/check-login — THE LOGIN GATE. May the caller use the CRM right now?
+    // The rule is unchanged (SH.decideGate: today's Skopje shifts, the first window covering
+    // "now" lets you in). New 01.10.2026: an allowed login is LOGGED HERE (shift_login_logs;
+    // `logged: true` tells the browser not to POST /shifts/login-log again), and every refusal
+    // carries a `code` the login page translates (the English `message` stays for old bundles).
     if (req.method === "GET" && path === "shifts/check-login") {
-      // Get user profile for logging
       const { data: userProfile } = await adminClient.from("profiles").select("full_name").eq("user_id", user.id).single();
       const userName = userProfile?.full_name || user.email || "Unknown";
       const primaryRole = roles[0] || "agent";
 
-      // Admins and managers bypass shift restrictions.
-      // They still get logged: the client only writes shift_login_logs on the
-      // non-bypass branch, so before this the highest-privilege accounts were the
-      // only ones with no login trail at all. Written here rather than in the
-      // browser so it cannot be skipped by calling the auth endpoint directly.
-      // Best-effort — a logging failure must never block a login.
+      // Admins and managers bypass shift restrictions (logged in admin_login_logs instead;
+      // best-effort — a logging failure must never block a login).
       if (isAdminOrManager) {
         try {
           await adminClient.from("admin_login_logs").insert({
@@ -13940,484 +14009,207 @@ async function handleRequest(req: Request): Promise<Response> {
         return json({ allowed: true, bypass: true });
       }
 
-      // Shift hours are entered in the operator's local time (Bulgaria /
-      // Macedonia — Europe/Skopje, UTC+2 summer / UTC+1 winter). Edge Functions
-      // run in UTC, so comparing against UTC "now" makes every shift look
-      // 1–2h off (the 08:46 shift read as "not started" at 08:48 local because
-      // the server saw 06:48 UTC). Evaluate today + now in Europe/Skopje so the
-      // comparison matches what the user typed. DST handled by the runtime.
-      const TZ = "Europe/Skopje";
-      const tzParts = new Intl.DateTimeFormat("en-CA", {
-        timeZone: TZ,
-        year: "numeric", month: "2-digit", day: "2-digit",
-        hour: "2-digit", minute: "2-digit", hour12: false,
-      }).formatToParts(new Date());
-      const tzGet = (t: string) => tzParts.find((p) => p.type === t)?.value || "";
-      const today = `${tzGet("year")}-${tzGet("month")}-${tzGet("day")}`;
-      let nowTime = `${tzGet("hour")}:${tzGet("minute")}`;
-      if (nowTime.startsWith("24:")) nowTime = `00:${nowTime.slice(3)}`; // hour12:false can emit 24:xx at midnight
+      // Shift hours are the operator's Skopje wall clock; the Edge runtime is UTC.
+      const { date: today, time: nowTime } = SH.skopjeNow();
 
-      // Fetch ONLY today's assigned shifts, filtering by date server-side via an
-      // inner join. The previous approach fetched ALL of the user's assignments
-      // and filtered in JS — but PostgREST caps an unpaginated read at 1000 rows,
-      // so once an agent accumulated >1000 assignment rows (e.g. many months of
-      // shifts), today's row fell outside the returned window and EVERY login was
-      // wrongly blocked with "no shift scheduled for today". Filtering by date in
-      // the query returns only today's handful of rows, immune to the cap.
+      // ONLY today's shifts, filtered by date server-side (a capped fetch of all assignments
+      // once hid today's row and blocked every login).
       const { data: todayRows } = await adminClient
         .from("shift_assignments")
         .select("shifts!inner(id,date,start_time,end_time)")
         .eq("user_id", user.id)
         .eq("shifts.date", today);
-      const todayShifts = (todayRows || []).map((r: any) => r.shifts).filter(Boolean);
+      const todayShifts = (todayRows || []).map((r: any) => r.shifts).filter(Boolean) as SH.GateShift[];
 
+      let hasAny = true;
       if (todayShifts.length === 0) {
-        // Cheap existence check (head+count, not a capped fetch) to tell
-        // "never scheduled" apart from "not scheduled today".
+        // head+count, not a capped fetch: "never scheduled" vs "not scheduled today"
         const { count: anyAssign } = await adminClient
           .from("shift_assignments")
           .select("*", { count: "exact", head: true })
           .eq("user_id", user.id);
-        const noneAtAll = (anyAssign || 0) === 0;
-        await adminClient.from("blocked_login_attempts").insert({
-          user_id: user.id, user_name: userName, role: primaryRole,
-          reason: noneAtAll ? "No active shift assignment" : "No shift scheduled for today",
-        });
+        hasAny = (anyAssign || 0) > 0;
+      }
+
+      const decision = SH.decideGate(todayShifts, nowTime, hasAny);
+      if (decision.allowed) {
+        let logged = false;
+        try {
+          // One log per login. A second check inside 2 minutes (a double submit) is the same login.
+          const { data: lastLog } = await adminClient
+            .from("shift_login_logs").select("login_time").eq("user_id", user.id)
+            .order("login_time", { ascending: false }).limit(1).maybeSingle();
+          if (SH.isRecentLogin(lastLog?.login_time, Date.now())) {
+            logged = true;
+          } else {
+            const { error: logErr } = await adminClient.from("shift_login_logs").insert({
+              user_id: user.id,
+              shift_id: decision.shift.id,
+              shift_date: decision.shift.date,
+              shift_start_time: decision.start,
+              shift_end_time: decision.end,
+              login_time: new Date().toISOString(),
+            });
+            logged = !logErr;
+          }
+        } catch (_e) { /* a logging failure never blocks a login */ }
         return json({
-          allowed: false,
-          message: noneAtAll
-            ? "Login not allowed. You currently have no active shift."
-            : "Login not allowed. You have no shift scheduled for today.",
+          allowed: true, shift_id: decision.shift.id, shift_date: decision.shift.date,
+          shift_start_time: decision.start, shift_end_time: decision.end,
+          user_name: userName, role: primaryRole, logged,
         });
       }
 
-      // Check if any shift covers the current time
-      for (const shift of todayShifts) {
-        const start = shift.start_time.substring(0, 5);
-        const end = shift.end_time.substring(0, 5);
-
-        // Special rule: 00:00 → 00:00 means NO active shift
-        if (start === "00:00" && end === "00:00") {
-          continue;
-        }
-
-        // Check if current time is within shift window
-        if (nowTime >= start && nowTime <= end) {
-          return json({ allowed: true, shift_id: shift.id, shift_date: shift.date, shift_start_time: start, shift_end_time: end, user_name: userName, role: primaryRole });
-        }
-      }
-
-      // Check if all shifts are 00:00-00:00
-      const allZero = todayShifts.every((s: any) => s.start_time.substring(0, 5) === "00:00" && s.end_time.substring(0, 5) === "00:00");
-      if (allZero) {
-        await adminClient.from("blocked_login_attempts").insert({
-          user_id: user.id, user_name: userName, role: primaryRole,
-          reason: "Shift set to 00:00-00:00 (no active shift)",
-        });
-        return json({ allowed: false, message: "Login not allowed. You currently have no active shift." });
-      }
-
-      // Has shifts but outside time window
-      const shiftTimes = todayShifts
-        .filter((s: any) => !(s.start_time.substring(0, 5) === "00:00" && s.end_time.substring(0, 5) === "00:00"))
-        .map((s: any) => `${s.start_time.substring(0, 5)} - ${s.end_time.substring(0, 5)}`)
-        .join(", ");
       await adminClient.from("blocked_login_attempts").insert({
-        user_id: user.id, user_name: userName, role: primaryRole,
-        reason: `Outside shift hours (${shiftTimes})`,
+        user_id: user.id, user_name: userName, role: primaryRole, reason: decision.reason,
       });
-      return json({ allowed: false, message: `Login not allowed. Your shift hours are: ${shiftTimes}. Current time is outside this window.` });
+      // The next shift, so the login page can say when the person may come in.
+      let nextShift: { date: string; start: string; end: string } | null = null;
+      if (decision.code !== "no_assignment") {
+        const { data: upcoming } = await adminClient
+          .from("shift_assignments")
+          .select("shifts!inner(date,start_time,end_time)")
+          .eq("user_id", user.id)
+          .gte("shifts.date", today)
+          .lte("shifts.date", SH.addDaysYmd(today, 62))
+          .limit(80);
+        const next = ((upcoming || []) as any[]).map((r) => r.shifts).filter(Boolean)
+          .filter((s: any) => !SH.isZeroWindow(s.start_time, s.end_time))
+          .filter((s: any) => s.date > today || SH.hm(s.start_time) > nowTime)
+          .sort((a: any, b: any) => (a.date === b.date ? SH.hm(a.start_time).localeCompare(SH.hm(b.start_time)) : a.date.localeCompare(b.date)))[0];
+        if (next) nextShift = { date: next.date, start: SH.hm(next.start_time), end: SH.hm(next.end_time) };
+      }
+      return json({ allowed: false, code: decision.code, windows: decision.windows, next_shift: nextShift, message: decision.message });
     }
 
-    // POST /api/shifts/login-log — record login
+    // POST /api/shifts/login-log — record a login. check-login logs it itself since 01.10.2026;
+    // this stays for browser bundles from before that and ignores a second log inside 2 minutes.
     if (req.method === "POST" && path === "shifts/login-log") {
-      const body = await req.json();
-      const { shift_id, shift_date, shift_start_time, shift_end_time } = body;
-      
+      let body: any;
+      try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
+      const { shift_id, shift_date, shift_start_time, shift_end_time } = body || {};
+      const { data: lastLog } = await adminClient
+        .from("shift_login_logs").select("*").eq("user_id", user.id)
+        .order("login_time", { ascending: false }).limit(1).maybeSingle();
+      if (lastLog && SH.isRecentLogin(lastLog.login_time, Date.now())) return json({ ...lastLog, deduped: true });
+
       const { data, error } = await adminClient.from("shift_login_logs").insert({
         user_id: user.id,
-        shift_id,
+        shift_id: SH.isUuid(shift_id) ? shift_id : null,
         shift_date,
         shift_start_time,
         shift_end_time,
         login_time: new Date().toISOString(),
       }).select().single();
-      
       if (error) return json({ error: sanitizeDbError(error) }, 400);
       return json(data);
     }
 
-    // PATCH /api/shifts/logout-log — record logout
-    if (req.method === "PATCH" && path === "shifts/logout-log") {
-      // Update the latest open login log for this user
-      const { data: openLog } = await adminClient
-        .from("shift_login_logs")
-        .select("id")
-        .eq("user_id", user.id)
-        .is("logout_time", null)
-        .order("login_time", { ascending: false })
-        .limit(1)
-        .single();
-      
-      if (openLog) {
-        await adminClient.from("shift_login_logs")
-          .update({ logout_time: new Date().toISOString() })
-          .eq("id", openLog.id);
-      }
-      return json({ success: true });
-    }
-
-    // GET /api/shifts/statistics — agent shift statistics for admin/manager
+    // GET /api/shifts/statistics?from&to — per person (shifts_statistics: one SQL aggregate —
+    // the old path read at most 1.000 assignment rows and cut September).
     if (req.method === "GET" && path === "shifts/statistics") {
-      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
-
-      const dateFrom = url.searchParams.get("from");
-      const dateTo = url.searchParams.get("to");
-
-      let query = adminClient.from("shifts").select("*").order("date", { ascending: true });
-      if (dateFrom) query = query.gte("date", dateFrom);
-      if (dateTo) query = query.lte("date", dateTo);
-
-      const { data: shifts } = await query;
-      if (!shifts) return json([]);
-
-      const shiftIds = shifts.map((s: any) => s.id);
-      let assignments: any[] = [];
-      if (shiftIds.length > 0) {
-        const { data: a } = await adminClient.from("shift_assignments").select("shift_id, user_id").in("shift_id", shiftIds);
-        assignments = a || [];
-      }
-
-      // Build per-agent statistics
-      const agentStats: Record<string, { total_days: Set<string>; weekend_days: Set<string>; total_hours: number; total_shifts: number; weekday_shifts: number; weekend_shifts: number }> = {};
-
-      for (const assignment of assignments) {
-        const shift = shifts.find((s: any) => s.id === assignment.shift_id);
-        if (!shift) continue;
-
-        if (!agentStats[assignment.user_id]) {
-          agentStats[assignment.user_id] = { total_days: new Set(), weekend_days: new Set(), total_hours: 0, total_shifts: 0, weekday_shifts: 0, weekend_shifts: 0 };
-        }
-
-        const stats = agentStats[assignment.user_id];
-        stats.total_days.add(shift.date);
-        stats.total_shifts++;
-
-        // Calculate hours
-        const startParts = shift.start_time.split(":").map(Number);
-        const endParts = shift.end_time.split(":").map(Number);
-        const startMins = startParts[0] * 60 + (startParts[1] || 0);
-        const endMins = endParts[0] * 60 + (endParts[1] || 0);
-        const hours = endMins > startMins ? (endMins - startMins) / 60 : 0;
-        stats.total_hours += hours;
-
-        // Weekend check (Saturday=6, Sunday=0)
-        const dayOfWeek = new Date(shift.date + "T12:00:00").getDay();
-        if (dayOfWeek === 0 || dayOfWeek === 6) {
-          stats.weekend_days.add(shift.date);
-          stats.weekend_shifts++;
-        } else {
-          stats.weekday_shifts++;
-        }
-      }
-
-      // Get agent names
-      const agentUserIds = Object.keys(agentStats);
-      let agentMap: Record<string, string> = {};
-      if (agentUserIds.length > 0) {
-        const { data: profiles } = await adminClient.from("profiles").select("user_id, full_name").in("user_id", agentUserIds);
-        for (const p of profiles || []) agentMap[p.user_id] = p.full_name;
-      }
-
-      // Get login logs for actual hours
-      let loginLogs: any[] = [];
-      if (agentUserIds.length > 0) {
-        let logQuery = adminClient.from("shift_login_logs").select("*").in("user_id", agentUserIds);
-        if (dateFrom) logQuery = logQuery.gte("shift_date", dateFrom);
-        if (dateTo) logQuery = logQuery.lte("shift_date", dateTo);
-        const { data: logs } = await logQuery;
-        loginLogs = logs || [];
-      }
-
-      const result = agentUserIds.map(uid => {
-        const s = agentStats[uid];
-        const agentLogs = loginLogs.filter((l: any) => l.user_id === uid);
-        let actualHours = 0;
-        for (const log of agentLogs) {
-          if (log.login_time && log.logout_time) {
-            actualHours += (new Date(log.logout_time).getTime() - new Date(log.login_time).getTime()) / 3600000;
-          }
-        }
-
-        return {
-          user_id: uid,
-          full_name: agentMap[uid] || "Unknown",
-          total_worked_days: s.total_days.size,
-          total_weekend_days: s.weekend_days.size,
-          total_hours_scheduled: Math.round(s.total_hours * 100) / 100,
-          total_hours_actual: Math.round(actualHours * 100) / 100,
-          total_shifts: s.total_shifts,
-          average_hours_per_shift: s.total_shifts > 0 ? Math.round((s.total_hours / s.total_shifts) * 100) / 100 : 0,
-          weekday_shifts: s.weekday_shifts,
-          weekend_shifts: s.weekend_shifts,
-        };
-      });
-
-      return json(result);
+      if (!canManageShifts) return json({ error: "Forbidden" }, 403);
+      const today = SH.skopjeNow().date;
+      const range = SH.parseRange(url.searchParams.get("from"), url.searchParams.get("to"), SH.monthBounds(today), SH.MAX_STATS_DAYS);
+      if (!range.ok) return shiftBad(range.error);
+      const { data, error } = await adminClient.rpc("shifts_statistics", { p_from: range.from, p_to: range.to });
+      if (error) return shiftRpcError(error);
+      return json(SH.shapeStatistics(data));
     }
 
-    // GET /api/shifts/login-activity — login activity logs for admin/manager
+    // GET /api/shifts/login-activity?from&to&agent_id&status&limit&offset — logins + blocked
+    // attempts, Skopje times, status codes on_time|late|early|blocked, paged.
     if (req.method === "GET" && path === "shifts/login-activity") {
-      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
-
-      const dateFrom = url.searchParams.get("from");
-      const dateTo = url.searchParams.get("to");
-      const agentFilter = url.searchParams.get("agent_id");
-      const statusFilter = url.searchParams.get("status");
-
-      // Fetch login logs
-      let logQuery = adminClient.from("shift_login_logs").select("*").order("login_time", { ascending: false });
-      if (dateFrom) logQuery = logQuery.gte("shift_date", dateFrom);
-      if (dateTo) logQuery = logQuery.lte("shift_date", dateTo);
-      if (agentFilter) logQuery = logQuery.eq("user_id", agentFilter);
-      const { data: loginLogs } = await logQuery;
-
-      // Fetch blocked attempts
-      let blockedQuery = adminClient.from("blocked_login_attempts").select("*").order("attempt_time", { ascending: false });
-      if (dateFrom) blockedQuery = blockedQuery.gte("attempt_time", `${dateFrom}T00:00:00`);
-      if (dateTo) blockedQuery = blockedQuery.lte("attempt_time", `${dateTo}T23:59:59`);
-      if (agentFilter) blockedQuery = blockedQuery.eq("user_id", agentFilter);
-      const { data: blockedAttempts } = await blockedQuery;
-
-      // Get user names & roles for login logs
-      const userIds = [...new Set((loginLogs || []).map((l: any) => l.user_id))];
-      let userMap: Record<string, { full_name: string; role: string }> = {};
-      if (userIds.length > 0) {
-        const { data: profiles } = await adminClient.from("profiles").select("user_id, full_name").in("user_id", userIds);
-        const { data: userRoles } = await adminClient.from("user_roles").select("user_id, role").in("user_id", userIds);
-        for (const p of profiles || []) {
-          const role = (userRoles || []).find((r: any) => r.user_id === p.user_id)?.role || "agent";
-          userMap[p.user_id] = { full_name: p.full_name, role };
-        }
-      }
-
-      // Build activity entries from login logs
-      const activities: any[] = [];
-      for (const log of loginLogs || []) {
-        const userInfo = userMap[log.user_id] || { full_name: "Unknown", role: "agent" };
-        const shiftStart = log.shift_start_time?.substring(0, 5) || "";
-        const shiftEnd = log.shift_end_time?.substring(0, 5) || "";
-        const loginTimeStr = log.login_time ? new Date(log.login_time).toTimeString().substring(0, 5) : "";
-        const logoutTimeStr = log.logout_time ? new Date(log.logout_time).toTimeString().substring(0, 5) : null;
-
-        // Calculate session duration
-        let sessionDuration: number | null = null;
-        if (log.login_time && log.logout_time) {
-          sessionDuration = (new Date(log.logout_time).getTime() - new Date(log.login_time).getTime()) / 60000; // minutes
-        }
-
-        // Determine status
-        let status = "On Time";
-        if (shiftStart && loginTimeStr > shiftStart) {
-          status = "Late Login";
-        }
-        if (log.logout_time && shiftEnd && logoutTimeStr && logoutTimeStr < shiftEnd) {
-          status = status === "Late Login" ? "Late Login" : "Early Logout";
-        }
-
-        activities.push({
-          id: log.id,
-          type: "login",
-          user_id: log.user_id,
-          user_name: userInfo.full_name,
-          role: userInfo.role,
-          shift_date: log.shift_date,
-          shift_start: shiftStart,
-          shift_end: shiftEnd,
-          login_time: log.login_time,
-          logout_time: log.logout_time,
-          session_duration: sessionDuration,
-          status,
-        });
-      }
-
-      // Add blocked attempts
-      for (const attempt of blockedAttempts || []) {
-        activities.push({
-          id: attempt.id,
-          type: "blocked",
-          user_id: attempt.user_id,
-          user_name: attempt.user_name,
-          role: attempt.role,
-          shift_date: attempt.attempt_time?.substring(0, 10) || "",
-          shift_start: null,
-          shift_end: null,
-          login_time: attempt.attempt_time,
-          logout_time: null,
-          session_duration: null,
-          status: "Outside Shift (Blocked)",
-          reason: attempt.reason,
-        });
-      }
-
-      // Filter by status if provided
-      let filtered = activities;
-      if (statusFilter && statusFilter !== "all") {
-        filtered = activities.filter(a => a.status === statusFilter);
-      }
-
-      // Sort by login_time descending
-      filtered.sort((a, b) => new Date(b.login_time).getTime() - new Date(a.login_time).getTime());
-
-      // Build per-agent summary
-      const agentSummary: Record<string, { total_shifts: number; attended: number; late: number; early: number; blocked: number }> = {};
-      for (const a of activities) {
-        if (!agentSummary[a.user_id]) {
-          agentSummary[a.user_id] = { total_shifts: 0, attended: 0, late: 0, early: 0, blocked: 0 };
-        }
-        const s = agentSummary[a.user_id];
-        if (a.type === "blocked") {
-          s.blocked++;
-        } else {
-          s.total_shifts++;
-          s.attended++;
-          if (a.status === "Late Login") s.late++;
-          if (a.status === "Early Logout") s.early++;
-        }
-      }
-
-      const summaryArray = Object.entries(agentSummary).map(([uid, s]) => ({
-        user_id: uid,
-        user_name: userMap[uid]?.full_name || activities.find(a => a.user_id === uid)?.user_name || "Unknown",
-        ...s,
-      }));
-
-      return json({ activities: filtered, summary: summaryArray });
+      if (!canManageShifts) return json({ error: "Forbidden" }, 403);
+      const q = SH.parseActivityQuery(url.searchParams, SH.skopjeNow().date);
+      if (!q.ok) return shiftBad(q.error);
+      const { data, error } = await adminClient.rpc("shifts_login_activity", {
+        p_from: q.from, p_to: q.to, p_user_id: q.user_id, p_status: q.status, p_limit: q.limit, p_offset: q.offset,
+      });
+      if (error) return shiftRpcError(error);
+      return json(SH.shapeLoginActivity(data));
     }
 
 
     // ============================================================
-    // SHIFT TEMPLATES
+    // SHIFT TEMPLATES (the grid's brushes)
     // ============================================================
+    const TIME_RE = /^\d{2}:\d{2}(:\d{2})?$/;
 
     // GET /api/shift-templates
     if (req.method === "GET" && path === "shift-templates") {
+      if (!canManageShifts) return json({ error: "Forbidden" }, 403);
       const { data, error } = await adminClient.from("shift_templates").select("*").order("name", { ascending: true });
       if (error) return json({ error: sanitizeDbError(error) }, 400);
       return json(data || []);
     }
 
-    // POST /api/shift-templates
+    // POST /api/shift-templates {name, start_time, end_time}
     if (req.method === "POST" && path === "shift-templates") {
-      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
-      const body = await req.json();
-      const { name, start_time, end_time } = body;
-      if (!name || !start_time || !end_time) return json({ error: "name, start_time, end_time required" }, 400);
-      const { data, error } = await adminClient.from("shift_templates").insert({ name: name.trim(), start_time, end_time, created_by: user.id }).select().single();
-      if (error) return json({ error: sanitizeDbError(error) }, 400);
-      return json(data);
-    }
-
-    // PATCH /api/shift-templates/:id
-    if (req.method === "PATCH" && segments[0] === "shift-templates" && segments.length === 2) {
-      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
-      const templateId = segments[1];
-      const body = await req.json();
-      const updates: Record<string, any> = {};
-      if (body.name !== undefined) updates.name = body.name.trim();
-      if (body.start_time !== undefined) updates.start_time = body.start_time;
-      if (body.end_time !== undefined) updates.end_time = body.end_time;
-      updates.updated_at = new Date().toISOString();
-
-      const { data, error } = await adminClient.from("shift_templates").update(updates).eq("id", templateId).select().single();
-      if (error) return json({ error: sanitizeDbError(error) }, 400);
-
-      // Update future shifts that use this template name (propagate time changes)
-      const today = new Date().toISOString().substring(0, 10);
-      if (body.start_time || body.end_time) {
-        const shiftUpdates: Record<string, any> = {};
-        if (body.start_time) shiftUpdates.start_time = body.start_time;
-        if (body.end_time) shiftUpdates.end_time = body.end_time;
-        if (body.name && data) shiftUpdates.name = data.name;
-        // Update future shifts with matching name
-        const oldName = body.name ? body.name.trim() : data.name;
-        await adminClient.from("shifts").update(shiftUpdates).eq("name", oldName).gte("date", today);
+      if (!canManageShifts) return json({ error: "Forbidden" }, 403);
+      let body: any;
+      try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
+      const name = String(body?.name ?? "").trim();
+      const { start_time, end_time } = body || {};
+      if (!name || name.length > 60 || !TIME_RE.test(String(start_time)) || !TIME_RE.test(String(end_time))) {
+        return shiftBad("name, start_time, end_time required");
       }
-
+      if (!(SH.hm(end_time) > SH.hm(start_time))) return shiftBad("end must be after start");
+      const { data, error } = await adminClient.from("shift_templates").insert({ name, start_time, end_time, created_by: user.id }).select().single();
+      if (error) return json({ error: sanitizeDbError(error) }, 400);
       return json(data);
     }
 
-    // DELETE /api/shift-templates/:id
-    if (req.method === "DELETE" && segments[0] === "shift-templates" && segments.length === 2) {
-      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
-      const templateId = segments[1];
-      const { error } = await adminClient.from("shift_templates").delete().eq("id", templateId);
+    // PATCH /api/shift-templates/:id {name?, start_time?, end_time?} — the template and its rows
+    // from the Skopje today on, BY template_id (shift_template_update; it matched future shifts by
+    // name with a UTC date, so a rename broke the propagation).
+    if (req.method === "PATCH" && segments[0] === "shift-templates" && segments.length === 2 && SH.isUuid(segments[1])) {
+      if (!canManageShifts) return json({ error: "Forbidden" }, 403);
+      let body: any;
+      try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
+      const patch: Record<string, string> = {};
+      if (body?.name !== undefined) patch.name = String(body.name).trim();
+      if (body?.start_time !== undefined) patch.start_time = String(body.start_time);
+      if (body?.end_time !== undefined) patch.end_time = String(body.end_time);
+      if (!Object.keys(patch).length) return json({ error: "No updates provided" }, 400);
+      if ((patch.start_time && !TIME_RE.test(patch.start_time)) || (patch.end_time && !TIME_RE.test(patch.end_time))) {
+        return shiftBad("times must be HH:MM");
+      }
+      const { data, error } = await adminClient.rpc("shift_template_update", { p_id: segments[1], p_patch: patch, p_actor: user.id });
+      if (error) return shiftRpcError(error);
+      return json(data);
+    }
+
+    // DELETE /api/shift-templates/:id — its shifts stay (template_id → NULL).
+    if (req.method === "DELETE" && segments[0] === "shift-templates" && segments.length === 2 && SH.isUuid(segments[1])) {
+      if (!canManageShifts) return json({ error: "Forbidden" }, 403);
+      const { error } = await adminClient.from("shift_templates").delete().eq("id", segments[1]);
       if (error) return json({ error: sanitizeDbError(error) }, 400);
       return json({ success: true });
     }
 
-    // POST /api/shift-templates/assign-week — assign a template to agents for a week
+    // POST /api/shift-templates/assign-week {template_id, agent_ids, week_start, days?} — legacy
+    // form (the grid paints instead). One shift per person per day: the template replaces
+    // whatever the person had that day.
     if (req.method === "POST" && path === "shift-templates/assign-week") {
-      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
-      const body = await req.json();
-      const { template_id, agent_ids, week_start, days } = body;
-      // days: array of date strings OR we generate Mon-Fri from week_start
-
-      if (!template_id || !agent_ids?.length || !week_start) {
+      if (!canManageShifts) return json({ error: "Forbidden" }, 403);
+      let body: any;
+      try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
+      const { template_id, agent_ids, week_start, days } = body || {};
+      if (!SH.isUuid(template_id) || !Array.isArray(agent_ids) || !agent_ids.length || !agent_ids.every(SH.isUuid) || !SH.isYmd(week_start)) {
         return json({ error: "template_id, agent_ids, week_start required" }, 400);
       }
-
-      // Get template
-      const { data: template } = await adminClient.from("shift_templates").select("*").eq("id", template_id).single();
-      if (!template) return json({ error: "Template not found" }, 404);
-
-      // Generate dates for the week (Mon-Sun or custom days)
       let datesToCreate: string[] = [];
-      if (days && Array.isArray(days) && days.length > 0) {
-        datesToCreate = days;
+      if (Array.isArray(days) && days.length > 0) {
+        if (!days.every(SH.isYmd) || days.length > 31) return shiftBad("days must be YYYY-MM-DD");
+        datesToCreate = [...new Set(days as string[])];
       } else {
-        // Default: Mon-Fri
-        const start = new Date(week_start + "T12:00:00");
-        for (let i = 0; i < 5; i++) {
-          const d = new Date(start);
-          d.setDate(d.getDate() + i);
-          datesToCreate.push(d.toISOString().substring(0, 10));
-        }
+        for (let i = 0; i < 5; i++) datesToCreate.push(SH.addDaysYmd(week_start, i)); // Mon–Fri
       }
-
-      const createdShifts: any[] = [];
-      for (const date of datesToCreate) {
-        // Check if shift already exists for this template name + date
-        const { data: existing } = await adminClient.from("shifts").select("id").eq("name", template.name).eq("date", date);
-        
-        let shiftId: string;
-        if (existing && existing.length > 0) {
-          shiftId = existing[0].id;
-          // Update times in case template changed
-          await adminClient.from("shifts").update({ start_time: template.start_time, end_time: template.end_time }).eq("id", shiftId);
-        } else {
-          const { data: newShift, error: shiftErr } = await adminClient.from("shifts").insert({
-            name: template.name,
-            date,
-            start_time: template.start_time,
-            end_time: template.end_time,
-            created_by: user.id,
-          }).select().single();
-          if (shiftErr) return json({ error: sanitizeDbError(shiftErr) }, 400);
-          shiftId = newShift.id;
-          createdShifts.push(newShift);
-        }
-
-        // Add agent assignments (skip duplicates)
-        for (const agentId of agent_ids) {
-          const { data: existingAssignment } = await adminClient.from("shift_assignments").select("id").eq("shift_id", shiftId).eq("user_id", agentId);
-          if (!existingAssignment || existingAssignment.length === 0) {
-            await adminClient.from("shift_assignments").insert({ shift_id: shiftId, user_id: agentId });
-          }
-        }
-      }
-
-      return json({ success: true, shifts_created: createdShifts.length, days: datesToCreate.length });
+      const cells = datesToCreate.flatMap((d) => [...new Set(agent_ids as string[])].map((u) => ({ user_id: u, date: d, template_id })));
+      const { data, error } = await adminClient.rpc("shifts_set_cells", { p_cells: cells, p_actor: user.id });
+      if (error) return shiftRpcError(error);
+      return json({ success: true, changed: (data as any)?.changed ?? 0, days: datesToCreate.length });
     }
 
     // GET /api/warehouse/incoming-orders (confirmed orders + confirmed prediction leads)
