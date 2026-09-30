@@ -90,6 +90,19 @@ match wins:
 | `preparing` | CONFIRMED or PROCESSING |
 | `awaiting` | everything else (PENDING) |
 
+**In the cohort (owner 29.09.2026, `20260942001965`): `awaiting` COUNTS as a sale** — `cohort_web_bucket` puts an
+awaiting order with a value in `to_pack` (a sale the shop has not confirmed yet), exactly like the shop's own panel
+("22 направени нарачки · 43.774 ден" on 29.09 at noon). `card_unpaid` never counts; `cancelled` is shown apart. The
+cohort carries an `awaiting` count on every bucket and the total, so the Overview's web card says "од нив N чекаат
+потврда"; a waiting order counts until the shop acts (no age limit — the shop panel has none either).
+
+**The TV board's web view — `leaderboard_web_live(day)`** (`…1940`, `…1967`): the shop's Skopje day = the cohort's web
+part EXACTLY (checked on all 273 days 01.01–30.09.2026, 0 diffs): orders / value / awaiting, the outcomes, the 12
+newest orders (no name or phone) — **plus the day's MEX-only web parcels** (the cohort's `mex_web` rows), which is how
+the **gap 30.07–03.09.2026** (the old shop was never migrated; no web orders exist) is filled from MEX (owner
+29.09). A day picker opens any day since 01.01.2026. 19 days have neither orders nor counted parcels
+(31.07, 01–13.08, 22–23.08, 28–30.08).
+
 Money: `lost` (CANCELLED/RETURNED/REFUNDED or payment REFUNDED) · `collected` (payment PAID/
 PARTIALLY_REFUNDED) · `unrecorded` (DONE) · `to_collect`. Known gap: shop refunds are not
 mirrored, so `collected_mkd` is GROSS; the block reports `partially_refunded_count` and
@@ -119,12 +132,12 @@ mirrored, so `collected_mkd` is GROSS; the block reports `partially_refunded_cou
   0 tenant-2 orders fails the run.
 - **Housekeeping:** a `running` row older than 10 min is closed `failed` ("abandoned"); a second
   run of the same kind answers 409 `already_running`.
-- **Crons** (20260937000100): `web-sync` at `3,18,33,48 * * * *` (every 15 min, 24/7) and
+- **Crons** (20260937000100; **every 5 min since 29.09.2026**, `20260942001940`): `web-sync` at `1-59/5 * * * *` and
   `web-sync-nightly` at `1,11,21,31,41,51 1 * * *` (01:xx UTC), both through
   `invoke_web_sync()` (pg_net, secret from Vault `web_sync_secret`; no secret → silent no-op;
   errors are swallowed so the cron itself never fails — failures show in `web_sync_runs`).
-- **Freshness:** Settings → Integrations health `web` card (stale 45 min after the last
-  ok/partial run, failing when the last settled run failed) and the Overview's freshness —
+- **Freshness:** Settings → Integrations health `web` card ("на секои 5 мин"; stale 20 min after the last
+  ok/partial run since `…1945` — it was 45 min at 15-minute runs — failing when the last settled run failed) and the Overview's freshness —
   see `elyon-customer360-and-integrations`.
 
 ## Web orders and MEX parcels

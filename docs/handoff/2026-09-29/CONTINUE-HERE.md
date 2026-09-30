@@ -167,28 +167,26 @@ Verified facts for the docs are in `docs/handoff/2026-09-29/FACTS.md`.
 - TV board Web view: the shop itself, live (`818ba48`, `…1940` `leaderboard_web_live`, `…1945` Integrations web
   "every 5 min"); web-sync every 5 minutes.
 
-## 🏗 IN PROGRESS 30.09 — the APPROVED plan `~/.claude/plans/revert-the-421-unproven-encapsulated-brook.md`
-Owner 29.09: Assigner redesign + live agent board + lists by BUYER department + web counted like the shop +
-/users search. Owner decisions: lists split by the department of the customer's LAST PURCHASE; count 20/50/100/…
-with split "total (shared) / per agent"; the agent grid shows ALL profiles, online first, live; web "чека потврда"
-counts EVERYWHERE (29.09 = 22 / 43.774 ден like the shop panel; card_unpaid never, cancelled apart); the web gap
-30.07–03.09.2026 is filled from MEX web parcels; web history viewable for every day since 01.01.2026.
-Four agents (a power loss on 29.09 ~23:00 stopped them; resumed 30.09 16:45), code only — the main session
-applies / deploys / commits:
-- **A backend:** migrations `…1950` assigner_board · `…1955` customer_departments cache (+ cron) · `…1957`
-  assigner_lists · `…1960` assigner_distribute; api `assigner.ts` + routes `GET /assigner/board`,
-  `GET /assigner/lists`, `POST /assigner/distribute` (dry_run preview); fixes to unassigned-pending (lead only),
-  call-agains (order/departments/true total/real last call), agents/online (Skopje shift); Realtime broadcast
-  `assigner` after queue writes; `scripts/verify-assigner.mjs`.
-- **B frontend:** new AssignerPage (AgentBoard on top, KPI tiles, department chips, tabs, DistributeBar with
-  preview), all strings mk/en/sq/bg, list names/descriptions translated (display only — NEVER rename lists).
-- **C web:** `…1965` cohort_web_bucket awaiting → to_pack · `…1967` leaderboard_web_live + MEX-only web parcels ·
-  TV date picker · C14 check.
-- **D users:** `/users` search (Cyrillic ⇄ Latin), role/status filters (`src/lib/users/filterUsers.ts`).
-Rollout: migrations (tripwire, dry-run) → api deploy → UI push → verify (verify-assigner, ties, tabs, attribution,
-engine fixture) → docs. The first REAL distribution is Mile's.
+## ✅ DONE 30.09 — the APPROVED plan is LIVE (`1982b0e` backend + `9a2978b` UI; DB 277 migrations, latest `…1970`)
+Owner 29.09: Assigner redesign + live agent board + lists by BUYER department + web counted like the shop + /users.
+- **Assigner:** live board of ALL profiles (online first; pendings · call-agains · list clients; 5 s poll + Realtime
+  `assigner`), department chips, KPI tiles, tabs with one DistributeBar (count 20/50/100/200/Сите/друго, total shared
+  or per agent, newest/oldest/random, server dry-run preview, confirm). SQL `assigner_board` / `customer_departments`
+  / `assigner_lists` / `assigner_list_members` / `assigner_distribute` / `assigner_call_agains` (`…1950`–`…1970`);
+  api `GET /assigner/board`, `GET /assigner/lists`, `POST /assigner/distribute`. `scripts/verify-assigner.mjs` 8/8.
+- **Web:** "чека потврда" counts everywhere (`…1965`); TV web view = the cohort's web part every day since
+  01.01.2026, gap 30.07–03.09 from MEX parcels (`…1967`); TV date picker; web-sync every 5 min.
+- **/users:** Insights-style page, search Cyrillic ⇄ Latin, filters, cards below 1280 px.
+- **Every screen:** phone sidebar = ☰ drawer; compact top bar below 1024 px.
+- Checks: 1.307 tests, build, Playwright 360–1920 px (0 overflow), a production smoke test (dry-run only — the first
+  REAL distribution is Mile's). Skills `elyon-assigner` + `elyon-web-shop-bridge` and CLAUDE.md updated.
+- Known, not ours: `GET /voip/health` answers 500 (telephony deferred; the superadmin banner calls it).
 
 ## 🔜 NEXT (nothing urgent is open; the owner's answers drive the rest)
+
+0. **The rest of the CRM in the Insights style, page by page** (owner 30.09 — "align the whole CRM"): propose an order
+   (Нарачки, Повици, Магацин, Поставки, Прогнозни списоци, …) and apply the UI law (cards below md, zero overflow,
+   screenshots 360–1920 px). The admin password `mile@elyon.com` is still the VAULT one marked ROTATE — remind Mile.
 
 1. **The owner's answers** to `PRASHANJA-ZA-MILE.md` / the PDF. Apply them: А1 cancel/link, А2 credit, А3/А4
    department, А5 link, teams (Т1, С3), catalogue (М2), stock count (М1), costs (Ф1–Ф3), hide pages (О12), etc.

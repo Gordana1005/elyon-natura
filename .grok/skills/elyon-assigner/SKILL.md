@@ -1,11 +1,76 @@
 ---
 name: elyon-assigner
-description: Use for anything related to the Assigner page, bulk assignment of pending orders and prediction list members, the Unassign tab (full detach + per-client unassign), unassign rules (especially for pendings vs confirmed), cross-list baskets, round-robin distribution, the live agent status tile, and the logic that controls which agents see which leads. Critical for lead distribution and agent workload management. Post-2026 segments redesign: all prediction work now operates on unique phones (exclusive rule-driven membership).
+description: Use for anything related to the Assigner page (redesigned 30.09.2026 — live agent board of ALL profiles on top, lists by BUYER department, server-side distribution with count / split / order and a dry-run preview, Realtime refresh), bulk assignment of pending orders, call-agains and prediction list members, the Unassign tab (full detach + per-client unassign), unassign rules (pendings vs confirmed), cross-list baskets, the live agent status, and the logic that controls which agents see which leads. Critical for lead distribution and agent workload management.
 ---
 
 # Elyon Assigner Skill
 
 The Assigner is the control center for distributing work to agents. It combines unassigned pending orders with members from the intelligent prediction lists (segments) and gives managers powerful tools to assign them fairly and efficiently. After the 2026 prediction segments redesign (Option 1), **prediction member workloads are now clean by design** — every rule-driven phone appears in at most one list, eliminating the previous duplicate-calling frustration.
+
+## The 30.09.2026 redesign (CURRENT — read this first)
+
+Owner 29.09.2026 (approved plan `~/.claude/plans/revert-the-421-unproven-encapsulated-brook.md`). The page had the
+agents in a tall right rail outside the viewport, English list names, no "N at a time" and no live counts. Now:
+
+**Page, top to bottom** (`src/pages/AssignerPage.tsx` is a thin shell, everything in `src/components/assigner/`):
+1. `AssignerHeader` — the six DEPARTMENT chips (Сите + altercpa · elyon_crm · teleshop_out · teleshop_other ·
+   social · web, state in `?dept=`) and "Во живо · освежено пред N с".
+2. `AssignerKpis` — pendings to share · call-agains to share (oldest waiting) · list clients to share (chosen
+   departments) · agents online / all · decisions today.
+3. `AgentBoard` — **ALL active profiles** (owner: "all profiles"), compact 2–6 column grid, online / in call first,
+   then load (`pendings + list_open`), then name; offline dimmed at the end. Each tile: presence, name, live counters
+   pendings · повторни повици · клиенти од списоци, the team badge in Macedonian (`tvBoard.team.<key>`), shift in the
+   tooltip, a slim "Одземи" side button. A click toggles the agent as a distribution TARGET; search Cyrillic ⇄ Latin;
+   "Само онлајн"; "Избери ги сите онлајн". **Never add call_agains to pendings + list_open** — `pendings` already
+   includes the agent's call-again lead orders and `list_open` the call-again members.
+4. Tabs **Списоци · Пендинзи · Повторни повици · Одземање**, each with one shared `DistributeBar`:
+   count 20 / 50 / 100 / 200 / Сите / друго · split **Вкупно (се дели)** or **По агент** (owner: "100 on ONE operator,
+   or the same 100 over 3") · order Најнови / Најстари (+ Случајно for lists) · "вклучи и веќе доделени" · the chosen
+   agents as chips · a **server dry-run preview** ("100 → 3 агенти: 34 · 33 · 33") · confirm (extra warning above 300;
+   offline warning for call-agains — the automatic engine releases call-again leads of offline agents after ~15 min).
+   `planDistribution()` (`src/lib/assigner/plan.ts`) mirrors the server split for the instant preview.
+5. Lists are grouped like Insights; names via `listLabel(t, name)`, descriptions via `listDescription(t, name)`
+   (`src/lib/assigner/listDescription.ts`) — **display only, a list is NEVER renamed** (the engine resolves by exact
+   name). Each list: stacked bar за јавување / кај агенти / завршени + the buyer-department split; the member table
+   shows and filters the buyer department. Read-only lists show "Само преглед"; "Одземи ги сите" confirms.
+
+**Lists by BUYER department** (owner): a list's clients are split by the department of the customer's LAST
+PURCHASE — `customer_departments` (migration `20260942001955`): `cohort_order_source(…4-arg)` of the latest sale,
+refreshed every 10 min (cron `customer-departments-refresh`) + nightly full (`customer-departments-nightly`);
+`assigner_dept_key()` maps anything else to `unknown`. Web buyers are not in `orders`, so `web` stays ~0 for lists.
+
+**SQL (service role; read-only role granted for the checker):**
+- `assigner_board()` (`…1950`) — every active profile: roles, team, online (`last_seen_at` ≤ 2 min), in_call,
+  Skopje shift, `pendings` (the canonical `assigned_pending_counts()` definition) + split, `call_agains` (orders +
+  members), `list_open` / `list_parked` / `list_assigned`, `worked_today`; totals. ~14 ms — polled every 5 s.
+- `assigner_lists(departments)` (`…1957`) — per list total / distributable / assigned / done / open for the chosen
+  departments + `by_department` for all seven keys (Σ = the list). ~170 ms — refetch ≥ 30 s, on broadcasts, after actions.
+- `assigner_list_members(list, departments, assigned, completed, limit, offset)` (`…1963`) — the member page with the
+  buyer department (PostgREST cannot join the cache).
+- `assigner_distribute(kind, list, departments, order, count, split, agents, include_assigned, dry_run, source,
+  actor)` (`…1960`) — lists / pendings (lead sources only) / call-agains picked ON THE SERVER, `FOR UPDATE SKIP
+  LOCKED`, only the assignment triple (+ `assigned_by`) moves, orders keep `updated_at` (keep_updated_at), refuses
+  random outside lists, static/inactive lists, inactive agents.
+- `assigner_call_agains(source, agent, departments, order, limit, offset)` (`…1962`) — true totals; the call-again
+  expiry now runs by cron every 5 min (`call-again-expiry`), not on every GET.
+- `agent_workloads().orders_open` = lead sources only (one load definition, `…1950`).
+
+**API** (`supabase/functions/api/assigner.ts` + routes in `index.ts`): `GET /assigner/board`, `GET /assigner/lists?departments=`,
+`POST /assigner/distribute` (dry_run defaults TRUE; audit `assigner.distribute`; per-agent notifications),
+`GET /segments/:id?departments=` (members carry `department`), `GET /orders/unassigned-pending?order=&departments=`
+(lead sources only), `GET /call-agains?order=&departments=` (real last call from `bulk_last_calls`).
+
+**Live:** the api broadcasts Realtime channel `assigner`, event `refresh` ({agent_id?}) after every write that changes
+a queue (call-logs, status changes, dispositions, claims, every assign / unassign / distribute route); the page
+debounces it (~0.8 s) and refetches, plus the 5 s board poll. `orders` is not in the realtime publication — broadcast.
+
+**Checks:** `node scripts/verify-assigner.mjs` (board = recount, lists Σ departments, dry-run splits, call-again
+totals, department coverage). Tests: `src/lib/assigner/*.test.ts`, `AgentBoard.test.tsx`, `AssignerPage.test.tsx`,
+`supabase/functions/api/assigner.test.ts`.
+
+**Superseded below:** the right-hand agents rail, the "whole / half / custom" bar, and the call-agains "Додели на
+неодамна онлајн" block are gone (select-all-online + Сите does the same). The unassign contract, the lead rules and the
+engine sections below still hold.
 
 ## Core Concepts
 

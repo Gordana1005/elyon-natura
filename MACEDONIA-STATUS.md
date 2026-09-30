@@ -14,7 +14,27 @@ operation. It shares **nothing at runtime** with Bulgaria (own repo / own Supaba
 
 ---
 
-## 🟢 Current state: 29.09.2026
+## 🟢 Current state: 30.09.2026
+
+- **30.09 — the approved Assigner / web / users plan is LIVE** (`1982b0e` backend + `9a2978b` UI; DB at
+  **277 migrations**, latest `20260942001970`; `api` deployed 30.09 ~18:15 with `--use-api`):
+  - **Assigner redesigned** (`/assigner`): a live board of ALL profiles on top (online first, pendings · call-agains
+    · list clients per agent, 5 s poll + Realtime broadcast `assigner`), department chips, KPI tiles, tabs Списоци ·
+    Пендинзи · Повторни повици · Одземање with one DistributeBar (20/50/100/200/Сите/друго, total shared or per
+    agent, newest / oldest / random, server dry-run preview). Lists split by the BUYER's department
+    (`customer_departments`, the customer's last purchase). Everything Macedonian; lists never renamed.
+    `scripts/verify-assigner.mjs` 8/8 PASS.
+  - **Web counted like the shop**: "чека потврда" is a sale everywhere (`…1965`); the TV web view equals the cohort's
+    web part on every day since 01.01.2026 and fills 30.07–03.09 from MEX web parcels (`…1967`); TV date picker.
+  - **/users** in the Insights style: KPI tiles, search Cyrillic ⇄ Latin, role / status / online filters, table on
+    desktop, cards below 1280 px.
+  - **Every screen**: on a phone the sidebar is a ☰ drawer; the top bar keeps room for the title; below 1024 px the
+    global search and "Земи пауза" are icons; tablets start with the icon rail.
+  - Checks: npm test 83 files / 1.307 tests, build OK; Playwright 360–1920 px, zero overflow; a live smoke on
+    production (login, 50 agents on the board, a dry-run preview from the server, users search, TV web view).
+    Insights ties / tabs PASS; attribution only C7 37 / C8b 14 (owner questions А1 / М3).
+
+## 🟢 Earlier state: 29.09.2026
 
 > Where to continue: **`docs/handoff/2026-09-29/CONTINUE-HERE.md`**. The owner's open decisions (in
 > Macedonian): **`docs/handoff/2026-09-29/PRASHANJA-ZA-MILE.md`**. Verified facts:

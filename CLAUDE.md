@@ -65,7 +65,8 @@ target **explicitly** and verify it before running:
 - **Edge functions:** `api` (one deployable — deploy only when `index.ts` holds finished work),
   `altercpa-sync`, `mex-reconcile`, `web-sync`, `collabbox-sync` (the live collabBox reader —
   read-only against collabBox; it creates an order only once the MEX parcel exists). Deploy with
-  `npx supabase functions deploy <fn> --project-ref bmfxhgznttcnnlqloqzp` after the tripwire.
+  `npx supabase functions deploy <fn> --project-ref bmfxhgznttcnnlqloqzp` after the tripwire. If the CLI hangs
+  (30.09: 20 min on `api`), kill it and add `--use-api` (server-side bundling, ~30 s).
 - **Read-only SQL** (verification): POST `https://api.supabase.com/v1/projects/bmfxhgznttcnnlqloqzp/database/query`
   with `{query, read_only: true}`; checkers: `scripts/verify-attribution.mjs` (C1–C14).
 
@@ -157,7 +158,7 @@ target **explicitly** and verify it before running:
 - **Every source refreshes at least every 15 minutes (owner, 29.09; `20260942001300`)**; MEX — both
   APIs, BIO NATURAL and NATURA — is the final proof of shipped / paid / returned. AlterCPA: new leads
   every 2 min, outcomes every 5 min 07:00–20:55. MEX: both accounts in one sweep every 15 min
-  06:00–22:59 + a Sunday 60-day sweep. Web: every 15 min. collabBox: a full pass of yesterday + today
+  06:00–22:59 + a Sunday 60-day sweep. Web: every 5 min (`20260942001940`). collabBox: a full pass of yesterday + today
   every 15 min 07:00–22:59 + the nightly 00:00 (last 3 days); only one run at a time (409), so never
   leave a manual backfill running into 07:00. Freshness thresholds follow (`20260942001400`).
 - **"Нарачки" = only real orders**: confirmed / packed / shipped / paid, plus returned (it
@@ -186,6 +187,20 @@ target **explicitly** and verify it before running:
   `SET LOCAL elyon.keep_updated_at = 'on'` (honoured by `update_updated_at_column()` since
   `20260939000300`). `session_replication_role` cannot be set inside functions on MK. Run bulk work
   in the quiet window after 20:55 Skopje and never while `recompute_all_segments` runs.
+- **Web orders count from the moment they are placed (owner, 29.09; `20260942001965`)**: a web order the shop
+  has not confirmed yet ("чека потврда") is a sale in the cohort's `to_pack`, exactly like the shop's own panel;
+  `card_unpaid` never counts, `cancelled` is shown apart. The TV board's web view (`leaderboard_web_live`) = the
+  cohort's web part on every day since 01.01.2026 — the days 30.07–03.09.2026 (the old shop was never migrated)
+  come from the MEX-only web parcels. See `elyon-web-shop-bridge`.
+- **The Assigner (redesigned 30.09, `20260942001950`–`001970`)**: a live board of ALL profiles on top (5 s poll +
+  Realtime broadcast `assigner`), lists split by the BUYER's department (`customer_departments` = the department of
+  the customer's LAST PURCHASE, refreshed every 10 min), distribution chosen ON THE SERVER (`assigner_distribute`:
+  count, split total/per agent, newest/oldest/random, dry-run preview). List names/descriptions are translated for
+  display only — NEVER rename a list. See `elyon-assigner`; check with `node scripts/verify-assigner.mjs`.
+- **UI law (owner, 29–30.09): every page in the Insights style and perfect on EVERY screen** — below md a table
+  becomes cards, the page never scrolls sideways, no clipped or overlapping labels; on a phone the sidebar is a ☰
+  drawer. Take Playwright screenshots at 360 / 390 / 768 / 1024 / 1280 / 1920 px (zero overflow) before a UI push.
+  The rest of the CRM is to be brought into this style page by page.
 - **Deferred by the owner — do not touch:** payouts / bonus / commission math; costs and lead cost
   (he sets them later); the stock count (owner, 29.09: "don't focus on stock now" — sellable products
   carry the placeholder 1.000 until his count arrives; keep stock working, add no detail).
