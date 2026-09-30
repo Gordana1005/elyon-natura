@@ -64,6 +64,10 @@ import * as SH from "./shifts.ts";
 // text rules, the order's zone columns, the address lock once MEX has the parcel,
 // the address/* response shapes (pure, unit-tested in addressRouting.test.ts).
 import * as AR from "./addressRouting.ts";
+// Settings (Phase 10, 2026-10-01): module / role-permission / privacy writes
+// through the api with an audit row, "last changed by" meta, the owners-list
+// removal guard and the courier rate card (pure, unit-tested in settingsAccess.test.ts).
+import * as SA from "./settingsAccess.ts";
 
 // ============================================================
 // INPUT VALIDATION SCHEMAS
@@ -4155,14 +4159,24 @@ async function handleRequest(req: Request): Promise<Response> {
       if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
       let body: any; try { body = await req.json(); } catch { body = {}; }
       const action = String(body?.action || "create");
+      // Audited since Phase 10 (2026-10-01): a rotate / revoke blanks every TV on the old link.
+      // The token itself never goes into the log — only its id and label.
       if (action === "revoke") {
         const id = String(body?.id || "");
         if (!id) return json({ error: "id required" }, 400);
-        await adminClient.from("leaderboard_access_tokens").update({ is_active: false }).eq("id", id);
+        const { data: gone } = await adminClient.from("leaderboard_access_tokens")
+          .update({ is_active: false }).eq("id", id).select("id,label");
+        await audit(adminClient, user.id, user.email, "leaderboard.token", {
+          target_type: "leaderboard_access_tokens", target_id: id, target_name: (gone as any)?.[0]?.label ?? null,
+          payload: { action: "revoke" },
+        });
         return json({ success: true });
       }
+      let revoked: string[] = [];
       if (action === "rotate") {
-        await adminClient.from("leaderboard_access_tokens").update({ is_active: false }).eq("is_active", true);
+        const { data: off } = await adminClient.from("leaderboard_access_tokens")
+          .update({ is_active: false }).eq("is_active", true).select("id");
+        revoked = ((off || []) as any[]).map((r) => r.id);
       }
       const token = crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
       const label = (typeof body?.label === "string" && body.label.trim()) ? body.label.trim().slice(0, 80) : "TV";
@@ -4170,6 +4184,10 @@ async function handleRequest(req: Request): Promise<Response> {
         .insert({ token, label, is_active: true, created_by: user.id })
         .select("id,label,token,is_active,created_at").single();
       if (error) return json({ error: sanitizeDbError(error) }, 400);
+      await audit(adminClient, user.id, user.email, "leaderboard.token", {
+        target_type: "leaderboard_access_tokens", target_id: (data as any).id, target_name: label,
+        payload: { action: action === "rotate" ? "rotate" : "create", revoked },
+      });
       return json({ success: true, token: data });
     }
 
@@ -13344,10 +13362,17 @@ async function handleRequest(req: Request): Promise<Response> {
         if (!Number.isFinite(n) || n < 1 || n > 1000) {
           return json({ error: "personal_list_max_holds must be between 1 and 1000" }, 400);
         }
+        const { data: prevCap } = await adminClient
+          .from("app_settings").select("value").eq("key", "personal_list_max_holds").maybeSingle();
         const { error } = await adminClient
           .from("app_settings")
           .upsert({ key: "personal_list_max_holds", value: n, updated_by: user.id, updated_at: new Date().toISOString() }, { onConflict: "key" });
         if (error) return json({ error: sanitizeDbError(error) }, 400);
+        // Settings → Правила shows "last changed by" from here (Phase 10).
+        await audit(adminClient, user.id, user.email, "settings.app_settings", {
+          target_type: "app_settings", target_id: "personal_list_max_holds",
+          payload: { key: "personal_list_max_holds", from: (prevCap as any)?.value ?? null, to: n },
+        });
       }
 
       // Unpaid-delivery chase window (read by notify_unpaid_shipped_orders()).
@@ -13383,6 +13408,10 @@ async function handleRequest(req: Request): Promise<Response> {
             .from("app_settings")
             .upsert({ ...p, updated_by: user.id, updated_at: new Date().toISOString() }, { onConflict: "key" });
           if (error) return json({ error: sanitizeDbError(error) }, 400);
+          await audit(adminClient, user.id, user.email, "settings.app_settings", {
+            target_type: "app_settings", target_id: p.key,
+            payload: { key: p.key, from: stored[p.key] ?? null, to: p.value },
+          });
         }
       }
 
@@ -13496,6 +13525,120 @@ async function handleRequest(req: Request): Promise<Response> {
         if (error) return json({ error: sanitizeDbError(error) }, 400);
       }
       return json({ success: true });
+    }
+
+    // ============================================================
+    // SETTINGS → ПРИСТАП ПО УЛОГА (Phase 10, 2026-10-01). Admins only. Every
+    // change is one audit_log row with the before and after; the browser can no
+    // longer write these tables (migration 20260943001500 drops its write
+    // policies). Refusals are codes (settingsAccess.ts), the UI has the words.
+    // ============================================================
+
+    // GET /api/settings/meta — who changed each setting last and when
+    // (admins + managers: Правила is read-only for a manager; no money here).
+    if (req.method === "GET" && path === "settings/meta") {
+      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      const [appRes, auditRes] = await Promise.all([
+        adminClient.from("app_settings").select("key, updated_at, updated_by"),
+        adminClient.from("audit_log").select("action, actor_id, target_id, created_at")
+          .in("action", [...SA.META_ACTIONS]).order("created_at", { ascending: false }).limit(500),
+      ]);
+      if (appRes.error) return json({ error: sanitizeDbError(appRes.error) }, 400);
+      if (auditRes.error) return json({ error: sanitizeDbError(auditRes.error) }, 400);
+      const ids = [...new Set([
+        ...((appRes.data || []) as any[]).map((r) => r.updated_by),
+        ...((auditRes.data || []) as any[]).map((r) => r.actor_id),
+      ].filter(Boolean))] as string[];
+      const names: Record<string, string | null> = {};
+      if (ids.length) {
+        const { data: profs } = await adminClient.from("profiles").select("user_id, full_name, email").in("user_id", ids);
+        for (const p of (profs || []) as any[]) names[p.user_id] = p.full_name || p.email || null;
+      }
+      return json(SA.buildSettingsMeta((appRes.data || []) as any[], (auditRes.data || []) as any[], names));
+    }
+
+    // PUT /api/settings/modules { module_key, is_enabled } — a module switched
+    // off disappears for EVERYONE, admins included (canAccessModule checks the
+    // switch first), so the UI confirms and offers a 10 s undo.
+    if (req.method === "PUT" && path === "settings/modules") {
+      if (!isAdmin) return json({ error: "admins_only" }, 403);
+      let body: unknown;
+      try { body = await req.json(); } catch { return json({ error: "invalid_body" }, 400); }
+      const p = SA.parseModulePut(body);
+      if (!p.ok) return json({ error: p.error }, SA.statusForSettingsCode(p.error));
+      const { data: row, error: rowErr } = await adminClient
+        .from("module_settings").select("module_key, module_label, is_enabled, is_protected")
+        .eq("module_key", p.value.module_key).maybeSingle();
+      if (rowErr) return json({ error: sanitizeDbError(rowErr) }, 400);
+      const refusal = SA.moduleRefusal(row as any);
+      if (refusal) return json({ error: refusal }, SA.statusForSettingsCode(refusal));
+      if ((row as any).is_enabled === p.value.is_enabled) return json({ ok: true, unchanged: true, module: row });
+      const { data: upd, error } = await adminClient
+        .from("module_settings")
+        .update({ is_enabled: p.value.is_enabled, updated_at: new Date().toISOString() })
+        .eq("module_key", p.value.module_key)
+        .select("module_key, module_label, is_enabled, is_protected").single();
+      if (error) return json({ error: sanitizeDbError(error) }, 400);
+      await audit(adminClient, user.id, user.email, "settings.module_toggle", {
+        target_type: "module_settings", target_id: p.value.module_key, target_name: (row as any).module_label ?? null,
+        payload: { module_key: p.value.module_key, from: (row as any).is_enabled, to: p.value.is_enabled },
+      });
+      return json({ ok: true, module: upd });
+    }
+
+    // PUT /api/settings/role-permissions { role, module_key, can_view?, can_edit? }
+    // Only view / edit (nothing reads create / delete / export). Edit implies view.
+    if (req.method === "PUT" && path === "settings/role-permissions") {
+      if (!isAdmin) return json({ error: "admins_only" }, 403);
+      let body: unknown;
+      try { body = await req.json(); } catch { return json({ error: "invalid_body" }, 400); }
+      const p = SA.parsePermissionPut(body);
+      if (!p.ok) return json({ error: p.error }, SA.statusForSettingsCode(p.error));
+      const { role, module_key } = p.value;
+      const [modRes, curRes] = await Promise.all([
+        adminClient.from("module_settings").select("module_key, module_label").eq("module_key", module_key).maybeSingle(),
+        adminClient.from("role_permissions").select("can_view, can_edit").eq("role", role).eq("module_key", module_key).maybeSingle(),
+      ]);
+      if (modRes.error) return json({ error: sanitizeDbError(modRes.error) }, 400);
+      if (!modRes.data) return json({ error: "unknown_module" }, 404);
+      const cur = (curRes.data as any) ?? null;
+      const next = SA.nextPermission(cur, p.value);
+      const { data: saved, error } = await adminClient
+        .from("role_permissions")
+        .upsert({ role, module_key, ...next, updated_at: new Date().toISOString() }, { onConflict: "role,module_key" })
+        .select("role, module_key, can_view, can_create, can_edit, can_delete, can_export").single();
+      if (error) return json({ error: sanitizeDbError(error) }, 400);
+      await audit(adminClient, user.id, user.email, "settings.role_permission", {
+        target_type: "role_permissions", target_id: `${role}:${module_key}`,
+        target_name: `${role} · ${(modRes.data as any).module_label ?? module_key}`,
+        payload: { role, module_key, from: cur ? { can_view: cur.can_view === true, can_edit: cur.can_edit === true } : null, to: next },
+      });
+      return json({ ok: true, permission: saved });
+    }
+
+    // PUT /api/settings/privacy { role, flag, value } — the five customer-identity
+    // flags the api enforces (privCan). The recording flags are not offered while VOIP is off.
+    if (req.method === "PUT" && path === "settings/privacy") {
+      if (!isAdmin) return json({ error: "admins_only" }, 403);
+      let body: unknown;
+      try { body = await req.json(); } catch { return json({ error: "invalid_body" }, 400); }
+      const p = SA.parsePrivacyPut(body);
+      if (!p.ok) return json({ error: p.error }, SA.statusForSettingsCode(p.error));
+      const { role, flag, value } = p.value;
+      const { data: cur, error: curErr } = await adminClient
+        .from("role_privacy").select(`role, ${flag}`).eq("role", role).maybeSingle();
+      if (curErr) return json({ error: sanitizeDbError(curErr) }, 400);
+      if (!cur) return json({ error: "unknown_role" }, 404);
+      const from = (cur as any)[flag] === true;
+      if (from === value) return json({ ok: true, unchanged: true });
+      const { error } = await adminClient
+        .from("role_privacy").update({ [flag]: value, updated_at: new Date().toISOString() }).eq("role", role);
+      if (error) return json({ error: sanitizeDbError(error) }, 400);
+      await audit(adminClient, user.id, user.email, "settings.privacy", {
+        target_type: "role_privacy", target_id: `${role}:${flag}`, target_name: role,
+        payload: { role, flag, from, to: value },
+      });
+      return json({ ok: true, role, flag, value });
     }
 
     // GET /api/promo-of-the-day — the resolved promo for the CALLER, plus the
@@ -17281,9 +17424,11 @@ async function handleRequest(req: Request): Promise<Response> {
       });
     }
 
-    // DELETE /api/business-owners/:user_id — the LAST remaining owner can
-    // never be removed: nobody would be left to see the money or to add
-    // anyone back. An owner may remove themselves while another remains.
+    // DELETE /api/business-owners/:user_id — take a name off the owners list.
+    // Since 28.09 every ACTIVE admin sees the money whatever the list says
+    // (is_business_owner(), 20260939000500), so this is refused only when
+    // nobody at all would be left: no other list row and no active admin
+    // (SA.ownerRemovalBlocked). An owner may remove themselves.
     if (req.method === "DELETE" && segments[0] === "business-owners" && segments.length === 2) {
       if (!(await isBusinessOwner(user.id))) return json({ error: "owners_only" }, 403);
       const targetId = segments[1];
@@ -17293,19 +17438,29 @@ async function handleRequest(req: Request): Promise<Response> {
         .from("business_owners").select("user_id, added_by, added_at, note").eq("user_id", targetId).maybeSingle();
       if (rowErr) return json({ error: sanitizeDbError(rowErr) }, 400);
       if (!row) return json({ error: "not_an_owner" }, 404);
-      const { count, error: cntErr } = await adminClient
-        .from("business_owners").select("user_id", { count: "exact", head: true });
+      const countActiveAdmins = async (): Promise<number> => {
+        const { data: adminRows } = await adminClient.from("user_roles").select("user_id").eq("role", "admin");
+        const adminIds = [...new Set(((adminRows || []) as any[]).map((r) => r.user_id))];
+        if (!adminIds.length) return 0;
+        const { count: n } = await adminClient.from("profiles")
+          .select("user_id", { count: "exact", head: true }).in("user_id", adminIds).eq("is_active", true);
+        return n ?? 0;
+      };
+      const [{ count, error: cntErr }, activeAdmins] = await Promise.all([
+        adminClient.from("business_owners").select("user_id", { count: "exact", head: true }),
+        countActiveAdmins(),
+      ]);
       if (cntErr) return json({ error: sanitizeDbError(cntErr) }, 400);
-      if ((count ?? 0) <= 1) return json({ error: "last_owner" }, 409);
+      if (SA.ownerRemovalBlocked({ listCountBefore: count ?? 0, activeAdmins })) return json({ error: "last_owner" }, 409);
 
       const { error: delErr } = await adminClient.from("business_owners").delete().eq("user_id", targetId);
       if (delErr) return json({ error: sanitizeDbError(delErr) }, 400);
-      // Two owners removing each other at the same instant both pass the count
-      // above. Re-count after the fact and put the row back rather than leave
+      // Two owners removing each other at the same instant both pass the check
+      // above. Re-check after the fact and put the row back rather than leave
       // the business with nobody who can see the money.
       const { count: left } = await adminClient
         .from("business_owners").select("user_id", { count: "exact", head: true });
-      if (left === 0) {
+      if (left === 0 && activeAdmins === 0) {
         await adminClient.from("business_owners").insert(row);
         return json({ error: "last_owner" }, 409);
       }
@@ -19359,9 +19514,10 @@ async function handleRequest(req: Request): Promise<Response> {
       return json({ success: true, agent_id: agentId, is_participating: participating });
     }
 
-    // GET /api/courier-rates — the editable logistics rate card (admin/manager)
+    // GET /api/courier-rates — the editable logistics rate card. Owners only
+    // since Phase 10 (2026-10-01): it prices Pure Profit, so it is money.
     if (req.method === "GET" && path === "courier-rates") {
-      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      if (!(await isBusinessOwner(user.id))) return json({ error: "owners_only" }, 403);
       const { data, error } = await adminClient
         .from("courier_rates")
         .select("id,courier,service,deliver_cost,return_cost,updated_at")
@@ -19371,31 +19527,37 @@ async function handleRequest(req: Request): Promise<Response> {
       return json(data || []);
     }
 
-    // PATCH /api/courier-rates — update deliver/return costs (admin only).
-    // Body: { rates: [{ courier, service, deliver_cost, return_cost }, ...] }
+    // PATCH /api/courier-rates — update deliver/return costs (owners only, audited).
+    // Body: { rates: [{ courier, service, deliver_cost, return_cost }, ...] } in EUR.
+    // MEX is accepted since Phase 10 (it used to be refused, so Settings could not
+    // save the MEX row at all); Econt / Speedy stay editable for the Bulgarian history.
     if (req.method === "PATCH" && path === "courier-rates") {
-      if (!isAdmin) return json({ error: "Forbidden — admin only" }, 403);
-      let body;
-      try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
-      const rows = Array.isArray(body?.rates) ? body.rates : Array.isArray(body) ? body : [];
-      if (!rows.length) return json({ error: "No rates provided" }, 400);
-      const couriers = ["speedy", "econt"]; const services = ["door", "office"];
-      for (const r of rows) {
-        if (!couriers.includes(r.courier) || !services.includes(r.service)) {
-          return json({ error: `Invalid courier/service: ${r.courier}/${r.service}` }, 400);
-        }
+      if (!(await isBusinessOwner(user.id))) return json({ error: "owners_only" }, 403);
+      let body: unknown;
+      try { body = await req.json(); } catch { return json({ error: "invalid_body" }, 400); }
+      const p = SA.parseCourierRates(body);
+      if (!p.ok) return json({ error: p.error }, SA.statusForSettingsCode(p.error));
+      const { data: before } = await adminClient.from("courier_rates").select("courier, service, deliver_cost, return_cost");
+      const changes: any[] = [];
+      for (const r of p.value) {
+        const prev = ((before || []) as any[]).find((b) => b.courier === r.courier && b.service === r.service) ?? null;
         const { error } = await adminClient
           .from("courier_rates")
-          .update({
-            deliver_cost: Number(r.deliver_cost || 0),
-            return_cost: Number(r.return_cost || 0),
-            updated_at: new Date().toISOString(),
-          })
+          .update({ deliver_cost: r.deliver_cost, return_cost: r.return_cost, updated_at: new Date().toISOString() })
           .eq("courier", r.courier)
           .eq("service", r.service);
         if (error) return json({ error: sanitizeDbError(error) }, 400);
+        if (!prev || Number(prev.deliver_cost) !== r.deliver_cost || Number(prev.return_cost) !== r.return_cost) {
+          changes.push({ ...r, from: prev ? { deliver_cost: Number(prev.deliver_cost), return_cost: Number(prev.return_cost) } : null });
+        }
       }
-      return json({ success: true });
+      if (changes.length) {
+        await audit(adminClient, user.id, user.email, "settings.courier_rates", {
+          target_type: "courier_rates", target_id: changes.map((c) => `${c.courier}:${c.service}`).join(","),
+          payload: { changes },
+        });
+      }
+      return json({ success: true, changed: changes.length });
     }
 
     // PATCH /api/lead-distribution-config — strategy, Start/Stop, and the

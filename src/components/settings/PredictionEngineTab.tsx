@@ -20,13 +20,24 @@ import {
   Loader2, Plus, Trash2, Save, Clock, Banknote, Repeat, Package,
   GitCompareArrows, AlertTriangle, Info, RefreshCw, Power, Play,
 } from 'lucide-react';
+import { ConfirmDialog } from './settingsUi';
+
+/**
+ * The SQL engine that feeds every calling list while the config engine is in
+ * preview: recompute_all_segments, v3.7-mk (sticky trash, 2026-08-06). The
+ * config row still says active_engine 'v3_4' — that value only means "not v4".
+ */
+const LIVE_SQL_ENGINE = 'v3.7-mk';
+/** The nightly runs when the cron schedules have not loaded (pg_cron 0 0 / 30 0 UTC = 02:00 / 02:30 Skopje in summer). */
+const FALLBACK_LIVE_TIME = '02:00';
+const FALLBACK_SHADOW_TIME = '02:30';
 
 // A text input that maps an empty value to null (for "open-ended" band bounds).
 function NumOrNull({ value, onChange, placeholder }: { value: number | null; onChange: (v: number | null) => void; placeholder?: string }) {
   return (
     <Input
       type="number"
-      className="h-8 w-24"
+      className="h-9 w-24"
       value={value === null || value === undefined ? '' : String(value)}
       placeholder={placeholder ?? '∞'}
       onChange={(e) => {
@@ -68,6 +79,10 @@ export function PredictionEngineTab() {
   const [note, setNote] = useState('');
   const [controls, setControls] = useState<SegmentEngineControls | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  // Recomputing the live lists takes about a minute and moves who is in which list: ask first.
+  const [confirmLive, setConfirmLive] = useState(false);
+  const liveTime = cronSkopjeTime(controls?.live_cron_schedule) ?? FALLBACK_LIVE_TIME;
+  const shadowTime = cronSkopjeTime(controls?.shadow_cron_schedule) ?? FALLBACK_SHADOW_TIME;
 
   const load = async () => {
     setLoading(true);
@@ -90,7 +105,7 @@ export function PredictionEngineTab() {
       await apiSetShadowEngine(enabled);
       setControls((c) => (c ? { ...c, shadow_enabled: enabled, shadow_cron_active: enabled } : c));
       toast({ title: enabled
-        ? t('predEngine.shadowOn', { defaultValue: 'Preview engine started (nightly at 03:30).' })
+        ? t('predEngine.shadowOn', { time: shadowTime })
         : t('predEngine.shadowOff', { defaultValue: 'Preview engine stopped. Live lists keep working.' }) });
     } catch (e) { toast({ title: apiErrorText(e), variant: 'destructive' }); }
     finally { setBusy(null); }
@@ -102,7 +117,7 @@ export function PredictionEngineTab() {
       const res = await apiRecomputeSegments();
       toast({ title: t('predEngine.recomputedLive', { defaultValue: 'Live lists recomputed ({{n}} customers).', n: (res as any)?.recomputed_customers ?? '' }) });
     } catch (e) { toast({ title: apiErrorText(e), variant: 'destructive' }); }
-    finally { setBusy(null); }
+    finally { setBusy(null); setConfirmLive(false); }
   };
 
   const recomputePreview = async () => {
@@ -172,10 +187,10 @@ export function PredictionEngineTab() {
           </div>
           <div className="text-muted-foreground mt-0.5">
             {isShadow
-              ? t('predEngine.modeShadowDesc', { defaultValue: 'The current (v3.4) engine still feeds every calling list. Saving here only rebuilds a side-by-side SHADOW preview so you can see exactly what would change before you flip the switch.' })
+              ? t('predEngine.modeShadowDesc', { engine: LIVE_SQL_ENGINE, time: liveTime })
               : t('predEngine.modeLiveDesc', { defaultValue: 'The config-driven engine is live. Saving re-classifies every customer immediately.' })}
           </div>
-          <Badge variant="outline" className="mt-2">{t('predEngine.versionBadge', { defaultValue: 'Config v{{v}} · live engine: {{e}}', v: row.version, e: row.active_engine })}</Badge>
+          <Badge variant="outline" className="mt-2">{t('predEngine.versionBadge', { v: row.version, e: isShadow ? LIVE_SQL_ENGINE : row.active_engine })}</Badge>
         </div>
       </div>
 
@@ -184,12 +199,12 @@ export function PredictionEngineTab() {
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2"><Power className="h-4 w-4" /> {t('predEngine.controlsTitle', { defaultValue: 'Controls' })}</CardTitle>
           <p className="text-sm text-muted-foreground">
-            {t('predEngine.controlsDesc', { defaultValue: 'Recompute on demand instead of waiting for the nightly 03:00 run, and stop/start the new preview engine whenever you like. The live lists are never affected by stopping the preview.' })}
+            {t('predEngine.controlsDesc', { time: liveTime })}
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-center gap-3">
-            <Button onClick={recomputeLive} disabled={busy !== null} className="gap-2">
+            <Button onClick={() => setConfirmLive(true)} disabled={busy !== null} className="gap-2">
               {busy === 'live' ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
               {t('predEngine.recomputeLive', { defaultValue: 'Recompute live lists now' })}
             </Button>
@@ -200,7 +215,7 @@ export function PredictionEngineTab() {
           </div>
           {controls && (
             <>
-              <div className="flex items-center justify-between gap-4 border-t pt-4">
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t pt-4">
                 <div>
                   <Label className="text-sm">{t('predEngine.shadowSwitch', { defaultValue: 'Preview (shadow) engine' })}</Label>
                   <p className="text-xs text-muted-foreground mt-0.5">
@@ -231,16 +246,16 @@ export function PredictionEngineTab() {
         <CardContent className="space-y-2">
           {cfg.recency_bands.map((b, i) => (
             <div key={i} className="flex flex-wrap items-center gap-2">
-              <Input className="h-8 w-40" value={b.label} placeholder={t('predEngine.label', { defaultValue: 'Label' })}
+              <Input className="h-9 w-40" value={b.label} placeholder={t('predEngine.label', { defaultValue: 'Label' })}
                 onChange={(e) => patch((c) => { c.recency_bands[i].label = e.target.value; })} />
               <span className="text-xs text-muted-foreground">≤</span>
               <NumOrNull value={b.max_days} onChange={(v) => patch((c) => { c.recency_bands[i].max_days = v; })} placeholder={t('predEngine.openEnded', { defaultValue: 'open-ended' })} />
               <span className="text-xs text-muted-foreground">{t('predEngine.days', { defaultValue: 'days' })}</span>
-              <label className="flex items-center gap-1.5 text-xs text-muted-foreground ml-2">
+              <label className="flex min-h-9 items-center gap-1.5 text-xs text-muted-foreground ml-2">
                 <Switch checked={!!b.holding_pen} onCheckedChange={(v) => patch((c) => { c.recency_bands[i].holding_pen = v; c.recency_bands[i].strip_assignment = v; })} />
                 {t('predEngine.holdingPen', { defaultValue: 'Holding pen' })}
               </label>
-              <Button variant="ghost" size="icon" className="h-8 w-8 ml-auto" onClick={() => patch((c) => { c.recency_bands.splice(i, 1); })}>
+              <Button variant="ghost" size="icon" className="h-9 w-8 ml-auto" onClick={() => patch((c) => { c.recency_bands.splice(i, 1); })}>
                 <Trash2 className="h-4 w-4 text-destructive" />
               </Button>
             </div>
@@ -260,7 +275,7 @@ export function PredictionEngineTab() {
         <CardContent className="space-y-2">
           {cfg.value_bands.map((b, i) => (
             <div key={i} className="flex flex-wrap items-center gap-2">
-              <Input className="h-8 w-32" value={b.label} placeholder={t('predEngine.label', { defaultValue: 'Label' })}
+              <Input className="h-9 w-32" value={b.label} placeholder={t('predEngine.label', { defaultValue: 'Label' })}
                 onChange={(e) => patch((c) => { c.value_bands[i].label = e.target.value; })} />
               <span className="text-xs text-muted-foreground">≤</span>
               {/* max_price is stored in EUR; the bracket is set in denari. */}
@@ -270,7 +285,7 @@ export function PredictionEngineTab() {
                 placeholder={t('predEngine.openEnded', { defaultValue: 'open-ended' })}
               />
               <span className="text-xs text-muted-foreground">ден</span>
-              <Button variant="ghost" size="icon" className="h-8 w-8 ml-auto" onClick={() => patch((c) => { c.value_bands.splice(i, 1); })}>
+              <Button variant="ghost" size="icon" className="h-9 w-8 ml-auto" onClick={() => patch((c) => { c.value_bands.splice(i, 1); })}>
                 <Trash2 className="h-4 w-4 text-destructive" />
               </Button>
             </div>
@@ -290,12 +305,12 @@ export function PredictionEngineTab() {
         <CardContent className="space-y-2">
           {cfg.frequency_bands.map((b, i) => (
             <div key={i} className="flex flex-wrap items-center gap-2">
-              <Input className="h-8 w-40" value={b.label} placeholder={t('predEngine.label', { defaultValue: 'Label' })}
+              <Input className="h-9 w-40" value={b.label} placeholder={t('predEngine.label', { defaultValue: 'Label' })}
                 onChange={(e) => patch((c) => { c.frequency_bands[i].label = e.target.value; })} />
               <span className="text-xs text-muted-foreground">{t('predEngine.minOrders', { defaultValue: 'min orders ≥' })}</span>
-              <Input type="number" className="h-8 w-20" value={b.min_count}
+              <Input type="number" className="h-9 w-20" value={b.min_count}
                 onChange={(e) => patch((c) => { c.frequency_bands[i].min_count = Number(e.target.value); })} />
-              <Button variant="ghost" size="icon" className="h-8 w-8 ml-auto" onClick={() => patch((c) => { c.frequency_bands.splice(i, 1); })}>
+              <Button variant="ghost" size="icon" className="h-9 w-8 ml-auto" onClick={() => patch((c) => { c.frequency_bands.splice(i, 1); })}>
                 <Trash2 className="h-4 w-4 text-destructive" />
               </Button>
             </div>
@@ -312,14 +327,14 @@ export function PredictionEngineTab() {
           <CardTitle className="text-base">{t('predEngine.windowsTitle', { defaultValue: 'Holding windows' })}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
             <Label className="text-sm">{t('predEngine.cancelsWindow', { defaultValue: 'Current Cancels park (days)' })}</Label>
-            <Input type="number" className="h-8 w-24" value={cfg.windows.current_cancels_days}
+            <Input type="number" className="h-9 w-24" value={cfg.windows.current_cancels_days}
               onChange={(e) => patch((c) => { c.windows.current_cancels_days = Number(e.target.value); })} />
           </div>
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
             <Label className="text-sm">{t('predEngine.ncRecentWindow', { defaultValue: 'Never-Converted “Recent” cutoff (days)' })}</Label>
-            <Input type="number" className="h-8 w-24" value={cfg.windows.never_converted_recent_days}
+            <Input type="number" className="h-9 w-24" value={cfg.windows.never_converted_recent_days}
               onChange={(e) => patch((c) => { c.windows.never_converted_recent_days = Number(e.target.value); })} />
           </div>
         </CardContent>
@@ -332,22 +347,22 @@ export function PredictionEngineTab() {
           <p className="text-sm text-muted-foreground">{t('predEngine.reorderDesc', { defaultValue: 'Calls each customer just before they run out of product. Supply = Σ(packages × each product’s days-of-supply). Set per-product days-of-supply on the Products screen (default 15 = a 30-capsule pack; a 4-pack = 60).' })}</p>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
             <Label className="text-sm">{t('predEngine.reorderEnabled', { defaultValue: 'Enable the “Due to Reorder” list' })}</Label>
             <Switch checked={!!cfg.reorder.enabled} onCheckedChange={(v) => patch((c) => { c.reorder.enabled = v; })} />
           </div>
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
             <Label className="text-sm">{t('predEngine.reorderBuffer', { defaultValue: 'Call this many days BEFORE they run out' })}</Label>
-            <Input type="number" className="h-8 w-24" value={cfg.reorder.buffer_days}
+            <Input type="number" className="h-9 w-24" value={cfg.reorder.buffer_days}
               onChange={(e) => patch((c) => { c.reorder.buffer_days = Number(e.target.value); })} />
           </div>
-          <div className="flex items-center justify-between gap-4">
-            <div className="max-w-[60%]">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <div className="min-w-0 flex-1 basis-56">
               <Label className="text-sm">{t('predEngine.reorderAgg', { defaultValue: 'When an order has different products' })}</Label>
               <p className="text-xs text-muted-foreground mt-0.5">{t('predEngine.reorderAggDesc', { defaultValue: 'Different products are parallel treatments — 2× one + 2× another = 1 month, not 2. Packages of the SAME product still add up.' })}</p>
             </div>
             <select
-              className="h-8 rounded-md border bg-background px-2 text-sm"
+              className="h-9 min-w-0 max-w-full rounded-md border bg-background px-2 text-sm"
               value={cfg.reorder.aggregation ?? 'longest'}
               onChange={(e) => patch((c) => { c.reorder.aggregation = e.target.value as 'longest' | 'earliest'; })}
             >
@@ -355,16 +370,16 @@ export function PredictionEngineTab() {
               <option value="earliest">{t('predEngine.reorderAggEarliest', { defaultValue: 'Earliest (call when the first runs low)' })}</option>
             </select>
           </div>
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
             <Label className="text-sm">{t('predEngine.reorderDefault', { defaultValue: 'Default days-of-supply per package (fallback)' })}</Label>
-            <Input type="number" className="h-8 w-24" value={cfg.reorder.default_days_of_supply_per_unit}
+            <Input type="number" className="h-9 w-24" value={cfg.reorder.default_days_of_supply_per_unit}
               onChange={(e) => patch((c) => { c.reorder.default_days_of_supply_per_unit = Number(e.target.value); })} />
           </div>
         </CardContent>
       </Card>
 
       {/* Save */}
-      <div className="sticky bottom-0 bg-background/80 backdrop-blur border-t py-3 flex items-center gap-3">
+      <div className="sticky bottom-0 bg-background/80 backdrop-blur border-t py-3 flex flex-wrap items-center gap-3">
         <Input className="h-9 max-w-xs" value={note} placeholder={t('predEngine.notePlaceholder', { defaultValue: 'Optional note for this version…' })} onChange={(e) => setNote(e.target.value)} />
         <Button onClick={save} disabled={!canSave} className="gap-2">
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
@@ -425,6 +440,21 @@ export function PredictionEngineTab() {
           </CardContent>
         </Card>
       )}
+
+      <ConfirmDialog
+        open={confirmLive}
+        title={t('settingsPage.engine.recomputeTitle')}
+        body={(
+          <>
+            <p>{t('settingsPage.engine.recomputeBody', { time: liveTime })}</p>
+            <p>{t('settingsPage.engine.recomputeWarn')}</p>
+          </>
+        )}
+        confirmLabel={t('settingsPage.engine.recomputeConfirm')}
+        busy={busy === 'live'}
+        onConfirm={() => { void recomputeLive(); }}
+        onCancel={() => setConfirmLive(false)}
+      />
     </div>
   );
 }

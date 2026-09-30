@@ -2424,6 +2424,332 @@
     "osmAttribution": "Street data © OpenStreetMap contributors",
     "unroutableCity": "MEX has no delivery zone for this place. Pick the nearest town, or the order cannot be shipped."
   },
+  "settingsPage": {
+    "navLabel": "Settings sections",
+    "back": "Settings",
+    "pick": "Pick a section",
+    "pickDesc": "Choose a section from the list on the left.",
+    "noAccess": "Not for your role",
+    "noAccessDesc": "This section is for owners or admins only.",
+    "undo": "Undo",
+    "undone": "Change undone",
+    "group": {
+      "people": "People & access",
+      "rules": "Rules",
+      "system": "System",
+      "advanced": "Advanced",
+      "personal": "Personal"
+    },
+    "section": {
+      "users": {
+        "label": "Users",
+        "desc": "Accounts, roles and passwords — on the Users page"
+      },
+      "teams": {
+        "label": "Teams",
+        "desc": "Who works in which team, and unlinked sellers"
+      },
+      "access": {
+        "label": "Access by role",
+        "desc": "Modules, what each role may open and change, customer data"
+      },
+      "money": {
+        "label": "Who sees money",
+        "desc": "Every active admin, plus the owners list"
+      },
+      "rules": {
+        "label": "Rules",
+        "desc": "Limits, reminders and switches that act every day"
+      },
+      "integrations": {
+        "label": "Integrations",
+        "desc": "AlterCPA, MEX, collabBox, web shop — is every feed alive"
+      },
+      "tv": {
+        "label": "TV board",
+        "desc": "Links for the office TVs and their keys"
+      },
+      "courier": {
+        "label": "Courier MEX",
+        "desc": "What one parcel and one return cost us"
+      },
+      "partners": {
+        "label": "Partners",
+        "desc": "Affiliate partners and their payouts"
+      },
+      "warehouse": {
+        "label": "Warehouse → MEX sending",
+        "desc": "Sending parcels to MEX and stock thresholds"
+      },
+      "telephony": {
+        "label": "Telephony",
+        "desc": "Extensions, caller ID and the minutes bundle"
+      },
+      "engine": {
+        "label": "Prediction engine",
+        "desc": "How customers are sorted into the prediction lists"
+      },
+      "personal": {
+        "label": "Personal",
+        "desc": "Your language and theme"
+      }
+    },
+    "badge": {
+      "feedsOk": "all feeds OK",
+      "feedsIssues_one": "{{count}} problem",
+      "feedsIssues_other": "{{count}} problems",
+      "allLinked": "everyone linked",
+      "unmapped_one": "{{count}} unlinked",
+      "unmapped_other": "{{count}} unlinked",
+      "usersActive_one": "{{count}} active",
+      "usersActive_other": "{{count}} active",
+      "modulesAllOn": "all modules on",
+      "modulesOff_one": "{{count}} module off",
+      "modulesOff_other": "{{count}} modules off",
+      "seeMoney_one": "{{count}} person sees money",
+      "seeMoney_other": "{{count}} people see money",
+      "readOnly": "read only",
+      "noTvLink": "no TV link",
+      "tvLinks_one": "{{count}} active key",
+      "tvLinks_other": "{{count}} active keys",
+      "courier": "MEX {{den}} ден per parcel",
+      "partnersEur": "payout in EUR"
+    },
+    "err": {
+      "admins_only": "Only an admin can change this.",
+      "owners_only": "Only an owner can change this.",
+      "invalid_body": "The request was not understood — reload the page and try again.",
+      "invalid_module": "Unknown module.",
+      "invalid_value": "That value is not allowed.",
+      "invalid_flag": "That permission is not changed here.",
+      "invalid_courier": "Unknown courier or service.",
+      "unknown_module": "This module no longer exists.",
+      "unknown_role": "This role has no privacy row.",
+      "protected_module": "This module is protected — without it nobody could switch it back on.",
+      "dead_module": "This module’s page no longer exists.",
+      "role_not_editable": "This role is not edited here."
+    },
+    "users": {
+      "title": "Users",
+      "desc": "Accounts, roles, passwords and suspensions are managed on the Users page.",
+      "active": "Active",
+      "suspended": "Suspended",
+      "admins": "Admins",
+      "managers": "Managers (not admins)",
+      "open": "Open Users",
+      "hint": "Giving someone admin also shows them the money — the page asks first."
+    },
+    "access": {
+      "title": "Access by role",
+      "desc": "What each role may open and change. An admin always has everything. Every change is saved at once and written to the audit log.",
+      "modulesTitle": "Modules — for everyone",
+      "modulesDesc": "A module switched off disappears from the menu for EVERYONE, admins included. Switching one off asks first and can be undone for 10 seconds.",
+      "allOn": "All modules are on.",
+      "someOff_one": "{{count}} module is off.",
+      "someOff_other": "{{count}} modules are off.",
+      "protected": "protected",
+      "moduleIsOff": "off",
+      "offConfirmTitle": "Switch off “{{module}}”?",
+      "offConfirmBody": "It disappears from the menu for everyone — admins included — until someone switches it back on here. You can undo it for 10 seconds.",
+      "offConfirm": "Switch off",
+      "moduleOn": "“{{module}}” is on",
+      "moduleOff": "“{{module}}” is off",
+      "pickRole": "Role",
+      "adminNote": "Admin is not in the list: an admin always has every module and sees all customer data.",
+      "rolesTitle": "What {{role}} may open and change",
+      "rolesDesc": "View = the page is in the menu and opens. Edit = changes are allowed where the page offers them. Edit switches View on.",
+      "view": "View",
+      "edit": "Edit",
+      "permSaved": "{{role}} · {{module}}: saved",
+      "privacyTitle": "Customer data {{role}} sees",
+      "privacyDesc": "Off = hidden or shortened for this role, on every page and in every export (the server enforces it).",
+      "privacySaved": "{{role}} · {{flag}}: saved",
+      "auditNote": "Every change is written to the audit log: who, when, and the value before and after."
+    },
+    "money": {
+      "title": "Who sees money",
+      "desc": "Money figures and money tabs are shown only to owners: every active admin automatically, plus the people on the owners list. Managers never see money unless they are on the list.",
+      "adminsTitle_one": "Admins — see money automatically ({{count}})",
+      "adminsTitle_other": "Admins — see money automatically ({{count}})",
+      "adminsDesc": "Every active admin sees all the money. Someone who stops being an admin stops seeing it — unless they are on the list below.",
+      "listTitle": "Owners list",
+      "listDesc": "The list lets someone who is not an admin (for example a manager) see the money. The list and the admins also receive the owners’ alerts, such as the 30-minute inactivity alert.",
+      "addLabel": "Add someone who is not an admin",
+      "addButton": "Add to the list",
+      "noCandidates": "Every active non-admin is already on the list",
+      "listEmpty": "Nobody — only the admins see money.",
+      "alsoAdmin": "admin",
+      "addedLine": "Added {{when}} by {{who}}",
+      "addedToast": "{{name}} now sees money",
+      "removedToast": "{{name}} is off the owners list",
+      "removeTitle": "Take {{name}} off the list?",
+      "removeDesc": "{{name}} stops seeing the money at once (not an admin).",
+      "removeAdminDesc": "{{name}} is an admin and keeps seeing the money; only the list entry goes.",
+      "removeSelfDesc": "You stop seeing the money at once, and only an owner can add you back.",
+      "managersNote": "Managers never see money unless they are on this list."
+    },
+    "rules": {
+      "title": "Rules",
+      "desc": "The rules that act every day: what each does, where it acts, its value now and who changed it last.",
+      "readOnlyNote": "Only admins change these rules; you see them read-only.",
+      "what": "What it does",
+      "where": "Where it acts",
+      "value": "Now",
+      "on": "On",
+      "off": "Off",
+      "fixedHere": "read-only here",
+      "lastChanged": "Last changed {{when}} · {{who}}",
+      "lastChangedNoWho": "Last changed {{when}}",
+      "neverChanged": "Default value — never changed",
+      "personalCap": {
+        "title": "Personal list — limit per agent",
+        "what": "How many customers one agent may hold on their Personal list at the same time.",
+        "where": "/personal-list and the “hold” button on /calls",
+        "value_one": "{{count}} customer",
+        "value_other": "{{count}} customers"
+      },
+      "unpaidChase": {
+        "title": "Unpaid parcel — reminder",
+        "what": "A parcel that shipped but is not paid yet reminds the agent who sold it to call the customer.",
+        "where": "The bell (notifications), every night",
+        "value": "from day {{days}} to day {{stop}} after shipping"
+      },
+      "cpaPush": {
+        "title": "Send to AlterCPA",
+        "what": "The button that sends an agent’s decision back to the AlterCPA panel. Off = the button is gone and every send is refused.",
+        "where": "/orders (one order and the bulk “Send to CPA”)"
+      },
+      "noParcel": {
+        "title": "No-parcel rule ({{days}} days)",
+        "what": "An AlterCPA approval with no MEX parcel after {{days}} days is cancelled; a parcel that appears later brings the order back.",
+        "where": "Every evening, on AlterCPA orders",
+        "value": "{{days}} days · {{mode}} · every evening at {{time}}",
+        "manage": "Switched in Integrations"
+      },
+      "idle": {
+        "title": "Inactivity alert",
+        "what": {
+          "agents": "An agent with the CRM open and nothing done for {{minutes}} minutes gets an alert, and so do the recipients.",
+          "all": "Anyone with the CRM open and nothing done for {{minutes}} minutes gets an alert, and so do the recipients."
+        },
+        "where": "The bell (notifications), during working hours",
+        "value": "{{minutes}} min · {{from}}–{{to}} h · to {{recipients}}",
+        "recipients": {
+          "owners": "the owners",
+          "admins": "the admins",
+          "person": "chosen people"
+        }
+      },
+      "shifts": {
+        "title": "Shifts running out",
+        "what": "When an agent has no shift in the next {{days}} days, admins and managers are warned — without a shift the agent cannot log in.",
+        "where": "The bell (notifications) of admins and managers",
+        "value": "{{days}} days ahead · every day at {{time}}"
+      }
+    },
+    "tv": {
+      "title": "TV board",
+      "desc": "The office TVs show the day’s board without logging in, through a link with a key. Here are the links — for the whole company, per department and per team.",
+      "tokensTitle": "Access keys",
+      "tokensDesc": "Every link carries a key. “Replace all” makes a new key and switches all the old ones off; “Revoke” switches one off.",
+      "noToken": "No active key yet — create one to get the links.",
+      "createdOn": "created {{date}}",
+      "create": "New key",
+      "rotate": "Replace all",
+      "revoke": "Revoke",
+      "rotateTitle": "Replace the TV key?",
+      "rotateBody_one": "{{count}} active key stops working at once: every TV on the old link goes blank until it gets a new link.",
+      "rotateBody_other": "{{count}} active keys stop working at once: every TV on an old link goes blank until it gets a new link.",
+      "rotateConfirm": "Replace",
+      "revokeTitle": "Revoke this key?",
+      "revokeBody": "Every TV that uses this key goes blank until it gets a new link.",
+      "revokeConfirm": "Revoke",
+      "done": {
+        "create": "New key created",
+        "rotate": "Key replaced — send the new links to the TVs",
+        "revoke": "Key revoked"
+      },
+      "linksTitle": "Links",
+      "linksDesc": "Copy a link and open it on the TV. The language is written into the link.",
+      "lang": "TV language",
+      "token": "Key",
+      "all": "Whole company",
+      "byDept": "By department",
+      "byTeam": "By team",
+      "copy": "Copy",
+      "copied": "Link copied",
+      "open": "Open",
+      "bonusDeferred": "The bonus tiers and the daily roster are hidden: bonus is deferred by the owner, and the TV board reads neither."
+    },
+    "courier": {
+      "title": "Courier MEX",
+      "desc": "What one MEX parcel costs us: these amounts are the delivery and return cost lines of Pure Profit. An order with no courier on it is priced as MEX.",
+      "cardTitle": "MEX Poshta — per parcel (ден)",
+      "cardDesc": "Every parcel is under 1 kg, so one price per service. Return: what an undelivered parcel costs on its way back.",
+      "save": "Save",
+      "confirmTitle": "Save the MEX prices?",
+      "confirmBody": "Pure Profit uses the new amounts for every period you open, past ones included.",
+      "confirmRow": "{{row}}: delivery {{deliver}} ден, return {{ret}} ден",
+      "confirm": "Save",
+      "saved": "MEX prices saved",
+      "hiddenNote": "The Bulgarian Econt and Speedy rows are kept for old reports but not shown."
+    },
+    "partners": {
+      "title": "Partners",
+      "desc": "The affiliate partners (webmasters), their offers and payouts are managed on the Partners page. It is not in the menu, but opens from here.",
+      "eurRule": "The partner payout stays in EUR: it is a debt to a foreign webmaster who invoices in euro. Every other amount in the CRM is in денари.",
+      "open": "Open Partners"
+    },
+    "warehouse": {
+      "title": "Warehouse → MEX sending",
+      "desc": "Sending parcels to MEX and the stock settings now live in Warehouse.",
+      "mexPush": "The switch for sending parcels straight to MEX is in Warehouse.",
+      "thresholds": "The low-stock thresholds moved to Warehouse → Stock.",
+      "open": "Open Warehouse"
+    },
+    "personal": {
+      "title": "Personal",
+      "desc": "Only for you: the language of your account and the theme of this device. The same as the buttons in the top bar.",
+      "themeDesc": "Light or dark — kept on this device."
+    },
+    "engine": {
+      "recomputeTitle": "Recompute the prediction lists now?",
+      "recomputeBody": "It takes about a minute and moves customers between the prediction lists at once, as the nightly run at {{time}} does.",
+      "recomputeWarn": "Do not run it during a mass change (bulk assign, an import) — wait until it finishes.",
+      "recomputeConfirm": "Recompute now"
+    },
+    "adminGrant": {
+      "title": "Make {{name}} an admin?",
+      "body": "Admin = sees the money. Every active admin sees all money figures and money tabs (Overview, Sales, Pure Profit…) and can change everything in Settings.",
+      "confirm": "Make admin"
+    },
+    "module": {
+      "affiliate_portal": "Partner portal",
+      "affiliates_admin": "Partners (admin)",
+      "agent_activity": "Agent activity",
+      "altercpa_bridge": "AlterCPA",
+      "assigner": "Assigner",
+      "call_activity": "Call activity (Insights)",
+      "call_history": "Call history",
+      "call_scripts": "Call scripts",
+      "dashboard": "Dashboard",
+      "inbound_leads": "Inbound leads",
+      "insights": "Insights",
+      "lead_distribution": "Lead distribution",
+      "my_shifts": "My shifts",
+      "operations": "Operations",
+      "orders": "Orders",
+      "performance": "Agent performance",
+      "products": "Products",
+      "settings": "Settings",
+      "shifts": "Shifts",
+      "users": "Users",
+      "voip_health": "Telephony health",
+      "warehouse": "Warehouse",
+      "warehouse_incoming": "Warehouse — incoming",
+      "webhooks": "Webhooks"
+    }
+  },
   "settings": {
     "teams": {
       "tab": "Teams",
@@ -5722,7 +6048,7 @@
     "saved": "Engine config saved (v{{v}}). Shadow preview updated.",
     "loadFailed": "Could not load the engine config.",
     "modeShadowTitle": "Preview (shadow) mode — live lists are unchanged",
-    "modeShadowDesc": "The current (v3.4) engine still feeds every calling list. Saving here only rebuilds a side-by-side SHADOW preview so you can see exactly what would change before you flip the switch.",
+    "modeShadowDesc": "The live engine ({{engine}}) still feeds every calling list and recomputes them every night at {{time}}. Saving here only rebuilds a side-by-side SHADOW preview so you can see exactly what would change before you flip the switch.",
     "modeLiveTitle": "Live mode — edits change what agents call",
     "modeLiveDesc": "The config-driven engine is live. Saving re-classifies every customer immediately.",
     "versionBadge": "Config v{{v}} · live engine: {{e}}",
@@ -5766,14 +6092,14 @@
     "static": "static",
     "inactive": "inactive",
     "controlsTitle": "Controls",
-    "controlsDesc": "Recompute on demand instead of waiting for the nightly 03:00 run, and stop/start the new preview engine whenever you like. The live lists are never affected by stopping the preview.",
+    "controlsDesc": "Recompute on demand instead of waiting for the nightly run at {{time}}, and stop/start the new preview engine whenever you like. The live lists are never affected by stopping the preview.",
     "recomputeLive": "Recompute live lists now",
     "recomputePreview": "Rebuild preview now",
     "shadowSwitch": "Preview (shadow) engine",
     "shadowSwitchDesc": "Runs the new engine nightly into a side-by-side preview. Turn off to stop all new-engine background work — your live lists keep running untouched.",
     "liveCron": "Live nightly: {{s}}",
     "shadowCron": "Preview nightly: {{s}}",
-    "shadowOn": "Preview engine started (nightly at 03:30).",
+    "shadowOn": "Preview engine started (every night at {{time}}).",
     "shadowOff": "Preview engine stopped. Live lists keep working.",
     "recomputedLive": "Live lists recomputed ({{n}} customers).",
     "recomputedPreview": "Preview rebuilt.",
@@ -6350,7 +6676,7 @@
     "errAlreadyOwner": "This person is already an owner.",
     "errNotActiveStaff": "Only an active staff account can become an owner.",
     "errNotAnOwner": "This person is not an owner.",
-    "errLastOwner": "The last owner cannot be removed — add another owner first."
+    "errLastOwner": "Then nobody would see the money — add another owner or admin first."
   },
   "teamLines": {
     "lane": {

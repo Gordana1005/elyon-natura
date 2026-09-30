@@ -1,3 +1,9 @@
+// NOT MOUNTED since Phase 10 (2026-10-01). Bonus is deferred by the owner and the
+// TV board v2 (leaderboard_day_v2) reads neither the roster nor these bonus rules,
+// so Поставки → ТВ табла (TvSection.tsx) hands out only the TV links + tokens.
+// Kept, not deleted ("hide, don't delete" — payouts / bonus are deferred), so the
+// roster and bonus-tier editors come back with one import the day bonus returns.
+//
 // Settings → Leaderboard (admin/manager). Three sections:
 //   1. Today's extras — people ADDED to today's board. Teams decide who is on a
 //      board by default (every member, every day, sales or not — the api's

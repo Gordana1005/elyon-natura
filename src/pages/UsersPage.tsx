@@ -63,6 +63,10 @@ export default function UsersPage() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<UserRow | null>(null);
   const [deleting, setDeleting] = useState(false);
+  // "Give admin?" — asked before a role toggle or a new account hands out admin (Phase 10).
+  const [adminGrant, setAdminGrant] = useState<{ kind: 'role'; u: UserRow } | { kind: 'create'; nu: NewUser } | null>(null);
+  const [granting, setGranting] = useState(false);
+  const [createKey, setCreateKey] = useState(0);
 
   const { filters, sort, setQuery, setFilters, setSort, clear: clearFilters } = useUserFilterParams();
 
@@ -100,13 +104,18 @@ export default function UsersPage() {
   }), [users, hasPresence, loadedAt]);
   const filtering = hasActiveFilters(effective);
 
-  const handleCreate = async (nu: NewUser): Promise<boolean> => {
+  const handleCreate = async (nu: NewUser, adminConfirmed = false): Promise<boolean> => {
     if (!nu.full_name.trim() || !nu.email.trim() || !nu.password.trim()) {
       toast({ title: t('common.error'), description: t('usersPage.allFieldsRequired'), variant: 'destructive' });
       return false;
     }
     if (nu.roles.length === 0) {
       toast({ title: t('common.error'), description: t('usersPage.oneRoleRequired'), variant: 'destructive' });
+      return false;
+    }
+    // Admin = sees the money (every active admin is an owner, 28.09): ask first.
+    if (!adminConfirmed && nu.roles.includes('admin')) {
+      setAdminGrant({ kind: 'create', nu });
       return false;
     }
     setCreating(true);
@@ -125,6 +134,7 @@ export default function UsersPage() {
       if (!res.ok) throw new Error(data.error || 'Failed to create user');
       toast({ title: t('usersPage.userCreated') });
       setShowCreate(false);
+      if (adminConfirmed) setCreateKey((k) => k + 1); // the form resets itself only on its own submit
       fetchUsers();
       return true;
     } catch (err: unknown) {
@@ -144,10 +154,15 @@ export default function UsersPage() {
     }
   };
 
-  const handleToggleRole = async (u: UserRow, role: string) => {
+  const handleToggleRole = async (u: UserRow, role: string, adminConfirmed = false) => {
     const newRoles = u.roles.includes(role) ? u.roles.filter((r) => r !== role) : [...u.roles, role];
     if (newRoles.length === 0) {
       toast({ title: t('common.error'), description: t('usersPage.mustHaveRole'), variant: 'destructive' });
+      return;
+    }
+    // Granting admin = the money view (every active admin is an owner, 28.09): ask first.
+    if (!adminConfirmed && role === 'admin' && !u.roles.includes('admin')) {
+      setAdminGrant({ kind: 'role', u });
       return;
     }
     try {
@@ -265,7 +280,39 @@ export default function UsersPage() {
         )}
       </div>
 
-      <CreateUserDialog open={showCreate} onOpenChange={setShowCreate} availableRoles={availableRoles} busy={creating} onCreate={handleCreate} />
+      <CreateUserDialog key={createKey} open={showCreate} onOpenChange={setShowCreate} availableRoles={availableRoles} busy={creating} onCreate={(nu) => handleCreate(nu)} />
+
+      {/* Admin = sees the money: every active admin is an owner (is_business_owner(), 28.09). */}
+      <AlertDialog open={!!adminGrant} onOpenChange={(open) => { if (!open && !granting) setAdminGrant(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t('settingsPage.adminGrant.title', { name: adminGrant?.kind === 'role' ? adminGrant.u.full_name : adminGrant?.nu.full_name ?? '' })}
+            </AlertDialogTitle>
+            <AlertDialogDescription>{t('settingsPage.adminGrant.body')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={granting}>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={granting}
+              onClick={async (e) => {
+                e.preventDefault();
+                if (!adminGrant) return;
+                setGranting(true);
+                try {
+                  if (adminGrant.kind === 'role') await handleToggleRole(adminGrant.u, 'admin', true);
+                  else await handleCreate(adminGrant.nu, true);
+                } finally {
+                  setGranting(false);
+                  setAdminGrant(null);
+                }
+              }}
+            >
+              {t('settingsPage.adminGrant.confirm')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Edit (Superadmin only) */}
       <EditUserDialog target={editTarget} onClose={() => setEditTarget(null)} busy={savingEdit} onSave={handleSaveEdit} />

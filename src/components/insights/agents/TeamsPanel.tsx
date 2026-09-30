@@ -127,7 +127,7 @@ function TeamCard({ team, byId, range, money, onPerson, open, tv, alerts, f }: {
               {t('overview.teams.tvBoard')}<ExternalLink className="h-3 w-3" aria-hidden />
             </a>
           ) : (
-            <Link to="/settings" title={t('overview.teams.tvNoLink')}
+            <Link to="/settings/tv" title={t('overview.teams.tvNoLink')}
               className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
               {t('overview.teams.tvBoard')}
             </Link>

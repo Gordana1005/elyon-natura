@@ -194,6 +194,29 @@ describe('Корисници — who may change what', { timeout: 30_000 }, () =
     expect(within(row('Миле Стоев')).queryByRole('button', { name: t('users.row.editRolesFor', { name: 'Миле Стоев' }) })).toBeNull();
   });
 
+  it('giving admin asks first ("admin = sees the money"); cancel changes nothing', async () => {
+    setRoles.mockResolvedValue({});
+    renderAt();
+    await screen.findByRole('table', { name: t('nav.users') }, { timeout: 10_000 });
+    const row = (name: string) => within(table()).getByRole('rowheader', { name: new RegExp(name) }).closest('tr')!;
+    const openEditor = async () => {
+      fireEvent.click(within(row('Ивана Петровска')).getByRole('button', { name: t('users.row.editRolesFor', { name: 'Ивана Петровска' }) }));
+      return screen.findByRole('dialog');
+    };
+
+    fireEvent.click(within(await openEditor()).getByRole('button', { name: new RegExp(`^${t('userRole.admin')}$`) }));
+    let ask = await screen.findByRole('alertdialog');
+    expect(within(ask).getByText(t('settingsPage.adminGrant.body'))).toBeInTheDocument();
+    fireEvent.click(within(ask).getByRole('button', { name: t('common.cancel') }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    expect(setRoles).not.toHaveBeenCalled();
+
+    fireEvent.click(within(await openEditor()).getByRole('button', { name: new RegExp(`^${t('userRole.admin')}$`) }));
+    ask = await screen.findByRole('alertdialog');
+    fireEvent.click(within(ask).getByRole('button', { name: t('settingsPage.adminGrant.confirm') }));
+    await waitFor(() => expect(setRoles).toHaveBeenCalledWith('u1', ['pending_agent', 'admin']));
+  });
+
   it('a manager manages only pending / prediction agents, and hands out only those roles', async () => {
     auth.user = { id: 'u2', isAdmin: false, isManager: true };
     renderAt();
