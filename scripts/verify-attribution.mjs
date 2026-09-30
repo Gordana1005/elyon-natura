@@ -47,7 +47,11 @@
  *        scripts/data/c8a-accepted-duplicates.json: those read INFO; a new double claim still FAILs,
  *        a stale entry WARNs (see judgeC8a; --c8a-template prints the entries to paste)
  *   C12  orders.sale_source never NULL      C13  ≥ 99% of v_sales_work decisions have a person
- *   C14  insights_web_block = the shop's own classifier over web_orders (SKIP until web-sync lands)
+ *   C14  insights_web_block = the shop's own classifier over web_orders (SKIP until web-sync lands), and the
+ *        cohort's web part (insights_cohort by_source web — what the Overview / Табла / TV count) = the shop
+ *        panel's rule: every order except a failed card checkout and a cancelled one, "чека потврда" included
+ *        (owner 29.09.2026, 20260942001965), a MEX parcel deciding where one exists, 0 ден = a replacement;
+ *        its "чека потврда" count; the MEX-only web parcels (M… / NTMK…, the gap 30.07–03.09.2026)
  * The TV leaderboard (migration 20260939000000) — C4/C5 call public.leaderboard_day for the last
  * 7 Skopje days of the range and tie each board out per person per day:
  *   C4   prediction board = ElyonCRM (elyon_crm) sales by sold_by_person_id + v_sales_work CRM
@@ -1324,16 +1328,108 @@ SELECT (SELECT count(*) FROM p)::int AS placed_n, (SELECT round(coalesce(sum(tot
     tieRow('placed (MKD)', { block: num(t.block_mkd), sql: num(t.placed_mkd) }, 0.5),
     ...t.by_bucket.map((b) => tieRow(`bucket ${b.bucket}`, { block: num(b.block_n), sql: b.sql_n }, 0)),
   ];
+  const cohort = await c14CohortWebEqualsShop(ctx, w);
+  rows.push(...cohort.rows);
   const bad = rows.filter((r) => !r.ok);
   return {
     status: bad.length ? 'FAIL' : 'PASS',
     count: bad.length,
-    sample: [],
-    note: 'insights_web_block vs the shop\'s own classifier over web_orders for the same Skopje days. The last mile — this against '
-      + 'the live shop panel — needs the shop database and stays a manual look',
+    sample: cohort.sample,
+    note: 'insights_web_block vs the shop\'s own classifier over web_orders for the same Skopje days, and the web SALES the '
+      + 'Overview / Табла / TV count (insights_cohort by_source web) vs the shop panel\'s rule: every order except a failed card '
+      + 'checkout and a cancelled one — "чека потврда" included (owner 29.09.2026, 20260942001965) — with a MEX parcel deciding '
+      + 'where one exists, a 0-value order a replacement; plus the MEX-only web parcels that fill the days the mirror lacks. '
+      + `${cohort.note} The last mile — this against the live shop panel — needs the shop database and stays a manual look`,
     window: describeWindow(w),
-    breakdown: { tie_out: rows },
+    breakdown: { tie_out: rows, shop_cancelled_but_shipped: cohort.overridden },
   };
+}
+
+/**
+ * C14's cohort half: insights_cohort's web part (the number every screen shows) against an
+ * independent twin over web_orders / mex_parcels — the shop's classifier spelled out again, the
+ * cohort's web rule (20260940000000 cohort_web_bucket + 20260942001965 "чека потврда" → to_pack)
+ * and the MEX-only web parcels (insights_sale_rows' mo: NATURA M… / NTMK…, not claimed by a live
+ * web order, not held by a real order, COD > 0).
+ */
+async function c14CohortWebEqualsShop(ctx, w) {
+  const [can] = await ctx.sql(`SELECT coalesce(has_function_privilege(to_regprocedure(
+    'public.insights_cohort(timestamptz,timestamptz,timestamptz,timestamptz,text[],boolean)'), 'execute'), false) AS ok`);
+  if (!can?.ok || !w.fromUtc || !w.toUtc) {
+    return { rows: [], sample: [], overridden: null, note: '(insights_cohort not executable here — its half is skipped.)' };
+  }
+  const notTest = (a) => `NOT coalesce(${a}.phone8 = ANY (${XP}), false)`;
+  const [t] = await ctx.sql(`
+WITH co AS (
+  SELECT s AS j
+  FROM jsonb_array_elements(public.insights_cohort(${lit(w.fromUtc)}, ${lit(inclusiveEnd(w.toUtc))}, NULL, NULL, ARRAY['web'], true) -> 'by_source') s
+  WHERE s ->> 'key' = 'web'
+),
+wo AS (
+  -- the shop's classifyOutcome() once more (not public.web_order_outcome), and the parcel MEX has for it
+  SELECT o.order_number, round(o.total) AS v,
+         (p.tracking_id IS NOT NULL AND p.status_id IS NOT NULL) AS mex_decides,
+         CASE
+           WHEN o.payment_method = 'CARD' AND o.status IN ('PENDING', 'CANCELLED')
+            AND o.payment_status NOT IN ('PAID', 'PARTIALLY_REFUNDED', 'REFUNDED')       THEN 'card_unpaid'
+           WHEN o.status = 'CANCELLED'                                                   THEN 'cancelled'
+           WHEN o.status IN ('RETURNED', 'REFUNDED', 'DELIVERED', 'DONE', 'SHIPPED')      THEN 'moving_or_done'
+           WHEN o.status IN ('CONFIRMED', 'PROCESSING')                                  THEN 'preparing'
+           ELSE 'awaiting' END AS oc
+  FROM public.web_orders o
+  LEFT JOIN public.mex_parcels p ON p.tracking_id = o.mex_tracking_id
+  WHERE o.deleted_in_shop_at IS NULL AND ${within('o.created_at', w)} AND ${notTest('o')} AND ${notTest('p')}
+),
+wc AS (
+  -- counted = the shop panel's rule: not a failed card checkout, not cancelled ("чека потврда" counts);
+  -- a parcel with a MEX status decides instead; nothing to collect (0 ден) is a replacement
+  SELECT wo.*, (coalesce(wo.v, 0) > 0 AND (wo.mex_decides OR wo.oc NOT IN ('card_unpaid', 'cancelled'))) AS counted
+  FROM wo
+),
+mo AS (
+  SELECT p.tracking_id, p.cod_mkd
+  FROM public.mex_parcels p
+  WHERE ${within('p.created_at_mex', w)} AND ${notTest('p')}
+    AND p.account IS DISTINCT FROM 'bio_natural'
+    AND (coalesce(p.tracking_id, '') ~ '^NTMK' OR coalesce(p.sender_reference, '') ~ '^NTMK' OR coalesce(p.tracking_id, '') ~ '^M[0-9]')
+    AND NOT EXISTS (SELECT 1 FROM public.web_orders x WHERE x.mex_tracking_id = p.tracking_id AND x.deleted_in_shop_at IS NULL)
+    AND NOT EXISTS (SELECT 1 FROM public.orders x WHERE x.mex_tracking_id = p.tracking_id
+                     AND x.sale_source_detail IS DISTINCT FROM 'disposition')
+    AND (p.order_id IS NULL OR NOT EXISTS (SELECT 1 FROM public.orders x WHERE x.id = p.order_id
+                                             AND x.sale_source_detail IS DISTINCT FROM 'disposition'))
+    AND coalesce(p.cod_mkd, 0) > 0
+)
+SELECT (SELECT count(*) FROM co)::int AS has_web,
+       (SELECT coalesce(sum((x ->> 'count')::numeric), 0) FROM co, jsonb_array_elements(co.j -> 'splits') x WHERE x ->> 'kind' = 'web') AS co_web_n,
+       (SELECT coalesce(sum((x ->> 'value_mkd')::numeric), 0) FROM co, jsonb_array_elements(co.j -> 'splits') x WHERE x ->> 'kind' = 'web') AS co_web_mkd,
+       (SELECT coalesce(sum((x ->> 'count')::numeric), 0) FROM co, jsonb_array_elements(co.j -> 'splits') x WHERE x ->> 'kind' = 'mex') AS co_mex_n,
+       (SELECT coalesce(sum((x ->> 'value_mkd')::numeric), 0) FROM co, jsonb_array_elements(co.j -> 'splits') x WHERE x ->> 'kind' = 'mex') AS co_mex_mkd,
+       (SELECT (co.j #>> '{total,awaiting}')::numeric FROM co) AS co_awaiting,
+       (SELECT count(*) FROM wc WHERE wc.counted)::int AS sql_n,
+       (SELECT coalesce(sum(wc.v), 0) FROM wc WHERE wc.counted) AS sql_mkd,
+       (SELECT count(*) FROM wc WHERE wc.counted AND wc.oc = 'awaiting' AND NOT wc.mex_decides)::int AS sql_awaiting,
+       (SELECT coalesce(sum(wc.v), 0) FROM wc WHERE wc.counted AND wc.oc = 'awaiting' AND NOT wc.mex_decides) AS sql_awaiting_mkd,
+       (SELECT count(*) FROM mo)::int AS sql_mex_n,
+       (SELECT coalesce(sum(mo.cod_mkd), 0) FROM mo) AS sql_mex_mkd,
+       (SELECT coalesce(json_agg(json_build_object('order', wc.order_number, 'shop', wc.oc, 'mkd', wc.v) ORDER BY wc.order_number), '[]')
+          FROM wc WHERE wc.counted AND wc.oc IN ('card_unpaid', 'cancelled')) AS overridden`);
+  if (!t.has_web) {
+    return { rows: [], sample: [], overridden: null, note: '(insights_cohort answered without a web part — its half is skipped.)' };
+  }
+  const awaitingKnown = t.co_awaiting != null;
+  const rows = [
+    tieRow('cohort web: shop orders counted (count)', { cohort: num(t.co_web_n), sql: t.sql_n }, 0),
+    tieRow('cohort web: shop orders counted (MKD)', { cohort: num(t.co_web_mkd), sql: num(t.sql_mkd) }, 0),
+    tieRow('cohort web: of them "чека потврда"', { cohort: awaitingKnown ? num(t.co_awaiting) : null, sql: t.sql_awaiting }, 0),
+    tieRow('cohort web: MEX-only web parcels (count)', { cohort: num(t.co_mex_n), sql: t.sql_mex_n }, 0),
+    tieRow('cohort web: MEX-only web parcels (MKD)', { cohort: num(t.co_mex_mkd), sql: num(t.sql_mex_mkd) }, 0),
+  ];
+  const overridden = t.overridden ?? [];
+  const note = [
+    awaitingKnown ? '' : `insights_cohort carries no \`awaiting\` yet: migration 20260942001965 is not applied, so the cohort still leaves out ${t.sql_awaiting} "чека потврда" order(s) / ${fmtNum(num(t.sql_awaiting_mkd))} ден the shop's panel counts.`,
+    overridden.length ? `${overridden.length} order(s) the shop cancelled count because MEX shipped them (MEX status beats the shop's).` : '',
+  ].filter(Boolean).join(' ');
+  return { rows, sample: overridden.slice(0, ctx.sampleN), overridden, note };
 }
 
 export const CHECKS = [

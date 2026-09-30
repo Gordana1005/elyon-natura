@@ -131,14 +131,23 @@ export interface LeaderboardV2Response {
 /** The TV board's web view: the web shop has no agents, so the board shows the shop itself. */
 export interface WebLiveV2 {
   day: string;
-  /** = the cohort's web part of the day (the Overview's number). */
+  /** = the cohort's web part of the day (the Overview's number): the shop's orders — "чека потврда"
+   *  included (20260942001965) — and the day's MEX-only web parcels (20260942001967). */
   orders: number;
   value_mkd: number;
   all_orders: number;
   card: number;
   cod: number;
+  /** Counted orders still waiting for the shop's confirmation ("чекаат потврда"). */
+  awaiting: number;
+  awaiting_value_mkd: number;
+  /** Counted MEX web parcels with no order in the shop mirror (M… / NTMK…). */
+  mex_only: number;
+  mex_only_value_mkd: number;
   by_outcome: Array<{ key: string; count: number; value_mkd: number }>;
   latest: Array<{
+    /** 'web' = a shop order · 'mex' = a MEX web parcel with no shop order (tracking id, city, COD; no product). */
+    kind: "web" | "mex";
     at: string | null; number: string | null; city: string | null; total_mkd: number; outcome: string;
     payment: "card" | "cod"; counted: boolean; source: string | null; item: string | null; items: number;
   }>;
@@ -244,6 +253,10 @@ export function normWebLive(v: unknown): WebLiveV2 {
     all_orders: num(w.all_orders),
     card: num(w.card),
     cod: num(w.cod),
+    awaiting: num(w.awaiting),
+    awaiting_value_mkd: num(w.awaiting_value_mkd),
+    mex_only: num(w.mex_only),
+    mex_only_value_mkd: num(w.mex_only_value_mkd),
     by_outcome: Array.isArray(w.by_outcome)
       ? (w.by_outcome as unknown[]).map((o) => { const x = obj(o); return { key: String(x.key ?? ""), count: num(x.count), value_mkd: num(x.value_mkd) }; })
       : [],
@@ -251,6 +264,7 @@ export function normWebLive(v: unknown): WebLiveV2 {
       ? (w.latest as unknown[]).map((o) => {
         const x = obj(o);
         return {
+          kind: x.kind === "mex" ? "mex" as const : "web" as const,
           at: str(x.at), number: str(x.number), city: str(x.city), total_mkd: num(x.total_mkd),
           outcome: String(x.outcome ?? ""), payment: x.payment === "card" ? "card" as const : "cod" as const,
           counted: x.counted === true, source: str(x.source), item: str(x.item), items: num(x.items),
@@ -291,7 +305,7 @@ export const LEADERBOARD_V2_NON_MONEY_KEYS: ReadonlySet<string> = new Set([
   "first_active", "last_active", "idle_alerts", "idle_streak_min", "first_login",
   // the web view (web_live) — its counts; value_mkd / total_mkd go with the money
   "web_live", "all_orders", "card", "cod", "by_outcome", "latest", "at", "number", "city", "outcome",
-  "payment", "counted", "source", "item", "items", "last_order_at", "synced_at",
+  "payment", "counted", "source", "item", "items", "last_order_at", "synced_at", "awaiting", "kind",
   // the six departments (map keys)
   ...LEADERBOARD_DEPARTMENTS,
 ]);

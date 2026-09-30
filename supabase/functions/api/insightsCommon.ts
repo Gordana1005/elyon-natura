@@ -187,8 +187,9 @@ export const COHORT_NON_MONEY_KEYS: ReadonlySet<string> = new Set([
   "total", "buckets", "outside", "by_source", "leads_in", "cash_flow", "prev", "spark", "quality",
   // bucket / split objects — what a number is made of: orders (GET /orders lists them) · web
   // (the shop mirror) · mex_only (parcels with no order) · booked (collabBox documents whose
-  // parcel does not exist yet, 20260942001900 — never an order, never in a /orders list)
-  "key", "count", "orders", "web", "mex_only", "booked", "drill", "splits", "kind",
+  // parcel does not exist yet, 20260942001900 — never an order, never in a /orders list) ·
+  // awaiting (web orders the shop has not confirmed yet, counted in to_pack, 20260942001965)
+  "key", "count", "orders", "web", "mex_only", "booked", "awaiting", "drill", "splits", "kind",
   // leads_in
   "came_in", "became_sales", "cancelled", "trashed", "open", "conversion", "other", "disposition",
   // cash_flow (counts only)

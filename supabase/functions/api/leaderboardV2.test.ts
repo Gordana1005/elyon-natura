@@ -159,4 +159,35 @@ describe("buildLeaderboardV2Response", () => {
     expect(out.web_live?.latest[0]).not.toHaveProperty("total_mkd");
     expect(out.web_live?.latest[0].city).toBe("Демир Капија");
   });
+
+  // 20260942001965 / 1967: "чека потврда" counts, and the day's MEX-only web parcels fill the gap days
+  const gapDay = {
+    day: "2026-08-19", orders: 11, value_mkd: 20475, all_orders: 16, card: 0, cod: 11,
+    awaiting: "0", awaiting_value_mkd: 0, mex_only: "11", mex_only_value_mkd: 20475,
+    by_outcome: [{ key: "delivered", count: 16, value_mkd: 20475 }],
+    latest: [{ kind: "mex", at: "2026-08-19T11:54:34Z", number: "M3310567", city: "Tetovo", total_mkd: 1990, outcome: "delivered",
+      payment: "cod", counted: true, source: "MEX", item: null, items: 0 }],
+    last_order_at: "2026-08-19T11:54:34Z", synced_at: null,
+  };
+
+  it("carries the awaiting and MEX-only counts and each latest row's kind", () => {
+    const out = buildLeaderboardV2Response({ rpc, today: "2026-09-30", money: true, webLive: { ...webLive, awaiting: 3, awaiting_value_mkd: 5365 } });
+    expect(out.web_live?.awaiting).toBe(3);
+    expect(out.web_live?.awaiting_value_mkd).toBe(5365);
+    expect(out.web_live?.mex_only).toBe(0);                                // absent → 0
+    expect(out.web_live?.latest[0].kind).toBe("web");                      // absent (an older RPC) → a shop order
+    const gap = buildLeaderboardV2Response({ rpc, today: "2026-09-30", money: true, webLive: gapDay }).web_live;
+    expect(gap?.mex_only).toBe(11);                                        // "11" → 11
+    expect(gap?.latest[0]).toMatchObject({ kind: "mex", number: "M3310567", city: "Tetovo", item: null, items: 0, total_mkd: 1990 });
+  });
+
+  it("keeps awaiting / mex_only / kind and drops their денари without money access", () => {
+    const out = buildLeaderboardV2Response({ rpc, today: "2026-09-30", money: false, webLive: { ...gapDay, awaiting: 2, awaiting_value_mkd: 3070 } });
+    expect(out.web_live?.awaiting).toBe(2);
+    expect(out.web_live?.mex_only).toBe(11);
+    expect(out.web_live).not.toHaveProperty("awaiting_value_mkd");
+    expect(out.web_live).not.toHaveProperty("mex_only_value_mkd");
+    expect(out.web_live?.latest[0].kind).toBe("mex");
+    expect(out.web_live?.latest[0]).not.toHaveProperty("total_mkd");
+  });
 });

@@ -46,6 +46,11 @@ import * as IRS from "./insightsReturnsStock.ts";
 // 20260942000100): access, body parsing, and whether a CRM status change still
 // moves stock (pure, unit-tested in stockLedger.test.ts).
 import * as SL from "./stockLedger.ts";
+// The Assigner redesign (migrations 20260942001950–1962): the board, the lists
+// by buyer department, the distributor, the call-agains page — query / body
+// validation, the exact response shapes, notifications, audit, the realtime
+// broadcast body (pure, unit-tested in assigner.test.ts).
+import * as ASG from "./assigner.ts";
 
 // ============================================================
 // INPUT VALIDATION SCHEMAS
@@ -1585,6 +1590,28 @@ async function broadcastLeaderboard(event: string, payload: Record<string, any>)
       headers: { "Content-Type": "application/json", apikey: key, Authorization: `Bearer ${key}` },
       body: JSON.stringify({ messages: [{ topic: "tv-leaderboard", event, payload }] }),
     });
+  } catch (_e) { /* never block the request on the broadcast */ }
+}
+
+// Realtime broadcast on channel `assigner`, event `refresh` (payload
+// {agent_id?}) after every write that changes an agent's queue, so an open
+// /assigner refetches its board within ~1s instead of at the next 5s poll.
+// `orders` is not in the realtime publication, hence a broadcast. Truly
+// fire-and-forget: not awaited (EdgeRuntime.waitUntil keeps the isolate alive
+// for it), 2s timeout, every error swallowed — it can never fail or slow the
+// request that triggered it.
+function broadcastAssigner(payload: { agent_id?: string | null } = {}): void {
+  try {
+    const url = Deno.env.get("SUPABASE_URL");
+    const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!url || !key) return;
+    const p = fetch(`${url}/realtime/v1/api/broadcast`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: key, Authorization: `Bearer ${key}` },
+      body: JSON.stringify(ASG.assignerBroadcastBody(payload)),
+      signal: AbortSignal.timeout(2000),
+    }).then((r) => { r.body?.cancel().catch(() => {}); }).catch(() => {});
+    (globalThis as any).EdgeRuntime?.waitUntil?.(p);
   } catch (_e) { /* never block the request on the broadcast */ }
 }
 
@@ -5335,6 +5362,9 @@ async function handleRequest(req: Request): Promise<Response> {
       if (REAL_ORDER_STATUSES.includes(status)) {
         await broadcastLeaderboard("confirmed", { agent_id: user.id, order_id: order.id });
       }
+      // Assigner board: an order recorded from /calls moves the customer's list
+      // membership (segment trigger) and the agent's counts.
+      broadcastAssigner({ agent_id: user.id });
 
       // Insert order items
       if (hasItems) {
@@ -6003,26 +6033,47 @@ async function handleRequest(req: Request): Promise<Response> {
     }
 
     // GET /api/orders/unassigned-pending (admin only - for assigner)
+    // ?order=newest (default) | oldest by created_at; ?departments=a,b filters
+    // by the order's own department. Response: the same array, each item with
+    // `department` (order_departments — cohort_order_source, the six keys).
     if (req.method === "GET" && path === "orders/unassigned-pending") {
       if (!canViewModule("assigner")) return json({ error: "Forbidden" }, 403);
+      const order = ASG.parseOrderParam(url.searchParams.get("order"), ["newest", "oldest"] as const, "newest");
+      const deptQ = ASG.parseDepartmentsParam(url.searchParams.get("departments"));
+      if (!deptQ.ok) return json({ error: deptQ.error }, 400);
       // Paginated: PostgREST silently caps an unpaginated select at 1000 rows,
       // which would understate the Pendings tab + its count. Columns narrowed
       // to what the assigner renders (UnassignedOrder interface).
+      // Lead sources only (lead rules 4 / 6): the Pendings pool is inbound
+      // leads — agent-created `manual` rows and the `import` history never
+      // belong here (they did before 2026-09-30).
       const all: any[] = [];
       for (let from = 0; ; from += 1000) {
         const { data, error } = await adminClient
           .from("orders")
           .select("id, display_id, customer_name, customer_phone, product_name, source_type, created_at")
           .eq("status", "pending")
+          .in("source_type", LEAD_SOURCE_TYPES)
           .is("assigned_agent_id", null)
-          .order("created_at", { ascending: false })
+          .order("created_at", { ascending: order === "oldest" })
+          .order("id", { ascending: true })
           .range(from, from + 999);
         if (error) return json({ error: sanitizeDbError(error) }, 400);
         if (!data || data.length === 0) break;
         all.push(...data);
         if (data.length < 1000) break;
       }
-      return json(all);
+      // Each lead's department (display + the optional filter).
+      const deptById: Record<string, string | null> = {};
+      for (let i = 0; i < all.length; i += 1000) {
+        const ids = all.slice(i, i + 1000).map((o: any) => o.id);
+        const { data: depts, error: deptErr } = await adminClient.rpc("order_departments", { p_ids: ids });
+        if (deptErr) { console.error("order_departments:", deptErr.message); break; }
+        for (const d of (depts || []) as any[]) deptById[d.id] = d.department ?? null;
+      }
+      const withDept = all.map((o: any) => ({ ...o, department: deptById[o.id] ?? null }));
+      const wanted = deptQ.departments;
+      return json(wanted ? withDept.filter((o: any) => wanted.includes((o.department ?? "unknown") as any)) : withDept);
     }
 
     // GET /api/orders/assigned (admin only - all assigned orders for assigner)
@@ -6061,6 +6112,7 @@ async function handleRequest(req: Request): Promise<Response> {
         target_name: `${order_ids.length} orders`,
         payload: { order_ids, count: order_ids.length },
       });
+      broadcastAssigner();
       return json({ success: true, unassigned: order_ids.length });
     }
 
@@ -6113,6 +6165,7 @@ async function handleRequest(req: Request): Promise<Response> {
         });
       }
 
+      broadcastAssigner({ agent_id });
       return json({ success: true, assigned: order_ids.length });
     }
 
@@ -6330,21 +6383,33 @@ async function handleRequest(req: Request): Promise<Response> {
       const agentIds = agents.map((a: any) => a.user_id);
       type Workload = { orders_open: number; members_assigned: number; members_open: number; members_parked: number };
       const workload: Record<string, Workload> = {};
-      const { data: loads } = await adminClient.rpc("agent_workloads");
+      // orders_open / active_leads = THE canonical lead load (lead rule 6):
+      // assigned_pending_counts() — pending | take | call_again on LEAD sources,
+      // the same number as the agent's /calls badge and the Unassign tab.
+      // agent_workloads().orders_open counted every source until 20260942001950.
+      const [{ data: loads }, { data: leadLoads }] = await Promise.all([
+        adminClient.rpc("agent_workloads"),
+        adminClient.rpc("assigned_pending_counts"),
+      ]);
+      const leadLoad: Record<string, number> = {};
+      for (const r of (leadLoads || []) as any[]) leadLoad[r.agent_id] = r.pendings || 0;
       for (const r of loads || []) {
         workload[r.agent_id] = {
-          orders_open: r.orders_open || 0,
+          orders_open: leadLoad[r.agent_id] ?? 0,
           members_assigned: r.members_assigned || 0,
           members_open: r.members_open || 0,
           members_parked: r.members_parked || 0,
         };
       }
+      for (const [aid, n] of Object.entries(leadLoad)) {
+        if (!workload[aid]) workload[aid] = { orders_open: n, members_assigned: 0, members_open: 0, members_parked: 0 };
+      }
 
       // Check TODAY's shifts only. The previous query forgot to filter on
       // shifts.date, so it surfaced shift times from any day. The !inner join
       // + .eq("shifts.date", today) restricts to assignments whose shift is
-      // today.
-      const today = new Date().toISOString().split("T")[0];
+      // today — the SKOPJE day (the UTC date was yesterday's until 02:00).
+      const today = skopjeDayStart().day;
       const { data: todayShifts } = await adminClient
         .from("shift_assignments")
         .select("user_id, shifts!inner(start_time, end_time, date)")
@@ -6500,6 +6565,7 @@ async function handleRequest(req: Request): Promise<Response> {
         },
       });
 
+      if (targets.length > 0) broadcastAssigner();
       return json({
         success: true,
         updated: targets.length,
@@ -6743,6 +6809,7 @@ async function handleRequest(req: Request): Promise<Response> {
         target_name: `${toUpdate.length} → ${new_status}`,
         payload: { new_status, updated_ids: toUpdate, skipped_ids: skipped, count: toUpdate.length },
       });
+      if (toUpdate.length > 0) broadcastAssigner();
       return json({ success: true, updated: toUpdate.length, skipped: skipped.length, skipped_ids: skipped });
     }
 
@@ -7617,6 +7684,11 @@ async function handleRequest(req: Request): Promise<Response> {
         // tiles without triggering the TV's confetti.
         await broadcastLeaderboard("refresh", { agent_id: user.id, order_id: orderId });
       }
+      // Assigner board: a status change moves the lead out of (or back into)
+      // an agent's queue — pending → confirmed / cancelled / trashed / call_again.
+      if (order.status !== newStatus) {
+        broadcastAssigner({ agent_id: order.assigned_agent_id || user.id });
+      }
 
       // Log history — but not for a no-op transition. The Order Editor now
       // re-PATCHes with the SAME status when only the cancel/trash reason was
@@ -8264,6 +8336,7 @@ async function handleRequest(req: Request): Promise<Response> {
         });
       }
 
+      broadcastAssigner({ agent_id });
       return json({ success: true });
     }
 
@@ -11592,6 +11665,9 @@ async function handleRequest(req: Request): Promise<Response> {
         }
       }
 
+      // Assigner board: every call outcome can move the caller's queue (a lead
+      // to call_again, a no-answer parking a member, an auto-trash, a claim).
+      broadcastAssigner({ agent_id: user.id });
       return json({ ...data, order_warning });
     }
 
@@ -12738,84 +12814,69 @@ async function handleRequest(req: Request): Promise<Response> {
     }
 
     // ── Call Agains as an assignable pool (Assigner tab) ──────────────────
-    // Prediction members AND pending call_again leads. Source filter:
-    //   source=prediction | order | all (default).
+    // Prediction members AND pending call_again leads — one SQL page from
+    // public.assigner_call_agains() (20260942001962): true totals (the old route
+    // counted a 2000-row pre-truncation), the sort pushed into SQL, the
+    // department filter, and no write on a read (expire_call_again_window() now
+    // runs from pg_cron 'call-again-expiry').
+    //   ?source=prediction | order | all (default) · ?agent_id=unassigned | <uuid>
+    //   ?order=oldest (default) | newest by call_again_since (missing = last)
+    //   ?departments=a,b (an order's own department, a member's buyer's)
+    //   ?page= · ?limit= (≤ 200)
+    // Response (backward compatible): {members, total, page, limit} + total_orders,
+    // total_members, order; each item keeps the old fields and adds `department`.
+    // A lead order's last_call_at / last_call_outcome are the REAL last call
+    // (bulk_last_calls() on call_logs) — no longer orders.updated_at, which every
+    // assignment used to bump.
     if (req.method === "GET" && path === "call-agains") {
       if (!canViewModule("assigner")) return json({ error: "Forbidden" }, 403);
-      const page = Math.max(1, parseInt(url.searchParams.get("page") || "1"));
-      const limit = Math.min(200, Math.max(1, parseInt(url.searchParams.get("limit") || "50")));
-      const agentId = url.searchParams.get("agent_id");
-      const source = url.searchParams.get("source") || "all";
+      const parsed = ASG.parseCallAgainsQuery({
+        page: url.searchParams.get("page"),
+        limit: url.searchParams.get("limit"),
+        agent_id: url.searchParams.get("agent_id"),
+        source: url.searchParams.get("source"),
+        order: url.searchParams.get("order"),
+        departments: url.searchParams.get("departments"),
+      });
+      if (!parsed.ok) return json({ error: parsed.error }, 400);
+      const q = parsed.query;
 
-      await adminClient.rpc("expire_call_again_window");
+      const { data: pageData, error: pageErr } = await adminClient.rpc("assigner_call_agains", {
+        p_agent: q.agent,
+        p_source: q.source,
+        p_departments: q.departments,
+        p_order: q.order,
+        p_limit: q.limit,
+        p_offset: (q.page - 1) * q.limit,
+      });
+      if (pageErr) return json({ error: sanitizeDbError(pageErr) }, 400);
+      const items: any[] = Array.isArray((pageData as any)?.items) ? (pageData as any).items : [];
 
-      const applyAgent = (q: any) => {
-        if (agentId === "unassigned") return q.is("assigned_agent_id", null);
-        if (agentId && agentId !== "all" && UUID_RE.test(agentId)) return q.eq("assigned_agent_id", agentId);
-        return q;
-      };
-
-      const predRows: any[] = [];
-      if (source === "all" || source === "prediction") {
-        let q = adminClient
-          .from("prediction_segment_members")
-          .select(`
-            list_id, customer_phone, customer_name, call_again_since, last_call_at,
-            last_call_outcome, in_call_again_until, assigned_agent_id, assigned_agent_name,
-            lifetime_value, paid_count, avg_package_price,
-            prediction_segment_lists(name, category)
-          `)
-          .not("call_again_since", "is", null)
-          .eq("is_completed", false)
-          .order("call_again_since", { ascending: true })
-          .limit(2000);
-        q = applyAgent(q);
-        const { data, error } = await q;
-        if (error) return json({ error: sanitizeDbError(error) }, 400);
-        for (const m of data || []) predRows.push({ source_kind: "prediction", ...m });
-      }
-
-      const orderRows: any[] = [];
-      if (source === "all" || source === "order") {
-        let q = adminClient
-          .from("orders")
-          .select("id, customer_phone, customer_name, call_again_since, updated_at, assigned_agent_id, assigned_agent_name, product_name, price")
-          .eq("status", "call_again")
-          .in("source_type", LEAD_SOURCE_TYPES)
-          .order("call_again_since", { ascending: true, nullsFirst: false })
-          .limit(2000);
-        q = applyAgent(q);
-        const { data, error } = await q;
-        if (error) return json({ error: sanitizeDbError(error) }, 400);
-        for (const o of data || []) {
-          orderRows.push({
-            source_kind: "order",
-            list_id: `order:${o.id}`,
-            order_id: o.id,
-            customer_phone: o.customer_phone,
-            customer_name: o.customer_name,
-            call_again_since: o.call_again_since,
-            last_call_at: o.updated_at,
-            last_call_outcome: "no_answer",
-            in_call_again_until: null,
-            assigned_agent_id: o.assigned_agent_id,
-            assigned_agent_name: o.assigned_agent_name,
-            lifetime_value: o.price,
-            paid_count: null,
-            avg_package_price: o.price,
-            prediction_segment_lists: { name: o.product_name, category: "order" },
-          });
+      // The real last call of each lead order on the page (call_logs by last 8).
+      const orderP8s = [...new Set(items
+        .filter((i: any) => i.source_kind === "order")
+        .map((i: any) => ASG.phone8(i.customer_phone))
+        .filter((x: string) => x.length >= 7))];
+      const lastByP8 = new Map<string, ASG.LastCall>();
+      if (orderP8s.length > 0) {
+        const { data: lastCalls, error: lcErr } = await adminClient.rpc("bulk_last_calls", { p8s: orderP8s });
+        if (lcErr) console.error("bulk_last_calls:", lcErr.message);
+        for (const r of (lastCalls || []) as any[]) {
+          lastByP8.set(r.phone8, { last_call_at: r.last_call_at ?? null, outcome: r.outcome ?? null });
         }
       }
 
-      const merged = [...orderRows, ...predRows].sort((a, b) => {
-        const ta = a.call_again_since ? new Date(a.call_again_since).getTime() : 0;
-        const tb = b.call_again_since ? new Date(b.call_again_since).getTime() : 0;
-        return ta - tb;
+      const members = items.map((i: any) =>
+        ASG.shapeCallAgainItem(i, i.source_kind === "order" ? lastByP8.get(ASG.phone8(i.customer_phone)) : null));
+      return json({
+        members,
+        total: Number((pageData as any)?.total ?? 0),
+        total_orders: Number((pageData as any)?.total_orders ?? 0),
+        total_members: Number((pageData as any)?.total_members ?? 0),
+        order: q.order,
+        page: q.page,
+        limit: q.limit,
       });
-      const total = merged.length;
-      const start = (page - 1) * limit;
-      return json({ members: merged.slice(start, start + limit), total, page, limit });
     }
 
     // POST /api/call-agains/assign — hand a selection to an agent (or free it).
@@ -12914,6 +12975,7 @@ async function handleRequest(req: Request): Promise<Response> {
         });
       }
 
+      broadcastAssigner(agentId ? { agent_id: agentId } : {});
       return json({ success: true, assigned });
     }
 
@@ -12992,6 +13054,7 @@ async function handleRequest(req: Request): Promise<Response> {
           payload: { orders: claimedOrders, members: claimedMembers },
         });
       }
+      if (claimed) broadcastAssigner({ agent_id: user.id });
       return json({ claimed, orders: claimedOrders, members: claimedMembers });
     }
 
@@ -13118,6 +13181,7 @@ async function handleRequest(req: Request): Promise<Response> {
         target_name: `${assigned} → ${agents.length} agents`,
         payload: { source, minutes, agent_ids: agents.map((a) => a.user_id), assigned, per_agent: perAgent },
       });
+      if (assigned > 0) broadcastAssigner();
       return json({ assigned, agents: agents.length, per_agent: perAgent, source });
     }
 
@@ -15927,6 +15991,9 @@ async function handleRequest(req: Request): Promise<Response> {
       const limit = Math.min(parseInt(url.searchParams.get("limit") || "50"), 200);
       const assignedFilter = url.searchParams.get("assigned"); // 'all' | 'none' | <agent_id>
       const completedFilter = url.searchParams.get("completed"); // 'all' | 'yes' | 'no'
+      // ?departments=a,b — the buyer's department (the Assigner's chips, 20260942001963)
+      const segDepts = ASG.parseDepartmentsParam(url.searchParams.get("departments"));
+      if (!segDepts.ok) return json({ error: segDepts.error }, 400);
 
       const { data: list, error: listErr } = await adminClient
         .from("prediction_segment_lists")
@@ -15934,6 +16001,23 @@ async function handleRequest(req: Request): Promise<Response> {
         .eq("id", listId)
         .single();
       if (listErr || !list) return json({ error: "Segment not found" }, 404);
+
+      // The Assigner's path: members WITH the buyer department, filterable by it (assigner_list_members,
+      // 20260942001963 — PostgREST cannot join customer_departments). Falls back to the plain page below
+      // when the function is missing (api deployed before the migration) — then without a department.
+      let viaRpc: { members: any[]; total: number } | null = null;
+      {
+        const { data: lm, error: lmErr } = await adminClient.rpc("assigner_list_members", {
+          p_list_id: listId,
+          p_departments: segDepts.departments,
+          p_assigned: assignedFilter || "all",
+          p_completed: completedFilter || "all",
+          p_limit: limit,
+          p_offset: (page - 1) * limit,
+        });
+        if (!lmErr && lm) viaRpc = { members: (lm as any).members ?? [], total: Number((lm as any).total ?? 0) };
+        else if (lmErr) console.error("assigner_list_members:", lmErr.message);
+      }
 
       let q = adminClient
         .from("prediction_segment_members")
@@ -15948,8 +16032,14 @@ async function handleRequest(req: Request): Promise<Response> {
       if (completedFilter === "yes") q = q.eq("is_completed", true);
       else if (completedFilter === "no") q = q.eq("is_completed", false);
 
-      const { data: members, count, error } = await q;
-      if (error) return json({ error: sanitizeDbError(error) }, 400);
+      let members: any[] | null, count: number | null;
+      if (viaRpc) {
+        members = viaRpc.members; count = viaRpc.total;
+      } else {
+        const r = await q;
+        if (r.error) return json({ error: sanitizeDbError(r.error) }, 400);
+        members = r.data; count = r.count;
+      }
 
       // Truth enrichment: latest REAL call per phone from call_logs (last-8
       // match via the bulk_last_calls RPC). Member rows are only stamped by the
@@ -16020,6 +16110,7 @@ async function handleRequest(req: Request): Promise<Response> {
         payload: { list_id: listId, agent_id: agentId, agent_name: agentName, count: memberPhones.length },
       });
 
+      broadcastAssigner(agentId ? { agent_id: agentId } : {});
       return json({ updated: count, agent_name: agentName });
     }
 
@@ -16150,6 +16241,7 @@ async function handleRequest(req: Request): Promise<Response> {
         }
       }
 
+      broadcastAssigner(agentIds.length === 1 ? { agent_id: agentIds[0] } : {});
       return json({ distributed: pool.length, per_agent: perAgent, scope, eligible: memberPhones.length });
     }
 
@@ -16181,7 +16273,93 @@ async function handleRequest(req: Request): Promise<Response> {
         payload: { list_id: listId, scope, unassigned: count ?? 0 },
       });
 
+      broadcastAssigner(scope !== "all" ? { agent_id: scope } : {});
       return json({ unassigned: count ?? 0, scope });
+    }
+
+    // ── Assigner redesign (plan "Assigner redesign", Part A — 2026-09-30) ───────
+    // Three routes over the SQL of migrations 20260942001950–1960. The SQL
+    // decides everything; assigner.ts validates the input and shapes each answer
+    // into the exact contract /assigner codes against. Gate: the assigner module
+    // AND admin / manager (the gate of assignment-summary / call-agains/auto-assign).
+
+    // GET /api/assigner/board — the live agent board: every active staff profile
+    // (presence, in call, today's Skopje shift, team) with the live queue counts
+    // (pendings = the canonical lead load, call-agains, list open / parked /
+    // assigned, decisions today) and the pools' totals. Polled every 5 s and on
+    // every `assigner` realtime broadcast; ~13 ms in SQL.
+    if (req.method === "GET" && path === "assigner/board") {
+      if (!canViewModule("assigner") || !isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      const { data, error } = await adminClient.rpc("assigner_board");
+      if (error) return json({ error: sanitizeDbError(error) }, 400);
+      return json(ASG.shapeBoard(data));
+    }
+
+    // GET /api/assigner/lists?departments=a,b — every active non-empty list with
+    // its counts for the chosen BUYER departments (customer_departments; missing
+    // = 'unknown'; none = all) and the split by all seven keys. Member counts are
+    // the show_segment_members privilege, as on GET /segments — without it 403
+    // members_restricted (GET /segments answers nulls; this contract has numbers).
+    if (req.method === "GET" && path === "assigner/lists") {
+      if (!canViewModule("assigner") || !isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      if (!showSegmentMembers) return json({ error: "members_restricted" }, 403);
+      const dq = ASG.parseDepartmentsParam(url.searchParams.get("departments"));
+      if (!dq.ok) return json({ error: dq.error }, 400);
+      const { data, error } = await adminClient.rpc("assigner_lists", { p_departments: dq.departments });
+      if (error) {
+        const e = ASG.distributeRpcError(error);
+        return json({ error: e ? e.error : sanitizeDbError(error) }, 400);
+      }
+      return json(ASG.shapeLists(data));
+    }
+
+    // POST /api/assigner/distribute — deal a list / the lead pendings / the
+    // call-agains to agents. Body: {kind, list_id?, departments?, order, count
+    // (null = all), split, agent_ids, include_assigned, dry_run, source?}.
+    // dry_run (the default) = the preview: the same selection, nothing written.
+    // A real run writes only the assignment triple (FOR UPDATE SKIP LOCKED in
+    // SQL), is audited (assigner.distribute), pings each agent who received
+    // work (the per-kind texts of the old routes) and broadcasts `assigner`.
+    // Response: {kind, dry_run, pool, selected, assigned, per_agent:[{agent_id,
+    // full_name, count}]}. SQL refusals (22023) come back as 400 {error}.
+    if (req.method === "POST" && path === "assigner/distribute") {
+      if (!canViewModule("assigner") || !isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      let body: unknown;
+      try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
+      const parsed = ASG.parseDistributeBody(body);
+      if (!parsed.ok) return json({ error: parsed.error }, 400);
+      const args = parsed.args;
+      // A real run shares the bulk-assign bucket (20/min); previews are cheap
+      // reads the UI fires as the admin changes the count / agents.
+      const limited = args.dry_run
+        ? !checkUserRateLimit(user.id, "assigner.preview", 120)
+        : !checkUserRateLimit(user.id, "orders.bulk", 20);
+      if (limited) return json({ error: "Rate limit exceeded — try again in a minute" }, 429);
+
+      let actorName: string | null = null;
+      if (!args.dry_run) {
+        const { data: me } = await adminClient.from("profiles").select("full_name").eq("user_id", user.id).maybeSingle();
+        actorName = me?.full_name || user.email || "Admin";
+      }
+
+      const { data, error } = await adminClient.rpc("assigner_distribute", ASG.distributeRpcArgs(args, actorName));
+      if (error) {
+        const e = ASG.distributeRpcError(error);
+        return json({ error: e ? e.error : sanitizeDbError(error) }, 400);
+      }
+      const out = ASG.shapeDistribute(data);
+
+      if (!args.dry_run) {
+        await audit(adminClient, user.id, user.email, "assigner.distribute", ASG.distributeAudit(args, data));
+        for (const n of ASG.distributeNotifications(args.kind, out.per_agent, user.id)) {
+          await notifyUsers(adminClient, [n.agent_id], n.notification);
+        }
+        if (out.assigned > 0) {
+          const receivers = out.per_agent.filter((p) => p.count > 0);
+          broadcastAssigner(receivers.length === 1 ? { agent_id: receivers[0].agent_id } : {});
+        }
+      }
+      return json(out);
     }
 
     // ── Assigner: cross-list assignment overview + mass unassign ──
@@ -16399,6 +16577,7 @@ async function handleRequest(req: Request): Promise<Response> {
         },
       });
 
+      broadcastAssigner(agentId !== "all" ? { agent_id: agentId } : {});
       return json({
         unassigned: count ?? 0,
         pendings_unassigned: pendingsUnassigned,
