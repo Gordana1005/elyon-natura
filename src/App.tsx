@@ -130,6 +130,7 @@ const App = () => (
                 <Route path="/call-history" element={<ProtectedRoute moduleKey="call_history"><CallHistoryPage /></ProtectedRoute>} />
                 <Route path="/warehouse" element={<ProtectedRoute moduleKey="warehouse"><WarehousePage /></ProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute moduleKey="settings"><SettingsPage /></ProtectedRoute>} />
+                <Route path="/settings/:section" element={<ProtectedRoute moduleKey="settings"><SettingsPage /></ProtectedRoute>} />
                 <Route path="/voip-health" element={<ProtectedRoute moduleKey="voip_health"><VoipHealthPage /></ProtectedRoute>} />
                 <Route path="/ads" element={<Navigate to="/webhooks" replace />} />
                 <Route path="/inbound-leads" element={<ProtectedRoute moduleKey="inbound_leads"><InboundLeadsPage /></ProtectedRoute>} />

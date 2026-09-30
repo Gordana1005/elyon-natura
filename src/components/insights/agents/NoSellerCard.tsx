@@ -149,7 +149,7 @@ export const NoSellerCard = forwardRef<HTMLElement, { data: PeopleResponse; mone
                 <h3 className="text-sm font-semibold">{t('insights.agents.noSeller.handles.title')}</h3>
                 <p className="text-[11px] text-muted-foreground">
                   {t('insights.agents.noSeller.handles.hint')}{' '}
-                  <Link to="/settings" className="font-medium text-primary underline-offset-2 hover:underline">{t('insights.agents.noSeller.handles.settings')}</Link>
+                  <Link to="/settings/teams" className="font-medium text-primary underline-offset-2 hover:underline">{t('insights.agents.noSeller.handles.settings')}</Link>
                 </p>
                 {ns.handles.length > 0 && (
                   <ol className="mt-2 space-y-1 text-[13px]">

@@ -2424,6 +2424,332 @@
     "osmAttribution": "Të dhënat e rrugëve © OpenStreetMap contributors",
     "unroutableCity": "MEX nuk ka zonë dërgese për këtë vend. Zgjidhni qytetin më të afërt, përndryshe porosia nuk mund të dërgohet."
   },
+  "settingsPage": {
+    "navLabel": "Seksionet e cilësimeve",
+    "back": "Cilësimet",
+    "pick": "Zgjidhni një seksion",
+    "pickDesc": "Zgjidhni një seksion nga lista në të majtë.",
+    "noAccess": "Jo për rolin tuaj",
+    "noAccessDesc": "Ky seksion është vetëm për pronarët ose administratorët.",
+    "undo": "Kthe",
+    "undone": "Ndryshimi u kthye",
+    "group": {
+      "people": "Njerëzit dhe qasja",
+      "rules": "Rregullat",
+      "system": "Sistemi",
+      "advanced": "Të avancuara",
+      "personal": "Personale"
+    },
+    "section": {
+      "users": {
+        "label": "Përdoruesit",
+        "desc": "Llogaritë, rolet dhe fjalëkalimet — në faqen Përdoruesit"
+      },
+      "teams": {
+        "label": "Ekipet",
+        "desc": "Kush punon në cilin ekip dhe shitësit e palidhur"
+      },
+      "access": {
+        "label": "Qasja sipas rolit",
+        "desc": "Modulet, çfarë mund të hapë dhe ndryshojë çdo rol, të dhënat e klientëve"
+      },
+      "money": {
+        "label": "Kush i sheh paratë",
+        "desc": "Çdo administrator aktiv dhe lista e pronarëve"
+      },
+      "rules": {
+        "label": "Rregullat",
+        "desc": "Kufij, kujtesa dhe çelësa që veprojnë çdo ditë"
+      },
+      "integrations": {
+        "label": "Integrimet",
+        "desc": "AlterCPA, MEX, collabBox, dyqani online — a është gjallë çdo burim"
+      },
+      "tv": {
+        "label": "Tabela në TV",
+        "desc": "Lidhjet për televizorët e zyrës dhe çelësat e tyre"
+      },
+      "courier": {
+        "label": "Korrieri MEX",
+        "desc": "Sa na kushton një dërgesë dhe një kthim"
+      },
+      "partners": {
+        "label": "Partnerët",
+        "desc": "Partnerët affiliate dhe pagesat e tyre"
+      },
+      "warehouse": {
+        "label": "Depoja → dërgimi në MEX",
+        "desc": "Dërgimi i paketave në MEX dhe pragjet e stokut"
+      },
+      "telephony": {
+        "label": "Telefonia",
+        "desc": "Numrat e brendshëm, numri i thirrësit dhe paketa e minutave"
+      },
+      "engine": {
+        "label": "Motori i parashikimit",
+        "desc": "Si ndahen klientët në listat e parashikimit"
+      },
+      "personal": {
+        "label": "Personale",
+        "desc": "Gjuha dhe tema juaj"
+      }
+    },
+    "badge": {
+      "feedsOk": "të gjitha burimet OK",
+      "feedsIssues_one": "{{count}} problem",
+      "feedsIssues_other": "{{count}} probleme",
+      "allLinked": "të gjithë të lidhur",
+      "unmapped_one": "{{count}} i palidhur",
+      "unmapped_other": "{{count}} të palidhur",
+      "usersActive_one": "{{count}} aktiv",
+      "usersActive_other": "{{count}} aktivë",
+      "modulesAllOn": "të gjitha modulet të ndezura",
+      "modulesOff_one": "{{count}} modul i fikur",
+      "modulesOff_other": "{{count}} module të fikura",
+      "seeMoney_one": "{{count}} person i sheh paratë",
+      "seeMoney_other": "{{count}} persona i shohin paratë",
+      "readOnly": "vetëm për lexim",
+      "noTvLink": "pa lidhje TV",
+      "tvLinks_one": "{{count}} çelës aktiv",
+      "tvLinks_other": "{{count}} çelësa aktivë",
+      "courier": "MEX {{den}} ден për dërgesë",
+      "partnersEur": "pagesa në EUR"
+    },
+    "err": {
+      "admins_only": "Vetëm një administrator mund ta ndryshojë këtë.",
+      "owners_only": "Vetëm një pronar mund ta ndryshojë këtë.",
+      "invalid_body": "Kërkesa nuk u kuptua — rifreskoni faqen dhe provoni përsëri.",
+      "invalid_module": "Modul i panjohur.",
+      "invalid_value": "Kjo vlerë nuk lejohet.",
+      "invalid_flag": "Kjo leje nuk ndryshohet këtu.",
+      "invalid_courier": "Korrier ose shërbim i panjohur.",
+      "unknown_module": "Ky modul nuk ekziston më.",
+      "unknown_role": "Ky rol nuk ka rresht privatësie.",
+      "protected_module": "Ky modul është i mbrojtur — pa të askush nuk do të mund ta ndizte përsëri.",
+      "dead_module": "Faqja e këtij moduli nuk ekziston më.",
+      "role_not_editable": "Ky rol nuk ndryshohet këtu."
+    },
+    "users": {
+      "title": "Përdoruesit",
+      "desc": "Llogaritë, rolet, fjalëkalimet dhe pezullimet menaxhohen në faqen Përdoruesit.",
+      "active": "Aktivë",
+      "suspended": "Të pezulluar",
+      "admins": "Administratorë",
+      "managers": "Menaxherë (jo administratorë)",
+      "open": "Hap Përdoruesit",
+      "hint": "Kur dikush bëhet administrator, fillon të shohë edhe paratë — faqja pyet më parë."
+    },
+    "access": {
+      "title": "Qasja sipas rolit",
+      "desc": "Çfarë mund të hapë dhe të ndryshojë çdo rol. Administratori ka gjithmonë gjithçka. Çdo ndryshim ruhet menjëherë dhe shënohet në regjistrin e auditimit.",
+      "modulesTitle": "Modulet — për të gjithë",
+      "modulesDesc": "Një modul i fikur zhduket nga menyja për TË GJITHË, edhe për administratorët. Fikja pyet më parë dhe mund të kthehet brenda 10 sekondave.",
+      "allOn": "Të gjitha modulet janë të ndezura.",
+      "someOff_one": "{{count}} modul është i fikur.",
+      "someOff_other": "{{count}} module janë të fikura.",
+      "protected": "i mbrojtur",
+      "moduleIsOff": "i fikur",
+      "offConfirmTitle": "Të fiket „{{module}}“?",
+      "offConfirmBody": "Do të zhduket nga menyja për të gjithë — edhe për administratorët — derisa dikush ta ndezë përsëri këtu. Mund ta ktheni brenda 10 sekondave.",
+      "offConfirm": "Fik",
+      "moduleOn": "„{{module}}“ është i ndezur",
+      "moduleOff": "„{{module}}“ është i fikur",
+      "pickRole": "Roli",
+      "adminNote": "Administratori nuk është në listë: ai ka gjithmonë të gjitha modulet dhe sheh të gjitha të dhënat e klientëve.",
+      "rolesTitle": "Çfarë mund të hapë dhe ndryshojë {{role}}",
+      "rolesDesc": "Shikon = faqja është në meny dhe hapet. Ndryshon = lejohen ndryshimet aty ku faqja i ofron. Ndryshon ndez edhe Shikon.",
+      "view": "Shikon",
+      "edit": "Ndryshon",
+      "permSaved": "{{role}} · {{module}}: u ruajt",
+      "privacyTitle": "Të dhënat e klientëve që sheh {{role}}",
+      "privacyDesc": "Fikur = e fshehur ose e shkurtuar për këtë rol, në çdo faqe dhe në çdo eksport (e zbaton serveri).",
+      "privacySaved": "{{role}} · {{flag}}: u ruajt",
+      "auditNote": "Çdo ndryshim shënohet në regjistrin e auditimit: kush, kur dhe vlera para dhe pas."
+    },
+    "money": {
+      "title": "Kush i sheh paratë",
+      "desc": "Shifrat e parave dhe skedat me para i shohin vetëm pronarët: çdo administrator aktiv automatikisht, plus njerëzit në listën e pronarëve. Menaxherët nuk i shohin paratë, përveç nëse janë në listë.",
+      "adminsTitle_one": "Administratorët — i shohin paratë automatikisht ({{count}})",
+      "adminsTitle_other": "Administratorët — i shohin paratë automatikisht ({{count}})",
+      "adminsDesc": "Çdo administrator aktiv i sheh të gjitha paratë. Kush pushon së qeni administrator, pushon edhe së pari paratë — përveç nëse është në listën më poshtë.",
+      "listTitle": "Lista e pronarëve",
+      "listDesc": "Me listën paratë i sheh edhe dikush që nuk është administrator (p.sh. një menaxher). Lista dhe administratorët marrin edhe njoftimet për pronarët, p.sh. për 30 minuta pasivitet.",
+      "addLabel": "Shtoni dikë që nuk është administrator",
+      "addButton": "Shto në listë",
+      "noCandidates": "Të gjithë aktivët që nuk janë administratorë janë tashmë në listë",
+      "listEmpty": "Askush — paratë i shohin vetëm administratorët.",
+      "alsoAdmin": "admin",
+      "addedLine": "Shtuar më {{when}} nga {{who}}",
+      "addedToast": "{{name}} tani i sheh paratë",
+      "removedToast": "{{name}} u hoq nga lista e pronarëve",
+      "removeTitle": "Të hiqet {{name}} nga lista?",
+      "removeDesc": "{{name}} pushon menjëherë së pari paratë (nuk është administrator).",
+      "removeAdminDesc": "{{name}} është administrator dhe vazhdon t’i shohë paratë; hiqet vetëm rreshti në listë.",
+      "removeSelfDesc": "Pushoni menjëherë së pari paratë dhe vetëm një pronar mund t’ju shtojë përsëri.",
+      "managersNote": "Menaxherët nuk i shohin paratë, përveç nëse janë në këtë listë."
+    },
+    "rules": {
+      "title": "Rregullat",
+      "desc": "Rregullat që veprojnë çdo ditë: çfarë bën secili, ku vepron, sa është tani dhe kush e ndryshoi i fundit.",
+      "readOnlyNote": "Këto rregulla i ndryshojnë vetëm administratorët; ju i shihni vetëm për lexim.",
+      "what": "Çfarë bën",
+      "where": "Ku vepron",
+      "value": "Tani",
+      "on": "Ndezur",
+      "off": "Fikur",
+      "fixedHere": "këtu vetëm për lexim",
+      "lastChanged": "Ndryshimi i fundit {{when}} · {{who}}",
+      "lastChangedNoWho": "Ndryshimi i fundit {{when}}",
+      "neverChanged": "Vlera fillestare — nuk është ndryshuar kurrë",
+      "personalCap": {
+        "title": "Lista personale — kufiri për agjent",
+        "what": "Sa klientë mund të mbajë një agjent njëkohësisht në Listën e tij personale.",
+        "where": "/personal-list dhe butoni „mbaj“ në /calls",
+        "value_one": "{{count}} klient",
+        "value_other": "{{count}} klientë"
+      },
+      "unpaidChase": {
+        "title": "Dërgesë e papaguar — kujtesë",
+        "what": "Një dërgesë e nisur por ende e papaguar i kujton agjentit që e shiti ta telefonojë klientin.",
+        "where": "Zilja (njoftimet), çdo natë",
+        "value": "nga dita {{days}} deri në ditën {{stop}} pas nisjes"
+      },
+      "cpaPush": {
+        "title": "Dërgimi në AlterCPA",
+        "what": "Butoni që e kthen vendimin e agjentit në panelin e AlterCPA. Fikur = butoni nuk shfaqet dhe çdo dërgim refuzohet.",
+        "where": "/orders (një porosi dhe dërgimi masiv „Dërgo në CPA“)"
+      },
+      "noParcel": {
+        "title": "Rregulli pa dërgesë ({{days}} ditë)",
+        "what": "Një miratim AlterCPA pa dërgesë MEX pas {{days}} ditësh anulohet; një dërgesë që shfaqet më vonë e kthen porosinë.",
+        "where": "Çdo mbrëmje, në porositë AlterCPA",
+        "value": "{{days}} ditë · {{mode}} · çdo mbrëmje në {{time}}",
+        "manage": "Ndryshohet te Integrimet"
+      },
+      "idle": {
+        "title": "Njoftim për pasivitet",
+        "what": {
+          "agents": "Një agjent me CRM të hapur dhe pa punë për {{minutes}} minuta merr njoftim, dhe po ashtu marrësit.",
+          "all": "Kushdo me CRM të hapur dhe pa punë për {{minutes}} minuta merr njoftim, dhe po ashtu marrësit."
+        },
+        "where": "Zilja (njoftimet), gjatë orarit të punës",
+        "value": "{{minutes}} min · {{from}}–{{to}} h · te {{recipients}}",
+        "recipients": {
+          "owners": "pronarët",
+          "admins": "administratorët",
+          "person": "persona të zgjedhur"
+        }
+      },
+      "shifts": {
+        "title": "Turnet po mbarojnë",
+        "what": "Kur një agjent nuk ka turn në {{days}} ditët e ardhshme, administratorët dhe menaxherët paralajmërohen — pa turn agjenti nuk mund të hyjë.",
+        "where": "Zilja (njoftimet) e administratorëve dhe menaxherëve",
+        "value": "{{days}} ditë përpara · çdo ditë në {{time}}"
+      }
+    },
+    "tv": {
+      "title": "Tabela në TV",
+      "desc": "Televizorët e zyrës e shfaqin tabelën e ditës pa hyrje, përmes një lidhjeje me çelës. Këtu janë lidhjet — për gjithë firmën, sipas departamentit dhe sipas ekipit.",
+      "tokensTitle": "Çelësat e qasjes",
+      "tokensDesc": "Çdo lidhje mbart një çelës. „Zëvendëso të gjitha“ krijon një çelës të ri dhe i fik të gjithë të vjetrit; „Tërhiq“ fik një.",
+      "noToken": "Ende nuk ka çelës aktiv — krijoni një për të marrë lidhjet.",
+      "createdOn": "krijuar më {{date}}",
+      "create": "Çelës i ri",
+      "rotate": "Zëvendëso të gjitha",
+      "revoke": "Tërhiq",
+      "rotateTitle": "Të zëvendësohet çelësi i TV?",
+      "rotateBody_one": "{{count}} çelës aktiv ndalon së punuari menjëherë: çdo televizor në lidhjen e vjetër mbetet bosh derisa të marrë një lidhje të re.",
+      "rotateBody_other": "{{count}} çelësa aktivë ndalojnë së punuari menjëherë: çdo televizor në një lidhje të vjetër mbetet bosh derisa të marrë një lidhje të re.",
+      "rotateConfirm": "Zëvendëso",
+      "revokeTitle": "Të tërhiqet ky çelës?",
+      "revokeBody": "Çdo televizor që e përdor këtë çelës mbetet bosh derisa të marrë një lidhje të re.",
+      "revokeConfirm": "Tërhiq",
+      "done": {
+        "create": "U krijua një çelës i ri",
+        "rotate": "Çelësi u zëvendësua — dërgojuni televizorëve lidhjet e reja",
+        "revoke": "Çelësi u tërhoq"
+      },
+      "linksTitle": "Lidhjet",
+      "linksDesc": "Kopjoni një lidhje dhe hapeni në televizor. Gjuha është e shënuar në lidhje.",
+      "lang": "Gjuha e TV",
+      "token": "Çelësi",
+      "all": "Gjithë firma",
+      "byDept": "Sipas departamentit",
+      "byTeam": "Sipas ekipit",
+      "copy": "Kopjo",
+      "copied": "Lidhja u kopjua",
+      "open": "Hap",
+      "bonusDeferred": "Pragjet e bonusit dhe lista ditore janë të fshehura: bonusi është shtyrë nga pronari dhe tabela në TV nuk i lexon."
+    },
+    "courier": {
+      "title": "Korrieri MEX",
+      "desc": "Sa na kushton një dërgesë MEX: këto shuma janë kostot e dërgimit dhe të kthimit në Pure Profit. Një porosi pa korrier llogaritet si MEX.",
+      "cardTitle": "MEX Poshta — për dërgesë (ден)",
+      "cardDesc": "Çdo paketë është nën 1 kg, prandaj një çmim për shërbim. Kthimi: sa na kushton një dërgesë e padorëzuar në rrugën e kthimit.",
+      "save": "Ruaj",
+      "confirmTitle": "Të ruhen çmimet e MEX?",
+      "confirmBody": "Pure Profit përdor shumat e reja për çdo periudhë që hapni, edhe për ato të kaluara.",
+      "confirmRow": "{{row}}: dërgimi {{deliver}} ден, kthimi {{ret}} ден",
+      "confirm": "Ruaj",
+      "saved": "Çmimet e MEX u ruajtën",
+      "hiddenNote": "Rreshtat bullgarë Econt dhe Speedy ruhen për raportet e vjetra, por nuk shfaqen."
+    },
+    "partners": {
+      "title": "Partnerët",
+      "desc": "Partnerët affiliate (webmaster-at), ofertat dhe pagesat e tyre menaxhohen në faqen Partnerët. Nuk është në meny, por hapet nga këtu.",
+      "eurRule": "Pagesa e partnerëve mbetet në EUR: është borxh ndaj një webmaster-i të huaj që faturon në euro. Çdo shumë tjetër në CRM është në denarë.",
+      "open": "Hap Partnerët"
+    },
+    "warehouse": {
+      "title": "Depoja → dërgimi në MEX",
+      "desc": "Dërgimi i paketave në MEX dhe cilësimet e stokut tani janë te Depoja.",
+      "mexPush": "Çelësi për dërgimin e paketave direkt në MEX është te Depoja.",
+      "thresholds": "Pragjet e stokut të ulët u zhvendosën te Depoja → Stoku.",
+      "open": "Hap Depon"
+    },
+    "personal": {
+      "title": "Personale",
+      "desc": "Vetëm për ju: gjuha e llogarisë suaj dhe tema e kësaj pajisjeje. Njësoj si butonat në shiritin e sipërm.",
+      "themeDesc": "E çelët ose e errët — ruhet në këtë pajisje."
+    },
+    "engine": {
+      "recomputeTitle": "Të rillogariten listat e parashikimit tani?",
+      "recomputeBody": "Zgjat rreth një minutë dhe i zhvendos menjëherë klientët midis listave të parashikimit, njësoj si rillogaritja e natës në {{time}}.",
+      "recomputeWarn": "Mos e nisni gjatë një ndryshimi masiv (caktim masiv, import) — prisni të mbarojë.",
+      "recomputeConfirm": "Rillogarit tani"
+    },
+    "adminGrant": {
+      "title": "Të bëhet {{name}} administrator?",
+      "body": "Admin = i sheh paratë. Çdo administrator aktiv i sheh të gjitha shifrat dhe skedat me para (Përmbledhja, Shitjet, Pure Profit…) dhe mund të ndryshojë gjithçka te Cilësimet.",
+      "confirm": "Bëje administrator"
+    },
+    "module": {
+      "affiliate_portal": "Portali i partnerëve",
+      "affiliates_admin": "Partnerët (admin)",
+      "agent_activity": "Aktiviteti i agjentëve",
+      "altercpa_bridge": "AlterCPA",
+      "assigner": "Caktuesi",
+      "call_activity": "Aktiviteti i thirrjeve (Vështrime)",
+      "call_history": "Historiku i thirrjeve",
+      "call_scripts": "Skriptet e thirrjeve",
+      "dashboard": "Paneli",
+      "inbound_leads": "Lead-et hyrëse",
+      "insights": "Vështrime",
+      "lead_distribution": "Shpërndarja e lead-eve",
+      "my_shifts": "Turnet e mia",
+      "operations": "Operacionet",
+      "orders": "Porositë",
+      "performance": "Performanca e agjentëve",
+      "products": "Produktet",
+      "settings": "Cilësimet",
+      "shifts": "Turnet",
+      "users": "Përdoruesit",
+      "voip_health": "Gjendja e telefonisë",
+      "warehouse": "Depoja",
+      "warehouse_incoming": "Depoja — hyrëse",
+      "webhooks": "Webhooks"
+    }
+  },
   "settings": {
     "teams": {
       "tab": "Ekipet",
@@ -5722,7 +6048,7 @@
     "saved": "Konfigurimi u ruajt (v{{v}}). Pamja paraprake (hije) u përditësua.",
     "loadFailed": "Konfigurimi i motorit nuk u ngarkua dot.",
     "modeShadowTitle": "Modaliteti i pamjes paraprake (hije) — listat aktive nuk ndryshojnë",
-    "modeShadowDesc": "Motori aktual (v3.4) ende ushqen çdo listë telefonatash. Ruajtja këtu vetëm rindërton një pamje paraprake (hije) paralele, që të shihni saktësisht çfarë do të ndryshonte para se ta aktivizoni.",
+    "modeShadowDesc": "Motori aktiv ({{engine}}) ende ushqen çdo listë telefonatash dhe i rillogarit çdo natë në {{time}}. Ruajtja këtu vetëm rindërton një pamje paraprake (hije) paralele, që të shihni saktësisht çfarë do të ndryshonte para se ta aktivizoni.",
     "modeLiveTitle": "Modaliteti aktiv — ndryshimet prekin atë që telefonojnë agjentët",
     "modeLiveDesc": "Motori i bazuar në konfigurim është aktiv. Ruajtja riklasifikon çdo klient menjëherë.",
     "versionBadge": "Konfigurim v{{v}} · motori aktiv: {{e}}",
@@ -5766,14 +6092,14 @@
     "static": "statike",
     "inactive": "joaktive",
     "controlsTitle": "Kontrollet",
-    "controlsDesc": "Rillogarit sipas kërkesës në vend që të prisni ekzekutimin e natës në 03:00, dhe ndal/nis motorin e ri të pamjes kurdo që dëshironi. Ndalimi i pamjes kurrë nuk prek listat aktive.",
+    "controlsDesc": "Rillogarit sipas kërkesës në vend që të prisni ekzekutimin e natës në {{time}}, dhe ndal/nis motorin e ri të pamjes kurdo që dëshironi. Ndalimi i pamjes kurrë nuk prek listat aktive.",
     "recomputeLive": "Rillogarit listat aktive tani",
     "recomputePreview": "Rindërto pamjen tani",
     "shadowSwitch": "Motori i pamjes (hije)",
     "shadowSwitchDesc": "Ekzekuton motorin e ri çdo natë në një pamje paralele. Fikeni për të ndalur të gjithë punën e sfondit të motorit të ri — listat tuaja aktive vazhdojnë të punojnë të paprekura.",
     "liveCron": "Nata aktive: {{s}}",
     "shadowCron": "Nata e pamjes: {{s}}",
-    "shadowOn": "Motori i pamjes u nis (natën në 03:30).",
+    "shadowOn": "Motori i pamjes u nis (çdo natë në {{time}}).",
     "shadowOff": "Motori i pamjes u ndal. Listat aktive vazhdojnë të punojnë.",
     "recomputedLive": "Listat aktive u rillogaritën ({{n}} klientë).",
     "recomputedPreview": "Pamja u rindërtua.",
@@ -6350,7 +6676,7 @@
     "errAlreadyOwner": "Ky person është tashmë pronar.",
     "errNotActiveStaff": "Vetëm një llogari aktive e punonjësit mund të bëhet pronar.",
     "errNotAnOwner": "Ky person nuk është pronar.",
-    "errLastOwner": "Pronari i fundit nuk mund të hiqet — shtoni së pari një pronar tjetër."
+    "errLastOwner": "Atëherë askush nuk do t’i shihte paratë — shtoni së pari një pronar ose administrator tjetër."
   },
   "teamLines": {
     "lane": {

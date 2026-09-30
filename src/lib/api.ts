@@ -1447,6 +1447,26 @@ export const apiGetAppSettings = (): Promise<AppSettings> => apiFetch('app-setti
 export const apiUpdateAppSettings = (patch: Partial<AppSettings>): Promise<{ success: true }> =>
   apiFetch('app-settings', { method: 'PATCH', body: JSON.stringify(patch) });
 
+// ── Settings → Пристап по улога / Правила (Phase 10, 2026-10-01) ─────────────
+// Admins only, one audit_log row per change (supabase/functions/api/settingsAccess.ts).
+// Error bodies are codes, translated through settingsPage.err.*:
+// admins_only · invalid_body · invalid_module · invalid_value · invalid_flag · unknown_module ·
+// unknown_role · protected_module · dead_module · role_not_editable.
+export interface SettingsMetaEntry { at: string | null; by: string | null; by_name: string | null }
+export interface SettingsMeta {
+  app_settings: Record<string, SettingsMetaEntry>;
+  audit: Record<string, SettingsMetaEntry & { target: string | null }>;
+}
+export const apiGetSettingsMeta = (): Promise<SettingsMeta> => apiFetch('settings/meta');
+export const apiSetModuleEnabled = (module_key: string, is_enabled: boolean): Promise<{ ok: true; unchanged?: boolean }> =>
+  apiFetch('settings/modules', { method: 'PUT', body: JSON.stringify({ module_key, is_enabled }) });
+export const apiSetRolePermission = (
+  role: string, module_key: string, patch: { can_view?: boolean; can_edit?: boolean },
+): Promise<{ ok: true; permission: { can_view: boolean; can_edit: boolean } }> =>
+  apiFetch('settings/role-permissions', { method: 'PUT', body: JSON.stringify({ role, module_key, ...patch }) });
+export const apiSetRolePrivacy = (role: string, flag: string, value: boolean): Promise<{ ok: true; unchanged?: boolean }> =>
+  apiFetch('settings/privacy', { method: 'PUT', body: JSON.stringify({ role, flag, value }) });
+
 // Product of the Day — operator-authored promo shown to agents on /calls.
 // Display-only: no order is ever stamped and no payout is ever affected.
 export interface PromoConfig {
@@ -2608,7 +2628,8 @@ export const apiGetNoParcelReport = (runId?: string): Promise<{ run: HealthNoPar
 // Courier rate card (logistics cost per courier+service — editable in Settings)
 export interface CourierRate {
   id?: string;
-  courier: 'speedy' | 'econt';
+  /** MEX is the carrier; econt / speedy are Bulgarian history the reports still price. */
+  courier: 'mex' | 'speedy' | 'econt';
   service: 'door' | 'office';
   deliver_cost: number;
   return_cost: number;

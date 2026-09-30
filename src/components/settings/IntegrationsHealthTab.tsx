@@ -80,7 +80,7 @@ export function IntegrationsHealthTab() {
           </h2>
           <p className="text-sm text-muted-foreground max-w-3xl">{t('settings.integrations.desc')}</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {h && (
             issues === 0 ? (
               <span className={cn('inline-flex items-center gap-1.5 text-sm font-medium', STATUS.ok.tone)}>
@@ -111,7 +111,7 @@ export function IntegrationsHealthTab() {
         </div>
       ) : h ? (
         <>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {h.feeds.map((f) => <FeedCard key={f.key} feed={f} now={now} />)}
             {h.no_parcel && <NoParcelCard np={h.no_parcel} now={now} />}
           </div>
@@ -241,7 +241,7 @@ function FeedCard({ feed, now }: { feed: HealthFeed; now: number }) {
   const isCb = feed.key === 'collabbox';
   const rowKeys = Object.keys(feed.rows ?? {});
   return (
-    <section className={cn('space-y-3 rounded-xl border bg-card p-4 shadow-sm', s.border)} aria-label={t(`settings.integrations.feed.${feed.key}`)}>
+    <section className={cn('min-w-0 space-y-3 rounded-xl border bg-card p-4 shadow-sm', s.border)} aria-label={t(`settings.integrations.feed.${feed.key}`)}>
       <header className="space-y-0.5">
         <div className="flex items-center justify-between gap-2">
           <h3 className="font-semibold">{t(`settings.integrations.feed.${feed.key}`)}</h3>
@@ -362,7 +362,7 @@ function NoParcelCard({ np, now }: { np: HealthNoParcel; now: number }) {
   const preview = previewQ.data;
 
   return (
-    <section className={cn('space-y-3 rounded-xl border bg-card p-4 shadow-sm', s.border)} aria-label={t('settings.integrations.feed.no_parcel_rule', { days })}>
+    <section className={cn('min-w-0 space-y-3 rounded-xl border bg-card p-4 shadow-sm', s.border)} aria-label={t('settings.integrations.feed.no_parcel_rule', { days })}>
       <header className="space-y-0.5">
         <div className="flex items-center justify-between gap-2">
           <h3 className="font-semibold">{t('settings.integrations.feed.no_parcel_rule', { days })}</h3>
@@ -376,7 +376,7 @@ function NoParcelCard({ np, now }: { np: HealthNoParcel; now: number }) {
           <span className="text-muted-foreground">{t('settings.integrations.np.mode')}</span>
           <Badge variant={np.mode === 'apply' ? 'destructive' : 'secondary'}>{modeWord(np.mode)}</Badge>
         </div>
-        <label className="flex items-center gap-2 text-sm">
+        <label className="flex min-h-9 items-center gap-2 text-sm">
           {t('settings.integrations.np.switchLabel')}
           <Switch
             checked={np.mode === 'apply'}
@@ -412,12 +412,12 @@ function NoParcelCard({ np, now }: { np: HealthNoParcel; now: number }) {
       )}
 
       <div className="flex flex-wrap gap-2">
-        <Button asChild variant="outline" size="sm" className="h-8">
+        <Button asChild variant="outline" size="sm" className="h-auto min-h-9 max-w-full whitespace-normal text-left">
           <Link to={ordersLink}>
             <ExternalLink className="h-3.5 w-3.5 mr-1" /> {t('settings.integrations.np.openOrders')}
           </Link>
         </Button>
-        <Button variant="outline" size="sm" className="h-8" onClick={download} disabled={downloading || !run}>
+        <Button variant="outline" size="sm" className="h-auto min-h-9 max-w-full whitespace-normal text-left" onClick={download} disabled={downloading || !run}>
           {downloading ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Download className="h-3.5 w-3.5 mr-1" />}
           {t('settings.integrations.np.download')}
         </Button>
@@ -478,7 +478,40 @@ function CronTable({ jobs, now }: { jobs: HealthCronJob[]; now: number }) {
         <h3 className="text-sm font-semibold">{t('settings.integrations.cron.title')}</h3>
         <p className="text-xs text-muted-foreground">{t('settings.integrations.cron.desc')}</p>
       </header>
-      <div className="overflow-x-auto">
+      {/* Below xl (a phone, and the narrow right pane of Поставки) one card per job — never a sideways table. */}
+      <ul className="divide-y xl:hidden">
+        {jobs.map((j) => (
+          <li key={j.jobid} className={cn('space-y-1.5 px-4 py-3', !j.active && 'opacity-60')}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="min-w-0 break-all font-mono text-xs">
+                {j.jobname}
+                {!j.active && <Badge variant="secondary" className="ml-1.5 h-5 px-1.5 text-[10px]">{t('settings.integrations.cron.paused')}</Badge>}
+              </span>
+              <StatusChip status={j.status} small />
+            </div>
+            <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+              <span className="font-mono">{j.schedule}</span>
+              <span>
+                {t('settings.integrations.cron.lastRun')}:{' '}
+                {j.last_start ? <When iso={j.last_start} now={now} /> : t('settings.integrations.cron.noRuns')}
+              </span>
+              <span className={cn('tabular-nums', j.failed_24h > 0 && 'text-red-700 dark:text-red-400')}>
+                {t('settings.integrations.cron.runs24')}: {t('settings.integrations.runs24Value', { runs: j.runs_24h, failed: j.failed_24h })}
+              </span>
+            </div>
+            <MiniStrip days={j.days} />
+            {j.last_error && (
+              <div>
+                <button type="button" className="min-h-9 text-left text-[11px] text-red-700 underline underline-offset-2 dark:text-red-400" onClick={() => setOpenErr(openErr === j.jobid ? null : j.jobid)}>
+                  {t('settings.integrations.lastError')} · {skopjeDateTime(j.last_error_at)}
+                </button>
+                {openErr === j.jobid && <p className="whitespace-pre-wrap break-words font-mono text-[11px] text-red-700 dark:text-red-400">{j.last_error}</p>}
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+      <div className="hidden overflow-x-auto xl:block">
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
             <tr>
