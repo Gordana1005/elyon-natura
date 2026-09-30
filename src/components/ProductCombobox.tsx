@@ -66,9 +66,11 @@ export function ProductCombobox({ products, value, productName, onChange, disabl
           role="combobox"
           aria-expanded={open}
           disabled={disabled}
-          className={cn('h-9 w-full justify-between font-normal', !displayName && 'text-muted-foreground', className)}
+          // min-w-0: a long product name must never push the row's delete button out
+          // of a 360 px phone; the name wraps (two lines) instead of being clipped.
+          className={cn('h-auto min-h-9 w-full min-w-0 justify-between py-1.5 font-normal', !displayName && 'text-muted-foreground', className)}
         >
-          <span className="min-w-0 flex-1 truncate text-left">{displayName || t('orderModal.chooseProduct')}</span>
+          <span className="line-clamp-2 min-w-0 flex-1 whitespace-normal break-words text-left">{displayName || t('orderModal.chooseProduct')}</span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>

@@ -54,7 +54,7 @@ import {
   AlterCpaOrder, PHASE, REASON, STATUS_LABEL,
   CRM_STATUS_RANK, CRM_TERMINAL, resolveRemoteOutcome, forwardOutcome, insertStatusFor,
   outcomeColumns, cancelOtherConfirmedNote, guardedOutcomeNote,
-  fetchByIds, fetchWindow, isTestOrder, normalizeMkGeo, normalizePhoneForGeo,
+  fetchByIds, fetchWindow, isTestOrder, normalizePhoneForGeo,
   productNameOf, quantityOf, toEur,
 } from "./altercpa.ts";
 import {
@@ -645,42 +645,35 @@ function cpaAttribution(row: Record<string, any>, o: AlterCpaOrder) {
   };
 }
 
-/** Settlement → MEX zone, same join the api uses on POST /orders. Cached
- *  per isolate: a rolling run creates a handful of orders, not thousands. */
-let mexZoneByNorm: Map<string, { id: number; name: string | null }> | null = null;
-async function loadMexZones(admin: SupabaseClient) {
-  if (mexZoneByNorm) return mexZoneByNorm;
-  const map = new Map<string, { id: number; name: string | null }>();
-  for (let from = 0; ; from += 1000) {
-    const { data, error } = await admin.from("mk_settlements")
-      .select("name_norm, kind, mex_city_id, mex_cities(city_name)")
-      .not("mex_city_id", "is", null)
-      .order("kind", { ascending: true })
-      .range(from, from + 999);
-    if (error) throw new Error(`mex zones: ${error.message}`);
-    for (const row of data || []) {
-      const norm = String(row.name_norm || "");
-      if (!norm || map.has(norm)) continue;
-      const zone = (row as { mex_cities?: { city_name?: string } }).mex_cities;
-      map.set(norm, { id: row.mex_city_id as number, name: zone?.city_name ?? null });
-    }
-    if (!data || data.length < 1000) break;
-  }
-  mexZoneByNorm = map;
-  return map;
-}
-
+/**
+ * City text → MEX zone through the ONE SQL resolver the api uses
+ * (public.mex_zone_for_name, migration 20260943000600): deterministic, never the
+ * С of Скопје, a same-named village elsewhere never wins over the city, and a
+ * name that routes to several zones routes nowhere (the export holds it back —
+ * MEX has no cancellation endpoint). Replaced a per-isolate name map whose first
+ * row per name won. Never throws: a lead must land even without a zone.
+ */
+interface MexZone { id: number | null; name: string | null; settlementId: string | null; basis: string | null }
 async function resolveMexCity(
   admin: SupabaseClient,
   cityRaw: string | null | undefined,
-): Promise<{ id: number | null; name: string | null }> {
+): Promise<MexZone> {
+  const none: MexZone = { id: null, name: null, settlementId: null, basis: null };
   const city = String(cityRaw || "").trim();
-  if (!city) return { id: null, name: null };
-  const base = city.split(",")[0].replace(/^\s*(?:гр\.|с\.|село\s+|град\s+)/i, "").trim();
-  const key = normalizeMkGeo(base);
-  if (key.length < 2) return { id: null, name: null };
-  const zone = (await loadMexZones(admin)).get(key);
-  return zone ? { id: zone.id, name: zone.name } : { id: null, name: null };
+  if (!city) return none;
+  const { data, error } = await admin.rpc("mex_zone_for_name", { p_city: city, p_quarter: null });
+  if (error) { console.warn("mex_zone_for_name:", error.message); return none; }
+  const row = (Array.isArray(data) ? data[0] : data) as {
+    mex_city_id?: number | null; mex_city_name?: string | null; district_id?: string | null;
+    city_id?: string | null; basis?: string | null;
+  } | null;
+  if (!row || !(Number(row.mex_city_id) > 0)) return none;
+  return {
+    id: Number(row.mex_city_id),
+    name: row.mex_city_name ?? null,
+    settlementId: row.district_id || row.city_id || null,
+    basis: row.basis ?? null,
+  };
 }
 
 /**
@@ -759,6 +752,8 @@ async function upsertOrder(
       postal_code: s(o.index, 30),
       mex_city_id: mexZone.id,
       mex_city_name: mexZone.name,
+      settlement_id: mexZone.settlementId,
+      mex_zone_basis: mexZone.basis,
       price: priceTotal,
       quantity: row.quantity,
       status: insertStatus,
@@ -860,8 +855,9 @@ async function upsertOrder(
   // the bridge stamped mex_city_id still needs one before fulfilment export.
   if (existing.mex_city_id == null && mexZone.id != null) {
     await admin.from("orders")
-      .update({ mex_city_id: mexZone.id, mex_city_name: mexZone.name })
-      .eq("id", existing.id);
+      .update({ mex_city_id: mexZone.id, mex_city_name: mexZone.name, settlement_id: mexZone.settlementId, mex_zone_basis: mexZone.basis })
+      .eq("id", existing.id)
+      .is("mex_tracking_id", null);
   }
 
   // ── existing order: the same B′ apply as every other path ────────────────

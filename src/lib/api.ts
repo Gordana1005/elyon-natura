@@ -588,6 +588,8 @@ export interface CreateOrderBody {
   floor?: string;
   block?: string;
   entry?: string;
+  /** The picked mk_settlements row (the district when the city needs one). The zone is derived server-side. */
+  settlement_id?: string | null;
   delivery_instructions?: string;
   gift_note?: string;
   delivery_type?: 'home' | 'speedy_office' | 'econt_office' | 'mex_office';
@@ -666,6 +668,9 @@ export interface CustomerProfileBody {
   delivery_instructions?: string | null;
   gift_note?: string | null;
   notes?: string | null;
+  settlement_id?: string | null;
+  /** Fields to clear explicitly. Everything else is FILL-ONLY: a blank never overwrites. */
+  clear?: string[];
 }
 export const apiGetCustomerProfile = (phone: string) =>
   apiFetch(`customer-profile?phone=${encodeURIComponent(phone)}`);
@@ -700,9 +705,62 @@ export interface MkSettlement {
   municipality: string | null;
   kind: 'city' | 'town' | 'village' | 'city_district';
   mex_city_id: number | null;
+  /** A district's city ("Карпош 2" → Скопје). */
+  parent_id?: string | null;
+  parent_name?: string | null;
+  /** The city's districts route to several MEX zones — a confirmed order must name one. */
+  requires_district?: boolean;
 }
 export const apiSearchSettlements = (q: string): Promise<MkSettlement[]> =>
   apiFetch(`address/settlements?q=${encodeURIComponent(q)}`);
+
+/** One visible district of a city, with the MEX zone it routes to. */
+export interface MkDistrict {
+  id: string;
+  name: string;
+  name_lat: string | null;
+  post_code: string | null;
+  mex_city_id: number | null;
+  mex_city_name: string | null;
+}
+export const apiGetDistricts = (cityId: string): Promise<MkDistrict[]> =>
+  apiFetch(`address/districts?city_id=${encodeURIComponent(cityId)}`);
+
+/** A place the text could mean — shown as chips when a name is ambiguous. */
+export interface MexZoneCandidate {
+  id: string;
+  name: string;
+  kind: MkSettlement['kind'];
+  parent_name: string | null;
+  municipality: string | null;
+  post_code: string | null;
+  mex_city_id: number | null;
+  mex_city_name: string | null;
+}
+/**
+ * The server's own answer for an address (the ONE resolver in SQL, migration
+ * 20260943000600) — the zone the order will be stored with. `match` is set by
+ * the free-text resolver only ('ambiguous' → pick one of `candidates`).
+ */
+export interface MexZoneResolution {
+  city_id: string | null;
+  city_name: string | null;
+  district_id: string | null;
+  district_name: string | null;
+  post_code: string | null;
+  mex_city_id: number | null;
+  mex_city_name: string | null;
+  requires_district: boolean | null;
+  basis: string | null;
+  city_kind?: string | null;
+  municipality?: string | null;
+  match?: string | null;
+  candidates?: MexZoneCandidate[] | null;
+}
+export const apiGetSettlementZone = (id: string): Promise<MexZoneResolution> =>
+  apiFetch(`address/settlement/${encodeURIComponent(id)}`);
+export const apiResolveAddress = (city: string, quarter?: string | null): Promise<MexZoneResolution | null> =>
+  apiFetch(`address/resolve?city=${encodeURIComponent(city)}${quarter ? `&quarter=${encodeURIComponent(quarter)}` : ''}`);
 export const apiSearchStreets = (settlementId: string, q: string, kind?: 'street' | 'quarter'): Promise<string[]> =>
   apiFetch(`address/streets?settlement_id=${encodeURIComponent(settlementId)}&q=${encodeURIComponent(q)}${kind ? `&kind=${kind}` : ''}`);
 // Match a free-text courier address against the cached office list → ranked offices.
@@ -723,6 +781,7 @@ export interface UpdateCustomerBody {
   floor?: string;
   block?: string;
   entry?: string;
+  settlement_id?: string | null;
   delivery_instructions?: string;
   gift_note?: string;
   delivery_type?: 'home' | 'speedy_office' | 'econt_office' | 'mex_office';

@@ -60,6 +60,10 @@ import * as BL from "./brandLine.ts";
 // The one "Смени" page (plan Фаза 8, migrations 20260943001000–1100): the login gate's decision,
 // cell validation / diffing, the runway summary and the response shapes (pure, shifts.test.ts).
 import * as SH from "./shifts.ts";
+// Address routing (migrations 20260943000500/0600): the ONE MEX-zone resolver's
+// text rules, the order's zone columns, the address lock once MEX has the parcel,
+// the address/* response shapes (pure, unit-tested in addressRouting.test.ts).
+import * as AR from "./addressRouting.ts";
 
 // ============================================================
 // INPUT VALIDATION SCHEMAS
@@ -109,6 +113,9 @@ const createOrderSchema = z.object({
   floor: z.string().max(20).optional().default(""),
   block: z.string().max(100).optional().default(""),
   entry: z.string().max(50).optional().default(""),
+  // The mk_settlements row the order form picked (the district when the city
+  // needs one). The MEX zone is derived from it on the server — never sent.
+  settlement_id: z.string().max(64).nullable().optional(),
   delivery_instructions: z.string().max(1000).optional().default(""),
   gift_note: z.string().max(500).optional().default(""),
   // Structured delivery method (Phase 6 — courier office picker)
@@ -161,6 +168,7 @@ const updateCustomerSchema = z.object({
   floor: z.string().max(20).optional(),
   block: z.string().max(100).optional(),
   entry: z.string().max(50).optional(),
+  settlement_id: z.string().max(64).nullable().optional(),
   delivery_instructions: z.string().max(1000).optional(),
   gift_note: z.string().max(500).optional(),
   delivery_type: z.enum(["home", "speedy_office", "econt_office", "mex_office"]).optional(),
@@ -1795,38 +1803,43 @@ async function handleRequest(req: Request): Promise<Response> {
       return data?.post_code ? String(data.post_code) : null;
     };
 
-    // Resolve the customer's settlement to the MEX delivery zone that will
-    // route the parcel. add_shipment.php has no postcode field and treats
+    // Resolve the order's address to the MEX delivery zone that will route the
+    // parcel. add_shipment.php has no postcode field and treats
     // receiver_address as free text, so receiver_city_id is the ONLY value that
     // decides where the box physically goes.
     //
-    // Resolved SERVER-SIDE from the stored city name, never taken from the
-    // client — a stale browser tab must not be able to inject a zone id.
-    // Returns null when the settlement is unknown or genuinely unroutable; the
-    // order still saves, and the push path rejects it later with a clear
-    // reason. We never guess a zone: MEX has no cancellation endpoint.
-    const resolveMexCity = async (
-      cityRaw: string | null | undefined,
-    ): Promise<{ id: number | null; name: string | null }> => {
-      const city = String(cityRaw || "").trim();
-      if (!city) return { id: null, name: null };
-      // The picker stores "Кадино, општ. Скопје"; match on the settlement part
-      // and drop any гр./с. marker.
-      // Bare `с.?` with the `i` flag eats the first letter of Скопје / Струмица.
-      // Require dotted `с.` / `гр.` or a following space on село/град.
-      const base = city.split(",")[0].replace(/^\s*(?:гр\.|с\.|село\s+|град\s+)/i, "").trim();
-      const norm = normalizeMkGeo(base);
-      if (norm.length < 2) return { id: null, name: null };
-      const { data } = await adminClient
-        .from("mk_settlements")
-        .select("mex_city_id, mex_cities(city_name)")
-        .eq("name_norm", norm)
-        .not("mex_city_id", "is", null)
-        .limit(1)
-        .maybeSingle();
-      if (!data?.mex_city_id) return { id: null, name: null };
-      const zone = (data as { mex_cities?: { city_name?: string } }).mex_cities;
-      return { id: data.mex_city_id as number, name: zone?.city_name ?? null };
+    // ONE resolver, in SQL (migration 20260943000600): the settlement the form
+    // PICKED (mex_zone_for_settlement — a district when the city needs one),
+    // else the free text (mex_zone_for_name — deterministic, never the С of
+    // Скопје, a district only inside its own city, an ambiguous name routes
+    // nowhere). It replaced a name match with LIMIT 1 and no ORDER BY that sent
+    // 290 of 295 Skopje sales to "Skopje - Centar" and same-named villages to
+    // another town. Never taken from the client: a stale tab cannot inject a
+    // zone id. A null zone still saves; the export holds the order back. We
+    // never guess — MEX has no cancellation endpoint.
+    const resolveOrderZone = async (input: {
+      settlementId?: string | null; city?: string | null; quarter?: string | null;
+    }): Promise<AR.OrderZone> => {
+      let picked: AR.ZoneRow | null = null;
+      let byName: AR.ZoneRow | null = null;
+      try {
+        if (AR.isSettlementId(input.settlementId)) {
+          const { data } = await adminClient.rpc("mex_zone_for_settlement", { p_id: input.settlementId });
+          picked = AR.firstRow<AR.ZoneRow>(data);
+        }
+        if (!picked?.city_id && String(input.city || "").trim()) {
+          const { data } = await adminClient.rpc("mex_zone_for_name", {
+            p_city: String(input.city || "").trim(),
+            p_quarter: String(input.quarter || "").trim() || null,
+          });
+          byName = AR.firstRow<AR.ZoneRow>(data);
+        }
+      } catch (e) {
+        // A resolver hiccup must never block the order — it saves without a zone
+        // and the export holds it back.
+        console.warn("resolveOrderZone:", (e as Error)?.message);
+      }
+      return AR.orderZoneColumns(picked, byName);
     };
 
     // Snapshot which prediction list a customer was in AT ORDER TIME. Rule-driven
@@ -5284,10 +5297,14 @@ async function handleRequest(req: Request): Promise<Response> {
       // Office orders take the courier office's own post code; home orders keep
       // whatever the agent entered from the settlement picker.
       const officePostCode = await resolveOfficePostCode(body.delivery_type ?? "home", body.courier_office_code);
-      const resolvedPostalCode = officePostCode ?? body.postal_code;
 
-      // Stamp the MEX routing zone so the order can be handed to the courier.
-      const mexZone = await resolveMexCity(body.customer_city);
+      // Stamp the MEX routing zone so the order can be handed to the courier:
+      // the picked settlement / district first, the text as the fallback.
+      const mexZone = await resolveOrderZone({
+        settlementId: body.settlement_id, city: body.customer_city, quarter: body.quarter,
+      });
+      // A home order the form sent without a postcode takes the settlement's.
+      const resolvedPostalCode = officePostCode ?? (String(body.postal_code || "").trim() || mexZone.post_code || "");
 
       // Snapshot the prediction list the customer was in (drives list-ROI
       // analytics + per-package agent bonuses). Stamped for ALL statuses so a
@@ -5328,8 +5345,10 @@ async function handleRequest(req: Request): Promise<Response> {
           customer_city: body.customer_city,
           customer_address: body.customer_address,
           postal_code: resolvedPostalCode,
-          mex_city_id: mexZone.id,
-          mex_city_name: mexZone.name,
+          mex_city_id: mexZone.mex_city_id,
+          mex_city_name: mexZone.mex_city_name,
+          settlement_id: mexZone.settlement_id,
+          mex_zone_basis: mexZone.mex_zone_basis,
           street: body.street ?? "",
           street_number: body.street_number ?? "",
           quarter: body.quarter ?? "",
@@ -7330,12 +7349,23 @@ async function handleRequest(req: Request): Promise<Response> {
       // explicit ownership guard below is the real gate now.
       const { data: currentOrder } = await adminClient
         .from("orders")
-        .select("status, assigned_agent_id, delivery_type, courier_office_code")
+        // status + ownership + the parcel + every AR.ADDRESS_LOCK_FIELDS column.
+        .select("status, assigned_agent_id, mex_tracking_id, customer_city, customer_address, postal_code, street, street_number, quarter, apartment, floor, block, entry, settlement_id, delivery_type, courier_office_code, courier_office_name, courier_office_city")
         .eq("id", orderId)
         .single();
       if (!currentOrder) return json({ error: "Order not found" }, 404);
       if (orderOwnershipBlocked(currentOrder)) {
         return json({ error: "Forbidden — this order is assigned to another agent" }, 403);
+      }
+      // Once MEX has the parcel its address is a fact at the courier (there is no
+      // cancel / re-route endpoint). The form re-sends every field on save, so an
+      // UNCHANGED address passes; a real change is refused.
+      const parcelAtMex = !!String((currentOrder as Record<string, unknown>).mex_tracking_id || "").trim();
+      if (parcelAtMex) {
+        const changed = AR.changedAddressFields(currentOrder as Record<string, unknown>, body as Record<string, unknown>);
+        if (changed.length) {
+          return json({ error: AR.ADDRESS_LOCKED_ERROR, code: "address_locked", fields: changed }, 409);
+        }
       }
 
       if (hasProductFields) {
@@ -7381,12 +7411,38 @@ async function handleRequest(req: Request): Promise<Response> {
         if (pc) updates.postal_code = pc;
       }
 
-      // Re-resolve the MEX zone whenever the city changed. Without this an
-      // edited address keeps routing to the settlement it was first saved with.
-      if (body.customer_city !== undefined) {
-        const mexZone = await resolveMexCity(body.customer_city);
-        updates.mex_city_id = mexZone.id;
-        updates.mex_city_name = mexZone.name;
+      // Re-resolve the MEX zone whenever the address could have moved — ONLY
+      // while MEX has no parcel (a shipped order's zone is a snapshot). The picked
+      // settlement wins; without one, an unchanged city + quarter keeps the stored
+      // pick, anything else is resolved from the text.
+      if (!parcelAtMex && (body.settlement_id !== undefined || body.customer_city !== undefined || body.quarter !== undefined)) {
+        const cur = currentOrder as Record<string, unknown>;
+        const sameText = String(body.customer_city ?? cur.customer_city ?? "").trim() === String(cur.customer_city ?? "").trim()
+          && String(body.quarter ?? cur.quarter ?? "").trim() === String(cur.quarter ?? "").trim();
+        const settlementId = body.settlement_id !== undefined
+          ? body.settlement_id
+          : (sameText ? (cur.settlement_id as string | null) : null);
+        const mexZone = await resolveOrderZone({
+          settlementId,
+          city: body.customer_city ?? (cur.customer_city as string | null),
+          quarter: body.quarter ?? (cur.quarter as string | null),
+        });
+        updates.mex_city_id = mexZone.mex_city_id;
+        updates.mex_city_name = mexZone.mex_city_name;
+        updates.settlement_id = mexZone.settlement_id;
+        updates.mex_zone_basis = mexZone.mex_zone_basis;
+        // The form sends the settlement's postcode; fill it only when blank.
+        if (!String(updates.postal_code ?? cur.postal_code ?? "").trim() && mexZone.post_code
+            && (updates.delivery_type ?? cur.delivery_type ?? "home") === "home") {
+          updates.postal_code = mexZone.post_code;
+        }
+      }
+
+      // A shipped order keeps its address: an unchanged re-send is a no-op.
+      const finalUpdates = parcelAtMex ? AR.withoutAddressFields(updates) : updates;
+      if (Object.keys(finalUpdates).length === 0) {
+        const { data: unchanged } = await adminClient.from("orders").select().eq("id", orderId).single();
+        return json(unchanged);
       }
 
       // adminClient, not the RLS client: on an unassigned duplicate the RLS update
@@ -7394,7 +7450,7 @@ async function handleRequest(req: Request): Promise<Response> {
       // the "Operation failed" agents saw when saving the modal.
       const { data, error } = await adminClient
         .from("orders")
-        .update(updates)
+        .update(finalUpdates)
         .eq("id", orderId)
         .select()
         .single();
@@ -14530,6 +14586,19 @@ async function handleRequest(req: Request): Promise<Response> {
         if (body.quantity !== undefined) orderUpdates.quantity = body.quantity;
         if (body.price !== undefined) orderUpdates.price = body.price;
 
+        // An edited city re-routes the order (the ONE SQL resolver) — only while
+        // MEX has no parcel; a shipped order's zone is a snapshot.
+        if (body.customer_city !== undefined) {
+          const { data: zc } = await adminClient.from("orders").select("mex_tracking_id, quarter").eq("id", itemId).maybeSingle();
+          if (zc && !zc.mex_tracking_id) {
+            const z = await resolveOrderZone({ city: body.customer_city, quarter: zc.quarter });
+            orderUpdates.mex_city_id = z.mex_city_id;
+            orderUpdates.mex_city_name = z.mex_city_name;
+            orderUpdates.settlement_id = z.settlement_id;
+            orderUpdates.mex_zone_basis = z.mex_zone_basis;
+          }
+        }
+
         // Warehouse packing substate — not a status change (status stays 'confirmed');
         // packed_at/packed_by/packed_by_name ARE the audit record, so no order_history row.
         if (body.packed !== undefined) {
@@ -16574,47 +16643,55 @@ async function handleRequest(req: Request): Promise<Response> {
       return json(data ? redactCustomer(data, piiFlags) : null);
     }
 
-    // POST /api/customer-profile — upsert customer info by phone WITHOUT
-    // creating an order. Any authenticated user (agents during a call) can do
-    // this. Keyed on phone so re-saving updates the same row.
+    // POST /api/customer-profile — save customer info by phone WITHOUT creating
+    // an order ("Зачувај го клиентот"; confirming an order calls it too).
+    // Order-creating roles only (viewer roles 403).
+    //
+    // FILL-ONLY through public.customer_profile_merge (migration
+    // 20260943000600): a non-blank value replaces the stored one, a blank never
+    // does — the old upsert sent every empty form field as NULL and wiped the
+    // saved address / notes. A field is cleared only when named in `clear`.
+    // The phone is normalised to +389 E.164; a legacy row with the same last 8
+    // digits is updated in place (no second profile per customer).
     if (req.method === "POST" && path === "customer-profile") {
+      if (!canMutateOrders) return json({ error: "Forbidden" }, 403);
       let body;
       try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
       const phone = (body?.phone || "").trim();
       if (!phone) return json({ error: "phone required" }, 400);
+      if (phone.replace(/\D/g, "").length < 8) return json({ error: "Phone is required" }, 400);
 
-      const payload = {
-        phone,
-        customer_name: body.customer_name ?? null,
-        birthday: body.birthday || null,
-        street: body.street ?? null,
-        street_number: body.street_number ?? null,
-        quarter: body.quarter ?? null,
-        apartment: body.apartment ?? null,
-        floor: body.floor ?? null,
-        block: body.block ?? null,
-        entry: body.entry ?? null,
-        city: body.city ?? null,
-        postal_code: body.postal_code ?? null,
-        delivery_type: body.delivery_type ?? null,
-        home_courier: body.home_courier ?? null,
-        courier_office_code: body.courier_office_code ?? null,
-        courier_office_name: body.courier_office_name ?? null,
-        courier_office_city: body.courier_office_city ?? null,
-        delivery_instructions: body.delivery_instructions ?? null,
-        gift_note: body.gift_note ?? null,
-        notes: body.notes ?? null,
-        updated_by: user.id,
-        updated_at: new Date().toISOString(),
-      };
+      const PROFILE_FIELDS = [
+        "customer_name", "birthday", "street", "street_number", "quarter", "apartment", "floor", "block",
+        "entry", "city", "postal_code", "delivery_type", "home_courier", "courier_office_code",
+        "courier_office_name", "courier_office_city", "delivery_instructions", "gift_note", "notes",
+        "mex_city_id", "mex_city_name", "settlement_id",
+      ];
+      const patch: Record<string, unknown> = {};
+      for (const k of PROFILE_FIELDS) {
+        const v = body?.[k];
+        if (v !== undefined && v !== null && (typeof v === "string" || typeof v === "number")) {
+          patch[k] = typeof v === "string" ? v.slice(0, 1000) : v;
+        }
+      }
+      // The zone is derived, never trusted from the client.
+      delete patch.mex_city_id;
+      delete patch.mex_city_name;
+      if (AR.isSettlementId(patch.settlement_id)) {
+        const zone = await resolveOrderZone({ settlementId: patch.settlement_id as string });
+        if (zone.mex_city_id) { patch.mex_city_id = zone.mex_city_id; patch.mex_city_name = zone.mex_city_name; }
+      } else {
+        delete patch.settlement_id;
+      }
+      const clear = Array.isArray(body?.clear)
+        ? body.clear.filter((c: unknown) => typeof c === "string" && PROFILE_FIELDS.includes(c as string))
+        : [];
 
-      const { data, error } = await adminClient
-        .from("customer_profiles")
-        .upsert(payload, { onConflict: "phone" })
-        .select()
-        .single();
+      const { data, error } = await adminClient.rpc("customer_profile_merge", {
+        p_phone: phone, p_patch: patch, p_clear: clear, p_actor: user.id,
+      });
       if (error) return json({ error: sanitizeDbError(error) }, 400);
-      return json(data);
+      return json(AR.firstRow(data));
     }
 
     // POST /api/customer-profile/notes — save ONLY the free-form customer note,
@@ -16666,16 +16743,73 @@ async function handleRequest(req: Request): Promise<Response> {
       const clauses = [`name_lc.ilike.${lc}%`, `name_lat.ilike.${lc}%`, `name_sq.ilike.${lc}%`];
       if (norm.length >= 2) clauses.push(`name_norm.ilike.${norm}%`);
 
+      // Over-fetch, then rank in code: cities, towns, districts ("Карпош 2 ·
+      // Скопје" — typing a neighbourhood finds it), villages. Hidden duplicates
+      // (migration 20260943000500) never show.
       const { data } = await adminClient
         .from("mk_settlements")
-        .select("id, name, name_lat, name_sq, post_code, region, municipality, kind, mex_city_id")
+        .select("id, name, name_lat, name_sq, post_code, region, municipality, kind, mex_city_id, parent_id, requires_district, is_hidden")
         .or(clauses.join(","))
-        // Cities and towns first — an agent typing "Ко" wants Кочани before a
-        // hamlet that happens to sort earlier alphabetically.
-        .order("kind", { ascending: true })
+        .eq("is_hidden", false)
         .order("name", { ascending: true })
-        .limit(15);
-      return json(data || []);
+        .limit(60);
+      const rows = (data || []) as AR.SettlementSearchRow[];
+      const parentIds = [...new Set(rows.map((r) => r.parent_id).filter(Boolean))] as string[];
+      const parentNames = new Map<string, string>();
+      if (parentIds.length) {
+        const { data: parents } = await adminClient.from("mk_settlements").select("id, name").in("id", parentIds);
+        for (const p of (parents || []) as Array<{ id: string; name: string }>) parentNames.set(p.id, p.name);
+      }
+      return json(AR.shapeSettlements(rows, parentNames));
+    }
+
+    // GET /api/address/districts?city_id= — the visible districts of one city
+    // (Скопје: Центар, Карпош 1–4, Аеродром, …) with the MEX zone each routes
+    // to. The order form shows them as a REQUIRED list when the city's
+    // requires_district is true.
+    if (req.method === "GET" && path === "address/districts") {
+      const cityId = (url.searchParams.get("city_id") || "").trim();
+      if (!AR.isSettlementId(cityId)) return json([]);
+      const { data } = await adminClient
+        .from("mk_settlements")
+        .select("id, name, name_lat, post_code, mex_city_id, is_hidden")
+        .eq("parent_id", cityId)
+        .eq("kind", "city_district")
+        .eq("is_hidden", false)
+        .limit(500);
+      const rows = (data || []) as AR.DistrictRow[];
+      const zoneIds = [...new Set(rows.map((r) => r.mex_city_id).filter((z): z is number => z != null))];
+      const zoneNames = new Map<number, string>();
+      if (zoneIds.length) {
+        const { data: zones } = await adminClient.from("mex_cities").select("city_id, city_name").in("city_id", zoneIds);
+        for (const z of (zones || []) as Array<{ city_id: number; city_name: string }>) zoneNames.set(z.city_id, z.city_name);
+      }
+      return json(AR.shapeDistricts(rows, zoneNames));
+    }
+
+    // GET /api/address/settlement/:id — one picked settlement / district →
+    // city, district, postcode, requires_district and its MEX zone (the order
+    // form opens on an order's or a profile's settlement_id with this).
+    if (req.method === "GET" && segments[0] === "address" && segments[1] === "settlement" && segments[2]) {
+      const id = decodeURIComponent(segments[2]);
+      if (!AR.isSettlementId(id)) return json({ error: "Invalid value" }, 400);
+      const { data, error } = await adminClient.rpc("mex_zone_for_settlement", { p_id: id });
+      if (error) return json({ error: sanitizeDbError(error) }, 400);
+      const row = AR.firstRow<AR.ZoneRow>(data);
+      if (!row?.city_id) return json({ error: "Referenced record not found" }, 404);
+      return json(row);
+    }
+
+    // GET /api/address/resolve?city=&quarter= — free text (a prefilled order,
+    // an AlterCPA lead) → the same answer the server stores: settlement,
+    // district, postcode, zone; or match = "ambiguous" with the candidates to
+    // pick from. Never a guess.
+    if (req.method === "GET" && path === "address/resolve") {
+      const parsed = AR.parseResolveQuery(url.searchParams);
+      if ("error" in parsed) return json({ error: parsed.error }, 400);
+      const { data, error } = await adminClient.rpc("mex_zone_for_name", { p_city: parsed.city, p_quarter: parsed.quarter });
+      if (error) return json({ error: sanitizeDbError(error) }, 400);
+      return json(AR.firstRow<AR.ZoneRow>(data));
     }
 
     // GET /api/address/streets?settlement_id=&q=&kind= — streets, boulevards
@@ -16695,15 +16829,20 @@ async function handleRequest(req: Request): Promise<Response> {
       const kind = url.searchParams.get("kind");
       if (!settlementId) return json([]);
 
+      // A picked DISTRICT searches its whole city too (OSM files a boulevard
+      // under whichever district its way starts in), its own streets first.
+      const { data: self } = await adminClient
+        .from("mk_settlements").select("id, kind, parent_id").eq("id", settlementId).maybeSingle();
+      const scopeId = self?.kind === "city_district" && self.parent_id ? self.parent_id : settlementId;
       const { data: children } = await adminClient
         .from("mk_settlements")
         .select("id")
-        .eq("parent_id", settlementId);
-      const ids = [settlementId, ...(children || []).map((c: { id: string }) => c.id)];
+        .eq("parent_id", scopeId);
+      const ids = [...new Set([scopeId, settlementId, ...(children || []).map((c: { id: string }) => c.id)])];
 
       let query = adminClient
         .from("mk_streets")
-        .select("name, kind, name_norm")
+        .select("name, kind, name_norm, settlement_id")
         .in("settlement_id", ids);
 
       // The picker's Quarter field asks for kind=quarter; everything else is an
@@ -16737,12 +16876,17 @@ async function handleRequest(req: Request): Promise<Response> {
       // Macedonian spelling.
       const latinCount = (s: string) => (s.match(/[A-Za-z]/g) || []).length;
       const best = new Map<string, string>();
-      for (const r of (data || []) as Array<{ name: string; name_norm: string }>) {
+      const own = new Set<string>();
+      for (const r of (data || []) as Array<{ name: string; name_norm: string; settlement_id: string }>) {
         const key = r.name_norm || r.name.toLowerCase();
         const current = best.get(key);
         if (!current || latinCount(r.name) < latinCount(current)) best.set(key, r.name);
+        if (scopeId !== settlementId && r.settlement_id === settlementId) own.add(key);
       }
-      return json([...best.values()].sort((a, b) => a.localeCompare(b, "mk")).slice(0, 15));
+      return json([...best.entries()]
+        .sort(([ka, a], [kb, b]) => (own.has(ka) ? 0 : 1) - (own.has(kb) ? 0 : 1) || a.localeCompare(b, "mk"))
+        .map(([, name]) => name)
+        .slice(0, 15));
     }
 
     // GET /api/customer-intelligence?phone=...

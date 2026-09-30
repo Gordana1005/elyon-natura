@@ -162,28 +162,47 @@ async function main() {
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
+  // Curated columns this importer NEVER writes (migration 20260943000500):
+  // is_hidden / canonical_id (hidden duplicates), requires_district (derived by
+  // mk_settlements_refresh_requires_district), mex_* (map-settlements-to-mex.mjs,
+  // which preserves 'manual'). An upsert only touches the columns in its payload,
+  // so they survive a re-run. post_code is sent ONLY when OSM carries one: a
+  // payload key with null would blank the enriched / reviewed code (e.g. the
+  // three Skopje-area fixes), and enrich-mk-postal-codes.mjs would then re-derive
+  // the wrong same-name code again.
+  const payload = (r) => {
+    const { post_code, ...rest } = r;
+    return post_code ? { ...rest, post_code } : rest;
+  };
+
   // Two passes: parent_id is a self-FK, so every row must exist before we can
-  // point children at parents.
-  const flat = rows.map(r => ({ ...r, parent_id: null }));
+  // point children at parents. Batches are homogeneous (with / without
+  // post_code) because PostgREST upserts the union of the batch's keys.
+  const flat = rows.map(r => payload({ ...r, parent_id: null }));
   let written = 0;
   const CHUNK = 500;
-  for (let i = 0; i < flat.length; i += CHUNK) {
-    const slice = flat.slice(i, i + CHUNK);
-    const { error } = await supabase.from('mk_settlements').upsert(slice, { onConflict: 'id' });
-    if (error) throw error;
-    written += slice.length;
-    process.stdout.write(`\r  upserted ${written}/${flat.length}`);
+  for (const group of [flat.filter(r => 'post_code' in r), flat.filter(r => !('post_code' in r))]) {
+    for (let i = 0; i < group.length; i += CHUNK) {
+      const slice = group.slice(i, i + CHUNK);
+      const { error } = await supabase.from('mk_settlements').upsert(slice, { onConflict: 'id' });
+      if (error) throw error;
+      written += slice.length;
+      process.stdout.write(`\r  upserted ${written}/${flat.length}`);
+    }
   }
   console.log();
 
-  const children = rows.filter(r => r.parent_id);
+  // parent_id comes from OSM geometry on every run (the 12 km rule above).
+  const children = rows.filter(r => r.parent_id).map(payload);
   let linked = 0;
-  for (let i = 0; i < children.length; i += CHUNK) {
-    const slice = children.slice(i, i + CHUNK);
-    const { error } = await supabase.from('mk_settlements').upsert(slice, { onConflict: 'id' });
-    if (error) throw error;
-    linked += slice.length;
-    process.stdout.write(`\r  linked ${linked}/${children.length} districts to parents`);
+  for (const group of [children.filter(r => 'post_code' in r), children.filter(r => !('post_code' in r))]) {
+    for (let i = 0; i < group.length; i += CHUNK) {
+      const slice = group.slice(i, i + CHUNK);
+      const { error } = await supabase.from('mk_settlements').upsert(slice, { onConflict: 'id' });
+      if (error) throw error;
+      linked += slice.length;
+      process.stdout.write(`\r  linked ${linked}/${children.length} districts to parents`);
+    }
   }
   console.log(`\n\nDone. ${written} settlements in mk_settlements.`);
   console.log('Next: node --env-file=.env scripts/import-mk-streets-osm.mjs');

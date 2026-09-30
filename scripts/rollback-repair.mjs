@@ -177,6 +177,11 @@ async function main() {
   if (key === `restore-${TEST_PHONES_KEY}`) {
     die(`run ${args.run} restored deleted orders; to delete them again, dry-run repair-test-phones.mjs anew and apply that run.`);
   }
+  if (key === 'open-order-zones' || key === 'rollback-open-order-zones') {
+    // Its ledger snapshots the zone columns, not SNAP_COLUMNS — it has its own rollback.
+    die(`run ${args.run} is a MEX-zone repair:\n  node scripts/repair-open-order-zones.mjs --rollback ${args.run}          (preview)\n` +
+      `  node scripts/repair-open-order-zones.mjs --rollback ${args.run} --apply`);
+  }
   const PRICE = key === COD_PRICE_KEY || key === `rollback-${COD_PRICE_KEY}`;
   if (PRICE && args.loose) die('--loose does not apply to a cod-price run (it already compares only price, quantity and order_items).');
   if (APPLY) {

@@ -30,6 +30,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { normalizeMkGeo, splitMexCityName } from './lib/mk-translit.mjs';
+import { haversineKm } from './lib/osm-fetch.mjs';
 
 const DRY_RUN = process.argv.includes('--dry-run');
 
@@ -60,7 +61,7 @@ async function main() {
     q => q.is('is_duplicate_of', null).eq('is_active', true));
   const aliases = await pagedSelect('mex_city_aliases', 'alias_norm, mex_city_id');
   const settlements = await pagedSelect('mk_settlements',
-    'id, name, name_norm, name_sq, municipality, kind, parent_id');
+    'id, name, name_norm, name_sq, municipality, kind, parent_id, lat, lng');
 
   if (settlements.length === 0) {
     console.error('mk_settlements is empty — run import-mk-settlements.mjs first.');
@@ -87,7 +88,39 @@ async function main() {
    * prefix as the tie-break: "Gostivar - Orizari" vs "Kocani - Orizari" is
    * decided by which општина the settlement actually sits in.
    */
+  // Towns and cities by name key — the owners of the unprefixed zones.
+  const townByNorm = new Map(settlements.filter(x => x.kind === 'city' || x.kind === 'town').map(x => [x.name_norm, x]));
+
+  /**
+   * A name match may only land on a zone of the settlement's OWN town. Until
+   * 2026-09-30 a single candidate was taken blindly, which sent Прилеп's Центар /
+   * Козле / Марино to "Skopje - …", four Селце to "Tetovo - Selce" and the
+   * village Крушево near Виница to "Kruševo" (128 km) — fixed by hand in
+   * migration 20260943000500 (mex_match_method 'manual', never overwritten).
+   *   prefixed "X - Y"  → X must be the settlement's parent city (a district) or
+   *                        nearest town (a village) — EXCEPT a village whose own
+   *                        name is the leaf and that sits within 25 km of X
+   *                        (Давидово → "Gevgelija - Davidovo": MEX lists it).
+   *   unprefixed "X"    → a village may not take a TOWN's zone by sharing its name.
+   */
+  function sameCity(zone, s) {
+    if (zone.parent) {
+      const context = new Set();
+      if (s.municipality) context.add(normalizeMkGeo(s.municipality));
+      if (s.parent_id && settlementById.has(s.parent_id)) context.add(normalizeMkGeo(settlementById.get(s.parent_id).name));
+      if (context.has(zone.parent)) return true;
+      if (s.kind === 'city_district') return false;
+      const hub = townByNorm.get(zone.parent);
+      return !!hub && s.lat != null && hub.lat != null && haversineKm(Number(s.lat), Number(s.lng), Number(hub.lat), Number(hub.lng)) <= 25;
+    }
+    if (s.kind === 'city' || s.kind === 'town') return true;
+    const town = townByNorm.get(zone.leaf);
+    return !town || town.id === s.id;
+  }
+
   function disambiguate(candidates, s) {
+    candidates = candidates.filter(c => sameCity(c, s));
+    if (candidates.length === 0) return { zone: null, ambiguous: false };
     if (candidates.length === 1) return { zone: candidates[0], ambiguous: false };
     const context = new Set();
     if (s.municipality) context.add(normalizeMkGeo(s.municipality));
@@ -147,7 +180,7 @@ async function main() {
     if (direct?.length) {
       const { zone: z, ambiguous } = disambiguate(direct, s);
       if (z) { zone = z; method = 'exact'; }
-      else ambiguities.push({ s, candidates: direct });
+      else if (ambiguous) ambiguities.push({ s, candidates: direct });
     }
 
     // ── alias ──
@@ -287,6 +320,12 @@ async function main() {
     process.stdout.write(`\r  updated ${written}/${toWrite.length}`);
   }
   console.log(`\n\nDone. ${written} settlements mapped.`);
+
+  // A city needs a district in the order form when its visible districts now
+  // route to more than one zone (migration 20260943000500).
+  const { data: needDistrict, error: rdErr } = await supabase.rpc('mk_settlements_refresh_requires_district');
+  if (rdErr) console.warn(`requires_district refresh failed: ${rdErr.message}`);
+  else console.log(`Cities that require a district: ${needDistrict}`);
 }
 
 main().catch(e => { console.error(e); process.exit(1); });

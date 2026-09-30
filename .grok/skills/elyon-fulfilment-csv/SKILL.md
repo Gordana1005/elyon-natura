@@ -55,8 +55,15 @@ A1234567,Alex Test,Varshavska 123,Skopje,076123456,150,maska za telefon,0.1
    `mex_city_id` (the routable-zone gate — MEX has NO cancellation endpoint),
    product lines, price > 0 and a usable address. Invalid ones are held back
    via `FulfilmentValidationDialog` ("Fix first"), never silently dropped or
-   exported broken. Manual orders get the zone on save (`resolveMexCity` in
-   `api/index.ts`). AlterCPA mirrored orders must be stamped by `altercpa-sync`
+   exported broken. Every order gets the zone on save from ONE SQL resolver
+   (migration 20260943000600): `mex_zone_for_settlement(orders.settlement_id)` —
+   the place / district the order form PICKED — else `mex_zone_for_name(city,
+   quarter)` for free text; `orders.mex_zone_basis` records which. The api
+   (`resolveOrderZone`, pure half in `api/addressRouting.ts`) and `altercpa-sync`
+   both call it; the old name match with LIMIT 1 sent 290/295 Skopje sales to
+   "Skopje - Centar". Open orders are re-zoned by
+   `scripts/repair-open-order-zones.mjs`; `scripts/verify-address-routing.mjs`
+   checks the data. AlterCPA mirrored orders must be stamped by `altercpa-sync`
    — until 2026-08-22 they were not, so 593/631 confirmed sat unexportable
    with city "Skopje" already on the row. Catch-up:
    `node --env-file=.env scripts/backfill-order-mex-city.mjs`. Foreign cities
