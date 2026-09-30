@@ -162,6 +162,32 @@ Verified facts for the docs are in `docs/handoff/2026-09-29/FACTS.md`.
   Checks: npm test 1.199 pass, build OK, insights-ties Sep + today PASS, tab-lists PASS, engine fixture intact;
   attribution only C7 37 / C8b 14 (owner items А1 / М3).
 
+## ✅ Done 29.09 evening (all pushed + deployed)
+- TV board fits every screen: cards below 1024 px (`c29a027`); "+N чекаат пратка" (`8cd53e3`).
+- TV board Web view: the shop itself, live (`818ba48`, `…1940` `leaderboard_web_live`, `…1945` Integrations web
+  "every 5 min"); web-sync every 5 minutes.
+
+## 🏗 IN PROGRESS 30.09 — the APPROVED plan `~/.claude/plans/revert-the-421-unproven-encapsulated-brook.md`
+Owner 29.09: Assigner redesign + live agent board + lists by BUYER department + web counted like the shop +
+/users search. Owner decisions: lists split by the department of the customer's LAST PURCHASE; count 20/50/100/…
+with split "total (shared) / per agent"; the agent grid shows ALL profiles, online first, live; web "чека потврда"
+counts EVERYWHERE (29.09 = 22 / 43.774 ден like the shop panel; card_unpaid never, cancelled apart); the web gap
+30.07–03.09.2026 is filled from MEX web parcels; web history viewable for every day since 01.01.2026.
+Four agents (a power loss on 29.09 ~23:00 stopped them; resumed 30.09 16:45), code only — the main session
+applies / deploys / commits:
+- **A backend:** migrations `…1950` assigner_board · `…1955` customer_departments cache (+ cron) · `…1957`
+  assigner_lists · `…1960` assigner_distribute; api `assigner.ts` + routes `GET /assigner/board`,
+  `GET /assigner/lists`, `POST /assigner/distribute` (dry_run preview); fixes to unassigned-pending (lead only),
+  call-agains (order/departments/true total/real last call), agents/online (Skopje shift); Realtime broadcast
+  `assigner` after queue writes; `scripts/verify-assigner.mjs`.
+- **B frontend:** new AssignerPage (AgentBoard on top, KPI tiles, department chips, tabs, DistributeBar with
+  preview), all strings mk/en/sq/bg, list names/descriptions translated (display only — NEVER rename lists).
+- **C web:** `…1965` cohort_web_bucket awaiting → to_pack · `…1967` leaderboard_web_live + MEX-only web parcels ·
+  TV date picker · C14 check.
+- **D users:** `/users` search (Cyrillic ⇄ Latin), role/status filters (`src/lib/users/filterUsers.ts`).
+Rollout: migrations (tripwire, dry-run) → api deploy → UI push → verify (verify-assigner, ties, tabs, attribution,
+engine fixture) → docs. The first REAL distribution is Mile's.
+
 ## 🔜 NEXT (nothing urgent is open; the owner's answers drive the rest)
 
 1. **The owner's answers** to `PRASHANJA-ZA-MILE.md` / the PDF. Apply them: А1 cancel/link, А2 credit, А3/А4
