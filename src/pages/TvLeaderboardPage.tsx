@@ -11,7 +11,9 @@
 // (?dept= and ?team= pin them per TV; an old ?mode= URL opens its team).
 // Data: GET /api/leaderboard?v=2 (leaderboard_day_v2, migration 20260942001200).
 // Today updates live (~1s) via the Supabase Realtime broadcast `tv-leaderboard`,
-// with a 20 s polling fallback; a day switcher reviews previous days.
+// with a 20 s polling fallback; the day arrows and a date picker open any earlier
+// day from 01.01.2026 (BOARD_FIRST_DAY) — the board keeps an explicit day, null =
+// today, and "today" is the server's Skopje day, never the TV's own clock.
 // Every screen (owner, 29.09.2026): from 1024 px wide (lg) it is the wall board —
 // vh sizes, one grid row per person, the page never scrolls and pages itself.
 // Below that (phones, tablets) the same facts become a scrolling list of cards
@@ -26,7 +28,8 @@ import i18n, { SUPPORTED_LANGUAGES } from '@/i18n';
 import { formatDate } from '@/i18n/dates';
 import { formatDenari } from '@/lib/currency';
 import {
-  apiGetLeaderboardV2, deptKey, initialFilter, splitManagers, type BoardFilter, type BoardV2,
+  addDaysYmd, apiGetLeaderboardV2, BOARD_FIRST_DAY, boardDay, daysBetween, deptKey, initialFilter, splitManagers,
+  type BoardFilter, type BoardV2,
 } from '@/lib/leaderboardV2';
 import { Confetti, StatCard } from '@/components/tvboard/TvBoardParts';
 import { TvBoardFilters } from '@/components/tvboard/TvBoardFilters';
@@ -46,10 +49,8 @@ const REFETCH_DEBOUNCE_MS = 1_000;
 const CELEBRATE_MS = 4_500;
 const SCROLL_EVERY_MS = 9_000;
 
-const addDays = (ymd: string, delta: number) => {
-  const [y, m, d] = ymd.split('-').map(Number);
-  return new Date(Date.UTC(y, m - 1, d + delta)).toISOString().slice(0, 10);
-};
+/** The Skopje calendar day on this device — only until the server has said what today is. */
+const deviceSkopjeToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Skopje' }).format(new Date());
 
 /** Below Tailwind's `lg` (1024 px): the card layout. Kept in step with the `lg:` classes. */
 const COMPACT_QUERY = '(max-width: 1023px)';
@@ -97,7 +98,7 @@ export default function TvLeaderboardPage() {
   const [data, setData] = useState<BoardV2 | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [offset, setOffset] = useState(0); // 0 = today, 1 = yesterday, ...
+  const [day, setDay] = useState<string | null>(null); // null = today (live); else a YYYY-MM-DD before today
   const [now, setNow] = useState(() => new Date());
   const [celebrate, setCelebrate] = useState<{ agentId: string; at: number } | null>(null);
   const [isFs, setIsFs] = useState(false);
@@ -119,11 +120,10 @@ export default function TvLeaderboardPage() {
   const celebrateTimer = useRef<number | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  const load = useCallback(async (ofs: number) => {
+  const load = useCallback(async (d: string | null) => {
     if (!key) { setError(i18n.t('tvBoard.missingKey')); setLoading(false); return; }
     try {
-      const reqDay = ofs > 0 && anchorRef.current ? addDays(anchorRef.current, -ofs) : undefined;
-      const res = await apiGetLeaderboardV2(key, { day: reqDay, ...filter });
+      const res = await apiGetLeaderboardV2(key, { day: d ?? undefined, ...filter });
       anchorRef.current = res.today;
       setData(res);
       setError(null);
@@ -136,7 +136,7 @@ export default function TvLeaderboardPage() {
 
   const scheduleRefetch = useCallback(() => {
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
-    debounceRef.current = window.setTimeout(() => { void load(0); }, REFETCH_DEBOUNCE_MS);
+    debounceRef.current = window.setTimeout(() => { void load(null); }, REFETCH_DEBOUNCE_MS);
   }, [load]);
 
   const triggerCelebrate = useCallback((agentId?: string) => {
@@ -146,15 +146,15 @@ export default function TvLeaderboardPage() {
     celebrateTimer.current = window.setTimeout(() => setCelebrate(null), CELEBRATE_MS);
   }, []);
 
-  // Load on key / filter / offset change.
-  useEffect(() => { setLoading(true); void load(offset); }, [load, offset]);
+  // Load on key / filter / day change.
+  useEffect(() => { setLoading(true); void load(day); }, [load, day]);
 
   // Poll only the live (today) view.
   useEffect(() => {
-    if (offset !== 0) return;
-    const id = window.setInterval(() => { void load(0); }, POLL_MS);
+    if (day !== null) return;
+    const id = window.setInterval(() => { void load(null); }, POLL_MS);
     return () => window.clearInterval(id);
-  }, [load, offset]);
+  }, [load, day]);
 
   // Live clock (also ages "last decision N min ago").
   useEffect(() => {
@@ -182,14 +182,14 @@ export default function TvLeaderboardPage() {
 
   // Realtime broadcast — instant updates + celebration, today only.
   useEffect(() => {
-    if (offset !== 0) return;
+    if (day !== null) return;
     const channel = supabase
       .channel('tv-leaderboard')
       .on('broadcast', { event: 'confirmed' }, ({ payload }: { payload?: { agent_id?: string } }) => { triggerCelebrate(payload?.agent_id); scheduleRefetch(); })
       .on('broadcast', { event: 'refresh' }, () => scheduleRefetch())
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
-  }, [offset, scheduleRefetch, triggerCelebrate]);
+  }, [day, scheduleRefetch, triggerCelebrate]);
 
   // Keep the TV awake.
   useEffect(() => {
@@ -217,7 +217,11 @@ export default function TvLeaderboardPage() {
     return () => window.clearInterval(id);
   }, [compact]);
 
-  const isToday = offset === 0;
+  const isToday = day === null;
+  // the server's Skopje day once known; the device's Skopje day only before the first answer
+  const today = data?.today || anchorRef.current || deviceSkopjeToday();
+  const shownDay = day ?? today;
+  const goToDay = (wanted: string | null) => setDay(boardDay(wanted, today));
   const rows = useMemo(() => data?.rows ?? [], [data]);
   const { people, managers } = useMemo(() => splitManagers(rows), [rows]);
   const s = data?.summary ?? {};
@@ -245,7 +249,7 @@ export default function TvLeaderboardPage() {
 
   const worked = n('worked');
   const convAll = worked > 0 ? (n('sale_decisions') / worked) * 100 : null;
-  const label = data ? dayLabel(data.day, offset) : '';
+  const label = data ? dayLabel(data.day, Math.max(0, daysBetween(data.day, today))) : '';
   const viewLabel = [
     dept ? t(`leaderboard2.dept.${deptKey(dept)}`) : t('leaderboard2.allDepartments'),
     filter.team ? teamLabel(t, filter.team, data?.teams.find((x) => x.key === filter.team)?.name) : '',
@@ -276,15 +280,20 @@ export default function TvLeaderboardPage() {
 
         {/* Day switcher */}
         <div className="order-3 flex w-full items-center justify-between gap-2 lg:order-none lg:w-auto lg:shrink-0 lg:justify-center lg:gap-[0.8vw]">
-          <button type="button" onClick={() => setOffset((o) => o + 1)} aria-label={t('leaderboard2.prevDay')}
-            className="rounded-lg border border-white/10 bg-white/5 p-2 text-slate-200 transition hover:bg-white/10 lg:p-[1vh]">
+          <button type="button" onClick={() => goToDay(addDaysYmd(shownDay, -1))} disabled={shownDay <= BOARD_FIRST_DAY}
+            aria-label={t('leaderboard2.prevDay')}
+            className="rounded-lg border border-white/10 bg-white/5 p-2 text-slate-200 transition hover:bg-white/10 disabled:opacity-30 lg:p-[1vh]">
             <ChevronLeft className="h-5 w-5 lg:h-[2.6vh] lg:w-[2.6vh]" />
           </button>
-          <div className="flex-1 text-center lg:min-w-[12vw] lg:flex-none">
+          <div className="flex flex-1 flex-col items-center text-center lg:min-w-[12vw] lg:flex-none">
             <div className="text-base font-semibold leading-none lg:text-[2.6vh]">{label}</div>
-            <div className="mt-1 text-xs text-slate-400 lg:mt-[0.5vh] lg:text-[1.5vh]">{data?.day || ''}</div>
+            {/* Any day from 01.01.2026 to today — the browser's own date picker, dark on the board */}
+            <input type="date" data-testid="tv-day-picker" aria-label={t('tvBoard.pickDay')} title={t('tvBoard.pickDay')}
+              min={BOARD_FIRST_DAY} max={today} value={shownDay}
+              onChange={(e) => { if (e.target.value) goToDay(e.target.value); }}
+              className="mt-1 w-[9.5rem] cursor-pointer rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-center text-xs tabular-nums text-slate-300 [color-scheme:dark] transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 lg:mt-[0.5vh] lg:w-auto lg:px-[0.5vw] lg:py-[0.2vh] lg:text-[1.5vh]" />
           </div>
-          <button type="button" onClick={() => setOffset((o) => Math.max(0, o - 1))} disabled={isToday} aria-label={t('leaderboard2.nextDay')}
+          <button type="button" onClick={() => goToDay(addDaysYmd(shownDay, 1))} disabled={isToday} aria-label={t('leaderboard2.nextDay')}
             className="rounded-lg border border-white/10 bg-white/5 p-2 text-slate-200 transition hover:bg-white/10 disabled:opacity-30 lg:p-[1vh]">
             <ChevronRight className="h-5 w-5 lg:h-[2.6vh] lg:w-[2.6vh]" />
           </button>

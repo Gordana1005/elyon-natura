@@ -13,6 +13,8 @@ interface Props {
   onChange: (ids: string[]) => void;
   disabled?: boolean;
   className?: string;
+  /** A fixed trigger text (e.g. "Додај агент") instead of the picked names. */
+  triggerLabel?: string;
 }
 
 /**
@@ -26,7 +28,7 @@ interface Props {
  * A popover fixes that structurally: it is height-capped, scrolls internally,
  * and `collisionPadding` keeps it inside the viewport whichever way it opens.
  */
-export function AgentPickerPopover({ agents, selected, onChange, disabled, className }: Props) {
+export function AgentPickerPopover({ agents, selected, onChange, disabled, className, triggerLabel }: Props) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
@@ -50,7 +52,7 @@ export function AgentPickerPopover({ agents, selected, onChange, disabled, class
         >
           <Users className="h-3.5 w-3.5 shrink-0" />
           <span className="truncate">
-            {selected.length === 0
+            {triggerLabel ? triggerLabel : selected.length === 0
               ? t('assigner.basket.pickAgents')
               : selected.length === 1
                 ? selectedNames[0]

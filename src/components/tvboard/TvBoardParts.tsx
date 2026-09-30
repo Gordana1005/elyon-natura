@@ -29,9 +29,11 @@ export function Confetti() {
 }
 
 /** A KPI tile: two-line label and sub on a phone, one truncated line on the wall screen. */
-export function StatCard({ label, value, sub, className = '' }: { label: string; value: string; sub?: string; className?: string }) {
+export function StatCard({ label, value, sub, className = '', testId }: {
+  label: string; value: string; sub?: string; className?: string; testId?: string;
+}) {
   return (
-    <div className={`min-w-0 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 lg:px-[1.4vw] lg:py-[1.2vh] ${className}`}>
+    <div data-testid={testId} className={`min-w-0 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 lg:px-[1.4vw] lg:py-[1.2vh] ${className}`}>
       <div className="line-clamp-2 text-[11px] font-medium uppercase leading-tight tracking-[0.08em] text-slate-400 lg:line-clamp-1 lg:text-[1.4vh] lg:tracking-[0.12em]">{label}</div>
       <div className="mt-1 truncate text-2xl font-bold leading-none tabular-nums text-slate-50 lg:mt-[0.4vh] lg:text-[3.4vh]">{value}</div>
       {sub && <div className="mt-1 line-clamp-2 text-[11px] leading-snug text-slate-400 lg:mt-[0.5vh] lg:line-clamp-1 lg:text-[1.35vh]">{sub}</div>}

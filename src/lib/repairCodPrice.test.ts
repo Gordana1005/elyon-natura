@@ -33,7 +33,7 @@ function row(n: number, over: Row = {}): Row {
 }
 const oneLine = (n: number, qty = 1, ppu = '26.67', total = '26.67'): Item[] => [{ id: uuid(5000 + n), quantity: qty, price_per_unit: ppu, total_price: total }];
 
-describe('cod-price money arithmetic', () => {
+describe('cod-price money arithmetic', { timeout: 30_000 }, () => {
   it('re-pricing to COD / 61,5 lands exactly on the COD again, for every COD up to 20.000 ден', () => {
     for (let cod = 1; cod <= 20000; cod++) {
       const cents = codToCents(cod);

@@ -52,6 +52,17 @@ const DETAIL_RE = /^[a-z0-9_.-]{1,40}$/i;
 export const NO_FUNNEL_SOURCES: readonly string[] = ['teleshop_out', 'teleshop_other', 'social'];
 export const hasLeadFunnel = (key: string) => !NO_FUNNEL_SOURCES.includes(key);
 
+/**
+ * How many of a department's "to pack" sales are web orders still waiting for the shop's
+ * confirmation ("чека потврда" — a sale since 20260942001965; insights_cohort's bucket key
+ * `awaiting`). 0 for every other department, for a non-owner payload the api strips it from, and
+ * for an older payload without it.
+ */
+export function webAwaitingCount(row: Pick<CohortSourceRow, 'buckets'>): number {
+  const b = row.buckets?.find((x) => x.key === 'to_pack') as { awaiting?: unknown } | undefined;
+  return num(b?.awaiting);
+}
+
 /** The buckets a tile adds up: "Кај курирот" = moving + problem (MEX 1/4/10 and 3/9/13). */
 export const tileBuckets = (k: CohortBucketKey): CohortBucketKey[] => (k === 'courier' ? ['courier', 'courier_problem'] : [k]);
 

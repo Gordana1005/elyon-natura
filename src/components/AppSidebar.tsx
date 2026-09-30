@@ -9,11 +9,14 @@ import {
   Users, CalendarDays, FileText, History, ChevronLeft,
   ChevronRight, ChevronDown, Phone, PhoneCall, PhoneIncoming, Warehouse, Settings, Inbox,
   Webhook, UserPlus, SearchIcon, TrendingUp, Activity, Zap, Layers, Lock, Clock, Gauge, FileUp,
-  Handshake, Radio,
+  Handshake, Radio, X,
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { SidebarCallIndicator } from '@/components/calls/SidebarCallIndicator';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { PresenceHeaderButton } from '@/components/presence/PresenceHeaderButton';
 
 interface NavItem {
   /** i18n key under nav.* — resolved with t() at render time */
@@ -115,7 +118,14 @@ const sections: NavSection[] = [
   },
 ];
 
-export function AppSidebar() {
+/**
+ * Desktop / tablet (≥ 768 px): the rail in the page flow, collapsible to icons.
+ * Phone (< 768 px, owner 30.09.2026 — "perfect on every screen"): no rail eating the width; an off-canvas
+ * drawer opened by the hamburger in AppLayout's top bar, full labels, closed by the backdrop, Esc, the X or
+ * any navigation. Language, theme and "who is working" live in the drawer's footer on a phone, so the top
+ * bar keeps room for the page title.
+ */
+export function AppSidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?: boolean; onMobileClose?: () => void } = {}) {
   const { t } = useTranslation();
   const location = useLocation();
   const { user } = useAuth();
@@ -123,13 +133,22 @@ export function AppSidebar() {
   const insightsAccess = useInsightsAccess();
 
   const isMobile = useIsMobile();
-  const [collapsed, setCollapsed] = useState(() => {
-    // Default to collapsed (icons only) on mobile so it doesn't take over the screen.
-    if (typeof window !== 'undefined') {
-      return window.innerWidth < 768;
-    }
-    return false;
-  });
+  // a tablet (768–1023 px) starts with the icon rail, so the page keeps its width; the user can expand it
+  const [railCollapsed, setCollapsed] = useState(() => typeof window !== 'undefined' && window.innerWidth < 1024);
+  // the phone drawer always shows full labels
+  const collapsed = railCollapsed && !isMobile;
+
+  // close the phone drawer on navigation and on Esc
+  useEffect(() => {
+    if (isMobile) onMobileClose?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
+  useEffect(() => {
+    if (!isMobile || !mobileOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onMobileClose?.(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isMobile, mobileOpen, onMobileClose]);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
 
   // Filter sections based on module enabled + role permissions
@@ -189,23 +208,23 @@ export function AppSidebar() {
   };
 
   return (
+    <>
+    {isMobile && mobileOpen && (
+      <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[1px]" aria-hidden onClick={() => onMobileClose?.()} />
+    )}
     <aside
+      id="app-sidebar"
+      aria-hidden={isMobile && !mobileOpen ? true : undefined}
       className={cn(
-        'flex h-screen flex-col border-r border-sidebar-border bg-sidebar transition-all duration-300 ease-in-out',
-        collapsed ? 'w-[68px]' : 'w-[240px]',
+        'flex flex-col border-r border-sidebar-border bg-sidebar',
+        isMobile
+          ? cn('fixed inset-y-0 left-0 z-50 h-[100dvh] w-[min(85vw,300px)] shadow-2xl transition-transform duration-300 ease-in-out',
+               mobileOpen ? 'translate-x-0' : '-translate-x-full invisible')
+          : cn('h-screen transition-all duration-300 ease-in-out', collapsed ? 'w-[68px]' : 'w-[240px]'),
       )}
     >
       {/* ── Brand ── */}
-      <div
-        className="flex h-16 shrink-0 items-center gap-3 border-b border-sidebar-border px-4 cursor-pointer"
-        onClick={() => {
-          if (isMobile) {
-            setCollapsed(!collapsed);
-          }
-        }}
-        role={isMobile ? 'button' : undefined}
-        aria-label={isMobile ? t('nav.toggleSidebar') : undefined}
-      >
+      <div className="flex h-16 shrink-0 items-center gap-3 border-b border-sidebar-border px-4">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary shadow-sm shadow-primary/20">
           <Phone className="h-4 w-4 text-primary-foreground" />
         </div>
@@ -217,29 +236,17 @@ export function AppSidebar() {
         >
           Elyon CRM
         </span>
-      </div>
-
-      {/* Mobile: Expand/Collapse toggle right below the Elyon Logo so it's always visible at the top (no need to scroll to bottom of sidebar) */}
-      {isMobile && (
-        <div className="shrink-0 border-b border-sidebar-border px-2 py-1 flex justify-center">
+        {isMobile && (
           <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="flex items-center justify-center gap-1 rounded px-2 py-0.5 text-xs font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-150"
+            type="button"
+            onClick={() => onMobileClose?.()}
+            aria-label={t('common.close')}
+            className="ml-auto flex h-9 w-9 items-center justify-center rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
           >
-            {collapsed ? (
-              <>
-                <ChevronRight className="h-3 w-3" />
-                <span>{t('common.expand')}</span>
-              </>
-            ) : (
-              <>
-                <ChevronLeft className="h-3 w-3" />
-                <span>{t('common.collapse')}</span>
-              </>
-            )}
+            <X className="h-5 w-5" />
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* ── Active call (pushes nav down while a call is live; hidden otherwise) ── */}
       <SidebarCallIndicator collapsed={collapsed} />
@@ -283,10 +290,8 @@ export function AppSidebar() {
                     key={item.path}
                     to={item.path}
                     onClick={() => {
-                      if (isMobile) {
-                        // After navigating on mobile, auto-collapse back to icons-only.
-                        setCollapsed(true);
-                      }
+                      // on a phone the drawer closes after navigating
+                      if (isMobile) onMobileClose?.();
                     }}
                     className={cn(
                       'group flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] font-medium transition-all duration-150',
@@ -330,6 +335,17 @@ export function AppSidebar() {
         ))}
       </nav>
 
+      {/* ── Phone: language, theme and "who is working" (the top bar keeps room for the title) ── */}
+      {isMobile && (
+        <div className="shrink-0 border-t border-sidebar-border p-3">
+          <div className="flex items-center justify-center gap-2 rounded-xl bg-card p-2">
+            <LanguageSwitcher />
+            <ThemeToggle />
+            <PresenceHeaderButton />
+          </div>
+        </div>
+      )}
+
       {/* ── Collapse toggle ── */}
       <div className={cn(
         "shrink-0 border-t border-sidebar-border p-3",
@@ -350,5 +366,6 @@ export function AppSidebar() {
         </button>
       </div>
     </aside>
+    </>
   );
 }

@@ -515,6 +515,180 @@
       "search": "Search agent…",
       "noMatches": "No agent by that name",
       "onlineOf": "{{online}} of {{total}} online"
+    },
+    "unknownAgent": "Unknown agent",
+    "dept": {
+      "unknown": "Unknown department"
+    },
+    "tabs": {
+      "lists": "Lists",
+      "pendings": "Pendings"
+    },
+    "col": {
+      "customer": "Customer",
+      "phone": "Phone",
+      "product": "Product",
+      "department": "Department",
+      "list": "List"
+    },
+    "header": {
+      "departments": "Departments",
+      "allDepartments": "All"
+    },
+    "live": {
+      "label": "Live",
+      "refreshed": "refreshed {{ago}}",
+      "secondsAgo": "{{n}} s ago",
+      "minutesAgo": "{{n}} min ago",
+      "offline": "Connection lost — retrying"
+    },
+    "kpi": {
+      "title": "What waits to be shared",
+      "pendings": "Pendings to share",
+      "pendingsSub": "lead pendings with no agent",
+      "callAgains": "Call-agains to share",
+      "oldestWaits": "oldest waits {{n}} d",
+      "callAgainsSplit": "{{leads}} leads · {{lists}} from lists",
+      "lists": "List clients to share",
+      "listsSubAll": "all departments",
+      "listsSubSelected": "in {{n}} chosen departments",
+      "online": "Agents online",
+      "inCall": "{{n}} in a call",
+      "worked": "Handled today",
+      "workedSub": "decisions today (Skopje day)"
+    },
+    "board": {
+      "title": "Agents",
+      "onlineOnly": "Online only",
+      "role": "Role",
+      "roleFilter": {
+        "all": "Everyone",
+        "agents": "Agents",
+        "management": "Management"
+      },
+      "selectedN": "{{n}} chosen",
+      "selectOnline": "Choose all online",
+      "selectOnlineHint": "Every online agent (managers who do not call are left out)",
+      "clearSelection": "Clear choice",
+      "hint": "Click an agent to choose them for the distribution below. Shift-click or \"Take back…\" opens what they hold in Unassign.",
+      "pendingsTip": "Pendings: {{n}} ({{fresh}} untouched · {{taken}} in progress) — of them {{callAgains}} call-agains",
+      "callAgainsTip": "Call-agains: {{n}} ({{leads}} leads · {{lists}} from lists) — already counted in pendings and lists",
+      "listTip": "List clients to call: {{n}} — of them {{callAgains}} call-agains · {{parked}} parked · {{assigned}} assigned in total",
+      "shiftTip": "Today's shift",
+      "loadTip": "Load (pendings + lists): {{n}}",
+      "unassignTip": "Take back from {{name}}…",
+      "unassignShort": "Take back…"
+    },
+    "dist": {
+      "title": "Distribute",
+      "count": "How many",
+      "all": "All",
+      "custom": "Other",
+      "customCount": "Number to distribute",
+      "split": "Split",
+      "splitTotal": "Total — shared among the chosen",
+      "splitPerAgent": "Per agent",
+      "order": "Order",
+      "newest": "Newest first",
+      "oldest": "Oldest first",
+      "random": "Random",
+      "includeAssigned": "Include already assigned (they will be moved)",
+      "targets": "Agents",
+      "addAgents": "Add agent",
+      "pickAgents": "Choose agents on the board above.",
+      "removeAgent": "Remove {{name}}",
+      "offlineWarn": "Offline: {{names}}. The lead engine takes call-again leads back from offline agents after about 15 minutes.",
+      "invalidCount": "Enter a number greater than 0.",
+      "previewLoading": "Counting…",
+      "available": "Available {{n}}",
+      "nothing": "nothing to distribute",
+      "preview": "{{n}} → {{agents}}: {{split}}",
+      "agentsN_one": "{{count}} agent",
+      "agentsN_other": "{{count}} agents",
+      "short": "not enough: {{n}} available",
+      "estimate": "estimate",
+      "run": "Distribute",
+      "runN": "Distribute {{n}}",
+      "confirmTitle": "Confirm the distribution",
+      "confirmBody": "{{n}} from \"{{what}}\" go to {{agents}} ({{order}}):",
+      "confirmMoves": "Already-assigned rows among them move to the chosen agents.",
+      "confirmCta": "Distribute",
+      "doneTitle": "Distributed: {{n}}",
+      "doneNone": "Nothing was distributed — the pool is empty.",
+      "refused": "The server refused: {{reason}}",
+      "bigWarn": "You are about to assign {{n}} at once — check before you continue."
+    },
+    "group": {
+      "cancels": "Cancels and never bought",
+      "returns": "Returns",
+      "trash": "Trash",
+      "other": "Other lists"
+    },
+    "lists": {
+      "part": {
+        "toCall": "To call",
+        "withAgents": "With agents",
+        "done": "Done"
+      },
+      "toCallShort": "to call",
+      "barLabel": "{{list}}: to call · with agents · done",
+      "byDepartment": "Clients by department",
+      "deptTip": "{{dept}}: {{total}} in total · {{toCall}} to call · {{assigned}} assigned · {{done}} done",
+      "readOnlyBadge": "Read only",
+      "readOnly": "Informational list — it is not distributed; it can only be viewed.",
+      "stateFilter": "Call state",
+      "matching": "{{n}} matching",
+      "tickHint": "tick rows to add them to the basket",
+      "tableAllDepts": "The table shows the members of every department.",
+      "unassignAllTitle": "Take back every client of this list?",
+      "unassignAllBody": "This frees all {{n}} assigned clients in \"{{list}}\" from every agent — every department, already-called ones included. Call history and sales credit are untouched.",
+      "noneDesc": "The prediction engine fills the lists every night.",
+      "noneInDepartments": "No list has clients in the chosen departments.",
+      "groupSummary": "{{lists}} lists · {{n}} to call",
+      "showEmpty": "Show {{n}} empty lists",
+      "hideEmpty": "Hide the empty lists",
+      "restrictedTitle": "Lists are hidden for your role",
+      "restricted": "Seeing list members needs a permission. Ask an administrator."
+    },
+    "listDesc": {
+      "recency": {
+        "newcomers": "Paid within the last 21 days",
+        "d21": "Last paid 21–57 days ago",
+        "d57": "Last paid 57–120 days ago (about 2–4 months)",
+        "m4_6": "Last paid 4–6 months ago (120–180 days)",
+        "m6_12": "Last paid 6–12 months ago",
+        "y1_2": "Last paid 1–2 years ago",
+        "y2plus": "Last paid over 2 years ago"
+      },
+      "bandLe": "last paid order up to {{value}}",
+      "bandGt": "last paid order over {{value}}",
+      "orders": {
+        "o1_3": "1–2 paid orders in total",
+        "o3": "3–4 paid orders in total",
+        "o5": "5–6 paid orders in total",
+        "o7": "7 or more paid orders in total"
+      },
+      "pen": {
+        "current_cancels": "The latest action was a cancellation within the last 14 days. Parked here unassigned and out of the calling lists; after 14 days they return to their list by themselves.",
+        "current_returns": "Customers whose latest order was returned. A tracking list — unassigned, nobody calls it; a customer with paid orders also stays in their own list. They leave by themselves with a new order.",
+        "never_converted_recent": "Never bought; the last cancellation within the last 180 days. Numbers with an order in progress are left out (they are in Pendings).",
+        "never_converted_old": "Never bought; no cancellation in the last 180 days (or none at all). Numbers with an order in progress are left out.",
+        "trash": "Customers taken out of every calling list for a trash (wrong number, wrong person, rude, does not cooperate, other), with the reason. They stay here until they pay a new order; \"Unreachable\" comes back after 21 days.",
+        "cancelled_pendings": "New customers who left a pending for a product and never ordered — the pending was cancelled; kept here with phone, name and product to be called back.",
+        "due_to_reorder": "Customers who will soon need a new order, by how many packages they bought last time. Informational list, unassigned.",
+        "monad": "The imported Monadon customer list (the old database), with products."
+      }
+    },
+    "pendingsTab": {
+      "ofAll": "of {{n}} in all departments",
+      "toTargets": "to {{agents}}, dealt in turn",
+      "orderHint": "The order below is also the order of the distribution."
+    },
+    "callAgains": {
+      "productTip": "A lead: its product",
+      "emptyDesc": "Pending leads and list clients who did not answer appear here. Change the filters to see the ones already with agents.",
+      "waitingDays": "waits {{n}} d",
+      "waitingToday": "since today"
     }
   },
   "promo": {
@@ -992,6 +1166,48 @@
     "newPasswordOptional": "New password (leave blank to keep current)",
     "saving": "Saving...",
     "noChanges": "No changes to save"
+  },
+  "users": {
+    "filter": {
+      "all": "All",
+      "active": "Active",
+      "suspended": "Suspended",
+      "shown": "Showing {{shown}} of {{total}}",
+      "clearSearch": "Clear search",
+      "noMatch": "No user matches the search and filters.",
+      "online": "Online only",
+      "sort": "Sort",
+      "sortBy": {
+        "name": "Name",
+        "last": "Last activity",
+        "orders": "Orders",
+        "created": "Date created"
+      },
+      "asc": "Ascending",
+      "desc": "Descending",
+      "searchShort": "Name or e-mail"
+    },
+    "subtitle": "Logins, roles and status of every account",
+    "kpi": {
+      "title": "Accounts at a glance",
+      "total": "Total accounts",
+      "totalSub": "Every CRM login",
+      "shareOfAll": "{{share}} of all",
+      "online": "Online now",
+      "onlineSub": "Seen in the last 2 min",
+      "byRole": "By role"
+    },
+    "col": {
+      "lastSeen": "Last activity",
+      "created": "Created"
+    },
+    "row": {
+      "actions": "Actions for {{name}}",
+      "activeToggle": "Active account: {{name}}",
+      "editRoles": "Edit roles",
+      "editRolesFor": "Edit the roles of {{name}}",
+      "rolesOf": "Roles of {{name}}"
+    }
   },
   "inbound": {
     "status": {
@@ -5424,14 +5640,10 @@
     "web": {
       "unavailable": "The web shop data is not available right now.",
       "sales": "Sales today",
-      "salesSub": "confirmed by the shop — the same as the Overview",
+      "salesSub": "awaiting + confirmed",
       "value": "Value",
-      "valueSub": "confirmed orders",
       "all": "All orders today",
-      "allSub": "{{n}} of them not counted yet",
-      "payment": "Payment",
-      "paymentValue": "{{cod}} · {{card}}",
-      "paymentSub": "cash on delivery · card",
+      "allSub": "{{n}} of them not counted",
       "last": "Last order",
       "lastAgo": "{{n}} min ago",
       "synced": "refreshed {{time}}",
@@ -5450,8 +5662,20 @@
         "returned": "Returned",
         "cancelled": "Cancelled",
         "cardUnpaid": "Unpaid card"
-      }
-    }
+      },
+      "salesDay": "Sales",
+      "paymentSplit": "cash on delivery {{cod}} · card {{card}}",
+      "awaiting": "Awaiting confirmation",
+      "awaitingSub": "not confirmed by the shop yet",
+      "confirmed": "Confirmed",
+      "confirmedSub": "confirmed by the shop",
+      "confirmedMexSub": "of them MEX parcels: {{n}}",
+      "allDay": "All orders",
+      "noneDay": "No web orders on this day.",
+      "fromMex": "MEX parcel",
+      "mexNote": "MEX web parcels (M… / NTMK…) with no order in the shop count as web sales — the same as the Overview. Counted: {{n}}."
+    },
+    "pickDay": "Pick a day"
   },
   "leaderboard2": {
     "title": "Leaderboard",
@@ -6085,7 +6309,9 @@
         "mexOnlyNote_other": "{{n}} of them are MEX-only parcels with no order — not in the Orders list.",
         "empty": "No sales in this period.",
         "bookedNote_one": "{{n}} of them is booked in collabBox and still waits for its MEX parcel — it becomes an order when the parcel is created.",
-        "bookedNote_other": "{{n}} of them are booked in collabBox and still wait for their MEX parcel — they become orders when the parcel is created."
+        "bookedNote_other": "{{n}} of them are booked in collabBox and still wait for their MEX parcel — they become orders when the parcel is created.",
+        "webAwaitingLine_one": "incl. {{n}} awaiting the shop's confirmation",
+        "webAwaitingLine_other": "incl. {{n}} awaiting the shop's confirmation"
       },
       "loadFailed": "The period's sales could not be computed, so they are not shown. Try again."
     },

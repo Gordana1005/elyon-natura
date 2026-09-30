@@ -6,7 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { type AgentChip } from './AgentPickerChips';
 import { AgentPickerPopover } from './AgentPickerPopover';
 import { cn } from '@/lib/utils';
-import { predictionListLabel } from '@/lib/predictionListLabel';
+import { listLabel } from '@/components/insights/lists/listModel';
 
 export interface BasketItem {
   key: string;        // `${listId}|${phone}`
@@ -24,6 +24,9 @@ interface Props {
   onUnassign: () => void;
   onClear: () => void;
   onRemove: (key: string) => void;
+  /** Controlled agent choice — the Assigner passes the board's selected targets. */
+  pickedAgents?: string[];
+  onPickedAgentsChange?: (ids: string[]) => void;
 }
 
 /**
@@ -31,9 +34,13 @@ interface Props {
  * more lists. Lets them assign the whole basket to one or several agents
  * (round-robin split handled by the parent) or unassign them all.
  */
-export function CrossListBasketBar({ items, agents, busy, onAssign, onUnassign, onClear, onRemove }: Props) {
+export function CrossListBasketBar({
+  items, agents, busy, onAssign, onUnassign, onClear, onRemove, pickedAgents: pickedProp, onPickedAgentsChange,
+}: Props) {
   const { t } = useTranslation();
-  const [pickedAgents, setPickedAgents] = useState<string[]>([]);
+  const [ownPicked, setOwnPicked] = useState<string[]>([]);
+  const pickedAgents = pickedProp ?? ownPicked;
+  const setPickedAgents = (ids: string[]) => (onPickedAgentsChange ? onPickedAgentsChange(ids) : setOwnPicked(ids));
   if (items.length === 0) return null;
 
   const listCount = new Set(items.map(i => i.listId)).size;
@@ -64,7 +71,7 @@ export function CrossListBasketBar({ items, agents, busy, onAssign, onUnassign, 
                 <div key={it.key} className="group flex items-center justify-between gap-2 px-3 py-1.5 hover:bg-muted/50">
                   <div className="min-w-0">
                     <div className="text-xs font-medium truncate">{it.name || it.phone}</div>
-                    <div className="text-[10px] text-muted-foreground truncate">{it.phone} · {predictionListLabel(it.listName)}</div>
+                    <div className="text-[10px] text-muted-foreground truncate">{it.phone} · {listLabel(t, it.listName)}</div>
                   </div>
                   <button onClick={() => onRemove(it.key)} className="p-1 rounded hover:bg-rose-100 text-rose-600 shrink-0" title={t('assigner.basket.remove')}>
                     <X className="h-3 w-3" />
@@ -98,7 +105,7 @@ export function CrossListBasketBar({ items, agents, busy, onAssign, onUnassign, 
           <Button size="sm" variant="outline" disabled={busy} onClick={onUnassign} className="gap-1.5">
             <UserX className="h-3.5 w-3.5" /> {t('assigner.basket.unassign')}
           </Button>
-          <Button size="sm" variant="ghost" disabled={busy} onClick={() => { setPickedAgents([]); onClear(); }} className={cn('gap-1.5 text-muted-foreground')}>
+          <Button size="sm" variant="ghost" disabled={busy} onClick={() => { if (!pickedProp) setPickedAgents([]); onClear(); }} className={cn('gap-1.5 text-muted-foreground')}>
             <Trash2 className="h-3.5 w-3.5" /> {t('common.clear')}
           </Button>
         </div>

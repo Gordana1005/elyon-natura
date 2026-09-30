@@ -515,6 +515,180 @@
       "search": "Kërko agjent…",
       "noMatches": "Asnjë agjent me atë emër",
       "onlineOf": "{{online}} nga {{total}} online"
+    },
+    "unknownAgent": "Agjent i panjohur",
+    "dept": {
+      "unknown": "Departament i panjohur"
+    },
+    "tabs": {
+      "lists": "Listat",
+      "pendings": "Në pritje"
+    },
+    "col": {
+      "customer": "Klienti",
+      "phone": "Telefoni",
+      "product": "Produkti",
+      "department": "Departamenti",
+      "list": "Lista"
+    },
+    "header": {
+      "departments": "Departamentet",
+      "allDepartments": "Të gjitha"
+    },
+    "live": {
+      "label": "Drejtpërdrejt",
+      "refreshed": "rifreskuar {{ago}}",
+      "secondsAgo": "para {{n}} s",
+      "minutesAgo": "para {{n}} min",
+      "offline": "Lidhja u ndërpre — po provohet përsëri"
+    },
+    "kpi": {
+      "title": "Çfarë pret të ndahet",
+      "pendings": "Në pritje për t’u ndarë",
+      "pendingsSub": "lead-e pa agjent",
+      "callAgains": "Thirrje të përsëritura për t’u ndarë",
+      "oldestWaits": "më i vjetri pret {{n}} ditë",
+      "callAgainsSplit": "{{leads}} lead-e · {{lists}} nga listat",
+      "lists": "Klientë nga listat për t’u ndarë",
+      "listsSubAll": "të gjitha departamentet",
+      "listsSubSelected": "në {{n}} departamente të zgjedhura",
+      "online": "Agjentë online",
+      "inCall": "{{n}} në bisedë",
+      "worked": "Të përpunuara sot",
+      "workedSub": "vendime sot (dita e Shkupit)"
+    },
+    "board": {
+      "title": "Agjentët",
+      "onlineOnly": "Vetëm online",
+      "role": "Roli",
+      "roleFilter": {
+        "all": "Të gjithë",
+        "agents": "Agjentët",
+        "management": "Menaxhmenti"
+      },
+      "selectedN": "{{n}} të zgjedhur",
+      "selectOnline": "Zgjidh të gjithë online",
+      "selectOnlineHint": "Çdo agjent online (pa menaxherët që nuk telefonojnë)",
+      "clearSelection": "Pastro zgjedhjen",
+      "hint": "Kliko një agjent për ta zgjedhur për ndarjen më poshtë. Shift-klik ose „Merr prapa…“ hap atë që mban te Shkëputja.",
+      "pendingsTip": "Në pritje: {{n}} ({{fresh}} të paprekura · {{taken}} në punë) — prej tyre {{callAgains}} thirrje të përsëritura",
+      "callAgainsTip": "Thirrje të përsëritura: {{n}} ({{leads}} lead-e · {{lists}} nga listat) — tashmë të numëruara te në pritje dhe listat",
+      "listTip": "Klientë nga listat për t’u thirrur: {{n}} — prej tyre {{callAgains}} thirrje të përsëritura · {{parked}} të parkuar · {{assigned}} të caktuar gjithsej",
+      "shiftTip": "Turni i sotëm",
+      "loadTip": "Ngarkesa (në pritje + lista): {{n}}",
+      "unassignTip": "Merr prapa nga {{name}}…",
+      "unassignShort": "Merr prapa…"
+    },
+    "dist": {
+      "title": "Ndaj",
+      "count": "Sa",
+      "all": "Të gjitha",
+      "custom": "Tjetër",
+      "customCount": "Numri për ndarje",
+      "split": "Ndarja",
+      "splitTotal": "Gjithsej — ndahet mes të zgjedhurve",
+      "splitPerAgent": "Për agjent",
+      "order": "Renditja",
+      "newest": "Më të rejat së pari",
+      "oldest": "Më të vjetrat së pari",
+      "random": "Rastësisht",
+      "includeAssigned": "Përfshi edhe të caktuarat (do të zhvendosen)",
+      "targets": "Agjentët",
+      "addAgents": "Shto agjent",
+      "pickAgents": "Zgjidh agjentë në tabelën më lart.",
+      "removeAgent": "Hiq {{name}}",
+      "offlineWarn": "Offline: {{names}}. Motori i lead-eve i merr prapa thirrjet e përsëritura nga agjentët offline pas rreth 15 minutash.",
+      "invalidCount": "Shkruaj një numër më të madh se 0.",
+      "previewLoading": "Po llogaritet…",
+      "available": "Në dispozicion {{n}}",
+      "nothing": "asgjë për t’u ndarë",
+      "preview": "{{n}} → {{agents}}: {{split}}",
+      "agentsN_one": "{{count}} agjent",
+      "agentsN_other": "{{count}} agjentë",
+      "short": "nuk mjaftojnë: në dispozicion {{n}}",
+      "estimate": "vlerësim",
+      "run": "Ndaj",
+      "runN": "Ndaj {{n}}",
+      "confirmTitle": "Konfirmo ndarjen",
+      "confirmBody": "{{n}} nga „{{what}}“ shkojnë te {{agents}} ({{order}}):",
+      "confirmMoves": "Të caktuarat mes tyre zhvendosen te agjentët e zgjedhur.",
+      "confirmCta": "Ndaj",
+      "doneTitle": "Të ndara: {{n}}",
+      "doneNone": "Asgjë nuk u nda — nuk ka në dispozicion.",
+      "refused": "Serveri e refuzoi: {{reason}}",
+      "bigWarn": "Do të caktosh {{n}} njëherësh — kontrollo para se të vazhdosh."
+    },
+    "group": {
+      "cancels": "Anulime dhe që nuk kanë blerë kurrë",
+      "returns": "Kthime",
+      "trash": "Koshi",
+      "other": "Lista të tjera"
+    },
+    "lists": {
+      "part": {
+        "toCall": "Për t’u thirrur",
+        "withAgents": "Te agjentët",
+        "done": "Të përfunduara"
+      },
+      "toCallShort": "për t’u thirrur",
+      "barLabel": "{{list}}: për t’u thirrur · te agjentët · të përfunduara",
+      "byDepartment": "Klientët sipas departamentit",
+      "deptTip": "{{dept}}: {{total}} gjithsej · {{toCall}} për t’u thirrur · {{assigned}} të caktuar · {{done}} të përfunduar",
+      "readOnlyBadge": "Vetëm shikim",
+      "readOnly": "Listë informative — nuk ndahet, vetëm shikohet.",
+      "stateFilter": "Gjendja e thirrjes",
+      "matching": "{{n}} përputhen",
+      "tickHint": "shëno rreshtat për t’i shtuar në shportë",
+      "tableAllDepts": "Tabela tregon anëtarët e të gjitha departamenteve.",
+      "unassignAllTitle": "Të merren prapa të gjithë klientët e listës?",
+      "unassignAllBody": "Kjo i liron të gjithë {{n}} klientët e caktuar në „{{list}}“ nga çdo agjent — në të gjitha departamentet, përfshirë edhe të thirrurit. Historia e thirrjeve dhe merita për shitjet mbeten.",
+      "noneDesc": "Motori i parashikimit i mbush listat çdo natë.",
+      "noneInDepartments": "Asnjë listë nuk ka klientë në departamentet e zgjedhura.",
+      "groupSummary": "{{lists}} lista · {{n}} për t’u thirrur",
+      "showEmpty": "Shfaq {{n}} lista bosh",
+      "hideEmpty": "Fshih listat bosh",
+      "restrictedTitle": "Listat janë të fshehura për rolin tënd",
+      "restricted": "Për të parë anëtarët e listave duhet leje. Kërkoje nga një administrator."
+    },
+    "listDesc": {
+      "recency": {
+        "newcomers": "Kanë paguar në 21 ditët e fundit",
+        "d21": "Pagesa e fundit para 21–57 ditësh",
+        "d57": "Pagesa e fundit para 57–120 ditësh (rreth 2–4 muaj)",
+        "m4_6": "Pagesa e fundit para 4–6 muajsh (120–180 ditë)",
+        "m6_12": "Pagesa e fundit para 6–12 muajsh",
+        "y1_2": "Pagesa e fundit para 1–2 vjetësh",
+        "y2plus": "Pagesa e fundit para më shumë se 2 vjetësh"
+      },
+      "bandLe": "porosia e fundit e paguar deri në {{value}}",
+      "bandGt": "porosia e fundit e paguar mbi {{value}}",
+      "orders": {
+        "o1_3": "1–2 porosi të paguara gjithsej",
+        "o3": "3–4 porosi të paguara gjithsej",
+        "o5": "5–6 porosi të paguara gjithsej",
+        "o7": "7 ose më shumë porosi të paguara gjithsej"
+      },
+      "pen": {
+        "current_cancels": "Veprimi i fundit është anulim brenda 14 ditëve të fundit. Të parkuar këtu, të pacaktuar dhe jashtë listave të thirrjeve; pas 14 ditësh kthehen vetë në listën e tyre.",
+        "current_returns": "Klientë porosia e fundit e të cilëve është kthyer. Listë ndjekjeje — e pacaktuar, askush nuk e thërret; klienti me porosi të paguara mbetet edhe në listën e vet. Dalin vetë me një porosi të re.",
+        "never_converted_recent": "Nuk kanë blerë kurrë; anulimi i fundit brenda 180 ditëve të fundit. Numrat me porosi në proces përjashtohen (janë te Në pritje).",
+        "never_converted_old": "Nuk kanë blerë kurrë; pa anulim në 180 ditët e fundit (ose kurrë). Numrat me porosi në proces përjashtohen.",
+        "trash": "Klientë të hequr nga çdo listë thirrjesh për shkak të koshit (numër i gabuar, person i gabuar, i vrazhdë, nuk bashkëpunon, tjetër), me arsyen. Mbeten këtu derisa të paguajnë një porosi të re; „I paarritshëm“ kthehet pas 21 ditësh.",
+        "cancelled_pendings": "Klientë të rinj që lanë një kërkesë për produkt dhe nuk porositën kurrë — kërkesa u anulua; mbahen këtu me telefon, emër dhe produkt për t’u thirrur përsëri.",
+        "due_to_reorder": "Klientë që së shpejti do të kenë nevojë për porosi të re, sipas sa paketimeve blenë herën e fundit. Listë informative, e pacaktuar.",
+        "monad": "Lista e importuar e klientëve Monadon (baza e vjetër), me produktet."
+      }
+    },
+    "pendingsTab": {
+      "ofAll": "nga {{n}} në të gjitha departamentet",
+      "toTargets": "te {{agents}}, me radhë",
+      "orderHint": "Renditja më poshtë është edhe renditja e ndarjes."
+    },
+    "callAgains": {
+      "productTip": "Lead: produkti i tij",
+      "emptyDesc": "Këtu shfaqen lead-et dhe klientët nga listat që nuk u përgjigjën. Ndrysho filtrat për të parë edhe ato që janë te agjentët.",
+      "waitingDays": "pret {{n}} ditë",
+      "waitingToday": "që sot"
     }
   },
   "promo": {
@@ -992,6 +1166,48 @@
     "newPasswordOptional": "Fjalëkalim i ri (lëre bosh për ta mbajtur aktualin)",
     "saving": "Po ruhet...",
     "noChanges": "Asnjë ndryshim për të ruajtur"
+  },
+  "users": {
+    "filter": {
+      "all": "Të gjithë",
+      "active": "Aktivë",
+      "suspended": "Të pezulluar",
+      "shown": "Shfaqen {{shown}} nga {{total}}",
+      "clearSearch": "Pastro kërkimin",
+      "noMatch": "Asnjë përdorues nuk përputhet me kërkimin dhe filtrat.",
+      "online": "Vetëm online",
+      "sort": "Rendit",
+      "sortBy": {
+        "name": "Emri",
+        "last": "Aktiviteti i fundit",
+        "orders": "Porositë",
+        "created": "Data e krijimit"
+      },
+      "asc": "Renditje rritëse",
+      "desc": "Renditje zbritëse",
+      "searchShort": "Emri ose email-i"
+    },
+    "subtitle": "Hyrjet, rolet dhe statusi i të gjitha llogarive",
+    "kpi": {
+      "title": "Përmbledhje e llogarive",
+      "total": "Llogari gjithsej",
+      "totalSub": "Të gjitha hyrjet në CRM",
+      "shareOfAll": "{{share}} e të gjithave",
+      "online": "Online tani",
+      "onlineSub": "Parë në 2 minutat e fundit",
+      "byRole": "Sipas rolit"
+    },
+    "col": {
+      "lastSeen": "Aktiviteti i fundit",
+      "created": "Krijuar"
+    },
+    "row": {
+      "actions": "Veprime për {{name}}",
+      "activeToggle": "Llogari aktive: {{name}}",
+      "editRoles": "Ndrysho rolet",
+      "editRolesFor": "Ndrysho rolet e {{name}}",
+      "rolesOf": "Rolet e {{name}}"
+    }
   },
   "inbound": {
     "status": {
@@ -5424,14 +5640,10 @@
     "web": {
       "unavailable": "Të dhënat e dyqanit web nuk janë të disponueshme tani.",
       "sales": "Shitjet sot",
-      "salesSub": "të konfirmuara nga dyqani — njësoj si në Pasqyrë",
+      "salesSub": "në pritje + të konfirmuara",
       "value": "Vlera",
-      "valueSub": "porosi të konfirmuara",
       "all": "Të gjitha porositë sot",
-      "allSub": "{{n}} prej tyre ende nuk numërohen",
-      "payment": "Pagesa",
-      "paymentValue": "{{cod}} · {{card}}",
-      "paymentSub": "me para në dorë · kartë",
+      "allSub": "{{n}} prej tyre nuk numërohen",
       "last": "Porosia e fundit",
       "lastAgo": "para {{n}} min",
       "synced": "rifreskuar {{time}}",
@@ -5450,8 +5662,20 @@
         "returned": "E kthyer",
         "cancelled": "E anuluar",
         "cardUnpaid": "Kartë e papaguar"
-      }
-    }
+      },
+      "salesDay": "Shitjet",
+      "paymentSplit": "me para në dorë {{cod}} · kartë {{card}}",
+      "awaiting": "Në pritje të konfirmimit",
+      "awaitingSub": "dyqani ende nuk i ka konfirmuar",
+      "confirmed": "Të konfirmuara",
+      "confirmedSub": "të konfirmuara nga dyqani",
+      "confirmedMexSub": "prej tyre pako nga MEX: {{n}}",
+      "allDay": "Të gjitha porositë",
+      "noneDay": "Nuk ka porosi web këtë ditë.",
+      "fromMex": "Pako nga MEX",
+      "mexNote": "Pakot web nga MEX (M… / NTMK…) pa porosi në dyqan numërohen si shitje web — njësoj si në Pasqyrë. Të numëruara: {{n}}."
+    },
+    "pickDay": "Zgjidh ditën"
   },
   "leaderboard2": {
     "title": "Renditja",
@@ -6085,7 +6309,9 @@
         "mexOnlyNote_other": "Prej tyre {{n}} pako janë vetëm te MEX, pa porosi — nuk janë në listën Porositë.",
         "empty": "Nuk ka shitje në këtë periudhë.",
         "bookedNote_one": "Prej tyre {{n}} është regjistruar në collabBox dhe ende pret pakon MEX — bëhet porosi kur krijohet pakoja.",
-        "bookedNote_other": "Prej tyre {{n}} janë regjistruar në collabBox dhe ende presin pakon MEX — bëhen porosi kur krijohet pakoja."
+        "bookedNote_other": "Prej tyre {{n}} janë regjistruar në collabBox dhe ende presin pakon MEX — bëhen porosi kur krijohet pakoja.",
+        "webAwaitingLine_one": "prej tyre {{n}} pret konfirmimin e dyqanit",
+        "webAwaitingLine_other": "prej tyre {{n}} presin konfirmimin e dyqanit"
       },
       "loadFailed": "Shitjet e periudhës nuk mund të llogariteshin, prandaj nuk shfaqen. Provoni përsëri."
     },

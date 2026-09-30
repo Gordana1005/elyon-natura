@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Cohort, CohortSourceRow } from '../shared/cohortTypes';
 import { bucketParts, cohortDrill } from '../shared/cohortModel';
 import sample from '../shared/__fixtures__/cohort.sample.json';
-import { splitDrill, tileBuckets, tilePart, workedOf } from './cohortOverview';
+import { splitDrill, tileBuckets, tilePart, webAwaitingCount, workedOf } from './cohortOverview';
 
 // The Overview's source cards over the shared cohort, checked against the
 // week fixture (22–28.09.2026 in insights_cohort()'s shape): a tile adds up
@@ -84,5 +84,15 @@ describe('leads', () => {
     expect(workedOf(null)).toBe(0);
     const l = row('altercpa').leads_in;
     expect(l.became_sales + l.cancelled + l.trashed + l.open + (l.other ?? 0)).toBe(l.came_in);
+  });
+});
+
+describe('web orders waiting for the shop (20260942001965)', () => {
+  it('reads `awaiting` of the to_pack bucket; 0 when the payload has none (older api, non-owner strip)', () => {
+    const web = row('web');
+    expect(webAwaitingCount(web)).toBe(0);
+    const withAwaiting = { ...web, buckets: web.buckets.map((b) => (b.key === 'to_pack' ? { ...b, awaiting: 3 } : b)) };
+    expect(webAwaitingCount(withAwaiting)).toBe(3);
+    expect(webAwaitingCount({ buckets: undefined as unknown as CohortSourceRow['buckets'] })).toBe(0);
   });
 });

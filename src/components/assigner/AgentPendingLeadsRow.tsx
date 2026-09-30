@@ -7,7 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ChevronRight, Loader2, UserX } from 'lucide-react';
-import { format } from 'date-fns';
+import { formatDate } from '@/i18n/dates';
 import { cn } from '@/lib/utils';
 
 interface PendingLead {
@@ -82,7 +82,8 @@ export function AgentPendingLeadsRow({ agentId, count, busy, defaultOpen, onMuta
       <button
         type="button"
         onClick={() => setExpanded(v => !v)}
-        className="flex w-full items-center gap-3 px-4 py-2 pl-9 text-left hover:bg-muted/30 transition-colors"
+        aria-expanded={expanded}
+        className="flex min-h-9 w-full flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 pl-5 text-left hover:bg-muted/30 transition-colors sm:px-4 sm:pl-9"
       >
         <ChevronRight className={cn('h-3.5 w-3.5 text-muted-foreground transition-transform shrink-0', expanded && 'rotate-90')} />
         <div className="flex-1 min-w-0 text-sm truncate">{t('assigner.pendingLeadsRow')}</div>
@@ -110,9 +111,9 @@ export function AgentPendingLeadsRow({ agentId, count, busy, defaultOpen, onMuta
           {isLoading ? (
             <div className="flex items-center justify-center py-6"><Loader2 className="h-4 w-4 animate-spin text-primary" /></div>
           ) : leads.length === 0 ? (
-            <div className="px-4 py-3 pl-16 text-xs text-muted-foreground">{t('assigner.noPendingToAssign')}</div>
+            <div className="px-4 py-3 pl-6 text-xs text-muted-foreground sm:pl-16">{t('assigner.noPendingToAssign')}</div>
           ) : leads.map(lead => (
-            <div key={lead.id} className="flex items-center gap-3 px-4 py-1.5 pl-16 border-b last:border-0 border-border/50">
+            <div key={lead.id} className="flex items-center gap-3 px-3 py-1.5 pl-6 sm:px-4 sm:pl-16 border-b last:border-0 border-border/50">
               <div className="min-w-0 flex-1">
                 <span className="text-sm font-medium">{lead.customer_name || '—'}</span>
                 <span className="ml-2 font-mono text-xs text-muted-foreground">{lead.customer_phone}</span>
@@ -130,11 +131,11 @@ export function AgentPendingLeadsRow({ agentId, count, busy, defaultOpen, onMuta
                 <Badge variant="outline" className="text-[10px] shrink-0 hidden sm:inline-flex">{lead.product_name}</Badge>
               )}
               <span className="text-[11px] text-muted-foreground shrink-0 hidden md:inline">
-                {format(new Date(lead.created_at), 'MMM d, HH:mm')}
+                {formatDate(lead.created_at, 'd MMM, HH:mm')}
               </span>
               <Button
                 variant="ghost" size="icon"
-                className="h-6 w-6 shrink-0 text-rose-600 hover:bg-rose-100 hover:text-rose-700"
+                className="h-9 w-9 shrink-0 text-rose-600 hover:bg-rose-100 hover:text-rose-700 sm:h-6 sm:w-6"
                 disabled={busy || rowBusy !== null}
                 onClick={() => unassignOne(lead.id)}
                 title={t('assigner.unassign')}

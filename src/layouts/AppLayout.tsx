@@ -1,5 +1,6 @@
 import { AppSidebar } from '@/components/AppSidebar';
-import { LogOut } from 'lucide-react';
+import { LogOut, Menu } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import { GlobalSearch } from '@/components/search/GlobalSearch';
@@ -32,6 +33,8 @@ export function AppLayout({ children, title, headerActions }: AppLayoutProps) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  // phone: the sidebar is an off-canvas drawer opened from the top bar (AppSidebar)
+  const [navOpen, setNavOpen] = useState(false);
   // Time on the CRM + the 30-minute idle alert. The tracker is module-level,
   // so this per-page layout remounting on navigation does not restart it.
   usePresenceTracking();
@@ -55,24 +58,37 @@ export function AppLayout({ children, title, headerActions }: AppLayoutProps) {
         they are placed against the page, stretch it past the viewport and the window scrolls into an
         empty grey area below the content (seen on Insights → Агенти / Продажби, 29.09.2026). */}
     <div className="relative flex h-screen w-full overflow-hidden">
-      <AppSidebar />
+      <AppSidebar mobileOpen={navOpen} onMobileClose={() => setNavOpen(false)} />
       <div className="flex flex-1 flex-col overflow-hidden min-w-0">
         {/* Top bar */}
         <header className="flex h-16 items-center justify-between border-b bg-card px-3 sm:px-4 md:px-6 gap-2 md:gap-4">
           <div className="flex items-center gap-2 md:gap-3 min-w-0">
+            {isMobile && (
+              <button
+                type="button"
+                onClick={() => setNavOpen(true)}
+                aria-label={t('nav.toggleSidebar')}
+                aria-controls="app-sidebar"
+                aria-expanded={navOpen}
+                className="-ml-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-card-foreground hover:bg-muted"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
+            )}
             {/* Title is optional — some pages (e.g. Calls) drop it to keep the bar uncluttered. */}
-            {title && <h1 className="text-lg md:text-xl font-semibold text-card-foreground truncate">{title}</h1>}
+            {title && <h1 className="text-base sm:text-lg md:text-xl font-semibold text-card-foreground truncate">{title}</h1>}
             {headerActions}
           </div>
           <div className="flex items-center gap-1.5 md:gap-3">
-            <LanguageSwitcher />
-            <ThemeToggle />
+            {/* on a phone these three move into the drawer's footer */}
+            {!isMobile && <LanguageSwitcher />}
+            {!isMobile && <ThemeToggle />}
             {/* Break + customer search are staff tools — hidden for external
                 affiliate logins (their API calls would 403 on the hard wall). */}
             {!isMobile && !user?.isAffiliate && <BreakButton />}
             {!user?.isAffiliate && <GlobalSearch />}
             {/* Owners only ("Who is working") — renders nothing for anyone else. */}
-            <PresenceHeaderButton />
+            {!isMobile && <PresenceHeaderButton />}
             {!user?.isAffiliate && <NotificationsDropdown />}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -81,7 +97,7 @@ export function AppLayout({ children, title, headerActions }: AppLayoutProps) {
                     {initials}
                   </div>
                   {/* Hide full user info on small screens to avoid crowding next to the (narrow) sidebar */}
-                  <div className="text-left hidden md:block">
+                  <div className="text-left hidden xl:block">
                     <span className="block text-sm font-medium text-card-foreground">{user?.full_name || t('common.user')}</span>
                     <span className="block text-xs text-muted-foreground">
                       {friendlyRoleLabel(user?.roles)}

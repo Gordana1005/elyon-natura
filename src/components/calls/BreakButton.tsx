@@ -93,9 +93,12 @@ export function BreakButton() {
         onClick={end}
         disabled={busy}
         className="h-8 gap-1.5 text-xs bg-amber-600 hover:bg-amber-700 text-white"
+        title={t('breakButton.endBreak')}
+        aria-label={t('breakButton.endBreak')}
       >
         {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-        {t('breakButton.endBreak')}
+        {/* the words only on wide screens — the top bar is crowded below xl */}
+        <span className="hidden xl:inline">{t('breakButton.endBreak')}</span>
         <span className="font-mono tabular-nums">{fmt(elapsed)}</span>
       </Button>
     );
@@ -108,9 +111,11 @@ export function BreakButton() {
       onClick={start}
       disabled={busy}
       className={cn('h-8 gap-1.5 text-xs')}
+      title={t('breakButton.takeBreak')}
+      aria-label={t('breakButton.takeBreak')}
     >
       {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Coffee className="h-3.5 w-3.5" />}
-      {t('breakButton.takeBreak')}
+      <span className="hidden xl:inline">{t('breakButton.takeBreak')}</span>
     </Button>
   );
 }

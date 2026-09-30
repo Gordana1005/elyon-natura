@@ -1,14 +1,16 @@
-import { format } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, Phone, UserX } from 'lucide-react';
+import { Phone, UserX } from 'lucide-react';
 import { SmartPagination } from '@/components/SmartPagination';
 import { formatMoney } from '@/lib/currency';
+import { formatDate } from '@/i18n/dates';
+import { departmentLabel } from '@/lib/orderSource';
 import { cn } from '@/lib/utils';
 import { EmptyState } from '@/components/EmptyState';
-import { MobileCard, MobileCardHeader, MobileCardField } from '@/components/ui/mobile-card';
+import { MobileCard, MobileCardField } from '@/components/ui/mobile-card';
+import { CardHead, ResponsivePager } from './parts';
 
 export interface SegmentMember {
   list_id: string;
@@ -38,6 +40,8 @@ export interface SegmentMember {
   real_last_call_at?: string | null;
   real_last_call_outcome?: string | null;
   real_last_call_connection?: string | null;
+  /** The buyer's department (the Assigner's lists by department); absent on older api builds. */
+  department?: string | null;
 }
 
 /** Newer of member-row stamp vs latest real call_logs row. Outcome falls back
@@ -73,12 +77,17 @@ interface Props {
   /** Hide selection checkboxes + row-click selection (read-only view, e.g. the
    *  informational "Trash List" which is never distributed). Defaults to true. */
   selectable?: boolean;
+  /** Show the buyer-department column. Default: when any member carries one. */
+  showDepartment?: boolean;
+  /** Below this width the rows are cards (no sideways-scrolling table). The
+   *  Assigner uses 'xl': its expanded list card is too narrow for 10 columns before that. */
+  cardsBelow?: 'md' | 'xl' | '2xl';
 }
 
 export function SegmentMemberTable({
   members, isSelected, onToggle, onToggleAll, allOnPageSelected,
   page, totalPages, onPageChange, loading, compact, onUnassignSingle,
-  selectable = true,
+  selectable = true, showDepartment, cardsBelow = 'md',
 }: Props) {
   const { t } = useTranslation();
   const pad = compact ? 'px-2 py-1.5' : 'px-3 py-2';
@@ -88,11 +97,13 @@ export function SegmentMemberTable({
   // Only show the Reason column on the Trash List (members carry a trash reason).
   const showReason = members.some(m => m.trigger_trash_reason);
   const hasUnassign = !!onUnassignSingle;
-  const colCount = (showProduct ? 10 : 9) + (showReason ? 1 : 0) + (hasUnassign ? 1 : 0) - (selectable ? 0 : 1);
+  const showDept = showDepartment ?? members.some(m => m.department);
+  const deptText = (d: string | null | undefined) => departmentLabel(t, d) ?? t('assigner.dept.unknown');
+  const colCount = (showProduct ? 10 : 9) + (showReason ? 1 : 0) + (hasUnassign ? 1 : 0) + (showDept ? 1 : 0) - (selectable ? 0 : 1);
   return (
     <div className="space-y-2">
       {/* Desktop: table */}
-      <div className="hidden md:block rounded-xl border bg-card overflow-x-auto">
+      <div className={cn('hidden rounded-xl border bg-card overflow-x-auto', cardsBelow === '2xl' ? '2xl:block' : cardsBelow === 'xl' ? 'xl:block' : 'md:block')}>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/50 text-xs text-muted-foreground">
@@ -105,6 +116,7 @@ export function SegmentMemberTable({
               <th className={cn(pad, 'text-left font-medium')}>{t('search.phone')}</th>
               {showProduct && <th className={cn(pad, 'text-left font-medium')}>{t('ordersPage.colProduct')}</th>}
               {showReason && <th className={cn(pad, 'text-left font-medium')}>{t('segTable.reason')}</th>}
+              {showDept && <th className={cn(pad, 'text-left font-medium')}>{t('assigner.col.department')}</th>}
               <th className={cn(pad, 'text-right font-medium')}>{t('segTable.lastOrder')}</th>
               <th className={cn(pad, 'text-right font-medium')}>{t('search.totalOrders')}</th>
               <th className={cn(pad, 'text-right font-medium')}>{t('clientProfile.metricAvgPkg')}</th>
@@ -165,9 +177,12 @@ export function SegmentMemberTable({
                       ) : <span className="text-muted-foreground/40">—</span>}
                     </td>
                   )}
+                  {showDept && (
+                    <td className={cn(pad, 'text-xs whitespace-nowrap')}>{deptText(m.department)}</td>
+                  )}
                   <td className={cn(pad, 'text-right text-xs leading-tight')}>
                     <div className="font-mono font-semibold">{formatMoney(m.trigger_price)}</div>
-                    <div className="text-[10px] text-muted-foreground">{m.trigger_event_at ? format(new Date(m.trigger_event_at), 'dd MMM yy') : ''}</div>
+                    <div className="text-[10px] text-muted-foreground">{m.trigger_event_at ? formatDate(m.trigger_event_at, 'dd MMM yy') : ''}</div>
                   </td>
                   <td className={cn(pad, 'text-right tabular-nums text-xs')}>{m.paid_count}</td>
                   <td className={cn(pad, 'text-right text-xs leading-tight')}>
@@ -197,7 +212,7 @@ export function SegmentMemberTable({
                       const lc = effectiveLastCall(m);
                       return lc.at ? (
                         <div className="leading-tight">
-                          <div>{format(new Date(lc.at), 'dd MMM HH:mm')}</div>
+                          <div>{formatDate(lc.at, 'dd MMM HH:mm')}</div>
                           {lc.outcome && <div className="text-[10px] text-muted-foreground">{t(`outcome.${lc.outcome}`, { defaultValue: lc.outcome.replace(/_/g, ' ') })}</div>}
                         </div>
                       ) : <span className="text-muted-foreground">{t('segTable.never')}</span>;
@@ -225,7 +240,7 @@ export function SegmentMemberTable({
       </div>
 
       {/* Cards — mobile */}
-      <div className="md:hidden space-y-2">
+      <div className={cn('grid gap-2', cardsBelow === '2xl' ? 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:hidden' : cardsBelow === 'xl' ? 'grid-cols-1 sm:grid-cols-2 xl:hidden' : 'grid-cols-1 md:hidden')}>
         {loading ? (
           <div className="text-center text-muted-foreground py-10">{t('common.loading')}</div>
         ) : members.length === 0 ? (
@@ -236,13 +251,14 @@ export function SegmentMemberTable({
             <MobileCard key={m.customer_phone} className={cn(sel && 'ring-1 ring-primary')} onClick={selectable ? () => onToggle(m) : undefined}>
               <div className="flex items-start gap-2">
                 {selectable && <Checkbox className="mt-1 shrink-0" checked={sel} onCheckedChange={() => onToggle(m)} onClick={e => e.stopPropagation()} />}
-                <div className="min-w-0 flex-1">
-                  <MobileCardHeader
-                    title={<span className="flex items-center gap-1.5">{m.customer_name || '—'}{m.is_completed && <Badge variant="secondary" className="text-[9px]">{t('segTable.done')}</Badge>}</span>}
-                    subtitle={<a href={`tel:${m.customer_phone}`} onClick={e => e.stopPropagation()} className="inline-flex items-center gap-1 text-primary hover:underline"><Phone className="h-3 w-3" />{m.customer_phone}</a>}
-                    badge={m.assigned_agent_name ? <Badge variant="outline" className="text-[10px]">{m.assigned_agent_name}</Badge> : undefined}
-                  />
-                </div>
+                <CardHead
+                  title={m.customer_name || '—'}
+                  badges={<>
+                    {m.is_completed && <Badge variant="secondary" className="text-[9px]">{t('segTable.done')}</Badge>}
+                    {m.assigned_agent_name && <Badge variant="outline" className="max-w-full text-[10px] font-normal"><span className="truncate">{m.assigned_agent_name}</span></Badge>}
+                  </>}
+                  sub={<a href={`tel:${m.customer_phone}`} onClick={e => e.stopPropagation()} className="inline-flex min-h-6 items-center gap-1 text-primary hover:underline"><Phone className="h-3 w-3" />{m.customer_phone}</a>}
+                />
               </div>
               {showProduct && <MobileCardField label={t('ordersPage.colProduct')} value={m.product_name || '—'} />}
               {showReason && (
@@ -255,8 +271,9 @@ export function SegmentMemberTable({
               )}
               <MobileCardField
                 label={t('segTable.lastOrder')}
-                value={<>{formatMoney(m.trigger_price)}{m.trigger_event_at ? <span className="text-muted-foreground font-normal"> · {format(new Date(m.trigger_event_at), 'dd MMM yy')}</span> : null}</>}
+                value={<>{formatMoney(m.trigger_price)}{m.trigger_event_at ? <span className="text-muted-foreground font-normal"> · {formatDate(m.trigger_event_at, 'dd MMM yy')}</span> : null}</>}
               />
+              {showDept && <MobileCardField label={t('assigner.col.department')} value={deptText(m.department)} />}
               <MobileCardField label={t('segTable.totalOrders')} value={m.paid_count} />
               <MobileCardField
                 label={t('segTable.avgPerPkg')}
@@ -273,14 +290,14 @@ export function SegmentMemberTable({
                 value={(() => {
                   const lc = effectiveLastCall(m);
                   return lc.at
-                    ? `${format(new Date(lc.at), 'dd MMM HH:mm')}${lc.outcome ? ' · ' + t(`outcome.${lc.outcome}`, { defaultValue: lc.outcome.replace(/_/g, ' ') }) : ''}`
+                    ? `${formatDate(lc.at, 'dd MMM HH:mm')}${lc.outcome ? ' · ' + t(`outcome.${lc.outcome}`, { defaultValue: lc.outcome.replace(/_/g, ' ') }) : ''}`
                     : t('segTable.never');
                 })()}
               />
               {hasUnassign && (
                 <div className="pt-1">
                   <Button variant="outline" size="sm" className="w-full gap-1.5 text-rose-600" disabled={!m.assigned_agent_id} onClick={(e) => { e.stopPropagation(); onUnassignSingle?.(m); }}>
-                    <UserX className="h-3.5 w-3.5" /> Unassign
+                    <UserX className="h-3.5 w-3.5" /> {t('assigner.unassign')}
                   </Button>
                 </div>
               )}
@@ -290,9 +307,10 @@ export function SegmentMemberTable({
       </div>
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-muted-foreground">{t('segmentDetail.pageOf', { page, totalPages })}</p>
-          <SmartPagination page={page} totalPages={totalPages} onPageChange={onPageChange} />
+        <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-between">
+          <p className="hidden text-xs text-muted-foreground sm:block">{t('segmentDetail.pageOf', { page, totalPages })}</p>
+          <ResponsivePager page={page} totalPages={totalPages} onPageChange={onPageChange} t={t}
+            desktop={<SmartPagination page={page} totalPages={totalPages} onPageChange={onPageChange} />} />
         </div>
       )}
     </div>

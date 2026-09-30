@@ -15,7 +15,7 @@ import type { InsightsFormat } from '../shared/useInsightsFormat';
 import { DrillLink } from './DrillLink';
 import { sourceColorVar } from './palette';
 import { CohortTile, whyNoLink } from './CohortTiles';
-import { hasLeadFunnel, splitDrill, tileBuckets, tilePart, workedOf } from './cohortOverview';
+import { hasLeadFunnel, splitDrill, tileBuckets, tilePart, webAwaitingCount, workedOf } from './cohortOverview';
 
 type SourcesView = 'cards' | 'table';
 const VIEW_KEY = 'elyon.overview.sourcesView';
@@ -112,6 +112,8 @@ function SourceCard({ row, grand, money, range, f }: {
   // collabBox documents booked but still waiting for their MEX parcel (20260942001900)
   const booked = bookedCount(row);
   const isWeb = row.key === 'web';
+  // web orders still waiting for the shop's confirmation — counted, "to pack" (20260942001965)
+  const webAwaiting = isWeb ? webAwaitingCount(row) : 0;
   const leads = row.leads_in;
   // Телешоп (Lead in and Lead out) and Social media have no lead funnel (hasLeadFunnel).
   const noFunnel = !hasLeadFunnel(row.key);
@@ -169,6 +171,11 @@ function SourceCard({ row, grand, money, range, f }: {
               {k === 'to_pack' && (p.booked ?? 0) > 0 && (
                 <span className="text-[11px] text-muted-foreground" title={t('insights.common.cohort.noLinkBooked')}>
                   {t('insights.common.cohort.bookedLine', { n: f.int(p.booked), count: p.booked })}
+                </span>
+              )}
+              {k === 'to_pack' && webAwaiting > 0 && (
+                <span data-testid="web-awaiting-line" className="text-[11px] text-muted-foreground">
+                  {t('overview.cohort.sources.webAwaitingLine', { n: f.int(webAwaiting), count: webAwaiting })}
                 </span>
               )}
               {k === 'courier' && problem.count > 0 && (

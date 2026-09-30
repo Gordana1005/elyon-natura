@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { EmptyState } from '@/components/EmptyState';
 import { AgentPendingLeadsRow } from '@/components/assigner/AgentPendingLeadsRow';
 import { AgentListMembersRow } from '@/components/assigner/AgentListMembersRow';
+import { listLabel } from '@/components/insights/lists/listModel';
 
 /** What a pending confirmation is about. `agent_id: 'all'` = every agent. */
 interface PendingAction {
@@ -114,7 +115,7 @@ export function BulkUnassignPanel({ onlineIds = [], focus, onFocusHandled }: Pro
     try {
       // Pendings ride along only on full-agent calls; list-scoped rows never
       // touch orders (the server also ignores the flag when list_ids is set).
-      const res = await apiUnassignAllForAgent(pending.agentId, pending.listIds, {
+      const res: Awaited<ReturnType<typeof apiUnassignAllForAgent>> & { call_agains_unassigned?: number } = await apiUnassignAllForAgent(pending.agentId, pending.listIds, {
         includePendings: !pending.listIds && pending.pendings > 0,
         includeCallAgains: !pending.listIds && releaseCallAgains,
         includeDone: true,
@@ -158,7 +159,7 @@ export function BulkUnassignPanel({ onlineIds = [], focus, onFocusHandled }: Pro
           <div className="text-xs text-muted-foreground">{t('assigner.unassignFullDetach')}</div>
         </div>
         <Button
-          size="sm" variant="destructive" className="h-9 gap-1.5 ml-auto"
+          size="sm" variant="destructive" className="h-auto min-h-9 w-full gap-1.5 whitespace-normal py-2 text-left sm:ml-auto sm:w-auto"
           disabled={(assignedTotal + pendingsTotal) === 0 || busy}
           onClick={() => setPending({ agentId: 'all', agentName: t('assigner.allAgents'), count: assignedTotal, pendings: pendingsTotal })}
         >
@@ -186,11 +187,12 @@ export function BulkUnassignPanel({ onlineIds = [], focus, onFocusHandled }: Pro
             ref={el => { if (el) rowRefs.current.set(agent.agent_id, el); else rowRefs.current.delete(agent.agent_id); }}
             className="rounded-xl border bg-card shadow-sm overflow-hidden"
           >
-            <div className="flex items-center gap-3 px-4 py-3">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-3 sm:px-4">
               <button
                 type="button"
                 onClick={() => toggleExpanded(agent.agent_id)}
-                className="flex flex-1 items-center gap-3 min-w-0 text-left"
+                aria-expanded={isOpen}
+                className="flex min-h-9 min-w-[12rem] flex-1 items-center gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
               >
                 <ChevronRight className={cn('h-4 w-4 text-muted-foreground transition-transform shrink-0', isOpen && 'rotate-90')} />
                 <div className="relative shrink-0">
@@ -208,7 +210,7 @@ export function BulkUnassignPanel({ onlineIds = [], focus, onFocusHandled }: Pro
                   </div>
                 </div>
               </button>
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
                 {agent.open_total > 0 && (
                   <Badge className="text-[10px] bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/15">
                     {t('assigner.nToCall', { count: agent.open_total.toLocaleString() })}
@@ -223,7 +225,7 @@ export function BulkUnassignPanel({ onlineIds = [], focus, onFocusHandled }: Pro
                   <Badge variant="secondary" className="text-[10px]">{t('assigner.nDone', { count: doneHeld.toLocaleString() })}</Badge>
                 )}
                 <Button
-                  size="sm" variant="outline" className="h-8 gap-1.5 text-rose-700 hover:bg-rose-50"
+                  size="sm" variant="outline" className="h-9 gap-1.5 text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-950/40 sm:h-8"
                   disabled={busy}
                   onClick={() => setPending({ agentId: agent.agent_id, agentName: agent.full_name, count: agent.assigned_total, pendings: agent.pendings_total || 0 })}
                 >
@@ -254,7 +256,8 @@ export function BulkUnassignPanel({ onlineIds = [], focus, onFocusHandled }: Pro
                       agentId: agent.agent_id,
                       agentName: agent.full_name,
                       listIds: [list.list_id],
-                      listName: list.list_name,
+                      // The engine key stays in list_ids; the dialog shows the reader's label.
+                      listName: listLabel(t, list.list_name),
                       count: list.assigned,
                       pendings: 0,
                     })}

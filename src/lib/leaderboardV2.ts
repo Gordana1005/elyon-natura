@@ -112,14 +112,23 @@ export interface BoardV2 {
 /** The TV board's web view (leaderboard_web_live, 20260942001940): the shop itself, it has no agents. */
 export interface WebLive {
   day: string;
-  /** The cohort's web part of the day — the Overview's number. */
+  /** The cohort's web part of the day — the Overview's number: the shop's orders ("чека потврда"
+   *  included, 20260942001965) and the day's MEX web parcels with no shop order (20260942001967). */
   orders: number;
   value_mkd?: number;
   all_orders: number;
   card: number;
   cod: number;
+  /** Counted orders still waiting for the shop's confirmation (absent from an older api → 0). */
+  awaiting?: number;
+  awaiting_value_mkd?: number;
+  /** Counted MEX web parcels (M… / NTMK…) with no order in the shop mirror (absent → 0). */
+  mex_only?: number;
+  mex_only_value_mkd?: number;
   by_outcome: Array<{ key: string; count: number; value_mkd?: number }>;
   latest: Array<{
+    /** 'mex' = a MEX web parcel with no shop order: tracking id, city, COD — no product. */
+    kind?: 'web' | 'mex';
     at: string | null; number: string | null; city: string | null; total_mkd?: number; outcome: string;
     payment: 'card' | 'cod'; counted: boolean; source: string | null; item: string | null; items: number;
   }>;
@@ -269,6 +278,38 @@ export function bookedChips(row: BoardRow, department: Department | null = null)
   }
   return out;
 }
+
+// ── the day on screen (the arrows and the date picker) ──────────────────────
+/** The first day the board opens: the web history is complete from here (owner, 29.09.2026 —
+ *  the gap 30.07–03.09.2026 is filled from the MEX web parcels, 20260942001967). */
+export const BOARD_FIRST_DAY = '2026-01-01';
+const YMD = /^\d{4}-\d{2}-\d{2}$/;
+
+/** A calendar day ± n days (YYYY-MM-DD, no time zone involved). */
+export function addDaysYmd(ymd: string, n: number): string {
+  const [y, m, d] = ymd.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
+}
+
+/** Whole days from `a` to `b` (b − a); both YYYY-MM-DD. */
+export function daysBetween(a: string, b: string): number {
+  return Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
+}
+
+/**
+ * The day the board should show for a wanted day: null = today, live (a day on or after `today`,
+ * or anything that is not a real YYYY-MM-DD); a day before BOARD_FIRST_DAY opens that first day.
+ * `today` is the server's Skopje day (BoardV2.today) — never the TV's own clock.
+ */
+export function boardDay(wanted: string | null | undefined, today: string): string | null {
+  if (!wanted || !YMD.test(wanted) || Number.isNaN(Date.parse(`${wanted}T00:00:00Z`))) return null;
+  if (addDaysYmd(wanted, 0) !== wanted) return null;              // 2026-02-31 and friends
+  if (YMD.test(today) && wanted >= today) return null;
+  return wanted < BOARD_FIRST_DAY ? BOARD_FIRST_DAY : wanted;
+}
+
+/** The web view's confirmed orders: the counted ones the shop no longer shows as "чека потврда". */
+export const webConfirmed = (w: Pick<WebLive, 'orders' | 'awaiting'>): number => Math.max(0, (w.orders ?? 0) - (w.awaiting ?? 0));
 
 /** Conversion as a percentage with one decimal, or null. */
 export const conversionPct = (row: Pick<BoardRow, 'conversion'>): number | null =>

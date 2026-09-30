@@ -515,20 +515,30 @@ export interface CallAgainMember {
   paid_count: number | null;
   avg_package_price: number | null;
   prediction_segment_lists?: { name: string; category: string } | null;
+  /** The buyer's department (one of the six, or 'unknown'); absent on older api builds. */
+  department?: string | null;
 }
 export const apiGetCallAgains = (params?: {
   page?: number;
   limit?: number;
   agent_id?: string;
   source?: 'all' | 'order' | 'prediction';
-}) => {
+  /** By call_again_since; the api defaults to oldest first. */
+  order?: 'oldest' | 'newest';
+  /** Only these departments (empty = all). */
+  departments?: string[];
+}, signal?: AbortSignal) => {
   const sp = new URLSearchParams();
   if (params?.page) sp.set('page', String(params.page));
   if (params?.limit) sp.set('limit', String(params.limit));
   if (params?.agent_id) sp.set('agent_id', params.agent_id);
   if (params?.source && params.source !== 'all') sp.set('source', params.source);
-  return apiFetch(`call-agains?${sp.toString()}`) as Promise<{
+  if (params?.order) sp.set('order', params.order);
+  if (params?.departments?.length) sp.set('departments', params.departments.join(','));
+  return apiFetch(`call-agains?${sp.toString()}`, signal ? { signal } : undefined) as Promise<{
     members: CallAgainMember[]; total: number; page: number; limit: number;
+    /** The total split by source (new api builds). */
+    total_orders?: number; total_members?: number; order?: 'oldest' | 'newest';
   }>;
 };
 // Members span many lists, so the selection is (list_id, customer_phone) pairs.
@@ -1742,7 +1752,30 @@ export const apiDeleteInboundLead = (id: string) =>
   apiFetch(`inbound-leads/${id}`, { method: 'DELETE' });
 
 // Assigner
-export const apiGetUnassignedPending = () => apiFetch('orders/unassigned-pending');
+/** An unassigned lead pending (lead sources only) as the Assigner's Pendings tab lists it. */
+export interface UnassignedPendingOrder {
+  id: string;
+  display_id: string;
+  customer_name: string;
+  customer_phone: string;
+  product_name: string | null;
+  source_type: string;
+  created_at: string;
+  /** The lead's department (cohort source); absent on older api builds. */
+  department?: string | null;
+}
+export const apiGetUnassignedPending = (
+  params?: { order?: 'newest' | 'oldest'; departments?: string[] },
+  signal?: AbortSignal,
+): Promise<UnassignedPendingOrder[]> => {
+  // Tolerates being handed straight to react-query as a queryFn (its context has no `order`).
+  const p = params && typeof params === 'object' && ('order' in params || 'departments' in params) ? params : undefined;
+  const sp = new URLSearchParams();
+  if (p?.order) sp.set('order', p.order);
+  if (p?.departments?.length) sp.set('departments', p.departments.join(','));
+  const qs = sp.toString();
+  return apiFetch(`orders/unassigned-pending${qs ? `?${qs}` : ''}`, signal ? { signal } : undefined);
+};
 export const apiGetAssignedOrders = () => apiFetch('orders/assigned');
 export const apiBulkAssignOrders = (orderIds: string[], agentId: string) =>
   apiFetch('orders/bulk-assign', { method: 'POST', body: JSON.stringify({ order_ids: orderIds, agent_id: agentId }) });
@@ -2575,12 +2608,14 @@ export const apiGetCourierOfficeByCode = (courier: 'speedy' | 'econt' | 'mex', c
 
 // Segments (rule-driven prediction lists)
 export const apiGetSegments = () => apiFetch('segments');
-export const apiGetSegment = (id: string, params?: { page?: number; limit?: number; assigned?: string; completed?: string }) => {
+export const apiGetSegment = (id: string, params?: { page?: number; limit?: number; assigned?: string; completed?: string; departments?: string[] }) => {
   const sp = new URLSearchParams();
   if (params?.page) sp.set('page', String(params.page));
   if (params?.limit) sp.set('limit', String(params.limit));
   if (params?.assigned) sp.set('assigned', params.assigned);
   if (params?.completed) sp.set('completed', params.completed);
+  // the buyer's department (the Assigner's chips); the members then carry `department`
+  if (params?.departments?.length) sp.set('departments', params.departments.join(','));
   const qs = sp.toString();
   return apiFetch(`segments/${id}${qs ? `?${qs}` : ''}`);
 };

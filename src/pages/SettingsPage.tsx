@@ -11,6 +11,8 @@ import { apiErrorText } from '@/i18n/apiErrors';
 import { formatDayDmy } from '@/i18n/dates';
 import { usePermissions } from '@/contexts/PermissionsContext';
 import { EmptyState } from '@/components/EmptyState';
+// The user filter shared with Тим → Корисници (Cyrillic ⇄ Latin search).
+import { filterUsers, roleCounts, type UserStatusFilter } from '@/lib/users/filterUsers';
 // Courier rates are stored in EUR but entered in denari — convert at the input.
 import { eurToDen, denToEur } from '@/lib/currency';
 import {
@@ -214,7 +216,7 @@ function UsersTab() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<UserStatusFilter>('all');
   const [sortField, setSortField] = useState<'full_name' | 'created_at' | 'orders_processed'>('full_name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [showModal, setShowModal] = useState(false);
@@ -239,22 +241,19 @@ function UsersTab() {
   useEffect(() => { fetchUsers(); }, []);
 
   const filtered = useMemo(() => {
-    let result = users;
-    if (search) {
-      const q = search.toLowerCase();
-      result = result.filter(u => u.full_name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
-    }
-    if (roleFilter !== 'all') result = result.filter(u => u.roles.includes(roleFilter));
-    if (statusFilter !== 'all') result = result.filter(u => statusFilter === 'active' ? u.is_active : !u.is_active);
-    // Sort
-    result = [...result].sort((a, b) => {
+    const result = filterUsers(users, {
+      query: search,
+      roles: roleFilter === 'all' ? [] : [roleFilter],
+      status: statusFilter,
+    });
+    // Sort (filterUsers returns a new array)
+    return result.sort((a, b) => {
       let cmp = 0;
       if (sortField === 'full_name') cmp = a.full_name.localeCompare(b.full_name);
       else if (sortField === 'created_at') cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
       else if (sortField === 'orders_processed') cmp = a.orders_processed - b.orders_processed;
       return sortDir === 'asc' ? cmp : -cmp;
     });
-    return result;
   }, [users, search, roleFilter, statusFilter, sortField, sortDir]);
 
   const toggleFormRole = (role: string) => {
@@ -323,13 +322,8 @@ function UsersTab() {
 
   const isSelf = (userId: string) => currentUser?.id === userId;
 
-  // Role stats
-  const roleStats = useMemo(() => {
-    const stats: Record<string, number> = {};
-    ALL_ROLES.forEach(r => { stats[r] = 0; });
-    users.forEach(u => u.roles.forEach(r => { stats[r] = (stats[r] || 0) + 1; }));
-    return stats;
-  }, [users]);
+  // Role stats (a role nobody holds is absent → shown as 0)
+  const roleStats = useMemo(() => roleCounts(users), [users]);
 
   return (
     <div className="space-y-4">
@@ -360,7 +354,7 @@ function UsersTab() {
             >
               <Icon className="h-3 w-3" />
               {t(meta.labelKey)}
-              <span className="ml-1 font-bold">{roleStats[role]}</span>
+              <span className="ml-1 font-bold">{roleStats[role] ?? 0}</span>
             </button>
           );
         })}
@@ -372,10 +366,10 @@ function UsersTab() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('settings.searchNameEmail')} className="h-9 w-full rounded-lg border bg-background pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
         </div>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="h-9 rounded-lg border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as UserStatusFilter)} className="h-9 rounded-lg border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
           <option value="all">{t('settings.allStatus')}</option>
           <option value="active">{t('usersPage.active')}</option>
-          <option value="inactive">{t('usersPage.suspended')}</option>
+          <option value="suspended">{t('usersPage.suspended')}</option>
         </select>
         {(search || roleFilter !== 'all' || statusFilter !== 'all') && (
           <button onClick={() => { setSearch(''); setRoleFilter('all'); setStatusFilter('all'); }} className="h-9 px-3 rounded-lg border text-xs font-medium text-muted-foreground hover:bg-muted transition-colors">

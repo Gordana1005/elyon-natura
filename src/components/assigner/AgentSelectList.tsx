@@ -4,6 +4,7 @@ import { Check, Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import type { AgentChip } from './AgentPickerChips';
+import { matchesAgentSearch } from '@/lib/assigner/board';
 
 export const agentLoad = (a: AgentChip) => a.members_open ?? a.active_leads ?? 0;
 
@@ -46,9 +47,9 @@ export function AgentSelectList({
 
   const sorted = useMemo(() => sortAgents(agents), [agents]);
   const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    if (!needle) return sorted;
-    return sorted.filter((a) => (a.full_name || '').toLowerCase().includes(needle));
+    // Cyrillic ⇄ Latin: "Ivana" finds "Ивана" (normalizeForSearch + a digraph fold).
+    if (!q.trim()) return sorted;
+    return sorted.filter((a) => matchesAgentSearch(a.full_name || '', q));
   }, [sorted, q]);
 
   return (

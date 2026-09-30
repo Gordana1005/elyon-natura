@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  apiGetLeaderboardV2, bookedChips, conversionPct, deptChips, initialFilter, rankRows, splitManagers, toBoardV2,
-  type BoardRow,
+  addDaysYmd, apiGetLeaderboardV2, BOARD_FIRST_DAY, boardDay, bookedChips, conversionPct, daysBetween, deptChips,
+  initialFilter, rankRows, splitManagers, toBoardV2, webConfirmed, type BoardRow,
 } from './leaderboardV2';
 
 const presence = { state: 'offline' as const, online_min: 0, active_min: 0, idle_min: 0, break_min: 0, first_seen: null, last_seen: null,
@@ -134,5 +134,29 @@ describe('apiGetLeaderboardV2', () => {
   it('turns an api error into an Error with its message', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, json: async () => ({ error: 'Unauthorized' }) })));
     await expect(apiGetLeaderboardV2('bad', { department: null, team: null })).rejects.toThrow('Unauthorized');
+  });
+});
+
+describe('the day on screen (arrows + date picker)', () => {
+  it('addDaysYmd / daysBetween work on calendar days, across months and the DST change', () => {
+    expect(addDaysYmd('2026-09-30', 1)).toBe('2026-10-01');
+    expect(addDaysYmd('2026-03-01', -1)).toBe('2026-02-28');
+    expect(daysBetween('2026-10-24', '2026-10-26')).toBe(2);         // Skopje DST ends 25.10
+    expect(daysBetween('2026-09-30', '2026-09-29')).toBe(-1);
+  });
+  it('today or later is the live board (null); earlier days open as they are, never before 01.01.2026', () => {
+    expect(boardDay('2026-09-30', '2026-09-30')).toBeNull();
+    expect(boardDay('2026-10-02', '2026-09-30')).toBeNull();
+    expect(boardDay('2026-08-19', '2026-09-30')).toBe('2026-08-19');
+    expect(boardDay('2025-12-31', '2026-09-30')).toBe(BOARD_FIRST_DAY);
+    expect(boardDay(BOARD_FIRST_DAY, '2026-09-30')).toBe('2026-01-01');
+  });
+  it('anything that is not a real day is the live board', () => {
+    for (const bad of ['', null, undefined, '2026-02-31', '19.08.2026', '2026-8-19']) expect(boardDay(bad, '2026-09-30')).toBeNull();
+  });
+  it('webConfirmed = counted orders less the ones still waiting for the shop', () => {
+    expect(webConfirmed({ orders: 22, awaiting: 14 })).toBe(8);
+    expect(webConfirmed({ orders: 11 })).toBe(11);                    // an older api without `awaiting`
+    expect(webConfirmed({ orders: 1, awaiting: 3 })).toBe(0);
   });
 });

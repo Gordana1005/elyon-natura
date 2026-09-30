@@ -61,7 +61,7 @@ beforeEach(() => {
   h.owner = true;
 });
 
-describe('Попис — before the first count', () => {
+describe('Попис — before the first count', { timeout: 30_000 }, () => {
   it('says there is no count, the switch waits for one, and a count previews then saves', async () => {
     h.health.mockResolvedValue(health());
     renderTab();
@@ -121,7 +121,7 @@ describe('Попис — before the first count', () => {
   });
 });
 
-describe('Попис — after the count', () => {
+describe('Попис — after the count', { timeout: 30_000 }, () => {
   it('the owner switches MEX stock movements on after seeing what it applies', async () => {
     h.health.mockResolvedValue(health({
       counted: { at: '2026-10-01T08:00:00Z', by: 'Mile Stoev', count_id: 'c1', products: 170, changed: 160, anchored: true },

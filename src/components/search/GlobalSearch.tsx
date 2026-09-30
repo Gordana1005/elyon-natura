@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Search, User, Loader2, X } from 'lucide-react';
 import { apiSearchPrediction } from '@/lib/api';
 import { CustomerSearchModal } from './CustomerSearchModal';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useMaxWidth } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -34,7 +34,9 @@ function groupByCustomer(orders: any[]): CustomerHit[] {
  */
 export function GlobalSearch() {
   const { t } = useTranslation();
-  const isMobile = useIsMobile();
+  // phone AND tablet (below lg): an icon that opens the search dialog — the top bar has no room for the
+  // wide input there (768 px cut the avatar off, 30.09.2026)
+  const isMobile = useMaxWidth(1023);
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);

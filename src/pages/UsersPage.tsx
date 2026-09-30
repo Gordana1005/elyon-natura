@@ -1,124 +1,113 @@
-import { useState, useEffect } from 'react';
-import { apiErrorText } from '@/i18n/apiErrors';
+import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { UserPlus, Users as UsersIcon } from 'lucide-react';
 import { AppLayout } from '@/layouts/AppLayout';
-import { UserPlus, Shield, Headphones, ToggleLeft, ToggleRight, Loader2, Trash2, Package, Crown, UserCheck, Users as UsersIcon, Pencil } from 'lucide-react';
+import { apiErrorText } from '@/i18n/apiErrors';
 import { apiGetUsers, apiToggleUserActive, apiSetUserRoles, apiDeleteUser, apiUpdateUser } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
-import i18n from '@/i18n';
 import { useAuth } from '@/contexts/AuthContext';
 import type { AppRole } from '@/contexts/AuthContext';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/EmptyState';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { LoadError } from '@/components/insights/shared/LoadError';
+import { useInsightsFormat } from '@/components/insights/shared/useInsightsFormat';
+import { UserFilters } from '@/components/users/UserFilters';
+import { UsersKpis, type UsersKpiCounts } from '@/components/users/UsersKpis';
+import { UsersList, type UserRow } from '@/components/users/UsersList';
+import { CreateUserDialog, EditUserDialog, type NewUser, type UserPatch } from '@/components/users/UserDialogs';
+import { useUserFilterParams } from '@/components/users/useUserFilterParams';
+import { filterUsers, hasActiveFilters, isUserOnline, roleCounts, sortUsers } from '@/lib/users/filterUsers';
 
 const ALL_ROLES: AppRole[] = ['admin', 'manager', 'pending_agent', 'prediction_agent', 'warehouse', 'ads_admin'];
 const MANAGER_ALLOWED_ROLES: AppRole[] = ['pending_agent', 'prediction_agent'];
 
-// Labels live under userRole.* in the locale files.
-const roleLabel = (r: string): string => i18n.t(`userRole.${r}`, { defaultValue: r });
-
-const ROLE_ICONS: Record<string, any> = {
-  admin: Crown,
-  manager: Shield,
-  agent: Headphones,
-  pending_agent: UserCheck,
-  prediction_agent: UsersIcon,
-  warehouse: Package,
-  ads_admin: Shield,
-};
-
-const ROLE_COLORS: Record<string, string> = {
-  admin: 'bg-primary/10 text-primary',
-  manager: 'bg-chart-2/10 text-chart-2',
-  agent: 'bg-accent text-accent-foreground',
-  pending_agent: 'bg-chart-3/10 text-chart-3',
-  prediction_agent: 'bg-chart-5/10 text-chart-5',
-  warehouse: 'bg-chart-4/10 text-chart-4',
-  ads_admin: 'bg-chart-1/10 text-chart-1',
-};
-
-interface UserRow {
-  user_id: string;
-  full_name: string;
-  email: string;
-  roles: string[];
-  role: string;
-  is_active: boolean;
-  orders_processed: number;
-  leads_processed: number;
-  created_at: string;
-}
-
+/**
+ * Тим → Корисници: every login, in the Insights look. Top to bottom: the
+ * accounts at a glance (tiles that filter) · the toolbar (search by name or
+ * e-mail in Cyrillic or Latin, status, online, sort, roles — all in the URL) ·
+ * the list (a table on a desktop, cards on a phone) with the role toggles, the
+ * active switch and the edit / delete menu.
+ *
+ * Data: GET /api/users (profiles.* + roles[] + two counts), fetched once and
+ * again after every change; filtering and sorting are client-side
+ * (lib/users/filterUsers.ts, shared with Settings → Users & roles).
+ * Rules as before: admins manage everyone and edit name / e-mail / password;
+ * a manager only manages users whose roles are all pending / prediction agent;
+ * nobody changes or deletes themselves.
+ */
 export default function UsersPage() {
   const { t } = useTranslation();
-  const [users, setUsers] = useState<UserRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [formName, setFormName] = useState('');
-  const [formEmail, setFormEmail] = useState('');
-  const [formRoles, setFormRoles] = useState<Set<string>>(new Set(['pending_agent']));
-  const [formPassword, setFormPassword] = useState('');
-  const [creating, setCreating] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<UserRow | null>(null);
-  const [deleting, setDeleting] = useState(false);
-  const [editTarget, setEditTarget] = useState<UserRow | null>(null);
-  const [editName, setEditName] = useState('');
-  const [editEmail, setEditEmail] = useState('');
-  const [editPassword, setEditPassword] = useState('');
-  const [savingEdit, setSavingEdit] = useState(false);
+  const f = useInsightsFormat();
   const { toast } = useToast();
   const { user: currentUser } = useAuth();
 
   const isAdmin = currentUser?.isAdmin ?? false;
   const isManager = currentUser?.isManager ?? false;
-
   // Roles this user can assign
   const availableRoles = isAdmin ? ALL_ROLES : MANAGER_ALLOWED_ROLES;
 
+  const [users, setUsers] = useState<UserRow[]>([]);
+  const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [loadError, setLoadError] = useState('');
+  // "Online" is judged against the moment the list arrived (the api's snapshot).
+  const [loadedAt, setLoadedAt] = useState(() => Date.now());
+  const [showCreate, setShowCreate] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [editTarget, setEditTarget] = useState<UserRow | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<UserRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const { filters, sort, setQuery, setFilters, setSort, clear: clearFilters } = useUserFilterParams();
+
   const fetchUsers = () => {
-    setLoading(true);
+    const first = phase !== 'ready';
+    if (first) setPhase('loading');
     apiGetUsers()
-      .then((data) => {
-        setUsers(data.map((u: any) => ({
-          ...u,
-          roles: u.roles || [u.role || 'pending_agent'],
-        })));
+      .then((data: any[]) => {
+        setUsers((data ?? []).map((u: any) => ({ ...u, roles: u.roles || [u.role || 'pending_agent'] })));
+        setLoadedAt(Date.now());
+        setPhase('ready');
       })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .catch((err: unknown) => {
+        // A failed first load says so with a retry; a failed refresh keeps the list and says so.
+        if (first) { setLoadError(apiErrorText(err)); setPhase('error'); }
+        else toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' });
+      });
   };
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => { fetchUsers(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const toggleFormRole = (role: string) => {
-    setFormRoles(prev => {
-      const next = new Set(prev);
-      if (next.has(role)) {
-        if (next.size > 1) next.delete(role);
-      } else {
-        next.add(role);
-      }
-      return next;
-    });
-  };
+  // The payload carries profiles.last_seen_at (null for someone never seen).
+  const hasPresence = useMemo(() => users.some((u) => u.last_seen_at !== undefined), [users]);
+  const effective = useMemo(() => ({ ...filters, online: hasPresence && filters.online }), [filters, hasPresence]);
+  const rows = useMemo(
+    () => sortUsers(filterUsers(users, effective, loadedAt), sort),
+    [users, effective, loadedAt, sort],
+  );
+  const counts = useMemo<UsersKpiCounts>(() => ({
+    total: users.length,
+    active: users.filter((u) => u.is_active).length,
+    suspended: users.filter((u) => !u.is_active).length,
+    online: hasPresence ? users.filter((u) => isUserOnline(u, loadedAt)).length : null,
+    roles: roleCounts(users),
+  }), [users, hasPresence, loadedAt]);
+  const filtering = hasActiveFilters(effective);
 
-  const handleCreateWithRoles = async () => {
-    if (!formName.trim() || !formEmail.trim() || !formPassword.trim()) {
+  const handleCreate = async (nu: NewUser): Promise<boolean> => {
+    if (!nu.full_name.trim() || !nu.email.trim() || !nu.password.trim()) {
       toast({ title: t('common.error'), description: t('usersPage.allFieldsRequired'), variant: 'destructive' });
-      return;
+      return false;
     }
-    if (formRoles.size === 0) {
+    if (nu.roles.length === 0) {
       toast({ title: t('common.error'), description: t('usersPage.oneRoleRequired'), variant: 'destructive' });
-      return;
+      return false;
     }
     setCreating(true);
     try {
@@ -130,52 +119,42 @@ export default function UsersPage() {
           'Authorization': `Bearer ${session?.access_token || ''}`,
           'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
-        body: JSON.stringify({
-          full_name: formName,
-          email: formEmail,
-          password: formPassword,
-          roles: Array.from(formRoles),
-        }),
+        body: JSON.stringify(nu),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to create user');
       toast({ title: t('usersPage.userCreated') });
-      setShowModal(false);
-      setFormName(''); setFormEmail(''); setFormPassword(''); setFormRoles(new Set(['pending_agent']));
+      setShowCreate(false);
       fetchUsers();
-    } catch (err: any) {
+      return true;
+    } catch (err: unknown) {
       toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' });
+      return false;
     } finally {
       setCreating(false);
     }
   };
 
-  const handleToggle = async (userId: string) => {
+  const handleToggleActive = async (u: UserRow) => {
     try {
-      await apiToggleUserActive(userId);
+      await apiToggleUserActive(u.user_id);
       fetchUsers();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' });
     }
   };
 
-  const handleToggleRole = async (userId: string, role: string, currentRoles: string[]) => {
-    const hasRole = currentRoles.includes(role);
-    let newRoles: string[];
-    if (hasRole) {
-      newRoles = currentRoles.filter(r => r !== role);
-      if (newRoles.length === 0) {
-        toast({ title: t('common.error'), description: t('usersPage.mustHaveRole'), variant: 'destructive' });
-        return;
-      }
-    } else {
-      newRoles = [...currentRoles, role];
+  const handleToggleRole = async (u: UserRow, role: string) => {
+    const newRoles = u.roles.includes(role) ? u.roles.filter((r) => r !== role) : [...u.roles, role];
+    if (newRoles.length === 0) {
+      toast({ title: t('common.error'), description: t('usersPage.mustHaveRole'), variant: 'destructive' });
+      return;
     }
     try {
-      await apiSetUserRoles(userId, newRoles);
+      await apiSetUserRoles(u.user_id, newRoles);
       toast({ title: t('usersPage.rolesUpdated') });
       fetchUsers();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' });
     }
   };
@@ -188,261 +167,111 @@ export default function UsersPage() {
       toast({ title: t('usersPage.userDeleted') });
       setDeleteTarget(null);
       fetchUsers();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' });
     } finally {
       setDeleting(false);
     }
   };
 
-  const openEdit = (u: UserRow) => {
-    setEditTarget(u);
-    setEditName(u.full_name);
-    setEditEmail(u.email);
-    setEditPassword('');
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editTarget) return;
-    const patch: { full_name?: string; email?: string; password?: string } = {};
-    const name = editName.trim();
-    const email = editEmail.trim();
-    if (name && name !== editTarget.full_name) patch.full_name = name;
-    if (email && email !== editTarget.email) patch.email = email;
-    if (editPassword) patch.password = editPassword;
+  const handleSaveEdit = async (u: UserRow, patch: UserPatch) => {
     if (Object.keys(patch).length === 0) {
       toast({ title: t('usersPage.noChanges') });
       return;
     }
     setSavingEdit(true);
     try {
-      await apiUpdateUser(editTarget.user_id, patch);
+      await apiUpdateUser(u.user_id, patch);
       toast({ title: t('usersPage.userUpdated') });
       setEditTarget(null);
       fetchUsers();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' });
     } finally {
       setSavingEdit(false);
     }
   };
 
-  const isSelf = (userId: string) => currentUser?.id === userId;
-
   // Manager can only manage agents they can create (pending_agent, prediction_agent)
-  const canManageUser = (userRoles: string[]) => {
+  const canManageUser = (u: UserRow) => {
     if (isAdmin) return true;
-    if (isManager) {
-      // Managers can manage pending_agent and prediction_agent users
-      return userRoles.every(r => MANAGER_ALLOWED_ROLES.includes(r as AppRole));
-    }
+    if (isManager) return u.roles.every((r) => MANAGER_ALLOWED_ROLES.includes(r as AppRole));
     return false;
   };
 
   return (
     <AppLayout title={t('nav.users')}>
-      <div className="mb-6 flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">{t('usersPage.totalUsers', { count: users.length })}</p>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-        >
-          <UserPlus className="h-4 w-4" /> {t('usersPage.addUser')}
-        </button>
-      </div>
-
-      <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      <div className="space-y-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-base font-semibold">{t('nav.users')}</h2>
+            <p className="text-xs text-muted-foreground">{t('users.subtitle')}</p>
           </div>
+          <Button onClick={() => setShowCreate(true)} className="h-9">
+            <UserPlus className="h-4 w-4" aria-hidden /> {t('usersPage.addUser')}
+          </Button>
+        </div>
+
+        {phase === 'error' ? (
+          <LoadError text={loadError} onRetry={fetchUsers} />
+        ) : phase === 'loading' ? (
+          <UsersSkeleton />
         ) : (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b bg-muted/50">
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('usersPage.colUser')}</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('usersPage.colRoles')}</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('ordersPage.colStatus')}</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('usersPage.colOrders')}</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('usersPage.colLeads')}</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('common.actions')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map(u => (
-              <tr key={u.user_id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
-                      {u.full_name.charAt(0)}
-                    </div>
-                    <div>
-                      <p className="font-medium">{u.full_name}</p>
-                      <p className="text-xs text-muted-foreground">{u.email}</p>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-4 py-3">
-                  {isSelf(u.user_id) || !canManageUser(u.roles) ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {u.roles.map(r => {
-                        const Icon = ROLE_ICONS[r] || Shield;
-                        return (
-                          <span key={r} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${ROLE_COLORS[r] || 'bg-muted text-muted-foreground'}`}>
-                            <Icon className="h-3 w-3" />
-                            {roleLabel(r)}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="flex flex-wrap gap-2">
-                      {availableRoles.map(role => {
-                        const hasRole = u.roles.includes(role);
-                        const Icon = ROLE_ICONS[role] || Shield;
-                        return (
-                          <button
-                            key={role}
-                            onClick={() => handleToggleRole(u.user_id, role, u.roles)}
-                            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors border ${
-                              hasRole
-                                ? `${ROLE_COLORS[role]} border-current`
-                                : 'border-border text-muted-foreground hover:bg-muted'
-                            }`}
-                            title={hasRole ? t('usersPage.removeRole', { role: roleLabel(role) }) : t('usersPage.addRole', { role: roleLabel(role) })}
-                          >
-                            <Icon className="h-3 w-3" />
-                            {roleLabel(role)}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </td>
-                <td className="px-4 py-3">
-                  <button
-                    onClick={() => !isSelf(u.user_id) && canManageUser(u.roles) && handleToggle(u.user_id)}
-                    disabled={isSelf(u.user_id) || !canManageUser(u.roles)}
-                    className={`inline-flex items-center gap-1 text-xs font-medium ${
-                      isSelf(u.user_id) || !canManageUser(u.roles) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-                    } ${u.is_active ? 'text-success' : 'text-destructive'}`}
-                  >
-                    {u.is_active ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
-                    {u.is_active ? t('usersPage.active') : t('usersPage.suspended')}
-                  </button>
-                </td>
-                <td className="px-4 py-3 font-semibold">{u.orders_processed}</td>
-                <td className="px-4 py-3 font-semibold">{u.leads_processed}</td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-1">
-                    {isAdmin && (
-                      <button
-                        onClick={() => openEdit(u)}
-                        className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted transition-colors"
-                        title={t('usersPage.editUserTitle')}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                    )}
-                    {!isSelf(u.user_id) && canManageUser(u.roles) && (
-                      <button
-                        onClick={() => setDeleteTarget(u)}
-                        className="flex h-7 w-7 items-center justify-center rounded-md text-destructive hover:bg-destructive/10 transition-colors"
-                        title={t('usersPage.deleteUserTitle')}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+          <>
+            <UsersKpis counts={counts} filters={effective} onFilters={setFilters} f={f} />
+            <section aria-label={t('nav.users')} className="space-y-3">
+              <UserFilters
+                filters={effective}
+                onQueryChange={setQuery}
+                onFilters={setFilters}
+                onClear={clearFilters}
+                sort={sort}
+                onSort={setSort}
+                counts={counts.roles}
+                shown={rows.length}
+                total={users.length}
+                hasPresence={hasPresence}
+              />
+              {rows.length === 0 ? (
+                <EmptyState
+                  icon={<UsersIcon className="h-6 w-6" />}
+                  title={t('settings.noUsersFound')}
+                  description={filtering ? t('users.filter.noMatch') : t('settings.noUsersDesc')}
+                  action={filtering ? <Button variant="outline" size="sm" onClick={clearFilters}>{t('settings.clearFilters')}</Button> : undefined}
+                  size="sm"
+                  className="rounded-xl shadow-sm"
+                />
+              ) : (
+                <UsersList
+                  rows={rows}
+                  query={filters.query}
+                  now={loadedAt}
+                  hasPresence={hasPresence}
+                  sort={sort}
+                  onSort={setSort}
+                  currentUserId={currentUser?.id}
+                  canManage={canManageUser}
+                  availableRoles={availableRoles}
+                  canEdit={isAdmin}
+                  onToggleRole={handleToggleRole}
+                  onToggleActive={handleToggleActive}
+                  onEdit={setEditTarget}
+                  onDelete={setDeleteTarget}
+                  f={f}
+                />
+              )}
+            </section>
+          </>
         )}
       </div>
 
-      {/* Add User Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-xl border bg-card p-6 shadow-xl">
-            <h2 className="text-lg font-semibold text-card-foreground">{t('usersPage.createNewUser')}</h2>
-            <div className="mt-4 space-y-3">
-              <input value={formName} onChange={e => setFormName(e.target.value)} placeholder={t('usersPage.fullName')} className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-              <input value={formEmail} onChange={e => setFormEmail(e.target.value)} placeholder={t('usersPage.email')} type="email" className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-              
-              <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-2">{t('usersPage.colRoles')}</label>
-                <div className="flex flex-wrap gap-2">
-                  {availableRoles.map(role => {
-                    const isSelected = formRoles.has(role);
-                    const Icon = ROLE_ICONS[role] || Shield;
-                    return (
-                      <button
-                        key={role}
-                        type="button"
-                        onClick={() => toggleFormRole(role)}
-                        className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors border ${
-                          isSelected
-                            ? 'bg-primary text-primary-foreground border-primary'
-                            : 'border-border text-muted-foreground hover:bg-muted'
-                        }`}
-                      >
-                        <Icon className="h-4 w-4" />
-                        {roleLabel(role)}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+      <CreateUserDialog open={showCreate} onOpenChange={setShowCreate} availableRoles={availableRoles} busy={creating} onCreate={handleCreate} />
 
-              <input value={formPassword} onChange={e => setFormPassword(e.target.value)} placeholder={t('usersPage.password')} type="password" className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-            </div>
-            <div className="mt-6 flex justify-end gap-3">
-              <button onClick={() => setShowModal(false)} className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted transition-colors">
-                {t('common.cancel')}
-              </button>
-              <button onClick={handleCreateWithRoles} disabled={creating} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50">
-                {creating ? t('usersPage.creating') : t('usersPage.createUser')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit User Modal (Superadmin only) */}
-      {editTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-xl border bg-card p-6 shadow-xl">
-            <h2 className="text-lg font-semibold text-card-foreground">{t('usersPage.editUser')}</h2>
-            <div className="mt-4 space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-1">{t('usersPage.fullName')}</label>
-                <input value={editName} onChange={e => setEditName(e.target.value)} placeholder={t('usersPage.fullName')} className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-1">{t('usersPage.email')}</label>
-                <input value={editEmail} onChange={e => setEditEmail(e.target.value)} placeholder={t('usersPage.email')} type="email" className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-1">{t('usersPage.newPasswordOptional')}</label>
-                <input value={editPassword} onChange={e => setEditPassword(e.target.value)} placeholder="••••••••" type="password" autoComplete="new-password" className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-              </div>
-            </div>
-            <div className="mt-6 flex justify-end gap-3">
-              <button onClick={() => setEditTarget(null)} disabled={savingEdit} className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted transition-colors">
-                {t('common.cancel')}
-              </button>
-              <button onClick={handleSaveEdit} disabled={savingEdit} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50">
-                {savingEdit ? t('usersPage.saving') : t('common.save')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Edit (Superadmin only) */}
+      <EditUserDialog target={editTarget} onClose={() => setEditTarget(null)} busy={savingEdit} onSave={handleSaveEdit} />
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={open => !open && setDeleteTarget(null)}>
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('usersPage.deleteUser')}</AlertDialogTitle>
@@ -463,5 +292,20 @@ export default function UsersPage() {
         </AlertDialogContent>
       </AlertDialog>
     </AppLayout>
+  );
+}
+
+function UsersSkeleton() {
+  return (
+    <div className="space-y-6" aria-hidden data-testid="users-skeleton">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-6">
+        {Array.from({ length: 4 }, (_, i) => <Skeleton key={i} variant="card" className="h-24" />)}
+        <Skeleton variant="card" className="col-span-2 h-24 lg:col-span-full xl:col-span-2" />
+      </div>
+      <Skeleton variant="card" className="h-24" />
+      <div className="space-y-2 rounded-xl border bg-card p-3 shadow-sm">
+        {Array.from({ length: 6 }, (_, i) => <Skeleton key={i} variant="tableRow" className="h-11" />)}
+      </div>
+    </div>
   );
 }

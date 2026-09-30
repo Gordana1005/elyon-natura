@@ -142,17 +142,19 @@ describe('TV leaderboard v2', () => {
     expect(screen.queryByText(i18n.t('leaderboard2.colDepartments'))).toBeNull();   // no table header
   });
 
-  it('the Web filter shows the shop itself, live — it has no agents', async () => {
+  it('the Web filter shows the shop itself, live — counted like its own panel, "чека потврда" included', async () => {
+    // 29.09.2026 on the shop's panel: 22 orders / 43.774 ден = 14 чекаат потврда (30.464) + 8 се подготвуваат (13.310)
     serve({
       ...v2, filter: { department: 'web', team: null }, rows: [], summary: { people: 0 },
       web_live: {
-        day: '2026-09-28', orders: 8, value_mkd: 13310, all_orders: 17, card: 1, cod: 7,
-        by_outcome: [{ key: 'awaiting', count: 7, value_mkd: 14250 }, { key: 'preparing', count: 8, value_mkd: 13310 },
+        day: '2026-09-28', orders: 22, value_mkd: 43774, all_orders: 24, card: 1, cod: 21,
+        awaiting: 14, awaiting_value_mkd: 30464, mex_only: 0, mex_only_value_mkd: 0,
+        by_outcome: [{ key: 'awaiting', count: 14, value_mkd: 30464 }, { key: 'preparing', count: 8, value_mkd: 13310 },
           { key: 'card_unpaid', count: 2, value_mkd: 4000 }],
         latest: [
-          { at: now.toISOString(), number: 'NTMK62512', city: 'Демир Капија', total_mkd: 2000, outcome: 'card_unpaid',
+          { kind: 'web', at: now.toISOString(), number: 'NTMK62512', city: 'Демир Капија', total_mkd: 2000, outcome: 'card_unpaid',
             payment: 'card', counted: false, source: 'facebook', item: 'Magnesium Bisglycinate', items: 3 },
-          { at: now.toISOString(), number: 'NTMK62511', city: 'Скопје', total_mkd: 1490, outcome: 'preparing',
+          { kind: 'web', at: now.toISOString(), number: 'NTMK62511', city: 'Скопје', total_mkd: 1490, outcome: 'awaiting',
             payment: 'cod', counted: true, source: 'google', item: 'Neurofix', items: 1 },
         ],
         last_order_at: now.toISOString(), synced_at: now.toISOString(),
@@ -160,15 +162,92 @@ describe('TV leaderboard v2', () => {
     });
     renderAt('/tv/leaderboard?key=k&dept=web');
     const panel = await screen.findByTestId('tv-web-live');
-    const salesTile = within(panel).getByText(i18n.t('tvBoard.web.sales')).parentElement as HTMLElement;
-    expect(within(salesTile).getByText('8')).toBeInTheDocument();                 // = the Overview's web number
-    expect(within(panel).getByText(formatDenari(13310))).toBeInTheDocument();
-    expect(within(panel).getByText('17')).toBeInTheDocument();                    // every order of the day
+    const tile = (id: string) => within(panel).getByTestId(id);
+    expect(within(tile('web-tile-sales')).getByText(i18n.t('tvBoard.web.sales'))).toBeInTheDocument();
+    expect(within(tile('web-tile-sales')).getByText('22')).toBeInTheDocument();   // = the Overview's web number
+    expect(within(panel).getByText(formatDenari(43774))).toBeInTheDocument();
+    expect(within(tile('web-tile-awaiting')).getByText('14')).toBeInTheDocument();
+    expect(tile('web-tile-awaiting').textContent).toContain(formatDenari(30464));
+    expect(within(tile('web-tile-confirmed')).getByText('8')).toBeInTheDocument(); // 22 − 14
+    expect(within(tile('web-tile-all')).getByText('24')).toBeInTheDocument();      // every order of the day
+    expect(tile('web-tile-all').textContent).toContain(i18n.t('tvBoard.web.allSub', { n: 2 }));
     expect(screen.getByTestId('web-outcome-awaiting').textContent).toContain(i18n.t('tvBoard.web.outcome.awaiting'));
     expect(screen.getAllByTestId('tv-web-order')).toHaveLength(2);
     expect(screen.getByText('Magnesium Bisglycinate')).toBeInTheDocument();
     expect(screen.getByText(i18n.t('tvBoard.web.notCounted'))).toBeInTheDocument(); // the unpaid card
+    expect(screen.queryByTestId('web-mex-note')).toBeNull();
     expect(screen.queryByText(i18n.t('leaderboard2.noPeople'))).toBeNull();
+  });
+
+  it('a gap day shows the MEX web parcels: tracking id and city, "од MEX", no product', async () => {
+    serve({
+      ...v2, day: '2026-08-19', today: '2026-09-28', is_today: false, filter: { department: 'web', team: null }, rows: [], summary: { people: 0 },
+      web_live: {
+        day: '2026-08-19', orders: 11, value_mkd: 20475, all_orders: 16, card: 0, cod: 11,
+        awaiting: 0, awaiting_value_mkd: 0, mex_only: 11, mex_only_value_mkd: 20475,
+        by_outcome: [{ key: 'delivered', count: 16, value_mkd: 20475 }],
+        latest: [
+          { kind: 'mex', at: '2026-08-19T11:54:34Z', number: 'M3310567', city: 'Tetovo', total_mkd: 1990, outcome: 'delivered',
+            payment: 'cod', counted: true, source: 'MEX', item: null, items: 0 },
+        ],
+        last_order_at: '2026-08-19T11:54:34Z', synced_at: now.toISOString(),
+      },
+    });
+    renderAt('/tv/leaderboard?key=k&dept=web');
+    await screen.findByTestId('tv-web-live');
+    fireEvent.change(screen.getByTestId('tv-day-picker'), { target: { value: '2026-08-19' } });
+    await vi.waitFor(() => expect(screen.getByRole('button', { name: i18n.t('leaderboard2.nextDay') })).not.toBeDisabled());
+    const panel = await screen.findByTestId('tv-web-live');
+    const row = within(panel).getByTestId('tv-web-order');
+    expect(row.getAttribute('data-kind')).toBe('mex');
+    expect(within(row).getByText('M3310567')).toBeInTheDocument();
+    expect(within(row).getByText('Tetovo')).toBeInTheDocument();
+    expect(within(row).getByText(i18n.t('tvBoard.web.fromMex'))).toBeInTheDocument();
+    expect(within(row).queryByText('MEX')).toBeNull();                            // the source reads "од MEX", not twice
+    expect(within(row).getByText(formatDenari(1990))).toBeInTheDocument();
+    expect(screen.getByTestId('web-mex-note').textContent).toBe(i18n.t('tvBoard.web.mexNote', { n: 11 }));
+    expect(within(panel).getByTestId('web-tile-confirmed').textContent).toContain(i18n.t('tvBoard.web.confirmedMexSub', { n: 11 }));
+    // a past day: the tiles do not say "today"
+    expect(within(panel).getByTestId('web-tile-sales').textContent).toContain(i18n.t('tvBoard.web.salesDay'));
+    expect(within(panel).getByTestId('web-tile-sales').textContent).not.toContain(i18n.t('tvBoard.web.sales'));
+  });
+
+  it('the date picker opens any day from 01.01.2026 to today, and today again goes live', async () => {
+    const fetchMock = serve(v2);
+    renderAt('/tv/leaderboard?key=k');
+    await screen.findByText('Aleksandra Hristoska');
+    const picker = screen.getByTestId('tv-day-picker') as HTMLInputElement;
+    expect(picker.type).toBe('date');
+    expect(picker.min).toBe('2026-01-01');
+    expect(picker.max).toBe('2026-09-28');                                         // the server's today, not the TV's clock
+    expect(picker.value).toBe('2026-09-28');
+    expect(picker.getAttribute('aria-label')).toBe(i18n.t('tvBoard.pickDay'));
+    const lastUrl = () => new URL(String((fetchMock.mock.calls.at(-1) as unknown[])[0]));
+    fireEvent.change(picker, { target: { value: '2026-08-19' } });
+    await vi.waitFor(() => expect(lastUrl().searchParams.get('day')).toBe('2026-08-19'));
+    expect(screen.getByRole('button', { name: i18n.t('leaderboard2.nextDay') })).not.toBeDisabled();
+    // the arrows walk from the picked day
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('leaderboard2.prevDay') }));
+    await vi.waitFor(() => expect(lastUrl().searchParams.get('day')).toBe('2026-08-18'));
+    // before 01.01.2026 → the first day; today (or later) → live, no ?day=
+    fireEvent.change(picker, { target: { value: '2025-11-03' } });
+    await vi.waitFor(() => expect(lastUrl().searchParams.get('day')).toBe('2026-01-01'));
+    fireEvent.change(picker, { target: { value: '2026-09-28' } });
+    await vi.waitFor(() => expect(lastUrl().searchParams.has('day')).toBe(false));
+    expect(screen.getByRole('button', { name: i18n.t('leaderboard2.nextDay') })).toBeDisabled();
+  });
+
+  it('the date picker works on a phone too (compact layout)', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query.includes('max-width: 1023px'), media: query, onchange: null,
+      addListener: () => {}, removeListener: () => {}, addEventListener: () => {}, removeEventListener: () => {}, dispatchEvent: () => false,
+    }));
+    const fetchMock = serve(v2);
+    renderAt('/tv/leaderboard?key=k');
+    await screen.findByText('Aleksandra Hristoska');
+    expect(screen.getAllByTestId('tv-card')).toHaveLength(4);
+    fireEvent.change(screen.getByTestId('tv-day-picker'), { target: { value: '2026-07-15' } });
+    await vi.waitFor(() => expect(new URL(String((fetchMock.mock.calls.at(-1) as unknown[])[0])).searchParams.get('day')).toBe('2026-07-15'));
   });
 
   it('still renders the old per-mode board while the api is being redeployed', async () => {
