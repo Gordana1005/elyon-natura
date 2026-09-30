@@ -7286,6 +7286,244 @@
       "13": "Отказана"
     }
   },
+  "warehousePage": {
+    "loadFailed": "Складът не се зареди.",
+    "retry": "Опитай отново",
+    "kpi": {
+      "send": "Изпрати към MEX",
+      "sendSub": "{{noAddress}} без адрес · {{noZone}} без MEX зона",
+      "pack": "За пакетиране",
+      "packSub": "при MEX, чакат куриера · още {{stale}} по-стари от {{days}} дни",
+      "waiting": "Чакат > 3 дни",
+      "waitingSub": "{{send}} за изпращане · {{pack}} за пакетиране",
+      "products": "Активни продукти",
+      "productsSub": "{{low}} с ниска наличност"
+    },
+    "tabs": {
+      "send": "Изпрати към MEX",
+      "pack": "За пакетиране",
+      "stock": "Наличности",
+      "movements": "Движения"
+    },
+    "filters": {
+      "departments": "Отдели",
+      "allDepartments": "Всички",
+      "order": "Подредба",
+      "oldest": "Най-старите първо",
+      "newest": "Най-новите първо"
+    },
+    "pager": {
+      "range": "{{from}}–{{to}} от {{total}}",
+      "prev": "Предишна",
+      "next": "Следваща"
+    },
+    "send": {
+      "desc": "Потвърдени поръчки без MEX пратка. Избери ги и ги изпрати — пратката се създава в профила BIO NATURAL или NATURA.",
+      "switchOff": "Изпращането към MEX е изключено. Засега пратките се създават с „MEX Import CSV“ в Поръчки (или през collabBox).",
+      "button": "Изпрати към MEX ({{count}})",
+      "buttonDisabled": "Изпрати към MEX",
+      "selectPage": "Избери всички на страницата",
+      "selectRow": "Избери {{id}}",
+      "clear": "Изчисти избора",
+      "selected_one": "Избрана {{count}} поръчка",
+      "selected_other": "Избрани {{count}} поръчки",
+      "max": "Най-много {{max}} поръчки в едно изпращане.",
+      "empty": "Няма потвърдени поръчки без пратка.",
+      "emptyFiltered": "Няма поръчки за избраните отдели.",
+      "noAddressNote": "{{count}} потвърдени поръчки нямат адрес в CRM — операторите го въвеждат в collabBox. Без адрес поръчката не може да се изпрати оттук.",
+      "col": {
+        "order": "Поръчка",
+        "customer": "Клиент",
+        "city": "Град / MEX зона",
+        "products": "Продукти",
+        "value": "Стойност",
+        "department": "Отдел",
+        "profile": "Профил",
+        "checks": "Проверка"
+      },
+      "noZone": "няма зона",
+      "sold": "продадено {{date}}",
+      "seller": "продавач: {{name}}",
+      "shipAfter": "изпрати след {{date}}"
+    },
+    "profile": {
+      "label": "Профил: {{account}}",
+      "pick": "Профил: избери",
+      "basis": {
+        "product_line": "според продуктите",
+        "department": "според отдела",
+        "none": "няма предложение"
+      },
+      "reason": {
+        "mixed_basket": "смесена кошница (Bio Natural + Natura)",
+        "line_missing": "продуктите нямат линия — предложение според отдела",
+        "line_partial": "част от продуктите нямат линия",
+        "department_disagrees": "отделът сочи {{account}}",
+        "team_disagrees": "екипът на продавача сочи {{account}}",
+        "no_department_profile": "отделът не определя профил",
+        "web_order": "уеб поръчка — не се изпраща от CRM"
+      },
+      "needsPick": "ръчен избор"
+    },
+    "check": {
+      "ok": "Готова",
+      "missing": "Липсва: {{list}}"
+    },
+    "code": {
+      "name": "име и фамилия",
+      "phone": "телефон",
+      "postal_code": "пощенски код",
+      "product": "продукт",
+      "price": "цена",
+      "address": "адрес",
+      "house_number": "номер",
+      "office": "офис",
+      "mex_city": "MEX зона",
+      "not_confirmed": "не е потвърдена",
+      "has_parcel": "вече има пратка",
+      "already_sent": "вече е изпратена",
+      "web_order": "уеб поръчка",
+      "test_phone": "тестов телефон",
+      "ship_later": "изпрати по-късно",
+      "no_reference": "няма номер на поръчка",
+      "needs_pick": "трябва да се избере профил",
+      "bad_override": "изборът на профил няма причина",
+      "double_parcel_risk": "възможна двойна пратка",
+      "account_disabled": "профилът е изключен",
+      "account_not_configured": "няма API ключ за профила",
+      "csv_parcel_exists": "MEX вече я има от CSV импорт — ще се свърже сама",
+      "existence_check_failed": "MEX не отговори на проверката",
+      "mex_key_rejected": "MEX отхвърли API ключа",
+      "mex_refused": "MEX отказа пратката",
+      "unknown_outcome": "не е известно дали MEX я е създал",
+      "created_not_saved": "създадена в MEX, но не е записана в CRM",
+      "claimed_recently": "някой друг я изпраща в момента",
+      "claim_failed": "не може да се резервира",
+      "not_found": "не съществува",
+      "time_budget": "не се побра в това изпращане",
+      "not_configured": "MEX отхвърли API ключа",
+      "link_conflict": "пратката е свързана с друга поръчка",
+      "record_failed": "не е записано в CRM",
+      "exists_in_register": "MEX вече я има — ще се свърже"
+    },
+    "warn": {
+      "double": "Възможна двойна пратка",
+      "unlinkedParcel": "Несвързана MEX пратка на същия телефон: {{tracking}} ({{account}})",
+      "collabboxDoc": "collabBox документ на същия телефон: {{doc}} ({{date}})",
+      "otherParcel": "Друга пратка на същия телефон: {{tracking}} ({{order}})",
+      "sentUnconfirmed": "Предишното изпращане не е потвърдено ({{date}}) — CRM първо проверява в MEX",
+      "lastAttemptFailed": "Последният опит не успя: {{error}}"
+    },
+    "npr": {
+      "left_one": "Правило 10 дни: остава {{count}} ден",
+      "left_other": "Правило 10 дни: остават {{count}} дни",
+      "today": "Правило 10 дни: отказва се тази вечер",
+      "hint": "AlterCPA поръчка без MEX пратка 10 дни след одобрението се отказва автоматично в 21:10."
+    },
+    "dialog": {
+      "title": "Изпрати към MEX",
+      "checking": "Проверявам поръчките…",
+      "checkFailed": "Проверката не успя.",
+      "summary": "{{ready}} готови · {{blocked}} не могат да се изпратят",
+      "ready": "Готова",
+      "blocked": "Не може",
+      "fields": {
+        "name": "Име",
+        "address": "Адрес",
+        "zone": "MEX зона",
+        "phone": "Телефон",
+        "cod": "Наложен платеж",
+        "opis": "Бележка"
+      },
+      "account": "Профил",
+      "reason": "Причина за избора",
+      "reasonPh": "напр. продукт на Natura Therapy",
+      "doubleOk": "Проверих в MEX портала — няма друга пратка",
+      "noCancel": "MEX няма анулиране. Създадена пратка може да се анулира само в MEX портала.",
+      "confirm_one": "Разбирам — създай {{count}} пратка",
+      "confirm_other": "Разбирам — създай {{count}} пратки",
+      "send_one": "Изпрати {{count}}",
+      "send_other": "Изпрати {{count}}",
+      "sending": "Изпраща се… {{done}}/{{total}}",
+      "recheck": "Провери отново",
+      "close": "Затвори",
+      "cancel": "Отказ",
+      "done": "{{sent}} създадени · {{linked}} свързани · {{failed}} неуспешни",
+      "result": {
+        "sent": "Създадена: {{tracking}}",
+        "exists_linked": "Вече съществуваше в MEX — свързана: {{tracking}}",
+        "skipped": "Не е изпратена: {{reason}}",
+        "error": "Грешка: {{reason}}",
+        "unknown_outcome": "Не е известно дали MEX я е създал — не изпращай отново, провери в MEX портала",
+        "not_claimed": "Пропусната: {{reason}}",
+        "deferred": "Не се побра — изпрати я отново"
+      }
+    },
+    "pack": {
+      "desc": "Пратки със статус MEX 8 „Shipment created“ — създадени, чакат куриера. Етикетите и пакетажният лист са от MEX портала.",
+      "showStale_one": "По-стари от {{days}} дни ({{count}})",
+      "showStale_other": "По-стари от {{days}} дни ({{count}})",
+      "showFresh": "Последните {{days}} дни",
+      "staleNote": "Пратки, които куриерът не е взел повече от {{days}} дни — провери ги в MEX портала.",
+      "day_one": "{{date}} · {{count}} пратка",
+      "day_other": "{{date}} · {{count}} пратки",
+      "age_one": "преди {{count}} ден",
+      "age_other": "преди {{count}} дни",
+      "ageToday": "днес",
+      "mexOnly": "само в MEX",
+      "pushed": "изпратено от CRM",
+      "empty": "Няма пратки, които чакат куриера.",
+      "col": {
+        "tracking": "MEX пратка",
+        "order": "Поръчка",
+        "receiver": "Получател",
+        "products": "Продукти",
+        "cod": "Наложен платеж",
+        "department": "Отдел",
+        "age": "Чака"
+      }
+    },
+    "stock": {
+      "showInactive": "Покажи неактивните ({{count}})",
+      "threshold": "Праг",
+      "thresholdLabel": "Праг за ниска наличност — {{name}}",
+      "thresholdHint": "Предупреждение, когато наличността падне под прага.",
+      "thresholdSaved": "Прагът е запазен",
+      "thresholdFailed": "Прагът не е запазен",
+      "stock": "Наличност",
+      "empty": "Няма продукти."
+    },
+    "movements": {
+      "loadMore": "Зареди още",
+      "shown_one": "Показано {{count}} движение",
+      "shown_other": "Показани {{count}} движения",
+      "note": {
+        "placeholder": "Временна наличност {{n}} (до инвентаризацията на собственика)",
+        "bulkSet": "Наличността е зададена на {{n}} пакета ({{date}})",
+        "bulkShipped": "Групово изпратено — {{product}}",
+        "orderShipped": "Поръчка {{id}} изпратена (склад)",
+        "orderShippedProduct": "Поръчка {{id}} изпратена (склад) — {{product}}"
+      }
+    },
+    "settings": {
+      "title": "Изпращане към MEX",
+      "desc": "Включва „Изпрати към MEX“ за склада. Докато е изключено, пратките се създават с MEX CSV.",
+      "global": "Изпращане към MEX",
+      "account": "Профил {{account}}",
+      "on": "Включено",
+      "off": "Изключено",
+      "noKey": "няма API ключ",
+      "autoSend": "Автоматично изпращане в 11:00: изградено, не е насрочено.",
+      "max": "Най-много {{n}} поръчки в едно изпращане.",
+      "confirmOnTitle": "Да се включи?",
+      "confirmOn": "Всяко „Изпрати“ ще създаде истинска пратка в MEX, а MEX няма анулиране. Промяната се записва.",
+      "confirmOffTitle": "Да се изключи?",
+      "confirmOff": "Складът вече няма да може да изпраща към MEX; MEX CSV остава.",
+      "confirm": "Потвърди",
+      "saved": "Запазено",
+      "saveFailed": "Не е запазено"
+    }
+  },
   "stockCount": {
     "tab": "Инвентаризация",
     "title": "Инвентаризация (физическо преброяване)",

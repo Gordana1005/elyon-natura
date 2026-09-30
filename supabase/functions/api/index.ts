@@ -15646,13 +15646,16 @@ async function handleRequest(req: Request): Promise<Response> {
     if (req.method === "GET" && path === "stock-movements") {
       const productId = url.searchParams.get("product_id");
       const movementType = url.searchParams.get("movement_type");
-      const limit = parseInt(url.searchParams.get("limit") || "100");
+      // limit ≤ 500 · offset for /warehouse → Движења "вчитај повеќе" (Фаза 9) — no silent cap.
+      const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") || "100") || 100, 1), 500);
+      const offset = Math.max(parseInt(url.searchParams.get("offset") || "0") || 0, 0);
 
       let query = adminClient
         .from("inventory_logs")
         .select("*, products:product_id(name, sku)")
         .order("created_at", { ascending: false })
-        .limit(limit);
+        .order("id", { ascending: false })
+        .range(offset, offset + limit - 1);
 
       if (productId) query = query.eq("product_id", productId);
       if (movementType) query = query.eq("movement_type", movementType);

@@ -7286,6 +7286,244 @@
       "13": "Одбиена"
     }
   },
+  "warehousePage": {
+    "loadFailed": "Магацинот не се вчита.",
+    "retry": "Обиди се повторно",
+    "kpi": {
+      "send": "Испрати до MEX",
+      "sendSub": "{{noAddress}} без адреса · {{noZone}} без MEX зона",
+      "pack": "За пакување",
+      "packSub": "кај MEX, го чекаат курирот · уште {{stale}} постари од {{days}} дена",
+      "waiting": "Чекаат > 3 дена",
+      "waitingSub": "{{send}} за праќање · {{pack}} за пакување",
+      "products": "Активни производи",
+      "productsSub": "{{low}} со ниска залиха"
+    },
+    "tabs": {
+      "send": "Испрати до MEX",
+      "pack": "За пакување",
+      "stock": "Залихи",
+      "movements": "Движења"
+    },
+    "filters": {
+      "departments": "Оддели",
+      "allDepartments": "Сите",
+      "order": "Редослед",
+      "oldest": "Најстари прво",
+      "newest": "Најнови прво"
+    },
+    "pager": {
+      "range": "{{from}}–{{to}} од {{total}}",
+      "prev": "Претходна",
+      "next": "Следна"
+    },
+    "send": {
+      "desc": "Потврдени нарачки без MEX пратка. Избери ги и испрати ги — пратката се креира во профилот BIO NATURAL или NATURA.",
+      "switchOff": "Праќањето до MEX е исклучено. Пратките засега се креираат со „MEX Import CSV“ во Нарачки (или преку collabBox).",
+      "button": "Испрати до MEX ({{count}})",
+      "buttonDisabled": "Испрати до MEX",
+      "selectPage": "Избери ги сите на страницата",
+      "selectRow": "Избери {{id}}",
+      "clear": "Исчисти избор",
+      "selected_one": "Избрана {{count}} нарачка",
+      "selected_other": "Избрани {{count}} нарачки",
+      "max": "Најмногу {{max}} нарачки во едно праќање.",
+      "empty": "Нема потврдени нарачки без пратка.",
+      "emptyFiltered": "Нема нарачки за избраните оддели.",
+      "noAddressNote": "{{count}} потврдени нарачки немаат адреса во CRM — операторите ја внесуваат во collabBox. Без адреса нарачката не може да се испрати од тука.",
+      "col": {
+        "order": "Нарачка",
+        "customer": "Клиент",
+        "city": "Град / MEX зона",
+        "products": "Производи",
+        "value": "Вредност",
+        "department": "Оддел",
+        "profile": "Профил",
+        "checks": "Проверка"
+      },
+      "noZone": "нема зона",
+      "sold": "продадено {{date}}",
+      "seller": "продавач: {{name}}",
+      "shipAfter": "испрати по {{date}}"
+    },
+    "profile": {
+      "label": "Профил: {{account}}",
+      "pick": "Профил: избери",
+      "basis": {
+        "product_line": "според производите",
+        "department": "според одделот",
+        "none": "нема предлог"
+      },
+      "reason": {
+        "mixed_basket": "мешана кошничка (Bio Natural + Natura)",
+        "line_missing": "производите немаат линија — предлог според одделот",
+        "line_partial": "дел од производите немаат линија",
+        "department_disagrees": "одделот упатува на {{account}}",
+        "team_disagrees": "тимот на продавачот упатува на {{account}}",
+        "no_department_profile": "одделот не одредува профил",
+        "web_order": "веб-нарачка — не се праќа од CRM"
+      },
+      "needsPick": "рачен избор"
+    },
+    "check": {
+      "ok": "Спремна",
+      "missing": "Фали: {{list}}"
+    },
+    "code": {
+      "name": "име и презиме",
+      "phone": "телефон",
+      "postal_code": "поштенски број",
+      "product": "производ",
+      "price": "цена",
+      "address": "адреса",
+      "house_number": "куќен број",
+      "office": "канцеларија",
+      "mex_city": "MEX зона",
+      "not_confirmed": "не е потврдена",
+      "has_parcel": "веќе има пратка",
+      "already_sent": "веќе е испратена",
+      "web_order": "веб-нарачка",
+      "test_phone": "тест телефон",
+      "ship_later": "испрати подоцна",
+      "no_reference": "нема број на нарачка",
+      "needs_pick": "треба да се избере профил",
+      "bad_override": "изборот на профил нема причина",
+      "double_parcel_risk": "можна двојна пратка",
+      "account_disabled": "профилот е исклучен",
+      "account_not_configured": "нема API клуч за профилот",
+      "csv_parcel_exists": "MEX веќе ја има од CSV увоз — ќе се поврзе сама",
+      "existence_check_failed": "MEX не одговори на проверката",
+      "mex_key_rejected": "MEX го одби API клучот",
+      "mex_refused": "MEX ја одби пратката",
+      "unknown_outcome": "не е познато дали MEX ја креирала",
+      "created_not_saved": "креирана во MEX, но не е зачувана во CRM",
+      "claimed_recently": "некој друг ја праќа токму сега",
+      "claim_failed": "не може да се резервира",
+      "not_found": "не постои",
+      "time_budget": "не стигна во ова праќање",
+      "not_configured": "MEX го одби API клучот",
+      "link_conflict": "пратката е врзана за друга нарачка",
+      "record_failed": "не е запишано во CRM",
+      "exists_in_register": "MEX веќе ја има — ќе се поврзе"
+    },
+    "warn": {
+      "double": "Можна двојна пратка",
+      "unlinkedParcel": "Неповрзана MEX пратка на истиот телефон: {{tracking}} ({{account}})",
+      "collabboxDoc": "collabBox документ на истиот телефон: {{doc}} ({{date}})",
+      "otherParcel": "Друга пратка на истиот телефон: {{tracking}} ({{order}})",
+      "sentUnconfirmed": "Претходното праќање не е потврдено ({{date}}) — CRM прво ќе провери во MEX",
+      "lastAttemptFailed": "Последниот обид не успеа: {{error}}"
+    },
+    "npr": {
+      "left_one": "Правило 10 дена: уште {{count}} ден",
+      "left_other": "Правило 10 дена: уште {{count}} дена",
+      "today": "Правило 10 дена: се откажува вечерва",
+      "hint": "AlterCPA нарачка без MEX пратка 10 дена по одобрувањето се откажува автоматски во 21:10."
+    },
+    "dialog": {
+      "title": "Испрати до MEX",
+      "checking": "Проверувам ги нарачките…",
+      "checkFailed": "Проверката не успеа.",
+      "summary": "{{ready}} спремни · {{blocked}} не можат да се испратат",
+      "ready": "Спремна",
+      "blocked": "Не може",
+      "fields": {
+        "name": "Име",
+        "address": "Адреса",
+        "zone": "MEX зона",
+        "phone": "Телефон",
+        "cod": "Откуп",
+        "opis": "Опис"
+      },
+      "account": "Профил",
+      "reason": "Причина за изборот",
+      "reasonPh": "на пр. производ од Natura Therapy",
+      "doubleOk": "Проверив во MEX порталот — нема друга пратка",
+      "noCancel": "MEX нема откажување. Креираната пратка може да се поништи само во MEX порталот.",
+      "confirm_one": "Разбирам — креирај {{count}} пратка",
+      "confirm_other": "Разбирам — креирај {{count}} пратки",
+      "send_one": "Испрати {{count}}",
+      "send_other": "Испрати {{count}}",
+      "sending": "Се праќа… {{done}}/{{total}}",
+      "recheck": "Провери повторно",
+      "close": "Затвори",
+      "cancel": "Откажи",
+      "done": "{{sent}} креирани · {{linked}} поврзани · {{failed}} неуспешни",
+      "result": {
+        "sent": "Креирана: {{tracking}}",
+        "exists_linked": "Веќе постоеше во MEX — поврзана: {{tracking}}",
+        "skipped": "Не е испратена: {{reason}}",
+        "error": "Грешка: {{reason}}",
+        "unknown_outcome": "Не е познато дали MEX ја креирала — не праќај повторно, провери во MEX порталот",
+        "not_claimed": "Прескокната: {{reason}}",
+        "deferred": "Не стигна — испрати ја повторно"
+      }
+    },
+    "pack": {
+      "desc": "Пратки на MEX статус 8 „Shipment created“ — креирани, го чекаат курирот. Печатењето и пакувачкиот лист се од MEX порталот.",
+      "showStale_one": "Постари од {{days}} дена ({{count}})",
+      "showStale_other": "Постари од {{days}} дена ({{count}})",
+      "showFresh": "Последните {{days}} дена",
+      "staleNote": "Пратки што курирот не ги презел повеќе од {{days}} дена — провери ги во MEX порталот.",
+      "day_one": "{{date}} · {{count}} пратка",
+      "day_other": "{{date}} · {{count}} пратки",
+      "age_one": "пред {{count}} ден",
+      "age_other": "пред {{count}} дена",
+      "ageToday": "денес",
+      "mexOnly": "само во MEX",
+      "pushed": "испратено од CRM",
+      "empty": "Нема пратки што го чекаат курирот.",
+      "col": {
+        "tracking": "MEX пратка",
+        "order": "Нарачка",
+        "receiver": "Примач",
+        "products": "Производи",
+        "cod": "Откуп",
+        "department": "Оддел",
+        "age": "Чека"
+      }
+    },
+    "stock": {
+      "showInactive": "Прикажи неактивни ({{count}})",
+      "threshold": "Праг",
+      "thresholdLabel": "Праг за ниска залиха — {{name}}",
+      "thresholdHint": "Предупредување кога залихата ќе падне под прагот.",
+      "thresholdSaved": "Прагот е зачуван",
+      "thresholdFailed": "Прагот не е зачуван",
+      "stock": "Залиха",
+      "empty": "Нема производи."
+    },
+    "movements": {
+      "loadMore": "Вчитај повеќе",
+      "shown_one": "Прикажано {{count}} движење",
+      "shown_other": "Прикажани {{count}} движења",
+      "note": {
+        "placeholder": "Привремена залиха {{n}} (до пописот на сопственикот)",
+        "bulkSet": "Залихата е поставена на {{n}} пакувања ({{date}})",
+        "bulkShipped": "Групно испратено — {{product}}",
+        "orderShipped": "Нарачка {{id}} испратена (магацин)",
+        "orderShippedProduct": "Нарачка {{id}} испратена (магацин) — {{product}}"
+      }
+    },
+    "settings": {
+      "title": "MEX праќање",
+      "desc": "Вклучува „Испрати до MEX“ за магацинот. Додека е исклучено, пратките се креираат со MEX CSV.",
+      "global": "Праќање до MEX",
+      "account": "Профил {{account}}",
+      "on": "Вклучено",
+      "off": "Исклучено",
+      "noKey": "нема API клуч",
+      "autoSend": "Автоматско праќање во 11:00: изградено, не е закажано.",
+      "max": "Најмногу {{n}} нарачки во едно праќање.",
+      "confirmOnTitle": "Да се вклучи?",
+      "confirmOn": "Секое „Испрати“ ќе креира вистинска пратка во MEX, а MEX нема откажување. Промената се запишува.",
+      "confirmOffTitle": "Да се исклучи?",
+      "confirmOff": "Магацинот повеќе нема да може да праќа до MEX; MEX CSV останува.",
+      "confirm": "Потврди",
+      "saved": "Зачувано",
+      "saveFailed": "Не е зачувано"
+    }
+  },
   "stockCount": {
     "tab": "Попис",
     "title": "Попис на залиха (физичко броење)",
