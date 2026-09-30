@@ -32,7 +32,7 @@ const FALLBACKS: ReadonlyArray<readonly [string, string]> = [
   ['/', 'dashboard'],
   ['/orders', 'orders'],
   ['/warehouse', 'warehouse'],
-  ['/webhooks', 'webhooks'],
+  ['/products', 'products'],
 ];
 
 const INSIGHTS_KEYS = ['insights', 'performance', 'agent_activity', 'call_activity'] as const;
@@ -52,7 +52,9 @@ export function homePath(user: HomeUser | null | undefined, access: HomeAccess):
     if (can('calls')) return '/calls';
   }
   if (user.isWarehouse && can('warehouse')) return '/warehouse';
-  if (user.isAdsAdmin && can('webhooks')) return '/webhooks';
+  // Ads admins used to land on /webhooks — hidden since the owner's page audit (30.09.2026, 0 leads,
+  // 0 campaigns); the product catalogue is their page now.
+  if (user.isAdsAdmin && can('products')) return '/products';
   if (user.isAffiliate && can('affiliate_portal')) return '/affiliate';
   for (const [path, key] of FALLBACKS) if (can(key)) return path;
   return null;

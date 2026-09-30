@@ -27,12 +27,9 @@ const Orders = lazy(() => import("./pages/Orders"));
 const UsersPage = lazy(() => import("./pages/UsersPage"));
 const ProductsPage = lazy(() => import("./pages/ProductsPage"));
 const AssignerPage = lazy(() => import("./pages/AssignerPage"));
-const PredictionListsPage = lazy(() => import("./pages/PredictionListsPage"));
-const PredictionListDetail = lazy(() => import("./pages/PredictionListDetail"));
 // Kept imported-but-unrouted on purpose: the route below redirects while the
 // prediction_leads table is empty. Deleting the page would make restoring it
 // a rewrite rather than a one-line route change.
-const ImportOrdersPage = lazy(() => import("./pages/ImportOrdersPage"));
 const ShiftsManagementPage = lazy(() => import("./pages/ShiftsManagementPage"));
 const MyShiftsPage = lazy(() => import("./pages/MyShiftsPage"));
 const CallScriptsPage = lazy(() => import("./pages/CallScriptsPage"));
@@ -41,7 +38,6 @@ const WarehousePage = lazy(() => import("./pages/WarehousePage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const InboundLeadsPage = lazy(() => import("./pages/InboundLeadsPage"));
 const WebhookManagementPage = lazy(() => import("./pages/WebhookManagementPage"));
-const SearchPredictionPage = lazy(() => import("./pages/SearchPredictionPage"));
 const ManagementInsightsPage = lazy(() => import("./pages/ManagementInsightsPage"));
 const OperationsPage = lazy(() => import("./pages/OperationsPage"));
 const LeadDistributionPage = lazy(() => import("./pages/LeadDistributionPage"));
@@ -114,8 +110,10 @@ const App = () => (
                     The page file and its permission rows stay; old links land on /calls. */}
                 <Route path="/assigned" element={<Navigate to="/calls" replace />} />
                 <Route path="/assigner" element={<ProtectedRoute moduleKey="assigner"><AssignerPage /></ProtectedRoute>} />
-                <Route path="/predictions" element={<ProtectedRoute moduleKey="prediction_lists"><PredictionListsPage /></ProtectedRoute>} />
-                <Route path="/predictions/:id" element={<ProtectedRoute moduleKey="prediction_lists"><PredictionListDetail /></ProtectedRoute>} />
+                {/* /predictions was the Bulgarian CSV prediction-list flow: 0 visits in 61 days, 0 rows
+                    (owner audit 30.09.2026). The live lists are /segments. */}
+                <Route path="/predictions" element={<Navigate to="/segments" replace />} />
+                <Route path="/predictions/:id" element={<Navigate to="/segments" replace />} />
                 {/* /prediction-leads is HIDDEN, not deleted (2026-08-19). It reads
                     the prediction_leads table, which has 0 rows here — every
                     prediction_agent had a permanently empty page in their
@@ -123,7 +121,10 @@ const App = () => (
                     and the permission rows stay so it can come back the day
                     prediction_leads is populated. */}
                 <Route path="/prediction-leads" element={<Navigate to="/calls" replace />} />
-                <Route path="/import-orders" element={<ProtectedRoute moduleKey="order_import"><ImportOrdersPage /></ProtectedRoute>} />
+                {/* Import orders never created a real order (every import came from the collabBox sync or a
+                    script) and was unsafe — a blank status became PAID (owner audit 30.09.2026). POST
+                    /orders/import stays for scripts/import-altercpa-mk.mjs. */}
+                <Route path="/import-orders" element={<Navigate to="/orders" replace />} />
                 {/* Performance + Agent Activity merged into Insights (2026-06). Keep old paths working. */}
                 <Route path="/performance" element={<Navigate to="/insights?tab=agents" replace />} />
                 <Route path="/agent-activity" element={<Navigate to="/insights?tab=call-activity" replace />} />
@@ -142,7 +143,8 @@ const App = () => (
                 <Route path="/affiliate" element={<ProtectedRoute moduleKey="affiliate_portal"><AffiliateDashboardPage /></ProtectedRoute>} />
                 <Route path="/affiliate/offers" element={<ProtectedRoute moduleKey="affiliate_portal"><AffiliateOffersCataloguePage /></ProtectedRoute>} />
                 <Route path="/affiliate/integration" element={<ProtectedRoute moduleKey="affiliate_portal"><AffiliateIntegrationPage /></ProtectedRoute>} />
-                <Route path="/search-prediction" element={<ProtectedRoute moduleKey="search_prediction"><SearchPredictionPage /></ProtectedRoute>} />
+                {/* The search bar on top of every page does the same lookup (owner audit 30.09.2026). */}
+                <Route path="/search-prediction" element={<Navigate to="/" replace />} />
                 <Route path="/insights" element={<ProtectedRoute moduleKey="insights" moduleKeysAny={["performance", "agent_activity", "call_activity"]} allowBusinessOwner><ManagementInsightsPage /></ProtectedRoute>} />
                 <Route path="/operations" element={<ProtectedRoute moduleKey="operations"><OperationsPage /></ProtectedRoute>} />
                 <Route path="/lead-distribution" element={<ProtectedRoute moduleKey="lead_distribution"><LeadDistributionPage /></ProtectedRoute>} />

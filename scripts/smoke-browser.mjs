@@ -20,7 +20,8 @@
  */
 import { chromium } from "@playwright/test";
 
-const TARGET = process.argv[2] || "https://elyoncrm.vercel.app";
+// MK only — the old default was the Bulgarian project (owner audit 30.09.2026).
+const TARGET = process.argv[2] || "https://elyon-natura.vercel.app";
 const TIMEOUT_MS = 20_000;
 
 const failures = [];

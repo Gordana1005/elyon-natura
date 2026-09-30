@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiGetVoipHealth } from '@/lib/api';
+import { PBX_CONFIG } from '@/lib/voip/pbxConfig';
 
 /**
  * Superadmin-only telephony alert bar. Reads incidents[] from the same
@@ -28,12 +29,14 @@ export function VoipIncidentBanner() {
   const { data } = useQuery({
     queryKey: ['voip-health'],
     queryFn: apiGetVoipHealth,
-    enabled: !!user?.isAdmin,
+    // Telephony is deferred on MK (VITE_USE_REAL_VOIP=false): no PBX to watch, so no polling —
+    // it was 18.7k calls in 61 days to an endpoint that answers 500 (owner audit 30.09.2026).
+    enabled: !!user?.isAdmin && PBX_CONFIG.useRealVoip,
     refetchInterval: 60000,
     staleTime: 30000,
   });
 
-  if (!user?.isAdmin) return null;
+  if (!user?.isAdmin || !PBX_CONFIG.useRealVoip) return null;
   const incidents = data?.incidents || [];
   if (incidents.length === 0) return null;
 

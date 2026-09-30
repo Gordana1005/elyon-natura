@@ -26,7 +26,8 @@ describe('homePath — where a login lands (owner 29.09.2026)', () => {
 
   it('warehouse, ads admin and external affiliate land on their own page', () => {
     expect(homePath({ isWarehouse: true }, { canAccessModule: can('warehouse', 'orders') })).toBe('/warehouse');
-    expect(homePath({ isAdsAdmin: true }, { canAccessModule: can('webhooks', 'dashboard') })).toBe('/webhooks');
+    // /webhooks is hidden since the page audit (30.09.2026) — ads admins land on the catalogue
+    expect(homePath({ isAdsAdmin: true }, { canAccessModule: can('products', 'webhooks') })).toBe('/products');
     expect(homePath({ isAffiliate: true, isExternalAffiliate: true }, { canAccessModule: can('affiliate_portal') })).toBe('/affiliate');
   });
 

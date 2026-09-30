@@ -7,8 +7,8 @@ import { usePermissions, useInsightsAccess } from '@/contexts/PermissionsContext
 import {
   LayoutDashboard, ShoppingCart, Package,
   Users, CalendarDays, FileText, History, ChevronLeft,
-  ChevronRight, ChevronDown, Phone, PhoneCall, PhoneIncoming, Warehouse, Settings, Inbox,
-  Webhook, UserPlus, SearchIcon, TrendingUp, Activity, Zap, Layers, Lock, Clock, Gauge, FileUp,
+  ChevronRight, ChevronDown, Phone, PhoneCall, Warehouse, Settings,
+  Webhook, UserPlus, TrendingUp, Activity, Layers, Lock, Clock, Gauge,
   Handshake, Radio, X,
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -17,6 +17,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { PresenceHeaderButton } from '@/components/presence/PresenceHeaderButton';
+import { PBX_CONFIG } from '@/lib/voip/pbxConfig';
 
 interface NavItem {
   /** i18n key under nav.* — resolved with t() at render time */
@@ -36,6 +37,10 @@ interface NavSection {
   items: NavItem[];
 }
 
+// Hidden from the menu by the owner's page audit (30.09.2026, 61 days of request logs): Missed calls,
+// Inbound leads, Webhooks & ads (all 0 rows ever), Lead distribution (off since 16.09 — the Assigner
+// distributes), Search prediction (the top search bar), Import orders (never created a real order) and
+// Affiliates admin (no partners yet). Their routes still resolve (or redirect) so old links don't break.
 const sections: NavSection[] = [
   {
     // Affiliate (webmaster) portal — module access alone isn't enough here:
@@ -53,7 +58,6 @@ const sections: NavSection[] = [
     items: [
       { titleKey: 'nav.calls', path: '/calls', icon: PhoneCall, moduleKey: 'calls' },
       { titleKey: 'nav.callAgain', path: '/call-again', icon: Clock, moduleKey: 'calls' },
-      { titleKey: 'nav.missedCalls', path: '/missed-calls', icon: PhoneIncoming, moduleKey: 'calls' },
       { titleKey: 'nav.personalList', path: '/personal-list', icon: Lock, moduleKey: 'calls' },
     ],
   },
@@ -73,14 +77,8 @@ const sections: NavSection[] = [
     labelKey: 'nav.sections.sales',
     items: [
       { titleKey: 'nav.orders', path: '/orders', icon: ShoppingCart, moduleKey: 'orders' },
-      { titleKey: 'nav.inboundLeads', path: '/inbound-leads', icon: Inbox, moduleKey: 'inbound_leads' },
       { titleKey: 'nav.assigner', path: '/assigner', icon: UserPlus, moduleKey: 'assigner' },
-      { titleKey: 'nav.leadDistribution', path: '/lead-distribution', icon: Zap, moduleKey: 'lead_distribution' },
       { titleKey: 'nav.predictionLists', path: '/segments', icon: Layers, moduleKey: 'segments' },
-      { titleKey: 'nav.searchPrediction', path: '/search-prediction', icon: SearchIcon, moduleKey: 'search_prediction' },
-      // Admin-only: the 'order_import' module key isn't seeded for any role, so
-      // canAccessModule() returns true only for admins (who bypass the check).
-      { titleKey: 'nav.importOrders', path: '/import-orders', icon: FileUp, moduleKey: 'order_import' },
     ],
   },
   {
@@ -104,15 +102,14 @@ const sections: NavSection[] = [
     labelKey: 'nav.sections.productsAds',
     items: [
       { titleKey: 'nav.products', path: '/products', icon: Package, moduleKey: 'products' },
-      { titleKey: 'nav.webhooksAds', path: '/webhooks', icon: Webhook, moduleKey: 'webhooks' },
-      { titleKey: 'nav.affiliates', path: '/affiliates-admin', icon: Handshake, moduleKey: 'affiliates_admin' },
       { titleKey: 'nav.altercpa', path: '/altercpa', icon: Radio, moduleKey: 'altercpa_bridge' },
     ],
   },
   {
     labelKey: '',
     items: [
-      { titleKey: 'nav.voipHealth', path: '/voip-health', icon: Gauge, moduleKey: 'voip_health' },
+      // VOIP health only once the phone system exists (telephony is deferred on MK).
+      ...(PBX_CONFIG.useRealVoip ? [{ titleKey: 'nav.voipHealth', path: '/voip-health', icon: Gauge, moduleKey: 'voip_health' }] : []),
       { titleKey: 'nav.settings', path: '/settings', icon: Settings, moduleKey: 'settings' },
     ],
   },
