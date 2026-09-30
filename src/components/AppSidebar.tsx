@@ -281,7 +281,8 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?:
               )}
             >
               {section.items.map(item => {
-                const isActive = location.pathname === item.path;
+                // Sub-routes (/settings/teams, /segments/:id…) keep their menu item lit; '/' stays exact.
+                const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(`${item.path}/`));
                 const linkContent = (
                   <Link
                     key={item.path}
