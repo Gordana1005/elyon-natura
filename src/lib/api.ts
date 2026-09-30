@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import type { BrandLine, BrandLineProposal, SetBrandLineResult } from '@/lib/products/brandLines';
 
 const API_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api`;
 
@@ -939,6 +940,12 @@ export const apiUpdateProduct = (id: string, body: any) =>
   apiFetch(`products/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
 export const apiGetInventoryLogs = (productId: string) =>
   apiFetch(`products/${productId}/inventory-logs`);
+// Brand lines (migration 20260943001300): the parcel-based proposal and the
+// audited writer — admins + owners. `line: null` = back to "not yet decided".
+export const apiGetBrandLineProposal = (days?: number): Promise<BrandLineProposal> =>
+  apiFetch(`products/brand-line-proposal${days ? `?days=${days}` : ''}`);
+export const apiSetBrandLine = (ids: string[], line: BrandLine | null): Promise<SetBrandLineResult> =>
+  apiFetch('products/brand-line', { method: 'POST', body: JSON.stringify({ ids, line }) });
 
 // Suppliers
 export const apiGetSuppliers = () => apiFetch('suppliers');
