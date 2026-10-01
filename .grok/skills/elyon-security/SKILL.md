@@ -1,6 +1,6 @@
 ---
 name: elyon-security
-description: Use when working on authentication, authorization, RLS policies, webhook security, audit logging, permission systems, secret handling, CORS, rate limiting, or any security-related changes. Covers the business-owners model (is_business_owner — every active admin is an owner, managers are not), the money strip for non-owners (incl. the order window's Origin and proof), the owner-only app_settings guard, the database guard that stops AlterCPA from creating money, and where a login lands (/start + homePath, the permission-loading race, the no-access screen, AppErrorBoundary, the stale-chunk reload). Critical for protecting customer data, financial information, and operational integrity.
+description: Use when working on authentication, authorization, RLS policies, webhook security, audit logging, permission systems, secret handling, CORS, rate limiting, or any security-related changes. Covers the business-owners model (is_business_owner — every active admin is an owner, managers are not), the money strip for non-owners (incl. the order window's Origin and proof), the owner-only app_settings guard, the database guard that stops AlterCPA from creating money, where a login lands (/start + homePath, the permission-loading race, the no-access screen, AppErrorBoundary, the stale-chunk reload), and the 01.10.2026 hardening — Settings writes (modules, role permissions, privacy, courier rates, the MEX push switch) only through audited api routes with the browser write policies dropped (20260943001500), the audited single writers behind guard triggers (products.kind / brand_line), the warehouse status / delete guards, and the shift login gate. Critical for protecting customer data, financial information, and operational integrity.
 ---
 
 # Elyon Security Skill
@@ -41,10 +41,15 @@ There is a layered permission system:
   `call_activity`), enforced by the edge function too, not only the UI.
 - **Customer privacy** (`role_privacy`: show phone / name / address / order history / segment
   members / recordings) — masked on API responses; admin-first.
+- **Written only through the api since 01.10.2026** (§11): Settings → Пристап по улога (modules +
+  role permissions + privacy in one screen) saves via `PUT /api/settings/modules`,
+  `/settings/role-permissions`, `/settings/privacy` — admins only, one `audit_log` row per change
+  with before / after. The browser write policies are gone; reading is unchanged
+  (`get_my_permissions()` is SECURITY DEFINER).
 - **Money / the business view = business owners** (§6), NOT a role and NOT
-  `financial_visibility`. ⚠️ The `financial_visibility` flags are still editable in Settings and
-  still returned by `get_my_permissions()`, but on this branch nothing reads them:
-  `canSeeFinancial()` (PermissionsContext) has no caller and the api never queries the table.
+  `financial_visibility`. The `financial_visibility` Settings tab is gone (01.10 — it controlled
+  nothing: `canSeeFinancial()` has no caller and the api never queries the table); the table stays
+  only because `get_my_permissions()` still returns it, and nothing can write it from the browser.
 
 Admins and managers get broad operational access. Agents are restricted both by RLS and by the permission system.
 
@@ -126,12 +131,15 @@ the way down (`/insights/pivot`, Settings → Owners / Teams / Integrations) are
 
 ### 8. Owner-only settings keys — `trg_app_settings_guard_owner_keys`
 
-`app_settings` is writable by ANY admin/manager session straight through PostgREST (policy
-"Admins can manage app_settings", 20260714000000). For keys that only owners may change, that is
-a bypass of both the owner gate and the audit row. `trg_app_settings_guard_owner_keys`
-(20260939000200:1494) refuses INSERT/UPDATE/DELETE of `no_parcel_rule` when `current_user` is
-`anon` or `authenticated` (42501); the service role (the api, after `isBusinessOwner()` + audit)
-and the migration role still can. Add every new owner-only key to that trigger.
+`app_settings` was writable by ANY admin/manager session straight through PostgREST (policy
+"Admins can manage app_settings", 20260714000000); since **`20260943001500` (01.10) only an admin
+session** can (the policy is narrowed from `is_admin_or_manager` to admin). Even so, a direct write
+bypasses the api's checks and the audit row. `trg_app_settings_guard_owner_keys` (last re-emitted in
+20260942000100) refuses INSERT/UPDATE/DELETE of `no_parcel_rule`, `stock_mex_movements` and
+`stock_counted_at` when `current_user` is `anon` or `authenticated` (42501); the service role (the
+api, after its own check + audit) and the migration role still can. Add every new owner-only key to
+that trigger. ⚠ **`mex_push` is not in it yet** — an admin session could flip the push switch from
+the browser without the `mex.push_settings` audit row; add it before the push goes live.
 
 ### 9. AlterCPA can never create money (61c3b8c, 20260934000200)
 
@@ -165,8 +173,9 @@ checks every call), but a bad bounce locks people out of their work.
   manager / business owner → `/insights` (any of `insights` · `performance` · `agent_activity` ·
   `call_activity`, or being an owner), else `/operations` when they may open it; a call agent (`agent`,
   `pending_agent`, `prediction_agent`, `inbound_agent`) → `/calls`; warehouse → `/warehouse`;
-  ads admin → `/webhooks`; affiliate → `/affiliate`; else the first of `/calls`, `/`, `/orders`,
-  `/warehouse`, `/webhooks` the login may open; else `null` = no page at all.
+  ads admin → `/products` (was `/webhooks`, hidden since the 30.09 page audit); affiliate →
+  `/affiliate`; else the first of `/calls`, `/`, `/orders`, `/warehouse`, `/products` the login may
+  open; else `null` = no page at all.
 - **The login goes to `/start`** (`src/pages/StartPage.tsx`, eager): it waits for the session, the
   profile (roles) and THIS login's permissions, then navigates to `homePath`. A session whose
   profile never arrives ends on the no-access screen after 8 s — never a loop.
@@ -185,6 +194,56 @@ checks every call), but a bad bounce locks people out of their work.
   **`main.tsx`** reloads once on `vite:preloadError` (a tab opened before a deploy asking for a lazy
   chunk that no longer exists), guarded by `sessionStorage` `elyon:chunk-reload-at` (not twice in
   60 s).
+
+### 11. Settings and other writes go through the api — audited (01.10.2026)
+
+The old Settings page wrote `module_settings`, `role_permissions`, `role_privacy` and
+`financial_visibility` straight from the browser: one click, no confirm, no audit row (audit_log
+held not one module or permission entry), and a module switched off hides it from EVERYONE,
+admins included. Migration **`20260943001500_settings_audit.sql`** (deploy order: api → migration →
+UI):
+
+- drops the browser write policies on those four tables (reads unchanged; the old policies are in
+  the migration's comments for a rollback);
+- narrows the `app_settings` and `courier_rates` write policies from admin-or-manager to admin (§8).
+
+The writes now (admins only unless noted; each one `audit_log` row with before / after):
+
+| Write | Route | Audit action |
+|---|---|---|
+| modules on/off | `PUT /api/settings/modules` (confirm + 10 s Undo in the UI) | `settings.module_toggle` |
+| role permissions | `PUT /api/settings/role-permissions` | `settings.role_permission` |
+| privacy | `PUT /api/settings/privacy` | `settings.privacy` |
+| courier rates (MEX saveable since 01.10) | `PATCH /api/courier-rates` — **owners only**, GET too | `settings.courier_rates` |
+| the MEX push switch | `PATCH /api/warehouse/mex-push/settings` | `mex.push_settings` |
+| `last changed by` for the rules | `GET /api/settings/meta` reads `audit_log` by action | — |
+
+Pure half and the editable roles: `supabase/functions/api/settingsAccess.ts` (+ vitest); who sees
+which section: `src/components/settings/sections.ts` (managers see only Корисници, the rules
+read-only and Лично). Granting admin on /users asks first ("админ = гледа пари"); rotating or
+revoking a TV token and recomputing the engine confirm.
+
+**Audited single writers behind guard triggers.** Where a table stays writable by admins/managers
+through PostgREST but one column family must be audited, the pattern is a SECURITY DEFINER writer
+that opens a transaction-local gate + a BEFORE trigger that refuses every other write:
+`products_set_kind()` / `tg_products_kind_guard` and `products_set_brand_line()` /
+`tg_products_brand_line_guard` (`20260943001400` / `001300`; `elyon-products-catalogue`). A
+maintenance script must go through the writer too. Use the same pattern for the next such column.
+
+**Other guards of 30.09–01.10:**
+- Warehouse: `PATCH /api/warehouse/incoming-orders/:id` refuses `status` (400
+  `warehouse_status_disabled`); `DELETE` is admin-only (403 `admin_only`) and audited
+  `order.hard_delete` — ⚠ except a `prediction_lead` row, which is deleted without the audit row.
+- The MEX push: `mex_push_attempts` RLS on with no policies (service role only); the order value in
+  the warehouse queue reaches owners only (`warehouseQueue.ts`).
+- The shift **login gate** (`elyon-presence-and-leaderboard` §1b): `GET /shifts` and
+  `/shift-templates` are for roster managers only (admin/manager + the `shifts` module) — `GET
+  /shifts` had no role check before; the gate is still evaluated in the browser and fails open on a
+  network error (a UX gate, not a security boundary).
+- `POST /customer-profile` = the fill-only `customer_profile_merge()` with a role check (it used to
+  overwrite saved data with empty values).
+- `/settings` → Телефонија only while VOIP is on; hidden pages keep their routes and their api
+  checks (CLAUDE.md "Hidden pages").
 
 ## Common Security Gotchas in This Project
 
@@ -236,6 +295,8 @@ checks every call), but a bad bounce locks people out of their work.
 | New webhook                            | Create via script, enforce HMAC, set secret          | Accepting unsigned requests                    |
 | Showing money / the business view      | `isBusinessOwner()` on the server, `canSeeBusiness` in the UI, strip money for non-owner admins/managers | A role check of your own, `financial_visibility`, or hiding it only in the UI |
 | A new owner-only setting               | Audited api route + add the key to `trg_app_settings_guard_owner_keys` | A plain `app_settings` row any admin/manager can PATCH |
+| A permission / module / privacy change | `PUT /api/settings/*` (admin, audited)               | A PostgREST write from the browser (the policies are gone) |
+| A column that must be audited          | A SECURITY DEFINER writer + a guard trigger (`products_set_kind` pattern) | A plain UPDATE / PATCH with no audit row |
 | An AlterCPA path that sets a status    | pending/confirmed/cancelled/trashed only; MEX moves money | Mapping an AlterCPA phase/status to paid/shipped/returned |
 | Agent trying to see all data           | Let RLS + permission system restrict them            | Bypassing restrictions in the UI               |
 

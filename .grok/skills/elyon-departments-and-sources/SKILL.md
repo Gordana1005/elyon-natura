@@ -1,6 +1,6 @@
 ---
 name: elyon-departments-and-sources
-description: The six sales DEPARTMENTS (owner law 28–29.09.2026, whole history) — Affiliate – Lead in, Affiliate – Lead out, Телешоп – Lead out, Телешоп – Lead in, Социјални мрежи, Веб-продавница — and how every order, MEX-only parcel and collabBox document is placed in exactly one. Covers orders.sale_source / sale_source_detail (the stored vocabulary), classify_sale_source + tg_orders_sale_source_fill at insert, the write-once lock, cohort_order_source(sale_source, detail, mex_tracking_id) with the NATURA exception for CRM-made sales, the MEX PROFILE rule for CRM-made sales (BIO NATURAL = affiliate, NATURA = teleshop / social / web: orders.dept_override, order_dept_override(…, mex_account, mex_tracking_id), the 4-argument cohort_order_source every report calls — 20260942001860; the agent-team rule of 20260942001800 was withdrawn the same morning), cohort_parcel_split / cohort_parcel_source, collabbox_department(type, DocNumber, person, at) and collabbox_doc_role, orders.collabbox_doc_type, sale_source_reclass and the two reclass scripts with --rollback, the TS twin in insightsCommon.ts, the mex-reconcile folder guard (mayReviveWith — a dead order is revived only by its own folder's parcel) and the cross-channel repair a057bc52, where the department is shown (order_departments(ids) on the Orders list, order_origin(id) in the order window), and how to add a new collabBox document type. Read before touching sale_source, any "source"/"channel"/"department" figure in Insights, GET /orders?cohort_source=, the collabBox folder map, the MEX phone+COD match, or anything that decides where a sale is counted.
+description: The six sales DEPARTMENTS (owner law 28–29.09.2026, whole history) — Affiliate – Lead in, Affiliate – Lead out, Телешоп – Lead out, Телешоп – Lead in, Социјални мрежи, Веб-продавница — and how every order, MEX-only parcel and collabBox document is placed in exactly one. Covers orders.sale_source / sale_source_detail (the stored vocabulary), classify_sale_source + tg_orders_sale_source_fill at insert, the write-once lock, cohort_order_source(sale_source, detail, mex_tracking_id) with the NATURA exception for CRM-made sales, the MEX PROFILE rule for CRM-made sales (BIO NATURAL = affiliate, NATURA = teleshop / social / web: orders.dept_override, order_dept_override(…, mex_account, mex_tracking_id), the 4-argument cohort_order_source every report calls — 20260942001860; the agent-team rule of 20260942001800 was withdrawn the same morning), cohort_parcel_split / cohort_parcel_source, collabbox_department(type, DocNumber, person, at) and collabbox_doc_role, orders.collabbox_doc_type, sale_source_reclass and the two reclass scripts with --rollback, the TS twin in insightsCommon.ts, the mex-reconcile folder guard (mayReviveWith — a dead order is revived only by its own folder's parcel) and the cross-channel repair a057bc52, where the department is shown (order_departments(ids) on the Orders list, order_origin(id) in the order window), and how to add a new collabBox document type. Also: since 30.09 a TEAM is a business line (Телешоп / Affiliate + lanes) and still NEVER decides a department (verify-teams T3); since 01.10 the PRODUCT LINE picks the MEX account when the CRM itself pushes a parcel ("Испрати до MEX", switched off) — the department then follows that parcel's profile like any other. Read before touching sale_source, any "source"/"channel"/"department" figure in Insights, GET /orders?cohort_source=, the collabBox folder map, the MEX phone+COD match, or anything that decides where a sale is counted.
 ---
 
 # Departments (sale sources) — six, by FOLDER
@@ -202,12 +202,36 @@ first, it counts in Affiliate out, and we look at MEX — BIO NATURAL or NATURA 
   orders over the history, 712 September sales / 1.996.989 ден). `…1850` reset every override and
   made the 4-argument `order_dept_override(sale_source, detail, person, at)` return NULL (kept, inert
   — the triggers now call the 6-argument form); `…1860` dropped `tg_sales_team_members_dept_override`.
-  **Never reintroduce a team rule for departments** — a team is a badge.
+  **Never reintroduce a team rule for departments** — a team groups people, it never places a sale.
 - **Pure Profit:** these writes keep `updated_at`, so the monthly cache does not notice them —
   refresh the closed months after a department rule changes (§ "Moving existing rows"). Measured
   after `…1860`: against the plain mapping the rule moves 7 orders, all September (the open month),
   plus 1 MEX-only BIO NATURAL `M…` waybill of July with COD 0 (web → Affiliate – Lead out, 0 ден);
   the closed months cached at 08:40 (before `…1800`) therefore still hold.
+
+### 3c. Teams are business lines; the product line picks the MEX account — neither places a sale (30.09–01.10)
+
+- **Teams = business lines** (owner 30.09, `20260943000900` / `000950`; `elyon-presence-and-leaderboard`
+  §5): Телешоп (ships via NATURA; lanes in / out / social), Affiliate (ships via BIO NATURAL; lanes
+  in / out), Менаџмент. The words match the departments on purpose, but a team only GROUPS PEOPLE (the
+  boards, Insights → Agents, the Assigner, Смени). A Телешоп agent's CRM sale shipped on BIO NATURAL is
+  still Affiliate – Lead out (§3b). `scripts/verify-teams.mjs` **T3** fails if `cohort_order_source`,
+  `order_dept_override`, `classify_sale_source`, `collabbox_department`, `cohort_parcel_source`,
+  `cohort_parcel_split` or `tg_orders_dept_override` ever mentions `sales_team_members`,
+  `sales_teams` or `sales_person_in_team`.
+- **The product line picks the account of a CRM push** (owner 30.09; `elyon-products-catalogue`,
+  `elyon-fulfilment-csv`): when the CRM itself creates the parcel ("Испрати до MEX", built 01.10,
+  `app_settings.mex_push` OFF), `mex_profile_for_line()` maps Bio Natural / Dr.Becker → BIO NATURAL
+  and Natura Therapy / Ad Astra → NATURA; a mixed basket, a basket with no line or a disagreeing
+  department / team needs a person's pick. The line is an INPUT to the parcel, not a department rule:
+  the push links the parcel through `mex_link_parcel(…, 'push')` (sets `mex_account` +
+  `mex_tracking_id`), `tg_orders_zz_dept_override` fires, and §3b places the sale by the parcel's
+  profile like any other.
+- ⚠ **Check before the push goes on:** a pushed parcel carries OUR order number as its tracking id
+  (no 9100 / 9102 / 9103 / 9108 series), so under today's §3b table a pushed CRM sale is Affiliate –
+  Lead out on BIO NATURAL and **Телешоп – Lead out on NATURA, whatever the lane** (a 9100 "Lead in"
+  needs the series). Fine for today's CRM sales (prediction / re-sale); decide with the owner before
+  Lead-in or social sales are pushed.
 
 ### 4. The TS twin — change them together
 
@@ -361,7 +385,8 @@ collabBox order keeps its system confirmer `System (collabbox-sync)` and SHOWS i
   `order` event carries `department` (the same call) and its badge shows the department label
   (`departmentLabel`, `src/lib/orderSource.ts`); the stored source words stay only as the fallback
   for non-order events (`elyon-customer360-and-integrations`).
-- **Insights → Прогнозни списоци** holds the list sales of EVERY department since `…1800` (a list
+- **Insights → Предикциски листи** (was "Прогнозни списоци" until the owner's terminology of 01.10)
+  holds the list sales of EVERY department since `…1800` (a list
   sale shipped on NATURA counts in its NATURA department and stays on the tab); its footer is the
   Affiliate – Lead out card and its `/orders` links select by `sale_source` + detail.
 
@@ -372,7 +397,10 @@ collabBox order keeps its system confirmer `System (collabbox-sync)` and SHOWS i
   `altercpa_leads`-team agent → `altercpa/team_prediction`, withdrawn by 20260942001100; `team_*`
   details survive only as mappings in `cohort_order_source` / the TS twin for safety, 0 rows) and
   the `crm_prediction` team → Телешоп – Lead out rule (`…1800`, withdrawn by `…1850` the same
-  morning). Do not reintroduce either.
+  morning). Do not reintroduce either — and making teams business lines (30.09) changed nothing here
+  (§3c; `verify-teams.mjs` T3).
+- **Never decide a department by the product line** either: the line only picks the MEX account of a
+  CRM push; the parcel's profile then decides (§3c).
 - **Never write `orders.dept_override` by hand**, and never call the 3-argument
   `cohort_order_source` in a report (§3) — the 4-argument form is THE department.
 - **Never decide by the series when the type is known** (the series lies for ~1.100 documents).

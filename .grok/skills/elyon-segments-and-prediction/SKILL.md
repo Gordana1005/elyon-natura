@@ -1,6 +1,6 @@
 ---
 name: elyon-segments-and-prediction
-description: Use for any work involving the prediction lists (segments) — the name-construction classifier (engine v3.7-mk, sticky trash), recency/value/frequency buckets, NEWCOMERS, Current Cancels, Never-Converted, Monadon exclusion, nightly pg_cron recompute, member state carry-over, Assigner, queues, avg_package_price, bulk order imports (the deferred segment_recompute_queue), the collabBox do-not-contact / deceased Trash markers, and the fact that every department's customers (teleshop included, 112k memberships since 28.09) are in the lists. This is the agents' main work surface; read this before touching anything in it.
+description: Use for any work involving the prediction lists (segments) — the name-construction classifier (engine v3.7-mk, sticky trash), recency/value/frequency buckets, NEWCOMERS, Current Cancels, Never-Converted, Monadon exclusion, nightly pg_cron recompute, member state carry-over, Assigner, queues, avg_package_price, bulk order imports (the deferred segment_recompute_queue), the collabBox do-not-contact / deceased Trash markers, the fact that every department's customers (teleshop included, 112k memberships since 28.09) are in the lists, and how an agent's outcome on /calls reaches the lists since 01.10.2026 (the one-tap outcome bar → POST /calls/outcome: one call_logs row, the member marked, the disposition record with the last purchase — CallAgainPage and ChooseAnswerButton are gone). This is the agents' main work surface; read this before touching anything in it. In Macedonian the lists are "предикциски листи" — never "прогнози".
 ---
 
 # Elyon Segments & Prediction Lists Skill (engine v3.7-mk — Macedonia)
@@ -37,7 +37,7 @@ A trash is **no longer** "the customer's newest order happens to be a trash", an
 
 - **PERMANENT** — `wrong_number` / `wrong_person` / `rude` / `uncooperative` / `other`, and legacy rows with no reason recorded. Removed from **every** calling band (highest-precedence NULL-target branch) and held in the static **Trash List**. A later **pending / cancel / return does NOT release them** — that is the whole point of the change.
 - **THE ONE RELEASE** — a **paid** order dated after the trash (`v_last_paid_at > v_perm_trash_at`). Money is better evidence than a disposition click. Operator decision 2026-08-06, taken on measured data: 13.784 currently-callable MK customers carried a trash and **2.391 of them had already paid us afterwards**; Bulgaria's v3.7 deletes those forever, Macedonia keeps them. **This is a deliberate MK deviation — do not "align with BG".**
-- **PARKED** — `not_reachable` only: held **21 days from `orders.trashed_at`**, then released automatically by the nightly recompute (or earlier by a payment). Written by both the manual "Unreachable" pick (ChooseAnswerButton) and the server auto-trash (9 consecutive no-answers, POST /call-logs).
+- **PARKED** — `not_reachable` only: held **21 days from `orders.trashed_at`**, then released automatically by the nightly recompute (or earlier by a payment). Written by both the manual pick (the /calls outcome bar: Корпа → reason `not_reachable`, `POST /calls/outcome`; `ChooseAnswerButton` was removed 01.10) and the server auto-trash (9 consecutive no-answers — `applyNoAnswerLifecycle()`, shared by `POST /calls/outcome` and `POST /call-logs`).
 - **`duplicate_order` is NOT a trash of the customer** — it is our own double-lead cleanup, so it neither drops them from a band nor enters the Trash List. **Second deliberate MK deviation**: BG's SQL treats it as permanent while BG's own code comment says the opposite; that inconsistency is not carried over.
 
 Sticky trash also suppresses the additive **Current Returns** mirror. Trash List is `is_static=true` → excluded from nuclear delete / carry-over / exclusivity audit; the member row carries `trigger_trash_reason` for the UI's **Reason** column. **Scope: prediction lists only** — a trashed phone that sends a brand-new lead still arrives as a normal pending order and is callable in the Pendings queue.
@@ -53,6 +53,47 @@ Behavioural fixture (run after ANY engine change): **`node scripts/verify-sticky
 - **Carry-over**: on a band move the engine copies `assigned_agent_*`, `last_call_*`, `is_completed`, `in_call_again_until`, `call_again_since` from the previous row (prefers an assigned row). A NEW purchase resets `is_completed`/call-again (fresh lifecycle). **Current Cancels AND NEWCOMERS entry strip assignment** (both are unassigned holding pens — Current Cancels also resets `is_completed`). Never bypass this with manual SQL on members.
 - **The only other way `assigned_agent_*` gets cleared** is a deliberate manager unassign (Assigner Unassign tab / `POST /assigner/unassign-all` / `POST /segments/:id/assign` with `agent_id: null`). Those null ONLY the three assignment columns — never `is_completed`, `last_call_*` or `in_call_again_until` — and a recompute will not put the agent back. See "Mass unassign" below.
 
+## /calls — the outcome IS the call log (01.10.2026, `0711fb7`)
+
+VOIP is off in Macedonia: agents dial from their own handsets, so the green Call button was pressed
+once in a week and a cancel / trash / confirm left no call row at all (767 `call_logs` that week, 766
+of them "no answer"); every outcome took 3–4 clicks. `ChooseAnswerButton` and `CallAgainPage` are gone.
+
+- **The outcome bar** (`src/components/calls/work/OutcomeBar.tsx`, order in
+  `src/lib/callsWork/outcomes.ts`): **Не одговара** (a 5 s Undo; sent when the undo closes) ·
+  **Повторно** (time chips) · **Откажа** / **Корпа** (the top-4 reasons as chips, "Друго…" = the full
+  picker) · **Потврди** (the order form, then logged). Pinned to the bottom on a phone; keys **1–5** on
+  desktop. With VOIP off a phone shows a `tel:` link, a desktop the number + copy — no mock call.
+- **`POST /api/calls/outcome`** (`supabase/functions/api/callsOutcome.ts` + vitest; client
+  `apiRecordCallOutcome` in `src/lib/callsWorkApi.ts`), outcomes `no_answer · call_again · cancelled ·
+  trash · confirmed`, one server call:
+  1. resolves the open order(s) like the page's `chooseOpenOrder()`: 0 → a cancel / trash
+     **disposition record** carrying the customer's last purchase (`last_sale_product`, below), 1 →
+     that order (PATCH-status parity), more → **409 `choose_order`** — a live lead is completed, never
+     forked;
+  2. writes exactly ONE `call_logs` row with **`source = 'handset'`** (migration `20260943001700`;
+     an answered softphone row of the last 5 min is re-tagged instead);
+  3. clears missed calls and the mandatory-answer obligation; `no_answer` runs the no-answer lifecycle
+     (`applyNoAnswerLifecycle()`, verbatim from `POST /call-logs` — the 9-strike Unreachable rule and
+     the paced retry, prediction outreach only);
+  4. marks the list member (`markAfterCall` parity) when a `list_id` is sent and the outcome is not
+     `no_answer`.
+  `confirmed` only logs the call — the order form confirms. A callback must fall inside the 6-day
+  call-again window. Needs order-edit rights; 60 per user rate limit.
+- `GET /api/calls/progress` — my calls today + the TV board's sales / worked today
+  (`leaderboard_day_v2`, cached 30 s). `GET /api/calls/call-again` — the agent's own callbacks
+  (`elyon-assigner`). Polls pause when the tab is hidden, back off when empty, and refresh on the
+  Assigner's broadcast.
+- **The product on a disposition record** (Phase 0, `20260943000200`): the page used to look the
+  last product up through `GET /orders`, which RLS scopes to the agent's own orders, so a list
+  customer's cancel / trash said "No prior product on file" (1.021 of 1.022 cancels in the week to
+  30.09). `POST /orders` (and `/calls/outcome`) now fill it on the server from
+  **`last_sale_product(phone, before)`** — the latest real sale (confirmed → returned) by last-8, its
+  non-placeholder item names, `product_id` only for one item; the price stays 0, so the row stays a
+  `disposition` (never a sale). **Phase 1** (`scripts/repair-disposition-products.mjs`, run
+  `1c8ee475`) repaired **7.116** old records with the sale BEFORE each one (54 customers with no
+  earlier sale keep the placeholder; the 598 teleshop ban markers were excluded; `--rollback`).
+
 ## When recompute runs
 
 1. Instantly via triggers on `orders` (INSERT / DELETE / UPDATE OF status, price, customer_phone).
@@ -66,7 +107,7 @@ Behavioural fixture (run after ANY engine change): **`node scripts/verify-sticky
 - **API**: `supabase/functions/api/index.ts` — GET /segments (overview + counts + `engine_data_as_of`), GET /segments/:id (paginated members), POST /segments/recompute, PATCH /segments/:id, assign/auto-assign/bulk-unassign.
 - **Mass unassign (2026-07-22, FULL DETACH since 2026-07-28)**: `GET /assigner/assignment-summary` (who holds what, per agent × list — one `assignment_matrix()` RPC, migration `20260803000000`) and `POST /assigner/unassign-all` (`{agent_id:'all'|uuid, list_ids?, include_pendings?, include_done?}`), admin/manager only, audited as `assigner.unassign_all` (payload carries `include_done`). **Without `include_done` it frees ONLY `is_completed = false` rows** (the original 07-22 contract, still the API default). **The Unassign tab now ALWAYS sends `include_done: true`** — operator decision 2026-07-28: a called member's `assigned_agent_*` stamp is ALSO cleared, so the (agent, list) pair disappears from `assignment_matrix()` and the list stops hanging off the agent's profile as an "empty" list. Nothing else is touched: `is_completed`, `last_call_*`, `in_call_again_until`, `call_logs` and sales credit (`confirmed_by_*`) all survive — the who-called-whom record lives in `call_logs` + the audit row, not in the member stamp. The per-list `POST /segments/:id/bulk-unassign` (SegmentDetailPage) also clears done rows and is unchanged. UI: `src/components/assigner/BulkUnassignPanel.tsx`, third tab on /assigner; copy key is `assigner.unassignFullDetach` (`unassignKeepsDone` was deleted).
 - **Per-client unassign from the Unassign tab (2026-07-28)**: each agent row expands to its lists (`src/components/assigner/AgentListMembersRow.tsx` — lazy `GET /segments/:id?assigned=<agentId>`, done members included, 50/page, per-client unassign via `POST /segments/:id/assign` with `agent_id: null`; a manager without `show_segment_members` gets 403 → inline `assigner.membersRestricted` notice while bulk detach still works) and to a pending-leads row (`src/components/assigner/AgentPendingLeadsRow.tsx` — `GET /orders?status=pending&agent_id=`, per-order `POST /orders/bulk-unassign`).
-- **UI**: `src/pages/SegmentsPage.tsx` (cards + "Engine data as of …" strip + Recompute all), `SegmentDetailPage.tsx` + `src/components/assigner/SegmentMemberTable.tsx` (Last order = trigger_price/date), Assigner (3 tabs; the per-agent drawer/`<Sheet>` inspector was DELETED 2026-07-28 — agent cards and Pendings-tab chips now jump+scroll to the Unassign tab via BulkUnassignPanel's `focus` prop), `useMyQueue.ts`, `CallsPage.tsx`, `CallAgainPage.tsx`.
+- **UI**: `src/pages/SegmentsPage.tsx` (cards + "Engine data as of …" strip + Recompute all), `SegmentDetailPage.tsx` + `src/components/assigner/SegmentMemberTable.tsx` (Last order = trigger_price/date), Assigner (see `elyon-assigner`; the per-agent drawer/`<Sheet>` inspector was DELETED 2026-07-28), `useMyQueue.ts`, `CallsPage.tsx` + `src/components/calls/work/*` (the outcome bar, the call-again view — `CallAgainPage.tsx` was deleted 01.10, `/call-again` redirects to `/calls?queue=call-again`). `/predictions` and `/predictions/:id` redirect to `/segments` (the old pages were deleted 30.09).
 - **Docs**: `docs/HOW_PREDICTION_SEGMENTS_WORK_NOW.md` (technical/operator explanation, incident history) · `docs/PREDICTION_LISTS_PLAIN_GUIDE.md` (plain-words guide for agents/managers — keep BOTH in sync with this skill on any rule change).
 - **Static lists**: externally-imported (engine never touches) = "Cancelled Pendings", "FULL MONAD LIST" (1,555 Monadon customers + product info); engine-written additive statics = **"Trash List"** (all trashes + reason), "Current Returns", "Due to Reorder" (v4).
 - Rollback snapshot from the v3 repair: `prediction_segment_members_backup_20260610` (drop after a verified week).
@@ -127,7 +168,7 @@ The teleshop import put **598 phones into the sticky Trash List** — owner deci
   (`banned_customer_do_not_contact` in `collabbox_documents.flags`) — it creates the order and no
   marker. Trash such a phone by hand until the sync learns it.
 
-## Insights → Прогнозни списоци — which lists make money (29.09)
+## Insights → Предикциски листи — which lists make money (29.09; the tab read "Прогнозни списоци" until 01.10)
 
 The report side of the lists (`GET /api/insights/lists` → `insights_lists` / `insights_lists_cash`,
 20260941000400; `src/components/insights/lists/`) reads THE sale cohort's rows whose detail is
