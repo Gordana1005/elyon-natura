@@ -16,8 +16,10 @@
  * ── Which orders ─────────────────────────────────────────────────────────────
  * A real sale that has no sold_at yet: price > 0, not a synthetic product (the
  * isRealSale test mex-reconcile uses), not an unworked `duplicated` copy — and
- * it IS or WAS a sale: a sale status now, OR order_history shows it became one,
- * OR AlterCPA approved it (incl. cancel-other, the 2026-08-11 manager rule).
+ * it IS or WAS a sale: a sale status now, OR order_history shows it became one
+ * (that first step counts only when a person took it or the order still holds a
+ * parcel — owner 01.10.2026, migration 20260944001200: an undone System (mex) flip
+ * is no sale), OR AlterCPA approved it (incl. cancel-other, the 2026-08-11 manager rule).
  * The last two keep a sale that was later cancelled — e.g. the 345 no-parcel
  * approvals — credited to whoever approved it. That is the point: the boards
  * must show "approved, never shipped" per operator.
@@ -58,8 +60,9 @@
  * the push rule credits the CRM agent who decided, not the admin who pressed it
  * (their comment reads "Agent: <name>" for exactly that reason). Callback and
  * cancel pushes never count (stamp review 2026-09-28, defect 1).
- * KEEP IN STEP with order_decider_plan() in
- * supabase/migrations/20260939000300_stamp_deciders_cron.sql (the cron's copy).
+ * KEEP IN STEP with order_decider_plan() — the cron's copy, last re-emitted in
+ * supabase/migrations/20260944001200_decider_plan_first_sale_proof.sql (first in
+ * 20260939000300_stamp_deciders_cron.sql); verify-stamp-parity.mjs reads the newest.
  *
  * sold_by_ext keeps the raw key (AlterCPA user id, operator name, collabBox
  * author) even when no person matches, so once the owner names e.g. AlterCPA
@@ -188,6 +191,7 @@ export function planPageSql(after, pageSize) {
 WITH o AS (
   SELECT o.id, o.display_id, o.status::text AS status, o.price, o.duplicated_from,
          o.confirmed_by_agent_id, o.confirmed_by_name, o.assigned_agent_name, o.confirmed_at, o.created_at,
+         o.mex_tracking_id,
          coalesce(o.sale_source, cl.c[1]) AS src,
          coalesce(o.sale_source_detail, cl.c[2]) AS det
     FROM public.orders o
@@ -239,6 +243,8 @@ WITH o AS (
          (led.order_id IS NOT NULL) AS has_led, led.account_id, led.decision,
          led.decided_by_altercpa_user AS alt_user, led.decided_at,
          push.actor_id AS push_by, push.actor_name AS push_name, push.agent_name AS push_agent,
+         (o.mex_tracking_id IS NOT NULL
+          OR EXISTS (SELECT 1 FROM public.mex_parcels mp WHERE mp.order_id = o.id)) AS holds_parcel,
          CASE WHEN lower(btrim(coalesce(o.confirmed_by_name, ''))) IN ('', 'import', 'system')
               THEN nullif(btrim(o.assigned_agent_name), '')
               ELSE o.confirmed_by_name END AS hist_name
@@ -266,7 +272,9 @@ WITH o AS (
       WHEN NOT has_fr AND src = 'elyon_crm' AND nullif(btrim(confirmed_by_name), '') IS NOT NULL THEN 'crm_confirmer'
     END AS rule
     FROM x
-   WHERE status IN ${REAL} OR has_fr OR (src = 'altercpa' AND decision IN ('approved', 'cancel_other'))
+   -- 2026-10-01 (owner, migration 20260944001200): a first step into a sale counts only when a
+   -- person took it or the order still holds a parcel — an undone System (mex) flip is no sale
+   WHERE status IN ${REAL} OR (has_fr AND (fr_human OR holds_parcel)) OR (src = 'altercpa' AND decision IN ('approved', 'cancel_other'))
 ), s AS (
   SELECT r.id, r.display_id, r.src, r.det, r.status, r.rule,
     CASE r.rule

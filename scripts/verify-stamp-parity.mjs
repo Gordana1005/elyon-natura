@@ -5,8 +5,8 @@
  *   node scripts/verify-stamp-parity.mjs
  *
  * Compares, row by row on live MK data:
- *   1. order_decider_plan()'s body (supabase/migrations/20260939000300_stamp_deciders_cron.sql —
- *      run inline, so this works BEFORE the migration is applied) with
+ *   1. order_decider_plan()'s body (the NEWEST migration that defines it — 20260939000300, re-emitted
+ *      by 20260944001200 — run inline, so this works BEFORE the migration is applied) with
  *      scripts/backfill-order-deciders.mjs planPageSql, over every unstamped real sale;
  *   2. the same over every real sale INCLUDING already-stamped ones (scope marker swapped);
  *   3. the re-derived stamp of every stamped order with what orders.sold_* holds now.
@@ -16,13 +16,20 @@
  *
  * Guards: scripts/lib/repair-kit.mjs mkGuard + assertRemoteIsMk (never Bulgaria), read_only.
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { mkGuard, sqlRead, assertRemoteIsMk } from './lib/repair-kit.mjs';
 import { planPageSql } from './backfill-order-deciders.mjs';
 
-const MIG = new URL('../supabase/migrations/20260939000300_stamp_deciders_cron.sql', import.meta.url);
-const src = readFileSync(MIG, 'utf8');
-const start = src.indexOf('CREATE OR REPLACE FUNCTION public.order_decider_plan(');
+// The NEWEST migration that (re)defines order_decider_plan — 20260939000300 first, re-emitted by
+// 20260944001200 (owner 01.10.2026: a first sale step counts only from a person or with the parcel
+// still there). Run inline, so the twins are proven equal before the migration is applied.
+const MIG_DIR = new URL('../supabase/migrations/', import.meta.url);
+const DEF = 'CREATE OR REPLACE FUNCTION public.order_decider_plan(';
+const MIG_FILE = readdirSync(fileURLToPath(MIG_DIR)).filter((f) => f.endsWith('.sql')).sort()
+  .filter((f) => readFileSync(new URL(f, MIG_DIR), 'utf8').includes(DEF)).pop();
+const src = readFileSync(new URL(MIG_FILE, MIG_DIR), 'utf8');
+const start = src.indexOf(DEF);
 const bodyStart = src.indexOf('AS $fn$', start) + 'AS $fn$'.length;
 const bodyEnd = src.indexOf('$fn$;', bodyStart);
 const planBody = src.slice(bodyStart, bodyEnd).trim().replace(/;\s*$/, '');
@@ -104,6 +111,10 @@ async function storedVsDerived(fnRows) {
 
 mkGuard();
 await assertRemoteIsMk();
+console.log(`order_decider_plan body from supabase/migrations/${MIG_FILE}`);
+const [live] = await sqlRead(`select position('holds_parcel' in prosrc) > 0 as first_sale_proof
+  from pg_proc where oid = to_regprocedure('public.order_decider_plan(interval)')`);
+console.log(`live function: ${live?.first_sale_proof ? 'carries' : 'does NOT carry yet'} the 20260944001200 first-sale-proof rule`);
 const a = await compare(false);
 const b = await compare(true);
 await storedVsDerived(b.fnRows);
