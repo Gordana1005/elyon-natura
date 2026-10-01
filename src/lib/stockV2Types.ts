@@ -42,7 +42,7 @@ export interface StockDayArticle {
   to_pack: number;          // in parcels created, not yet picked up (MEX 8)
   with_courier: number;     // in parcels picked up, not delivered/returned
   reserved: number;         // confirmed orders / collabBox bookings with no parcel yet (today only, else 0)
-  available: number;        // closing − to_pack − reserved
+  available: number;        // closing − reserved (closing already excludes to_pack: a parcel is deducted at its MEX label)
   avg_out_14d: number;      // average daily units out over the 14 days before `day`
   days_cover: number | null;// closing / avg_out_14d
   negative: boolean;
