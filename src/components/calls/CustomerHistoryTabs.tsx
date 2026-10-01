@@ -69,9 +69,10 @@ export function CustomerHistoryTabs({ phone, onOpenOrder, showScripts }: Props) 
 
   return (
     <div className="space-y-3">
-    <div className="grid grid-cols-1 lg:grid-cols-[7fr_3fr] gap-3 items-start">
+    {/* minmax(0, …): a column may shrink below its content — nothing pushes past the page edge. */}
+    <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,7fr)_minmax(0,3fr)] gap-3 items-start">
       {/* Left — History (every order status) */}
-      <div className={`rounded-xl border border-border/60 bg-card p-3 ${hoverLift}`}>
+      <div className={`min-w-0 rounded-xl border border-border/60 bg-card p-3 ${hoverLift}`}>
         <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
           <ShoppingCart className="h-3.5 w-3.5 text-amber-400" />
           {t('customerHistory.historyHeader')} <span className="font-normal normal-case">({orders.length})</span>
@@ -87,13 +88,20 @@ export function CustomerHistoryTabs({ phone, onOpenOrder, showScripts }: Props) 
               className="border-0 bg-transparent py-2 text-xs"
             />
           ) : (
-            <OrdersTable orders={orders} onOpenOrder={onOpenOrder} />
+            <>
+              {/* Cards below xl (plan Фаза 11 — the 7-column table scrolled sideways at 390 px
+                  and pushed the page wider than the screen up to 1280 px); the table from xl. */}
+              <OrdersCards orders={orders} onOpenOrder={onOpenOrder} />
+              <div className="hidden xl:block">
+                <OrdersTable orders={orders} onOpenOrder={onOpenOrder} />
+              </div>
+            </>
           )}
         </div>
       </div>
 
       {/* Right — Calls log */}
-      <div className={`rounded-xl border border-border/60 bg-card p-3 ${hoverLift}`}>
+      <div className={`min-w-0 rounded-xl border border-border/60 bg-card p-3 ${hoverLift}`}>
         <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
           <PhoneCall className="h-3.5 w-3.5 text-teal-400" />
           {t('customerHistory.callsHeader')} <span className="font-normal normal-case">({calls.length})</span>
@@ -109,7 +117,8 @@ export function CustomerHistoryTabs({ phone, onOpenOrder, showScripts }: Props) 
               className="border-0 bg-transparent py-2 text-xs"
             />
           ) : (
-            <CallsTable calls={calls} />
+            // One compact list on every width (the narrow 3fr column never fit a 4-column table).
+            <CallsCards calls={calls} />
           )}
         </div>
       </div>
@@ -121,12 +130,104 @@ export function CustomerHistoryTabs({ phone, onOpenOrder, showScripts }: Props) 
   );
 }
 
+/** The history below md: one card per order — every field the table shows, nothing scrolls sideways. */
+function OrdersCards({ orders, onOpenOrder }: { orders: any[]; onOpenOrder?: (id: string) => void }) {
+  const { t } = useTranslation();
+  return (
+    <ul className="space-y-1.5 xl:hidden" data-testid="history-cards">
+      {orders.slice(0, 50).map((o) => {
+        const productLabel = formatOrderProducts(o);
+        const reasonLabel = o.cancellation_reason
+          ? cancelReasonLabel(o.cancellation_reason)
+          : o.return_reason ? returnReasonLabel(o.return_reason) : null;
+        const reasonNotes = cleanNoteForDisplay(o.cancellation_reason_notes || o.return_reason_notes || '');
+        return (
+          <li key={o.id}>
+            <button
+              type="button"
+              onClick={() => onOpenOrder?.(o.id)}
+              disabled={!onOpenOrder}
+              title={onOpenOrder ? t('customerHistory.editStatusHint') : undefined}
+              className="w-full min-w-0 rounded-lg border bg-card px-2.5 py-2 text-left text-xs transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default"
+            >
+              <div className="flex min-w-0 items-center justify-between gap-2">
+                <span className="shrink-0 font-mono text-[11px] text-muted-foreground">{o.display_id || o.id.slice(0, 8)}</span>
+                {o.status
+                  ? <StatusBadge status={o.status as OrderStatus} order={o} className="text-[10px]" />
+                  : <span className="text-[10px] text-muted-foreground/40">—</span>}
+              </div>
+              <div className="mt-1 flex min-w-0 items-baseline justify-between gap-2">
+                <span className="min-w-0 truncate text-sm font-medium" title={productLabel}>{productLabel}</span>
+                <span className="shrink-0 font-mono font-bold tabular-nums">{formatMoney(orderTotal(o))}</span>
+              </div>
+              <div className="mt-0.5 flex min-w-0 items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                <span className="min-w-0 truncate">{o.assigned_agent_name || t('customerHistory.unassigned')}</span>
+                <span className="shrink-0 tabular-nums">{o.created_at ? format(new Date(o.created_at), 'dd/MM/yy') : '—'}</span>
+              </div>
+              {reasonLabel && (
+                <div className="mt-1 line-clamp-2 break-words text-[11px] italic text-muted-foreground">
+                  {reasonLabel}{reasonNotes ? ` — ${reasonNotes}` : ''}
+                </div>
+              )}
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/** The calls log: a compact list (agent · when · length, the outcome chip, the note) on every width. */
+function CallsCards({ calls }: { calls: CustomerHistoryCall[] }) {
+  const { t } = useTranslation();
+  return (
+    <ul className="divide-y" data-testid="history-call-cards">
+      {calls.slice(0, 100).map((c) => {
+        const isAnswered = c.connection_state === 'answered'
+          || (c.connection_state == null && (c.connected_at != null || (c.talk_seconds ?? 0) > 0));
+        const Icon = isAnswered ? Phone : PhoneOff;
+        const when = c.started_at || c.created_at;
+        const notes = cleanNoteForDisplay(c.notes || '');
+        return (
+          <li key={c.id} className="min-w-0 py-1.5 text-xs">
+            <div className="flex min-w-0 items-center justify-between gap-2">
+              <span className="flex min-w-0 items-center gap-1">
+                <Icon className={cn('h-3 w-3 shrink-0', isAnswered ? 'text-emerald-600' : 'text-muted-foreground')} />
+                <span className="truncate">{c.agent_name}</span>
+              </span>
+              <span className={cn('shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-medium',
+                OUTCOME_TONE[c.outcome] || 'bg-muted text-muted-foreground')}>
+                {t(`outcome.${c.outcome}`, { defaultValue: c.outcome.replace(/_/g, ' ') })}
+              </span>
+            </div>
+            <div className="mt-0.5 text-[11px] tabular-nums text-muted-foreground">
+              {when ? formatDate(new Date(when), 'dd.MM.yy HH:mm') : '—'} · {formatCallDuration(c)}
+            </div>
+            {notes && <div className="mt-0.5 line-clamp-2 whitespace-pre-wrap break-words text-[11px] text-muted-foreground">{notes}</div>}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 function OrdersTable({ orders, onOpenOrder }: { orders: any[]; onOpenOrder?: (id: string) => void }) {
   const { t } = useTranslation();
   return (
     <TooltipProvider>
-      <div className="overflow-x-auto">
-        <table className="w-full text-xs">
+      <div>
+        {/* Fixed layout: the columns share the card's width (product / reason / agent truncate,
+            the full text in the tooltip) — the table can never be wider than its card. */}
+        <table className="w-full table-fixed text-xs">
+          <colgroup>
+            <col className="w-[4.5rem]" />
+            <col />
+            <col className="w-[5.5rem]" />
+            <col className="w-[7rem]" />
+            <col />
+            <col className="w-[8.5rem]" />
+            <col className="w-[4.25rem]" />
+          </colgroup>
           <thead>
             <tr className="border-b text-[10px] uppercase tracking-wider text-muted-foreground">
               <th className="text-left py-1.5 font-medium">{t('customerHistory.colId')}</th>
@@ -199,7 +300,7 @@ function OrdersTable({ orders, onOpenOrder }: { orders: any[]; onOpenOrder?: (id
                       <span className="text-muted-foreground/30 text-[10px]">—</span>
                     )}
                   </td>
-                  <td className="py-1.5 pl-3 text-[11px] whitespace-nowrap">
+                  <td className="py-1.5 pl-3 text-[11px] whitespace-nowrap truncate" title={o.assigned_agent_name || undefined}>
                     {o.assigned_agent_name
                       ? <span className="text-foreground">{o.assigned_agent_name}</span>
                       : <span className="text-muted-foreground/50">{t('customerHistory.unassigned')}</span>}
@@ -213,70 +314,6 @@ function OrdersTable({ orders, onOpenOrder }: { orders: any[]; onOpenOrder?: (id
           </tbody>
         </table>
       </div>
-    </TooltipProvider>
-  );
-}
-
-function CallsTable({ calls }: { calls: CustomerHistoryCall[] }) {
-  const { t } = useTranslation();
-  return (
-    <TooltipProvider delayDuration={200}>
-      <table className="w-full text-xs">
-        <thead>
-          <tr className="border-b text-[10px] uppercase tracking-wider text-muted-foreground">
-            <th className="text-left py-1.5 font-medium">{t('customerHistory.colAgent')}</th>
-            <th className="text-left py-1.5 font-medium pl-2">{t('customerHistory.colOutcome')}</th>
-            <th className="text-right py-1.5 font-medium pl-2">{t('customerHistory.colLength')}</th>
-            <th className="text-right py-1.5 font-medium pl-2">{t('customerHistory.colWhen')}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {calls.slice(0, 100).map(c => {
-            const isAnswered = c.connection_state === 'answered'
-              || (c.connection_state == null && (c.connected_at != null || (c.talk_seconds ?? 0) > 0));
-            const Icon = isAnswered ? Phone : PhoneOff;
-            const dur = formatCallDuration(c);
-            const when = c.started_at || c.created_at;
-            const notes = cleanNoteForDisplay(c.notes || '');
-            return (
-              <Tooltip key={c.id}>
-                <TooltipTrigger asChild>
-                  <tr className="border-b last:border-0 hover:bg-muted/30 cursor-help align-top">
-                    <td className="py-1.5 max-w-[110px]">
-                      <span className="inline-flex items-center gap-1 min-w-0">
-                        <Icon className={cn('h-3 w-3 shrink-0', isAnswered ? 'text-emerald-600' : 'text-muted-foreground')} />
-                        <span className="truncate">{c.agent_name}</span>
-                      </span>
-                    </td>
-                    <td className="py-1.5 pl-2">
-                      <span className={cn('px-1.5 py-0.5 rounded text-[10px] font-medium whitespace-nowrap',
-                        OUTCOME_TONE[c.outcome] || 'bg-muted text-muted-foreground')}>
-                        {t(`outcome.${c.outcome}`, { defaultValue: c.outcome.replace(/_/g, ' ') })}
-                      </span>
-                    </td>
-                    <td className="py-1.5 pl-2 text-right tabular-nums whitespace-nowrap text-muted-foreground">{dur}</td>
-                    <td className="py-1.5 pl-2 text-right text-muted-foreground whitespace-nowrap leading-tight">
-                      {when ? (
-                        <>
-                          <div>{format(new Date(when), 'dd/MM/yy')}</div>
-                          <div className="text-[9px] text-muted-foreground/70 tabular-nums">{format(new Date(when), 'HH:mm')}</div>
-                        </>
-                      ) : '—'}
-                    </td>
-                  </tr>
-                </TooltipTrigger>
-                <TooltipContent side="left" className="max-w-[320px] text-[11px]">
-                  <div className="font-semibold">{c.agent_name} · {t(`outcome.${c.outcome}`, { defaultValue: c.outcome.replace(/_/g, ' ') })}</div>
-                  <div className="opacity-80 mt-0.5">
-                    {when ? formatDate(new Date(when), 'dd MMM yyyy HH:mm') : '—'} · {dur}
-                  </div>
-                  {notes && <div className="opacity-80 mt-1 whitespace-pre-wrap border-t pt-1">{notes}</div>}
-                </TooltipContent>
-              </Tooltip>
-            );
-          })}
-        </tbody>
-      </table>
     </TooltipProvider>
   );
 }

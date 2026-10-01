@@ -2,7 +2,7 @@ import type { TrashReason } from '@/lib/api';
 import i18n from '@/i18n';
 
 // Single source of truth for the trash reasons agents pick from. Used by ALL
-// three input surfaces — the in-call picker (ChooseAnswerButton), the order
+// three input surfaces — the /calls outcome bar (OutcomeBar), the order
 // editor (OrderModal) and the create-order modal (CreateOrderModal) — so the
 // list and its order can never drift between them. Mirrors
 // src/lib/cancellationReasons.ts exactly; keep the two in step.

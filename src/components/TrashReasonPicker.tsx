@@ -19,7 +19,7 @@ interface Props {
 /**
  * The trash reason picker. Twin of CancellationReasonPicker — same shape, same
  * props, neutral/zinc styling instead of red so agents can tell the two apart
- * at a glance. Mounted by ChooseAnswerButton, OrderModal and CreateOrderModal.
+ * at a glance. Mounted by the /calls outcome bar ("Друго…"), OrderModal and CreateOrderModal.
  */
 export function TrashReasonPicker({ value, notes, onChange, onNotesChange, className, disabled, idPrefix = 'trash' }: Props) {
   const { t } = useTranslation();

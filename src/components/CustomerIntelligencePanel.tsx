@@ -24,17 +24,25 @@ interface Props {
   hideOrdersHistory?: boolean;
 }
 
+/** The api's quality_reason is English text; this is the reader's language from the counts. */
+export function qualityReasonText(t: (k: string, o?: Record<string, unknown>) => string, stats?: { paid_orders?: number; returned_orders?: number; total_orders?: number } | null): string | undefined {
+  if (!stats) return undefined;
+  return t('callsWork.quality.reason', { paid: stats.paid_orders ?? 0, returned: stats.returned_orders ?? 0, total: stats.total_orders ?? 0 });
+}
+
 export function LeadQualityBadge({ score, reason }: { score?: string; reason?: string }) {
+  const { t } = useTranslation();
   if (!score) return null;
+  // Labels in the reader's language (they were hard-coded HIGH / MEDIUM / RISK).
   const config = {
-    HIGH: { icon: Star, className: 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/30', label: 'HIGH' },
-    MEDIUM: { icon: Shield, className: 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30', label: 'MEDIUM' },
-    RISK: { icon: AlertTriangle, className: 'bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-500/15 dark:text-rose-300 dark:border-rose-500/30', label: 'RISK' },
+    HIGH: { icon: Star, className: 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/30', label: t('callsWork.quality.HIGH') },
+    MEDIUM: { icon: Shield, className: 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30', label: t('callsWork.quality.MEDIUM') },
+    RISK: { icon: AlertTriangle, className: 'bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-500/15 dark:text-rose-300 dark:border-rose-500/30', label: t('callsWork.quality.RISK') },
   }[score] || { icon: Shield, className: 'bg-muted text-muted-foreground', label: score };
 
   const Icon = config.icon;
   return (
-    <span title={reason} className={cn('inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider', config.className)}>
+    <span title={reason} className={cn('inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider', config.className)} data-testid="lead-quality">
       <Icon className="h-3 w-3" />
       {config.label}
     </span>
@@ -77,7 +85,7 @@ export function CustomerIntelligencePanel({ data, loading, hideOrdersHistory = f
               <User className="h-3 w-3 text-primary" />
             </div>
             <span className="text-xs font-semibold text-card-foreground">{t('intel.title')}</span>
-            <LeadQualityBadge score={data.quality_score} reason={data.quality_reason} />
+            <LeadQualityBadge score={data.quality_score} reason={qualityReasonText(t, data.stats)} />
           </div>
           {expanded ? <ChevronUp className="h-3 w-3 text-muted-foreground" /> : <ChevronDown className="h-3 w-3 text-muted-foreground" />}
         </div>

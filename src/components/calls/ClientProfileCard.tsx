@@ -4,7 +4,7 @@ import { Phone, MapPin, Cake, Plus, ShoppingCart, Pencil, Check, X, Loader2 } fr
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatDate } from '@/i18n/dates';
-import { LeadQualityBadge } from '@/components/CustomerIntelligencePanel';
+import { LeadQualityBadge, qualityReasonText } from '@/components/CustomerIntelligencePanel';
 import { useCustomerIntelligence } from '@/hooks/useCustomerIntelligence';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiGetCustomerHistory, apiGetCustomerPrefill, apiUpdateCustomerContact } from '@/lib/api';
@@ -203,7 +203,8 @@ export function ClientProfileCard({ phone, onOpenOrder, onCreateOrder, onClaimed
               ) : (
                 <>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-lg font-bold truncate">{customerName || t('clientProfile.unknownCustomer')}</span>
+                    {/* Wraps instead of truncating — the agent reads the whole name out on the phone. */}
+                    <span className="min-w-0 break-words text-lg font-bold leading-snug">{customerName || t('clientProfile.unknownCustomer')}</span>
                     <PersonalHoldBadge phone={phone} />
                     <ActiveViewBadge phone={phone} />
                     {canEditCustomer && (
@@ -267,12 +268,16 @@ export function ClientProfileCard({ phone, onOpenOrder, onCreateOrder, onClaimed
             <>
               {intel?.quality_score && (
                 <div className="flex justify-center mb-3">
-                  <LeadQualityBadge score={intel.quality_score} reason={intel.quality_reason} />
+                  <LeadQualityBadge score={intel.quality_score} reason={qualityReasonText(t, stats)} />
                 </div>
               )}
               {cooldown?.is_in_cooldown && (
                 <div className="mb-2 rounded-md bg-amber-50 border border-amber-200 px-2 py-1 text-[10px] text-amber-700 text-center dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-300">
-                  {t('clientProfile.cooldownUntil', { date: formatDate(new Date(cooldown.until), 'dd MMM'), reason: cooldown.reason })}
+                  {/* The api sends the reason as a key ('paid') — never show it raw. */}
+                  {t('clientProfile.cooldownUntil', {
+                    date: formatDate(new Date(cooldown.until), 'dd MMM'),
+                    reason: t(`callsWork.cooldownReason.${cooldown.reason}`, { defaultValue: t('callsWork.cooldownReason.other') }),
+                  })}
                 </div>
               )}
               <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-center">
