@@ -109,6 +109,9 @@ import * as GA from "./altercpaGuarantee.ts";
 // The ONE Skopje calendar (owner 01.10.2026: "the same time everywhere"): today, day
 // boundaries (DST-exact), day buckets, bare-date bounds (pure, skopjeTime.test.ts).
 import * as ST from "./skopjeTime.ts";
+// /shops — Продавници (owner 02.10.2026, docs/SHOPS.md): the routes, `at` / window params, owner / counts
+// access and the *_mkd strip (pure, shops.test.ts); the reports are migration 20260946000200.
+import * as SHOPS from "./shops.ts";
 
 // ============================================================
 // INPUT VALIDATION SCHEMAS
@@ -19202,6 +19205,26 @@ async function handleRequest(req: Request): Promise<Response> {
         ? null
         : IC.buildCohortResponse(ovCohortRes.data as Record<string, unknown>, ovWin, ovOwner);
       return json(ovBody);
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // GET /api/shops/day · period · stock-matrix · deliveries · health · :code — Продавници
+    // (owner 02.10.2026, docs/SHOPS.md; JSON = src/lib/shopsTypes.ts; SQL 20260946000200)
+    //   owner (is_business_owner)        → everything
+    //   manager / non-owner admin        → the same payload, every *_mkd key ABSENT (p_money false
+    //                                      in SQL + shops.ts stripShopsMoney)
+    //   everyone else                    → 403
+    // ══════════════════════════════════════════════════════════════
+    if (req.method === "GET" && segments[0] === "shops") {
+      const shAccess = SHOPS.shopsAccess(await isBusinessOwner(user.id), isAdminOrManager);
+      if (shAccess === "forbidden") return json({ error: "Forbidden" }, 403);
+      const shRoute = SHOPS.parseShopsRoute(path, url.searchParams);
+      if (!shRoute.ok) return json({ error: shRoute.error }, shRoute.status);
+      const shCall = SHOPS.shopsRpc(shRoute.route, shAccess === "owner");
+      const { data: shData, error: shErr } = await adminClient.rpc(shCall.fn, shCall.args);
+      if (shErr) return json({ error: `${shCall.fn}: ${sanitizeDbError(shErr)}` }, 500);
+      if (shData == null) return json({ error: "Not found" }, 404);
+      return json(SHOPS.buildShopsResponse(shData, shAccess));
     }
 
     // ══════════════════════════════════════════════════════════════

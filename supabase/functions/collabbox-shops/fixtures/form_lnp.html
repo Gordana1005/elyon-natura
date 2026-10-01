@@ -1,0 +1,1087 @@
+<form id="searchform" name="searchform" action="./Index?comp=lnp&act=search#a1" method="post"><table class="table"><tbody><tr><td class="tableheader" colspan="2">Лагер-Набавено-Продадено </td>
+</tr>
+<tr><td>Фирма:</td>
+<td><SELECT NAME="holding" id="holding" class="selectInput" onChange="javascript:reloadCombo('holding','delid','leftMagIds','rightMagIds',3);">
+<option value="2">НАТУРА ТЕРАПИ STORES</option>
+</SELECT>
+</td>
+</tr>
+<tr><td>Деловна единица:</td>
+<td><div id="deledinicaDiv" >
+<TABLE>
+<tr>
+<td>
+<input type="text" name="ebdeled" id="ebdeled" class="textInput" size="4" onkeyup="javascript:locateCombo('ebdeled','delid',event);" onkeypress="javascript:if(preventFromEnter(event)){reloadCombo('holding','delid','leftMagIds','rightMagIds',1);}">
+</td>
+<td>
+<SELECT NAME="delid" id="delid" class="selectInput" onChange="javascript:setSifra('ebdeled',this);reloadCombo('holding','delid','leftMagIds','rightMagIds',1);">
+<option value="-1" SELECTED>За сите деловни единици</option>
+<option value="2">01 Деловна единица 1</option>
+</SELECT>
+</td>
+</tr>
+</table>
+</div>
+</td>
+</tr>
+<tr><td>Магацин:</td>
+<td><div id="magacinDiv" >
+<TABLE cellpadding="0">
+<tr>
+<td> Можни магацини </td>
+<td>
+</td>
+<td colspan = "2"> Избрани магацини </td>
+</tr>
+<tr>
+<td>
+<SELECT NAME="sel_leftMagIds" id="sel_leftMagIds" multiple class="selectInput"style="width: 300px" size="7" ondblclick="cmdAdd_Click('leftMagIds','rightMagIds',',',1);">
+<option value="3">001 Централен магацин </option>
+<option value="5">002 Магацин за Call Centar</option>
+<option value="4">003 Продавница Карпош</option>
+<option value="6">004 Продавница Бисер</option>
+<option value="7">005 Продавница ГТЦ</option>
+<option value="8">006 Продавница Струмица</option>
+<option value="9">007 Продавница Битола</option>
+<option value="10">008 Продавница Тетово</option>
+<option value="11">009 Продавница Штип</option>
+<option value="12">010 Продавница Куманово</option>
+<option value="13">011 Продавница Прилеп</option>
+<option value="14">012 Продавница Кавадарци</option>
+<option value="15">013 Продавница Велес</option>
+<option value="16">014 Оштетена роба</option>
+<option value="17">015 Продавница Охрид</option>
+<option value="18">016 Продавница Струга</option>
+<option value="19">017 Продавница Гевгелија</option>
+<option value="37">020 Продавница Аеродром</option>
+<option value="38">021 Продавница Џон Кенеди</option>
+<option value="40">023 Продавница Кочани</option>
+<option value="41">024 Продавница Кичево</option>
+<option value="43">026 Продавница Ѓорче Петров</option>
+<option value="44">027 Продавница Драчево</option>
+<option value="45">028 Продавница Лимак</option>
+<option value="46">029 Продавница Сити Мол</option>
+</SELECT>
+<input type="hidden" name="leftMagIds" id="leftMagIds" value="">
+<input type="hidden" name="captions_leftMagIds" id="captions_leftMagIds">
+</td>
+<td>
+<TABLE cellpadding="0">
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_next.gif" onClick="cmdAdd_Click('leftMagIds','rightMagIds',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_last.gif" onClick="cmdAddAll_Click('leftMagIds','rightMagIds',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/switch.gif" onClick="cmdSwapAll_Click('leftMagIds','rightMagIds',',');" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_first.gif" onClick="cmdRemoveAll_Click('leftMagIds','rightMagIds',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_prior.gif" onClick="cmdRemove_Click('leftMagIds','rightMagIds',',',1);" >
+</td>
+</tr>
+</table>
+</td>
+<td>
+<SELECT NAME="sel_rightMagIds" id="sel_rightMagIds" multiple class="selectInput"style="width: 300px" size="7" ondblclick="cmdRemove_Click('leftMagIds','rightMagIds',',',1);">
+</SELECT>
+<input type="hidden" name="rightMagIds" id="rightMagIds">
+<input type="hidden" name="captions_rightMagIds" id="captions_rightMagIds">
+</td>
+<td> &nbsp; <script>setCombos('leftMagIds','rightMagIds',',');</script>
+</td>
+</tr>
+</table>
+</div>
+<div id="magMsg" >
+<span name="labels" class="redtext_small" > Изберете магацин! </div>
+</td>
+</tr>
+<tr><td>Тип на документ:</td>
+<td><table cellpadding="0"><tbody><tr><td>Можни опции</td>
+<td>
+</td>
+<td colspan="2">Избрани опции</td>
+</tr>
+<tr><td><select id="sel_leftDokTypes" name="sel_leftDokTypes" ondblclick="cmdAdd_Click('leftDokTypes','rightDokTypes',',',1);; " size="7" multiple="multiple"><option value="10023">Invoice</option>
+<option value="10114">LEADS-OUT Нарачка</option>
+<option value="10062">Записник за оштетена роба</option>
+<option value="10064">Испратница Натура</option>
+<option value="10005">Лагер-попис разлика</option>
+<option value="10006">Материјално Префрлање Влез</option>
+<option value="10007">Материјално Префрлање Излез</option>
+<option value="10040">Налог за производство</option>
+<option value="10041">Налог за расклопување</option>
+<option value="10036">Нарачка in</option>
+<option value="10111">Нарачка LEADS</option>
+<option value="10050">Нарачка out</option>
+<option value="10112">Нарачка WEB</option>
+<option value="10107">Нарачка Продавници</option>
+<option value="10055">Нарачка С. Мрежи-Продавница</option>
+<option value="10106">Нарачка Социјални Мрежи</option>
+<option value="10060">ПЛТ од Препратница</option>
+<option value="10044">Повратница до добавувач</option>
+<option value="10074">Повратница од купувач</option>
+<option value="10010">Повратница од малопродажба</option>
+<option value="10015">Препратница</option>
+<option value="10014">Приемен лист во трговија</option>
+<option value="10016">Приемница</option>
+<option value="10033">Приемница-Увоз</option>
+<option value="10065">Реекспорт </option>
+<option value="10020">Фактура-Испратницa</option>
+<option value="10021">Фактура-Приемница</option>
+<option value="10075">Фактура- Приемница Консигнација</option>
+<option value="10022">Фискална Сметка</option>
+</select>
+<input type="hidden" id="leftDokTypes" name="leftDokTypes" value="">
+<input type="hidden" id="captions_leftDokTypes" name="captions_leftDokTypes" value="">
+</td>
+<td><table cellpadding="0"><tbody><tr><td height="1px"><img onclick="cmdAdd_Click('leftDokTypes','rightDokTypes',',',1);; " src="themes/collabbox/images/nav_next.gif">
+</td>
+</tr>
+<tr><td height="1px"><img onclick="cmdAddAll_Click('leftDokTypes','rightDokTypes',',',1);; " src="themes/collabbox/images/nav_last.gif">
+</td>
+</tr>
+<tr><td height="1px"><img onclick="cmdSwapAll_Click('leftDokTypes','rightDokTypes',',');; " src="themes/collabbox/images/switch.gif">
+</td>
+</tr>
+<tr><td height="1px"><img onclick="cmdRemoveAll_Click('leftDokTypes','rightDokTypes',',',1);; " src="themes/collabbox/images/nav_first.gif">
+</td>
+</tr>
+<tr><td height="1px"><img onclick="cmdRemove_Click('leftDokTypes','rightDokTypes',',',1);; " src="themes/collabbox/images/nav_prior.gif">
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+<td><select id="sel_rightDokTypes" name="sel_rightDokTypes" ondblclick="cmdRemove_Click('leftDokTypes','rightDokTypes',',',1);; " size="7" multiple="multiple"></select>
+<input type="hidden" id="leftDokTypes" name="leftDokTypes" value="">
+<input type="hidden" name="rightDokTypes" id="rightDokTypes" value="">
+<input type="hidden" id="captions_rightDokTypes" name="captions_rightDokTypes" value="">
+<input type="hidden" name="captions_rightDokTypes" id="captions_rightDokTypes">
+</td>
+<td> &nbsp; <script>setCombos('leftDokTypes','rightDokTypes',',');</script></td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+<tr><td>Групи на артикли:<img onclick="javascript:showTree();; " src="themes/collabbox/images/treelist.gif">
+</td>
+<td><TABLE cellpadding="0">
+<tr>
+<td> Можни групи </td>
+<td>
+</td>
+<td colspan = "2"> Избрани групи </td>
+</tr>
+<tr>
+<td>
+<SELECT NAME="sel_artgrpid" id="sel_artgrpid" multiple class="selectInput"style="width: 250px" size="7" ondblclick="cmdAdd_Click('artgrpid','sag',',',1);">
+<option value="20">ELIXY</option>
+<option value="33">I AM </option>
+<option value="0137">LEADS</option>
+<option value="34">АД АСТРА</option>
+<option value="013601">ГУМЕНИ БОНБОНИ</option>
+<option value="0136">ГУМЕНИ БОНБОНИ</option>
+<option value="0135">ДРУГИ АРТИКЛИ</option>
+<option value="02">Козметика</option>
+<option value="10">КУПОНИ</option>
+<option value="32">ЛОЈАЛИТИ</option>
+<option value="35">Мултилевел</option>
+<option value="30">НАГРАДИ</option>
+<option value="307001">НАГРАДНА ДОБРО ЗДРАВЈЕ И УБАВО ПАТУВАЊЕ</option>
+<option value="7000">НАГРАДНИ ИГРА ЦИТРОЕН</option>
+<option value="01">Продукти</option>
+<option value="04">Суплименти-Капсули</option>
+<option value="31">Суплименти-таблети</option>
+<option value="03">Течни Суплементи</option>
+<option value="99">Услуги</option>
+</SELECT>
+<input type="hidden" name="artgrpid" id="artgrpid" value="">
+<input type="hidden" name="captions_artgrpid" id="captions_artgrpid">
+</td>
+<td>
+<TABLE cellpadding="0">
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_next.gif" onClick="cmdAdd_Click('artgrpid','sag',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_last.gif" onClick="cmdAddAll_Click('artgrpid','sag',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/switch.gif" onClick="cmdSwapAll_Click('artgrpid','sag',',');" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_first.gif" onClick="cmdRemoveAll_Click('artgrpid','sag',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_prior.gif" onClick="cmdRemove_Click('artgrpid','sag',',',1);" >
+</td>
+</tr>
+</table>
+</td>
+<td>
+<SELECT NAME="sel_sag" id="sel_sag" multiple class="selectInput"style="width: 250px" size="7" ondblclick="cmdRemove_Click('artgrpid','sag',',',1);">
+</SELECT>
+<input type="hidden" name="sag" id="sag">
+<input type="hidden" name="captions_sag" id="captions_sag">
+</td>
+<td> &nbsp; <script>setCombos('artgrpid','sag',',');</script>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr><td>Вклучи ги подгрупите:</td>
+<td><input type="checkbox" name="cbsubgroups" value="ON" id="cbsubgroups">
+</td>
+</tr>
+<tr><td>Ресурс</td>
+<td><TABLE cellpadding="0">
+<tr>
+<td> Можни опции </td>
+<td>
+</td>
+<td colspan = "2"> Избрани опции </td>
+</tr>
+<tr>
+<td>
+<SELECT NAME="sel_resursiid" id="sel_resursiid" multiple class="selectInput"style="width: 250px" size="3" ondblclick="cmdAdd_Click('resursiid','selresursiid',',',1);">
+<option value="1">Артикл</option>
+<option value="3">Консигнација</option>
+<option value="2">Услуга</option>
+</SELECT>
+<input type="hidden" name="resursiid" id="resursiid" value="">
+<input type="hidden" name="captions_resursiid" id="captions_resursiid">
+</td>
+<td>
+<TABLE cellpadding="0">
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_next.gif" onClick="cmdAdd_Click('resursiid','selresursiid',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_last.gif" onClick="cmdAddAll_Click('resursiid','selresursiid',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/switch.gif" onClick="cmdSwapAll_Click('resursiid','selresursiid',',');" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_first.gif" onClick="cmdRemoveAll_Click('resursiid','selresursiid',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_prior.gif" onClick="cmdRemove_Click('resursiid','selresursiid',',',1);" >
+</td>
+</tr>
+</table>
+</td>
+<td>
+<SELECT NAME="sel_selresursiid" id="sel_selresursiid" multiple class="selectInput"style="width: 250px" size="3" ondblclick="cmdRemove_Click('resursiid','selresursiid',',',1);">
+</SELECT>
+<input type="hidden" name="selresursiid" id="selresursiid">
+<input type="hidden" name="captions_selresursiid" id="captions_selresursiid">
+</td>
+<td> &nbsp; <script>setCombos('resursiid','selresursiid',',');</script>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr><td>Артикл:</td>
+<td><input type="text" id="prodcode" name="prodcode" onkeypress="ch13PopupFindProduct(this,event);; " value="" size="10">
+<input type="text" id="proddesc" name="proddesc" onkeypress="ch13PopupFindProduct(this,event);; " value="" size="33">
+<a class="imgLink">
+<img src="images/pronajdi.png" height="16">
+</a>
+</td>
+</tr>
+<tr><td>Артикл од-до:</td>
+<td colspan="3"><input type="text" id="prodcodefrom" name="prodcodefrom" value="" size="25"> - <input type="text" id="proddescto" name="proddescto" value="" size="25">
+</td>
+</tr>
+<tr><td>Лагер од-до:</td>
+<td colspan="3"><input type="text" id="lagerOd" name="lagerOd" value="" size="10"> - <input type="text" id="lagerDo" name="lagerDo" value="" size="10">
+</td>
+</tr>
+<tr><td>Продадена количина од-до:</td>
+<td colspan="3"><input type="text" id="prodazbaOd" name="prodazbaOd" value="" size="10"> - <input type="text" id="prodazbaDo" name="prodazbaDo" value="" size="10">
+</td>
+</tr>
+<tr><td>Набавена количина од-до:</td>
+<td colspan="3"><input type="text" id="nabavenoOd" name="nabavenoOd" value="" size="10"> - <input type="text" id="nabavenoDo" name="nabavenoDo" value="" size="10">
+</td>
+</tr>
+<tr><td>Од датум:</td>
+<td><input type="text" id="datumod" name="datumod" onclick="javascript:return showCalendar(this.name,'dd.mm.y'); " onkeyup="validateDate(this); " value="" autocomplete="off" maxlength="10" size="10">
+</td>
+</tr>
+<tr><td>До датум:</td>
+<td><input type="text" id="datumdo" name="datumdo" onclick="javascript:return showCalendar(this.name,'dd.mm.y'); " onkeyup="validateDate(this); " value="" autocomplete="off" maxlength="10" size="10">
+</td>
+</tr>
+<tr><td>Варијабилен период:</td>
+<td><SELECT NAME="predefiniraniIntervali" id="predefiniraniIntervali" class="selectInput">
+<option value="0">Избери варијабилен период</option>
+<option value="1">Тековен ден</option>
+<option value="6">Минатиот ден</option>
+<option value="23">Тековен ден -2</option>
+<option value="24">Тековен ден -3</option>
+<option value="25">Тековен ден -4</option>
+<option value="26">Тековен ден -5</option>
+<option value="27">Тековен ден -6</option>
+<option value="28">Тековен ден -7</option>
+<option value="2">Тековна недела</option>
+<option value="7">Минатата недела</option>
+<option value="29">Тековна недела -2</option>
+<option value="30">Тековна недела -3</option>
+<option value="31">Тековна недела -4</option>
+<option value="32">Тековна недела -5</option>
+<option value="3">Тековен месец</option>
+<option value="8">Минатиот месец</option>
+<option value="18">Тековен месец -1</option>
+<option value="19">Тековен месец -2</option>
+<option value="20">Тековен месец -3</option>
+<option value="33">Тековен месец -4</option>
+<option value="34">Тековен месец -5</option>
+<option value="4">Тековно тромесечие</option>
+<option value="9">Минатото тромесечие</option>
+<option value="11">Прво тромесечие</option>
+<option value="12">Второ тромесечие</option>
+<option value="13">Трето тромесечие</option>
+<option value="14">Четврто тромесечие</option>
+<option value="35">Тековно тромесечие -2</option>
+<option value="36">Тековно тромесечие -3</option>
+<option value="37">Тековно тромесечие -4</option>
+<option value="21">Тековно полугодие</option>
+<option value="22">Тековно полугодие -1</option>
+<option value="38">Тековно полугодие -2</option>
+<option value="39">Тековно полугодие -3</option>
+<option value="40">Тековно полугодие -4</option>
+<option value="41">Тековно полугодие -5</option>
+<option value="5">Тековна година</option>
+<option value="10">Минатата година</option>
+<option value="15">Тековна година -1</option>
+<option value="16">Тековна година -2</option>
+<option value="17">Тековна година -3</option>
+<option value="42">Тековна година -4</option>
+<option value="43">Тековна година -5</option>
+<option value="44">MTD</option>
+<option value="45">YTD</option>
+<option value="46">YTD -1</option>
+<option value="47">YTD -2</option>
+<option value="48">YTD -3</option>
+<option value="49">YTD -4</option>
+<option value="50">YTD -5</option>
+<option value="51">Последни 30 дена (од вчера)</option>
+<option value="52">MTD од вчера</option>
+<option value="53">YTD од вчера</option>
+<option value="54">Понеделник претходна недела</option>
+<option value="55">Недела претходна недела</option>
+</SELECT>
+</td>
+</tr>
+<tr><td>&nbsp;</td>
+</tr>
+<tr><td>Категорија:</td>
+<td><select id="kategorija" name="kategorija"><option value="-1">Немате дефинирано категории</option>
+</select>
+</td>
+</tr>
+<tr><td>Комерцијалист:</td>
+<td><TABLE cellpadding="0">
+<tr>
+<td> Можни опции </td>
+<td>
+</td>
+<td colspan = "2"> Избрани опции </td>
+</tr>
+<tr>
+<td>
+<SELECT NAME="sel_komercijalistiId" id="sel_komercijalistiId" multiple class="selectInput"style="width: 250px" size="7" ondblclick="cmdAdd_Click('komercijalistiId','selectedKomercijalistiIds',',',1);">
+<option value="313" >Корисник 313</option>
+<option value="322" >Корисник 322</option>
+<option value="324" >Корисник 324</option>
+<option value="152" >Корисник 152</option>
+<option value="320" >Корисник 320</option>
+<option value="132" >Корисник 132</option>
+<option value="284" >Корисник 284</option>
+<option value="354" >Корисник 354</option>
+<option value="321" >Корисник 321</option>
+<option value="285" >Корисник 285</option>
+<option value="319" >Корисник 319</option>
+<option value="86" >Корисник 86</option>
+<option value="209" >Корисник 209</option>
+<option value="291" >Корисник 291</option>
+<option value="305" >Корисник 305</option>
+<option value="312" >Корисник 312</option>
+<option value="274" >Корисник 274</option>
+<option value="258" >Корисник 258</option>
+<option value="263" >Корисник 263</option>
+<option value="267" >Корисник 267</option>
+<option value="268" >Корисник 268</option>
+<option value="304" >Корисник 304</option>
+<option value="290" >Корисник 290</option>
+<option value="281" >Корисник 281</option>
+<option value="301" >Корисник 301</option>
+<option value="273" >Корисник 273</option>
+<option value="302" >Корисник 302</option>
+<option value="300" >Корисник 300</option>
+<option value="279" >Корисник 279</option>
+<option value="275" >Корисник 275</option>
+<option value="278" >Корисник 278</option>
+<option value="308" >Корисник 308</option>
+<option value="295" >Корисник 295</option>
+<option value="282" >Корисник 282</option>
+<option value="341" >Корисник 341</option>
+<option value="387" >Корисник 387</option>
+<option value="342" >Корисник 342</option>
+<option value="391" >Корисник 391</option>
+<option value="377" >Корисник 377</option>
+<option value="168" >Корисник 168</option>
+<option value="193" >Корисник 193</option>
+<option value="143" >Корисник 143</option>
+<option value="192" >Корисник 192</option>
+<option value="165" >Корисник 165</option>
+<option value="249" >Корисник 249</option>
+<option value="237" >Корисник 237</option>
+<option value="164" >Корисник 164</option>
+<option value="246" >Корисник 246</option>
+<option value="153" >Корисник 153</option>
+<option value="179" >Корисник 179</option>
+<option value="251" >Корисник 251</option>
+<option value="136" >Корисник 136</option>
+<option value="236" >Корисник 236</option>
+<option value="229" >Корисник 229</option>
+<option value="222" >Корисник 222</option>
+<option value="223" >Корисник 223</option>
+<option value="124" >Корисник 124</option>
+<option value="224" >Корисник 224</option>
+<option value="88" >Корисник 88</option>
+<option value="144" >Корисник 144</option>
+<option value="219" >Корисник 219</option>
+<option value="225" >Корисник 225</option>
+<option value="96" >Корисник 96</option>
+<option value="211" >Корисник 211</option>
+<option value="104" >Корисник 104</option>
+<option value="121" >Корисник 121</option>
+<option value="213" >Корисник 213</option>
+<option value="234" >Корисник 234</option>
+<option value="235" >Корисник 235</option>
+<option value="145" >Корисник 145</option>
+<option value="250" >Корисник 250</option>
+<option value="227" >Корисник 227</option>
+<option value="228" >Корисник 228</option>
+<option value="6" >Корисник 6</option>
+<option value="205" >Корисник 205</option>
+<option value="253" >Корисник 253</option>
+<option value="245" >Корисник 245</option>
+<option value="233" >Корисник 233</option>
+<option value="199" >Корисник 199</option>
+<option value="163" >Корисник 163</option>
+<option value="206" >Корисник 206</option>
+<option value="296" >Корисник 296</option>
+<option value="309" >Корисник 309</option>
+<option value="259" >Корисник 259</option>
+<option value="238" >Корисник 238</option>
+<option value="147" >Корисник 147</option>
+<option value="283" >Корисник 283</option>
+<option value="226" >Корисник 226</option>
+<option value="150" >Корисник 150</option>
+<option value="299" >Корисник 299</option>
+<option value="256" >Корисник 256</option>
+<option value="379" >Корисник 379</option>
+<option value="351" >Корисник 351</option>
+<option value="318" >Корисник 318</option>
+<option value="357" >Корисник 357</option>
+<option value="349" >Корисник 349</option>
+<option value="372" >Корисник 372</option>
+<option value="230" >Корисник 230</option>
+<option value="323" >Корисник 323</option>
+<option value="340" >Корисник 340</option>
+<option value="338" >Корисник 338</option>
+<option value="350" >Корисник 350</option>
+<option value="380" >Корисник 380</option>
+<option value="216" >Корисник 216</option>
+<option value="217" >Корисник 217</option>
+<option value="207" >Корисник 207</option>
+<option value="210" >Корисник 210</option>
+<option value="180" >Корисник 180</option>
+<option value="190" >Корисник 190</option>
+<option value="280" >Корисник 280</option>
+<option value="220" >Корисник 220</option>
+<option value="215" >Корисник 215</option>
+<option value="255" >Корисник 255</option>
+<option value="214" >Корисник 214</option>
+<option value="221" >Корисник 221</option>
+<option value="208" >Корисник 208</option>
+<option value="328" >Корисник 328</option>
+<option value="270" >Корисник 270</option>
+<option value="232" >Корисник 232</option>
+<option value="252" >Корисник 252</option>
+<option value="264" >Корисник 264</option>
+<option value="352" >Корисник 352</option>
+<option value="348" >Корисник 348</option>
+<option value="243" >Корисник 243</option>
+<option value="335" >Корисник 335</option>
+<option value="212" >Корисник 212</option>
+<option value="271" >Корисник 271</option>
+<option value="336" >Корисник 336</option>
+<option value="378" >Корисник 378</option>
+<option value="84" >Корисник 84</option>
+<option value="240" >Корисник 240</option>
+</SELECT>
+<input type="hidden" name="komercijalistiId" id="komercijalistiId" value="">
+<input type="hidden" name="captions_komercijalistiId" id="captions_komercijalistiId">
+</td>
+<td>
+<TABLE cellpadding="0">
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_next.gif" onClick="cmdAdd_Click('komercijalistiId','selectedKomercijalistiIds',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_last.gif" onClick="cmdAddAll_Click('komercijalistiId','selectedKomercijalistiIds',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/switch.gif" onClick="cmdSwapAll_Click('komercijalistiId','selectedKomercijalistiIds',',');" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_first.gif" onClick="cmdRemoveAll_Click('komercijalistiId','selectedKomercijalistiIds',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_prior.gif" onClick="cmdRemove_Click('komercijalistiId','selectedKomercijalistiIds',',',1);" >
+</td>
+</tr>
+</table>
+</td>
+<td>
+<SELECT NAME="sel_selectedKomercijalistiIds" id="sel_selectedKomercijalistiIds" multiple class="selectInput"style="width: 250px" size="7" ondblclick="cmdRemove_Click('komercijalistiId','selectedKomercijalistiIds',',',1);">
+</SELECT>
+<input type="hidden" name="selectedKomercijalistiIds" id="selectedKomercijalistiIds">
+<input type="hidden" name="captions_selectedKomercijalistiIds" id="captions_selectedKomercijalistiIds">
+</td>
+<td> &nbsp; <script>setCombos('komercijalistiId','selectedKomercijalistiIds',',');</script>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr><td>Просечна цена:</td>
+<td><input type="checkbox" name="avrPrice" value="ON" id="avrPrice">
+</td>
+</tr>
+<tr><td>Тип на цена</td>
+<td><TABLE cellpadding="0">
+<tr>
+<td> Можни опции </td>
+<td>
+</td>
+<td colspan = "2"> Избрани опции </td>
+</tr>
+<tr>
+<td>
+<SELECT NAME="sel_priceTypesLeft" id="sel_priceTypesLeft" multiple class="selectInput"style="width: 250px" size="6" ondblclick="cmdAdd_Click('priceTypesLeft','priceTypes',',',1);">
+<option value="1">Малопродажна цена</option>
+<option value="3">Мултилевел Маркетинг</option>
+</SELECT>
+<input type="hidden" name="priceTypesLeft" id="priceTypesLeft" value="">
+<input type="hidden" name="captions_priceTypesLeft" id="captions_priceTypesLeft">
+</td>
+<td>
+<TABLE cellpadding="0">
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_next.gif" onClick="cmdAdd_Click('priceTypesLeft','priceTypes',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_last.gif" onClick="cmdAddAll_Click('priceTypesLeft','priceTypes',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/switch.gif" onClick="cmdSwapAll_Click('priceTypesLeft','priceTypes',',');" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_first.gif" onClick="cmdRemoveAll_Click('priceTypesLeft','priceTypes',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_prior.gif" onClick="cmdRemove_Click('priceTypesLeft','priceTypes',',',1);" >
+</td>
+</tr>
+</table>
+</td>
+<td>
+<SELECT NAME="sel_priceTypes" id="sel_priceTypes" multiple class="selectInput"style="width: 250px" size="6" ondblclick="cmdRemove_Click('priceTypesLeft','priceTypes',',',1);">
+</SELECT>
+<input type="hidden" name="priceTypes" id="priceTypes">
+<input type="hidden" name="captions_priceTypes" id="captions_priceTypes">
+</td>
+<td> &nbsp; <script>setCombos('priceTypesLeft','priceTypes',',');</script>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr><td>Групирано по:</td>
+<td><select id="group" name="group"><option value="1">Магацин</option>
+<option value="2" selected="selected">Група на артикли</option>
+</select>
+</td>
+</tr>
+<tr><td>Подреди по:</td>
+<td><select id="podredi" name="podredi"><option value="artikli.artsifra">Шифра на артикл</option>
+<option value="artikli.opis" selected="selected">Опис на артикл</option>
+<option value="tip_brand.ime_brand">Бренд</option>
+</select>
+</td>
+</tr>
+<tr><td>Добавувач:</td>
+<td><select id="dobavuvac" name="dobavuvac"><option value="-1">Изберете добавувач</option>
+<option value="145798">Корисник 145798</option>
+<option value="39283">Корисник 39283</option>
+<option value="39051">Корисник 39051</option>
+<option value="38608">Корисник 38608</option>
+<option value="41655">Корисник 41655</option>
+<option value="38454">Корисник 38454</option>
+<option value="37411">Корисник 37411</option>
+<option value="27">Корисник 27</option>
+<option value="12616">Корисник 12616</option>
+<option value="139454">Корисник 139454</option>
+<option value="191619">Корисник 191619</option>
+<option value="140188">Корисник 140188</option>
+<option value="26">Корисник 26</option>
+<option value="37992">Корисник 37992</option>
+<option value="64756">Корисник 64756</option>
+<option value="38201">Корисник 38201</option>
+<option value="40058">Корисник 40058</option>
+<option value="128355">Корисник 128355</option>
+<option value="186910">Корисник 186910</option>
+<option value="39718">Корисник 39718</option>
+<option value="38448">Корисник 38448</option>
+<option value="120">Корисник 120</option>
+<option value="122">Корисник 122</option>
+<option value="5572">Корисник 5572</option>
+<option value="12">Корисник 12</option>
+<option value="152593">Корисник 152593</option>
+<option value="39635">Корисник 39635</option>
+<option value="123">Корисник 123</option>
+<option value="126251">Корисник 126251</option>
+<option value="130781">Корисник 130781</option>
+<option value="5150">Корисник 5150</option>
+<option value="183296">Корисник 183296</option>
+<option value="38982">Корисник 38982</option>
+<option value="12624">Корисник 12624</option>
+<option value="200423">Корисник 200423</option>
+<option value="37380">Корисник 37380</option>
+<option value="183283">Корисник 183283</option>
+<option value="197794">Корисник 197794</option>
+<option value="140120">Корисник 140120</option>
+<option value="201722">Корисник 201722</option>
+<option value="5">Корисник 5</option>
+<option value="38712">Корисник 38712</option>
+<option value="10321">Корисник 10321</option>
+<option value="10326">Корисник 10326</option>
+<option value="15">Корисник 15</option>
+<option value="5574">Корисник 5574</option>
+<option value="10366">Корисник 10366</option>
+<option value="10318">Корисник 10318</option>
+<option value="10316">Корисник 10316</option>
+<option value="38961">Корисник 38961</option>
+<option value="12622">Корисник 12622</option>
+<option value="10320">Корисник 10320</option>
+<option value="130525">Корисник 130525</option>
+<option value="10323">Корисник 10323</option>
+<option value="117">Корисник 117</option>
+<option value="10319">Корисник 10319</option>
+<option value="40">Корисник 40</option>
+<option value="10313">Корисник 10313</option>
+<option value="10317">Корисник 10317</option>
+<option value="131">Корисник 131</option>
+<option value="10315">Корисник 10315</option>
+<option value="4988">Корисник 4988</option>
+<option value="13274">Корисник 13274</option>
+<option value="49600">Корисник 49600</option>
+<option value="132778">Корисник 132778</option>
+<option value="49810">Корисник 49810</option>
+<option value="12141">Корисник 12141</option>
+<option value="115816">Корисник 115816</option>
+<option value="39793">Корисник 39793</option>
+<option value="11393">Корисник 11393</option>
+<option value="41454">Корисник 41454</option>
+<option value="43960">Корисник 43960</option>
+<option value="40101">Корисник 40101</option>
+<option value="65254">Корисник 65254</option>
+<option value="40151">Корисник 40151</option>
+<option value="38312">Корисник 38312</option>
+<option value="10479">Корисник 10479</option>
+<option value="143595">Корисник 143595</option>
+<option value="24499">Корисник 24499</option>
+<option value="12292">Корисник 12292</option>
+<option value="51792">Корисник 51792</option>
+<option value="187548">Корисник 187548</option>
+<option value="41041">Корисник 41041</option>
+<option value="152409">Корисник 152409</option>
+<option value="151675">Корисник 151675</option>
+<option value="124546">Корисник 124546</option>
+<option value="38877">Корисник 38877</option>
+<option value="39277">Корисник 39277</option>
+<option value="40020">Корисник 40020</option>
+<option value="12623">Корисник 12623</option>
+<option value="40135">Корисник 40135</option>
+<option value="145796">Корисник 145796</option>
+<option value="40116">Корисник 40116</option>
+<option value="118">Корисник 118</option>
+<option value="13300">Корисник 13300</option>
+<option value="7">Корисник 7</option>
+<option value="39">Корисник 39</option>
+<option value="13116">Корисник 13116</option>
+<option value="82">Корисник 82</option>
+<option value="10334">Корисник 10334</option>
+<option value="13094">Корисник 13094</option>
+<option value="13091">Корисник 13091</option>
+<option value="6">Корисник 6</option>
+<option value="119477">Корисник 119477</option>
+<option value="38200">Корисник 38200</option>
+<option value="42574">Корисник 42574</option>
+<option value="38184">Корисник 38184</option>
+<option value="42594">Корисник 42594</option>
+<option value="132110">Корисник 132110</option>
+<option value="12621">Корисник 12621</option>
+<option value="13">Корисник 13</option>
+<option value="13253">Корисник 13253</option>
+<option value="40045">Корисник 40045</option>
+<option value="38">Корисник 38</option>
+<option value="39355">Корисник 39355</option>
+<option value="121">Корисник 121</option>
+<option value="133608">Корисник 133608</option>
+<option value="11">Корисник 11</option>
+<option value="127760">Корисник 127760</option>
+<option value="38346">Корисник 38346</option>
+<option value="129761">Корисник 129761</option>
+<option value="129762">Корисник 129762</option>
+<option value="139840">Корисник 139840</option>
+<option value="145800">Корисник 145800</option>
+<option value="159088">Корисник 159088</option>
+<option value="38862">Корисник 38862</option>
+<option value="145503">Корисник 145503</option>
+<option value="39133">Корисник 39133</option>
+<option value="127758">Корисник 127758</option>
+<option value="176397">Корисник 176397</option>
+<option value="12619">Корисник 12619</option>
+<option value="38692">Корисник 38692</option>
+<option value="181816">Корисник 181816</option>
+<option value="13453">Корисник 13453</option>
+<option value="125690">Корисник 125690</option>
+<option value="39123">Корисник 39123</option>
+<option value="126881">Корисник 126881</option>
+<option value="135">Корисник 135</option>
+<option value="11525">Корисник 11525</option>
+<option value="3500">Корисник 3500</option>
+<option value="39356">Корисник 39356</option>
+<option value="4">Корисник 4</option>
+<option value="1">Корисник 1</option>
+<option value="78163">Корисник 78163</option>
+<option value="14">Корисник 14</option>
+<option value="60344">Корисник 60344</option>
+<option value="145476">Корисник 145476</option>
+<option value="12709">Корисник 12709</option>
+<option value="38349">Корисник 38349</option>
+<option value="41654">Корисник 41654</option>
+<option value="38480">Корисник 38480</option>
+<option value="143582">Корисник 143582</option>
+<option value="132267">Корисник 132267</option>
+<option value="132266">Корисник 132266</option>
+<option value="41675">Корисник 41675</option>
+<option value="133014">Корисник 133014</option>
+<option value="39719">Корисник 39719</option>
+<option value="13153">Корисник 13153</option>
+<option value="141293">Корисник 141293</option>
+<option value="132256">Корисник 132256</option>
+<option value="39337">Корисник 39337</option>
+<option value="155050">Корисник 155050</option>
+<option value="132643">Корисник 132643</option>
+<option value="17">Корисник 17</option>
+<option value="37458">Корисник 37458</option>
+<option value="39354">Корисник 39354</option>
+<option value="159085">Корисник 159085</option>
+<option value="12617">Корисник 12617</option>
+<option value="135913">Корисник 135913</option>
+<option value="39055">Корисник 39055</option>
+<option value="38597">Корисник 38597</option>
+<option value="132649">Корисник 132649</option>
+<option value="130664">Корисник 130664</option>
+<option value="40403">Корисник 40403</option>
+<option value="38462">Корисник 38462</option>
+<option value="38236">Корисник 38236</option>
+<option value="183326">Корисник 183326</option>
+<option value="145803">Корисник 145803</option>
+<option value="75497">Корисник 75497</option>
+<option value="134539">Корисник 134539</option>
+<option value="143621">Корисник 143621</option>
+<option value="152002">Корисник 152002</option>
+<option value="82192">Корисник 82192</option>
+<option value="16">Корисник 16</option>
+<option value="8">Корисник 8</option>
+<option value="11916">Корисник 11916</option>
+<option value="38247">Корисник 38247</option>
+<option value="9">Корисник 9</option>
+<option value="154320">Корисник 154320</option>
+<option value="61396">Корисник 61396</option>
+<option value="38865">Корисник 38865</option>
+<option value="135646">Корисник 135646</option>
+<option value="10">Корисник 10</option>
+<option value="38956">Корисник 38956</option>
+<option value="38362">Корисник 38362</option>
+<option value="152003">Корисник 152003</option>
+<option value="133466">Корисник 133466</option>
+<option value="13254">Корисник 13254</option>
+<option value="156759">Корисник 156759</option>
+</select>
+</td>
+</tr>
+<tr><td>Прикажи резултати со лагер 0:</td>
+<td><input type="checkbox" name="showzeroqty" value="ON" id="showzeroqty">
+</td>
+</tr>
+<tr><td>Прикажи препратници:</td>
+<td><input type="checkbox" name="prikaziOdPrepratnici" value="ON" id="prikaziOdPrepratnici" checked>
+</td>
+</tr>
+<tr><td>Калкулирај препратници:</td>
+<td><input type="checkbox" name="kalkulirajPrepratnici" value="ON" id="kalkulirajPrepratnici">
+</td>
+</tr>
+<tr><td>Прикажи финансиско салдо:</td>
+<td><input type="checkbox" name="prikaziFinansiskoSaldo" value="ON" id="prikaziFinansiskoSaldo">
+</td>
+</tr>
+<tr><td>Прикажи оригинална шифра:</td>
+<td><input type="checkbox" name="prikaziOriginalnaSifra" value="ON" id="prikaziOriginalnaSifra">
+</td>
+</tr>
+<tr><td>Прикажи оригинален опис:</td>
+<td><input type="checkbox" name="prikaziOriginalenNaziv" value="ON" id="prikaziOriginalenNaziv">
+</td>
+</tr>
+<tr><td>Прикажи баркод:</td>
+<td><input type="checkbox" name="prikaziBarkod" value="ON" id="prikaziBarkod">
+</td>
+</tr>
+<tr><td>Прикажи добавувач:</td>
+<td><input type="checkbox" name="prikaziDobavuvac" value="ON" id="prikaziDobavuvac">
+</td>
+</tr>
+<tr><td>&nbsp;</td>
+<td><TABLE id="customFieldTable" class="table">
+<tr>
+<td colspan = "2">
+<input type="hidden" name="customDataType_Delivered" id="customDataType_Delivered" value="12">
+<input type="hidden" name="customObjectID_Delivered" id="customObjectID_Delivered" value="1491908">
+<input type="hidden" name="customDataType_In Delivery" id="customDataType_In Delivery" value="12">
+<input type="hidden" name="customObjectID_In Delivery" id="customObjectID_In Delivery" value="1491900">
+<input type="hidden" name="customDataType_Part number" id="customDataType_Part number" value="4">
+<input type="hidden" name="customObjectID_Part number" id="customObjectID_Part number" value="10434">
+<input type="hidden" name="customDataType_Payed By Kolporter" id="customDataType_Payed By Kolporter" value="12">
+<input type="hidden" name="customObjectID_Payed By Kolporter" id="customObjectID_Payed By Kolporter" value="1916936">
+<input type="hidden" name="customDataType_Picked Up" id="customDataType_Picked Up" value="12">
+<input type="hidden" name="customObjectID_Picked Up" id="customObjectID_Picked Up" value="1491910">
+<input type="hidden" name="customDataType_Problematic" id="customDataType_Problematic" value="12">
+<input type="hidden" name="customObjectID_Problematic" id="customObjectID_Problematic" value="1491909">
+<input type="hidden" name="customDataType_Received at Callporter " id="customDataType_Received at Callporter " value="12">
+<input type="hidden" name="customObjectID_Received at Callporter " id="customObjectID_Received at Callporter " value="1827829">
+<input type="hidden" name="customDataType_Received at MEX station" id="customDataType_Received at MEX station" value="12">
+<input type="hidden" name="customObjectID_Received at MEX station" id="customObjectID_Received at MEX station" value="1491922">
+<input type="hidden" name="customDataType_Return to sender" id="customDataType_Return to sender" value="12">
+<input type="hidden" name="customObjectID_Return to sender" id="customObjectID_Return to sender" value="1491924">
+<input type="hidden" name="customDataType_Shipment created" id="customDataType_Shipment created" value="12">
+<input type="hidden" name="customObjectID_Shipment created" id="customObjectID_Shipment created" value="1491934">
+<input type="hidden" name="customDataType_Брза пошта" id="customDataType_Брза пошта" value="16">
+<input type="hidden" name="customObjectID_Брза пошта" id="customObjectID_Брза пошта" value="50454">
+<input type="hidden" name="customDataType_број на дфи" id="customDataType_број на дфи" value="6">
+<input type="hidden" name="customObjectID_број на дфи" id="customObjectID_број на дфи" value="221269">
+<input type="hidden" name="customDataType_Број на извод" id="customDataType_Број на извод" value="12">
+<input type="hidden" name="customObjectID_Број на извод" id="customObjectID_Број на извод" value="10095">
+<input type="hidden" name="customDataType_Во готово" id="customDataType_Во готово" value="6">
+<input type="hidden" name="customObjectID_Во готово" id="customObjectID_Во готово" value="10296">
+<input type="hidden" name="customDataType_вратено" id="customDataType_вратено" value="16">
+<input type="hidden" name="customObjectID_вратено" id="customObjectID_вратено" value="10505">
+<input type="hidden" name="customDataType_Делко" id="customDataType_Делко" value="16">
+<input type="hidden" name="customObjectID_Делко" id="customObjectID_Делко" value="50456">
+<input type="hidden" name="customDataType_достава" id="customDataType_достава" value="16">
+<input type="hidden" name="customObjectID_достава" id="customObjectID_достава" value="10503">
+<input type="hidden" name="customDataType_Други трошоци" id="customDataType_Други трошоци" value="6">
+<input type="hidden" name="customObjectID_Други трошоци" id="customObjectID_Други трошоци" value="10228">
+<input type="hidden" name="customDataType_Едшоп" id="customDataType_Едшоп" value="16">
+<input type="hidden" name="customObjectID_Едшоп" id="customObjectID_Едшоп" value="10639">
+<input type="hidden" name="customDataType_Експрес пошта" id="customDataType_Експрес пошта" value="16">
+<input type="hidden" name="customObjectID_Експрес пошта" id="customObjectID_Експрес пошта" value="50452">
+<input type="hidden" name="customDataType_Екстра трошоци" id="customDataType_Екстра трошоци" value="6">
+<input type="hidden" name="customObjectID_Екстра трошоци" id="customObjectID_Екстра трошоци" value="10229">
+<input type="hidden" name="customDataType_Замена" id="customDataType_Замена" value="16">
+<input type="hidden" name="customObjectID_Замена" id="customObjectID_Замена" value="14567">
+<input type="hidden" name="customDataType_Земја на потекло" id="customDataType_Земја на потекло" value="12">
+<input type="hidden" name="customObjectID_Земја на потекло" id="customObjectID_Земја на потекло" value="10281">
+<input type="hidden" name="customDataType_Износ" id="customDataType_Износ" value="6">
+<input type="hidden" name="customObjectID_Износ" id="customObjectID_Износ" value="10088">
+<input type="hidden" name="customDataType_Искористени поени" id="customDataType_Искористени поени" value="12">
+<input type="hidden" name="customObjectID_Искористени поени" id="customObjectID_Искористени поени" value="174668">
+<input type="hidden" name="customDataType_Курсна разлика" id="customDataType_Курсна разлика" value="6">
+<input type="hidden" name="customObjectID_Курсна разлика" id="customObjectID_Курсна разлика" value="10214">
+<input type="hidden" name="customDataType_Мекс пошта" id="customDataType_Мекс пошта" value="16">
+<input type="hidden" name="customObjectID_Мекс пошта" id="customObjectID_Мекс пошта" value="99683">
+<input type="hidden" name="customDataType_Набавна вредност" id="customDataType_Набавна вредност" value="6">
+<input type="hidden" name="customObjectID_Набавна вредност" id="customObjectID_Набавна вредност" value="1674327">
+<input type="hidden" name="customDataType_Начин на плаќање" id="customDataType_Начин на плаќање" value="2003">
+<input type="hidden" name="customObjectID_Начин на плаќање" id="customObjectID_Начин на плаќање" value="10290">
+<input type="hidden" name="customDataType_неплатено" id="customDataType_неплатено" value="16">
+<input type="hidden" name="customObjectID_неплатено" id="customObjectID_неплатено" value="10507">
+<input type="hidden" name="customDataType_непратено" id="customDataType_непратено" value="16">
+<input type="hidden" name="customObjectID_непратено" id="customObjectID_непратено" value="10506">
+<input type="hidden" name="customDataType_откажано" id="customDataType_откажано" value="16">
+<input type="hidden" name="customObjectID_откажано" id="customObjectID_откажано" value="10640">
+<input type="hidden" name="customDataType_платено" id="customDataType_платено" value="16">
+<input type="hidden" name="customObjectID_платено" id="customObjectID_платено" value="10504">
+<input type="hidden" name="customDataType_Повторна достава" id="customDataType_Повторна достава" value="16">
+<input type="hidden" name="customObjectID_Повторна достава" id="customObjectID_Повторна достава" value="14551">
+<input type="hidden" name="customDataType_Покасна нарачка" id="customDataType_Покасна нарачка" value="12">
+<input type="hidden" name="customObjectID_Покасна нарачка" id="customObjectID_Покасна нарачка" value="13750">
+<input type="hidden" name="customDataType_Поштарина" id="customDataType_Поштарина" value="16">
+<input type="hidden" name="customObjectID_Поштарина" id="customObjectID_Поштарина" value="14555">
+<input type="hidden" name="customDataType_пратено" id="customDataType_пратено" value="16">
+<input type="hidden" name="customObjectID_пратено" id="customObjectID_пратено" value="15221">
+<input type="hidden" name="customDataType_Преостанати поени" id="customDataType_Преостанати поени" value="12">
+<input type="hidden" name="customObjectID_Преостанати поени" id="customObjectID_Преостанати поени" value="174670">
+<input type="hidden" name="customDataType_Со картичка" id="customDataType_Со картичка" value="6">
+<input type="hidden" name="customObjectID_Со картичка" id="customObjectID_Со картичка" value="10297">
+<input type="hidden" name="customDataType_Со картичка (DINERS)" id="customDataType_Со картичка (DINERS)" value="6">
+<input type="hidden" name="customObjectID_Со картичка (DINERS)" id="customObjectID_Со картичка (DINERS)" value="10298">
+<input type="hidden" name="customDataType_Со картичка (MASTERCARD)" id="customDataType_Со картичка (MASTERCARD)" value="6">
+<input type="hidden" name="customObjectID_Со картичка (MASTERCARD)" id="customObjectID_Со картичка (MASTERCARD)" value="10299">
+<input type="hidden" name="customDataType_Со картичка (VISA)" id="customDataType_Со картичка (VISA)" value="6">
+<input type="hidden" name="customObjectID_Со картичка (VISA)" id="customObjectID_Со картичка (VISA)" value="10300">
+<input type="hidden" name="customDataType_Транспорт" id="customDataType_Транспорт" value="6">
+<input type="hidden" name="customObjectID_Транспорт" id="customObjectID_Транспорт" value="10226">
+<input type="hidden" name="customDataType_Увозник" id="customDataType_Увозник" value="12">
+<input type="hidden" name="customObjectID_Увозник" id="customObjectID_Увозник" value="10282">
+<input type="hidden" name="customDataType_Фабрички број" id="customDataType_Фабрички број" value="4">
+<input type="hidden" name="customObjectID_Фабрички број" id="customObjectID_Фабрички број" value="10433">
+<input type="hidden" name="customDataType_Шофер" id="customDataType_Шофер" value="16">
+<input type="hidden" name="customObjectID_Шофер" id="customObjectID_Шофер" value="99685">
+<input type="hidden" name="customDataType_Шпед.ДДВ" id="customDataType_Шпед.ДДВ" value="6">
+<input type="hidden" name="customObjectID_Шпед.ДДВ" id="customObjectID_Шпед.ДДВ" value="10230">
+<input type="hidden" name="customDataType_Шпедитерски трошоци" id="customDataType_Шпедитерски трошоци" value="6">
+<input type="hidden" name="customObjectID_Шпедитерски трошоци" id="customObjectID_Шпедитерски трошоци" value="10227">
+<SELECT NAME="custom" id="custom" class="selectinput"style="max-width: 400px; ">
+<option value="All">Сите атрибути</option>
+<option value="Delivered">Delivered</option>
+<option value="In Delivery">In Delivery</option>
+<option value="Part number">Part number</option>
+<option value="Payed By Kolporter">Payed By Kolporter</option>
+<option value="Picked Up">Picked Up</option>
+<option value="Problematic">Problematic</option>
+<option value="Received at Callporter ">Received at Callporter </option>
+<option value="Received at MEX station">Received at MEX station</option>
+<option value="Return to sender">Return to sender</option>
+<option value="Shipment created">Shipment created</option>
+<option value="Брза пошта">Брза пошта</option>
+<option value="број на дфи">број на дфи</option>
+<option value="Број на извод">Број на извод</option>
+<option value="Во готово">Во готово</option>
+<option value="вратено">вратено</option>
+<option value="Делко">Делко</option>
+<option value="достава">достава</option>
+<option value="Други трошоци">Други трошоци</option>
+<option value="Едшоп">Едшоп</option>
+<option value="Експрес пошта">Експрес пошта</option>
+<option value="Екстра трошоци">Екстра трошоци</option>
+<option value="Замена">Замена</option>
+<option value="Земја на потекло">Земја на потекло</option>
+<option value="Износ">Износ</option>
+<option value="Искористени поени">Искористени поени</option>
+<option value="Курсна разлика">Курсна разлика</option>
+<option value="Мекс пошта">Мекс пошта</option>
+<option value="Набавна вредност">Набавна вредност</option>
+<option value="Начин на плаќање">Начин на плаќање</option>
+<option value="неплатено">неплатено</option>
+<option value="непратено">непратено</option>
+<option value="откажано">откажано</option>
+<option value="платено">платено</option>
+<option value="Повторна достава">Повторна достава</option>
+<option value="Покасна нарачка">Покасна нарачка</option>
+<option value="Поштарина">Поштарина</option>
+<option value="пратено">пратено</option>
+<option value="Преостанати поени">Преостанати поени</option>
+<option value="Со картичка">Со картичка</option>
+<option value="Со картичка (DINERS)">Со картичка (DINERS)</option>
+<option value="Со картичка (MASTERCARD)">Со картичка (MASTERCARD)</option>
+<option value="Со картичка (VISA)">Со картичка (VISA)</option>
+<option value="Транспорт">Транспорт</option>
+<option value="Увозник">Увозник</option>
+<option value="Фабрички број">Фабрички број</option>
+<option value="Шофер">Шофер</option>
+<option value="Шпед.ДДВ">Шпед.ДДВ</option>
+<option value="Шпедитерски трошоци">Шпедитерски трошоци</option>
+</SELECT>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td colspan = "3">
+<input type="hidden" name="number" id="number" value="0">
+<input type="hidden" name="delcustom" id="delcustom" value="none">
+</td>
+</tr>
+</table>
+<input type="hidden" name="searchMode" id="searchMode" value="none">
+</td>
+</tr>
+<tr><td colspan="2"> &nbsp; </td>
+</tr>
+</tbody>
+</table>
+</form>
