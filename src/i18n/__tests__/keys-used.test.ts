@@ -55,7 +55,7 @@ describe('i18n key usage', () => {
       }
     }
     expect(missing).toEqual([]);
-  });
+  }, 30_000); // scans every source file: slow under full-suite load
 
   it.each(Object.keys(TRANSLATED))('EN and %s agree on {{placeholders}} per key', (lang) => {
     const dict = TRANSLATED[lang];
