@@ -30,8 +30,8 @@ describe("parseCallOutcomeBody — outcome validation", () => {
     for (const outcome of ["no_answer", "call_again", "confirmed"]) {
       expect(ok({ phone: PHONE, outcome }).last8).toBe("70123456");
     }
-    expect(ok({ phone: "070 123 456", outcome: "cancelled", reason: "no_money" }).reason).toBe("no_money");
-    expect(ok({ phone: PHONE, outcome: "trash", reason: "wrong_number" }).reason).toBe("wrong_number");
+    expect(ok({ phone: "070 123 456", outcome: "cancelled", reason: "no_money", note: "по плата" }).reason).toBe("no_money");
+    expect(ok({ phone: PHONE, outcome: "trash", reason: "wrong_number", note: "друг човек" }).reason).toBe("wrong_number");
     expect(ok({ customer_phone: PHONE, outcome: "no_answer" }).phone).toBe(PHONE);
   });
 
@@ -54,9 +54,35 @@ describe("parseCallOutcomeBody — outcome validation", () => {
     expect(code({ phone: PHONE, outcome: "trash", reason: "no_money" })).toBe("invalid_reason");
   });
 
-  it("'other' needs a note; notes are trimmed and capped", () => {
+  it("a cancel / trash needs a written note of at least 5 characters (owner 01.10.2026)", () => {
     expect(code({ phone: PHONE, outcome: "cancelled", reason: "other" })).toBe("note_required");
-    expect(ok({ phone: PHONE, outcome: "cancelled", reason: "other", note: "  во странство  " }).note).toBe("во странство");
+    expect(code({ phone: PHONE, outcome: "cancelled", reason: "no_money" })).toBe("note_required");
+    expect(code({ phone: PHONE, outcome: "trash", reason: "rude", note: "     " })).toBe("note_required");
+    expect(code({ phone: PHONE, outcome: "cancelled", reason: "no_money", note: "ok" })).toBe("note_too_short");
+    expect(code({ phone: PHONE, outcome: "trash", reason: "wrong_number", note: "нема" })).toBe("note_too_short");
+    expect(code({ phone: PHONE, outcome: "cancelled", reason: "no_money", note: "x".repeat(1001) })).toBe("note_too_long");
+    // trimmed and whitespace-collapsed — what is stored
+    expect(ok({ phone: PHONE, outcome: "cancelled", reason: "other", note: "  во   странство  " }).note).toBe("во странство");
+    expect(ok({ phone: PHONE, outcome: "trash", reason: "rude", note: "викаше" }).note).toBe("викаше");
+    const r = parseCallOutcomeBody({ phone: PHONE, outcome: "cancelled", reason: "no_money", note: "ok" }, NOW);
+    expect(r).toMatchObject({ ok: false, error: "The note must be at least 5 characters long" });
+  });
+
+  it("noteMin 0 (the rollout window) is the old rule: only 'other' needs a note", () => {
+    const at0 = (body: Record<string, unknown>) => {
+      const r = parseCallOutcomeBody({ phone: PHONE, ...body }, NOW, { noteMin: 0 });
+      return r.ok ? r.input : r.code;
+    };
+    expect(at0({ outcome: "cancelled", reason: "no_money" })).toMatchObject({ reason: "no_money", note: null });
+    expect(at0({ outcome: "trash", reason: "rude", note: "ok" })).toMatchObject({ note: "ok" });
+    expect(at0({ outcome: "cancelled", reason: "other" })).toBe("note_required");
+    expect(at0({ outcome: "cancelled", reason: "other", note: "x" })).toMatchObject({ note: "x" });
+  });
+
+  it("no answer / call again / confirm never need a note; their notes are trimmed and capped", () => {
+    expect(ok({ phone: PHONE, outcome: "no_answer" }).note).toBeNull();
+    expect(ok({ phone: PHONE, outcome: "call_again" }).note).toBeNull();
+    expect(ok({ phone: PHONE, outcome: "confirmed", note: "ok" }).note).toBe("ok");
     expect(code({ phone: PHONE, outcome: "no_answer", note: "x".repeat(1001) })).toBe("note_too_long");
     expect(ok({ phone: PHONE, outcome: "no_answer", note: "   " }).note).toBeNull();
   });
@@ -285,24 +311,25 @@ describe("recordCallOutcome — one tap, one server call", () => {
 
   it("cancel with no open order: ONE record (with the product), one row linked to it, the member completed", async () => {
     const { ports, calls } = fakePorts();
-    const res = await recordCallOutcome(ports, input({ outcome: "cancelled", reason: "not_interested", list_id: LIST }), ctx);
+    const res = await recordCallOutcome(ports, input({ outcome: "cancelled", reason: "not_interested", note: "не сака повеќе", list_id: LIST }), ctx);
     expect(calls).toEqual(["listOpenOrders", "createDispositionRecord", "insertCallLog", "clearMissedCalls", "clearObligation", "markMember", "notify"]);
     expect(res.body).toMatchObject({ order_id: "rec-1", order_action: "created", product_name: "Parafix", member_marked: 1 });
-    expect((ports.insertCallLog as any).mock.calls[0][0]).toMatchObject({ context_type: "order", context_id: "rec-1", outcome: "cancelled" });
+    expect((ports.insertCallLog as any).mock.calls[0][0]).toMatchObject({ context_type: "order", context_id: "rec-1", outcome: "cancelled", notes: "не сака повеќе" });
+    expect((ports.createDispositionRecord as any).mock.calls[0][0]).toMatchObject({ reason: "not_interested", note: "не сака повеќе" });
     expect((ports.markMember as any).mock.calls[0][0]).toMatchObject({ listId: LIST, last8: "70123456", patch: { is_completed: true, last_call_outcome: "cancelled" } });
   });
 
   it("cancel with one open lead: the lead is moved, never forked", async () => {
     const { ports } = fakePorts({ listOpenOrders: vi.fn(async () => [open({ id: UUID })]) });
-    const res = await recordCallOutcome(ports, input({ outcome: "cancelled", reason: "no_money" }), ctx);
-    expect(ports.applyToOpenOrder).toHaveBeenCalledWith({ orderId: UUID, outcome: "cancelled", reason: "no_money", note: null, callbackAt: null });
+    const res = await recordCallOutcome(ports, input({ outcome: "cancelled", reason: "no_money", note: "по плата" }), ctx);
+    expect(ports.applyToOpenOrder).toHaveBeenCalledWith({ orderId: UUID, outcome: "cancelled", reason: "no_money", note: "по плата", callbackAt: null });
     expect(ports.createDispositionRecord).not.toHaveBeenCalled();
     expect(res.body).toMatchObject({ order_id: UUID, order_action: "updated" });
   });
 
   it("two open orders and none chosen: 409 choose_order, and nothing is written", async () => {
     const { ports, calls } = fakePorts({ listOpenOrders: vi.fn(async () => [open({ id: "a" }), open({ id: "b", status: "duplicated" })]) });
-    const res = await recordCallOutcome(ports, input({ outcome: "trash", reason: "rude" }), ctx);
+    const res = await recordCallOutcome(ports, input({ outcome: "trash", reason: "rude", note: "викаше на мене" }), ctx);
     expect(res.status).toBe(409);
     expect(res.body).toMatchObject({ code: "choose_order" });
     expect((res.body.leads as unknown[]).length).toBe(2);
@@ -314,7 +341,7 @@ describe("recordCallOutcome — one tap, one server call", () => {
       listOpenOrders: vi.fn(async () => [open({ id: UUID })]),
       applyToOpenOrder: vi.fn(async () => ({ ok: false as const, status: 409, code: "order_not_open", error: "already confirmed" })),
     });
-    const res = await recordCallOutcome(ports, input({ outcome: "cancelled", reason: "no_money" }), ctx);
+    const res = await recordCallOutcome(ports, input({ outcome: "cancelled", reason: "no_money", note: "по плата" }), ctx);
     expect(res).toMatchObject({ status: 409, body: { code: "order_not_open" } });
     expect(calls).not.toContain("insertCallLog");
     expect(calls).not.toContain("clearObligation");
@@ -340,7 +367,7 @@ describe("recordCallOutcome — one tap, one server call", () => {
 
   it("a failed call row never undoes the recorded outcome — it is reported", async () => {
     const { ports } = fakePorts({ insertCallLog: vi.fn(async () => ({ ok: false as const, error: "boom" })) });
-    const res = await recordCallOutcome(ports, input({ outcome: "cancelled", reason: "no_money" }), ctx);
+    const res = await recordCallOutcome(ports, input({ outcome: "cancelled", reason: "no_money", note: "по плата" }), ctx);
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ call_log_id: null, warnings: ["call_log_failed"] });
     expect(ports.clearObligation).toHaveBeenCalled();

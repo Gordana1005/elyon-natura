@@ -151,16 +151,37 @@ describe('CallsPage — one-tap outcomes', () => {
     expect(api.record).not.toHaveBeenCalled();
   });
 
-  it('a cancel needs its reason chip and goes out as ONE call with that reason', async () => {
+  it('a cancel needs its reason chip AND the written note, and goes out as ONE call with both', async () => {
     api.record.mockResolvedValue({ ok: true, outcome: 'cancelled', order_id: 'lead-a', order_action: 'updated', product_name: null, call_log_id: 'l', member_marked: 0, callback_at: null, warnings: [], next: 'fetch' });
     renderAt('/calls');
     await waitFor(() => expect(screen.getByTestId('customer')).toHaveTextContent(A));
     fireEvent.click(within(screen.getByRole('toolbar')).getByRole('button', { name: /Откажа/ }));
     expect(api.record).not.toHaveBeenCalled();
     fireEvent.click(within(screen.getByRole('group')).getByRole('button', { name: 'Не е заинтересиран' }));
+    expect(api.record).not.toHaveBeenCalled(); // the chip opens the note step
+    const field = within(screen.getByTestId('note-step')).getByRole('textbox');
+    fireEvent.change(field, { target: { value: '  не  му треба ' } });
+    fireEvent.keyDown(field, { key: 'Enter' });
     await waitFor(() => expect(api.record).toHaveBeenCalledTimes(1));
-    expect(api.record.mock.calls[0][0]).toMatchObject({ phone: A, outcome: 'cancelled', reason: 'not_interested' });
+    expect(api.record.mock.calls[0][0]).toMatchObject({ phone: A, outcome: 'cancelled', reason: 'not_interested', note: 'не му треба' });
     await waitFor(() => expect(screen.getByTestId('customer')).toHaveTextContent(B));
+  });
+
+  it('a note the server finds too short is explained in Macedonian', async () => {
+    const { CallOutcomeError } = await import('@/lib/callsWorkApi');
+    api.record.mockRejectedValueOnce(new CallOutcomeError('The note must be at least 7 characters long', 400, 'note_too_short'));
+    const { Toaster } = await import('@/components/ui/toaster');
+    render(<Toaster />);
+    renderAt('/calls');
+    await waitFor(() => expect(screen.getByTestId('customer')).toHaveTextContent(A));
+    fireEvent.click(within(screen.getByRole('toolbar')).getByRole('button', { name: /Откажа/ }));
+    fireEvent.click(within(screen.getByRole('group')).getByRole('button', { name: 'Нема пари' }));
+    const field = within(screen.getByTestId('note-step')).getByRole('textbox');
+    fireEvent.change(field, { target: { value: 'нема пари' } });
+    fireEvent.keyDown(field, { key: 'Enter' });
+    await waitFor(() => expect(api.record).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText(/најмалку 7 знаци/)).toBeInTheDocument();
+    expect(screen.getByTestId('customer')).toHaveTextContent(A); // the customer stays on screen
   });
 
   it('two open orders: the server asks (409 choose_order) and the agent picks — never the code', async () => {
@@ -176,10 +197,12 @@ describe('CallsPage — one-tap outcomes', () => {
     await waitFor(() => expect(screen.getByTestId('customer')).toHaveTextContent(A));
     fireEvent.click(within(screen.getByRole('toolbar')).getByRole('button', { name: /Корпа/ }));
     fireEvent.click(within(screen.getByRole('group')).getByRole('button', { name: 'Погрешен број' }));
+    fireEvent.change(within(screen.getByTestId('note-step')).getByRole('textbox'), { target: { value: 'друг човек' } });
+    fireEvent.click(within(screen.getByTestId('note-step')).getByRole('button', { name: 'Зачувај' }));
     const dialog = await screen.findByRole('dialog');
     fireEvent.click(within(dialog).getByRole('button', { name: /100002/ }));
     await waitFor(() => expect(api.record).toHaveBeenCalledTimes(2));
-    expect(api.record.mock.calls[1][0]).toMatchObject({ outcome: 'trash', reason: 'wrong_number', order_id: 'dup-1' });
+    expect(api.record.mock.calls[1][0]).toMatchObject({ outcome: 'trash', reason: 'wrong_number', note: 'друг човек', order_id: 'dup-1' });
   });
 });
 

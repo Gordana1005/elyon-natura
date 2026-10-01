@@ -49,8 +49,9 @@ import { useAddressResolution, EMPTY_ADDRESS, type AddressDraft } from '@/compon
 import { CancellationReasonPicker } from '@/components/CancellationReasonPicker';
 import { OrderOriginPanel } from '@/components/OrderOriginPanel';
 import { TrashReasonPicker } from '@/components/TrashReasonPicker';
-import { cancelReasonRequiresNote } from '@/lib/cancellationReasons';
+import { isCancelSelectionValid } from '@/lib/cancellationReasons';
 import { isTrashSelectionValid } from '@/lib/trashReasons';
+import { DISPOSITION_NOTE_MIN, isDispositionNoteValid, normalizeNote } from '@/lib/dispositionNote';
 import type { CancellationReason, TrashReason } from '@/lib/api';
 import { format } from 'date-fns'; // machine 'yyyy-MM-dd' payloads only
 import { formatDate, formatDayDmy } from '@/i18n/dates';
@@ -440,6 +441,23 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
     .replace(/\[Product\]/g, activeItems.length > 0 ? formatProductWithQuantity(activeItems[0].product_name, activeItems[0].quantity) : '___')
     .replace(/\[Order ID\]/g, data?.displayId || data?.id?.slice(0, 8) || '___');
 
+  // A cancel / trash a PERSON makes needs its reason AND a written note of at least 5
+  // characters (owner 01.10.2026) — when the call outcome says so, or the order is moving
+  // INTO the status. A correction of an order that already IS cancelled / trashed needs
+  // neither (before, an old trash without a reason blocked every unrelated edit); a note
+  // it changes must still be long enough, and an unchanged old note is never re-sent.
+  const needsCancelReason = !isLead
+    && (selectedOutcome === 'cancelled' || (selectedStatus === 'cancelled' && data?.status !== 'cancelled'));
+  const needsTrashReason = !isLead
+    && (selectedOutcome === 'wrong_number' || (selectedStatus === 'trashed' && data?.status !== 'trashed'));
+  const cancelNoteChanged = normalizeNote(cancellationReasonNotes) !== normalizeNote(fullOrderData?.cancellation_reason_notes);
+  const trashNoteChanged = normalizeNote(trashReasonNotes) !== normalizeNote(fullOrderData?.trash_reason_notes);
+  const noteTooShortToast = () => toast({
+    title: t('dispositionNote.requiredTitle'),
+    description: t('dispositionNote.tooShort', { min: DISPOSITION_NOTE_MIN }),
+    variant: 'destructive',
+  });
+
   // ── SAVE ──
   const handleSave = async () => {
     if (!data || saving) return; // prevent double-submit
@@ -458,28 +476,34 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
       toast({ title: t('orderModal.followUpRequired'), description: t('orderModal.followUpRequiredDesc'), variant: 'destructive' });
       return;
     }
-    const needsCancelReason = !isLead
-      && (selectedOutcome === 'cancelled'
-          || (selectedStatus === 'cancelled' && data?.status !== 'cancelled'));
     if (needsCancelReason && !cancellationReason) {
       toast({ title: t('orderModal.cancelReasonRequired'), description: t('orderModal.cancelReasonRequiredDesc'), variant: 'destructive' });
       return;
     }
-    if (needsCancelReason && cancelReasonRequiresNote(cancellationReason) && !cancellationReasonNotes.trim()) {
-      toast({ title: t('orderModal.cancelNoteRequired'), description: t('orderModal.cancelNoteRequiredDesc'), variant: 'destructive' });
+    if (needsCancelReason && !isCancelSelectionValid(cancellationReason, cancellationReasonNotes)) {
+      noteTooShortToast();
       return;
     }
-    // Trash twin: demanded whenever the order is heading to (or already sits in)
-    // trashed, so no order can be junked without saying why — the whole point of
+    // Trash twin: demanded whenever the order is heading INTO trashed (or the outcome is
+    // a wrong number), so no order can be junked without saying why — the whole point of
     // the Trash List's Reason column.
-    const needsTrashReason = !isLead
-      && (selectedOutcome === 'wrong_number' || selectedStatus === 'trashed');
     if (needsTrashReason && !trashReason) {
       toast({ title: t('orderModal.trashReasonRequired'), description: t('orderModal.trashReasonRequiredDesc'), variant: 'destructive' });
       return;
     }
     if (needsTrashReason && !isTrashSelectionValid(trashReason, trashReasonNotes)) {
-      toast({ title: t('orderModal.trashNoteRequired'), description: t('orderModal.trashNoteRequiredDesc'), variant: 'destructive' });
+      noteTooShortToast();
+      return;
+    }
+    // A correction at the same status: a note that was CHANGED (and not cleared) must be long enough.
+    if (!isLead && selectedStatus === 'cancelled' && !needsCancelReason && cancelNoteChanged
+      && normalizeNote(cancellationReasonNotes) && !isDispositionNoteValid(cancellationReasonNotes)) {
+      noteTooShortToast();
+      return;
+    }
+    if (!isLead && selectedStatus === 'trashed' && !needsTrashReason && trashNoteChanged
+      && normalizeNote(trashReasonNotes) && !isDispositionNoteValid(trashReasonNotes)) {
+      noteTooShortToast();
       return;
     }
     // Validate required fields for confirm status
@@ -527,8 +551,10 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
             cancellation_reason: cancellationReason,
             cancellation_reason_notes: cancellationReasonNotes.trim() || undefined,
           } : {}),
+          // The wrong-number note reaches the order since 01.10.2026 (it was dropped before).
           ...(selectedOutcome === 'wrong_number' && trashReason ? {
             trash_reason: trashReason,
+            trash_reason_notes: trashReasonNotes.trim() || undefined,
           } : {}),
         });
       }
@@ -627,16 +653,19 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
             || trashReasonNotes.trim() !== (fullOrderData?.trash_reason_notes ?? '').trim()));
 
         if (selectedStatus !== data.status || reasonChanged) {
+          // An unchanged note on a same-status correction is not re-sent (the server checks
+          // every note it receives, and an old one may be shorter than today's minimum).
+          const moving = selectedStatus !== data.status;
           let extras: Record<string, string | undefined> | undefined;
           if (selectedStatus === 'cancelled' && cancellationReason) {
             extras = {
               cancellation_reason: cancellationReason,
-              cancellation_reason_notes: cancellationReasonNotes.trim() || undefined,
+              cancellation_reason_notes: moving || cancelNoteChanged ? (cancellationReasonNotes.trim() || undefined) : undefined,
             };
           } else if (selectedStatus === 'trashed' && trashReason) {
             extras = {
               trash_reason: trashReason,
-              trash_reason_notes: trashReasonNotes.trim() || undefined,
+              trash_reason_notes: moving || trashNoteChanged ? (trashReasonNotes.trim() || undefined) : undefined,
             };
           }
           await apiUpdateOrderStatus(data.id, selectedStatus, extras);
@@ -940,10 +969,12 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
             {!isLead && (selectedOutcome === 'cancelled' || selectedStatus === 'cancelled') && (
               <section>
                 <CancellationReasonPicker
+                  idPrefix="order-modal-cancel"
                   value={cancellationReason}
                   notes={cancellationReasonNotes}
                   onChange={setCancellationReason}
                   onNotesChange={setCancellationReasonNotes}
+                  noteRequired={needsCancelReason}
                   disabled={!isEditable}
                 />
               </section>
@@ -1006,6 +1037,7 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
                   notes={trashReasonNotes}
                   onChange={setTrashReason}
                   onNotesChange={setTrashReasonNotes}
+                  noteRequired={needsTrashReason}
                   disabled={!isEditable}
                 />
               </section>

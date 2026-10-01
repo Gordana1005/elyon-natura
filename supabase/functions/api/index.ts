@@ -87,6 +87,9 @@ import * as WQ from "./warehouseQueue.ts";
 // order an outcome acts on, the order / record / call_logs / member shapes and the orchestrator
 // behind POST /api/calls/outcome (pure, unit-tested in callsOutcome.test.ts).
 import * as CO from "./callsOutcome.ts";
+// The written note behind every cancel / trash a PERSON makes (owner 01.10.2026): the rule,
+// the check, app_settings.disposition_note_min, who decided (pure, dispositionNote.test.ts).
+import * as DN from "./dispositionNote.ts";
 
 // ============================================================
 // INPUT VALIDATION SCHEMAS
@@ -451,6 +454,9 @@ const callLogSchema = z.object({
     "wrong_number", "wrong_person", "not_reachable", "rude", "uncooperative",
     "duplicate_order", "other",
   ]).optional(),
+  // The note behind a trash / wrong-number outcome (owner 01.10.2026). Before it existed
+  // the Order Modal's wrong-number note was dropped here and never reached the order.
+  trash_reason_notes: z.string().max(1000).optional(),
 });
 
 const personalListCreateSchema = z.object({
@@ -915,15 +921,22 @@ interface ApplyOutcomeArgs {
   cancellationReason?: string;
   cancellationReasonNotes?: string;
   trashReason?: string;
+  trashReasonNotes?: string;
   // Claim an unassigned order for the acting agent. The CALLER decides based on
   // roles — an admin/manager settling someone's order should not become its owner.
   claimIfUnassigned?: boolean;
+  // app_settings.disposition_note_min (getDispositionNoteMin). A move INTO cancelled /
+  // trashed by a person needs a note this long; a refusal comes back with `code`
+  // note_* and the caller answers 400 BEFORE logging anything.
+  noteMin?: number;
 }
 
 interface ApplyOutcomeResult {
   ok: boolean;
   status?: number;
   error?: string;
+  code?: string;
+  min?: number;
   newStatus?: string;
   oldStatus?: string;
 }
@@ -936,7 +949,7 @@ interface ApplyOutcomeResult {
  */
 async function applyOutcomeToOrder(
   client: any,
-  { orderId, outcome, agentId, cancellationReason, cancellationReasonNotes, trashReason, claimIfUnassigned }: ApplyOutcomeArgs,
+  { orderId, outcome, agentId, cancellationReason, cancellationReasonNotes, trashReason, trashReasonNotes, claimIfUnassigned, noteMin }: ApplyOutcomeArgs,
 ): Promise<ApplyOutcomeResult> {
   const rule = OUTCOME_TO_STATUS[outcome];
   if (rule === null || rule === undefined) return { ok: true };
@@ -971,6 +984,21 @@ async function applyOutcomeToOrder(
     return { ok: false, status: 400, error: "cancellation_reason is required when outcome is cancelled" };
   }
 
+  // The written note (owner 01.10.2026) — only on a real move INTO cancelled / trashed;
+  // the "already in target" branch above stays exempt. Checked before any write.
+  let dispositionNote: string | null = null;
+  if (rule.to === "cancelled" || rule.to === "trashed") {
+    const isCancel = rule.to === "cancelled";
+    const gate = DN.dispositionNoteGate({
+      from: order.status, to: rule.to,
+      raw: isCancel ? cancellationReasonNotes : trashReasonNotes,
+      min: noteMin ?? DN.DISPOSITION_NOTE_MIN,
+      reason: isCancel ? cancellationReason : (trashReason ?? (outcome === "wrong_number" ? "wrong_number" : null)),
+    });
+    if (!gate.ok) return { ok: false, status: 400, error: gate.error, code: gate.code, min: gate.min };
+    dispositionNote = gate.note;
+  }
+
   const update: Record<string, any> = { status: rule.to };
   // Keep the Call-Again 3-day window in sync with the status:
   //   → into call_again: anchor the window to the first entry (COALESCE).
@@ -984,7 +1012,7 @@ async function applyOutcomeToOrder(
   }
   if (outcome === "cancelled") {
     update.cancellation_reason = cancellationReason;
-    update.cancellation_reason_notes = cancellationReasonNotes ?? null;
+    update.cancellation_reason_notes = dispositionNote;
     update.cancelled_at = new Date().toISOString();
     update.cancelled_by_agent_id = agentId;
   }
@@ -997,6 +1025,7 @@ async function applyOutcomeToOrder(
     update.trash_reason = outcome === "wrong_number"
       ? (trashReason ?? "wrong_number")
       : (trashReason ?? null);
+    update.trash_reason_notes = dispositionNote;
   }
 
   // Claim-on-action: settling an unassigned open order (including a duplicate an
@@ -5648,6 +5677,26 @@ async function handleRequest(req: Request): Promise<Response> {
 
       // Determine status: agents can only set confirmed or call_again
       const status = body.status || "pending";
+
+      // An order created straight as cancelled / trashed is a person's decision (the
+      // create-order modal): its reason and a written note (owner 01.10.2026) — checked
+      // before anything is read or written. The note stored is the normalized one.
+      let createNote: string | null = null;
+      if (status === "cancelled" || status === "trashed") {
+        const isCancel = status === "cancelled";
+        const reason = isCancel ? body.cancellation_reason : body.trash_reason;
+        if (!reason) {
+          return json({ error: isCancel ? "A cancellation reason is required" : "A trash reason is required", code: "reason_required" }, 400);
+        }
+        const gate = DN.dispositionNoteGate({
+          from: null, to: status,
+          raw: isCancel ? body.cancellation_reason_notes : body.trash_reason_notes,
+          min: await getDispositionNoteMin(adminClient),
+          reason,
+        });
+        if (!gate.ok) return json({ error: gate.error, code: gate.code, min: gate.min }, 400);
+        createNote = gate.note;
+      }
       // If agent (not admin), auto-assign to self
       const { data: agentProfile } = await adminClient.from("profiles").select("full_name").eq("user_id", user.id).single();
       const agentName = agentProfile?.full_name || user.email;
@@ -5806,7 +5855,7 @@ async function handleRequest(req: Request): Promise<Response> {
           // creates it as cancelled, so the segment trigger can route the
           // customer to the right Cancelled mirror list.
           cancellation_reason: status === "cancelled" ? (body.cancellation_reason ?? null) : null,
-          cancellation_reason_notes: status === "cancelled" ? (body.cancellation_reason_notes ?? null) : null,
+          cancellation_reason_notes: status === "cancelled" ? createNote : null,
           // Synthetic cancelled records (logged from the Calls page) are created
           // straight as 'cancelled' — stamp WHEN and WHO so reports/exports have a
           // real cancellation timestamp + attribution (the BEFORE trigger also
@@ -5816,7 +5865,7 @@ async function handleRequest(req: Request): Promise<Response> {
           // Symmetric with the cancel reason above: store the structured trash
           // reason when the agent records the call outcome directly as 'trashed'.
           trash_reason: status === "trashed" ? (body.trash_reason ?? null) : null,
-          trash_reason_notes: status === "trashed" ? (body.trash_reason_notes ?? null) : null,
+          trash_reason_notes: status === "trashed" ? createNote : null,
           source_type: "manual",
           prediction_list_id: predictionAttr?.id ?? null,
           prediction_list_type: predictionAttr?.type ?? null,
@@ -7002,7 +7051,6 @@ async function handleRequest(req: Request): Promise<Response> {
       let body;
       try { body = parseBody(bulkDispositionSchema, await req.json()); } catch (e: any) { return json({ error: e.message }, 400); }
       const { order_ids, action, reason } = body;
-      const reasonNotes = (body.reason_notes || "").trim();
 
       // Mirrors the CHECK constraints on orders.trash_reason (7 values, see
       // 20260913000000_trash_reason_duplicate_order.sql) and
@@ -7018,9 +7066,14 @@ async function handleRequest(req: Request): Promise<Response> {
       if (!allowed.includes(reason)) {
         return json({ error: `reason must be one of: ${allowed.join(", ")}` }, 400);
       }
-      if (reason === "other" && !reasonNotes) {
-        return json({ error: "A note is required when the reason is 'other'" }, 400);
-      }
+      // Every bulk cancel / trash is a person's decision: the written note (owner
+      // 01.10.2026), the same one for every order in the batch. Replaces the old
+      // "'other' needs a note" rule (effectiveNoteMin keeps it while the setting is 0).
+      const noteCheck = DN.checkDispositionNote(
+        body.reason_notes, DN.effectiveNoteMin(reason, await getDispositionNoteMin(adminClient)),
+      );
+      if (!noteCheck.ok) return json({ error: noteCheck.error, code: noteCheck.code, min: noteCheck.min }, 400);
+      const reasonNotes = noteCheck.note;
 
       // Anything already shipped is owned by the warehouse Returned flow; a
       // disposition must not rewrite fulfilment history. Skipped rows are
@@ -7108,7 +7161,12 @@ async function handleRequest(req: Request): Promise<Response> {
       const { order_ids, new_status } = body;
       if (!order_ids?.length || !new_status) return json({ error: "order_ids and new_status required" }, 400);
 
-      const validStatuses = ["shipped", "paid", "cancelled", "returned"];
+      // No cancel here any more (owner 01.10.2026): this path writes no reason and no note
+      // — the hidden way reasonless cancels appeared. Cancels go through bulk-disposition.
+      if (new_status === "cancelled") {
+        return json({ error: "Cancel with orders/bulk-disposition — it records the reason and the note", code: "use_bulk_disposition" }, 400);
+      }
+      const validStatuses = ["shipped", "paid", "returned"];
       if (!validStatuses.includes(new_status)) return json({ error: `Status must be one of: ${validStatuses.join(", ")}` }, 400);
 
       // Fetch current orders to apply safety rules
@@ -8030,6 +8088,30 @@ async function handleRequest(req: Request): Promise<Response> {
         }
       }
 
+      // Cancel / trash by a PERSON (admins included — owner 01.10.2026): a move INTO the
+      // status needs its reason and a written note (DN, app_settings.disposition_note_min);
+      // a correction at the same status may leave the note out, but a note it sends must be
+      // long enough, and an empty one never erases the stored note.
+      let dispositionNote: DN.NoteGate | null = null;
+      if (newStatus === "cancelled" || newStatus === "trashed") {
+        const isCancel = newStatus === "cancelled";
+        const reason = isCancel ? body.cancellation_reason : body.trash_reason;
+        const gate = DN.dispositionNoteGate({
+          from: order.status, to: newStatus,
+          raw: isCancel ? body.cancellation_reason_notes : body.trash_reason_notes,
+          min: await getDispositionNoteMin(adminClient),
+          reason: reason ?? (isCancel ? order.cancellation_reason : order.trash_reason),
+        });
+        if (gate.rule === "required" && !reason) {
+          return json({
+            error: isCancel ? "A cancellation reason is required" : "A trash reason is required",
+            code: "reason_required",
+          }, 400);
+        }
+        if (!gate.ok) return json({ error: gate.error, code: gate.code, min: gate.min }, 400);
+        dispositionNote = gate;
+      }
+
       // Validation: require fields for certain statuses (only for non-admins).
       // Superadmins (isAdmin) can force any status change without meeting the usual
       // completeness requirements. This is intentional for cleaning up legacy data.
@@ -8191,7 +8273,7 @@ async function handleRequest(req: Request): Promise<Response> {
       const update: Record<string, any> = { status: newStatus };
       if (newStatus === "cancelled") {
         if (body.cancellation_reason) update.cancellation_reason = body.cancellation_reason;
-        if (body.cancellation_reason_notes !== undefined) update.cancellation_reason_notes = body.cancellation_reason_notes;
+        if (dispositionNote?.ok && dispositionNote.write) update.cancellation_reason_notes = dispositionNote.note;
         if (!order.cancelled_at) update.cancelled_at = new Date().toISOString();
         if (!order.cancelled_by_agent_id) update.cancelled_by_agent_id = user.id;
       }
@@ -8202,7 +8284,7 @@ async function handleRequest(req: Request): Promise<Response> {
       }
       if (newStatus === "trashed") {
         if (body.trash_reason) update.trash_reason = body.trash_reason;
-        if (body.trash_reason_notes !== undefined) update.trash_reason_notes = body.trash_reason_notes;
+        if (dispositionNote?.ok && dispositionNote.write) update.trash_reason_notes = dispositionNote.note;
       }
       // First time this order becomes a real order, credit the confirmer.
       // Never overwrite an existing value (normal status flows), so shipped/paid
@@ -11940,7 +12022,7 @@ async function handleRequest(req: Request): Promise<Response> {
         context_type, context_id, outcome, notes,
         started_at, connected_at, ended_at,
         customer_phone, connection_state,
-        cancellation_reason, cancellation_reason_notes, trash_reason,
+        cancellation_reason, cancellation_reason_notes, trash_reason, trash_reason_notes,
       } = body;
 
       // Apply the order status change best-effort. We USED to abort here (return
@@ -11984,8 +12066,15 @@ async function handleRequest(req: Request): Promise<Response> {
             cancellationReason: orderCancelReason,
             cancellationReasonNotes: cancellation_reason_notes,
             trashReason: trash_reason,
+            trashReasonNotes: trash_reason_notes,
             claimIfUnassigned: !isAdminOrManager && !isWarehouse,
+            noteMin: await getDispositionNoteMin(adminClient),
           });
+          // A cancel / trash a person makes without its note (owner 01.10.2026) is refused
+          // outright — nothing written, no call row — so the modal can ask for the note.
+          if (!result.ok && result.code?.startsWith("note_")) {
+            return json({ error: result.error, code: result.code, min: result.min }, 400);
+          }
           if (!result.ok) order_warning = result.error || "Order status was not changed.";
         }
       }
@@ -12166,7 +12255,7 @@ async function handleRequest(req: Request): Promise<Response> {
       let raw: unknown;
       try { raw = await req.json(); } catch { return json({ error: "Invalid JSON", code: "invalid_body" }, 400); }
       const now = new Date();
-      const parsed = CO.parseCallOutcomeBody(raw, now);
+      const parsed = CO.parseCallOutcomeBody(raw, now, { noteMin: await getDispositionNoteMin(adminClient) });
       if (!parsed.ok) return json({ error: parsed.error, code: parsed.code }, 400);
       const { data: me } = await adminClient.from("profiles").select("full_name").eq("user_id", user.id).maybeSingle();
       const ports = callsOutcomePorts(
@@ -12951,6 +13040,7 @@ async function handleRequest(req: Request): Promise<Response> {
             product_name, quantity, price, status, source_type, created_at,
             ship_after_date, cancellation_reason, cancellation_reason_notes,
             cancelled_at, return_reason, return_reason_notes, returned_at,
+            trash_reason, trash_reason_notes, trashed_at,
             assigned_agent_name, delivery_type, courier_office_code,
             order_items(id, product_name, quantity, price_per_unit, total_price)
           `)
@@ -13013,7 +13103,22 @@ async function handleRequest(req: Request): Promise<Response> {
       }
       const callsEnriched = calls.map(c => ({ ...c, agent_name: agentMap[c.agent_id] || "Unknown" }));
 
-      return json({ orders: ordersRes.data || [], calls: callsEnriched });
+      // The next operator sees who decided each cancel / trash and whether a rule did it
+      // (order_operators, 20260943002000 — display only; a failed read leaves them null).
+      const decidedIds = (ordersRes.data || [])
+        .filter((o: any) => o.status === "cancelled" || o.status === "trashed").map((o: any) => o.id);
+      const operatorById: Record<string, DN.OperatorRow> = {};
+      if (decidedIds.length > 0) {
+        const { data: ops, error: opsErr } = await adminClient.rpc("order_operators", { p_ids: decidedIds });
+        if (opsErr) console.error("order_operators (customer history):", opsErr.message);
+        for (const r of (ops || []) as any[]) operatorById[r.id] = r;
+      }
+      const ordersOut = (ordersRes.data || []).map((o: any) => {
+        const meta = DN.decisionMeta(o, operatorById[o.id]);
+        return meta ? { ...o, ...meta } : o;
+      });
+
+      return json({ orders: ordersOut, calls: callsEnriched });
     }
 
     // ============================================================
@@ -13779,6 +13884,8 @@ async function handleRequest(req: Request): Promise<Response> {
       for (const row of data || []) out[row.key] = row.value;
       // Ensure known defaults are always present even before first write.
       if (out.personal_list_max_holds === undefined) out.personal_list_max_holds = PERSONAL_LIST_CAP_DEFAULT;
+      // The note minimum in force for a cancel / trash (missing / invalid → 5).
+      out.disposition_note_min = DN.parseNoteMin(out.disposition_note_min);
       if (out.unpaid_chase_days === undefined) out.unpaid_chase_days = UNPAID_CHASE_DAYS_DEFAULT;
       if (out.unpaid_chase_stop_days === undefined) out.unpaid_chase_stop_days = UNPAID_CHASE_STOP_DAYS_DEFAULT;
       if (out.promo_of_the_day === undefined) out.promo_of_the_day = PROMO_OF_THE_DAY_DEFAULT;
@@ -13808,6 +13915,26 @@ async function handleRequest(req: Request): Promise<Response> {
         await audit(adminClient, user.id, user.email, "settings.app_settings", {
           target_type: "app_settings", target_id: "personal_list_max_holds",
           payload: { key: "personal_list_max_holds", from: (prevCap as any)?.value ?? null, to: n },
+        });
+      }
+
+      // The note a person must write with a cancel / trash (owner 01.10.2026): 0 = the
+      // rollout window (any length), 5 = the rule. Audited like every rule change.
+      if (body.disposition_note_min !== undefined) {
+        const n = DN.parseNoteMinInput(body.disposition_note_min);
+        if (n == null) {
+          return json({ error: `disposition_note_min must be an integer between 0 and ${DN.NOTE_MIN_SETTING_MAX}` }, 400);
+        }
+        const { data: prevMin } = await adminClient
+          .from("app_settings").select("value").eq("key", "disposition_note_min").maybeSingle();
+        const { error } = await adminClient
+          .from("app_settings")
+          .upsert({ key: "disposition_note_min", value: n, updated_by: user.id, updated_at: new Date().toISOString() }, { onConflict: "key" });
+        if (error) return json({ error: sanitizeDbError(error) }, 400);
+        dispositionNoteMinCache = null; // this instance applies it at once; others within 60 s
+        await audit(adminClient, user.id, user.email, "settings.app_settings", {
+          target_type: "app_settings", target_id: "disposition_note_min",
+          payload: { key: "disposition_note_min", from: (prevMin as any)?.value ?? null, to: n },
         });
       }
 
@@ -20715,6 +20842,30 @@ async function getPersonalListCap(adminClient: any): Promise<number> {
     if (Number.isFinite(n) && n >= 1 && n <= 1000) return Math.floor(n);
   } catch (_) { /* fall through to default */ }
   return PERSONAL_LIST_CAP_DEFAULT;
+}
+
+// The note minimum for a cancel / trash a person makes (owner 01.10.2026,
+// app_settings.disposition_note_min, migration 20260944000100). Read on the hot /calls
+// path, so cached 60 s per instance; PATCH /app-settings clears this instance's copy.
+// Missing / invalid → 5 (DN.parseNoteMin); a failed read keeps the last value read, else 5.
+let dispositionNoteMinCache: { value: number; at: number } | null = null;
+async function getDispositionNoteMin(adminClient: any): Promise<number> {
+  const now = Date.now();
+  if (dispositionNoteMinCache && now - dispositionNoteMinCache.at < 60_000) return dispositionNoteMinCache.value;
+  const fallback = dispositionNoteMinCache?.value ?? DN.DISPOSITION_NOTE_MIN;
+  try {
+    const { data, error } = await adminClient
+      .from("app_settings")
+      .select("value")
+      .eq("key", "disposition_note_min")
+      .maybeSingle();
+    if (error) return fallback;
+    const value = DN.parseNoteMin(data?.value);
+    dispositionNoteMinCache = { value, at: now };
+    return value;
+  } catch (_) {
+    return fallback;
+  }
 }
 
 // Unpaid-delivery chase window. Operator-tunable from Settings → Notifications.

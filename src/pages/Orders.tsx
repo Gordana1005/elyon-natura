@@ -544,7 +544,8 @@ export default function Orders() {
   };
   const clearExportSelect = () => setSelectedExport(new Map());
 
-  // ── Bulk trash / cancel (rule 8: no order is junked without a reason) ──────
+  // ── Bulk trash / cancel (rule 8: no order is junked without a reason — and, since
+  // 01.10.2026, without a written note of 5+ characters: the shared validators below) ──
   const canDisposeOrders = isAdmin;
   // Mirrors DISPOSABLE in POST /orders/bulk-disposition. Anything shipped and
   // beyond belongs to the warehouse Returned flow.
@@ -588,7 +589,7 @@ export default function Orders() {
       clearExportSelect();
       refresh();
     } catch (err: any) {
-      toast({ title: t('common.error'), description: err?.message, variant: 'destructive' });
+      toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' });
     } finally {
       setDispBusy(false);
     }
@@ -1413,6 +1414,7 @@ export default function Orders() {
               onChange={setDispCancelReason}
               onNotesChange={setDispNotes}
               disabled={dispBusy}
+              idPrefix="orders-bulk-cancel"
             />
           )}
           <DialogFooter>

@@ -1,9 +1,10 @@
 import { useTranslation } from 'react-i18next';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import type { TrashReason } from '@/lib/api';
-import { getTrashReasonOptions, trashReasonRequiresNote } from '@/lib/trashReasons';
+import { getTrashReasonOptions } from '@/lib/trashReasons';
+import { DISPOSITION_NOTE_MIN } from '@/lib/dispositionNote';
+import { DispositionNoteField } from '@/components/DispositionNoteField';
 
 interface Props {
   value: TrashReason | null;
@@ -14,6 +15,11 @@ interface Props {
   disabled?: boolean;
   /** Unique per mount — two pickers can never share a textarea id. */
   idPrefix?: string;
+  /** The note is required (a move INTO trashed — owner 01.10.2026). False only for a
+   *  correction of an order already trashed: then an empty note keeps the stored one. */
+  noteRequired?: boolean;
+  /** Minimum note length (src/lib/dispositionNote.ts — always 5 on the frontend). */
+  minNote?: number;
 }
 
 /**
@@ -21,11 +27,12 @@ interface Props {
  * props, neutral/zinc styling instead of red so agents can tell the two apart
  * at a glance. Mounted by the /calls outcome bar ("Друго…"), OrderModal and CreateOrderModal.
  */
-export function TrashReasonPicker({ value, notes, onChange, onNotesChange, className, disabled, idPrefix = 'trash' }: Props) {
+export function TrashReasonPicker({
+  value, notes, onChange, onNotesChange, className, disabled, idPrefix = 'trash',
+  noteRequired = true, minNote = DISPOSITION_NOTE_MIN,
+}: Props) {
   const { t } = useTranslation();
   const reasons = getTrashReasonOptions();
-  const requireNote = trashReasonRequiresNote(value);
-  const notesId = `${idPrefix}-notes`;
   return (
     <div className={cn('space-y-2', className)}>
       <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -50,21 +57,15 @@ export function TrashReasonPicker({ value, notes, onChange, onNotesChange, class
           </button>
         ))}
       </div>
-      <div>
-        <Label htmlFor={notesId} className="text-[11px] text-muted-foreground">
-          {t('trashPicker.notesLabel')}
-          {requireNote && <span className="text-rose-600"> *</span>}
-        </Label>
-        <Textarea
-          id={notesId}
-          value={notes}
-          onChange={e => onNotesChange(e.target.value)}
-          placeholder={requireNote ? t('chooseAnswer.otherRequiredPlaceholder') : t('chooseAnswer.optionalNote')}
-          maxLength={1000}
-          disabled={disabled}
-          className="mt-1 min-h-[60px] text-xs"
-        />
-      </div>
+      <DispositionNoteField
+        id={`${idPrefix}-notes`}
+        label={t('trashPicker.notesLabel')}
+        value={notes}
+        onChange={onNotesChange}
+        required={noteRequired}
+        min={minNote}
+        disabled={disabled}
+      />
     </div>
   );
 }

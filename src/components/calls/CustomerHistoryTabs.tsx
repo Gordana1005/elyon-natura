@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { format } from 'date-fns';
@@ -14,7 +15,8 @@ import { cn } from '@/lib/utils';
 import { formatOrderProducts } from '@/lib/monadonSubstitutes';
 import { EmptyState } from '@/components/EmptyState';
 import { hoverLift } from '@/lib/design-utils';
-import { cancelReasonLabel } from '@/lib/cancellationReasons';
+import { orderReasonText } from '@/lib/orderReason';
+import { callReasonFor } from '@/lib/callsWork/priorDecisions';
 import { orderTotal } from '@/lib/searchFormat';
 import { CallScriptsPanel } from './CallScriptsPanel';
 
@@ -23,9 +25,6 @@ interface Props {
   onOpenOrder?: (orderId: string) => void;
   showScripts?: boolean;
 }
-
-// Return reasons live in src/i18n/locales/*.json under "returnReason.*".
-const returnReasonLabel = (v: string): string => i18n.t(`returnReason.${v}`, { defaultValue: v });
 
 // Call outcomes — shared words (confirmed/cancelled/trash/call_again) match the
 // canonical status palette so the same word reads the same colour everywhere.
@@ -118,7 +117,7 @@ export function CustomerHistoryTabs({ phone, onOpenOrder, showScripts }: Props) 
             />
           ) : (
             // One compact list on every width (the narrow 3fr column never fit a 4-column table).
-            <CallsCards calls={calls} />
+            <CallsCards calls={calls} orders={orders} />
           )}
         </div>
       </div>
@@ -137,10 +136,8 @@ function OrdersCards({ orders, onOpenOrder }: { orders: any[]; onOpenOrder?: (id
     <ul className="space-y-1.5 xl:hidden" data-testid="history-cards">
       {orders.slice(0, 50).map((o) => {
         const productLabel = formatOrderProducts(o);
-        const reasonLabel = o.cancellation_reason
-          ? cancelReasonLabel(o.cancellation_reason)
-          : o.return_reason ? returnReasonLabel(o.return_reason) : null;
-        const reasonNotes = cleanNoteForDisplay(o.cancellation_reason_notes || o.return_reason_notes || '');
+        // One reading for cancel / trash / return — reason + what the agent wrote (orderReasonText).
+        const reason = orderReasonText(o);
         return (
           <li key={o.id}>
             <button
@@ -164,9 +161,9 @@ function OrdersCards({ orders, onOpenOrder }: { orders: any[]; onOpenOrder?: (id
                 <span className="min-w-0 truncate">{o.assigned_agent_name || t('customerHistory.unassigned')}</span>
                 <span className="shrink-0 tabular-nums">{o.created_at ? format(new Date(o.created_at), 'dd/MM/yy') : '—'}</span>
               </div>
-              {reasonLabel && (
-                <div className="mt-1 line-clamp-2 break-words text-[11px] italic text-muted-foreground">
-                  {reasonLabel}{reasonNotes ? ` — ${reasonNotes}` : ''}
+              {reason && (
+                <div className="mt-1 line-clamp-2 break-words text-[11px] italic text-muted-foreground" data-testid="history-reason">
+                  {reason}
                 </div>
               )}
             </button>
@@ -177,9 +174,10 @@ function OrdersCards({ orders, onOpenOrder }: { orders: any[]; onOpenOrder?: (id
   );
 }
 
-/** The calls log: a compact list (agent · when · length, the outcome chip, the note) on every width. */
-function CallsCards({ calls }: { calls: CustomerHistoryCall[] }) {
+/** The calls log: a compact list (agent · when · length, the outcome chip + its reason, the note) on every width. */
+function CallsCards({ calls, orders }: { calls: CustomerHistoryCall[]; orders: any[] }) {
   const { t } = useTranslation();
+  const ordersById = useMemo(() => new Map(orders.map((o) => [o.id, o])), [orders]);
   return (
     <ul className="divide-y" data-testid="history-call-cards">
       {calls.slice(0, 100).map((c) => {
@@ -188,6 +186,7 @@ function CallsCards({ calls }: { calls: CustomerHistoryCall[] }) {
         const Icon = isAnswered ? Phone : PhoneOff;
         const when = c.started_at || c.created_at;
         const notes = cleanNoteForDisplay(c.notes || '');
+        const reason = callReasonFor(c, ordersById);
         return (
           <li key={c.id} className="min-w-0 py-1.5 text-xs">
             <div className="flex min-w-0 items-center justify-between gap-2">
@@ -195,9 +194,16 @@ function CallsCards({ calls }: { calls: CustomerHistoryCall[] }) {
                 <Icon className={cn('h-3 w-3 shrink-0', isAnswered ? 'text-emerald-600' : 'text-muted-foreground')} />
                 <span className="truncate">{c.agent_name}</span>
               </span>
-              <span className={cn('shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-medium',
-                OUTCOME_TONE[c.outcome] || 'bg-muted text-muted-foreground')}>
-                {t(`outcome.${c.outcome}`, { defaultValue: c.outcome.replace(/_/g, ' ') })}
+              <span className="flex min-w-0 shrink items-center justify-end gap-1">
+                {reason && (
+                  <span className="min-w-0 truncate rounded border px-1.5 py-0.5 text-[10px] text-muted-foreground" title={reason} data-testid="call-reason">
+                    {reason}
+                  </span>
+                )}
+                <span className={cn('shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-medium',
+                  OUTCOME_TONE[c.outcome] || 'bg-muted text-muted-foreground')}>
+                  {t(`outcome.${c.outcome}`, { defaultValue: c.outcome.replace(/_/g, ' ') })}
+                </span>
               </span>
             </div>
             <div className="mt-0.5 text-[11px] tabular-nums text-muted-foreground">
@@ -244,12 +250,7 @@ function OrdersTable({ orders, onOpenOrder }: { orders: any[]; onOpenOrder?: (id
               const productLabel = formatOrderProducts(o);
               // orders.price is the order TOTAL — never × quantity (orderTotal).
               const total = orderTotal(o);
-              const reasonLabel = o.cancellation_reason
-                ? cancelReasonLabel(o.cancellation_reason)
-                : o.return_reason
-                  ? returnReasonLabel(o.return_reason)
-                  : null;
-              const reasonNotes = cleanNoteForDisplay(o.cancellation_reason_notes || o.return_reason_notes || '');
+              const reason = orderReasonText(o);
               return (
                 <tr
                   key={o.id}
@@ -282,19 +283,16 @@ function OrdersTable({ orders, onOpenOrder }: { orders: any[]; onOpenOrder?: (id
                       : <span className="text-muted-foreground/40 text-[10px]">—</span>}
                   </td>
                   <td className="py-1.5 pl-3 max-w-[200px]">
-                    {reasonLabel ? (
+                    {reason ? (
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span className="text-[11px] italic text-muted-foreground truncate cursor-help block">
-                            {reasonLabel}{reasonNotes && ' — '}{reasonNotes && <span className="text-muted-foreground/70">{reasonNotes}</span>}
+                            {reason}
                           </span>
                         </TooltipTrigger>
-                        {reasonNotes && (
-                          <TooltipContent side="top" className="max-w-[420px] text-[11px]">
-                            <div className="font-semibold">{reasonLabel}</div>
-                            <div className="opacity-80 mt-0.5 whitespace-pre-wrap">{reasonNotes}</div>
-                          </TooltipContent>
-                        )}
+                        <TooltipContent side="top" className="max-w-[420px] text-[11px] whitespace-pre-wrap">
+                          {reason}
+                        </TooltipContent>
                       </Tooltip>
                     ) : (
                       <span className="text-muted-foreground/30 text-[10px]">—</span>

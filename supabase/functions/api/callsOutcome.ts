@@ -18,8 +18,8 @@
 // callsOutcome.test.ts against this file in Node, and index.ts imports it. The
 // database work is behind `CallsOutcomePorts`, which index.ts implements with the
 // service-role client; everything that DECIDES something lives here:
-//   • body validation (reasons are required, 'other' needs a note, callbacks inside
-//     the 6-day call-again window),
+//   • body validation (reasons are required, a cancel / trash needs the written note —
+//     dispositionNote.ts, owner 01.10.2026 — callbacks inside the 6-day call-again window),
 //   • which open order an outcome acts on — the same rule as the page's
 //     chooseOpenOrder(): 0 → a record (cancel / trash), 1 → that order, more than one
 //     → 409 choose_order and the agent picks (the anti-fork rule: a live lead is
@@ -31,6 +31,7 @@
 // ============================================================================
 
 import { productFromLastSale, type LastSaleProduct } from "./dispositions.ts";
+import { checkDispositionNote, DISPOSITION_NOTE_MIN, effectiveNoteMin } from "./dispositionNote.ts";
 
 export const CALL_OUTCOMES = ["no_answer", "call_again", "cancelled", "trash", "confirmed"] as const;
 export type CallOutcomeKey = typeof CALL_OUTCOMES[number];
@@ -109,8 +110,13 @@ function parseInstant(v: unknown): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-/** Validates the body. Pure: `now` is passed in. */
-export function parseCallOutcomeBody(raw: unknown, now: Date): ParseResult {
+export interface ParseOptions {
+  /** app_settings.disposition_note_min (getDispositionNoteMin in index.ts). Default 5. */
+  noteMin?: number;
+}
+
+/** Validates the body. Pure: `now` and the note minimum are passed in. */
+export function parseCallOutcomeBody(raw: unknown, now: Date, opts: ParseOptions = {}): ParseResult {
   if (!isObj(raw)) return fail("invalid_body", "Invalid JSON body");
   const phone = str(raw.phone ?? raw.customer_phone);
   const last8 = phone8(phone);
@@ -124,7 +130,7 @@ export function parseCallOutcomeBody(raw: unknown, now: Date): ParseResult {
 
   const noteRaw = str(raw.note);
   if (noteRaw.length > NOTE_MAX) return fail("note_too_long", `note is longer than ${NOTE_MAX} characters`);
-  const note = noteRaw || null;
+  let note = noteRaw || null;
 
   let reason: string | null = null;
   if (requiresReason(outcome)) {
@@ -132,8 +138,11 @@ export function parseCallOutcomeBody(raw: unknown, now: Date): ParseResult {
     if (!reason) return fail("reason_required", "A reason is required for a cancel or a trash");
     const allowed: readonly string[] = outcome === "cancelled" ? CANCEL_REASONS : TRASH_REASONS;
     if (!allowed.includes(reason)) return fail("invalid_reason", `invalid reason: ${reason}`);
-    // 'other' is the catch-all — the note carries the real reason (cancelReasonRequiresNote).
-    if (reason === "other" && !note) return fail("note_required", "The reason 'other' needs a note");
+    // A person cancels / trashes → the next operator must read why: a written note of at
+    // least `noteMin` characters (owner 01.10.2026). 'other' keeps needing one even at 0.
+    const check = checkDispositionNote(raw.note, effectiveNoteMin(reason, opts.noteMin ?? DISPOSITION_NOTE_MIN));
+    if (!check.ok) return fail(check.code, check.error);
+    note = check.note || null;
   }
 
   const orderIdRaw = str(raw.order_id);

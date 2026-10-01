@@ -1253,8 +1253,22 @@ export interface CustomerHistoryCall {
   customer_phone: string | null;
   connection_state: ConnectionState | null;
 }
+/** One order of the dossier. Since 01.10.2026 it carries the trash reason + note, and a
+ *  cancelled / trashed order says who decided it (order_operators) and whether a rule did
+ *  (src/lib/callsWork/priorDecisions.ts reads these). */
+export interface CustomerHistoryOrder {
+  id: string;
+  display_id?: string | null;
+  status?: string | null;
+  trash_reason?: string | null;
+  trash_reason_notes?: string | null;
+  trashed_at?: string | null;
+  decided_by_name?: string | null;
+  decided_auto?: boolean;
+  [key: string]: any;
+}
 export interface CustomerHistoryResponse {
-  orders: any[];
+  orders: CustomerHistoryOrder[];
   calls: CustomerHistoryCall[];
 }
 export const apiGetCustomerHistory = (phone: string): Promise<CustomerHistoryResponse> =>

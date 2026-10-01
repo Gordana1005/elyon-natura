@@ -59,7 +59,7 @@ describe('outcomes', () => {
     expect(['1', '2', '3', '4', '5', '6', 'a'].map(outcomeForKey))
       .toEqual(['no_answer', 'call_again', 'cancelled', 'trash', 'confirmed', null, null]);
   });
-  it('the reason chips are pickable reasons, never "other" (that needs the note)', () => {
+  it('the reason chips are pickable reasons, never "other" ("Друго…" opens the full picker; every chip then asks for the note)', () => {
     for (const r of TOP_CANCEL_REASONS) expect(CANCEL_REASON_VALUES).toContain(r);
     for (const r of TOP_TRASH_REASONS) expect(TRASH_REASON_VALUES).toContain(r);
     expect(TOP_CANCEL_REASONS).not.toContain('other');

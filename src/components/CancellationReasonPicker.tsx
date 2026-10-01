@@ -1,9 +1,10 @@
 import { useTranslation } from 'react-i18next';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import type { CancellationReason } from '@/lib/api';
-import { getCancelReasonOptions, cancelReasonRequiresNote, cancelReasonLabel } from '@/lib/cancellationReasons';
+import { getCancelReasonOptions, cancelReasonLabel } from '@/lib/cancellationReasons';
+import { DISPOSITION_NOTE_MIN } from '@/lib/dispositionNote';
+import { DispositionNoteField } from '@/components/DispositionNoteField';
 
 interface Props {
   value: CancellationReason | null;
@@ -12,12 +13,21 @@ interface Props {
   onNotesChange: (notes: string) => void;
   className?: string;
   disabled?: boolean;
+  /** The note is required (a move INTO cancelled — owner 01.10.2026). False only for a
+   *  correction of an order already cancelled: then an empty note keeps the stored one. */
+  noteRequired?: boolean;
+  /** Minimum note length (src/lib/dispositionNote.ts — always 5 on the frontend). */
+  minNote?: number;
+  /** Unique per mount — two pickers can never share a textarea id. */
+  idPrefix?: string;
 }
 
-export function CancellationReasonPicker({ value, notes, onChange, onNotesChange, className, disabled }: Props) {
+export function CancellationReasonPicker({
+  value, notes, onChange, onNotesChange, className, disabled,
+  noteRequired = true, minNote = DISPOSITION_NOTE_MIN, idPrefix = 'cancel',
+}: Props) {
   const { t } = useTranslation();
   const reasons = getCancelReasonOptions();
-  const requireNote = cancelReasonRequiresNote(value);
   // The order's CURRENT reason may be one nobody can pick: the system-only
   // no_parcel_7d, or a retired reason on an old order. Show it as a fixed,
   // selected chip so the reader sees why it was cancelled; picking any
@@ -55,21 +65,15 @@ export function CancellationReasonPicker({ value, notes, onChange, onNotesChange
           </button>
         ))}
       </div>
-      <div>
-        <Label htmlFor="cancel-notes" className="text-[11px] text-muted-foreground">
-          {t('cancelPicker.customerSaidLabel')}
-          {requireNote && <span className="text-rose-600"> *</span>}
-        </Label>
-        <Textarea
-          id="cancel-notes"
-          value={notes}
-          onChange={e => onNotesChange(e.target.value)}
-          placeholder={requireNote ? t('cancelPicker.otherRequiredPlaceholder') : t('cancelPicker.notesPlaceholder')}
-          maxLength={1000}
-          disabled={disabled}
-          className="mt-1 min-h-[60px] text-xs"
-        />
-      </div>
+      <DispositionNoteField
+        id={`${idPrefix}-notes`}
+        label={t('cancelPicker.customerSaidLabel')}
+        value={notes}
+        onChange={onNotesChange}
+        required={noteRequired}
+        min={minNote}
+        disabled={disabled}
+      />
     </div>
   );
 }

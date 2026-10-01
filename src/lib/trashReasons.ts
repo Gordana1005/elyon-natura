@@ -1,5 +1,6 @@
 import type { TrashReason } from '@/lib/api';
 import i18n from '@/i18n';
+import { isDispositionNoteValid } from '@/lib/dispositionNote';
 
 // Single source of truth for the trash reasons agents pick from. Used by ALL
 // three input surfaces — the /calls outcome bar (OutcomeBar), the order
@@ -45,7 +46,7 @@ export const TRASH_REASON_VALUES: TrashReason[] = [
   // an existing order.)
   'duplicate_order',
   // Catch-all, always last: when the real reason isn't above the agent picks
-  // 'other' and the free-text note carries it (see trashReasonRequiresNote).
+  // 'other' and the free-text note carries it.
   'other',
 ];
 
@@ -57,12 +58,12 @@ export const trashReasonLabel = (value: string): string =>
 export const getTrashReasonOptions = (): { value: TrashReason; label: string }[] =>
   TRASH_REASON_VALUES.map(value => ({ value, label: trashReasonLabel(value) }));
 
-// 'other' is a catch-all — the free-text note carries the real reason, so the
-// note is mandatory for this value only; every other reason keeps it optional.
-export const trashReasonRequiresNote = (v: TrashReason | null): boolean => v === 'other';
+// Every trash a person makes carries a written note of at least 5 characters
+// (owner 01.10.2026, src/lib/dispositionNote.ts) — the next operator reads WHY.
+// Before that only the catch-all 'other' needed one.
+export const trashReasonRequiresNote = (_v: TrashReason | null): boolean => true;
 
-// A trash selection is complete only when a reason is chosen and, for 'other',
-// a non-empty note explains it. Reused by every trash save-gate so the rule
-// can't drift between the three pickers.
+// A trash selection is complete only when a reason is chosen AND the note is long
+// enough. Reused by every trash save-gate so the rule can't drift between them.
 export const isTrashSelectionValid = (v: TrashReason | null, notes: string): boolean =>
-  !!v && (!trashReasonRequiresNote(v) || notes.trim().length > 0);
+  !!v && isDispositionNoteValid(notes);

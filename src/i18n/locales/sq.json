@@ -221,7 +221,7 @@
   },
   "cancelPicker": {
     "reasonLabel": "Arsyeja e anulimit",
-    "customerSaidLabel": "Çfarë tha klienti? (opsionale)",
+    "customerSaidLabel": "Çfarë tha klienti?",
     "notesPlaceholder": "p.sh. do të provojë gjetkë, ose pas rrogës",
     "otherRequiredPlaceholder": "Shkruani arsyen e anulimit…",
     "notSelectable": "Arsyeja aktuale — nuk mund të zgjidhet. Zgjidhni një arsye tjetër për ta zëvendësuar."
@@ -236,7 +236,7 @@
     "not_reachable": "I paarritshëm (nuk përgjigjet)"
   },
   "trashPicker": {
-    "notesLabel": "Shënim (opsional)"
+    "notesLabel": "Shënim"
   },
   "chooseAnswer": {
     "button": "Zgjidh përgjigjen",
@@ -2506,7 +2506,33 @@
     "cooldownReason": {
       "paid": "porosi e paguar",
       "other": "porosi"
+    },
+    "noteStep": {
+      "title": "{{outcome}} · {{reason}}",
+      "back": "Kthehu te arsyet",
+      "send": "Ruaj",
+      "hint": "Enter ruan · Shift+Enter rresht i ri · Esc mbrapa"
     }
+  },
+  "dispositionNote": {
+    "label": "Çfarë tha klienti?",
+    "placeholder": "Çfarë tha klienti? (të paktën {{min}} karaktere)",
+    "counter": "{{length}} / {{min}}",
+    "counterLabel": "{{length}} nga të paktën {{min}} karaktere",
+    "hint": "Operatori i radhës do ta lexojë këtë — të paktën {{min}} karaktere.",
+    "tooShort": "Shkruaj çfarë tha klienti — të paktën {{min}} karaktere.",
+    "tooLong": "Shënimi mund të ketë më së shumti {{max}} karaktere.",
+    "requiredTitle": "Kërkohet përshkrim"
+  },
+  "priorDecisions": {
+    "title": "Vendimet e mëparshme",
+    "cancel": "Anuloi",
+    "trash": "Kosh",
+    "auto": "automatik",
+    "showMore": "Shfaq gjithë shënimin",
+    "showLess": "Fshih",
+    "order": "Porosia {{id}}",
+    "quoted": "„{{note}}“"
   },
   "callsPage": {
     "enterPhone": "Shkruaj një numër telefoni",
@@ -3709,7 +3735,8 @@
     "noUpdates": "Nuk u dha asnjë ndryshim",
     "insufficientStock": "Stok i pamjaftueshëm: {{name}} ka {{have}} të disponueshëm, por porosia kërkon {{need}}",
     "alreadyClaimed": "Rezervuar tashmë nga {{agent}} deri më {{until}}",
-    "agentAllowedStatuses": "Mund të caktosh statusin vetëm në: {{statuses}}"
+    "agentAllowedStatuses": "Mund të caktosh statusin vetëm në: {{statuses}}",
+    "useBulkDisposition": "Anulimi bëhet me anulimin masiv — me arsye dhe shënim."
   },
   "segTable": {
     "lastOrder": "Porosia e fundit",

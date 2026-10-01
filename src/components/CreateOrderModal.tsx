@@ -22,8 +22,9 @@ import {
 import { formatMoney } from '@/lib/currency';
 import { CancellationReasonPicker } from '@/components/CancellationReasonPicker';
 import { TrashReasonPicker } from '@/components/TrashReasonPicker';
-import { cancelReasonRequiresNote } from '@/lib/cancellationReasons';
+import { isCancelSelectionValid } from '@/lib/cancellationReasons';
 import { isTrashSelectionValid } from '@/lib/trashReasons';
+import { DISPOSITION_NOTE_MIN } from '@/lib/dispositionNote';
 import { composeHomeAddress, parseHomeAddress, looksLikeStructuredDetail, resolveDeliveryPrefill, looksLikeCourier } from '@/lib/address';
 import { orderFormGaps, profilePatchFromForm, isOfficeDelivery, type OrderFormGap } from '@/lib/orderForm';
 import { OrderFormShell, type ShellAction } from '@/components/order/OrderFormShell';
@@ -332,8 +333,10 @@ export function CreateOrderModal({
       toast({ title: t('orderModal.cancelReasonRequired'), description: t('orderModal.cancelReasonRequiredDesc'), variant: 'destructive' });
       return;
     }
-    if (status === 'cancelled' && cancelReasonRequiresNote(cancellationReason) && !cancellationReasonNotes.trim()) {
-      toast({ title: t('orderModal.cancelNoteRequired'), description: t('orderModal.cancelNoteRequiredDesc'), variant: 'destructive' });
+    // Every cancel / trash a person records carries a written note of 5+ characters
+    // (owner 01.10.2026) — the shared validators, the same as every other picker.
+    if (status === 'cancelled' && !isCancelSelectionValid(cancellationReason, cancellationReasonNotes)) {
+      toast({ title: t('dispositionNote.requiredTitle'), description: t('dispositionNote.tooShort', { min: DISPOSITION_NOTE_MIN }), variant: 'destructive' });
       return;
     }
     if (status === 'trashed' && !trashReason) {
@@ -341,7 +344,7 @@ export function CreateOrderModal({
       return;
     }
     if (status === 'trashed' && !isTrashSelectionValid(trashReason, trashReasonNotes)) {
-      toast({ title: t('orderModal.trashNoteRequired'), description: t('orderModal.trashNoteRequiredDesc'), variant: 'destructive' });
+      toast({ title: t('dispositionNote.requiredTitle'), description: t('dispositionNote.tooShort', { min: DISPOSITION_NOTE_MIN }), variant: 'destructive' });
       return;
     }
 
@@ -601,7 +604,7 @@ export function CreateOrderModal({
       </div>
       {status === 'cancelled' && (
         <div className="mt-3">
-          <CancellationReasonPicker value={cancellationReason} notes={cancellationReasonNotes} onChange={setCancellationReason} onNotesChange={setCancellationReasonNotes} />
+          <CancellationReasonPicker idPrefix="create-order-cancel" value={cancellationReason} notes={cancellationReasonNotes} onChange={setCancellationReason} onNotesChange={setCancellationReasonNotes} />
         </div>
       )}
       {status === 'trashed' && (

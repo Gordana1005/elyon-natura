@@ -32,6 +32,7 @@ import { formatLocalDisplay, toLocalDial } from '@/lib/callsWork/dial';
 import { PBX_CONFIG } from '@/lib/voip/pbxConfig';
 import { cancelReasonLabel } from '@/lib/cancellationReasons';
 import { trashReasonLabel } from '@/lib/trashReasons';
+import { noteMinFromMessage } from '@/lib/dispositionNote';
 import { useTranslation } from 'react-i18next';
 import { useVoip, type LinkedContext } from '@/contexts/VoipContext';
 import { useToast } from '@/hooks/use-toast';
@@ -937,6 +938,11 @@ export default function CallsPage() {
     if (err instanceof CallOutcomeError) {
       if (err.status === 404) return t('callsWork.toast.routeMissing');
       if (err.code === 'order_moved' || err.code === 'order_not_open') return t('callsWork.toast.orderMoved');
+      // The written note a cancel / trash needs (owner 01.10.2026) — the bar already asks
+      // for 5; this is the server's own minimum if it was ever set higher.
+      if (err.code === 'note_required' || err.code === 'note_too_short') {
+        return t('dispositionNote.tooShort', { min: noteMinFromMessage(err.message) });
+      }
       return err.message;
     }
     return (err as Error)?.message || t('common.unknownError');
@@ -1396,6 +1402,7 @@ export default function CallsPage() {
           onTrash={(r, n) => { void handleTrash(r, n); }}
           onConfirm={() => { void handleAnswerConfirmed(); }}
           keyboard={!isMobile}
+          resetKey={selectedPhone}
         />
       )}
 
