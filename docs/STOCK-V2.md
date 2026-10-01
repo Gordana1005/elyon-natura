@@ -220,8 +220,16 @@ Also: `stock_sigma_rule_set(p_row jsonb, p_actor uuid)`.
   - a guard trigger protects it.
 
 ### Pickup time (migration `…0900`)
-- `mex_parcels.picked_up_at timestamptz` and `picked_up_basis text` (`observed`, `orders.shipped_at`, `estimated`).
-- Write-once: set on the first status that is not 8. `mex_upsert_parcels` is re-emitted with a drift guard.
+- `mex_parcels.picked_up_at timestamptz` and `picked_up_basis text` (`observed`, `orders.shipped_at`, `estimated`). Both are NULL together.
+- Write-once: set on the first status that is not 8. `mex_upsert_parcels` is re-emitted with a drift guard. mex-reconcile is unchanged, so no redeploy is needed.
+- MEX keeps no status history: only `created_at` and `last_update_at`. The writer reads the previous register row:
+  - **Seen at 8 (or a push placeholder with no status), now anything else:** MEX `last_update_at` of that sighting, clamped to [label, now], basis `observed`. Normally this is the 8 → 10 "In Transit" scan, ≤ 15 min before the sync. After an outage it is the first later event seen, an upper bound.
+  - **Never seen, already 4/10 with the scan on the label's Skopje day:** that scan, `observed`.
+  - **Never seen, anything else:** NULL.
+- **NULL with a status other than 8 means unknown.** Show it as "на пат" (за пакување and кај курирот combined). NULL with status 8 is за пакување.
+- History: the 01.10 sync sightings (`order_history` shipped rows since the MEX-8 rule) and parcels still at 4/10 scanned on their label day. Both are `observed`; 498 parcels as of 01.10.
+  - `orders.shipped_at` is a copy of the label time everywhere, so it writes nothing.
+  - No estimate is written.
 
 ### Profit (migration `…0800`)
 `insights_profit` costs a line through `product_cost_history` at the sale day:
