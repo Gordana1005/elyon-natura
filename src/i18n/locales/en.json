@@ -176,7 +176,7 @@
       "team": "Team",
       "productsAds": "Products & Ads"
     },
-    "altercpa": "AlterCPA"
+    "altercpa": "Affiliates (AlterCPA)"
   },
   "titles": {
     "myPerformance": "My Performance",
@@ -1757,6 +1757,22 @@
     "altercpaRateBelowFinal": {
       "title": "Affiliate finished below guarantee",
       "body": "Affiliate {{affiliate}} finished {{date}} at {{pct}}% ({{confirmed}}/{{sent}}) — under the {{target}}% guarantee. This cohort has settled."
+    },
+    "altercpaGuaranteeDigest": {
+      "title": "Affiliates under the guarantee today",
+      "body": "Under the {{target}}% guarantee on {{date}} (rate, confirmations still needed / open): {{items}}"
+    },
+    "altercpaGuaranteeUnreachable": {
+      "title": "Affiliate cannot reach the guarantee today",
+      "body": "Affiliate {{affiliate}} — {{date}}: even with all {{open}} open leads confirmed it ends at {{maxPct}}% ({{counted}}/{{leads}} now) — under the {{target}}% guarantee."
+    },
+    "altercpaGuaranteeClose": {
+      "title": "Affiliate closes the day under the guarantee",
+      "body": "Affiliate {{affiliate}} closes {{date}} at {{pct}}% ({{counted}}/{{leads}}) — under the {{target}}% guarantee. {{need}} more confirmations needed, {{open}} leads still open."
+    },
+    "altercpaGuaranteeFinal": {
+      "title": "Affiliate finished under the guarantee",
+      "body": "Affiliate {{affiliate}} finished {{date}} at {{pct}}% ({{counted}}/{{leads}}) — under the {{target}}% guarantee. This cohort has settled."
     },
     "inactivity": {
       "title": "{{name}} — inactive {{minutes}} min",
@@ -7192,6 +7208,194 @@
     "offerNote": "Per-offer split — for diagnosis only, never judged on its own.",
     "lastNDays": "Last {{n}} days",
     "noData": "No leads in this period"
+  },
+  "altercpaGuarantee": {
+    "tabs": {
+      "today": "Today",
+      "rates": "Rates",
+      "leads": "Leads",
+      "setup": "Setup"
+    },
+    "noWebmaster": "No affiliate",
+    "loadError": "The AlterCPA guarantee could not be loaded.",
+    "formula": "Rate = (approved + cancelled-other) ÷ all MK leads · target {{target}}% · test leads are not counted",
+    "fresh": {
+      "line": "Last seen: leads {{leads}} · decisions {{decisions}}",
+      "quiet": "AlterCPA syncs until 20:55 — the numbers rest overnight"
+    },
+    "today": {
+      "backToToday": "Today",
+      "byWebmaster": "By affiliate",
+      "byWebmasterSub": "Most at risk first · judged from {{min}} leads",
+      "empty": "No leads on this day",
+      "previous": "Previous days",
+      "previousSub": "Late decisions still move these days — a lead counts on the day it arrived.",
+      "yesterday": "Yesterday",
+      "dayBefore": "Day before",
+      "earlier": "Earlier"
+    },
+    "tile": {
+      "leads": "Leads",
+      "leadsTest": "test: {{n}} (not counted)",
+      "confirmed": "Confirmed",
+      "confirmedSub": "{{approved}} approved · {{other}} cancelled-other",
+      "rate": "Rate",
+      "rateSub": "target {{target}}%",
+      "open": "Open",
+      "openOldest": "oldest: {{age}}",
+      "openNone": "none open",
+      "toTarget": "To {{target}}%",
+      "toTargetNeed": "{{n}} more",
+      "toTargetOver": "+{{n}} over target",
+      "toTargetNone": "—",
+      "toTargetSub": "≈ {{per10}} per 10 new leads",
+      "cancellable": "May be cancelled",
+      "cancellableSub": "of {{open}} open"
+    },
+    "say": {
+      "tooFew": "Too few leads ({{n}} < {{min}})",
+      "closedBelow": "Under target: {{rate}} — {{need}} confirmations short",
+      "unreachable": "Unreachable with the current leads: at most {{max}}",
+      "confirmMore": "Confirm {{need}} more of {{open}} open → {{target}}%",
+      "confirmMoreCancellable": "Confirm {{need}} more of {{open}} open → {{target}}% · up to {{cancellable}} may be cancelled",
+      "overCancellable": "Over target +{{margin}} · all {{open}} open may be cancelled",
+      "over": "Over target +{{margin}}",
+      "onTargetCancellable": "Exactly on target · all {{open}} open may be cancelled",
+      "onTarget": "Exactly on target"
+    },
+    "state": {
+      "settling": "Settling",
+      "tooFew": "Too few leads",
+      "below": "Under target",
+      "met": "Met",
+      "stuck": "Stuck open leads"
+    },
+    "card": {
+      "counts": "{{counted}} / {{leads}} confirmed · {{open}} open",
+      "showOpen": "Open leads ({{n}})",
+      "hideOpen": "Hide",
+      "barAria": "Rate {{rate}}%, target {{target}}%"
+    },
+    "open": {
+      "arrived": "Arrived",
+      "age": "Waiting",
+      "offer": "Offer",
+      "stream": "Stream",
+      "customer": "Customer",
+      "crm": "CRM",
+      "crmConfirmed": "CRM confirmed — waiting for AlterCPA",
+      "noOrder": "no order",
+      "empty": "No open leads"
+    },
+    "stuck": {
+      "title": "Stuck open leads: {{n}}",
+      "sub": "older than {{days}} days · oldest day {{since}}",
+      "open": "Show them"
+    },
+    "rates": {
+      "period": "Period",
+      "presetDays": "{{n}} days",
+      "presetMonth": "This month",
+      "explainer": "Since 01.10.2026: (approved + cancelled-other) ÷ all MK leads, target {{target}}%. Test leads are shown apart. A day becomes final after {{days}} days.",
+      "tileSettled": "Rate (settled days)",
+      "tileSettledSub": "{{counted}} / {{leads}} · days older than {{days}}",
+      "tileUnder": "Under target",
+      "tileUnderSub": "affiliate × day with {{min}}+ leads, settled · of {{n}}",
+      "tileTest": "Test leads",
+      "tileTestSub": "not counted in the rate",
+      "tileOld": "Old method",
+      "tileOldSub": "CRM ever-confirmed ÷ the same leads — for comparison only, being retired",
+      "day": "Day",
+      "totalMk": "Total MK",
+      "settlingDay": "settling",
+      "openBadge": "{{n}} open",
+      "empty": "No leads in this period"
+    },
+    "drill": {
+      "required": "Needed for {{target}}%",
+      "counted": "Confirmed",
+      "need": "Still to confirm",
+      "margin": "Over target",
+      "cancellable": "May be cancelled",
+      "max": "Best possible",
+      "per10": "Per 10 new leads",
+      "buckets": "Decisions",
+      "test": "Test (not counted)",
+      "mex": "Really shipped (MEX)",
+      "mexSub": "The CRM order has a MEX parcel that left (MEX 1, 2, 3, 4, 7, 9, 10, 13 — 8 is still to pack).",
+      "old": "Old method (CRM ever-confirmed)",
+      "byWebmaster": "By affiliate",
+      "byStream": "By stream",
+      "byOffer": "By offer",
+      "colLeads": "Leads",
+      "colCounted": "Confirmed",
+      "colRate": "Rate",
+      "more": "+ {{n}} more ({{leads}} leads)",
+      "toLeads": "Show the leads"
+    },
+    "leads": {
+      "webmaster": "Affiliate",
+      "allWebmasters": "All affiliates",
+      "stream": "Stream",
+      "allStreams": "All streams",
+      "offer": "Offer",
+      "allOffers": "All offers",
+      "decision": "Decision",
+      "allDecisions": "All decisions",
+      "search": "Phone, AlterCPA id, order or name…",
+      "showTest": "Show test leads",
+      "reset": "Clear",
+      "total": "Total: {{n}}",
+      "empty": "No leads for these filters",
+      "testBadge": "test",
+      "after": "after",
+      "colArrived": "Arrived",
+      "colPartner": "Affiliate",
+      "colStream": "Stream",
+      "colOffer": "Offer",
+      "colDecision": "Decision",
+      "colDecided": "Decided",
+      "colOperator": "Operator",
+      "colCrm": "CRM",
+      "colMex": "MEX",
+      "colReason": "Reason",
+      "colCustomer": "Customer"
+    },
+    "decision": {
+      "approved": "Approved",
+      "cancelOther": "Cancelled — other (counts)",
+      "cancelled": "Cancelled",
+      "trashed": "Trash",
+      "open": "Open"
+    },
+    "reason": {
+      "0": "—",
+      "1": "incorrect phone",
+      "2": "changed mind",
+      "3": "did not order",
+      "4": "requires certificate",
+      "5": "wrong geo",
+      "6": "errors / fakes",
+      "7": "duplicate",
+      "8": "ordered elsewhere",
+      "9": "expensive",
+      "10": "unhappy with delivery",
+      "11": "could not reach",
+      "12": "possible fraud",
+      "13": "different language",
+      "14": "product didn't fit",
+      "15": "offer disabled",
+      "16": "consultation only",
+      "17": "unreachable",
+      "18": "returns orders",
+      "19": "code 19"
+    },
+    "reasonCode": "code {{n}}",
+    "dur": {
+      "m": "{{m}} min",
+      "hm": "{{h}} h {{m}} min",
+      "dh": "{{d}} d {{h}} h"
+    }
   },
   "owners": {
     "title": "Business owners",

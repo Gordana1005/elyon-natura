@@ -1,0 +1,18 @@
+-- ============================================================================
+-- AlterCPA guarantee (plan 01.10.2026, Фаза 3) — the arrival-day index.
+--
+-- Every guarantee read (public.altercpa_guarantee_base, 20260944000210) scans
+-- one geo's leads by ARRIVAL instant = COALESCE(created_remote, first_seen_at),
+-- bucketed into Skopje days. The existing (geo, created_remote) indexes cannot
+-- answer a COALESCE range, so the planner walked every MK lead and filtered
+-- (EXPLAIN 01.10.2026, 92 days: 11.183 of 11.359 rows kept after a full geo
+-- walk). This expression index answers the range directly; it grows with the
+-- 2-minute sync, ~190 MK leads a day.
+--
+-- ONE statement per file: CREATE INDEX CONCURRENTLY cannot run inside a
+-- transaction block, and the apply script POSTs the whole file as one query
+-- (same pattern as 20260943001600 / 20260943001610). Afterwards check nothing
+-- was left INVALID:
+--   SELECT indexrelid::regclass FROM pg_index WHERE NOT indisvalid;
+-- ============================================================================
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_altercpa_leads_geo_arrival ON public.altercpa_leads (geo, (COALESCE(created_remote, first_seen_at)));

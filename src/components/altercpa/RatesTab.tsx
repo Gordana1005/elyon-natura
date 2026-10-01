@@ -1,216 +1,147 @@
-import { Fragment, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { apiGetAlterCpaDailyRates, type AlterCpaRateRow } from '@/lib/api';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { EmptyState } from '@/components/EmptyState';
+import { useQuery } from '@tanstack/react-query';
+import { CalendarX2, FlaskConical, History, Loader2, Percent } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Tile } from '@/components/insights/returns/RsBits';
+import { PeriodStepper } from '@/components/insights/shared/PeriodStepper';
+import { LoadError } from '@/components/insights/shared/LoadError';
+import { addDays, daysBetween, isYmd, skopjeToday, type DayRange } from '@/components/insights/shared/period';
+import type { InsightsFormat } from '@/components/insights/shared/useInsightsFormat';
 import { affiliateLabel } from '@/lib/orderSource';
 import { useWebmasterNames } from '@/hooks/useWebmasterNames';
-import { Loader2, Percent, ChevronRight, TriangleAlert } from 'lucide-react';
+import { apiGetGuaranteeRates } from '@/lib/altercpaGuaranteeApi';
+import { RatesMatrix } from './guarantee/RatesMatrix';
+import { RatesDayCards } from './guarantee/RatesDayCards';
+import { CohortDrillSheet } from './guarantee/CohortDrillSheet';
+
+export const RATES_MAX_DAYS = 92;
+const PRESETS = ['7', '14', '30', 'month'] as const;
+type Preset = (typeof PRESETS)[number];
+
+/** A preset's Skopje days, inclusive, ending today. */
+export function ratesPresetRange(p: Preset, today: string): DayRange {
+  if (p === 'month') return { from: `${today.slice(0, 7)}-01`, to: today };
+  return { from: addDays(today, -(Number(p) - 1)), to: today };
+}
 
 /**
- * The affiliate guarantee tracker on /altercpa.
- *
- * Every Macedonian lead an affiliate sent, bucketed by ARRIVAL day, against how
- * many ever got confirmed. A lead that arrives Tuesday and confirms Thursday
- * still counts to Tuesday, so a cohort keeps climbing for ~2-3 days after its
- * day ends — which is why today's row is marked as still settling rather than
- * judged. Judging an unfinished day would flag most mornings as a breach.
+ * The period of Стапки from the URL (Skopje days — never the browser's UTC date: at 00:30 in
+ * Skopje the day is already the new one). Default the last 14 days; a notification's ?date=
+ * older than the period stretches it back to that day; never past today, at most 92 days.
  */
-export function RatesTab() {
-  const webmasterNames = useWebmasterNames();
-  const { t } = useTranslation();
-  const [searchParams] = useSearchParams();
-  const [days, setDays] = useState('14');
-  const [expanded, setExpanded] = useState<string | null>(null);
+export function ratesRange(params: URLSearchParams, today: string): DayRange {
+  const f = params.get('from');
+  const t = params.get('to');
+  let r: DayRange = isYmd(f) && isYmd(t) ? { from: f, to: t } : ratesPresetRange('14', today);
+  if (r.from > r.to) r = { from: r.to, to: r.from };
+  if (r.to > today) r = { ...r, to: today };
+  if (r.from > r.to) r = { ...r, from: r.to };
+  const d = params.get('date');
+  if (isYmd(d) && d < r.from) r = { ...r, from: d };
+  if (isYmd(d) && d > r.to && d <= today) r = { ...r, to: d };
+  if (daysBetween(r.from, r.to) > RATES_MAX_DAYS - 1) r = { ...r, from: addDays(r.to, -(RATES_MAX_DAYS - 1)) };
+  return r;
+}
 
-  const highlightWm = searchParams.get('wm') || '';
-  const highlightDate = searchParams.get('date') || '';
+/**
+ * Стапки (plan 01.10.2026, Фаза 4) — the guarantee per Skopje ARRIVAL day and webmaster:
+ * (approved + cancel_other) ÷ every MK lead, test leads apart. A matrix from xl, a card per day
+ * below; a cell opens the cohort's sheet (?wm=&date= — the notification links land on it).
+ * The old sticky-CRM number stays one release as the muted "Стар метод" tile.
+ */
+export function RatesTab({ f }: { f: InsightsFormat }) {
+  const { t } = f;
+  const [params, setParams] = useSearchParams();
+  const today = skopjeToday();
+  const range = ratesRange(params, today);
+  const names = useWebmasterNames();
+  const wmName = (wm: string) => (wm === '(none)' ? t('altercpaGuarantee.noWebmaster') : affiliateLabel(wm, names));
 
-  const range = useMemo(() => {
-    const to = new Date();
-    const from = new Date();
-    from.setDate(from.getDate() - (parseInt(days) - 1));
-    const iso = (d: Date) => d.toISOString().slice(0, 10);
-    return { from: iso(from), to: iso(to) };
-  }, [days]);
-
-  const { data, isLoading } = useQuery({
-    queryKey: ['altercpa-daily-rates', range.from, range.to],
-    queryFn: () => apiGetAlterCpaDailyRates(range.from, range.to),
+  const q = useQuery({
+    queryKey: ['altercpa-guarantee-rates', range.from, range.to],
+    queryFn: () => apiGetGuaranteeRates(range.from, range.to),
     refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
+    staleTime: 30_000,
   });
 
-  const target = data?.target_pct ?? 30;
-  const minCohort = data?.min_cohort ?? 20;
-  const settleDays = data?.settle_days ?? 3;
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const patch = (fn: (n: URLSearchParams) => void) => setParams((p) => { const n = new URLSearchParams(p); fn(n); return n; }, { replace: true });
+  const setRange = (r: DayRange) => patch((n) => { n.set('from', r.from); n.set('to', r.to); });
+  const activePreset = PRESETS.find((p) => {
+    const pr = ratesPresetRange(p, today);
+    return pr.from === range.from && pr.to === range.to;
+  });
 
-  // A cohort younger than settle_days is still gathering confirmations.
-  const isSettling = (day: string) => {
-    const age = (Date.parse(todayIso) - Date.parse(day)) / 86400000;
-    return age < settleDays;
-  };
+  const selWm = params.get('wm');
+  const selDate = params.get('date');
+  const selected = selWm && isYmd(selDate) ? { day: selDate, wm: selWm } : null;
+  const pick = (day: string, wm: string) => patch((n) => { n.set('wm', wm); n.set('date', day); });
+  const close = () => patch((n) => { n.delete('wm'); n.delete('date'); });
 
-  const offersFor = (day: string, wm: string): AlterCpaRateRow[] =>
-    (data?.by_offer || [])
-      .filter(r => r.day === day && r.webmaster === wm)
-      .sort((a, b) => b.leads - a.leads);
+  const data = q.data;
+  const wmCols = useMemo(() => (data?.webmasters ?? []).map((w) => w.webmaster), [data]);
+  const selDay = selected && data ? data.days.find((d) => d.day === selected.day) ?? null : null;
 
-  // Headline: the settled days only, so one unfinished morning cannot drag the
-  // number an operator glances at.
-  const settled = (data?.totals || []).filter(r => !isSettling(r.day));
-  const settledLeads = settled.reduce((s, r) => s + r.leads, 0);
-  const settledConf = settled.reduce((s, r) => s + r.confirmed, 0);
-  const settledPct = settledLeads ? (settledConf * 100) / settledLeads : 0;
-  const breaches = settled.filter(r => r.leads >= minCohort && (r.pct ?? 0) < target).length;
+  const controls = (
+    <div className="flex flex-wrap items-center gap-2">
+      <PeriodStepper range={range} today={today} onStep={(n) => setRange(n.range)} testId="rates-period" />
+      <div className="flex flex-wrap gap-1" role="group" aria-label={t('altercpaGuarantee.rates.period')}>
+        {PRESETS.map((p) => (
+          <button key={p} type="button" onClick={() => setRange(ratesPresetRange(p, today))} aria-pressed={activePreset === p}
+            className={cn('min-h-8 rounded-full border px-3 text-xs font-medium transition-colors hover:bg-muted',
+              activePreset === p && 'border-primary bg-primary/10 text-primary')}>
+            {p === 'month' ? t('altercpaGuarantee.rates.presetMonth') : t('altercpaGuarantee.rates.presetDays', { n: Number(p) })}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 
-  if (isLoading) {
-    return <div className="flex items-center justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
+  if (q.isLoading) {
+    return <div className="space-y-4">{controls}<div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div></div>;
+  }
+  if (q.isError || !data) {
+    return <div className="space-y-4">{controls}<LoadError text={t('altercpaGuarantee.loadError')} onRetry={() => q.refetch()} /></div>;
   }
 
-  const totals = data?.totals || [];
+  const s = data.summary;
+  const target = data.meta.target;
+  const settledTone = s.settled.rate == null ? undefined
+    : s.settled.rate * 100 >= target ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400';
+  const hasLeads = data.days.some((d) => d.totals.leads + d.totals.test_excluded > 0);
 
   return (
     <div className="space-y-4">
-      {/* Headline */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border p-3">
-          <div className="text-[11px] text-muted-foreground">{t('cpaRates.settledRate', { days: settleDays })}</div>
-          <div className={cn('mt-1 text-2xl font-bold tabular-nums',
-            settledPct >= target ? 'text-emerald-600' : 'text-destructive')}>
-            {settledPct.toFixed(1)}%
-          </div>
-          <div className="text-[10px] text-muted-foreground">
-            {t('cpaRates.ofLeads', { confirmed: settledConf, leads: settledLeads })}
-          </div>
-        </div>
-        <div className="rounded-xl border p-3">
-          <div className="text-[11px] text-muted-foreground">{t('cpaRates.guarantee')}</div>
-          <div className="mt-1 text-2xl font-bold tabular-nums">{target}%</div>
-          <div className="text-[10px] text-muted-foreground">{t('cpaRates.geoNote', { geo: data?.geo || 'MK' })}</div>
-        </div>
-        <div className={cn('rounded-xl border p-3', breaches > 0 && 'border-destructive/40 bg-destructive/5')}>
-          <div className="text-[11px] text-muted-foreground">{t('cpaRates.breaches')}</div>
-          <div className={cn('mt-1 text-2xl font-bold tabular-nums', breaches > 0 && 'text-destructive')}>{breaches}</div>
-          <div className="text-[10px] text-muted-foreground">{t('cpaRates.breachesNote', { min: minCohort })}</div>
-        </div>
-      </div>
+      {controls}
+      <p className="text-xs text-muted-foreground">{t('altercpaGuarantee.rates.explainer', { target, days: data.meta.settle_days })}</p>
 
-      <Card className="border-none shadow-sm">
-        <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
-          <div>
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <Percent className="h-4 w-4" /> {t('cpaRates.title')}
-            </CardTitle>
-            <CardDescription>{t('cpaRates.subtitle', { step: data?.milestone_step ?? 10 })}</CardDescription>
+      <ul className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label={t('altercpaGuarantee.tabs.rates')}>
+        <Tile icon={Percent} label={t('altercpaGuarantee.rates.tileSettled')} value={f.pct(s.settled.rate)} tone={settledTone}
+          sub={t('altercpaGuarantee.rates.tileSettledSub', { counted: f.int(s.settled.counted), leads: f.int(s.settled.leads), days: data.meta.settle_days })} />
+        <Tile icon={CalendarX2} label={t('altercpaGuarantee.rates.tileUnder')} value={f.int(s.days_under)}
+          alert={s.days_under > 0 ? 'warning' : null}
+          sub={t('altercpaGuarantee.rates.tileUnderSub', { min: data.meta.min_cohort, n: f.int(s.cohorts_judged) })} />
+        <Tile icon={FlaskConical} label={t('altercpaGuarantee.rates.tileTest')} value={f.int(s.test_excluded)}
+          sub={t('altercpaGuarantee.rates.tileTestSub')} />
+        <Tile icon={History} label={t('altercpaGuarantee.rates.tileOld')} value={f.pct(s.crm_sticky.rate)} tone="text-muted-foreground"
+          sub={t('altercpaGuarantee.rates.tileOldSub')} />
+      </ul>
+
+      {!hasLeads ? (
+        <p className="rounded-xl border bg-card py-10 text-center text-sm text-muted-foreground">{t('altercpaGuarantee.rates.empty')}</p>
+      ) : (
+        <>
+          <div className="hidden rounded-xl border bg-card p-2 shadow-sm xl:block">
+            <RatesMatrix days={data.days} webmasters={wmCols} wmName={wmName} f={f} onPick={pick} selected={selected} />
           </div>
-          <Select value={days} onValueChange={setDays}>
-            <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7">{t('cpaRates.lastNDays', { n: 7 })}</SelectItem>
-              <SelectItem value="14">{t('cpaRates.lastNDays', { n: 14 })}</SelectItem>
-              <SelectItem value="30">{t('cpaRates.lastNDays', { n: 30 })}</SelectItem>
-              <SelectItem value="90">{t('cpaRates.lastNDays', { n: 90 })}</SelectItem>
-            </SelectContent>
-          </Select>
-        </CardHeader>
-        <CardContent>
-          {totals.length === 0 ? (
-            <EmptyState icon={<Percent className="h-4 w-4" />} title={t('cpaRates.noData')} size="sm" />
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b text-left text-[11px] uppercase text-muted-foreground">
-                    <th className="py-2 pr-3 font-medium">{t('cpaRates.day')}</th>
-                    <th className="py-2 pr-3 font-medium">{t('cpaRates.affiliate')}</th>
-                    <th className="py-2 pr-3 text-right font-medium">{t('cpaRates.leads')}</th>
-                    <th className="py-2 pr-3 text-right font-medium">{t('cpaRates.confirmed')}</th>
-                    <th className="py-2 pr-3 text-right font-medium">{t('cpaRates.rate')}</th>
-                    <th className="py-2 font-medium">{t('cpaRates.status')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {totals.map((r) => {
-                    const key = `${r.day}|${r.webmaster}`;
-                    const pct = r.pct ?? 0;
-                    const settling = isSettling(r.day);
-                    const tooSmall = r.leads < minCohort;
-                    const under = pct < target;
-                    const isOpen = expanded === key;
-                    const highlighted = highlightWm === r.webmaster && highlightDate === r.day;
-                    return (
-                      <Fragment key={key}>
-                        <tr
-                          onClick={() => setExpanded(isOpen ? null : key)}
-                          className={cn(
-                            'cursor-pointer border-b transition-colors hover:bg-muted/40',
-                            highlighted && 'bg-primary/5',
-                          )}
-                        >
-                          <td className="py-2 pr-3 whitespace-nowrap tabular-nums">{r.day}</td>
-                          <td className="py-2 pr-3">
-                            <span className="flex items-center gap-1 font-medium">
-                              <ChevronRight className={cn('h-3 w-3 transition-transform', isOpen && 'rotate-90')} />
-                              {affiliateLabel(r.webmaster, webmasterNames)}
-                            </span>
-                          </td>
-                          <td className="py-2 pr-3 text-right tabular-nums">{r.leads}</td>
-                          <td className="py-2 pr-3 text-right tabular-nums">{r.confirmed}</td>
-                          <td className={cn('py-2 pr-3 text-right font-semibold tabular-nums',
-                            settling || tooSmall ? 'text-muted-foreground'
-                              : under ? 'text-destructive' : 'text-emerald-600')}>
-                            {pct.toFixed(1)}%
-                          </td>
-                          <td className="py-2">
-                            {settling ? (
-                              <Badge variant="outline" className="text-[10px]">{t('cpaRates.settling')}</Badge>
-                            ) : tooSmall ? (
-                              <Badge variant="secondary" className="text-[10px]">{t('cpaRates.tooFew')}</Badge>
-                            ) : under ? (
-                              <Badge variant="destructive" className="gap-1 text-[10px]">
-                                <TriangleAlert className="h-3 w-3" />{t('cpaRates.below')}
-                              </Badge>
-                            ) : (
-                              <Badge className="bg-emerald-600 text-[10px]">{t('cpaRates.met')}</Badge>
-                            )}
-                          </td>
-                        </tr>
-                        {isOpen && (
-                          <tr className="border-b bg-muted/20">
-                            <td colSpan={6} className="px-3 py-2">
-                              <div className="mb-1 text-[10px] text-muted-foreground">{t('cpaRates.offerNote')}</div>
-                              <div className="space-y-1">
-                                {offersFor(r.day, r.webmaster).map((o) => (
-                                  <div key={o.offer_name} className="flex items-center justify-between gap-3 text-xs">
-                                    <span className="truncate">{o.offer_name}</span>
-                                    <span className="flex shrink-0 items-center gap-3 tabular-nums text-muted-foreground">
-                                      <span>{o.confirmed}/{o.leads}</span>
-                                      <span className={cn('w-12 text-right font-medium',
-                                        (o.pct ?? 0) < target ? 'text-amber-600' : 'text-emerald-600')}>
-                                        {(o.pct ?? 0).toFixed(0)}%
-                                      </span>
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          <div className="xl:hidden">
+            <RatesDayCards days={data.days} wmName={wmName} f={f} onPick={pick} />
+          </div>
+        </>
+      )}
+
+      <CohortDrillSheet day={selDay} wm={selected?.wm ?? null} wmName={wmName} f={f} minCohort={data.meta.min_cohort} onClose={close} />
     </div>
   );
 }

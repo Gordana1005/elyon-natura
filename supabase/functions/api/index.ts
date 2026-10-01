@@ -94,6 +94,10 @@ import * as CO from "./callsOutcome.ts";
 // The written note behind every cancel / trash a PERSON makes (owner 01.10.2026): the rule,
 // the check, app_settings.disposition_note_min, who decided (pure, dispositionNote.test.ts).
 import * as DN from "./dispositionNote.ts";
+// /altercpa — the 30% guarantee (plan 01.10.2026, Фаза 3): (approved + cancel_other) ÷ every MK
+// lead, test leads apart; the read model is 20260944000210 (pure, unit-tested in
+// altercpaGuarantee.test.ts — the math, the cohort states, the risk order, the payloads).
+import * as GA from "./altercpaGuarantee.ts";
 
 // ============================================================
 // INPUT VALIDATION SCHEMAS
@@ -3646,6 +3650,65 @@ async function handleRequest(req: Request): Promise<Response> {
       });
     }
 
+    // ── AlterCPA 30% guarantee (plan 01.10.2026, Фаза 3) ─────────────────────
+    // GET /api/altercpa/guarantee/today?day=&back=2   the Денес tab
+    // GET /api/altercpa/guarantee/rates?from&to       the Стапки tab (≤ 92 days)
+    // GET /api/altercpa/guarantee/leads?from&to&wm&stream&offer&decision&q&test=1&page&limit
+    // Admin/manager; counts only — no money in any of them. Placed before the
+    // altercpa/leads mirror route (its startsWith match). Logic: altercpaGuarantee.ts.
+    if (req.method === "GET" && segments[0] === "altercpa" && segments[1] === "guarantee" && segments.length === 3
+        && ["today", "rates", "leads"].includes(segments[2])) {
+      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      const now = new Date();
+      const today = GA.skopjeToday(now);
+      const settingsRes = await adminClient.from("app_settings").select("key, value").in("key", [...GA.GUARANTEE_SETTING_KEYS]);
+      if (settingsRes.error) console.error("altercpa guarantee settings:", settingsRes.error.message);
+      const settings = GA.parseGuaranteeSettings(settingsRes.data);
+
+      if (segments[2] === "today") {
+        const q = GA.parseTodayQuery(url.searchParams, today);
+        const STUCK_LIMIT = 500;
+        const [ratesRes, openRes, stuckRes, freshRes] = await Promise.all([
+          adminClient.rpc("altercpa_guarantee_rates", { p_from: GA.addDays(q.day, -q.back), p_to: q.day }),
+          adminClient.rpc("altercpa_guarantee_open", { p_from: q.day, p_to: q.day, p_limit: 500 }),
+          adminClient.rpc("altercpa_guarantee_open", {
+            p_from: GA.addDays(today, -30), p_to: GA.addDays(today, -settings.settleDays), p_limit: STUCK_LIMIT,
+          }),
+          adminClient.rpc("altercpa_guarantee_freshness"),
+        ]);
+        const err = ratesRes.error || openRes.error || stuckRes.error;
+        if (err) return json({ error: sanitizeDbError(err) }, 400);
+        if (freshRes.error) console.error("altercpa_guarantee_freshness:", freshRes.error.message);
+        return json(GA.buildToday({
+          day: q.day, today, back: q.back,
+          rates: ratesRes.data || [], open: openRes.data || [], stuckOpen: stuckRes.data || [], stuckLimit: STUCK_LIMIT,
+          freshness: (freshRes.data || [])[0] ?? null,
+          settings, now,
+          maskName: piiFlags.name ? null : maskNameValue,
+        }));
+      }
+
+      if (segments[2] === "rates") {
+        const r = GA.parseDayRange(url.searchParams.get("from"), url.searchParams.get("to"), today);
+        const { data, error } = await adminClient.rpc("altercpa_guarantee_rates", { p_from: r.from, p_to: r.to });
+        if (error) return json({ error: sanitizeDbError(error) }, 400);
+        return json(GA.buildRates({ from: r.from, to: r.to, today, rates: data || [], settings, now }));
+      }
+
+      const jq = GA.parseJournalQuery(url.searchParams, today);
+      const { data, error } = await adminClient.rpc("altercpa_guarantee_journal", {
+        p_from: jq.from, p_to: jq.to, p_wm: jq.wm, p_stream: jq.stream, p_offer: jq.offer,
+        p_decision: jq.decision, p_q: jq.q, p_include_test: jq.includeTest, p_limit: jq.limit, p_offset: jq.offset,
+      });
+      if (error) return json({ error: sanitizeDbError(error) }, 400);
+      const body = (data ?? {}) as { total?: number; rows?: GA.JournalRow[] };
+      return json({
+        from: jq.from, to: jq.to, page: jq.page, limit: jq.limit,
+        total: Number(body.total) || 0,
+        rows: (body.rows || []).map((row) => GA.maskJournalRow(row, piiFlags, { name: maskNameValue, phone: maskPhoneValue })),
+      });
+    }
+
     if (req.method === "PATCH" && segments[0] === "altercpa" && segments[1] === "accounts" && segments.length === 3) {
       if (!isAdmin) return json({ error: "Forbidden — admin only" }, 403);
       let body: z.infer<typeof altercpaAccountPatchSchema>;
@@ -3672,10 +3735,13 @@ async function handleRequest(req: Request): Promise<Response> {
       const p = url.searchParams;
       const limit = Math.min(Math.max(Number(p.get("limit")) || 50, 1), 200);
       const page = Math.max(Number(p.get("page")) || 1, 1);
+      // An explicit column list (01.10.2026): never the raw payload, and the
+      // partner prices only for a business owner — managers are not owners.
+      const mirrorOwner = await isBusinessOwner(user.id);
 
       let q = adminClient
         .from("altercpa_leads")
-        .select("*, orders(display_id, status)", { count: "exact" });
+        .select(GA.mirrorLeadColumns(mirrorOwner), { count: "exact" });
 
       if (p.get("account_id")) q = q.eq("account_id", p.get("account_id"));
       if (p.get("geo")) q = q.eq("geo", (p.get("geo") || "").toUpperCase());
@@ -3702,7 +3768,12 @@ async function handleRequest(req: Request): Promise<Response> {
         .order("created_remote", { ascending: false, nullsFirst: false })
         .range((page - 1) * limit, page * limit - 1);
       if (error) return json({ error: sanitizeDbError(error) }, 400);
-      return json({ rows: data || [], total: count ?? 0, page, limit });
+      const mirrorRows = ((data || []) as unknown as Record<string, unknown>[]).map((row) => {
+        const x = GA.maskJournalRow(row as Partial<GA.JournalRow>, piiFlags, { name: maskNameValue, phone: maskPhoneValue }) as Record<string, unknown>;
+        if (!piiFlags.phone && x.phone_e164 != null) x.phone_e164 = maskPhoneValue(x.phone_e164);
+        return x;
+      });
+      return json({ rows: mirrorRows, total: count ?? 0, page, limit, money: mirrorOwner });
     }
 
     // Rollups for the mirror header — by geo, by offer, by webmaster. Done as
@@ -3716,7 +3787,9 @@ async function handleRequest(req: Request): Promise<Response> {
         _to: url.searchParams.get("to") || null,
       });
       if (error) return json({ error: sanitizeDbError(error) }, 400);
-      return json(data ?? { geos: [], offers: [], webmasters: [], totals: {} });
+      const summary = data ?? { geos: [], offers: [], webmasters: [], totals: {} };
+      // revenue_eur (and any money a later migration adds) only for owners — a whitelist.
+      return json((await isBusinessOwner(user.id)) ? summary : GA.stripSummaryMoney(summary));
     }
 
     // ── Affiliate directory ──────────────────────────────────────────────────
