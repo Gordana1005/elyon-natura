@@ -41,8 +41,8 @@ because a browser tab was closed.
 | `low_stock` | trigger on `products.stock_quantity` **downward crossing** | admins + warehouse |
 | `shipped_unpaid` | `notify_unpaid_shipped_orders()` job (20260905000100) | sale owner only |
 | `unpaid_digest` | same job, once after the loop (MEX age since 20260940000400) | one per active admin per day |
-| `altercpa_rate` | triggers on `altercpa_leads` (every STEP-th lead) and on orders (every STEP-th confirm of a cohort) — 20260922000000, re-emitted 20260934000200 | active admins + managers, one copy each |
-| `altercpa_rate_below` | cron `altercpa-rate-verdicts` (hourly :05; acts at 23:xx and 10:xx local) | active admins + managers |
+| `altercpa_rate` | AlterCPA guarantee v2 (20260944000300): the 18:xx **digest** — `altercpa_guarantee_sweep()` via `notify_altercpa_guarantee()`. Until 000300 is applied: the old per-10-leads / per-10-confirms triggers (20260922000000 / 20260934000200) | active admins + managers, one copy each |
+| `altercpa_rate_below` | the same sweep (cron `altercpa-guarantee-sweep`, hourly :05): **unreachable** 12–20 h, **close** 21:xx, **final** 10:xx. Before 000300: cron `altercpa-rate-verdicts` | active admins + managers |
 | `inactivity` | `presence_record_beat()` via `presence_heartbeat()` (20260935000200) | the idle person (`meta.self`) + the `presence_idle_alert_recipients` (default owners) |
 | `assignment` | api `notifyUsers()`: bulk assign (`meta notif.ordersAssigned`), single assign (`notif.orderAssigned`), Call Agains assign (`notif.callAgainsAssigned`), prediction-list distribution (`notif.predictionLeadsAssigned`), manual lead-distribution run (`notif.leadsAssigned`) | the agent who received the work (never yourself) |
 | `affiliate_lead` | api `notifyUsers()` on `POST /cpa/lead` (`meta notif.affiliateLead`) | all admins |
@@ -87,7 +87,8 @@ and are never translated — see [elyon-i18n](../elyon-i18n/SKILL.md).
 Keys in use: `notif.shippedUnpaid`, `notif.unpaidDigest` (+ `.staleMex`; `.staleSync` is the
 dead BigArena sentence, no longer rendered), `notif.orderPaid`, `notif.affiliateLead`,
 `notif.callAgainsAssigned`, `notif.leadsAssigned`, `notif.ordersAssigned`, `notif.orderAssigned`,
-`notif.predictionLeadsAssigned`, `notif.altercpaRate{Leads,Confirms,BelowDay,BelowFinal}`,
+`notif.predictionLeadsAssigned`, `notif.altercpaRate{Leads,Confirms,BelowDay,BelowFinal}` (old rows),
+`notif.altercpaGuarantee{Digest,Unreachable,Close,Final}` (20260944000300),
 `notif.inactivity`, `notif.inactivitySelf`.
 
 ⚠️ Inside `renderNotificationToast` and the custom toast components, `t` is the **sonner toast
@@ -105,8 +106,9 @@ subtransaction and only `RAISE WARNING`, so a failed alert never costs the minut
 A **pg_cron job** is the opposite: it writes nothing business-critical, so a blanket swallow
 would just hide bugs behind a green run. Wrap each *item* in its own `BEGIN … EXCEPTION …
 CONTINUE` so one bad row can't kill the batch, but let a real failure surface in
-`cron.job_run_details`. (Known exception: `altercpa_rate_verdict_sweep()` swallows everything —
-its failures never show in pg_cron.)
+`cron.job_run_details`. (Known exceptions: `altercpa_rate_verdict_sweep()` swallowed everything;
+its successor `altercpa_guarantee_sweep()` (20260944000300, by plan) swallows too but `RAISE WARNING`s
+the error — look in the Postgres log, not in pg_cron.)
 
 `SET LOCAL elyon.bulk_repair = 'on'` (20260934000200) silences the order-paid, order-returned
 and AlterCPA confirm-rate triggers for one repair transaction — a repair of thousands of orders
@@ -125,6 +127,34 @@ REVOKE ALL ON FUNCTION public.<f>(…) FROM PUBLIC, anon, authenticated;  -- def
 ```
 
 Verify with a live anon call, not just by reading the migration.
+
+## AlterCPA guarantee alerts v2 (plan 01.10.2026, `20260944000300`)
+
+Before: 9.153 bells in 30 days to 14 people (~22 a day each) — a ping on every 10th lead and every
+10th confirmation of a cohort, counted with the OLD sticky-CRM metric. The /altercpa **Денес** tab
+does that job live now, so v2 only speaks when something needs a person (expected 1–3 a day each).
+Counted with the guarantee read model (`altercpa_guarantee_rates`, `elyon-altercpa-bridge`):
+(approved + cancel_other) ÷ every MK lead, test leads apart, only webmasters with
+≥ `altercpa_rate_min_cohort` leads.
+
+| kind (ledger) | when (Skopje) | type · key | link |
+|---|---|---|---|
+| `digest` (webmaster `'*'`) | `altercpa_rate_digest_hour` (18) — only if some webmaster of TODAY still needs confirmations; ONE bell listing "Fomikch 27.4% +4/12 · …" (rate, still needed / open) | `altercpa_rate` · `notif.altercpaGuaranteeDigest` | `/altercpa?tab=today&day=` |
+| `unreachable` | 12:00–20:59, once per webmaster per day: C + O < required | `altercpa_rate_below` · `…Unreachable` | `/altercpa?tab=rates&wm=&date=` |
+| `verdict_close` | 21:xx, only under target | `altercpa_rate_below` · `…Close` | same |
+| `verdict_final` | 10:xx, the cohort `settle_days` old, only if still under | `altercpa_rate_below` · `…Final` | same |
+
+- `notify_altercpa_guarantee(wm, cohort, kind, target, leads, counted, open, items)` inserts the
+  `altercpa_rate_alerts` row first (PK webmaster, cohort_date, kind, milestone = the target;
+  `ON CONFLICT DO NOTHING` → fires once, race-safe), then one row per DISTINCT active admin/manager.
+  `meta`: `i18n, affiliate (name, else #wm), wm, date, dateIso, leads, counted, open, need, pct,
+  maxPct, target, items`.
+- The existing types are reused on purpose: `NotificationsDropdown.tsx` needs no change.
+- 000300 drops `trg_altercpa_lead_rate` / `trg_altercpa_confirm_rate` (their functions stay dormant
+  until Фаза 8) and swaps the cron `altercpa-rate-verdicts` → `altercpa-guarantee-sweep`. It takes
+  an ACCESS EXCLUSIVE lock on `orders` for the DROP TRIGGER → apply after 20:55 (`lock_timeout 5s`).
+- Pure twin: `alertDecisions()` in `supabase/functions/api/altercpaGuarantee.ts` (unit-tested);
+  G8 of `scripts/verify-altercpa-guarantee.mjs` checks the triggers, the cron and the limits.
 
 ## The presence inactivity alert (2026-09-27)
 

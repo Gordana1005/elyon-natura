@@ -1,6 +1,6 @@
 ---
 name: elyon-altercpa-bridge
-description: The AlterCPA → Elyon lead mirror — ledger-first design, callable geos, offer mapping, status mirroring, the resumable nightly/weekly sweeps, why nothing flows back automatically, and the one manual exception (the CPA push button). Read before touching altercpa_* tables, the altercpa-sync edge function, /altercpa admin routes, the orders/:id/altercpa-push route, or anything that would put a foreign-geo lead into public.orders.
+description: The AlterCPA → Elyon lead mirror — ledger-first design, callable geos, offer mapping, status mirroring, the resumable nightly/weekly sweeps, why nothing flows back automatically, the one manual exception (the CPA push button), and the 30% guarantee page (/altercpa Денес · Стапки · Лидови · Поставки, 01.10.2026). Read before touching altercpa_* tables, the altercpa-sync edge function, /altercpa admin routes, the altercpa_guarantee_* read model, the orders/:id/altercpa-push route, or anything that would put a foreign-geo lead into public.orders.
 ---
 
 # AlterCPA bridge — how the mirror works
@@ -315,6 +315,57 @@ date to get right**. Do not invent a new key.
   importing nothing. Non-array = HARD failure, always.
 - Very large windows 500. ~94k records was fine, ~150k died. Halve the window and retry.
 
+## The 30% guarantee — /altercpa (owner decision 01.10.2026)
+
+Every affiliate guarantees that ~30% of the Macedonian leads they send get confirmed (a verbal deal
+with all publishers). **One definition, everywhere** (migration `20260944000210`, pure twin
+`supabase/functions/api/altercpaGuarantee.ts`):
+
+- **rate = (approved + cancel_other) ÷ ALL MK leads**, read off AlterCPA's own decision
+  (`altercpa_leads.decision`, the trigger-kept `altercpa_decision()`): approved = phase 3;
+  cancel_other = phase 4 with a non-cancel reason (the 08-11 manager rule); cancelled / trashed;
+  NULL = **Отворени** (never "На чекање" — that is only the CRM status `pending`).
+- **cohort** = the Skopje ARRIVAL day of `COALESCE(created_remote, first_seen_at)`, bounds
+  `(d)::timestamp AT TIME ZONE crm_tz()`; population `geo = altercpa_rate_geo` (stored upper-case —
+  a plain `=` that `idx_altercpa_leads_geo_arrival` (`20260944000200`) answers).
+- **test leads are excluded and shown apart**: `skip_reason = 'test_order'` (the sync's name/phone
+  test — September had 76), the owner's test phones (`report_excluded_phone8s()`), and any wm in
+  `app_settings.altercpa_rate_excluded_webmasters` (default `[]`; e.g. 3226 "test" needs no migration).
+- N = non-test leads, C = approved + cancel_other, O = open; **required = ceil(target·N/100) in
+  integers/NUMERIC** (`altercpa_need_confirm()`; 0.3·70 in floating point is the trap — N 70 → 21);
+  need = max(0, required − C); reachable = need ≤ O (else max rate = (C+O)/N); cancellable = O − need;
+  margin = C − required. States: too_few (N < `altercpa_rate_min_cohort` 20) · stuck (open older
+  than `altercpa_rate_settle_days` 3) · met · settling · below. Risk order: unreachable → below →
+  stuck → settling (need desc) → met (margin asc) → too few.
+- Secondary figures: **"Реално испратени (MEX)"** = the lead's CRM order at MEX 1,2,3,4,7,9,10,13
+  (8 = за пакување); **"Стар метод"** = the 20260922000000 sticky-CRM metric (`crm_sticky`), kept
+  ONE release as a muted transition figure (September: 49,9% old vs 36,0% new) — gone in Фаза 8.
+- Reference: September 5.754 leads (76 test), approved 1.760 + cancel_other 284 = 2.044 →
+  35,5% raw / 36,0% without test. `node scripts/verify-altercpa-guarantee.mjs` (G1–G8, read-only).
+
+Read model (all `SECURITY DEFINER`, service role + the read-only verifier only):
+`altercpa_guarantee_base(from,to)` (one row per lead — every reader counts through it) ·
+`altercpa_guarantee_rates(from,to)` (GROUPING SETS day / webmaster / stream / offer, one pass;
+leads = approved+cancel_other+cancelled+trashed+open) · `altercpa_guarantee_open(from,to,limit)` ·
+`altercpa_guarantee_journal(…)` (`{total, rows}`, operator via `sales_person_identities` kind
+`altercpa_user`) · `altercpa_guarantee_freshness()`. Routes (admin/manager, **no money**, placed
+before the `startsWith("altercpa/leads")` mirror route): `GET altercpa/guarantee/today?day=&back=`,
+`…/rates?from&to` (≤ 92 days), `…/leads?from&to&wm&stream&offer&decision&q&test=1&page&limit`
+(PII masked by the api's masker).
+
+The page (`src/pages/AlterCpaPage.tsx`, "Афилијати (AlterCPA)"): **Денес** (default; tiles, a card
+per webmaster in risk order with ONE sentence — `guaranteeText.ts` —, its open leads, yesterday /
+the day before, stuck open leads) · **Стапки** (`?tab=rates&wm=&date=` — the notification links;
+matrix from xl, day cards below, the cohort sheet) · **Лидови** (filters in the URL) · **Поставки**
+(`?tab=setup&sub=` — the old mirror/offers/affiliates/sources/accounts/runs tabs; old `?tab=` keys
+are redirected by `resolveAlterCpaTab`). Money: the mirror's prices (`altercpa/leads`) and
+`altercpa/summary.revenue_eur` are **owners only**, server-side (explicit column list, never
+`payload`); MirrorTab opens on MK.
+
+Alerts v2 (`20260944000300`, applied in the quiet window): the per-10-leads / per-10-confirms
+triggers are dropped; one hourly `altercpa_guarantee_sweep()` sends a digest at 18:xx, "unreachable"
+12–20 h, the day's close at 21:xx and the settled verdict at 10:xx — see `elyon-notifications`.
+
 ## Traps
 
 - **Outcome timestamps must come from THEIR clock** (`o.paid`, `o.done`), not `now()`. The
@@ -394,8 +445,9 @@ run row "stale: still running after 10 minutes". Now (`20260940000100`, `altercp
 ⚠️ **Never fork the per-lead logic for sweeps.** A sweep page calls the same `buildLead` +
 `upsertLead` as rolling; the page only batches READS. A prefetched order status may SKIP the
 per-order read (`forwardOutcome` says nothing to do) but never decides a write — that is always
-made on a fresh read. New ledger rows stay one INSERT each (`trg_altercpa_lead_rate` counts the
-arrival cohort per inserted row; a multi-row insert would show every row the same final count).
+made on a fresh read. New ledger rows stay one INSERT each (until 20260944000300 dropped it,
+`trg_altercpa_lead_rate` counted the arrival cohort per inserted row; keep single inserts anyway —
+the ledger trigger that keeps `decision` / `decided_*` is per row too).
 
 ⚠️ The cursor is a creation SECOND: a budget cut re-writes that second's written leads
 (idempotent). Progress needs one second's leads to fit in one invocation — true by orders of

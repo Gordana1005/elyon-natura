@@ -17,6 +17,7 @@ import { Globe, Loader2, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { affiliateLabel } from '@/lib/orderSource';
 import { useWebmasterNames } from '@/hooks/useWebmasterNames';
+import { usePermissions } from '@/contexts/PermissionsContext';
 import { cn } from '@/lib/utils';
 
 /** AlterCPA `phase` — their outcome field. 1-5, and the only one worth reading. */
@@ -49,11 +50,14 @@ const phaseBadge: Record<number, string> = {
 function rawAmount(n: number): string {
   return fmtNum(n, 'mk', Number.isInteger(n) ? 0 : 2);
 }
-export function MirrorTab() {
+export function MirrorTab({ defaultGeo = 'MK' }: { defaultGeo?: string } = {}) {
   const { t } = useTranslation();
+  // Partner prices are money: owners only (the api leaves them out for everyone else too).
+  const { canSeeBusiness } = usePermissions();
 
   const [fAccount, setFAccount] = useState('all');
-  const [fGeo, setFGeo] = useState('all');
+  // Macedonia first (owner 01.10.2026); "Сите земји" stays one click away.
+  const [fGeo, setFGeo] = useState(defaultGeo);
   const [fPhase, setFPhase] = useState('all');
   const [fSkip, setFSkip] = useState('all');
   const [q, setQ] = useState('');
@@ -198,13 +202,13 @@ export function MirrorTab() {
                   <TableHead>{t('altercpa.colOffer')}</TableHead>
                   <TableHead>{t('altercpa.colCustomer')}</TableHead>
                   <TableHead>{t('altercpa.colPhase')}</TableHead>
-                  <TableHead className="text-right">{t('altercpa.colPrice')}</TableHead>
+                  {canSeeBusiness && <TableHead className="text-right">{t('altercpa.colPrice')}</TableHead>}
                   <TableHead>{t('altercpa.colWebmaster')}</TableHead>
                   <TableHead>{t('altercpa.colInCrm')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rows.map((l) => <LeadRow key={l.id} lead={l} />)}
+                {rows.map((l) => <LeadRow key={l.id} lead={l} showPrice={canSeeBusiness} />)}
               </TableBody>
             </Table>
           </div>
@@ -215,7 +219,7 @@ export function MirrorTab() {
   );
 }
 
-function LeadRow({ lead }: { lead: AlterCpaLead }) {
+function LeadRow({ lead, showPrice }: { lead: AlterCpaLead; showPrice: boolean }) {
   // Shared React Query cache — one request for the whole table, not one per row.
   const webmasterNames = useWebmasterNames();
   const { t } = useTranslation();
@@ -244,7 +248,7 @@ function LeadRow({ lead }: { lead: AlterCpaLead }) {
           </Badge>
         ) : '—'}
       </TableCell>
-      <TableCell className="whitespace-nowrap text-right text-sm">
+      {showPrice && <TableCell className="whitespace-nowrap text-right text-sm">
         {isMk && lead.price_eur != null ? (
           // Macedonia only: денари is what the customer and courier see.
           <>
@@ -266,7 +270,7 @@ function LeadRow({ lead }: { lead: AlterCpaLead }) {
             </div>
           </>
         )}
-      </TableCell>
+      </TableCell>}
       <TableCell className="text-xs text-muted-foreground" title={lead.webmaster ? `#${lead.webmaster}` : undefined}>
         {affiliateLabel(lead.webmaster, webmasterNames)}
       </TableCell>

@@ -1,75 +1,72 @@
+import { useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
+import { CalendarCheck, ListChecks, Percent, Settings2 } from 'lucide-react';
 import { AppLayout } from '@/layouts/AppLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Globe, History, Percent, Radio, Tag, Users, Waypoints } from 'lucide-react';
-import { AccountsTab } from '@/components/altercpa/AccountsTab';
-import { MirrorTab } from '@/components/altercpa/MirrorTab';
-import { OfferQueueTab } from '@/components/altercpa/OfferQueueTab';
-import { SyncRunsTab } from '@/components/altercpa/SyncRunsTab';
+import { cn } from '@/lib/utils';
+import { OVERVIEW_COLOR_VARS } from '@/components/insights/overview/palette';
+import { useInsightsFormat } from '@/components/insights/shared/useInsightsFormat';
+import { TodayTab } from '@/components/altercpa/guarantee/TodayTab';
+import { LeadsTab } from '@/components/altercpa/guarantee/LeadsTab';
 import { RatesTab } from '@/components/altercpa/RatesTab';
-import { AffiliatesTab } from '@/components/altercpa/AffiliatesTab';
-import { SourcesTab } from '@/components/altercpa/SourcesTab';
+import { SetupTab } from '@/components/altercpa/SetupTab';
+import { resolveAlterCpaTab, tabParams, type AlterCpaTab } from '@/components/altercpa/tabs';
 
 /**
- * AlterCPA Bridge — a read-only mirror of an AlterCPA account.
+ * /altercpa — Афилијати (AlterCPA), Macedonia only (plan 01.10.2026, Фаза 4).
  *
- * Leads keep arriving at AlterCPA exactly as before; this pulls them in so the
- * CRM is one place. Leads in a callable geo become normal pending orders and go
- * through the usual pipeline; every other geo is mirrored for reporting and
- * never enters a calling queue. Nothing is sent back automatically — the one
- * outbound path is the manual CPA push button on /orders (2026-08-14), gated
- * by the altercpa_push_enabled setting.
+ *   Денес     the default: today's guarantee per webmaster — the rate, what to confirm or may
+ *             cancel to land on 30%, the open leads, yesterday / the day before
+ *   Стапки    the guarantee per arrival day × webmaster (?wm=&date= — the notification links)
+ *   Лидови    every lead: arrival, webmaster / stream / offer, decision, operator, CRM, MEX
+ *   Поставки  the bridge's working tabs (mirror, offers, affiliates, sources, accounts, runs)
  *
- * View is admin/manager; every mutation is re-checked admin-only server-side.
- *
- * The Rates tab is the 30% guarantee tracker; the rate-alert notifications
- * deep-link into it with ?tab=rates&wm=&date=.
+ * The guarantee (owner, 01.10.2026): (approved + cancel_other) ÷ every MK lead, target 30%,
+ * test leads apart — migration 20260944000210. View is admin/manager; no money anywhere here
+ * (the mirror's prices are owners-only, server-side). Leads keep arriving in AlterCPA; nothing
+ * is sent back automatically — the one outbound path is the manual CPA button on /orders.
  */
 export default function AlterCpaPage() {
-  const { t } = useTranslation();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const tab = searchParams.get('tab') || 'mirror';
+  const f = useInsightsFormat();
+  const { t } = f;
+  const [params, setParams] = useSearchParams();
+  const { tab, sub, canonical } = resolveAlterCpaTab(params);
+
+  // An old ?tab=mirror … ?tab=runs link: rewrite it to Поставки with that inner tab.
+  useEffect(() => {
+    if (canonical) setParams(canonical, { replace: true });
+  }, [canonical, setParams]);
+
+  const choose = (v: string) => setParams((p) => tabParams(p, v as AlterCpaTab), { replace: true });
+
+  const trigger = (key: AlterCpaTab, Icon: typeof Percent, label: string) => (
+    <TabsTrigger key={key} value={key} className="min-h-9 justify-start gap-1.5 whitespace-normal text-left sm:justify-center">
+      <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />{label}
+    </TabsTrigger>
+  );
 
   return (
     <AppLayout title={t('nav.altercpa')}>
-      <Tabs
-        value={tab}
-        onValueChange={(v) => setSearchParams((p) => { p.set('tab', v); return p; }, { replace: true })}
-        className="space-y-6"
-      >
-        <TabsList>
-          <TabsTrigger value="mirror" className="gap-2">
-            <Globe className="h-4 w-4" /> {t('altercpa.tabMirror')}
-          </TabsTrigger>
-          <TabsTrigger value="offers" className="gap-2">
-            <Tag className="h-4 w-4" /> {t('altercpa.tabOffers')}
-          </TabsTrigger>
-          <TabsTrigger value="affiliates" className="gap-2">
-            <Users className="h-4 w-4" /> {t('altercpa.tabAffiliates')}
-          </TabsTrigger>
-          <TabsTrigger value="sources" className="gap-2">
-            <Waypoints className="h-4 w-4" /> {t('altercpa.tabSources')}
-          </TabsTrigger>
-          <TabsTrigger value="accounts" className="gap-2">
-            <Radio className="h-4 w-4" /> {t('altercpa.tabAccounts')}
-          </TabsTrigger>
-          <TabsTrigger value="rates" className="gap-2">
-            <Percent className="h-4 w-4" /> {t('altercpa.tabRates')}
-          </TabsTrigger>
-          <TabsTrigger value="runs" className="gap-2">
-            <History className="h-4 w-4" /> {t('altercpa.tabRuns')}
-          </TabsTrigger>
-        </TabsList>
+      <div className={cn('mx-auto min-w-0 max-w-[1680px] space-y-4', OVERVIEW_COLOR_VARS)}>
+        <Tabs value={tab} onValueChange={choose}>
+          {/* Wraps instead of scrolling sideways on a phone. */}
+          <TabsList className="grid h-auto grid-cols-2 gap-1 overflow-visible sm:flex sm:flex-wrap sm:justify-start">
+            {trigger('today', CalendarCheck, t('altercpaGuarantee.tabs.today'))}
+            {trigger('rates', Percent, t('altercpaGuarantee.tabs.rates'))}
+            {trigger('leads', ListChecks, t('altercpaGuarantee.tabs.leads'))}
+            {trigger('setup', Settings2, t('altercpaGuarantee.tabs.setup'))}
+          </TabsList>
 
-        <TabsContent value="mirror"><MirrorTab /></TabsContent>
-        <TabsContent value="offers"><OfferQueueTab /></TabsContent>
-        <TabsContent value="affiliates"><AffiliatesTab /></TabsContent>
-        <TabsContent value="sources"><SourcesTab /></TabsContent>
-        <TabsContent value="accounts"><AccountsTab /></TabsContent>
-        <TabsContent value="rates"><RatesTab /></TabsContent>
-        <TabsContent value="runs"><SyncRunsTab /></TabsContent>
-      </Tabs>
+          <TabsContent value="today" className="mt-4">{tab === 'today' && <TodayTab f={f} />}</TabsContent>
+          <TabsContent value="rates" className="mt-4">{tab === 'rates' && <RatesTab f={f} />}</TabsContent>
+          <TabsContent value="leads" className="mt-4">{tab === 'leads' && <LeadsTab f={f} />}</TabsContent>
+          <TabsContent value="setup" className="mt-4">
+            {tab === 'setup' && (
+              <SetupTab sub={sub} onSub={(s) => setParams((p) => { const n = new URLSearchParams(p); n.set('tab', 'setup'); n.set('sub', s); return n; }, { replace: true })} />
+            )}
+          </TabsContent>
+        </Tabs>
+      </div>
     </AppLayout>
   );
 }

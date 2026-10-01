@@ -175,7 +175,7 @@
       "team": "Ekipi",
       "productsAds": "Produkte & Reklama"
     },
-    "altercpa": "AlterCPA"
+    "altercpa": "Afiliatët (AlterCPA)"
   },
   "titles": {
     "myPerformance": "Performanca ime",
@@ -1756,6 +1756,22 @@
     "altercpaRateBelowFinal": {
       "title": "Partneri përfundoi nën garanci",
       "body": "Partneri {{affiliate}} e përfundoi {{date}} me {{pct}}% ({{confirmed}}/{{sent}}) — nën garancinë {{target}}%. Kjo kohortë ka përfunduar."
+    },
+    "altercpaGuaranteeDigest": {
+      "title": "Partnerë nën garanci sot",
+      "body": "Nën garancinë {{target}}% më {{date}} (norma, konfirmime që duhen ende / të hapura): {{items}}"
+    },
+    "altercpaGuaranteeUnreachable": {
+      "title": "Partneri nuk mund ta arrijë garancinë sot",
+      "body": "Partneri {{affiliate}} — {{date}}: edhe me të gjitha {{open}} lidet e hapura të konfirmuara përfundon në {{maxPct}}% ({{counted}}/{{leads}} tani) — nën garancinë {{target}}%."
+    },
+    "altercpaGuaranteeClose": {
+      "title": "Partneri e mbyll ditën nën garanci",
+      "body": "Partneri {{affiliate}} e mbyll {{date}} me {{pct}}% ({{counted}}/{{leads}}) — nën garancinë {{target}}%. Duhen edhe {{need}} konfirmime, {{open}} lide janë ende të hapura."
+    },
+    "altercpaGuaranteeFinal": {
+      "title": "Partneri përfundoi nën garanci",
+      "body": "Partneri {{affiliate}} e përfundoi {{date}} me {{pct}}% ({{counted}}/{{leads}}) — nën garancinë {{target}}%. Kjo kohortë ka përfunduar."
     },
     "inactivity": {
       "title": "{{name}} — pa aktivitet {{minutes}} min",
@@ -7024,6 +7040,194 @@
     "offerNote": "Ndarja sipas produktit — vetëm për diagnozë, kurrë nuk gjykohet më vete.",
     "lastNDays": "{{n}} ditët e fundit",
     "noData": "Asnjë lid në këtë periudhë"
+  },
+  "altercpaGuarantee": {
+    "tabs": {
+      "today": "Sot",
+      "rates": "Normat",
+      "leads": "Lidet",
+      "setup": "Cilësimet"
+    },
+    "noWebmaster": "Pa partner",
+    "loadError": "Garancia e AlterCPA nuk u ngarkua dot.",
+    "formula": "Norma = (të miratuara + të anuluara-tjetër) ÷ të gjitha lidet MK · objektivi {{target}}% · lidet test nuk numërohen",
+    "fresh": {
+      "line": "Së fundi: lidet {{leads}} · vendimet {{decisions}}",
+      "quiet": "AlterCPA sinkronizohet deri në 20:55 — shifrat qëndrojnë deri nesër"
+    },
+    "today": {
+      "backToToday": "Sot",
+      "byWebmaster": "Sipas partnerit",
+      "byWebmasterSub": "Më të rrezikuarit të parët · gjykohet nga {{min}} lide",
+      "empty": "Asnjë lid për këtë ditë",
+      "previous": "Ditët e mëparshme",
+      "previousSub": "Vendimet e vonshme ende i ndryshojnë këto ditë — lidi numërohet në ditën kur mbërriti.",
+      "yesterday": "Dje",
+      "dayBefore": "Pardje",
+      "earlier": "Më herët"
+    },
+    "tile": {
+      "leads": "Lide",
+      "leadsTest": "test: {{n}} (nuk numërohen)",
+      "confirmed": "Të konfirmuara",
+      "confirmedSub": "{{approved}} të miratuara · {{other}} të anuluara-tjetër",
+      "rate": "Norma",
+      "rateSub": "objektivi {{target}}%",
+      "open": "Të hapura",
+      "openOldest": "më i vjetri: {{age}}",
+      "openNone": "asnjë i hapur",
+      "toTarget": "Deri në {{target}}%",
+      "toTargetNeed": "edhe {{n}}",
+      "toTargetOver": "+{{n}} mbi objektiv",
+      "toTargetNone": "—",
+      "toTargetSub": "≈ {{per10}} për çdo 10 lide të reja",
+      "cancellable": "Mund të anulohen",
+      "cancellableSub": "nga {{open}} të hapura"
+    },
+    "say": {
+      "tooFew": "Shumë pak lide ({{n}} < {{min}})",
+      "closedBelow": "Nën objektiv: {{rate}} — mungojnë {{need}} konfirmime",
+      "unreachable": "E paarritshme me lidet aktuale: më së shumti {{max}}",
+      "confirmMore": "Konfirmo edhe {{need}} nga {{open}} të hapura → {{target}}%",
+      "confirmMoreCancellable": "Konfirmo edhe {{need}} nga {{open}} të hapura → {{target}}% · mund të anulohen deri në {{cancellable}}",
+      "overCancellable": "Mbi objektiv +{{margin}} · të gjitha {{open}} të hapurat mund të anulohen",
+      "over": "Mbi objektiv +{{margin}}",
+      "onTargetCancellable": "Saktësisht në objektiv · të gjitha {{open}} të hapurat mund të anulohen",
+      "onTarget": "Saktësisht në objektiv"
+    },
+    "state": {
+      "settling": "Po mblidhet",
+      "tooFew": "Shumë pak lide",
+      "below": "Nën objektiv",
+      "met": "E plotësuar",
+      "stuck": "Të hapura të ngecura"
+    },
+    "card": {
+      "counts": "{{counted}} / {{leads}} të konfirmuara · {{open}} të hapura",
+      "showOpen": "Lide të hapura ({{n}})",
+      "hideOpen": "Fshih",
+      "barAria": "Norma {{rate}}%, objektivi {{target}}%"
+    },
+    "open": {
+      "arrived": "Mbërriti",
+      "age": "Pret",
+      "offer": "Oferta",
+      "stream": "Rrjedha",
+      "customer": "Klienti",
+      "crm": "CRM",
+      "crmConfirmed": "E konfirmuar në CRM — pret AlterCPA",
+      "noOrder": "pa porosi",
+      "empty": "Asnjë lid i hapur"
+    },
+    "stuck": {
+      "title": "Të hapura të ngecura: {{n}}",
+      "sub": "më të vjetra se {{days}} ditë · dita më e vjetër {{since}}",
+      "open": "Shfaqi"
+    },
+    "rates": {
+      "period": "Periudha",
+      "presetDays": "{{n}} ditë",
+      "presetMonth": "Ky muaj",
+      "explainer": "Nga 01.10.2026: (të miratuara + të anuluara-tjetër) ÷ të gjitha lidet MK, objektivi {{target}}%. Lidet test shfaqen veçmas. Dita bëhet përfundimtare pas {{days}} ditësh.",
+      "tileSettled": "Norma (ditë të mbyllura)",
+      "tileSettledSub": "{{counted}} / {{leads}} · ditë më të vjetra se {{days}}",
+      "tileUnder": "Nën objektiv",
+      "tileUnderSub": "partner × ditë me {{min}}+ lide, të mbyllura · nga {{n}}",
+      "tileTest": "Lide test",
+      "tileTestSub": "nuk numërohen në normë",
+      "tileOld": "Metoda e vjetër",
+      "tileOldSub": "të konfirmuara ndonjëherë në CRM ÷ të njëjtat lide — vetëm për krahasim, po hiqet",
+      "day": "Dita",
+      "totalMk": "Gjithsej MK",
+      "settlingDay": "po mblidhet",
+      "openBadge": "{{n}} të hap.",
+      "empty": "Asnjë lid në këtë periudhë"
+    },
+    "drill": {
+      "required": "Duhen për {{target}}%",
+      "counted": "Të konfirmuara",
+      "need": "Ende për t’u konfirmuar",
+      "margin": "Mbi objektiv",
+      "cancellable": "Mund të anulohen",
+      "max": "Më së shumti e mundshme",
+      "per10": "Për çdo 10 lide të reja",
+      "buckets": "Vendimet",
+      "test": "Test (nuk numërohen)",
+      "mex": "Realisht të dërguara (MEX)",
+      "mexSub": "Porosia në CRM ka një pako MEX që është nisur (MEX 1, 2, 3, 4, 7, 9, 10, 13 — 8 është ende për paketim).",
+      "old": "Metoda e vjetër (të konfirmuara ndonjëherë në CRM)",
+      "byWebmaster": "Sipas partnerit",
+      "byStream": "Sipas rrjedhës",
+      "byOffer": "Sipas ofertës",
+      "colLeads": "Lide",
+      "colCounted": "Të konfirmuara",
+      "colRate": "Norma",
+      "more": "+ edhe {{n}} ({{leads}} lide)",
+      "toLeads": "Shfaq lidet"
+    },
+    "leads": {
+      "webmaster": "Partneri",
+      "allWebmasters": "Të gjithë partnerët",
+      "stream": "Rrjedha",
+      "allStreams": "Të gjitha rrjedhat",
+      "offer": "Oferta",
+      "allOffers": "Të gjitha ofertat",
+      "decision": "Vendimi",
+      "allDecisions": "Të gjitha vendimet",
+      "search": "Telefon, ID AlterCPA, porosi ose emër…",
+      "showTest": "Shfaq lidet test",
+      "reset": "Pastro",
+      "total": "Gjithsej: {{n}}",
+      "empty": "Asnjë lid për këto filtra",
+      "testBadge": "test",
+      "after": "pas",
+      "colArrived": "Mbërriti",
+      "colPartner": "Partneri",
+      "colStream": "Rrjedha",
+      "colOffer": "Oferta",
+      "colDecision": "Vendimi",
+      "colDecided": "Vendosur",
+      "colOperator": "Operatori",
+      "colCrm": "CRM",
+      "colMex": "MEX",
+      "colReason": "Arsyeja",
+      "colCustomer": "Klienti"
+    },
+    "decision": {
+      "approved": "E miratuar",
+      "cancelOther": "E anuluar — tjetër (numërohet)",
+      "cancelled": "E anuluar",
+      "trashed": "Mbeturinë",
+      "open": "E hapur"
+    },
+    "reason": {
+      "0": "—",
+      "1": "telefon i pasaktë",
+      "2": "ndryshoi mendje",
+      "3": "nuk porositi",
+      "4": "kërkon certifikatë",
+      "5": "gjeo e gabuar",
+      "6": "gabime / të rreme",
+      "7": "dublikatë",
+      "8": "porositi gjetiu",
+      "9": "e shtrenjtë",
+      "10": "i pakënaqur me dorëzimin",
+      "11": "nuk u arrit",
+      "12": "mashtrim i mundshëm",
+      "13": "gjuhë tjetër",
+      "14": "produkti nuk i përshtatej",
+      "15": "oferta e çaktivizuar",
+      "16": "vetëm konsultë",
+      "17": "i paarritshëm",
+      "18": "kthen porosi",
+      "19": "kodi 19"
+    },
+    "reasonCode": "kodi {{n}}",
+    "dur": {
+      "m": "{{m}} min",
+      "hm": "{{h}} orë {{m}} min",
+      "dh": "{{d}} d {{h}} orë"
+    }
   },
   "owners": {
     "title": "Pronarët e biznesit",
