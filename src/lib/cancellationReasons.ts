@@ -1,5 +1,6 @@
 import type { CancellationReason } from '@/lib/api';
 import i18n from '@/i18n';
+import { isDispositionNoteValid } from '@/lib/dispositionNote';
 
 // Single source of truth for the cancellation reasons agents pick from.
 // Used by BOTH input pickers — the order/call modal (CancellationReasonPicker)
@@ -22,7 +23,7 @@ export const CANCEL_REASON_VALUES: CancellationReason[] = [
   'bought_elsewhere',
   'will_call_back',
   // Catch-all, always last: when the real reason isn't above the agent picks
-  // 'other' and the free-text note carries it (see cancelReasonRequiresNote).
+  // 'other' and the free-text note carries it.
   'other',
 ];
 
@@ -39,12 +40,14 @@ export const cancelReasonLabel = (value: string): string =>
 export const getCancelReasonOptions = (): { value: CancellationReason; label: string }[] =>
   CANCEL_REASON_VALUES.map(value => ({ value, label: cancelReasonLabel(value) }));
 
-// 'other' is a catch-all — the free-text note carries the real reason, so the
-// note is mandatory for this value only; every other reason keeps it optional.
-export const cancelReasonRequiresNote = (v: CancellationReason | null): boolean => v === 'other';
+// Every cancel a person makes carries a written note of at least 5 characters
+// (owner 01.10.2026, src/lib/dispositionNote.ts) — the next operator reads WHY.
+// Before that only the catch-all 'other' needed one. Kept as a function so the
+// pickers ask one place.
+export const cancelReasonRequiresNote = (_v: CancellationReason | null): boolean => true;
 
-// A cancellation selection is complete only when a reason is chosen and, for
-// 'other', a non-empty note explains it. Reused by every cancel save-gate
-// (CancellationReasonPicker consumers) so the rule can't drift between them.
+// A cancellation selection is complete only when a reason is chosen AND the note
+// is long enough. Reused by every cancel save-gate (the /calls outcome bar, the
+// order / create-order modals, the Orders bulk dialog) so the rule can't drift.
 export const isCancelSelectionValid = (v: CancellationReason | null, notes: string): boolean =>
-  !!v && (!cancelReasonRequiresNote(v) || notes.trim().length > 0);
+  !!v && isDispositionNoteValid(notes);

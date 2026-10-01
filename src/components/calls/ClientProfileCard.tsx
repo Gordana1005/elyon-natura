@@ -13,6 +13,7 @@ import { usePermissions } from '@/contexts/PermissionsContext';
 import { formatMoney } from '@/lib/currency';
 import { composeHomeAddress } from '@/lib/address';
 import { CustomerHistoryTabs } from './CustomerHistoryTabs';
+import { PriorDecisions } from './PriorDecisions';
 import { EmptyState } from '@/components/EmptyState';
 import { CustomerNotesPanel } from './CustomerNotesPanel';
 import { PersonalHoldBadge } from '@/components/PersonalHoldBadge';
@@ -311,6 +312,9 @@ export function ClientProfileCard({ phone, onOpenOrder, onCreateOrder, onClaimed
           <CustomerNotesPanel phone={phone} />
         </div>
       </div>
+
+      {/* The previous cancel / trash — reason, note, who (plan 01.10.2026): read before dialling. */}
+      <PriorDecisions orders={orders} />
 
       {/* Calling controls + queue, supplied by the page. */}
       {toolbar}

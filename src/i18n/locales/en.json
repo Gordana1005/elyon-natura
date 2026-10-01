@@ -222,7 +222,7 @@
   },
   "cancelPicker": {
     "reasonLabel": "Cancellation reason",
-    "customerSaidLabel": "What did the customer say? (optional)",
+    "customerSaidLabel": "What did the customer say?",
     "notesPlaceholder": "e.g. ще пробва другаде, или след заплата",
     "otherRequiredPlaceholder": "Please type the cancellation reason…",
     "notSelectable": "Current reason — it can't be picked. Choose another reason to replace it."
@@ -237,7 +237,7 @@
     "not_reachable": "Unreachable (never answers)"
   },
   "trashPicker": {
-    "notesLabel": "Note (optional)"
+    "notesLabel": "Note"
   },
   "chooseAnswer": {
     "button": "Choose Answer",
@@ -2647,7 +2647,33 @@
     "cooldownReason": {
       "paid": "paid order",
       "other": "order"
+    },
+    "noteStep": {
+      "title": "{{outcome}} · {{reason}}",
+      "back": "Back to the reasons",
+      "send": "Save",
+      "hint": "Enter saves · Shift+Enter new line · Esc back"
     }
+  },
+  "dispositionNote": {
+    "label": "What did the customer say?",
+    "placeholder": "What did the customer say? (at least {{min}} characters)",
+    "counter": "{{length}} / {{min}}",
+    "counterLabel": "{{length}} of at least {{min}} characters",
+    "hint": "The next operator will read this — at least {{min}} characters.",
+    "tooShort": "Write what the customer said — at least {{min}} characters.",
+    "tooLong": "The note can have at most {{max}} characters.",
+    "requiredTitle": "A note is required"
+  },
+  "priorDecisions": {
+    "title": "Previous decisions",
+    "cancel": "Cancelled",
+    "trash": "Trash",
+    "auto": "automatic",
+    "showMore": "Show the whole note",
+    "showLess": "Hide",
+    "order": "Order {{id}}",
+    "quoted": "“{{note}}”"
   },
   "callsPage": {
     "enterPhone": "Enter a phone number",
@@ -3850,7 +3876,8 @@
     "noUpdates": "No changes provided",
     "insufficientStock": "Insufficient stock: {{name}} has {{have}} available, but the order requires {{need}}",
     "alreadyClaimed": "Already claimed by {{agent}} until {{until}}",
-    "agentAllowedStatuses": "You can only set status to: {{statuses}}"
+    "agentAllowedStatuses": "You can only set status to: {{statuses}}",
+    "useBulkDisposition": "Cancel through the bulk cancel — with a reason and a note."
   },
   "segTable": {
     "lastOrder": "Last order",

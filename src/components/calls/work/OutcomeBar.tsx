@@ -1,15 +1,18 @@
-import { useEffect, useMemo, useState, type ComponentType } from 'react';
+import { useEffect, useMemo, useRef, useState, type ComponentType, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Check, Clock, Loader2, PhoneMissed, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Check, Clock, Loader2, PhoneMissed, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { DispositionNoteCounter } from '@/components/DispositionNoteField';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { CancellationReasonPicker } from '@/components/CancellationReasonPicker';
 import { TrashReasonPicker } from '@/components/TrashReasonPicker';
 import type { CancellationReason, TrashReason } from '@/lib/api';
 import { cancelReasonLabel, isCancelSelectionValid } from '@/lib/cancellationReasons';
 import { isTrashSelectionValid, trashReasonLabel } from '@/lib/trashReasons';
+import { DISPOSITION_NOTE_MAX, DISPOSITION_NOTE_MIN, isDispositionNoteValid, normalizeNote } from '@/lib/dispositionNote';
 import {
   callbackChoices, CALLBACK_MAX_MS, isValidCallback, skopjeClock, toDatetimeLocal, type CallbackChoice,
 } from '@/lib/callsWork/callbacks';
@@ -19,6 +22,8 @@ import {
 import { cn } from '@/lib/utils';
 
 type Panel = 'call_again' | 'cancelled' | 'trash';
+/** The note step after a reason chip: which outcome, which reason. */
+type NoteStep = { kind: 'cancelled'; reason: CancellationReason } | { kind: 'trash'; reason: TrashReason };
 
 export interface OutcomeBarProps {
   /** No customer on screen, or an outcome is being saved. */
@@ -34,6 +39,8 @@ export interface OutcomeBarProps {
   keyboard?: boolean;
   /** The clock (tests). */
   now?: () => Date;
+  /** The customer on screen — a new one drops a half-written note and closes the rows. */
+  resetKey?: string;
   className?: string;
 }
 
@@ -69,11 +76,14 @@ const chipCls = 'inline-flex min-h-10 md:min-h-8 items-center gap-1.5 rounded-fu
  *   Не одговара — one tap (the page shows a 5 s undo)
  *   Повторно    — a time chip (in 1 h · in 3 h · this evening · tomorrow · other)
  *   Откажа / Корпа — a reason chip (the top 4) or "Друго…" (the full picker + note);
- *                    a reason is ALWAYS required
+ *                    a reason is ALWAYS required, and so is a written note of at least
+ *                    5 characters (owner 01.10.2026): a chip opens a small NOTE STEP —
+ *                    the field is focused, Enter saves, Esc goes back to the chips.
+ *                    Keyboard: 3 → 1 → type → Enter.
  *   Потврди     — the order form
  */
 export function OutcomeBar({
-  disabled, busy, onNoAnswer, onCallAgain, onCancel, onTrash, onConfirm, keyboard = true, now = () => new Date(), className,
+  disabled, busy, onNoAnswer, onCallAgain, onCancel, onTrash, onConfirm, keyboard = true, now = () => new Date(), resetKey, className,
 }: OutcomeBarProps) {
   const { t } = useTranslation();
   const [panel, setPanel] = useState<Panel | null>(null);
@@ -83,12 +93,21 @@ export function OutcomeBar({
   const [trashReason, setTrashReason] = useState<TrashReason | null>(null);
   const [trashNote, setTrashNote] = useState('');
   const [customAt, setCustomAt] = useState('');
+  const [step, setStep] = useState<NoteStep | null>(null);
+  const [draft, setDraft] = useState('');
+  const [showHint, setShowHint] = useState(false);
+  const noteRef = useRef<HTMLTextAreaElement>(null);
 
   const locked = !!disabled || !!busy;
+
+  // Another customer: never carry a half-written note (or an open row) over to them.
+  useEffect(() => {
+    setStep(null); setDraft(''); setShowHint(false); setPanel(null); setDialog(null);
+  }, [resetKey]);
   // Re-read the clock whenever the time row opens, so "in 1 h" is from now.
   const choices = useMemo<CallbackChoice[]>(() => callbackChoices(now()), [panel]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const closeAll = () => { setPanel(null); setDialog(null); };
+  const closeAll = () => { setPanel(null); setDialog(null); setStep(null); setShowHint(false); };
   const openDialog = (p: Panel) => {
     setDialog(p);
     if (p === 'cancelled') { setCancelReason(null); setCancelNote(''); }
@@ -100,12 +119,37 @@ export function OutcomeBar({
     if (locked) return;
     if (o === 'no_answer') { closeAll(); onNoAnswer(); return; }
     if (o === 'confirmed') { closeAll(); onConfirm(); return; }
+    setStep(null); setShowHint(false);
     setPanel((cur) => (cur === o ? null : o));
   };
 
   const pickCallback = (at: Date) => { closeAll(); onCallAgain(at); };
-  const pickCancel = (r: CancellationReason, note = '') => { closeAll(); onCancel(r, note); };
-  const pickTrash = (r: TrashReason, note = '') => { closeAll(); onTrash(r, note); };
+  // A reason chip never sends: it opens the note step (the note travels with the outcome).
+  const openStep = (next: NoteStep) => { setPanel(null); setStep(next); setShowHint(false); };
+  const sendCancel = (r: CancellationReason, note: string) => { closeAll(); setDraft(''); onCancel(r, normalizeNote(note)); };
+  const sendTrash = (r: TrashReason, note: string) => { closeAll(); setDraft(''); onTrash(r, normalizeNote(note)); };
+
+  const draftValid = isDispositionNoteValid(draft);
+  const stepBack = () => { if (step) { setPanel(step.kind); setStep(null); setShowHint(false); } };
+  const stepClose = () => { closeAll(); setDraft(''); };
+  const stepSend = () => {
+    if (!step || locked) return;
+    if (!draftValid) { setShowHint(true); noteRef.current?.focus(); return; }
+    if (step.kind === 'cancelled') sendCancel(step.reason, draft);
+    else sendTrash(step.reason, draft);
+  };
+  // On the field itself (the bar's global keys skip text fields): Enter saves when the note
+  // is long enough (else the inline hint), Shift+Enter is a new line, Esc back to the chips.
+  const onNoteKeyDown = (e: ReactKeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      stepSend();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      stepBack();
+    }
+  };
 
   // The row's items in shortcut order: 1–4 the chips, 5 "Друго…".
   const panelItems = (p: Panel): Array<{ key: string; label: string; sub?: string; run: () => void }> => {
@@ -117,12 +161,12 @@ export function OutcomeBar({
     }
     if (p === 'cancelled') {
       return [
-        ...TOP_CANCEL_REASONS.map((r) => ({ key: r, label: cancelReasonLabel(r), run: () => pickCancel(r) })),
+        ...TOP_CANCEL_REASONS.map((r) => ({ key: r, label: cancelReasonLabel(r), run: () => openStep({ kind: 'cancelled', reason: r }) })),
         { key: 'other', label: t('callsWork.otherReason'), run: () => openDialog('cancelled') },
       ];
     }
     return [
-      ...TOP_TRASH_REASONS.map((r) => ({ key: r, label: trashReasonLabel(r), run: () => pickTrash(r) })),
+      ...TOP_TRASH_REASONS.map((r) => ({ key: r, label: trashReasonLabel(r), run: () => openStep({ kind: 'trash', reason: r }) })),
       { key: 'other', label: t('callsWork.otherReason'), run: () => openDialog('trash') },
     ];
   };
@@ -132,6 +176,9 @@ export function OutcomeBar({
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.repeat) return;
       if (dialog || isTypingTarget(e.target)) return;
+      if (e.key === 'Escape' && step) { stepBack(); return; }
+      // The note step owns the keys while it is open (a digit is never an outcome here).
+      if (step) return;
       if (e.key === 'Escape' && panel) { setPanel(null); return; }
       if (locked) return;
       if (panel) {
@@ -171,7 +218,7 @@ export function OutcomeBar({
                 type="button"
                 onClick={() => press(o)}
                 disabled={locked}
-                aria-pressed={o !== 'no_answer' && o !== 'confirmed' ? panel === o : undefined}
+                aria-pressed={o !== 'no_answer' && o !== 'confirmed' ? (panel === o || step?.kind === o) : undefined}
                 aria-keyshortcuts={String(i + 1)}
                 title={t(`callsWork.outcomeHint.${o}`)}
                 className={cn(
@@ -179,7 +226,7 @@ export function OutcomeBar({
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
                   'md:min-h-[2.75rem] md:flex-row md:gap-1.5 md:px-2 md:text-xs xl:gap-2 xl:text-sm',
                   TONE[o],
-                  panel === o && RING[o as Panel],
+                  (panel === o || step?.kind === o) && RING[o as Panel],
                 )}
               >
                 {spinning ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : <Icon className="h-4 w-4 shrink-0" />}
@@ -226,19 +273,96 @@ export function OutcomeBar({
             </div>
           </div>
         )}
+
+        {step && (
+          <div
+            className="rounded-lg border bg-background/80 p-2"
+            role="group"
+            aria-label={t('callsWork.noteStep.title', {
+              outcome: t(`callsWork.outcome.${step.kind}`),
+              reason: step.kind === 'cancelled' ? cancelReasonLabel(step.reason) : trashReasonLabel(step.reason),
+            })}
+            data-testid="note-step"
+          >
+            <div className="mb-1.5 flex min-w-0 items-center gap-1">
+              <button
+                type="button"
+                onClick={stepBack}
+                className="shrink-0 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                aria-label={t('callsWork.noteStep.back')}
+                title={t('callsWork.noteStep.back')}
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </button>
+              <span className={cn(
+                'mr-1 h-2 w-2 shrink-0 rounded-full',
+                step.kind === 'cancelled' ? 'bg-rose-500' : 'bg-zinc-400 dark:bg-zinc-500',
+              )} aria-hidden />
+              <span className="min-w-0 flex-1 truncate text-xs font-semibold">
+                {t('callsWork.noteStep.title', {
+                  outcome: t(`callsWork.outcome.${step.kind}`),
+                  reason: step.kind === 'cancelled' ? cancelReasonLabel(step.reason) : trashReasonLabel(step.reason),
+                })}
+              </span>
+              <button
+                type="button"
+                onClick={stepClose}
+                className="shrink-0 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                aria-label={t('callsWork.close')}
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <Textarea
+              ref={noteRef}
+              autoFocus
+              rows={2}
+              value={draft}
+              onChange={(e) => { setDraft(e.target.value); if (showHint) setShowHint(false); }}
+              onKeyDown={onNoteKeyDown}
+              enterKeyHint="send"
+              maxLength={DISPOSITION_NOTE_MAX}
+              placeholder={t('dispositionNote.placeholder', { min: DISPOSITION_NOTE_MIN })}
+              aria-label={t('dispositionNote.label')}
+              aria-describedby="calls-note-step-counter"
+              aria-invalid={showHint && !draftValid ? true : undefined}
+              // text-base below md: iOS zooms into a field under 16 px.
+              className="min-h-[3.25rem] resize-none text-base md:text-sm"
+            />
+            <div className="mt-1.5 flex min-w-0 items-center justify-between gap-2">
+              <span className="min-w-0 text-[11px] leading-tight">
+                {showHint && !draftValid
+                  ? <span role="alert" className="text-rose-600 dark:text-rose-400">{t('dispositionNote.tooShort', { min: DISPOSITION_NOTE_MIN })}</span>
+                  : keyboard && <span className="hidden text-muted-foreground md:inline">{t('callsWork.noteStep.hint')}</span>}
+              </span>
+              <span className="flex shrink-0 items-center gap-2">
+                <DispositionNoteCounter id="calls-note-step-counter" value={draft} />
+                <Button
+                  size="sm"
+                  variant={step.kind === 'cancelled' ? 'destructive' : 'secondary'}
+                  className="min-h-10 md:min-h-8"
+                  disabled={!draftValid || locked}
+                  onClick={stepSend}
+                >
+                  {t('callsWork.noteStep.send')}
+                </Button>
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* "Друго…" — the full pickers. A reason is always required; 'other' needs the note. */}
+      {/* "Друго…" — the full pickers. A reason and the note (5+ characters) are always required. */}
       <Dialog open={dialog === 'cancelled'} onOpenChange={(o) => { if (!o) setDialog(null); }}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>{t('callsWork.dialog.cancelled')}</DialogTitle></DialogHeader>
-          <CancellationReasonPicker value={cancelReason} notes={cancelNote} onChange={setCancelReason} onNotesChange={setCancelNote} />
+          <CancellationReasonPicker idPrefix="calls-work-cancel" value={cancelReason} notes={cancelNote} onChange={setCancelReason} onNotesChange={setCancelNote} />
           <DialogFooter>
             <Button
               variant="destructive"
               className="w-full sm:w-auto"
               disabled={!isCancelSelectionValid(cancelReason, cancelNote)}
-              onClick={() => cancelReason && pickCancel(cancelReason, cancelNote.trim())}
+              onClick={() => cancelReason && sendCancel(cancelReason, cancelNote)}
             >
               {t('callsWork.dialog.saveCancelled')}
             </Button>
@@ -255,7 +379,7 @@ export function OutcomeBar({
               variant="secondary"
               className="w-full sm:w-auto"
               disabled={!isTrashSelectionValid(trashReason, trashNote)}
-              onClick={() => trashReason && pickTrash(trashReason, trashNote.trim())}
+              onClick={() => trashReason && sendTrash(trashReason, trashNote)}
             >
               {t('callsWork.dialog.saveTrash')}
             </Button>

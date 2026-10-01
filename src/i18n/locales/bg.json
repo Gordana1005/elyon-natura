@@ -222,7 +222,7 @@
   },
   "cancelPicker": {
     "reasonLabel": "Причина за отказ",
-    "customerSaidLabel": "Какво каза клиентът? (по избор)",
+    "customerSaidLabel": "Какво каза клиентът?",
     "notesPlaceholder": "напр. ще пробва другаде, или след заплата",
     "otherRequiredPlaceholder": "Опишете причината за отказ…",
     "notSelectable": "Текуща причина — не може да се избере. Изберете друга причина, за да я замените."
@@ -237,7 +237,7 @@
     "not_reachable": "Недостъпен (не вдига)"
   },
   "trashPicker": {
-    "notesLabel": "Бележка (по избор)"
+    "notesLabel": "Бележка"
   },
   "chooseAnswer": {
     "button": "Избери резултат",
@@ -2647,7 +2647,33 @@
     "cooldownReason": {
       "paid": "платена поръчка",
       "other": "поръчка"
+    },
+    "noteStep": {
+      "title": "{{outcome}} · {{reason}}",
+      "back": "Обратно към причините",
+      "send": "Запази",
+      "hint": "Enter запазва · Shift+Enter нов ред · Esc назад"
     }
+  },
+  "dispositionNote": {
+    "label": "Какво каза клиентът?",
+    "placeholder": "Какво каза клиентът? (поне {{min}} знака)",
+    "counter": "{{length}} / {{min}}",
+    "counterLabel": "{{length}} от поне {{min}} знака",
+    "hint": "Следващият оператор ще прочете това — поне {{min}} знака.",
+    "tooShort": "Напишете какво каза клиентът — поне {{min}} знака.",
+    "tooLong": "Описанието може да има най-много {{max}} знака.",
+    "requiredTitle": "Нужно е описание"
+  },
+  "priorDecisions": {
+    "title": "Предишни решения",
+    "cancel": "Отказ",
+    "trash": "Кошче",
+    "auto": "автоматично",
+    "showMore": "Покажи цялото описание",
+    "showLess": "Скрий",
+    "order": "Поръчка {{id}}",
+    "quoted": "„{{note}}“"
   },
   "callsPage": {
     "enterPhone": "Въведи телефонен номер",
@@ -3850,7 +3876,8 @@
     "noUpdates": "Няма подадени промени",
     "insufficientStock": "Недостатъчна наличност: {{name}} има {{have}} налични, а поръчката изисква {{need}}",
     "alreadyClaimed": "Вече е взет от {{agent}} до {{until}}",
-    "agentAllowedStatuses": "Можеш да задаваш статус само на: {{statuses}}"
+    "agentAllowedStatuses": "Можеш да задаваш статус само на: {{statuses}}",
+    "useBulkDisposition": "Отказът става чрез масовия отказ — с причина и описание."
   },
   "segTable": {
     "lastOrder": "Последна поръчка",

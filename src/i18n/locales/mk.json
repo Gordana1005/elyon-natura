@@ -222,7 +222,7 @@
   },
   "cancelPicker": {
     "reasonLabel": "Причина за откажување",
-    "customerSaidLabel": "Што рече клиентот? (по избор)",
+    "customerSaidLabel": "Што рече клиентот?",
     "notesPlaceholder": "напр. ќе проба на друго место, или по платата",
     "otherRequiredPlaceholder": "Напишете ја причината за откажување…",
     "notSelectable": "Тековна причина — не може да се избере. Изберете друга причина за да ја замените."
@@ -237,7 +237,7 @@
     "not_reachable": "Недостапен (не се јавува)"
   },
   "trashPicker": {
-    "notesLabel": "Белешка (по избор)"
+    "notesLabel": "Белешка"
   },
   "chooseAnswer": {
     "button": "Избери резултат",
@@ -2603,7 +2603,33 @@
     "cooldownReason": {
       "paid": "платена нарачка",
       "other": "нарачка"
+    },
+    "noteStep": {
+      "title": "{{outcome}} · {{reason}}",
+      "back": "Назад кон причините",
+      "send": "Зачувај",
+      "hint": "Enter зачувува · Shift+Enter нов ред · Esc назад"
     }
+  },
+  "dispositionNote": {
+    "label": "Што рече клиентот?",
+    "placeholder": "Што рече клиентот? (најмалку {{min}} знаци)",
+    "counter": "{{length}} / {{min}}",
+    "counterLabel": "{{length}} од најмалку {{min}} знаци",
+    "hint": "Следниот оператор ќе го прочита ова — најмалку {{min}} знаци.",
+    "tooShort": "Напишете што рече клиентот — најмалку {{min}} знаци.",
+    "tooLong": "Описот може да има најмногу {{max}} знаци.",
+    "requiredTitle": "Потребен е опис"
+  },
+  "priorDecisions": {
+    "title": "Претходни одлуки",
+    "cancel": "Откажа",
+    "trash": "Корпа",
+    "auto": "автоматски",
+    "showMore": "Прикажи цел опис",
+    "showLess": "Скриј",
+    "order": "Нарачка {{id}}",
+    "quoted": "„{{note}}“"
   },
   "callsPage": {
     "enterPhone": "Внеси телефонски број",
@@ -3806,7 +3832,8 @@
     "noUpdates": "Нема поднесени промени",
     "insufficientStock": "Недоволна залиха: {{name}} има {{have}} достапни, а нарачката бара {{need}}",
     "alreadyClaimed": "Веќе е земен од {{agent}} до {{until}}",
-    "agentAllowedStatuses": "Можеш да поставиш статус само на: {{statuses}}"
+    "agentAllowedStatuses": "Можеш да поставиш статус само на: {{statuses}}",
+    "useBulkDisposition": "Откажувањето оди преку масовното откажување — со причина и опис."
   },
   "segTable": {
     "lastOrder": "Последна нарачка",

@@ -13,6 +13,7 @@ beforeAll(async () => { await i18n.changeLanguage('mk'); });
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
 const { CustomerHistoryTabs } = await import('./CustomerHistoryTabs');
+const { PriorDecisions } = await import('./PriorDecisions');
 
 const orders = [
   { id: 'o1', display_id: '100231', status: 'cancelled', product_name: 'Parafix', price: 29, quantity: 1, order_items: [],
@@ -56,5 +57,63 @@ describe('CustomerHistoryTabs — phones get cards, not a sideways table', () =>
     const callCards = screen.getByTestId('history-call-cards');
     expect(within(callCards).getAllByRole('listitem')).toHaveLength(1);
     expect(callCards).toHaveTextContent('Ана');
+  });
+});
+
+describe('CustomerHistoryTabs — trash reasons and call reasons (plan 01.10.2026, Фаза 1)', () => {
+  it('a trashed order shows its trash reason and note; a call row shows the reason of its order', async () => {
+    api.history.mockResolvedValue({
+      orders: [
+        ...orders,
+        { id: 'o3', display_id: '100300', status: 'trashed', product_name: 'Parafix', price: 0, quantity: 1, order_items: [],
+          trash_reason: 'wrong_number', trash_reason_notes: 'друг човек се јави', assigned_agent_name: 'Ива', created_at: '2026-09-29T08:00:00Z' },
+      ],
+      calls: [
+        ...calls,
+        { ...calls[0], id: 'c2', context_id: 'o3', outcome: 'wrong_number', notes: '' },
+        { ...calls[0], id: 'c3', context_id: null, context_type: 'standalone', outcome: 'no_answer', notes: '' },
+      ],
+    });
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <CustomerHistoryTabs phone="+38970123456" />
+      </QueryClientProvider>,
+    );
+    const cards = await screen.findByTestId('history-cards');
+    const items = within(cards).getAllByRole('listitem');
+    expect(items[2]).toHaveTextContent('Погрешен број — друг човек се јави');
+    expect(items[0]).toHaveTextContent('Нема пари — по плата');
+    const reasons = within(screen.getByTestId('history-call-cards')).getAllByTestId('call-reason');
+    expect(reasons.map((r) => r.textContent)).toEqual(['Нема пари', 'Погрешен број']);
+  });
+});
+
+describe('PriorDecisions — the strip above the /calls toolbar', () => {
+  const history = [
+    { id: 'c1', display_id: '100231', status: 'cancelled', cancellation_reason: 'no_money', cancellation_reason_notes: 'ќе плати по 15-ти',
+      cancelled_at: '2026-09-28T09:00:00Z', created_at: '2026-09-27T08:00:00Z', decided_by_name: 'Марија', decided_auto: false },
+    { id: 't1', display_id: '100100', status: 'trashed', trash_reason: 'not_reachable', trashed_at: '2026-08-12T10:00:00Z',
+      created_at: '2026-08-01T08:00:00Z', decided_by_name: null, decided_auto: true },
+    { id: 'p1', status: 'paid', created_at: '2026-07-01T08:00:00Z' },
+  ];
+  it('one line per decision: what, when, who (or "автоматски"), reason — „note“', () => {
+    render(<PriorDecisions orders={history} />);
+    const strip = screen.getByTestId('prior-decisions');
+    expect(strip).toHaveAccessibleName('Претходни одлуки');
+    expect(screen.getByTestId('prior-cancel')).toHaveTextContent('Откажа · 28.09.2026 · Марија · Нема пари — „ќе плати по 15-ти“');
+    expect(screen.getByTestId('prior-trash')).toHaveTextContent('Корпа · 12.08.2026 · автоматски · Недостапен');
+  });
+  it('a note opens on tap (clamped to two lines before)', () => {
+    render(<PriorDecisions orders={history} />);
+    const line = screen.getByTestId('prior-cancel');
+    expect(line).toHaveAttribute('aria-expanded', 'false');
+    expect(line.querySelector('.line-clamp-2')).not.toBeNull();
+    fireEvent.click(line);
+    expect(line).toHaveAttribute('aria-expanded', 'true');
+    expect(line.querySelector('.line-clamp-2')).toBeNull();
+  });
+  it('renders nothing without a cancel or a trash', () => {
+    render(<PriorDecisions orders={[history[2]]} />);
+    expect(screen.queryByTestId('prior-decisions')).toBeNull();
   });
 });

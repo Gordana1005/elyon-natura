@@ -59,6 +59,11 @@ const EXACT: Record<string, string> = {
   'No updates provided': 'apiErrors.noUpdates',
   'No valid fields': 'apiErrors.noUpdates',
   'No rates provided': 'apiErrors.noUpdates',
+  // A cancel / trash by a person needs its reason and a written note (owner 01.10.2026,
+  // supabase/functions/api/dispositionNote.ts — the note messages are PATTERNS below).
+  'A cancellation reason is required': 'orderModal.cancelReasonRequired',
+  'A trash reason is required': 'orderModal.trashReasonRequired',
+  'Cancel with orders/bulk-disposition — it records the reason and the note': 'apiErrors.useBulkDisposition',
 };
 
 type Vars = (m: RegExpMatchArray) => Record<string, unknown>;
@@ -72,6 +77,9 @@ const PATTERNS: Array<[RegExp, string, Vars?]> = [
   [/^Already claimed by (.+) until (.+)$/, 'apiErrors.alreadyClaimed', (m) => ({ agent: m[1], until: m[2] })],
   [/^You already have (\d+) customers in your Personal List/, 'apiErrors.personalListFull', (m) => ({ count: Number(m[1]) })],
   [/^You can only set status to: (.+)$/, 'apiErrors.agentAllowedStatuses', (m) => ({ statuses: m[1] })],
+  [/^A note of at least (\d+) characters is required$/, 'dispositionNote.tooShort', (m) => ({ min: Number(m[1]) })],
+  [/^The note must be at least (\d+) characters long$/, 'dispositionNote.tooShort', (m) => ({ min: Number(m[1]) })],
+  [/^The note must be at most (\d+) characters long$/, 'dispositionNote.tooLong', (m) => ({ max: Number(m[1]) })],
 ];
 
 export function apiErrorText(err: unknown): string {

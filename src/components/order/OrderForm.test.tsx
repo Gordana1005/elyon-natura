@@ -193,3 +193,74 @@ describe('OrderModal — the edit path once MEX has the parcel', () => {
     expect(body).toMatchObject({ customer_name: 'Ана', delivery_instructions: 'ѕвони' });
   });
 });
+
+// Three full modal round-trips each: a generous timeout so a loaded full-suite run never flakes.
+describe('OrderModal — the written note behind a cancel / trash (owner 01.10.2026)', { timeout: 20_000 }, () => {
+  const PENDING = {
+    id: 'ord-5', display_id: 'ORD-00005', status: 'pending', customer_name: 'Ана', customer_phone: '+38970123456',
+    customer_city: 'Скопје', delivery_type: 'home', order_items: [], notes: [],
+    cancellation_reason: null, cancellation_reason_notes: null, trash_reason: null, trash_reason_notes: null,
+  };
+  const open = (order: Record<string, unknown>) => {
+    api.apiGetOrder.mockResolvedValue(order);
+    api.apiLogCall.mockResolvedValue({});
+    api.apiResolveAddress.mockResolvedValue(null);
+    const onClose = vi.fn();
+    wrap(
+      <OrderModal
+        open
+        onClose={onClose}
+        contextType="order"
+        data={{ id: String(order.id), name: 'Ана', telephone: '+38970123456', address: '', city: 'Скопје', product: 'Neurofix', status: String(order.status), notes: null, displayId: String(order.display_id) }}
+      />,
+    );
+    return onClose;
+  };
+
+  it('a cancel without its note is blocked; with 5+ characters it goes out with the note', async () => {
+    const onClose = open(PENDING);
+    await waitFor(() => expect(api.apiGetOrder).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button', { name: 'Откажана' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Нема пари' }));
+    const note = screen.getByLabelText(/Што рече клиентот\?/);
+    fireEvent.change(note, { target: { value: 'нема' } });
+    fireEvent.click(screen.getByTestId('order-form-primary'));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(api.apiLogCall).not.toHaveBeenCalled();
+    expect(api.apiUpdateOrderStatus).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+
+    fireEvent.change(note, { target: { value: 'нема пари до 15-ти' } });
+    fireEvent.click(screen.getByTestId('order-form-primary'));
+    await waitFor(() => expect(onClose).toHaveBeenCalledWith(true));
+    expect(api.apiLogCall.mock.calls[0][0]).toMatchObject({
+      outcome: 'cancelled', cancellation_reason: 'no_money', cancellation_reason_notes: 'нема пари до 15-ти',
+    });
+  });
+
+  it('a wrong number sends its trash note with the call log (it used to be dropped)', async () => {
+    const onClose = open(PENDING);
+    await waitFor(() => expect(api.apiGetOrder).toHaveBeenCalled());
+    fireEvent.click(screen.getAllByRole('button', { name: 'Погрешен број' })[0]);
+    const note = await screen.findByLabelText(/Белешка/);
+    fireEvent.click(screen.getByTestId('order-form-primary'));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(api.apiLogCall).not.toHaveBeenCalled(); // no note yet
+    fireEvent.change(note, { target: { value: 'се јави друг човек' } });
+    fireEvent.click(screen.getByTestId('order-form-primary'));
+    await waitFor(() => expect(onClose).toHaveBeenCalledWith(true));
+    expect(api.apiLogCall.mock.calls[0][0]).toMatchObject({
+      outcome: 'wrong_number', trash_reason: 'wrong_number', trash_reason_notes: 'се јави друг човек',
+    });
+  });
+
+  it('an order already trashed (an old one without a reason) still saves an unrelated edit', async () => {
+    const onClose = open({ ...PENDING, id: 'ord-6', display_id: 'ORD-00006', status: 'trashed', trash_reason: null, trash_reason_notes: 'ok' });
+    await waitFor(() => expect(api.apiGetOrder).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByLabelText(/Белешка/)).toHaveValue('ok'));
+    fireEvent.click(screen.getByTestId('order-form-primary'));
+    await waitFor(() => expect(onClose).toHaveBeenCalledWith(true));
+    expect(api.apiUpdateCustomer).toHaveBeenCalled();
+    expect(api.apiUpdateOrderStatus).not.toHaveBeenCalled(); // the old short note is never re-sent
+  });
+});
