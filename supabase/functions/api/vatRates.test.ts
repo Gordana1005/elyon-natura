@@ -137,22 +137,39 @@ const TABLE = JSON.parse(readFileSync(join(ROOT, "docs", "vat", "crm_products_va
   id: string; vat_rate: number; vat_source: string; sigma_code: string | null;
 }[];
 
+// 20260944000910: five rows corrected after the backfill (wrong crosswalk links + one of Sigma's own errors)
+const FIXES = readFileSync(join(ROOT, "supabase", "migrations", "20260944000910_product_vat_rate_fixes.sql"), "utf8");
+const fixTuples = [...FIXES.matchAll(/^\s*\('([0-9a-f-]{36})', (\d\.\d{2,3}), '([^']+)', (NULL|'[^']*')/gm)]
+  .map((m) => ({ id: m[1], rate: Number(m[2]), source: m[3], code: m[4] === "NULL" ? null : m[4].slice(1, -1) }));
+
 describe("migration 20260944000900", () => {
   const tuples = [...MIGRATION.matchAll(/^\s*\('([0-9a-f-]{36})'::uuid, (\d\.\d{3}), '([^']+)', (NULL|'[^']*')/gm)]
     .map((m) => ({ id: m[1], rate: Number(m[2]), source: m[3], code: m[4] === "NULL" ? null : m[4].slice(1, -1) }));
 
-  it("backfills all 706 products with the table's rate, source and Sigma code — nothing re-derived", () => {
+  it("backfills all 706 products; with 000910's fixes = the table's rate, source and Sigma code — nothing re-derived", () => {
     expect(TABLE).toHaveLength(706);
     expect(tuples).toHaveLength(706);
     const byId = new Map(tuples.map((t) => [t.id, t]));
+    const fixById = new Map(fixTuples.map((t) => [t.id, t]));
     for (const r of TABLE) {
-      const t = byId.get(r.id);
+      const t = fixById.get(r.id) ?? byId.get(r.id);
       expect(t, r.id).toBeDefined();
       expect(t!.rate).toBe(r.vat_rate);
       expect(t!.source).toBe(r.vat_source);
       expect(t!.code).toBe(r.sigma_code || null);
     }
-    expect(tuples.filter((t) => t.rate === 0.05)).toHaveLength(TABLE.filter((r) => r.vat_rate === 0.05).length);
+    const effective = tuples.map((t) => fixById.get(t.id) ?? t);
+    expect(effective.filter((t) => t.rate === 0.05)).toHaveLength(TABLE.filter((r) => r.vat_rate === 0.05).length);
+  });
+
+  it("000910 moves exactly five backfilled rows to 18 %, each a real change", () => {
+    expect(fixTuples).toHaveLength(5);
+    const byId = new Map(tuples.map((t) => [t.id, t]));
+    for (const f of fixTuples) {
+      expect(f.rate).toBe(0.18);
+      expect(byId.get(f.id)?.rate, f.id).toBe(0.05);
+    }
+    expect(FIXES).toContain("p.vat_source IS DISTINCT FROM 'owner'");   // never overwrites an owner's rate
   });
 
   it("the CHECK, the guard over every VAT column, the writer, the cache version and the per-line VAT", () => {

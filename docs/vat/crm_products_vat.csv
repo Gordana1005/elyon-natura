@@ -111,7 +111,7 @@ ab09eec7-638e-44a7-ab83-1b820df4c9cb,ArthroFix,product,bio_natural,True,001313,6
 5d6cafe1-0540-495c-9146-6eaed49dec38,Ashwagandha — гумени бонбони (30),product,natura_therapy,True,SKU-000195,0,0.05,sigma:crosswalk-HIGH,001134,Гумени бонбони Ашваганда 30/1,2,2025@5.00: 10; 2026@5.00: 154; mex@5.00: 4
 5b9a2f41-4cad-4249-af96-cc68e35fa365,AURA ADHESIVE Прозирен лепак за Вештачки трепки,product,natura_therapy,False,SKU-000199,0,0.18,rule:cosmetic-18,,,,
 034ab0c8-eb0f-4e1c-be6c-772fd5ddbbd5,AURA ADHESIVE Црн лепак за Вештачки трепки,product,natura_therapy,False,SKU-000133,0,0.18,rule:cosmetic-18,,,,
-44b4eaad-24dd-43d2-867c-4f1ff9c44932,AURA BASE База за сенка Prime Me,product,natura_therapy,False,SKU-000140,0,0.05,sigma:crosswalk-MEDIUM,001670,ZINC 120/1 tab,2,2026@5.00: 66
+44b4eaad-24dd-43d2-867c-4f1ff9c44932,AURA BASE База за сенка Prime Me,product,natura_therapy,False,SKU-000140,0,0.18,rule:cosmetic-18,,,,
 d932aa74-2f3c-4fdf-aa46-610864d16f2f,AURA BASE База за шминка PRIME ME,product,natura_therapy,False,SKU-000222,0,0.18,sigma:crosswalk-HIGH,002125,БАЗА ЗА ШМИНКА PRIME ME!,1,no 2025–2026 sales invoice
 44a39b36-a984-4f10-8ded-64a30c36dfc6,AURA BROW FIX GEL Гел за фиксирање на веѓи,product,natura_therapy,False,SKU-000206,0,0.18,sigma:crosswalk-MEDIUM,002219,ГЕЛ ЗА ФИКС.НА ВЕГИ BROW,1,no 2025–2026 sales invoice
 e8ac1aba-9027-4a6d-a7f8-f8156f86809c,AURA BROWMATIC BRUNETTE Молив за прецизно исцртување на веѓи,product,natura_therapy,False,SKU-000138,0,0.18,rule:cosmetic-18,,,,
@@ -124,7 +124,7 @@ fe03758d-94fa-44cf-bd04-2f2f693ba13b,"AURA LIQUID EYELINER ""WING IT UP"" Туш
 794516ae-a9dd-41a6-94eb-c6c0d3e0cb8e,AURA MAKE UP FIXER FIX – ME Фиксатор за шминка,product,natura_therapy,False,SKU-000121,0,0.18,rule:cosmetic-18,,,,
 c4cfd3f0-9e87-40b6-8f6f-aaaa3fd3e8c7,AURA PENCIL SHARPENER DUO Козметичка острилка,other,natura_therapy,False,SKU-000166,0,0.18,rule:cosmetic-18,,,,
 b2569b53-1a2d-4e33-936b-4eb0c719f7a8,AURA VELVET HIDROGEN 90 ML 6%,product,natura_therapy,False,SKU-000213,0,0.18,rule:cosmetic-18,,,,
-622e1b33-c225-46b9-bd34-76fa8ca1e2cd,AURA Апликатори за сенка за очи,other,natura_therapy,False,SKU-000179,0,0.05,sigma:crosswalk-MEDIUM,001529,ZINC  365 tbl,2,2026@5.00: 73; mex@5.00: 5
+622e1b33-c225-46b9-bd34-76fa8ca1e2cd,AURA Апликатори за сенка за очи,other,natura_therapy,False,SKU-000179,0,0.18,rule:cosmetic-18,,,,
 e3b77e1b-29d9-4fdc-a65a-2aa857381e73,AURA Маскара за веѓи DARK BROWN,product,natura_therapy,False,SKU-000108,0,0.18,rule:cosmetic-18,,,,
 5ec99f98-fe89-4000-9bd8-49d0da60f7b6,AURAFALSE EYELASHES 01 Вештачки трепки-Naturaly Great,product,natura_therapy,False,SKU-000228,0,0.18,rule:cosmetic-18,,,,
 bc5b87ea-0def-47e9-bffc-e37a56cb245f,Autoimmune Support Formula 30 cps,product,natura_therapy,False,SKU-000114,0,0.05,rule:supplement-5,,,,
@@ -544,8 +544,8 @@ d5877b39-e763-449f-9d9e-3ee0a7f7a7fc,Л-КАРНИТИН 60 cps,product,ad_astra
 a7932e0b-f596-4410-aa66-1aa48d5e55b6,Магнезиум гел 250мл,,natura_therapy,True,002366,25,0.18,sigma:crosswalk-VERIFIED,002366,Магнезиум гел 250мл,1,no 2025–2026 sales invoice
 7de94a98-1abc-45e5-94aa-48f397178a4e,МАГНЕСИУМ 325 МГ 60/1,,natura_therapy,True,001129,2734,0.05,sigma:crosswalk-VERIFIED,001129,МАГНЕСИУМ 325 мг 60/1 таблети,2,2025@5.00: 131; 2026@0.00: 2; 2026@5.00: 406; mex@0.00: 2; mex@5.00: 6
 d8b0fbcb-fd01-4205-94de-c800425c182b,МАГНУМ КЛИМА УРЕД,other,,False,SKU-000246,0,0.18,sigma:crosswalk-HIGH,600084,МАГНУМ КЛИМА УРЕД,1,2025@18.00: 31
-b070ca90-697f-459f-ad93-defbbdd9b0d5,МАИЦИ,other,,False,SKU-000553,0,0.05,sigma:crosswalk-MEDIUM,000308,МАКА ЕКСТРАКТ 30 cps,2,2025@5.00: 37; 2026@5.00: 9; mex@5.00: 5
-a84853ee-0171-4e60-98ee-61ea36adecde,МАИЦИ XL,other,,False,SKU-000552,0,0.05,sigma:crosswalk-MEDIUM,000308,МАКА ЕКСТРАКТ 30 cps,2,2025@5.00: 37; 2026@5.00: 9; mex@5.00: 5
+b070ca90-697f-459f-ad93-defbbdd9b0d5,МАИЦИ,other,,False,SKU-000553,0,0.18,rule:device-18,,,,
+a84853ee-0171-4e60-98ee-61ea36adecde,МАИЦИ XL,other,,False,SKU-000552,0,0.18,rule:device-18,,,,
 02c76e4c-6df1-415a-9610-d7ca8845d6f5,МАКА ЕКСТРАКТ 60/1 cps,product,ad_astra,True,001075,56,0.05,sigma:crosswalk-VERIFIED,001075,МАКА ЕКСТРАКТ 60/1 cps,2,2025@5.00: 93; 2026@5.00: 99; mex@5.00: 8
 0122bc7f-78dd-4914-8a45-c468aca54337,МАЛ ГРИЛ ТОСТЕР,other,,False,SKU-000290,0,0.18,sigma:crosswalk-HIGH,072290,МАЛ ГРИЛ ТОСТЕР,1,no 2025–2026 sales invoice
 3e5e29b3-1921-4dbc-8ad6-4f312a560e60,МАТАЛКА ЗА НЕС,other,natura_therapy,True,001461,1420,0.18,sigma:crosswalk-VERIFIED,001461,МАШИНКА ЗА НЕС,1,2026@18.00: 1
@@ -664,7 +664,7 @@ c7cbb799-4f93-476e-b21f-d5c1ea8ce180,Стапчест Блендер+сецко 
 f4dd57ca-06c1-4641-ad3c-7723f5646415,Стапчеста правосмикалка 2во1,other,,False,SKU-000408,0,0.18,sigma:crosswalk-HIGH,075551,Стапчеста правосмикалка 2во1,1,no 2025–2026 sales invoice
 d89d0473-8317-4214-b276-0d8ab9b49802,СТЕГАЧ,other,natura_therapy,False,8003,2622,0.18,sigma:crosswalk-HIGH,000431,СТЕГАЧИ,1,no 2025–2026 sales invoice
 c968e99f-9a8b-45c6-b65e-1ea66b250afc,ТАБЛЕТ,other,,False,SKU-000544,0,0.18,rule:device-18,,,,
-ae4b09f0-ee8a-4f89-b93c-427c5d68c668,ТАБЛЕТ-СТ95,other,,False,SKU-000563,0,0.05,sigma:crosswalk-HIGH,051668,ТАБЛЕТ-СТ95,2,no 2025–2026 sales invoice
+ae4b09f0-ee8a-4f89-b93c-427c5d68c668,ТАБЛЕТ-СТ95,other,,False,SKU-000563,0,0.18,rule:device-18,,,,
 8d550b53-7f73-4644-8aef-bc6e9f30d8aa,ТАВА,other,,False,SKU-000561,0,0.18,sigma:crosswalk-HIGH,074317,ТАВА 28цм,1,no 2025–2026 sales invoice
 924d3963-ad86-42e3-af01-4f60e93ab1c2,ТАВА ЗА ПАЛАЧИНКИ,other,,False,SKU-000565,0,0.18,rule:device-18,,,,
 30a5ed85-1bff-4830-9cb0-dab77b0c337f,ТЕЛЕВИЗОР,other,,False,SKU-000477,0,0.18,sigma:crosswalk-HIGH,054390,ТЕЛЕВИЗОР,1,no 2025–2026 sales invoice

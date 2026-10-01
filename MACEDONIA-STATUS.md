@@ -86,7 +86,7 @@ operation. It shares **nothing at runtime** with Bulgaria (own repo / own Supaba
   segments, i18n, security) + the new `elyon-products-catalogue`.
 - **VAT per product, from Sigma** (owner, 01.10.2026; branch `vat-per-product`, migration `…44000900`;
   `docs/VAT.md`) — **replaces the flat 18 % of 28.09.** `products.vat_rate` (+ source, Sigma item, invoice
-  evidence) backfilled for all 706 products from `docs/vat/crm_products_vat.json` (431 at 5 %, 275 at 18 %);
+  evidence) backfilled for all 706 products from `docs/vat/crm_products_vat.json` (431 at 5 %, 275 at 18 %; after the five corrections of 20260944000910: 426 / 280);
   written only by the audited `products_set_vat_rate()` (owners: the ДДВ chip / filter / "Постави ДДВ" on
   /products, `POST /api/products/vat-rate`); shown to owners only. `insights_profit()` taxes each LINE at its
   product's rate (unclassified lines at 5 %, shown apart), cache version 5; the waterfall reads "ДДВ по производ

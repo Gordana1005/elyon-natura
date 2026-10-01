@@ -1,15 +1,15 @@
 {
  "crm": {
   "by_source_rate": {
-   "rule:cosmetic-18 @ 0.18": 81,
+   "rule:cosmetic-18 @ 0.18": 83,
    "rule:cosmetic-18+mixed @ 0.18": 3,
-   "rule:device-18 @ 0.18": 20,
+   "rule:device-18 @ 0.18": 23,
    "rule:supplement-5 @ 0.05": 16,
    "sigma:by-name @ 0.05": 17,
    "sigma:by-name @ 0.18": 9,
    "sigma:by-name+mixed @ 0.05": 3,
    "sigma:by-name+mixed @ 0.18": 24,
-   "sigma:crosswalk @ 0.05": 395,
+   "sigma:crosswalk @ 0.05": 390,
    "sigma:crosswalk @ 0.18": 138
   },
   "products_with_sales_by_rate": {

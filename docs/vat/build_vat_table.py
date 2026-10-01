@@ -143,7 +143,13 @@ T2_FORCE = {"1324": "000957", "1327": "001331", "1092": "005007", "1342": "rule:
 
 # CRM corrections (01.10.2026): a value starting with "rule:" forces that rule.
 CRM_FORCE = {"efc6db90-4fcd-42c3-8e71-e593d0d590fd": "rule:cosmetic-18",   # ОЛИВАЛ МАГНЕЗИУМ МАСЛО ≠ magnesium tablets
-             "e48274ab-7855-43c5-9e05-b73836711363": "rule:cosmetic-18"}  # ALOE VERA GEL 99% (skin gel; Sigma 000086 has no invoice since 2025; every skin gel in Sigma is 18 %)   # ОЛИВАЛ МАГНЕЗИУМ МАСЛО ≠ magnesium tablets
+             "e48274ab-7855-43c5-9e05-b73836711363": "rule:cosmetic-18",  # ALOE VERA GEL 99% (skin gel; Sigma 000086 has no invoice since 2025; every skin gel in Sigma is 18 %)
+             # CRM migration 20260944000910 (01.10.2026 evening): wrong crosswalk links, and one of Sigma's own errors
+             "44b4eaad-24dd-43d2-867c-4f1ff9c44932": "rule:cosmetic-18",  # AURA BASE База за сенка Prime Me ≠ ZINC 120/1 tab
+             "622e1b33-c225-46b9-bd34-76fa8ca1e2cd": "rule:cosmetic-18",  # AURA Апликатори за сенка за очи ≠ ZINC 365 tbl
+             "b070ca90-697f-459f-ad93-defbbdd9b0d5": "rule:device-18",    # МАИЦИ (clothing) ≠ МАКА ЕКСТРАКТ
+             "a84853ee-0171-4e60-98ee-61ea36adecde": "rule:device-18",    # МАИЦИ XL (clothing) ≠ МАКА ЕКСТРАКТ
+             "ae4b09f0-ee8a-4f89-b93c-427c5d68c668": "rule:device-18"}    # ТАБЛЕТ-СТ95: Sigma 051668 carries it at 5 % — Sigma's error (anomalies sheet A)
 
 def classify(name, link, force=None):
     if force and force.startswith("rule:"):

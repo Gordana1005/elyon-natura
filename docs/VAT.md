@@ -48,7 +48,7 @@
 | `rule:supplement-5` / `rule:cosmetic-18` (`+mixed`) / `rule:device-18` | no Sigma item at all — by product type | 16 at 5 % · 84 + 20 at 18 % |
 | `owner` | set in the CRM by an owner (Производи → the ДДВ chip), audited | — |
 
-Totals: **431 products at 5 %, 275 at 18 %**; of the products sold since 2025, **190 at 5 % and 47 at 18 %**.
+Totals: **426 products at 5 %, 280 at 18 %** (431 / 275 in the backfill, then the five corrections of 000910 below); of the products sold since 2025, **190 at 5 % and 47 at 18 %**.
 `vat_sigma_code` / `vat_sigma_name` = the Sigma item; `vat_evidence` = its 2025–2026 sales-invoice lines by
 year and rate (`2026@5.00: 77; mex@5.00: 10` — `mex@` = the МЕКС ПОШТА invoices), or an owner's note.
 
@@ -105,27 +105,42 @@ year and rate (`2026@5.00: 77; mex@5.00: 10` — `mex@` = the МЕКС ПОШТ�
    registration (mid-2026). The CRM taxes what the customer paid, at the product's rate.
 3. **Mixed bundles** (a supplement with a cosmetic gift, e.g. "2 COLLAGEN … + ELIXY Matcha Face Cream + …
    MASK") carry their main product's rate; strictly, each component has its own rate.
-4. **The delivery charge** ("ДОСТАВА" lines) is taxed at the default 5 %; a delivery service may be 18 %.
+4. **The delivery charge** ("ДОСТАВА" lines, what the CUSTOMER pays Natura) is taxed at the default 5 % and
+   shown as unclassified. The Закон за ДДВ (чл. 33) puts transport costs the seller charges the buyer into the
+   tax base of the goods, so delivery follows the parcel's goods: 5 % for supplements (18 % only with
+   cosmetics-only parcels). Not to be confused with the COURIER's invoice to Natura ("достава на пратки",
+   18 %), which is input VAT Natura deducts. A migration taxing delivery at a flat 18 % was prepared on 01.10
+   and deliberately NOT applied (owner question: "why 18 % on delivery?"). Accountant to confirm.
 
 **Sigma's own VAT problems** (the CRM holds the correct rate per product regardless) are listed in full in
 `D:\naturatherapy\vat-sigma\Сигма_ДДВ_неправилности_2026-10-01.xlsx` (built by
 `D:\naturatherapy\vat-sigma\sigma_vat_anomalies.py`; counts in
 [`docs/vat/sigma_vat_anomalies_summary.json`](vat/sigma_vat_anomalies_summary.json)): **9 items with a rate
-wrong for their kind** (6 mixed supplement + cosmetic sets at 5 %, the SKIN GLOW serum and АЛОЕ ВЕРА ГЕЛ 250 at
+wrong for their kind** (4 mixed supplement + cosmetic sets at 5 %, the SKIN GLOW serum and АЛОЕ ВЕРА ГЕЛ 250 at
 5 %, 2 loyalty tablets at 5 %, PROSTA COMPLEKS at 0 %), **72 invoice lines of 2025–26 charged at a different
 rate than the item** (50 of them on MEX invoices, mostly АД Астра at 0 %), **25 invoice lines with no VAT code**,
 and the drinks split 18 % (chia) vs 5 % (aloe / gastro).
 
-### Rows that look wrong in the CRM table (not changed here — all have no sales since 2025)
+### Corrected after the backfill — migration `20260944000910_product_vat_rate_fixes.sql`
 
-- `AURA BASE База за сенка Prime Me` and `AURA Апликатори за сенка за очи` — crosswalk-MEDIUM to ZINC
-  tablets (5 %); make-up → 18 %.
-- `МАИЦИ` / `МАИЦИ XL` (T-shirts) — crosswalk-MEDIUM to МАКА ЕКСТРАКТ (5 %); clothing → 18 %.
-- `ТАБЛЕТ-СТ95` — crosswalk-HIGH to the Sigma item of the same name, one of Sigma's 2 loyalty tablets at 5 %
-  (`VatId 2`); a device → 18 % (the CRM's `ТАБЛЕТ` is already 18 %, rule:device-18).
-- Supplement bundles with a cosmetic part at 5 % (by rule 3 above): `2+1 КУРКУМАКТИВ + MAGNESIUM GEL`,
-  `3 MAGNESIUM+ZINC+B COMPLEX + MAGNESIUM GEL`, `3 PARA DETOX + ALOE VERA GEL 0.5L`, `Hemoro Forte (2+1) +
-  Hemoro Forte Gel`, `Хеморо форте (2+1)+Крем Хеморо`, `COLLAGEN PEPTIDES (1+1) + I'am Collagen серум` (two).
+Five rows carried a rate wrong for what the product IS; all inactive, none sold since 2025, so no report
+number moves. Now **426 products at 5 %, 280 at 18 %** (`docs/vat/crm_products_vat.json` is the corrected
+table; `vatRates.test.ts` checks 000900's backfill + 000910 = that table, row by row).
+
+- `AURA BASE База за сенка Prime Me` and `AURA Апликатори за сенка за очи` — the crosswalk linked them to ZINC
+  tablets (5 %); make-up → **18 %** (`rule:cosmetic-18`).
+- `МАИЦИ` / `МАИЦИ XL` (T-shirts) — linked to МАКА ЕКСТРАКТ (5 %); clothing → **18 %** (`rule:device-18`, the
+  rule that already gives хеланки / торби 18 %).
+- `ТАБЛЕТ-СТ95` — the link is right, but **Sigma itself** carries this loyalty-prize tablet at 5 % (`VatId 2`,
+  one of Sigma's errors, sheet A of the anomalies file); a device → **18 %** (`rule:device-18`; the Sigma item
+  is named in `vat_evidence`).
+
+### Kept at the main product's rate (open question 3)
+
+Supplement bundles with a cosmetic part stay at 5 %: `2+1 КУРКУМАКТИВ + MAGNESIUM GEL`, `3 MAGNESIUM+ZINC+B
+COMPLEX + MAGNESIUM GEL`, `3 PARA DETOX + ALOE VERA GEL 0.5L`, `Hemoro Forte (2+1) + Hemoro Forte Gel`,
+`Хеморо форте (2+1)+Крем Хеморо`, `COLLAGEN PEPTIDES (1+1) + I'am Collagen серум` (two). One product has one
+rate; a strict per-component split needs the components' prices and is the accountant's call.
 
 ## 6. September 2026 — old vs new (read-only proof)
 
@@ -161,6 +176,8 @@ order (454.771 ден), unmatched web names (100% WHEY Protein 500 г 22.500 …
 1. `node scripts/assert-mk-target.mjs`
 2. `node scripts/apply-migration-mk.mjs 20260944000900_product_vat_rate.sql` — refuses if `insights_profit`,
    its cache signature or version changed since (drift guard); NOTICE `706 products set (431 at 5 %, 275 at 18 %)`.
+   Then `node scripts/apply-migration-mk.mjs 20260944000910_product_vat_rate_fixes.sql` — NOTICE `5 products set
+   to 18 % (now 426 at 5 %, 280 at 18 %)`. (Both applied to MK 01.10.2026 evening.)
 3. `npx supabase functions deploy api --project-ref bmfxhgznttcnnlqloqzp` (add `--use-api` if the CLI hangs).
    The api tolerates the migration missing (catalogue falls back to the old columns; the P&L answers
    `flat_default`), but the migration goes first.
@@ -173,7 +190,7 @@ order (454.771 ден), unmatched web names (100% WHEY Protein 500 г 22.500 …
    2026-09-01 --to 2026-09-30` (the migration text → the api's P&L: VAT = Σ per line, departments = total, parts
    add up, products = the line, meta), `node scripts/verify-tab-profit.mjs --from 2026-09-01 --to 2026-09-30`
    (P1–P6; P6 checks the VAT line = Σ per line and its parts), and on MK:
-   `SELECT vat_rate, count(*) FROM products GROUP BY 1` (431 / 275), `SELECT public.insights_profit_cache_version()`
+   `SELECT vat_rate, count(*) FROM products GROUP BY 1` (426 / 280 after 000910), `SELECT public.insights_profit_cache_version()`
    (5), `SELECT count(*) FROM audit_log WHERE action = 'products.set_vat_rate'` (0 until an owner changes one).
    Before the migration both `vat/` scripts inline the rates from the table (proved PASS on 01.10).
 

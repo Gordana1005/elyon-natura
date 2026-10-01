@@ -1687,12 +1687,12 @@
   "is_active": false,
   "sku": "SKU-000140",
   "lines_since_2025": 0,
-  "vat_rate": 0.05,
-  "vat_source": "sigma:crosswalk-MEDIUM",
-  "sigma_code": "001670",
-  "sigma_name": "ZINC 120/1 tab",
-  "sigma_vat_id": "2",
-  "evidence": "2026@5.00: 66"
+  "vat_rate": 0.18,
+  "vat_source": "rule:cosmetic-18",
+  "sigma_code": "",
+  "sigma_name": "",
+  "sigma_vat_id": "",
+  "evidence": ""
  },
  {
   "id": "d932aa74-2f3c-4fdf-aa46-610864d16f2f",
@@ -1882,12 +1882,12 @@
   "is_active": false,
   "sku": "SKU-000179",
   "lines_since_2025": 0,
-  "vat_rate": 0.05,
-  "vat_source": "sigma:crosswalk-MEDIUM",
-  "sigma_code": "001529",
-  "sigma_name": "ZINC  365 tbl",
-  "sigma_vat_id": "2",
-  "evidence": "2026@5.00: 73; mex@5.00: 5"
+  "vat_rate": 0.18,
+  "vat_source": "rule:cosmetic-18",
+  "sigma_code": "",
+  "sigma_name": "",
+  "sigma_vat_id": "",
+  "evidence": ""
  },
  {
   "id": "e3b77e1b-29d9-4fdc-a65a-2aa857381e73",
@@ -8182,12 +8182,12 @@
   "is_active": false,
   "sku": "SKU-000553",
   "lines_since_2025": 0,
-  "vat_rate": 0.05,
-  "vat_source": "sigma:crosswalk-MEDIUM",
-  "sigma_code": "000308",
-  "sigma_name": "МАКА ЕКСТРАКТ 30 cps",
-  "sigma_vat_id": "2",
-  "evidence": "2025@5.00: 37; 2026@5.00: 9; mex@5.00: 5"
+  "vat_rate": 0.18,
+  "vat_source": "rule:device-18",
+  "sigma_code": "",
+  "sigma_name": "",
+  "sigma_vat_id": "",
+  "evidence": ""
  },
  {
   "id": "a84853ee-0171-4e60-98ee-61ea36adecde",
@@ -8197,12 +8197,12 @@
   "is_active": false,
   "sku": "SKU-000552",
   "lines_since_2025": 0,
-  "vat_rate": 0.05,
-  "vat_source": "sigma:crosswalk-MEDIUM",
-  "sigma_code": "000308",
-  "sigma_name": "МАКА ЕКСТРАКТ 30 cps",
-  "sigma_vat_id": "2",
-  "evidence": "2025@5.00: 37; 2026@5.00: 9; mex@5.00: 5"
+  "vat_rate": 0.18,
+  "vat_source": "rule:device-18",
+  "sigma_code": "",
+  "sigma_name": "",
+  "sigma_vat_id": "",
+  "evidence": ""
  },
  {
   "id": "02c76e4c-6df1-415a-9610-d7ca8845d6f5",
@@ -9982,12 +9982,12 @@
   "is_active": false,
   "sku": "SKU-000563",
   "lines_since_2025": 0,
-  "vat_rate": 0.05,
-  "vat_source": "sigma:crosswalk-HIGH",
-  "sigma_code": "051668",
-  "sigma_name": "ТАБЛЕТ-СТ95",
-  "sigma_vat_id": "2",
-  "evidence": "no 2025–2026 sales invoice"
+  "vat_rate": 0.18,
+  "vat_source": "rule:device-18",
+  "sigma_code": "",
+  "sigma_name": "",
+  "sigma_vat_id": "",
+  "evidence": ""
  },
  {
   "id": "8d550b53-7f73-4644-8aef-bc6e9f30d8aa",
