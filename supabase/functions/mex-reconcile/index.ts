@@ -75,7 +75,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   COD_TOLERANCE_MKD, DAY, DELIVERY_MKD, MKD_PER_EUR, atMexGate, dedupeShipments, hasSaleValue,
   isNegativeCod, isRegisterOnlyRun, mexDate, mkE164, parseCod, pickCandidate,
-  rememberedLinkMethod, resolveHolder, shipGate, targetFor,
+  rememberedLinkMethod, resolveHolder, shipGate, skopjeYmd, targetFor,
 } from "./match.ts";
 import type { LinkMethod, MexShipment, OrderRow } from "./match.ts";
 
@@ -161,9 +161,12 @@ serve(async (req: Request) => {
     const base = lastRun?.window_to
       ? new Date(new Date(lastRun.window_to).getTime() - OVERLAP_DAYS * DAY)
       : new Date(Date.now() - DEFAULT_LOOKBACK_DAYS * DAY);
-    fromDate = base.toISOString().slice(0, 10);
+    // window_to is a calendar date (UTC midnight when parsed): its own date stays;
+    // the lookback from "now" is dated on MEX's (Skopje) calendar.
+    fromDate = lastRun?.window_to ? base.toISOString().slice(0, 10) : skopjeYmd(base);
   }
-  const toDate = new Date().toISOString().slice(0, 10);
+  // Today on MEX's (Skopje) calendar — the UTC date is still yesterday until 01:00/02:00.
+  const toDate = skopjeYmd();
 
   let runId: string | null = null;
   if (!dry) {
@@ -434,9 +437,9 @@ serve(async (req: Request) => {
         await admin.from("order_notes").insert({
           order_id: order.id,
           text: (target === "paid"
-            ? `MEX ${s.tracking_id} delivered ${when.toISOString().slice(0, 10)} — status corrected to paid (was ${was}).`
+            ? `MEX ${s.tracking_id} delivered ${skopjeYmd(when)} — status corrected to paid (was ${was}).`
             : target === "returned"
-            ? `MEX ${s.tracking_id} returned to sender ${when.toISOString().slice(0, 10)} — status set to returned (was ${was}).`
+            ? `MEX ${s.tracking_id} returned to sender ${skopjeYmd(when)} — status set to returned (was ${was}).`
             : `MEX ${s.tracking_id} is with the courier (${s.current_status_id}) — status set to shipped (was ${was}).`
               + overruled)
             + how,

@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { apiLookupActiveView } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { format } from 'date-fns';
+import { formatSkopje } from '@/lib/skopjeTime';
 
 interface Props {
   phone: string;
@@ -52,7 +52,7 @@ export function ActiveViewChip({ view, className }: { view: { agent_name: string
         </TooltipTrigger>
         <TooltipContent side="top" className="text-[11px]">
           <div className="font-semibold">{view.agent_name}</div>
-          <div className="opacity-70">{t('activeView.openedAt', { time: format(new Date(view.opened_at), 'HH:mm:ss') })}</div>
+          <div className="opacity-70">{t('activeView.openedAt', { time: formatSkopje(view.opened_at, 'HH:mm:ss') })}</div>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

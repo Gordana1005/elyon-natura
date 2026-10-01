@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/EmptyState';
 import { AlertTriangle, KeyRound, Loader2, Plus, Play, Radio, RefreshCw } from 'lucide-react';
-import { format } from 'date-fns';
+import { formatSkopje } from '@/lib/skopjeTime';
 
 const MIRROR_MODES = ['off', 'until_touched', 'always'] as const;
 const IMPORT_SCOPES = ['pending_only', 'all'] as const;
@@ -181,7 +181,7 @@ export function AccountsTab() {
                 <Row label={t('altercpa.statusMirror')} value={t(`altercpa.mirror_${a.status_mirror}`)} />
                 <Row
                   label={t('altercpa.lastSynced')}
-                  value={a.last_synced_at ? format(new Date(a.last_synced_at), 'dd.MM.yyyy HH:mm') : t('altercpa.never')}
+                  value={a.last_synced_at ? formatSkopje(a.last_synced_at, 'dd.MM.yyyy HH:mm') : t('altercpa.never')}
                 />
                 {a.notes && <p className="pt-1 text-xs text-muted-foreground">{a.notes}</p>}
                 {isAdmin && (

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DAY, codOk, dedupeShipments, hasSaleValue, isNegativeCod, isRealSale, isRegisterOnlyRun,
   isSyntheticProductName, mexDate, mkE164, parseCod, pickCandidate,
-  rememberedLinkMethod, resolveHolder, shipGate, targetFor, atMexGate, AT_MEX_STATUS,
+  rememberedLinkMethod, resolveHolder, shipGate, skopjeYmd, targetFor, atMexGate, AT_MEX_STATUS,
 } from "./match.ts";
 import type { OrderRow } from "./match.ts";
 import { isSyntheticProductName as uiIsSynthetic } from "../../../src/lib/utils";
@@ -296,6 +296,28 @@ describe("small helpers", () => {
     expect(mexDate("2026-09-20 12:00:00")?.toISOString()).toBe("2026-09-20T10:00:00.000Z");
     expect(mexDate("")).toBeNull();
     expect(mexDate("not a date")).toBeNull();
+  });
+  // Reference values from PostgreSQL (mex_parse_ts's own expression, '…'::timestamp
+  // AT TIME ZONE 'Europe/Skopje', checked on the live MK database 01.10.2026).
+  it("mexDate uses the offset Skopje had AT that moment — CET in winter, exactly like mex_parse_ts", () => {
+    expect(mexDate("2026-11-10 00:30:00")?.toISOString()).toBe("2026-11-09T23:30:00.000Z");   // was 22:30Z (+02:00)
+    expect(mexDate("2026-10-25 00:30:00")?.toISOString()).toBe("2026-10-24T22:30:00.000Z");   // CEST, before the change
+    expect(mexDate("2026-10-25 23:30:00")?.toISOString()).toBe("2026-10-25T22:30:00.000Z");   // CET, after it
+    expect(mexDate("2026-10-25 02:30:00")?.toISOString()).toBe("2026-10-25T01:30:00.000Z");   // the repeated hour → the later
+    expect(mexDate("2026-03-29 02:30:00")?.toISOString()).toBe("2026-03-29T01:30:00.000Z");   // the gap
+    expect(mexDate("2026-09-20T12:00")?.toISOString()).toBe("2026-09-20T10:00:00.000Z");
+    expect(mexDate("2026-09-20 12:00:00.5")?.toISOString()).toBe("2026-09-20T10:00:00.500Z");
+    expect(mexDate("2026-02-31 10:00:00")).toBeNull();
+    expect(mexDate("2026-09-20")).toBeNull();
+  });
+  it("a winter delivery at 00:30 Skopje is dated that day, not the day before", () => {
+    const d = mexDate("2026-11-10 00:30:00")!;
+    expect(skopjeYmd(d)).toBe("2026-11-10");
+  });
+  it("skopjeYmd is the Skopje calendar day (00:30 / 23:30 Skopje)", () => {
+    expect(skopjeYmd(new Date("2026-09-30T22:30:00Z"))).toBe("2026-10-01");   // 00:30 CEST
+    expect(skopjeYmd(new Date("2026-10-01T21:30:00Z"))).toBe("2026-10-01");   // 23:30 CEST
+    expect(skopjeYmd(Date.parse("2026-10-25T22:30:00Z"))).toBe("2026-10-25"); // 23:30 CET on the 25-hour day
   });
 });
 

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { format } from 'date-fns';
+import { formatSkopje } from '@/lib/skopjeTime';
 import i18n from '@/i18n';
 import { formatDate } from '@/i18n/dates';
 import { ShoppingCart, Phone, PhoneOff, PhoneCall } from 'lucide-react';
@@ -159,7 +159,7 @@ function OrdersCards({ orders, onOpenOrder }: { orders: any[]; onOpenOrder?: (id
               </div>
               <div className="mt-0.5 flex min-w-0 items-center justify-between gap-2 text-[11px] text-muted-foreground">
                 <span className="min-w-0 truncate">{o.assigned_agent_name || t('customerHistory.unassigned')}</span>
-                <span className="shrink-0 tabular-nums">{o.created_at ? format(new Date(o.created_at), 'dd/MM/yy') : '—'}</span>
+                <span className="shrink-0 tabular-nums">{o.created_at ? formatSkopje(o.created_at, 'dd/MM/yy') : '—'}</span>
               </div>
               {reason && (
                 <div className="mt-1 line-clamp-2 break-words text-[11px] italic text-muted-foreground" data-testid="history-reason">
@@ -207,7 +207,7 @@ function CallsCards({ calls, orders }: { calls: CustomerHistoryCall[]; orders: a
               </span>
             </div>
             <div className="mt-0.5 text-[11px] tabular-nums text-muted-foreground">
-              {when ? formatDate(new Date(when), 'dd.MM.yy HH:mm') : '—'} · {formatCallDuration(c)}
+              {when ? formatDate(when, 'dd.MM.yy HH:mm') : '—'} · {formatCallDuration(c)}
             </div>
             {notes && <div className="mt-0.5 line-clamp-2 whitespace-pre-wrap break-words text-[11px] text-muted-foreground">{notes}</div>}
           </li>
@@ -304,7 +304,7 @@ function OrdersTable({ orders, onOpenOrder }: { orders: any[]; onOpenOrder?: (id
                       : <span className="text-muted-foreground/50">{t('customerHistory.unassigned')}</span>}
                   </td>
                   <td className="py-1.5 text-right text-muted-foreground text-[11px] whitespace-nowrap">
-                    {o.created_at ? format(new Date(o.created_at), 'dd/MM/yy') : '—'}
+                    {o.created_at ? formatSkopje(o.created_at, 'dd/MM/yy') : '—'}
                   </td>
                 </tr>
               );

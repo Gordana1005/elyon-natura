@@ -14,7 +14,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { formatMoney, formatDenari } from '@/lib/currency';
 import { fmtNum } from '@/components/insights/overview/model';
 import { Globe, Loader2, Search } from 'lucide-react';
-import { format } from 'date-fns';
+import { formatSkopje } from '@/lib/skopjeTime';
 import { affiliateLabel } from '@/lib/orderSource';
 import { useWebmasterNames } from '@/hooks/useWebmasterNames';
 import { usePermissions } from '@/contexts/PermissionsContext';
@@ -231,7 +231,7 @@ function LeadRow({ lead, showPrice }: { lead: AlterCpaLead; showPrice: boolean }
   return (
     <TableRow>
       <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
-        {lead.created_remote ? format(new Date(lead.created_remote), 'dd.MM.yy HH:mm') : '—'}
+        {lead.created_remote ? formatSkopje(lead.created_remote, 'dd.MM.yy HH:mm') : '—'}
       </TableCell>
       <TableCell><Badge variant="outline">{lead.geo || '??'}</Badge></TableCell>
       <TableCell className="max-w-[220px] truncate text-sm" title={lead.offer_name || ''}>

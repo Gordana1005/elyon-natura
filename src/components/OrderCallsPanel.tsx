@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
-import { format } from 'date-fns';
+import { formatSkopje } from '@/lib/skopjeTime';
 import { CheckCheck, ChevronDown, ChevronUp, Loader2, Lock, PhoneCall, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePermissions } from '@/contexts/PermissionsContext';
@@ -77,7 +77,7 @@ export function OrderCallsPanel({ orderId }: { orderId: string }) {
       <div key={call.id} className="py-1.5 border-b border-border/50 last:border-0">
         <div className="flex items-center gap-2 flex-wrap text-xs">
           <span className="font-mono text-muted-foreground whitespace-nowrap">
-            {format(new Date(call.created_at), 'dd/MM/yy HH:mm')}
+            {formatSkopje(call.created_at, 'dd/MM/yy HH:mm')}
           </span>
           <span className="font-medium">{call.agent_name || '—'}</span>
           <span className="text-muted-foreground">{outcomeLabel(call.outcome)}</span>
@@ -92,7 +92,7 @@ export function OrderCallsPanel({ orderId }: { orderId: string }) {
           {listened && (
             <span
               title={call.listened_by_name
-                ? t('orderCalls.listenedBy', { name: call.listened_by_name, date: call.listened_at ? format(new Date(call.listened_at), 'dd/MM/yy HH:mm') : '' })
+                ? t('orderCalls.listenedBy', { name: call.listened_by_name, date: call.listened_at ? formatSkopje(call.listened_at, 'dd/MM/yy HH:mm') : '' })
                 : t('orderCalls.listened')}
               className="inline-flex items-center text-emerald-600"
             >

@@ -276,7 +276,7 @@ export function ClientProfileCard({ phone, onOpenOrder, onCreateOrder, onClaimed
                 <div className="mb-2 rounded-md bg-amber-50 border border-amber-200 px-2 py-1 text-[10px] text-amber-700 text-center dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-300">
                   {/* The api sends the reason as a key ('paid') — never show it raw. */}
                   {t('clientProfile.cooldownUntil', {
-                    date: formatDate(new Date(cooldown.until), 'dd MMM'),
+                    date: formatDate(cooldown.until, 'dd MMM'),
                     reason: t(`callsWork.cooldownReason.${cooldown.reason}`, { defaultValue: t('callsWork.cooldownReason.other') }),
                   })}
                 </div>

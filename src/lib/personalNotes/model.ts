@@ -4,6 +4,8 @@
 // server's personalNotes.ts snippet, so a just-saved note's preview matches a reload) and
 // the counters. Unit-tested in model.test.ts.
 
+import { formatSkopje } from '@/lib/skopjeTime';
+
 // ── the URL ──────────────────────────────────────────────────────────────────
 
 export interface NotesUrlState {
@@ -117,10 +119,9 @@ export function saveStatusKey(s: SaveStatus): string | null {
   }
 }
 
-/** "14:32" in the reader's clock (the note was saved on this machine). */
+/** "14:32" on the Skopje clock — the CRM's one clock, whatever this computer is set to (owner 01.10.2026). */
 export function hhmm(ms: number): string {
-  const d = new Date(ms);
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return formatSkopje(ms, 'HH:mm');
 }
 
 // ── lists ────────────────────────────────────────────────────────────────────

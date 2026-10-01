@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Copy, Loader2, RefreshCw, RotateCcw, Send, ChevronLeft, ChevronRight } from 'lucide-react';
 import { SmartPagination } from '@/components/SmartPagination';
-import { format } from 'date-fns';
+import { formatSkopje } from '@/lib/skopjeTime';
 import { cn } from '@/lib/utils';
 import { EmptyState } from '@/components/EmptyState';
 
@@ -150,7 +150,7 @@ export function PostbackLogTab() {
               ) : rows.map((r) => (
                 <tr key={r.id} className="border-b last:border-0 hover:bg-muted/20 transition-colors">
                   <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                    {format(new Date(r.created_at), 'MMM d, HH:mm:ss')}
+                    {formatSkopje(r.created_at, 'MMM d, HH:mm:ss')}
                   </td>
                   <td className="px-4 py-3">
                     <span className="font-medium">{r.affiliates?.code || '—'}</span>

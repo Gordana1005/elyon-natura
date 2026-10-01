@@ -312,7 +312,7 @@ function HoldsTable({ holds, mode }: { holds: PersonalHold[]; mode: 'mine' | 'ad
                   {h.reason}
                   {h.follow_up_by && (
                     <div className="text-[10px] text-muted-foreground mt-1">
-                      {t('personalList.followUpBy', { date: formatDate(new Date(h.follow_up_by), 'd MMM yyyy') })}
+                      {t('personalList.followUpBy', { date: formatDate(h.follow_up_by, 'd MMM yyyy') })}
                     </div>
                   )}
                 </td>
@@ -385,7 +385,7 @@ function HoldsTable({ holds, mode }: { holds: PersonalHold[]; mode: 'mine' | 'ad
                   {h.reason}
                   {h.follow_up_by && (
                     <span className="block text-[10px] text-muted-foreground mt-1">
-                      {t('personalList.followUpBy', { date: formatDate(new Date(h.follow_up_by), 'd MMM yyyy') })}
+                      {t('personalList.followUpBy', { date: formatDate(h.follow_up_by, 'd MMM yyyy') })}
                     </span>
                   )}
                 </span>
