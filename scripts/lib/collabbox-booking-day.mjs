@@ -150,9 +150,10 @@ export function estimateAll(docs, runs) {
   return out;
 }
 
-/** The closed-month rule (owner's call, default 01.10.2026): the sale moves to the booking day only
- *  when the booking day is on/after `since` (epoch seconds of Skopje midnight). TWIN of
- *  public.collabbox_sale_at(). */
+/** The cutoff rule (owner, 01.10.2026): the sale moves to its booking day when the booking OR the
+ *  dispatch day is on/after `since` (epoch seconds of Skopje midnight) — nothing dispatched before
+ *  the cutoff moves, and a booking made before it for a later dispatch counts on its booking day
+ *  (the switch-over gap, migration 20260944000610). TWIN of public.collabbox_sale_at(). */
 export function saleAt(docAt, bookedAt, since) {
-  return bookedAt != null && bookedAt < docAt && bookedAt >= since ? bookedAt : docAt;
+  return bookedAt != null && bookedAt < docAt && (bookedAt >= since || docAt >= since) ? bookedAt : docAt;
 }

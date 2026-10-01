@@ -142,10 +142,13 @@ describe("the booking time — JS twin of collabbox_estimate_booked_at", () => {
     expect(none).toEqual({ booked_at: sk("2026-10-01 10:00"), basis: "doc" });
   });
 
-  it("the closed-month rule: a sale moves to its booking day only from the cutoff on", () => {
+  it("the cutoff rule: a sale moves to its booking day when the booking or the dispatch is from the cutoff on", () => {
     const since = BD.skopjeInstant("2026-10-01", 0);
     expect(BD.saleAt(sk("2026-10-02 10:30"), sk("2026-10-01 10:30"), since)).toBe(sk("2026-10-01 10:30"));
-    expect(BD.saleAt(sk("2026-10-01 10:30"), sk("2026-09-30 10:30"), since)).toBe(sk("2026-10-01 10:30"));  // never into September
+    // the switch-over gap (20260944000610): booked 30.09 for dispatch 01.10 → its booking day
+    expect(BD.saleAt(sk("2026-10-01 10:30"), sk("2026-09-30 10:30"), since)).toBe(sk("2026-09-30 10:30"));
+    // dispatched before the cutoff: never moves
+    expect(BD.saleAt(sk("2026-09-30 10:30"), sk("2026-09-28 10:30"), since)).toBe(sk("2026-09-30 10:30"));
     expect(BD.saleAt(sk("2026-10-01 10:30"), null, since)).toBe(sk("2026-10-01 10:30"));
     expect(BD.saleAt(sk("2026-10-01 10:30"), sk("2026-10-02 10:30"), since)).toBe(sk("2026-10-01 10:30"));
   });
@@ -163,11 +166,15 @@ describe("the backfill's plan (pure)", () => {
     ["D2", { booked_at: sk("2026-09-30 10:00"), basis: "sequence" }],
     ["D3", { booked_at: sk("2026-10-01 10:00"), basis: "sequence" }],
   ]);
-  it("writes only undecided rows (or sequence/doc ones with --redecide) and moves only from the cutoff on", () => {
+  it("writes only undecided rows (or sequence/doc ones with --redecide) and moves only from the cutoff on (booking or dispatch)", () => {
     const p = planLedger(docs, est, { since });
     expect(p.changes.map((c: { doc: string }) => c.doc)).toEqual(["D1", "D2"]);   // D3 is decided ('seen') — kept
-    expect(p.moved).toEqual([expect.objectContaining({ doc: "D1", from_day: "2026-10-03", to_day: "2026-10-02", waiting: true })]);
-    expect(p.months["2026-10"]).toMatchObject({ docs: 3, day_differs: 3, moves_under_cutoff: 1 });
+    expect(p.moved).toEqual([
+      expect.objectContaining({ doc: "D1", from_day: "2026-10-03", to_day: "2026-10-02", waiting: true }),
+      // the switch-over gap (20260944000610): booked 30.09 for dispatch 01.10 → its booking day
+      expect.objectContaining({ doc: "D2", from_day: "2026-10-01", to_day: "2026-09-30", waiting: false }),
+    ]);
+    expect(p.months["2026-10"]).toMatchObject({ docs: 3, day_differs: 3, moves_under_cutoff: 2 });
     expect(planLedger(docs, est, { since, redecide: true }).changes.map((c: { doc: string }) => c.doc)).toEqual(["D1", "D2"]);
   });
   it("re-stamps the document's own order on its day, a credited holder only inside its cohort month", () => {
@@ -181,8 +188,10 @@ describe("the backfill's plan (pure)", () => {
         sold_at: sk("2026-10-03 10:00"), sold_via: "collabbox", confirmed_at: sk("2026-09-29 10:00"), created_at: sk("2026-09-29 10:00"), cohort_at: sk("2026-09-29 10:00") },
     ];
     const plan = planOrders(orders, nb, { since });
-    expect(plan.map((x: { id: string }) => x.id)).toEqual(["o1"]);                 // o2: September booking; o3: another month
+    // o2: dispatched 01.10, booked 30.09 → its booking day (20260944000610); o3: another month
+    expect(plan.map((x: { id: string }) => x.id)).toEqual(["o1", "o2"]);
     expect(plan[0].set).toEqual({ sold_at: sk("2026-10-02 10:00"), confirmed_at: sk("2026-10-02 10:00"), created_at: sk("2026-10-02 10:00") });
+    expect(plan[1].set).toEqual({ sold_at: sk("2026-09-30 10:00"), confirmed_at: sk("2026-09-30 10:00"), created_at: sk("2026-09-30 10:00") });
   });
 });
 
