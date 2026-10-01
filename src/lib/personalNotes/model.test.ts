@@ -94,8 +94,8 @@ describe('the save status machine', () => {
     expect(saveStatusKey('saved')).toBe('personalNotes.save.saved');
     expect(saveStatusKey('error')).toBe('personalNotes.save.failed');
     expect(saveStatusKey('conflict')).toBe('personalNotes.save.conflict');
-    expect(hhmm(new Date(2026, 9, 1, 14, 32).getTime())).toBe('14:32');
-    expect(hhmm(new Date(2026, 9, 1, 9, 5).getTime())).toBe('09:05');
+    expect(hhmm(Date.parse('2026-10-01T12:32:00Z'))).toBe('14:32');   // the Skopje clock (CEST)
+    expect(hhmm(Date.parse('2026-12-01T08:05:00Z'))).toBe('09:05');   // CET
   });
 });
 

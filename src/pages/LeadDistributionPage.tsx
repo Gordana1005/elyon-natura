@@ -26,6 +26,7 @@ import {
   Shuffle, Scale, Star, Loader2, Play, Square, Settings2, Package,
   Users, Zap, CheckCircle2, AlertTriangle, Eye, Inbox, Clock,
 } from 'lucide-react';
+import { formatSkopje } from '@/lib/skopjeTime';
 
 // Labels/descriptions resolved at render via t().
 const STRATEGIES = [
@@ -290,7 +291,7 @@ export default function LeadDistributionPage() {
           <StatTile icon={<Users className="h-4 w-4" />} label={t('leadDist.agentsReady')}
             value={`${withCapacity} / ${candidates.length}`} sub={t('leadDist.onlineNow', { count: onlineCount })} />
           <StatTile icon={<Clock className="h-4 w-4" />} label={t('leadDist.lastRun')}
-            value={config?.last_run_at ? new Date(config.last_run_at).toLocaleTimeString() : '—'}
+            value={config?.last_run_at ? formatSkopje(config.last_run_at, 'HH:mm:ss') : '—'}
             sub={reasonText(config?.last_meaningful_run?.skipped_reason) || undefined} />
         </div>
 

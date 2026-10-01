@@ -56,6 +56,7 @@ import { parseDrillParams, DRILL_LABEL_PARAM } from '@/components/insights/overv
 import { OrdersDrillBanner } from '@/components/insights/overview/OrdersDrillBanner';
 import { OVERVIEW_COLOR_VARS } from '@/components/insights/overview/palette';
 import { periodText, skopjeToday, stepRange } from '@/components/insights/shared/period';
+import { skopjeTodayLocal } from '@/lib/skopjeTime';
 import { ResponsivePager } from '@/components/assigner/parts';
 import {
   activeFilterCount, clearDrillParams, clearListParams, effectiveRange, effectiveView, phoneLast8, readListParams,
@@ -505,8 +506,8 @@ export default function Orders() {
   // Daily fulfilment export — pulls orders of one status within a date range
   // (Skopje days) and writes the CSV the MEX portal imports. Independent of the
   // list's filters.
-  const [fulfilFrom, setFulfilFrom] = useState<Date | undefined>(new Date());
-  const [fulfilTo, setFulfilTo] = useState<Date | undefined>(new Date());
+  const [fulfilFrom, setFulfilFrom] = useState<Date | undefined>(() => skopjeTodayLocal());
+  const [fulfilTo, setFulfilTo] = useState<Date | undefined>(() => skopjeTodayLocal());
   const [fulfilStatus, setFulfilStatus] = useState<OrderStatus>('confirmed');
   const [fulfilLoading, setFulfilLoading] = useState(false);
   // After CSV download, flip every exported order from confirmed → shipped so
@@ -516,7 +517,7 @@ export default function Orders() {
   // "Ready to ship by" cutoff. Orders with a postponed ship_after_date later
   // than this are excluded from today's CSV. Defaults to today+2 ("1-2 days is
   // fine to ship immediately"). Orders with no ship_after_date always pass.
-  const [readyByDate, setReadyByDate] = useState<Date | undefined>(addDays(new Date(), 2));
+  const [readyByDate, setReadyByDate] = useState<Date | undefined>(() => addDays(skopjeTodayLocal(), 2));
   // 'range' = classic date-range dump; 'selected' = exactly the ticked orders.
   // The map stores the FULL order object so the CSV has every field even after
   // the row scrolls off-page or the filters change.
@@ -658,7 +659,7 @@ export default function Orders() {
     // src/lib/mexImportCsv.ts. This page only decides WHICH orders go in.
     const csv = toCsv(rows, buildMexImportColumns(), ',', false);
 
-    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const todayStr = skopjeToday(); // the Skopje day, whatever the computer's clock says
     const fromStr = fulfilFrom ? format(fulfilFrom, 'yyyy-MM-dd') : todayStr;
     const toStr = fulfilTo ? format(fulfilTo, 'yyyy-MM-dd') : todayStr;
     const fname = isSelected
@@ -882,7 +883,7 @@ export default function Orders() {
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Orders');
-    XLSX.writeFile(wb, `orders_export_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+    XLSX.writeFile(wb, `orders_export_${skopjeToday()}.xlsx`);
   };
 
   // ── row pieces ────────────────────────────────────────────────────────────
@@ -1094,9 +1095,9 @@ export default function Orders() {
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar mode="single" selected={readyByDate} onSelect={setReadyByDate} weekStartsOn={1} className="pointer-events-auto p-3" />
                   <div className="flex items-center justify-between gap-1 px-2 pb-2">
-                    <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={() => setReadyByDate(new Date())}>{t('ordersPage.today')}</Button>
-                    <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={() => setReadyByDate(addDays(new Date(), 2))}>{t('ordersList.csv.plus2')}</Button>
-                    <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={() => setReadyByDate(addDays(new Date(), 7))}>{t('ordersList.csv.plus7')}</Button>
+                    <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={() => setReadyByDate(skopjeTodayLocal())}>{t('ordersPage.today')}</Button>
+                    <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={() => setReadyByDate(addDays(skopjeTodayLocal(), 2))}>{t('ordersList.csv.plus2')}</Button>
+                    <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={() => setReadyByDate(addDays(skopjeTodayLocal(), 7))}>{t('ordersList.csv.plus7')}</Button>
                   </div>
                 </PopoverContent>
               </Popover>

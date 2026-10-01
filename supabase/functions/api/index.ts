@@ -102,6 +102,9 @@ import * as DN from "./dispositionNote.ts";
 // lead, test leads apart; the read model is 20260944000210 (pure, unit-tested in
 // altercpaGuarantee.test.ts — the math, the cohort states, the risk order, the payloads).
 import * as GA from "./altercpaGuarantee.ts";
+// The ONE Skopje calendar (owner 01.10.2026: "the same time everywhere"): today, day
+// boundaries (DST-exact), day buckets, bare-date bounds (pure, skopjeTime.test.ts).
+import * as ST from "./skopjeTime.ts";
 
 // ============================================================
 // INPUT VALIDATION SCHEMAS
@@ -1943,52 +1946,33 @@ function calcLeaderboardBonus(
   return { total: Math.round(total * 100) / 100, breakdown };
 }
 
-// Europe/Skopje day boundary as a UTC ISO instant (DST-correct). The board's
-// "today" must reset at Skopje midnight, not the edge function's server-local day.
+// Europe/Skopje day boundary as a UTC ISO instant. The board's "today" must reset
+// at Skopje midnight, not the edge function's server-local (UTC) day. These four
+// keep their old names for the many call sites; the arithmetic is skopjeTime.ts
+// (DST-exact — the old noon probe and the fixed 24 h day were an hour off on
+// 29.03 / 25.10, the changeover days).
 function skopjeDayStart(now = new Date()): { startISO: string; day: string } {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/Skopje",
-    year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
-  }).formatToParts(now);
-  const v = (t: string) => parts.find((p) => p.type === t)!.value;
-  const n = (t: string) => Number(v(t));
-  const day = `${v("year")}-${v("month")}-${v("day")}`;
-  // Interpret the Skopje wall-clock as if it were UTC, diff against the real
-  // instant to get the current offset, then apply it to Skopje midnight.
-  const wallAsUTC = Date.UTC(n("year"), n("month") - 1, n("day"), n("hour"), n("minute"), n("second"));
-  const offsetMs = wallAsUTC - now.getTime();
-  const skopjeMidnightUTC = Date.UTC(n("year"), n("month") - 1, n("day"), 0, 0, 0);
-  return { startISO: new Date(skopjeMidnightUTC - offsetMs).toISOString(), day };
+  return ST.skopjeDayStartOf(now);
 }
 
-// UTC instant of Europe/Skopje 00:00 for an arbitrary YYYY-MM-DD (DST-correct via a
-// noon probe — Skopje is +2 in winter, +3 in summer).
+// UTC instant of Europe/Skopje 00:00 for an arbitrary YYYY-MM-DD.
 function skopjeMidnight(dateStr: string): string {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  const probe = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
-  const hour = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Skopje", hour: "2-digit", hour12: false }).formatToParts(probe).find((p) => p.type === "hour")!.value);
-  const offsetHours = hour - 12;
-  return new Date(Date.UTC(y, m - 1, d, 0, 0, 0) - offsetHours * 3600 * 1000).toISOString();
+  return ST.skopjeMidnightIso(dateStr);
 }
 
 // [start, end) UTC window for a Skopje calendar day (defaults to today).
 function skopjeDayRange(dayParam?: string): { day: string; today: string; startISO: string; endISO: string } {
-  const today = skopjeDayStart().day;
-  const day = /^\d{4}-\d{2}-\d{2}$/.test(dayParam || "") ? (dayParam as string) : today;
-  const [y, m, d] = day.split("-").map(Number);
-  const next = new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
-  return { day, today, startISO: skopjeMidnight(day), endISO: skopjeMidnight(next) };
+  return ST.skopjeDayRangeOf(dayParam);
 }
 
-// Inclusive end instant of a Skopje calendar day ('YYYY-MM-DD' → 23:59:59 local
+// Inclusive end instant of a Skopje calendar day ('YYYY-MM-DD' → its last instant
 // as a UTC ISO). Date-range filters compare with `<=`; naked date strings were
 // read as UTC by ::timestamptz, shifting every day boundary to 02:00 local
 // (found 2026-08-11: the Insights tile said 8 sold while the list showed 12).
+// Since 01.10.2026 the same 23:59:59.999999 instant the Overview and /orders use
+// (the old …23:59:59 bound dropped the day's last second).
 function skopjeRangeEnd(dateStr: string): string {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  const next = new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
-  return new Date(Date.parse(skopjeMidnight(next)) - 1000).toISOString();
+  return ST.skopjeDayEndIso(dateStr);
 }
 const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -3617,17 +3601,15 @@ async function handleRequest(req: Request): Promise<Response> {
     if (req.method === "GET" && segments[0] === "altercpa" && segments[1] === "daily-rates" && segments.length === 2) {
       if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
       const qp = url.searchParams;
-      const today = new Date();
-      const iso = (d: Date) => d.toISOString().slice(0, 10);
+      // Defaults are SKOPJE days (the UTC date was still yesterday until 02:00).
+      const today = ST.skopjeTodayYmd();
       const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-      const to = DATE_RE.test(qp.get("to") || "") ? qp.get("to")! : iso(today);
-      const defFrom = new Date(today); defFrom.setDate(defFrom.getDate() - 13);
-      let from = DATE_RE.test(qp.get("from") || "") ? qp.get("from")! : iso(defFrom);
+      const to = DATE_RE.test(qp.get("to") || "") ? qp.get("to")! : today;
+      let from = DATE_RE.test(qp.get("from") || "") ? qp.get("from")! : ST.addDaysYmd(today, -13);
       // Cap the span: this scans the ledger and the sticky-confirm lookup is
       // per lead. 92 days is the same ceiling the BG original uses.
       if ((Date.parse(to) - Date.parse(from)) / 86400000 > 92) {
-        const capped = new Date(Date.parse(to) - 92 * 86400000);
-        from = iso(capped);
+        from = ST.addDaysYmd(to, -92);
       }
 
       const [ratesRes, settingsRes] = await Promise.all([
@@ -3758,8 +3740,11 @@ async function handleRequest(req: Request): Promise<Response> {
       const skip = p.get("skip");
       if (skip === "none") q = q.is("skip_reason", null);
       else if (skip) q = q.eq("skip_reason", skip);
-      if (p.get("from")) q = q.gte("created_remote", p.get("from"));
-      if (p.get("to")) q = q.lte("created_remote", p.get("to"));
+      // A bare YYYY-MM-DD is a Skopje day (its 00:00 / its last instant).
+      const mirrorFrom = ST.skopjeBound(p.get("from"), "start");
+      const mirrorTo = ST.skopjeBound(p.get("to"), "end");
+      if (mirrorFrom) q = q.gte("created_remote", mirrorFrom);
+      if (mirrorTo) q = q.lte("created_remote", mirrorTo);
       const search = (p.get("q") || "").trim();
       if (search) {
         const digits = search.replace(/\D/g, "");
@@ -3788,8 +3773,9 @@ async function handleRequest(req: Request): Promise<Response> {
       if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
       const { data, error } = await adminClient.rpc("altercpa_summary", {
         _account_id: url.searchParams.get("account_id") || null,
-        _from: url.searchParams.get("from") || null,
-        _to: url.searchParams.get("to") || null,
+        // altercpa_summary casts these with ::timestamptz (UTC): pin bare days to Skopje.
+        _from: ST.skopjeBound(url.searchParams.get("from"), "start"),
+        _to: ST.skopjeBound(url.searchParams.get("to"), "end"),
       });
       if (error) return json({ error: sanitizeDbError(error) }, 400);
       const summary = data ?? { geos: [], offers: [], webmasters: [], totals: {} };
@@ -4123,15 +4109,16 @@ async function handleRequest(req: Request): Promise<Response> {
     if (req.method === "GET" && segments[0] === "affiliates" && segments[2] === "stats" && segments.length === 3) {
       if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
       if (!UUID_RE.test(segments[1])) return json({ error: "Invalid id" }, 400);
-      const to = url.searchParams.get("to") || new Date().toISOString().slice(0, 10);
-      const from = url.searchParams.get("from") ||
-        new Date(Date.now() - 29 * 86_400_000).toISOString().slice(0, 10);
+      // Skopje days: the window, the defaults and the per-day buckets.
+      const affToday = ST.skopjeTodayYmd();
+      const to = url.searchParams.get("to") || affToday;
+      const from = url.searchParams.get("from") || ST.addDaysYmd(affToday, -29);
       const { data: rows, error } = await adminClient
         .from("affiliate_leads")
         .select("created_at, payout_eur_snapshot, orders(status, confirmed_at, customer_name, price)")
         .eq("affiliate_id", segments[1])
-        .gte("created_at", `${from}T00:00:00Z`)
-        .lte("created_at", `${to}T23:59:59Z`);
+        .gte("created_at", ST.skopjeBound(from, "start")!)
+        .lte("created_at", ST.skopjeBound(to, "end")!);
       if (error) return json({ error: sanitizeDbError(error) }, 400);
       const totals = { sent: 0, wait: 0, approved: 0, paid: 0, cancelled: 0, trashed: 0, payout_earned: 0 };
       const days = new Map<string, any>();
@@ -4146,7 +4133,7 @@ async function handleRequest(req: Request): Promise<Response> {
       // upsold quantities), so avg = confirmed revenue / confirmed count.
       let approvedRevenue = 0;
       for (const l of (rows || []) as any[]) {
-        const day = String(l.created_at).slice(0, 10);
+        const day = ST.skopjeYmd(l.created_at);
         const d = days.get(day) || { date: day, sent: 0, wait: 0, approved: 0, paid: 0, cancelled: 0, trashed: 0 };
         d.sent++; totals.sent++;
         const o = l.orders;
@@ -4168,8 +4155,8 @@ async function handleRequest(req: Request): Promise<Response> {
         .select("id", { count: "exact", head: true })
         .eq("affiliate_id", segments[1])
         .eq("event", "test")
-        .gte("created_at", `${from}T00:00:00Z`)
-        .lte("created_at", `${to}T23:59:59Z`);
+        .gte("created_at", ST.skopjeBound(from, "start")!)
+        .lte("created_at", ST.skopjeBound(to, "end")!);
       return json({
         // hold/payout_hold are transitional zeros for pre-deploy SPA bundles —
         // drop next release.
@@ -4207,8 +4194,8 @@ async function handleRequest(req: Request): Promise<Response> {
         .eq("affiliate_id", segments[1])
         .order("created_at", { ascending: false })
         .range((page - 1) * limit, page * limit - 1);
-      if (fromDay && DAY_RE.test(fromDay)) q = q.gte("created_at", `${fromDay}T00:00:00Z`);
-      if (toDay && DAY_RE.test(toDay)) q = q.lte("created_at", `${toDay}T23:59:59Z`);
+      if (fromDay && DAY_RE.test(fromDay)) q = q.gte("created_at", ST.skopjeMidnightIso(fromDay));
+      if (toDay && DAY_RE.test(toDay)) q = q.lte("created_at", ST.skopjeDayEndIso(toDay));
       q = applyAffiliateStageFilter(q, stageFilter);
       const { data, error, count } = await q;
       if (error) return json({ error: sanitizeDbError(error) }, 400);
@@ -4457,20 +4444,21 @@ async function handleRequest(req: Request): Promise<Response> {
 
       // GET /affiliate/stats?from&to — own totals + per-day series (default 30d).
       if (req.method === "GET" && path === "affiliate/stats") {
-        const to = url.searchParams.get("to") || new Date().toISOString().slice(0, 10);
-        const from = url.searchParams.get("from") ||
-          new Date(Date.now() - 29 * 86_400_000).toISOString().slice(0, 10);
+        // Skopje days, as on the staff twin above.
+        const affToday = ST.skopjeTodayYmd();
+        const to = url.searchParams.get("to") || affToday;
+        const from = url.searchParams.get("from") || ST.addDaysYmd(affToday, -29);
         const { data: rows, error } = await adminClient
           .from("affiliate_leads")
           .select("created_at, payout_eur_snapshot, orders(status, confirmed_at)")
           .eq("affiliate_id", myAff.id)
-          .gte("created_at", `${from}T00:00:00Z`)
-          .lte("created_at", `${to}T23:59:59Z`);
+          .gte("created_at", ST.skopjeBound(from, "start")!)
+          .lte("created_at", ST.skopjeBound(to, "end")!);
         if (error) return json({ error: sanitizeDbError(error) }, 400);
         const totals = { sent: 0, wait: 0, approved: 0, paid: 0, cancelled: 0, trashed: 0, payout_earned: 0 };
         const days = new Map<string, any>();
         for (const l of (rows || []) as any[]) {
-          const day = String(l.created_at).slice(0, 10);
+          const day = ST.skopjeYmd(l.created_at);
           const d = days.get(day) || { date: day, sent: 0, wait: 0, approved: 0, paid: 0, cancelled: 0, trashed: 0 };
           d.sent++; totals.sent++;
           const o = l.orders;
@@ -4509,8 +4497,8 @@ async function handleRequest(req: Request): Promise<Response> {
           .eq("affiliate_id", myAff.id)
           .order("created_at", { ascending: false })
           .range((page - 1) * limit, page * limit - 1);
-        if (fromDay && DAY_RE.test(fromDay)) q = q.gte("created_at", `${fromDay}T00:00:00Z`);
-        if (toDay && DAY_RE.test(toDay)) q = q.lte("created_at", `${toDay}T23:59:59Z`);
+        if (fromDay && DAY_RE.test(fromDay)) q = q.gte("created_at", ST.skopjeMidnightIso(fromDay));
+        if (toDay && DAY_RE.test(toDay)) q = q.lte("created_at", ST.skopjeDayEndIso(toDay));
         q = applyAffiliateStageFilter(q, stageFilter);
         const { data, error, count } = await q;
         if (error) return json({ error: sanitizeDbError(error) }, 400);
@@ -4957,8 +4945,8 @@ async function handleRequest(req: Request): Promise<Response> {
     // quality stats + computed incidents[] (drives the page AND the alert banner).
     if (req.method === "GET" && path === "voip/health") {
       if (!isAdmin) return json({ error: "Forbidden" }, 403);
-      const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0);
-      const sinceIso = dayStart.toISOString();
+      // Today = the Skopje day (setHours(0) on the UTC runtime began it at 02:00 Skopje).
+      const sinceIso = skopjeDayStart().startISO;
 
       const [pbx, recs, logsRes, qualRes, lastSnapRes, cycle] = await Promise.all([
         fetchPbxHealth(),
@@ -4997,7 +4985,7 @@ async function handleRequest(req: Request): Promise<Response> {
       if (!isNaN(memPct) && memPct >= 92) incidents.push({ level: "warning", code: "mem_high", message: `Memory ${memPct}% used` });
       if (pbx?.asterisk && pbx.asterisk.running === false) incidents.push({ level: "critical", code: "asterisk_down", message: "Asterisk is not running" });
       const newestAge = Number(pbx?.recordings_today?.newest_age_seconds);
-      const hr = new Date().getHours();
+      const hr = ST.skopjeHour(); // working hours are Skopje hours, not the UTC runtime's
       if (!isNaN(newestAge) && hr >= 9 && hr < 19 && newestAge > 3 * 3600) incidents.push({ level: "warning", code: "recordings_stalled", message: "No new recording in 3h during working hours" });
       const banned = Number(pbx?.attacks?.banned_count);
       if (!isNaN(banned) && banned >= 10) incidents.push({ level: "warning", code: "attacks", message: `${banned} IPs currently banned (fail2ban)` });
@@ -5128,7 +5116,7 @@ async function handleRequest(req: Request): Promise<Response> {
         const series = Object.entries(buckets).map(([k, v]) => ({ key: amap[k] || k, minutes: Math.round(v / 60) })).sort((a, b) => b.minutes - a.minutes);
         return json({ total_minutes: Math.round(totalSeconds / 60), talk_minutes: Math.round(talkSeconds / 60), group, series, cycle });
       }
-      for (const l of rows) { const d = (l.started_at || l.connected_at || "").slice(0, 10) || "unknown"; buckets[d] = (buckets[d] || 0) + (l.total_seconds || 0); }
+      for (const l of rows) { const at = l.started_at || l.connected_at; const d = (at && ST.skopjeYmd(at)) || "unknown"; buckets[d] = (buckets[d] || 0) + (l.total_seconds || 0); }
       const series = Object.entries(buckets).map(([k, v]) => ({ key: k, minutes: Math.round(v / 60) })).sort((a, b) => a.key.localeCompare(b.key));
       return json({ total_minutes: Math.round(totalSeconds / 60), talk_minutes: Math.round(talkSeconds / 60), group: "day", series, cycle });
     }
@@ -6237,8 +6225,10 @@ async function handleRequest(req: Request): Promise<Response> {
       // produced while working a prediction list) and the legacy `import` out of
       // the lead surfaces. Same definition as public.is_lead_source().
       const leadOnly = url.searchParams.get("lead_only") === "1";
-      const from = url.searchParams.get("from");
-      const to = url.searchParams.get("to");
+      // Legacy ?from&to (scripts; the list itself sends day_from/day_to): a bare
+      // YYYY-MM-DD is a Skopje day, a full instant passes through.
+      const from = ST.skopjeBound(url.searchParams.get("from"), "start");
+      const to = ST.skopjeBound(url.searchParams.get("to"), "end");
       const priceMin = url.searchParams.get("price_min");
       const priceMax = url.searchParams.get("price_max");
       // CPA provenance. Admin/manager only — see the strip below; an agent
@@ -9444,19 +9434,19 @@ async function handleRequest(req: Request): Promise<Response> {
 
         const dailyBreakdown: Record<string, { leads: number; deals_won: number; deals_lost: number; orders: number; calls: number }> = {};
         for (const o of activityOrders) {
-          const day = o.created_at.substring(0, 10);
+          const day = ST.skopjeYmd(o.created_at);
           if (!dailyBreakdown[day]) dailyBreakdown[day] = { leads: 0, deals_won: 0, deals_lost: 0, orders: 0, calls: 0 };
           dailyBreakdown[day].orders++;
           if (["confirmed", "shipped", "delivered", "paid"].includes(o.status)) dailyBreakdown[day].deals_won++;
           if (["returned", "cancelled", "trashed"].includes(o.status)) dailyBreakdown[day].deals_lost++;
         }
         for (const l of leads) {
-          const day = l.created_at.substring(0, 10);
+          const day = ST.skopjeYmd(l.created_at);
           if (!dailyBreakdown[day]) dailyBreakdown[day] = { leads: 0, deals_won: 0, deals_lost: 0, orders: 0, calls: 0 };
           dailyBreakdown[day].leads++;
         }
         for (const c of calls) {
-          const day = c.created_at.substring(0, 10);
+          const day = ST.skopjeYmd(c.created_at);
           if (!dailyBreakdown[day]) dailyBreakdown[day] = { leads: 0, deals_won: 0, deals_lost: 0, orders: 0, calls: 0 };
           dailyBreakdown[day].calls++;
         }
@@ -9828,27 +9818,28 @@ async function handleRequest(req: Request): Promise<Response> {
       const customFrom = url.searchParams.get("from");
       const customTo = url.searchParams.get("to");
 
+      // Skopje days throughout (the UTC "today" began at 02:00 Skopje in summer).
       const now = new Date();
-      const todayStr = now.toISOString().substring(0, 10);
+      const todayStr = ST.skopjeTodayYmd(now);
       const monthStart = todayStr.substring(0, 7) + "-01";
 
       let fromDate: string, toDate: string;
       if (customFrom && customTo) {
-        fromDate = customFrom + "T00:00:00Z";
-        toDate = customTo + "T23:59:59Z";
+        fromDate = ST.skopjeBound(customFrom, "start")!;
+        toDate = ST.skopjeBound(customTo, "end")!;
       } else if (period === "today") {
-        fromDate = todayStr + "T00:00:00Z";
+        fromDate = ST.skopjeMidnightIso(todayStr);
         toDate = now.toISOString();
       } else if (period === "yesterday") {
-        const y = new Date(now); y.setDate(y.getDate() - 1);
-        fromDate = y.toISOString().substring(0, 10) + "T00:00:00Z";
-        toDate = y.toISOString().substring(0, 10) + "T23:59:59Z";
+        const y = ST.addDaysYmd(todayStr, -1);
+        fromDate = ST.skopjeMidnightIso(y);
+        toDate = ST.skopjeDayEndIso(y);
       } else if (period === "all") {
         // "All time" — span everything so created_at-bounded queries are unbounded.
         fromDate = "1970-01-01T00:00:00Z";
         toDate = now.toISOString();
       } else {
-        fromDate = monthStart + "T00:00:00Z";
+        fromDate = ST.skopjeMidnightIso(monthStart);
         toDate = now.toISOString();
       }
 
@@ -9940,7 +9931,7 @@ async function handleRequest(req: Request): Promise<Response> {
       // === 3. DAILY REVENUE TREND (paid only, by created_at) ===
       const dailyRevenue: Record<string, { revenue: number; orders: number; leads: number }> = {};
       for (const o of periodOrders) {
-        const day = o.created_at.substring(0, 10);
+        const day = ST.skopjeYmd(o.created_at);
         if (!dailyRevenue[day]) dailyRevenue[day] = { revenue: 0, orders: 0, leads: 0 };
         dailyRevenue[day].orders++;
         if (o.status === "paid") dailyRevenue[day].revenue += Number(o.price || 0);
@@ -9952,7 +9943,7 @@ async function handleRequest(req: Request): Promise<Response> {
         return q;
       });
       for (const l of pLeads || []) {
-        const day = l.created_at.substring(0, 10);
+        const day = ST.skopjeYmd(l.created_at);
         if (!dailyRevenue[day]) dailyRevenue[day] = { revenue: 0, orders: 0, leads: 0 };
         dailyRevenue[day].leads++;
       }
@@ -9999,7 +9990,7 @@ async function handleRequest(req: Request): Promise<Response> {
       // Precise "daily operational activity": counts orders that had a real transition
       // (especially to 'paid' or 'returned') on this calendar day, per order_history.
       // This is what powers accurate "we processed these via BigArena file today".
-      const todayStart = todayStr + "T00:00:00Z";
+      const todayStart = ST.skopjeMidnightIso(todayStr);
       const historyToday = await paginate<any>(() =>
         adminClient.from("order_history")
           .select("order_id, to_status")
@@ -10917,8 +10908,10 @@ async function handleRequest(req: Request): Promise<Response> {
       // Admins/managers can see everyone.
       const isPersonalView = !isAdminOrManager;
 
-      const from = url.searchParams.get("from");
-      const to = url.searchParams.get("to");
+      // The SPA sends Skopje instants (BonusBlock); a bare YYYY-MM-DD is pinned
+      // to the Skopje day instead of being read as UTC midnight.
+      const from = ST.skopjeBound(url.searchParams.get("from"), "start");
+      const to = ST.skopjeBound(url.searchParams.get("to"), "end");
       // Earnings metrics (packages_sold, payout) window by paid_at by default.
       // date_basis=created_at keeps the legacy activity-window behaviour for all metrics.
       const dateBasis = url.searchParams.get("date_basis") === "created_at" ? "created_at" : "paid_at";
@@ -11799,7 +11792,7 @@ async function handleRequest(req: Request): Promise<Response> {
         const notes = body.notes ? String(body.notes).slice(0, 2000) : null;
         const paidOn = body.paid_on && /^\d{4}-\d{2}-\d{2}$/.test(body.paid_on)
           ? body.paid_on
-          : new Date().toISOString().slice(0, 10);
+          : ST.skopjeTodayYmd(); // the day it was handed over = today in Skopje (a label, not the window)
 
         const settled = await loadSettledOrderIds(agentId);
         const paidOrders = (await loadPaidOrdersForAgent(agentId, from, to))
@@ -12460,39 +12453,16 @@ async function handleRequest(req: Request): Promise<Response> {
       if (!canViewModule("call_activity")) return json({ error: "Forbidden" }, 403);
       const TZ = "Europe/Skopje";
 
-      // Minutes to ADD to UTC to get Skopje local time at the given instant
-      // (+120 winter / +180 summer). DST handled by the runtime via Intl.
-      const tzOffsetMinutes = (at: Date): number => {
-        const parts = new Intl.DateTimeFormat("en-US", {
-          timeZone: TZ, hour12: false,
-          year: "numeric", month: "2-digit", day: "2-digit",
-          hour: "2-digit", minute: "2-digit", second: "2-digit",
-        }).formatToParts(at);
-        const m: Record<string, string> = {};
-        for (const p of parts) m[p.type] = p.value;
-        let hh = m.hour; if (hh === "24") hh = "00";
-        const asUTC = Date.UTC(+m.year, +m.month - 1, +m.day, +hh, +m.minute, +m.second);
-        return Math.round((asUTC - at.getTime()) / 60000);
-      };
-
-      // Resolve the target day (YYYY-MM-DD) in Skopje local time; default today.
-      const skopjeToday = (() => {
-        const p = new Intl.DateTimeFormat("en-CA", {
-          timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit",
-        }).formatToParts(new Date());
-        const g = (t: string) => p.find((x) => x.type === t)?.value || "";
-        return `${g("year")}-${g("month")}-${g("day")}`;
-      })();
+      // The target day (YYYY-MM-DD) on the Skopje calendar; default today. An
+      // impossible date (2026-02-31) falls back to today too.
       const dateParam = url.searchParams.get("date");
-      const date = /^\d{4}-\d{2}-\d{2}$/.test(dateParam || "") ? dateParam! : skopjeToday;
-      const [yy, mm, dd] = date.split("-").map(Number);
+      const date = ST.isValidYmd(dateParam) ? dateParam : ST.skopjeTodayYmd();
 
-      // Skopje-local [00:00, 24:00) → UTC ISO bounds for the timestamptz filter.
-      // Probe at local noon to read the day's offset clear of DST edges.
-      const off = tzOffsetMinutes(new Date(Date.UTC(yy, mm - 1, dd, 12, 0, 0)));
-      const dayStartMs = Date.UTC(yy, mm - 1, dd, 0, 0, 0) - off * 60000;
-      const fromIso = new Date(dayStartMs).toISOString();
-      const toIso = new Date(dayStartMs + 24 * 60 * 60 * 1000).toISOString();
+      // Skopje-local [00:00, next 00:00) → UTC ISO bounds for the timestamptz filter.
+      // DST-exact (skopjeTime.ts): the noon probe + a fixed 24 h started 25.10 an
+      // hour late and cut its 25th hour, and started 29.03 an hour early.
+      const fromIso = ST.skopjeMidnightIso(date);
+      const toIso = ST.skopjeMidnightIso(ST.addDaysYmd(date, 1));
 
       // Non-managers are pinned to their own row; managers may filter to one.
       const agentFilterParam = url.searchParams.get("agent_id");
@@ -12604,8 +12574,10 @@ async function handleRequest(req: Request): Promise<Response> {
       // un-refreshed client keeps working.
       const resultFilter = url.searchParams.get("result") || url.searchParams.get("outcome");
       const sourceFilter = url.searchParams.get("source"); // prediction_lead | order
-      const from = url.searchParams.get("from");
-      const to = url.searchParams.get("to");
+      // The page sends Skopje days (YYYY-MM-DD): from = that day's 00:00, to = its
+      // last instant. A full ISO instant passes through.
+      const from = ST.skopjeBound(url.searchParams.get("from"), "start");
+      const to = ST.skopjeBound(url.searchParams.get("to"), "end");
       const search = url.searchParams.get("search");
       const page = parseInt(url.searchParams.get("page") || "1");
       const limit = parseInt(url.searchParams.get("limit") || "25");
@@ -15558,8 +15530,9 @@ async function handleRequest(req: Request): Promise<Response> {
     if (req.method === "GET" && path === "warehouse/incoming-orders") {
       if (!canViewModule("warehouse_incoming")) return json({ error: "Forbidden" }, 403);
       const agentFilter = url.searchParams.get("agent_id");
-      let from = url.searchParams.get("from");
-      let to = url.searchParams.get("to");
+      // A bare YYYY-MM-DD is a Skopje day; a full instant passes through.
+      let from = ST.skopjeBound(url.searchParams.get("from"), "start");
+      const to = ST.skopjeBound(url.searchParams.get("to"), "end");
       const productFilter = url.searchParams.get("product");
       const sourceFilter = url.searchParams.get("source"); // "order" | "prediction_lead" | null
       const all = url.searchParams.get("all") === "1" || url.searchParams.get("all") === "true";
@@ -19652,10 +19625,14 @@ async function handleRequest(req: Request): Promise<Response> {
       const granularity = useSql
         ? SQLROLL.rollup.granularity
         : (spanDays <= 92 ? "day" : spanDays <= 400 ? "week" : "month");
+      // Skopje days (01.10.2026; twin: insights_orders_rollup, 20260944000830) —
+      // the UTC slices filed every order of 00:00–02:00 Skopje under the day before.
       const bucketKey = (d: Date) => {
-        if (granularity === "day") return d.toISOString().slice(0, 10);
-        if (granularity === "month") return d.toISOString().slice(0, 7);
-        const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+        const ymd = ST.skopjeYmd(d);
+        if (granularity === "day") return ymd;
+        if (granularity === "month") return ymd.slice(0, 7);
+        const [by, bm, bd] = ymd.split("-").map(Number);
+        const t = new Date(Date.UTC(by, bm - 1, bd));
         const day = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() - day + 1);
         return t.toISOString().slice(0, 10);
       };

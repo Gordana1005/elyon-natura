@@ -7,21 +7,23 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { skopjeTodayLocal } from '@/lib/skopjeTime';
 
 // Shared date-range control for the Dashboard and Management Insights.
 // `from`/`to` are `YYYY-MM-DD`; both empty means "all time" (no bound).
 export interface DateRange { from: string; to: string }
 
 const iso = (d: Date) => format(d, 'yyyy-MM-dd');
-const today = () => iso(new Date());
+// Presets count back from SKOPJE's today, whatever the computer's clock says.
+const today = () => iso(skopjeTodayLocal());
 
 type PresetDef = { key: string; labelKey: string; range: () => DateRange };
 
 const todayRange = (): DateRange => ({ from: today(), to: today() });
 // Inclusive last-N-days (Today counts as day 1).
-const lastDays = (n: number): DateRange => ({ from: iso(subDays(new Date(), n - 1)), to: today() });
-const lastMonths = (n: number): DateRange => ({ from: iso(subMonths(new Date(), n)), to: today() });
-const lastYears = (n: number): DateRange => ({ from: iso(subYears(new Date(), n)), to: today() });
+const lastDays = (n: number): DateRange => ({ from: iso(subDays(skopjeTodayLocal(), n - 1)), to: today() });
+const lastMonths = (n: number): DateRange => ({ from: iso(subMonths(skopjeTodayLocal(), n)), to: today() });
+const lastYears = (n: number): DateRange => ({ from: iso(subYears(skopjeTodayLocal(), n)), to: today() });
 
 // Always-visible quick buttons.
 const QUICK: PresetDef[] = [

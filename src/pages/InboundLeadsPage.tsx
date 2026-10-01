@@ -216,7 +216,7 @@ export default function InboundLeadsPage() {
                   </td>
                   <td className="px-4 py-3 text-muted-foreground text-xs">{lead.source}</td>
                   <td className="px-4 py-3 text-muted-foreground text-xs">
-                    {formatDate(new Date(lead.created_at), 'MMM d, HH:mm')}
+                    {formatDate(lead.created_at, 'MMM d, HH:mm')}
                   </td>
                   <td className="px-4 py-3 text-right flex items-center justify-end gap-1">
                     <Button
@@ -289,7 +289,7 @@ export default function InboundLeadsPage() {
               </Select>
             </div>
             <MobileCardField label={t('ordersPage.colSource')} value={lead.source} />
-            <MobileCardField label={t('inbound.colReceived')} value={formatDate(new Date(lead.created_at), 'MMM d, HH:mm')} />
+            <MobileCardField label={t('inbound.colReceived')} value={formatDate(lead.created_at, 'MMM d, HH:mm')} />
             <MobileCardActions>
               <Button variant="outline" size="sm" className="gap-1.5 text-primary" onClick={() => convertToOrder(lead)}>
                 <ShoppingCart className="h-3.5 w-3.5" /> {t('inbound.convert')}

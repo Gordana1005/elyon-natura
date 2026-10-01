@@ -52,14 +52,16 @@ describe('MirrorTab', { timeout: 30_000 }, () => {
   it('a non-owner (manager) sees no price column', async () => {
     h.owner = false;
     wrap();
-    expect(await screen.findByText('Adenofrin')).toBeInTheDocument();
+    // the lead renders twice: the phone card (below md) and the table row (md+)
+    expect((await screen.findAllByText('Adenofrin')).length).toBeGreaterThan(0);
     expect(screen.queryByText(i18n.t('altercpa.colPrice'))).not.toBeInTheDocument();
   });
 
   it('an owner sees the price column', async () => {
     h.owner = true;
     wrap();
-    expect(await screen.findByText('Adenofrin')).toBeInTheDocument();
+    // the lead renders twice: the phone card (below md) and the table row (md+)
+    expect((await screen.findAllByText('Adenofrin')).length).toBeGreaterThan(0);
     expect(screen.getByText(i18n.t('altercpa.colPrice'))).toBeInTheDocument();
   });
 });

@@ -10,7 +10,7 @@ import {
   ChevronDown, ChevronRight, CreditCard, Hash,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { format } from 'date-fns';
+import { formatSkopje } from '@/lib/skopjeTime';
 import { formatDate } from '@/i18n/dates';
 import { statusLabel } from '@/types';
 import { formatMoney } from '@/lib/currency';
@@ -168,7 +168,7 @@ export function OrdersResultTable({ orders, orderHistory }: { orders: any[]; ord
                   const latestNoteText = cleanNoteForDisplay(latestNote?.text);
                   const tooltipBody = orderNotes.length > 0
                     ? orderNotes.map((n, i) => {
-                        const when = n.created_at ? format(new Date(n.created_at), 'dd MMM yyyy HH:mm') : '';
+                        const when = n.created_at ? formatSkopje(n.created_at, 'dd MMM yyyy HH:mm') : '';
                         const author = n.author_name || t('search.system');
                         const cleaned = cleanNoteForDisplay(n.text);
                         return `[${i + 1}] ${author} · ${when}\n${cleaned}`;
@@ -245,7 +245,7 @@ export function OrdersResultTable({ orders, orderHistory }: { orders: any[]; ord
                           );
                         })()}
                         <td className="py-2 px-3 text-right text-muted-foreground whitespace-nowrap">
-                          {format(new Date(order.created_at), 'dd/MM/yy HH:mm')}
+                          {formatSkopje(order.created_at, 'dd/MM/yy HH:mm')}
                         </td>
                       </tr>
 
@@ -325,7 +325,7 @@ export function OrdersResultTable({ orders, orderHistory }: { orders: any[]; ord
                                         <div key={i} className="rounded border bg-background p-2 text-[11px]">
                                           <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-0.5">
                                             <span>{n.author_name || t('search.system')}</span>
-                                            <span>{n.created_at ? format(new Date(n.created_at), 'dd/MM/yy HH:mm') : ''}</span>
+                                            <span>{n.created_at ? formatSkopje(n.created_at, 'dd/MM/yy HH:mm') : ''}</span>
                                           </div>
                                           <div className="whitespace-pre-wrap">{cleanNoteForDisplay(n.text)}</div>
                                         </div>
@@ -342,7 +342,7 @@ export function OrdersResultTable({ orders, orderHistory }: { orders: any[]; ord
                                     <div className="space-y-1 max-h-[160px] overflow-y-auto pr-1">
                                       {history.map((h) => (
                                         <div key={h.id} className="text-[11px] flex items-center gap-2 flex-wrap">
-                                          <span className="text-muted-foreground tabular-nums">{format(new Date(h.changed_at), 'dd/MM HH:mm')}</span>
+                                          <span className="text-muted-foreground tabular-nums">{formatSkopje(h.changed_at, 'dd/MM HH:mm')}</span>
                                           {h.from_status && (
                                             <>
                                               <span className={cn('px-1 rounded text-[10px]', STATUS_TONE[h.from_status] || 'bg-muted')}>{statusLabel(h.from_status)}</span>

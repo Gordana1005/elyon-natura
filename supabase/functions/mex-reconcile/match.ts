@@ -68,14 +68,51 @@ export interface OrderRow {
   mex_sent_at?: string | null;
 }
 
-/** MEX timestamps are Skopje local ("YYYY-MM-DD HH:MM:SS"). +02:00 is exact in
- * summer and one hour off in winter — acceptable for settlement dates, and
- * consistent with the CSV reconciliation that established the baseline.
+/** Europe/Skopje wall clock minus UTC at an instant (+1 h winter, +2 h summer). */
+const SKOPJE_PARTS = new Intl.DateTimeFormat("en-US", {
+  timeZone: "Europe/Skopje", hourCycle: "h23",
+  year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit",
+});
+function skopjeOffsetMs(ms: number): number {
+  const t = Math.floor(ms / 1000) * 1000;
+  const p: Record<string, string> = {};
+  for (const x of SKOPJE_PARTS.formatToParts(new Date(t))) p[x.type] = x.value;
+  return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour % 24, +p.minute, +p.second) - t;
+}
+
+/** The Skopje calendar day (YYYY-MM-DD) of an instant — MEX's own calendar
+ * (its updated_from / created dates are Skopje days, not UTC ones). */
+export function skopjeYmd(at: Date | number = new Date()): string {
+  const ms = at instanceof Date ? at.getTime() : at;
+  const p: Record<string, string> = {};
+  for (const x of SKOPJE_PARTS.formatToParts(new Date(ms))) p[x.type] = x.value;
+  return `${p.year}-${p.month}-${p.day}`;
+}
+
+const MEX_TS_RE = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?$/;
+
+/** MEX timestamps are Skopje local ("YYYY-MM-DD HH:MM:SS"). Converted at the
+ * offset Skopje had AT that moment — CET +01:00 in winter, CEST +02:00 in summer
+ * — exactly like the SQL twin mex_parse_ts (… AT TIME ZONE 'Europe/Skopje'), so
+ * orders.paid_at / returned_at / shipped_at and mex_parcels.* agree. (Until
+ * 01.10.2026 this was a fixed +02:00: from 25.10 every winter stamp would have
+ * been an hour early, and a delivery at 00:30 dated the day before.)
  * Unparseable → null (an Invalid Date would throw at toISOString()). */
 export function mexDate(s: string | null | undefined): Date | null {
   if (!s) return null;
-  const d = new Date(String(s).replace(" ", "T") + "+02:00");
-  return Number.isNaN(d.getTime()) ? null : d;
+  const m = MEX_TS_RE.exec(String(s).trim());
+  if (!m) return null;
+  const [y, mo, d, h, mi, sec] = [m[1], m[2], m[3], m[4], m[5], m[6] ?? "0"].map(Number);
+  const ms = m[7] ? Math.floor(Number(`0.${m[7]}`) * 1000) : 0;
+  const wall = Date.UTC(y, mo - 1, d, h, mi, sec, ms);
+  if (!Number.isFinite(wall)) return null;
+  const check = new Date(wall);
+  if (check.getUTCFullYear() !== y || check.getUTCMonth() !== mo - 1 || check.getUTCDate() !== d
+      || check.getUTCHours() !== h || check.getUTCMinutes() !== mi) return null;   // 2026-02-31, 25:00
+  let t = wall - skopjeOffsetMs(wall);
+  const off = skopjeOffsetMs(t);
+  if (wall - off !== t) t = wall - off;
+  return new Date(t);
 }
 
 /** Local MK number (070…, 70…, 38970…) → E.164 the way every order stores it. */

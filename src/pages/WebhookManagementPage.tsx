@@ -28,7 +28,7 @@ import {
   Megaphone, Play, Pause, Banknote, MousePointerClick, Target, Search,
   ChevronDown, ChevronRight, BarChart3,
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { formatSkopje } from '@/lib/skopjeTime';
 import { cn } from '@/lib/utils';
 import { formatDayDmy } from '@/i18n/dates';
 import { denToEur, formatMoney } from '@/lib/currency';
@@ -174,7 +174,7 @@ function WebhooksTab() {
                   <td className="px-4 py-3"><div className="flex items-center gap-2"><code className="text-xs font-mono bg-muted px-2 py-1 rounded truncate max-w-[280px] block">{getWebhookUrl(wh.slug)}</code><Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => copyUrl(wh.slug)}><Copy className="h-3.5 w-3.5" /></Button></div></td>
                   <td className="px-4 py-3"><Badge variant={wh.status === 'active' ? 'default' : 'secondary'} className={cn('text-xs', wh.status === 'active' ? 'bg-[hsl(var(--success))]/15 text-[hsl(var(--success))] border-[hsl(var(--success))]/30' : 'bg-muted text-muted-foreground')}>{wh.status === 'active' ? t('webhooks.statusActive') : t('webhooks.statusDisabled')}</Badge></td>
                   <td className="px-4 py-3 font-semibold">{wh.total_leads || 0}</td>
-                  <td className="px-4 py-3 text-muted-foreground text-xs">{format(new Date(wh.created_at), 'MMM d, yyyy')}</td>
+                  <td className="px-4 py-3 text-muted-foreground text-xs">{formatSkopje(wh.created_at, 'MMM d, yyyy')}</td>
                   <td className="px-4 py-3 text-right"><div className="flex items-center justify-end gap-1"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(wh)}><Pencil className="h-3.5 w-3.5" /></Button><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10" onClick={() => setDeleteId(wh.id)}><Trash2 className="h-3.5 w-3.5" /></Button></div></td>
                 </tr>
               ))}

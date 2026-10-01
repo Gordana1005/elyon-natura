@@ -6,7 +6,7 @@ import { Copy, Inbox, Loader2 } from 'lucide-react';
 import { SmartPagination } from '@/components/SmartPagination';
 import { EmptyState } from '@/components/EmptyState';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
+import { formatSkopje } from '@/lib/skopjeTime';
 import { cn } from '@/lib/utils';
 import type { AffiliatePortalLead } from '@/lib/api';
 import { AFFILIATE_STAGES, normalizeStage, stageBadgeClass } from './affiliateStage';
@@ -111,7 +111,7 @@ export function AffiliateLeadsTable({
                 return (
                   <tr key={l.id} className="border-b last:border-0 hover:bg-muted/20 transition-colors">
                     <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                      {format(new Date(l.created_at), 'MMM d, HH:mm')}
+                      {formatSkopje(l.created_at, 'MMM d, HH:mm')}
                     </td>
                     <td className="px-4 py-3 font-mono text-xs">{l.ext_id || '—'}</td>
                     <td className="px-4 py-3 font-mono text-xs truncate max-w-[140px]" title={l.clickid || ''}>{l.clickid || '—'}</td>

@@ -458,7 +458,10 @@ collabBox order keeps its system confirmer `System (collabbox-sync)` and SHOWS i
    five types (10036 · 10050 · 10111 · 10114 · 10106) in `collabbox_booked_today()` AND in its
    copy inside `leaderboard_day_v2` (the `bkd` CTE; `day_totals.checks.bookings_filter_drift` must
    stay 0) — a new type that sellers book during the day goes into both. The board counts a booking
-   only when `collabbox_doc_role()` = `order` (see `elyon-presence-and-leaderboard`).
+   only when `collabbox_doc_role()` = `order` (see `elyon-presence-and-leaderboard`). A collabBox
+   sale's DAY is its booking day (`collabbox_sale_at(doc_at, booked_at)`, owner 01.10.2026 — never
+   `doc_at` directly, that is the dispatch day); the department is still the folder's
+   (`elyon-collabbox-sync` "The booking day").
 5. **Existing orders** — type them (`backfill-collabbox-doc-types.mjs`), extend
    `reclass-by-folder.mjs` `TARGET`, dry run, apply in the quiet window, refresh the profit cache,
    run the ties.

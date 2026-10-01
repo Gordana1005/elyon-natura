@@ -290,6 +290,7 @@ import { cn } from '@/lib/utils';
 import { formatMoney } from '@/lib/currency';
 import { activityText } from '@/lib/activityFeed';
 import { EmptyState } from '@/components/EmptyState';
+import { addDays } from '@/components/insights/shared/period';
 
 // Macedonia shows denars only. Routed through the shared helper so this page
 // can never drift from the rest of the app's money formatting.
@@ -304,7 +305,7 @@ export default function Dashboard() {
   const { user } = useAuth();
   const isAdmin = user?.isAdmin;
   const [agentPeriod, setAgentPeriod] = useState<'today' | 'month' | 'start' | 'custom'>('today');
-  // Day browsing (◀ ▶): UTC day string, matching the backend's UTC window math.
+  // Day browsing (◀ ▶): a Skopje day string (the variable keeps its old name).
   // The agent's "today" is the Skopje calendar day, matching the window the API
   // now resolves. Reading it off the UTC clock made the ◀ ▶ navigator and the
   // server disagree for the first two hours of every Macedonian day.
@@ -411,7 +412,9 @@ export default function Dashboard() {
     const returnsOrders = stats?.returns_orders ?? stats?.statusCounts?.returned ?? 0;
     const packagesReturned = stats?.packages_returned ?? 0;
     // Day navigator: past days only — ▶ is disabled once we're back at today.
-    const yesterdayUtc = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+    // Yesterday on the SKOPJE calendar (a UTC 24 h-ago date had no "Yesterday" label
+    // 00:00–02:00 Skopje, and labelled the wrong day).
+    const yesterdayUtc = addDays(todayUtc, -1);
     const dayLabel = agentDate === todayUtc
       ? t('dashboard.today')
       : agentDate === yesterdayUtc

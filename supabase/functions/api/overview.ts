@@ -20,6 +20,10 @@
 //                          20260936000000). Change one → change the other.
 // ============================================================================
 
+import {
+  addDaysYmd, daysInclusive, isValidYmd, skopjeDayEndIso, skopjeMidnightIso, skopjeTodayYmd,
+} from "./skopjeTime.ts";
+
 /** The six departments in the owner's display order (28.09.2026 — 20260942000500,
  *  20260942001000). */
 export const OVERVIEW_SOURCES = ["altercpa", "elyon_crm", "teleshop_out", "teleshop_other", "social", "web"] as const;
@@ -30,80 +34,17 @@ export const SALE_SOURCES = ["altercpa", "web", "elyon_crm", "collabbox", "affil
 /** insights_pivot dimensions (migration 20260936000000). */
 export const PIVOT_DIMENSIONS = ["source", "detail", "team", "person", "list", "webmaster", "stream", "product", "city"] as const;
 
-const YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** A sale_source_detail value we are willing to put into a PostgREST filter. */
 const DETAIL_RE = /^[a-z0-9_.\-]{1,40}$/i;
 const MAX_WINDOW_DAYS = 731;
 
 // ── Skopje calendar ─────────────────────────────────────────────────────────
+// One implementation for the whole api: skopjeTime.ts (DST-exact). Re-exported
+// here under the names the Overview, the orders list and the insights modules
+// have always imported.
 
-const SKOPJE_PARTS = new Intl.DateTimeFormat("en-US", {
-  timeZone: "Europe/Skopje", hourCycle: "h23",
-  year: "numeric", month: "2-digit", day: "2-digit",
-  hour: "2-digit", minute: "2-digit", second: "2-digit",
-});
-
-function skopjeParts(ms: number) {
-  const p: Record<string, string> = {};
-  for (const x of SKOPJE_PARTS.formatToParts(new Date(ms))) p[x.type] = x.value;
-  return { y: +p.year, mo: +p.month, d: +p.day, h: +p.hour % 24, mi: +p.minute, s: +p.second };
-}
-
-/** Skopje wall clock minus UTC at an instant: +1 h in winter, +2 h in summer. */
-function skopjeOffsetMs(ms: number): number {
-  const t = Math.floor(ms / 1000) * 1000;
-  const p = skopjeParts(t);
-  return Date.UTC(p.y, p.mo - 1, p.d, p.h, p.mi, p.s) - t;
-}
-
-/** A Skopje wall-clock time → the UTC epoch ms it names. DST-exact, including
- *  the two changeover days (a noon probe gets their midnight wrong by 1 h). */
-function skopjeWallToUtcMs(y: number, mo: number, d: number, h = 0, mi = 0): number {
-  const wall = Date.UTC(y, mo - 1, d, h, mi, 0);
-  let t = wall - skopjeOffsetMs(wall);
-  const off = skopjeOffsetMs(t);
-  if (wall - off !== t) t = wall - off;
-  return t;
-}
-
-export function isValidYmd(s: unknown): s is string {
-  if (typeof s !== "string" || !YMD_RE.test(s)) return false;
-  const [y, m, d] = s.split("-").map(Number);
-  const dt = new Date(Date.UTC(y, m - 1, d));
-  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
-}
-
-export function addDaysYmd(ymd: string, n: number): string {
-  const [y, m, d] = ymd.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
-}
-
-/** Calendar days from `from` to `to`, both inclusive (1 for a single day). */
-export function daysInclusive(from: string, to: string): number {
-  const a = Date.parse(from + "T00:00:00Z");
-  const b = Date.parse(to + "T00:00:00Z");
-  return Math.round((b - a) / 86_400_000) + 1;
-}
-
-export function skopjeTodayYmd(now: Date = new Date()): string {
-  const p = skopjeParts(now.getTime());
-  return `${p.y}-${String(p.mo).padStart(2, "0")}-${String(p.d).padStart(2, "0")}`;
-}
-
-/** Skopje 00:00 of a calendar day, as a UTC ISO instant. */
-export function skopjeMidnightIso(ymd: string): string {
-  const [y, m, d] = ymd.split("-").map(Number);
-  return new Date(skopjeWallToUtcMs(y, m, d)).toISOString();
-}
-
-/** The LAST instant of a Skopje calendar day (23:59:59.999999 local) as a UTC
- *  ISO string with microseconds. Used as an inclusive `<=` bound, it leaves no
- *  gap before the next day's midnight (a …59.000 bound drops the final second). */
-export function skopjeDayEndIso(ymd: string): string {
-  const next = Date.parse(skopjeMidnightIso(addDaysYmd(ymd, 1)));
-  return new Date(next - 1).toISOString().replace(/Z$/, "999Z");
-}
+export { addDaysYmd, daysInclusive, isValidYmd, skopjeDayEndIso, skopjeMidnightIso, skopjeTodayYmd };
 
 // ── windows ─────────────────────────────────────────────────────────────────
 

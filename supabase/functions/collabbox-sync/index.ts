@@ -26,6 +26,12 @@
  *   5. public.collabbox_apply_documents() in batches of 40 — THE writer (orders, conflicts, credits,
  *      the ledger, the run counters); public.collabbox_close_window() per fully read day (documents
  *      deleted in collabBox); public.collabbox_retry_open() (open rows of the last 14 days).
+ * AHEAD (the frequent pass: `ahead_days: 14` with a window ending today, 20260944000500) — after the
+ *   window's days, ONE header search + ONE line-items request for the documents DATED tomorrow …
+ *   today + 14: collabBox dates a document on its dispatch day, so a sale booked today for dispatch
+ *   in five days is read within 15 minutes of booking and the ledger records WHEN it was booked
+ *   (collabbox_documents.booked_at, owner 01.10.2026: "the day the operator entered it counts").
+ *   The run row's ahead_to records the range read (the 'seen' rule of collabbox_estimate_booked_at).
  * LIVE — today's headers of 10036 · 10050 · 10111 · 10114 · 10106 → public.collabbox_record_booked()
  *   ('booked' ledger rows; ≤ 10 requests); public.collabbox_booked_today() serves the leaderboard.
  *
@@ -39,10 +45,10 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { CollabboxClient, RequestCapError } from "./client.ts";
 import type { FetchLike } from "./client.ts";
 import {
-  LIVE_TYPES, NIGHTLY_TYPES, bookedHeader, buildCatalogue, buildDocuments, chunk, dayRange, isOrderRole,
+  LIVE_TYPES, NIGHTLY_TYPES, aheadRange, bookedHeader, buildCatalogue, buildDocuments, chunk, dayRange, isOrderRole,
   komitentCard, pairStornos, parseRequest, redact, skopjeDate, summarizeResults, toDmy,
 } from "./collabbox.ts";
-import type { AliasRow, ApplyResult, Catalogue, KomitentCard, ProductRow, SyncDoc, SyncRequest } from "./collabbox.ts";
+import type { AliasRow, ApplyResult, Catalogue, ItemRow, KomitentCard, ProductRow, SyncDoc, SyncRequest } from "./collabbox.ts";
 
 const BATCH = 40;                      // documents per writer call (service_role statement_timeout 30 s)
 const MAX_REQUESTS_FULL = 100;         // collabBox requests per nightly / manual run
@@ -111,22 +117,35 @@ const timeLeft = (c: Ctx) => c.budgetMs - elapsed(c);
 
 async function finishRun(c: Ctx, status: string, error: string | null, fields: Record<string, unknown> = {}) {
   if (!c.runId) return;
-  const { error: e } = await c.admin.from("collabbox_sync_runs").update({
+  const row = {
     status, error: error ? error.slice(0, 500) : null,
     warning: c.warnings.length ? c.warnings.join("; ").slice(0, 500) : null,
     requests: c.client.requests, finished_at: new Date().toISOString(), duration_ms: elapsed(c), ...fields,
-  }).eq("id", c.runId);
+  };
+  let { error: e } = await c.admin.from("collabbox_sync_runs").update(row).eq("id", c.runId);
+  if (e && "ahead_to" in row && /ahead_to/.test(e.message)) {
+    // deployed before migration 20260944000500 (no ahead_to column yet): close the run without it,
+    // never leave it 'running' (that would block every pass for 20 minutes)
+    const { ahead_to: _skip, ...rest } = row as Record<string, unknown>;
+    ({ error: e } = await c.admin.from("collabbox_sync_runs").update(rest).eq("id", c.runId));
+  }
   if (e) console.error("collabbox-sync: could not close the run:", e.message);
 }
 
 // ── NIGHTLY / MANUAL ──────────────────────────────────────────────────────────
-async function runFull(c: Ctx, window: { from: string; to: string }) {
+async function runFull(c: Ctx, window: { from: string; to: string }, today: string) {
   const days = dayRange(window.from, window.to);
   const dayStats: Record<string, unknown>[] = [];
   const docs: SyncDoc[] = [];
   const seenByDay = new Map<string, string[]>();
   let linesRead = 0;
   let stopped: string | null = null;
+  // the ahead range (frequent pass, 20260944000500): documents DATED after today are booked already —
+  // collabBox dates a document on its dispatch day — so they are read every 15 minutes too, and the
+  // ledger learns WHEN each was booked (collabbox_documents.booked_at)
+  const ahead = aheadRange(window.to, today, c.req.ahead);
+  let aheadStats: Record<string, unknown> | null = null;
+  let aheadRead: { from: string; to: string } | null = null;
 
   const cat = await loadCatalogue(c.admin);
   await c.client.login();
@@ -170,6 +189,44 @@ async function runFull(c: Ctx, window: { from: string; to: string }) {
     if (stopped) break;
   }
   if (!seenByDay.size) throw new Error(stopped ?? "no day could be read");
+
+  // ONE header search for the whole ahead range and ONE line-items request for it (same request
+  // shapes as a day, never more); the days of the window come first, the ahead range only when
+  // there is time and request budget left
+  if (ahead && !stopped) {
+    if (timeLeft(c) < APPLY_RESERVE_MS + 20_000 || c.client.remaining < 2) {
+      c.warnings.push(`ahead ${ahead.from}..${ahead.to} not read (${timeLeft(c) < APPLY_RESERVE_MS + 20_000 ? "time budget" : "request cap"})`);
+    } else {
+      try {
+        const headers = await c.client.searchHeaders(NIGHTLY_TYPES, toDmy(ahead.from), toDmy(ahead.to));
+        let items: ItemRow[] | null = [];
+        let itemsError: string | null = null;
+        if (headers.rows.length) {
+          try {
+            items = await c.client.searchItems(NIGHTLY_TYPES, toDmy(ahead.from), toDmy(ahead.to));
+          } catch (e) {
+            items = null;
+            itemsError = errText(e);
+            c.warnings.push(`line items of ahead ${ahead.from}..${ahead.to} not read: ${itemsError}`);
+          }
+        }
+        const built = buildDocuments(headers.rows, items, cat, null);
+        linesRead += items?.length ?? 0;
+        const known = new Set(docs.map((d) => d.doc_number));
+        const fresh = built.docs.filter((d) => !known.has(d.doc_number) && d.day > window.to && d.day <= ahead.to);
+        docs.push(...fresh);
+        for (const d of fresh) (seenByDay.get(d.day) ?? seenByDay.set(d.day, []).get(d.day)!).push(d.doc_number);
+        aheadRead = ahead;   // the headers were read: every booking dated in the range is now seen
+        aheadStats = {
+          from: ahead.from, to: ahead.to, headers: headers.rows.length, items: items?.length ?? null, items_error: itemsError,
+          documents: fresh.length, items_without_header: built.warnings.items_without_header,
+          duplicate_doc_numbers: built.warnings.duplicate_doc_numbers,
+        };
+      } catch (e) {
+        c.warnings.push(`ahead ${ahead.from}..${ahead.to}: ${errText(e)}`);
+      }
+    }
+  }
   if (stopped) c.warnings.push(stopped);
 
   const stornoPairs = pairStornos(docs);
@@ -244,11 +301,11 @@ async function runFull(c: Ctx, window: { from: string; to: string }) {
   const summary = summarizeResults(results, byNumber);
   const retrySummary = summarizeResults(retry);
   const stats = {
-    window, days: dayStats, komitenti, storno_pairs: stornoPairs.filter((p) => p.original || p.candidates !== 1),
+    window, days: dayStats, ahead: aheadStats, komitenti, storno_pairs: stornoPairs.filter((p) => p.original || p.candidates !== 1),
     ...summary, retry: { outcomes: retrySummary.outcomes, reasons: retrySummary.reasons, created: retrySummary.created },
     vanished, slowest_ms: c.client.slowestMs, logins: c.client.logins, warnings: c.warnings,
   };
-  return { status: stopped ? "partial" : "ok", docs, results, retry, stats, linesRead, komitenti };
+  return { status: stopped ? "partial" : "ok", docs, results, retry, stats, linesRead, komitenti, aheadRead };
 }
 
 // ── LIVE ──────────────────────────────────────────────────────────────────────
@@ -345,14 +402,16 @@ Deno.serve(async (req: Request) => {
           headers: out.headers.length, by_type: out.byType, booked: out.booked,
           ...(r.dry ? { plan: out.headers } : {}) });
       }
-      const out = await runFull(c, window);
+      const out = await runFull(c, window, today);
       await finishRun(c, out.status, null, {
         fetched: out.docs.length, lines_read: out.linesRead, komitenti_fetched: out.komitenti.read, stats: out.stats,
+        // the ahead range this pass READ (its bookings are seen; collabbox_estimate_booked_at's 'seen' rule)
+        ...(out.aheadRead ? { ahead_to: out.aheadRead.to } : {}),
       });
       console.log(`collabbox-sync ${kind}: ${out.status} ${window.from}..${window.to} docs=${out.docs.length} ` +
         `requests=${c.client.requests} outcomes=${JSON.stringify(out.stats.outcomes)}`);
       return json({
-        ...out.stats, ok: true, mode: kind, dry: r.dry, run_id: runId, status: out.status, window,
+        ...out.stats, ok: true, mode: kind, dry: r.dry, run_id: runId, status: out.status, window, ahead_read: out.aheadRead,
         requests: c.client.requests, fetched: out.docs.length, lines_read: out.linesRead,
         ...(r.dry ? { plan: out.results, retry_plan: out.retry } : {}),
       });

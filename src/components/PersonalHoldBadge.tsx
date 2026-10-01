@@ -32,7 +32,7 @@ export function PersonalHoldBadge({ phone, compact, className }: Props) {
 
   if (!hold) return null;
   const mine = hold.agent_id === user?.id;
-  const expiresLabel = hold.expires_at ? formatDate(new Date(hold.expires_at), 'd MMM') : '';
+  const expiresLabel = hold.expires_at ? formatDate(hold.expires_at, 'd MMM') : '';
 
   const tone = mine
     ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200'
@@ -57,10 +57,10 @@ export function PersonalHoldBadge({ phone, compact, className }: Props) {
           <div className="font-semibold">{mine ? t('personalList.heldByYou') : t('personalList.heldBy', { name: hold.agent_name })}</div>
           <div className="opacity-80 mt-1 whitespace-pre-wrap">{hold.reason}</div>
           {hold.follow_up_by && (
-            <div className="opacity-60 mt-1">{t('personalList.followUpBy', { date: formatDate(new Date(hold.follow_up_by), 'd MMM yyyy') })}</div>
+            <div className="opacity-60 mt-1">{t('personalList.followUpBy', { date: formatDate(hold.follow_up_by, 'd MMM yyyy') })}</div>
           )}
           <div className="opacity-60 mt-1">
-            {t('personalList.expiresAt', { date: hold.expires_at ? formatDate(new Date(hold.expires_at), 'd MMM yyyy HH:mm') : '—' })}
+            {t('personalList.expiresAt', { date: hold.expires_at ? formatDate(hold.expires_at, 'd MMM yyyy HH:mm') : '—' })}
           </div>
         </TooltipContent>
       </Tooltip>

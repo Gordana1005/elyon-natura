@@ -539,8 +539,9 @@ export interface BuildWarnings { items_without_header: number; duplicate_doc_num
 /**
  * One day's headers (+ its line items, or null when they could not be read) → the documents the
  * writer receives. A DocNumber that appears twice is kept once and flagged (never an order).
+ * `day` null = a range read in one page (the ahead range): each document's day is its own date.
  */
-export function buildDocuments(headers: HeaderRow[], items: ItemRow[] | null, cat: Catalogue | null, day: string):
+export function buildDocuments(headers: HeaderRow[], items: ItemRow[] | null, cat: Catalogue | null, day: string | null):
   { docs: SyncDoc[]; warnings: BuildWarnings } {
   const linesBy = new Map<string, DocLine[]>();
   for (const it of items ?? []) {
@@ -560,7 +561,7 @@ export function buildDocuments(headers: HeaderRow[], items: ItemRow[] | null, ca
     seen.set(docNumber, {
       doc_number: docNumber, doc_id: h.docId, object_id: h.objectId, type_id: String(h.typeId), type_name: h.typeName || null,
       role: docRole(h.typeId), komitent_id: h.customerId, komitent_name: h.customerName ? cleanName(h.customerName) : null,
-      amount_mkd: h.amount, currency: h.currency, doc_at: h.datetime, day,
+      amount_mkd: h.amount, currency: h.currency, doc_at: h.datetime, day: day ?? h.datetime.slice(0, 10),
       author: h.author ? h.author.replace(/\s+/g, " ").trim() || null : null,
       lines, lines_complete: items !== null, storno: isStorno(h.amount, lines),
       reverses: null, reversed_by: null, flags: [], name_skip: verdict.skip, name_flags: verdict.flags, komitent: null,
@@ -625,12 +626,28 @@ export type SyncMode = "nightly" | "live" | "manual";
 export interface SyncRequest {
   mode: SyncMode; dry: boolean; from: string | null; to: string | null; days: number;
   trigger: "cron" | "manual"; background: boolean;
+  /** days AFTER today read in ONE header search + ONE line-items request (0 = none) */
+  ahead: number;
 }
 export const MAX_WINDOW_DAYS = 14;
+/** How far ahead a pass may read (owner 01.10.2026: a booking counts the day it is booked, and
+ *  collabBox dates it on its DISPATCH day — up to two weeks later). */
+export const MAX_AHEAD_DAYS = 14;
+/**
+ * The ahead range of a pass: the days after its window, (to, to + aheadDays], read in one page.
+ * Only for a window that ends TODAY (the frequent pass: yesterday + today) — a past window has no
+ * "ahead". null = nothing to read.
+ */
+export function aheadRange(to: string | null, todayYmd: string, aheadDays: number): { from: string; to: string } | null {
+  if (!to || to !== todayYmd || !Number.isInteger(aheadDays) || aheadDays < 1) return null;
+  return { from: addDays(to, 1), to: addDays(to, Math.min(aheadDays, MAX_AHEAD_DAYS)) };
+}
 /**
  * The body contract:
  *   { mode: 'nightly' | 'live' | 'manual' (default manual), dry_run?: true,
  *     from?: 'YYYY-MM-DD', to?: 'YYYY-MM-DD' (manual only; ≤ 14 days, not after today),
+ *     ahead_days?: 1–14 (manual only, the window must end today: also read the documents DATED the
+ *       next N days — booked already, dispatched later; 20260944000500),
  *     days?: 1–14 (the nightly window, default 3), trigger?: 'cron', wait?: true }
  * A run that WRITES orders (nightly / manual, not dry) answers 202 at once and works in the
  * background — the writer batches and card lookups can outlast a synchronous answer (~150 s);
@@ -658,8 +675,15 @@ export function parseRequest(body: unknown, todayYmd: string): { ok: true; req: 
     if (to > todayYmd) return { ok: false, error: "to is in the future" };
     if (dayRange(from, to).length > MAX_WINDOW_DAYS) return { ok: false, error: `at most ${MAX_WINDOW_DAYS} days per run` };
   }
+  let ahead = 0;
+  if (b.ahead_days !== undefined && b.ahead_days !== null && b.ahead_days !== 0) {
+    const n = Number(b.ahead_days);
+    if (!Number.isInteger(n) || n < 1 || n > MAX_AHEAD_DAYS) return { ok: false, error: `ahead_days must be 1–${MAX_AHEAD_DAYS}` };
+    if (mode !== "manual" || to !== todayYmd) return { ok: false, error: "ahead_days needs a manual window that ends today" };
+    ahead = n;
+  }
   const background = !dry && mode !== "live" && b.wait !== true;
-  return { ok: true, req: { mode, dry, from, to, days, trigger, background } };
+  return { ok: true, req: { mode, dry, from, to, days, trigger, background, ahead } };
 }
 
 // ─── batching and the run summary ───────────────────────────────────────────

@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
+import { formatSkopje } from '@/lib/skopjeTime';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/contexts/PermissionsContext';
 import { STATUS_COLORS as ORDER_STATUS_COLORS, statusLabel } from '@/types';
@@ -177,7 +178,7 @@ export default function CallHistoryPage() {
   const isListened = (log: any) => !!log.listened_at || locallyListened.has(log.id);
   const listenedTitle = (log: any) =>
     log.listened_by_name
-      ? t('orderCalls.listenedBy', { name: log.listened_by_name, date: log.listened_at ? format(new Date(log.listened_at), 'dd/MM/yy HH:mm') : '' })
+      ? t('orderCalls.listenedBy', { name: log.listened_by_name, date: log.listened_at ? formatSkopje(log.listened_at, 'dd/MM/yy HH:mm') : '' })
       : t('orderCalls.listened');
 
   // Recordings stream on demand from the PBX via a short-lived signed URL.
@@ -228,8 +229,11 @@ export default function CallHistoryPage() {
       agent_id: agentFilter !== 'all' ? agentFilter : undefined,
       result: resultFilter !== 'all' ? resultFilter : undefined,
       source: sourceFilter !== 'all' ? sourceFilter : undefined,
-      from: dateFrom ? dateFrom.toISOString() : undefined,
-      to: dateTo ? dateTo.toISOString() : undefined,
+      // The picked calendar days, as Skopje days (the api turns them into that day's 00:00
+      // and its last instant). An ISO of the pick was the browser's midnight, and `to` cut
+      // off the whole picked day.
+      from: dateFrom ? format(dateFrom, 'yyyy-MM-dd') : undefined,
+      to: dateTo ? format(dateTo, 'yyyy-MM-dd') : undefined,
       page,
       limit,
     }),
@@ -383,8 +387,8 @@ export default function CallHistoryPage() {
                       </button>
                     </TableCell>
                     <TableCell className="text-sm whitespace-nowrap">
-                      {format(new Date(log.created_at), 'dd/MM/yyyy')}<br />
-                      <span className="text-xs text-muted-foreground">{format(new Date(log.created_at), 'HH:mm')}</span>
+                      {formatSkopje(log.created_at, 'dd/MM/yyyy')}<br />
+                      <span className="text-xs text-muted-foreground">{formatSkopje(log.created_at, 'HH:mm')}</span>
                     </TableCell>
                     <TableCell>
                       <div>
@@ -530,7 +534,7 @@ export default function CallHistoryPage() {
                 </div>
                 <div>
                   <span className="text-[10px] uppercase tracking-wider text-muted-foreground block">{t('callHist.ended')}</span>
-                  <span className="text-xs">{log.ended_at ? format(new Date(log.ended_at), 'dd/MM HH:mm') : '—'}</span>
+                  <span className="text-xs">{log.ended_at ? formatSkopje(log.ended_at, 'dd/MM HH:mm') : '—'}</span>
                 </div>
               </div>
 
@@ -581,7 +585,7 @@ export default function CallHistoryPage() {
                     {log.status_history.map((h: any, idx: number) => (
                       <div key={idx} className="flex items-center gap-2 text-xs">
                         <span className="text-muted-foreground w-[100px] shrink-0">
-                          {format(new Date(h.changed_at), 'dd/MM/yy HH:mm')}
+                          {formatSkopje(h.changed_at, 'dd/MM/yy HH:mm')}
                         </span>
                         {h.from_status && (
                           <>
@@ -643,7 +647,7 @@ export default function CallHistoryPage() {
                     return <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap', r.className)}>{r.label}</span>;
                   })()}
                 />
-                <MobileCardField label={t('callHist.when')} value={format(new Date(log.created_at), 'dd/MM/yyyy HH:mm')} />
+                <MobileCardField label={t('callHist.when')} value={formatSkopje(log.created_at, 'dd/MM/yyyy HH:mm')} />
                 <MobileCardField label={t('search.colAgent')} value={log.agent_name} />
                 <MobileCardField label={t('callHist.colDuration')} value={formatDuration(log.talk_seconds ?? log.total_seconds)} />
                 <MobileCardField

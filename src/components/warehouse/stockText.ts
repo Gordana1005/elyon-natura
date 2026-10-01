@@ -12,6 +12,6 @@ export function stockErrorText(t: TFunction, err: unknown): string {
 /** A moment people read: 28.09.2026 14:05 (Skopje day-first order, any UI language). */
 export function stockMoment(iso: string | null | undefined): string {
   if (!iso) return '—';
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? '—' : formatDate(d, 'dd.MM.yyyy HH:mm');
+  // the timestamp itself (not a Date): formatDate shows it on the Skopje clock
+  return Number.isNaN(Date.parse(iso)) ? '—' : formatDate(iso, 'dd.MM.yyyy HH:mm');
 }

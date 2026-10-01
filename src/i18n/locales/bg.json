@@ -7074,6 +7074,7 @@
     "kpiValue": "Стойност",
     "kpiCancelledSub": "{{n}} отказани след продажбата — не се броят",
     "kpiConvSub": "конверсия {{pct}}%",
+    "kpiWorkedNoCrm": "няма решения в CRM в този отдел",
     "kpiNoSeller": "Без продавач",
     "kpiNoSellerSub": "продажби без кредитиран агент",
     "kpiNoSellerBooked": "+ {{n}} резервации от неназован автор",
@@ -8440,6 +8441,7 @@
     "receiver": "Получател",
     "noParcel": "Все още няма MEX пратка",
     "paidWithoutProof": "Води се платена, но няма MEX пратка — няма доказ за плащане",
+    "forDispatch": "за изпращане {{date}}",
     "via": {
       "crm": "в CRM",
       "altercpa": "в AlterCPA",

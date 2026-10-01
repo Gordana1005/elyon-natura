@@ -7074,6 +7074,7 @@
     "kpiValue": "Value",
     "kpiCancelledSub": "{{n}} cancelled after the sale — not counted",
     "kpiConvSub": "conversion {{pct}}%",
+    "kpiWorkedNoCrm": "no CRM decisions in this department",
     "kpiNoSeller": "No seller",
     "kpiNoSellerSub": "sales nobody is credited with",
     "kpiNoSellerBooked": "+ {{n}} bookings by an unnamed author",
@@ -8440,6 +8441,7 @@
     "receiver": "Receiver",
     "noParcel": "No MEX parcel yet",
     "paidWithoutProof": "Marked paid, but there is no MEX parcel — no proof of payment",
+    "forDispatch": "for dispatch {{date}}",
     "via": {
       "crm": "in the CRM",
       "altercpa": "in AlterCPA",

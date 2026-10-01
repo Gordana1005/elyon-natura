@@ -7030,6 +7030,7 @@
     "kpiValue": "Вредност",
     "kpiCancelledSub": "{{n}} откажани по продажбата — не се бројат",
     "kpiConvSub": "конверзија {{pct}}%",
+    "kpiWorkedNoCrm": "нема CRM одлуки во овој оддел",
     "kpiNoSeller": "Без продавач",
     "kpiNoSellerSub": "продажби без заслужен агент",
     "kpiNoSellerBooked": "+ {{n}} резервации од неименуван автор",
@@ -8440,6 +8441,7 @@
     "receiver": "Примач",
     "noParcel": "Сè уште нема MEX пратка",
     "paidWithoutProof": "Води се платена, но нема MEX пратка — нема доказ за наплата",
+    "forDispatch": "за испорака {{date}}",
     "via": {
       "crm": "во CRM",
       "altercpa": "во AlterCPA",
