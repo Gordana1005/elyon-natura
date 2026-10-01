@@ -1,0 +1,1270 @@
+{
+  "from": "2026-09-01",
+  "to": "2026-09-30",
+  "rows": [
+    {
+      "day": "2026-09-29",
+      "shop": {
+        "code": "003",
+        "name": "Карпош",
+        "city": "Скопје",
+        "sigma_object": "17",
+        "active": true
+      },
+      "sigma_doc": "04-01060",
+      "units": 107,
+      "value_ex_vat_mkd": 87954,
+      "received_doc": null,
+      "received_at": null,
+      "in_transit": true,
+      "lag_days": null
+    },
+    {
+      "day": "2026-09-29",
+      "shop": {
+        "code": "005",
+        "name": "Аеродром",
+        "city": "Скопје",
+        "sigma_object": "19",
+        "active": true
+      },
+      "sigma_doc": "04-01061",
+      "units": 203,
+      "value_ex_vat_mkd": 181685,
+      "received_doc": "001-4142/1362-2026",
+      "received_at": "2026-09-29T09:35:00Z",
+      "in_transit": false,
+      "lag_days": 0
+    },
+    {
+      "day": "2026-09-29",
+      "shop": {
+        "code": "006",
+        "name": "Сити Мол",
+        "city": "Скопје",
+        "sigma_object": "20",
+        "active": true
+      },
+      "sigma_doc": "04-01062",
+      "units": 158,
+      "value_ex_vat_mkd": 140462,
+      "received_doc": "001-4142/1363-2026",
+      "received_at": "2026-09-30T09:32:00Z",
+      "in_transit": false,
+      "lag_days": 2
+    },
+    {
+      "day": "2026-09-29",
+      "shop": {
+        "code": "008",
+        "name": "Скопје Мол",
+        "city": "Скопје",
+        "sigma_object": "22",
+        "active": true
+      },
+      "sigma_doc": "04-01063",
+      "units": 141,
+      "value_ex_vat_mkd": 131835,
+      "received_doc": "001-4142/1364-2026",
+      "received_at": "2026-09-30T09:17:00Z",
+      "in_transit": false,
+      "lag_days": 4
+    },
+    {
+      "day": "2026-09-29",
+      "shop": {
+        "code": "009",
+        "name": "Ист Гејт",
+        "city": "Скопје",
+        "sigma_object": "23",
+        "active": true
+      },
+      "sigma_doc": "04-01064",
+      "units": 152,
+      "value_ex_vat_mkd": 140144,
+      "received_doc": "001-4142/1365-2026",
+      "received_at": "2026-09-29T09:25:00Z",
+      "in_transit": false,
+      "lag_days": 0
+    },
+    {
+      "day": "2026-09-29",
+      "shop": {
+        "code": "011",
+        "name": "Охрид",
+        "city": "Охрид",
+        "sigma_object": "25",
+        "active": true
+      },
+      "sigma_doc": "04-01065",
+      "units": 90,
+      "value_ex_vat_mkd": 77670,
+      "received_doc": null,
+      "received_at": null,
+      "in_transit": true,
+      "lag_days": null
+    },
+    {
+      "day": "2026-09-29",
+      "shop": {
+        "code": "012",
+        "name": "Струмица",
+        "city": "Струмица",
+        "sigma_object": "26",
+        "active": true
+      },
+      "sigma_doc": "04-01066",
+      "units": 78,
+      "value_ex_vat_mkd": 69966,
+      "received_doc": "001-4142/1367-2026",
+      "received_at": "2026-09-30T09:05:00Z",
+      "in_transit": false,
+      "lag_days": 1
+    },
+    {
+      "day": "2026-09-29",
+      "shop": {
+        "code": "015",
+        "name": "Тетово",
+        "city": "Тетово",
+        "sigma_object": "28",
+        "active": true
+      },
+      "sigma_doc": "04-01067",
+      "units": 84,
+      "value_ex_vat_mkd": 81648,
+      "received_doc": "001-4142/1368-2026",
+      "received_at": "2026-09-30T09:54:00Z",
+      "in_transit": false,
+      "lag_days": 4
+    },
+    {
+      "day": "2026-09-29",
+      "shop": {
+        "code": "016",
+        "name": "Прилеп",
+        "city": "Прилеп",
+        "sigma_object": "29",
+        "active": true
+      },
+      "sigma_doc": "04-01068",
+      "units": 42,
+      "value_ex_vat_mkd": 38388,
+      "received_doc": null,
+      "received_at": null,
+      "in_transit": true,
+      "lag_days": null
+    },
+    {
+      "day": "2026-09-29",
+      "shop": {
+        "code": "020",
+        "name": "Штип",
+        "city": "Штип",
+        "sigma_object": "31",
+        "active": true
+      },
+      "sigma_doc": "04-01069",
+      "units": 85,
+      "value_ex_vat_mkd": 67575,
+      "received_doc": "001-4142/1370-2026",
+      "received_at": "2026-09-30T09:36:00Z",
+      "in_transit": false,
+      "lag_days": 3
+    },
+    {
+      "day": "2026-09-29",
+      "shop": {
+        "code": "021",
+        "name": "Гостивар",
+        "city": "Гостивар",
+        "sigma_object": "32",
+        "active": true
+      },
+      "sigma_doc": "04-01070",
+      "units": 153,
+      "value_ex_vat_mkd": 133110,
+      "received_doc": "001-4142/1371-2026",
+      "received_at": "2026-09-30T09:20:00Z",
+      "in_transit": false,
+      "lag_days": 2
+    },
+    {
+      "day": "2026-09-29",
+      "shop": {
+        "code": "023",
+        "name": "Кавадарци",
+        "city": "Кавадарци",
+        "sigma_object": "34",
+        "active": true
+      },
+      "sigma_doc": "04-01071",
+      "units": 157,
+      "value_ex_vat_mkd": 126856,
+      "received_doc": "001-4142/1372-2026",
+      "received_at": "2026-09-30T09:44:00Z",
+      "in_transit": false,
+      "lag_days": 1
+    },
+    {
+      "day": "2026-09-29",
+      "shop": {
+        "code": "024",
+        "name": "Гевгелија",
+        "city": "Гевгелија",
+        "sigma_object": "35",
+        "active": true
+      },
+      "sigma_doc": "04-01072",
+      "units": 146,
+      "value_ex_vat_mkd": 128188,
+      "received_doc": "001-4142/1373-2026",
+      "received_at": "2026-09-29T09:01:00Z",
+      "in_transit": false,
+      "lag_days": 0
+    },
+    {
+      "day": "2026-09-29",
+      "shop": {
+        "code": "026",
+        "name": "Кичево",
+        "city": "Кичево",
+        "sigma_object": null,
+        "active": true
+      },
+      "sigma_doc": "04-01073",
+      "units": 108,
+      "value_ex_vat_mkd": 98496,
+      "received_doc": null,
+      "received_at": null,
+      "in_transit": true,
+      "lag_days": null
+    },
+    {
+      "day": "2026-09-29",
+      "shop": {
+        "code": "027",
+        "name": "Дебар",
+        "city": "Дебар",
+        "sigma_object": null,
+        "active": true
+      },
+      "sigma_doc": "04-01074",
+      "units": 62,
+      "value_ex_vat_mkd": 54994,
+      "received_doc": "001-4142/1375-2026",
+      "received_at": "2026-09-29T09:15:00Z",
+      "in_transit": false,
+      "lag_days": 0
+    },
+    {
+      "day": "2026-09-22",
+      "shop": {
+        "code": "003",
+        "name": "Карпош",
+        "city": "Скопје",
+        "sigma_object": "17",
+        "active": true
+      },
+      "sigma_doc": "04-01045",
+      "units": 182,
+      "value_ex_vat_mkd": 176904,
+      "received_doc": "001-4142/1346-2026",
+      "received_at": "2026-09-26T09:04:00Z",
+      "in_transit": false,
+      "lag_days": 4
+    },
+    {
+      "day": "2026-09-22",
+      "shop": {
+        "code": "004",
+        "name": "Центар",
+        "city": "Скопје",
+        "sigma_object": "18",
+        "active": true
+      },
+      "sigma_doc": "04-01046",
+      "units": 152,
+      "value_ex_vat_mkd": 137864,
+      "received_doc": "001-4142/1347-2026",
+      "received_at": "2026-09-22T09:02:00Z",
+      "in_transit": false,
+      "lag_days": 0
+    },
+    {
+      "day": "2026-09-22",
+      "shop": {
+        "code": "006",
+        "name": "Сити Мол",
+        "city": "Скопје",
+        "sigma_object": "20",
+        "active": true
+      },
+      "sigma_doc": "04-01047",
+      "units": 193,
+      "value_ex_vat_mkd": 165594,
+      "received_doc": "001-4142/1348-2026",
+      "received_at": "2026-09-25T09:44:00Z",
+      "in_transit": false,
+      "lag_days": 3
+    },
+    {
+      "day": "2026-09-22",
+      "shop": {
+        "code": "007",
+        "name": "Рамстор",
+        "city": "Скопје",
+        "sigma_object": "21",
+        "active": true
+      },
+      "sigma_doc": "04-01048",
+      "units": 82,
+      "value_ex_vat_mkd": 68142,
+      "received_doc": "001-4142/1349-2026",
+      "received_at": "2026-09-24T09:38:00Z",
+      "in_transit": false,
+      "lag_days": 2
+    },
+    {
+      "day": "2026-09-22",
+      "shop": {
+        "code": "009",
+        "name": "Ист Гејт",
+        "city": "Скопје",
+        "sigma_object": "23",
+        "active": true
+      },
+      "sigma_doc": "04-01049",
+      "units": 92,
+      "value_ex_vat_mkd": 87584,
+      "received_doc": "001-4142/1350-2026",
+      "received_at": "2026-09-22T09:02:00Z",
+      "in_transit": false,
+      "lag_days": 0
+    },
+    {
+      "day": "2026-09-22",
+      "shop": {
+        "code": "010",
+        "name": "Битола",
+        "city": "Битола",
+        "sigma_object": "24",
+        "active": true
+      },
+      "sigma_doc": "04-01050",
+      "units": 218,
+      "value_ex_vat_mkd": 213640,
+      "received_doc": "001-4142/1351-2026",
+      "received_at": "2026-09-24T09:05:00Z",
+      "in_transit": false,
+      "lag_days": 2
+    },
+    {
+      "day": "2026-09-22",
+      "shop": {
+        "code": "012",
+        "name": "Струмица",
+        "city": "Струмица",
+        "sigma_object": "26",
+        "active": true
+      },
+      "sigma_doc": "04-01051",
+      "units": 114,
+      "value_ex_vat_mkd": 109440,
+      "received_doc": "001-4142/1352-2026",
+      "received_at": "2026-09-22T09:14:00Z",
+      "in_transit": false,
+      "lag_days": 0
+    },
+    {
+      "day": "2026-09-22",
+      "shop": {
+        "code": "013",
+        "name": "Куманово",
+        "city": "Куманово",
+        "sigma_object": "27",
+        "active": true
+      },
+      "sigma_doc": "04-01052",
+      "units": 212,
+      "value_ex_vat_mkd": 188892,
+      "received_doc": "001-4142/1353-2026",
+      "received_at": "2026-09-23T09:17:00Z",
+      "in_transit": false,
+      "lag_days": 1
+    },
+    {
+      "day": "2026-09-22",
+      "shop": {
+        "code": "016",
+        "name": "Прилеп",
+        "city": "Прилеп",
+        "sigma_object": "29",
+        "active": true
+      },
+      "sigma_doc": "04-01053",
+      "units": 160,
+      "value_ex_vat_mkd": 125280,
+      "received_doc": "001-4142/1354-2026",
+      "received_at": "2026-09-22T09:05:00Z",
+      "in_transit": false,
+      "lag_days": 0
+    },
+    {
+      "day": "2026-09-22",
+      "shop": {
+        "code": "017",
+        "name": "Велес",
+        "city": "Велес",
+        "sigma_object": "30",
+        "active": true
+      },
+      "sigma_doc": "04-01054",
+      "units": 141,
+      "value_ex_vat_mkd": 119991,
+      "received_doc": "001-4142/1355-2026",
+      "received_at": "2026-09-25T09:56:00Z",
+      "in_transit": false,
+      "lag_days": 3
+    },
+    {
+      "day": "2026-09-22",
+      "shop": {
+        "code": "021",
+        "name": "Гостивар",
+        "city": "Гостивар",
+        "sigma_object": "32",
+        "active": true
+      },
+      "sigma_doc": "04-01055",
+      "units": 179,
+      "value_ex_vat_mkd": 141768,
+      "received_doc": "001-4142/1356-2026",
+      "received_at": "2026-09-26T09:31:00Z",
+      "in_transit": false,
+      "lag_days": 4
+    },
+    {
+      "day": "2026-09-22",
+      "shop": {
+        "code": "022",
+        "name": "Кочани",
+        "city": "Кочани",
+        "sigma_object": "33",
+        "active": true
+      },
+      "sigma_doc": "04-01056",
+      "units": 118,
+      "value_ex_vat_mkd": 113280,
+      "received_doc": "001-4142/1357-2026",
+      "received_at": "2026-09-25T09:14:00Z",
+      "in_transit": false,
+      "lag_days": 3
+    },
+    {
+      "day": "2026-09-22",
+      "shop": {
+        "code": "024",
+        "name": "Гевгелија",
+        "city": "Гевгелија",
+        "sigma_object": "35",
+        "active": true
+      },
+      "sigma_doc": "04-01057",
+      "units": 91,
+      "value_ex_vat_mkd": 87269,
+      "received_doc": "001-4142/1358-2026",
+      "received_at": "2026-09-24T09:18:00Z",
+      "in_transit": false,
+      "lag_days": 2
+    },
+    {
+      "day": "2026-09-22",
+      "shop": {
+        "code": "025",
+        "name": "Струга",
+        "city": "Струга",
+        "sigma_object": "36",
+        "active": true
+      },
+      "sigma_doc": "04-01058",
+      "units": 75,
+      "value_ex_vat_mkd": 62325,
+      "received_doc": "001-4142/1359-2026",
+      "received_at": "2026-09-22T09:39:00Z",
+      "in_transit": false,
+      "lag_days": 0
+    },
+    {
+      "day": "2026-09-22",
+      "shop": {
+        "code": "027",
+        "name": "Дебар",
+        "city": "Дебар",
+        "sigma_object": null,
+        "active": true
+      },
+      "sigma_doc": "04-01059",
+      "units": 163,
+      "value_ex_vat_mkd": 135453,
+      "received_doc": "001-4142/1360-2026",
+      "received_at": "2026-09-26T09:12:00Z",
+      "in_transit": false,
+      "lag_days": 4
+    },
+    {
+      "day": "2026-09-15",
+      "shop": {
+        "code": "004",
+        "name": "Центар",
+        "city": "Скопје",
+        "sigma_object": "18",
+        "active": true
+      },
+      "sigma_doc": "04-01031",
+      "units": 218,
+      "value_ex_vat_mkd": 191840,
+      "received_doc": "001-4142/1332-2026",
+      "received_at": "2026-09-18T09:17:00Z",
+      "in_transit": false,
+      "lag_days": 3
+    },
+    {
+      "day": "2026-09-15",
+      "shop": {
+        "code": "005",
+        "name": "Аеродром",
+        "city": "Скопје",
+        "sigma_object": "19",
+        "active": true
+      },
+      "sigma_doc": "04-01032",
+      "units": 120,
+      "value_ex_vat_mkd": 98640,
+      "received_doc": "001-4142/1333-2026",
+      "received_at": "2026-09-15T09:12:00Z",
+      "in_transit": false,
+      "lag_days": 0
+    },
+    {
+      "day": "2026-09-15",
+      "shop": {
+        "code": "007",
+        "name": "Рамстор",
+        "city": "Скопје",
+        "sigma_object": "21",
+        "active": true
+      },
+      "sigma_doc": "04-01033",
+      "units": 206,
+      "value_ex_vat_mkd": 180044,
+      "received_doc": "001-4142/1334-2026",
+      "received_at": "2026-09-16T09:59:00Z",
+      "in_transit": false,
+      "lag_days": 1
+    },
+    {
+      "day": "2026-09-15",
+      "shop": {
+        "code": "008",
+        "name": "Скопје Мол",
+        "city": "Скопје",
+        "sigma_object": "22",
+        "active": true
+      },
+      "sigma_doc": "04-01034",
+      "units": 67,
+      "value_ex_vat_mkd": 55275,
+      "received_doc": "001-4142/1335-2026",
+      "received_at": "2026-09-19T09:21:00Z",
+      "in_transit": false,
+      "lag_days": 4
+    },
+    {
+      "day": "2026-09-15",
+      "shop": {
+        "code": "010",
+        "name": "Битола",
+        "city": "Битола",
+        "sigma_object": "24",
+        "active": true
+      },
+      "sigma_doc": "04-01035",
+      "units": 120,
+      "value_ex_vat_mkd": 103440,
+      "received_doc": "001-4142/1336-2026",
+      "received_at": "2026-09-15T09:58:00Z",
+      "in_transit": false,
+      "lag_days": 0
+    },
+    {
+      "day": "2026-09-15",
+      "shop": {
+        "code": "011",
+        "name": "Охрид",
+        "city": "Охрид",
+        "sigma_object": "25",
+        "active": true
+      },
+      "sigma_doc": "04-01036",
+      "units": 183,
+      "value_ex_vat_mkd": 150609,
+      "received_doc": "001-4142/1337-2026",
+      "received_at": "2026-09-17T09:07:00Z",
+      "in_transit": false,
+      "lag_days": 2
+    },
+    {
+      "day": "2026-09-15",
+      "shop": {
+        "code": "013",
+        "name": "Куманово",
+        "city": "Куманово",
+        "sigma_object": "27",
+        "active": true
+      },
+      "sigma_doc": "04-01037",
+      "units": 91,
+      "value_ex_vat_mkd": 88998,
+      "received_doc": "001-4142/1338-2026",
+      "received_at": "2026-09-17T09:40:00Z",
+      "in_transit": false,
+      "lag_days": 2
+    },
+    {
+      "day": "2026-09-15",
+      "shop": {
+        "code": "015",
+        "name": "Тетово",
+        "city": "Тетово",
+        "sigma_object": "28",
+        "active": true
+      },
+      "sigma_doc": "04-01038",
+      "units": 208,
+      "value_ex_vat_mkd": 166816,
+      "received_doc": "001-4142/1339-2026",
+      "received_at": "2026-09-17T09:09:00Z",
+      "in_transit": false,
+      "lag_days": 2
+    },
+    {
+      "day": "2026-09-15",
+      "shop": {
+        "code": "017",
+        "name": "Велес",
+        "city": "Велес",
+        "sigma_object": "30",
+        "active": true
+      },
+      "sigma_doc": "04-01039",
+      "units": 60,
+      "value_ex_vat_mkd": 57600,
+      "received_doc": "001-4142/1340-2026",
+      "received_at": "2026-09-17T09:48:00Z",
+      "in_transit": false,
+      "lag_days": 2
+    },
+    {
+      "day": "2026-09-15",
+      "shop": {
+        "code": "020",
+        "name": "Штип",
+        "city": "Штип",
+        "sigma_object": "31",
+        "active": true
+      },
+      "sigma_doc": "04-01040",
+      "units": 169,
+      "value_ex_vat_mkd": 156494,
+      "received_doc": "001-4142/1341-2026",
+      "received_at": "2026-09-18T09:27:00Z",
+      "in_transit": false,
+      "lag_days": 3
+    },
+    {
+      "day": "2026-09-15",
+      "shop": {
+        "code": "022",
+        "name": "Кочани",
+        "city": "Кочани",
+        "sigma_object": "33",
+        "active": true
+      },
+      "sigma_doc": "04-01041",
+      "units": 219,
+      "value_ex_vat_mkd": 197538,
+      "received_doc": "001-4142/1342-2026",
+      "received_at": "2026-09-15T09:18:00Z",
+      "in_transit": false,
+      "lag_days": 0
+    },
+    {
+      "day": "2026-09-15",
+      "shop": {
+        "code": "023",
+        "name": "Кавадарци",
+        "city": "Кавадарци",
+        "sigma_object": "34",
+        "active": true
+      },
+      "sigma_doc": "04-01042",
+      "units": 128,
+      "value_ex_vat_mkd": 113920,
+      "received_doc": "001-4142/1343-2026",
+      "received_at": "2026-09-18T09:12:00Z",
+      "in_transit": false,
+      "lag_days": 3
+    },
+    {
+      "day": "2026-09-15",
+      "shop": {
+        "code": "025",
+        "name": "Струга",
+        "city": "Струга",
+        "sigma_object": "36",
+        "active": true
+      },
+      "sigma_doc": "04-01043",
+      "units": 88,
+      "value_ex_vat_mkd": 78144,
+      "received_doc": "001-4142/1344-2026",
+      "received_at": "2026-09-16T09:22:00Z",
+      "in_transit": false,
+      "lag_days": 1
+    },
+    {
+      "day": "2026-09-15",
+      "shop": {
+        "code": "026",
+        "name": "Кичево",
+        "city": "Кичево",
+        "sigma_object": null,
+        "active": true
+      },
+      "sigma_doc": "04-01044",
+      "units": 165,
+      "value_ex_vat_mkd": 130020,
+      "received_doc": "001-4142/1345-2026",
+      "received_at": "2026-09-18T09:32:00Z",
+      "in_transit": false,
+      "lag_days": 3
+    },
+    {
+      "day": "2026-09-08",
+      "shop": {
+        "code": "003",
+        "name": "Карпош",
+        "city": "Скопје",
+        "sigma_object": "17",
+        "active": true
+      },
+      "sigma_doc": "04-01016",
+      "units": 156,
+      "value_ex_vat_mkd": 139464,
+      "received_doc": "001-4142/1317-2026",
+      "received_at": "2026-09-09T09:55:00Z",
+      "in_transit": false,
+      "lag_days": 1
+    },
+    {
+      "day": "2026-09-08",
+      "shop": {
+        "code": "005",
+        "name": "Аеродром",
+        "city": "Скопје",
+        "sigma_object": "19",
+        "active": true
+      },
+      "sigma_doc": "04-01017",
+      "units": 84,
+      "value_ex_vat_mkd": 71148,
+      "received_doc": "001-4142/1318-2026",
+      "received_at": "2026-09-09T09:31:00Z",
+      "in_transit": false,
+      "lag_days": 1
+    },
+    {
+      "day": "2026-09-08",
+      "shop": {
+        "code": "006",
+        "name": "Сити Мол",
+        "city": "Скопје",
+        "sigma_object": "20",
+        "active": true
+      },
+      "sigma_doc": "04-01018",
+      "units": 123,
+      "value_ex_vat_mkd": 98769,
+      "received_doc": "001-4142/1319-2026",
+      "received_at": "2026-09-12T09:00:00Z",
+      "in_transit": false,
+      "lag_days": 4
+    },
+    {
+      "day": "2026-09-08",
+      "shop": {
+        "code": "008",
+        "name": "Скопје Мол",
+        "city": "Скопје",
+        "sigma_object": "22",
+        "active": true
+      },
+      "sigma_doc": "04-01019",
+      "units": 197,
+      "value_ex_vat_mkd": 171390,
+      "received_doc": "001-4142/1320-2026",
+      "received_at": "2026-09-09T09:05:00Z",
+      "in_transit": false,
+      "lag_days": 1
+    },
+    {
+      "day": "2026-09-08",
+      "shop": {
+        "code": "009",
+        "name": "Ист Гејт",
+        "city": "Скопје",
+        "sigma_object": "23",
+        "active": true
+      },
+      "sigma_doc": "04-01020",
+      "units": 78,
+      "value_ex_vat_mkd": 75660,
+      "received_doc": "001-4142/1321-2026",
+      "received_at": "2026-09-09T09:03:00Z",
+      "in_transit": false,
+      "lag_days": 1
+    },
+    {
+      "day": "2026-09-08",
+      "shop": {
+        "code": "011",
+        "name": "Охрид",
+        "city": "Охрид",
+        "sigma_object": "25",
+        "active": true
+      },
+      "sigma_doc": "04-01021",
+      "units": 99,
+      "value_ex_vat_mkd": 96921,
+      "received_doc": "001-4142/1322-2026",
+      "received_at": "2026-09-11T09:22:00Z",
+      "in_transit": false,
+      "lag_days": 3
+    },
+    {
+      "day": "2026-09-08",
+      "shop": {
+        "code": "012",
+        "name": "Струмица",
+        "city": "Струмица",
+        "sigma_object": "26",
+        "active": true
+      },
+      "sigma_doc": "04-01022",
+      "units": 68,
+      "value_ex_vat_mkd": 64600,
+      "received_doc": "001-4142/1323-2026",
+      "received_at": "2026-09-09T09:09:00Z",
+      "in_transit": false,
+      "lag_days": 1
+    },
+    {
+      "day": "2026-09-08",
+      "shop": {
+        "code": "015",
+        "name": "Тетово",
+        "city": "Тетово",
+        "sigma_object": "28",
+        "active": true
+      },
+      "sigma_doc": "04-01023",
+      "units": 82,
+      "value_ex_vat_mkd": 78392,
+      "received_doc": "001-4142/1324-2026",
+      "received_at": "2026-09-08T09:38:00Z",
+      "in_transit": false,
+      "lag_days": 0
+    },
+    {
+      "day": "2026-09-08",
+      "shop": {
+        "code": "016",
+        "name": "Прилеп",
+        "city": "Прилеп",
+        "sigma_object": "29",
+        "active": true
+      },
+      "sigma_doc": "04-01024",
+      "units": 46,
+      "value_ex_vat_mkd": 39652,
+      "received_doc": "001-4142/1325-2026",
+      "received_at": "2026-09-08T09:24:00Z",
+      "in_transit": false,
+      "lag_days": 0
+    },
+    {
+      "day": "2026-09-08",
+      "shop": {
+        "code": "020",
+        "name": "Штип",
+        "city": "Штип",
+        "sigma_object": "31",
+        "active": true
+      },
+      "sigma_doc": "04-01025",
+      "units": 119,
+      "value_ex_vat_mkd": 95081,
+      "received_doc": "001-4142/1326-2026",
+      "received_at": "2026-09-08T09:07:00Z",
+      "in_transit": false,
+      "lag_days": 0
+    },
+    {
+      "day": "2026-09-08",
+      "shop": {
+        "code": "021",
+        "name": "Гостивар",
+        "city": "Гостивар",
+        "sigma_object": "32",
+        "active": true
+      },
+      "sigma_doc": "04-01026",
+      "units": 93,
+      "value_ex_vat_mkd": 81654,
+      "received_doc": "001-4142/1327-2026",
+      "received_at": "2026-09-08T09:33:00Z",
+      "in_transit": false,
+      "lag_days": 0
+    },
+    {
+      "day": "2026-09-08",
+      "shop": {
+        "code": "023",
+        "name": "Кавадарци",
+        "city": "Кавадарци",
+        "sigma_object": "34",
+        "active": true
+      },
+      "sigma_doc": "04-01027",
+      "units": 62,
+      "value_ex_vat_mkd": 55924,
+      "received_doc": "001-4142/1328-2026",
+      "received_at": "2026-09-12T09:53:00Z",
+      "in_transit": false,
+      "lag_days": 4
+    },
+    {
+      "day": "2026-09-08",
+      "shop": {
+        "code": "024",
+        "name": "Гевгелија",
+        "city": "Гевгелија",
+        "sigma_object": "35",
+        "active": true
+      },
+      "sigma_doc": "04-01028",
+      "units": 46,
+      "value_ex_vat_mkd": 36478,
+      "received_doc": "001-4142/1329-2026",
+      "received_at": "2026-09-08T09:20:00Z",
+      "in_transit": false,
+      "lag_days": 0
+    },
+    {
+      "day": "2026-09-08",
+      "shop": {
+        "code": "026",
+        "name": "Кичево",
+        "city": "Кичево",
+        "sigma_object": null,
+        "active": true
+      },
+      "sigma_doc": "04-01029",
+      "units": 98,
+      "value_ex_vat_mkd": 86240,
+      "received_doc": "001-4142/1330-2026",
+      "received_at": "2026-09-09T09:30:00Z",
+      "in_transit": false,
+      "lag_days": 1
+    },
+    {
+      "day": "2026-09-08",
+      "shop": {
+        "code": "027",
+        "name": "Дебар",
+        "city": "Дебар",
+        "sigma_object": null,
+        "active": true
+      },
+      "sigma_doc": "04-01030",
+      "units": 161,
+      "value_ex_vat_mkd": 152467,
+      "received_doc": "001-4142/1331-2026",
+      "received_at": "2026-09-09T09:41:00Z",
+      "in_transit": false,
+      "lag_days": 1
+    },
+    {
+      "day": "2026-09-01",
+      "shop": {
+        "code": "003",
+        "name": "Карпош",
+        "city": "Скопје",
+        "sigma_object": "17",
+        "active": true
+      },
+      "sigma_doc": "04-01001",
+      "units": 195,
+      "value_ex_vat_mkd": 166530,
+      "received_doc": "001-4142/1302-2026",
+      "received_at": "2026-09-02T09:41:00Z",
+      "in_transit": false,
+      "lag_days": 1
+    },
+    {
+      "day": "2026-09-01",
+      "shop": {
+        "code": "004",
+        "name": "Центар",
+        "city": "Скопје",
+        "sigma_object": "18",
+        "active": true
+      },
+      "sigma_doc": "04-01002",
+      "units": 217,
+      "value_ex_vat_mkd": 203329,
+      "received_doc": "001-4142/1303-2026",
+      "received_at": "2026-09-02T09:49:00Z",
+      "in_transit": false,
+      "lag_days": 1
+    },
+    {
+      "day": "2026-09-01",
+      "shop": {
+        "code": "006",
+        "name": "Сити Мол",
+        "city": "Скопје",
+        "sigma_object": "20",
+        "active": true
+      },
+      "sigma_doc": "04-01003",
+      "units": 175,
+      "value_ex_vat_mkd": 171500,
+      "received_doc": "001-4142/1304-2026",
+      "received_at": "2026-09-04T09:20:00Z",
+      "in_transit": false,
+      "lag_days": 3
+    },
+    {
+      "day": "2026-09-01",
+      "shop": {
+        "code": "007",
+        "name": "Рамстор",
+        "city": "Скопје",
+        "sigma_object": "21",
+        "active": true
+      },
+      "sigma_doc": "04-01004",
+      "units": 83,
+      "value_ex_vat_mkd": 77024,
+      "received_doc": "001-4142/1305-2026",
+      "received_at": "2026-09-03T09:45:00Z",
+      "in_transit": false,
+      "lag_days": 2
+    },
+    {
+      "day": "2026-09-01",
+      "shop": {
+        "code": "009",
+        "name": "Ист Гејт",
+        "city": "Скопје",
+        "sigma_object": "23",
+        "active": true
+      },
+      "sigma_doc": "04-01005",
+      "units": 67,
+      "value_ex_vat_mkd": 57754,
+      "received_doc": "001-4142/1306-2026",
+      "received_at": "2026-09-05T09:01:00Z",
+      "in_transit": false,
+      "lag_days": 4
+    },
+    {
+      "day": "2026-09-01",
+      "shop": {
+        "code": "010",
+        "name": "Битола",
+        "city": "Битола",
+        "sigma_object": "24",
+        "active": true
+      },
+      "sigma_doc": "04-01006",
+      "units": 127,
+      "value_ex_vat_mkd": 120523,
+      "received_doc": "001-4142/1307-2026",
+      "received_at": "2026-09-01T09:27:00Z",
+      "in_transit": false,
+      "lag_days": 0
+    },
+    {
+      "day": "2026-09-01",
+      "shop": {
+        "code": "012",
+        "name": "Струмица",
+        "city": "Струмица",
+        "sigma_object": "26",
+        "active": true
+      },
+      "sigma_doc": "04-01007",
+      "units": 189,
+      "value_ex_vat_mkd": 184464,
+      "received_doc": "001-4142/1308-2026",
+      "received_at": "2026-09-01T09:47:00Z",
+      "in_transit": false,
+      "lag_days": 0
+    },
+    {
+      "day": "2026-09-01",
+      "shop": {
+        "code": "013",
+        "name": "Куманово",
+        "city": "Куманово",
+        "sigma_object": "27",
+        "active": true
+      },
+      "sigma_doc": "04-01008",
+      "units": 161,
+      "value_ex_vat_mkd": 141197,
+      "received_doc": "001-4142/1309-2026",
+      "received_at": "2026-09-03T09:15:00Z",
+      "in_transit": false,
+      "lag_days": 2
+    },
+    {
+      "day": "2026-09-01",
+      "shop": {
+        "code": "016",
+        "name": "Прилеп",
+        "city": "Прилеп",
+        "sigma_object": "29",
+        "active": true
+      },
+      "sigma_doc": "04-01009",
+      "units": 214,
+      "value_ex_vat_mkd": 184254,
+      "received_doc": "001-4142/1310-2026",
+      "received_at": "2026-09-05T09:54:00Z",
+      "in_transit": false,
+      "lag_days": 4
+    },
+    {
+      "day": "2026-09-01",
+      "shop": {
+        "code": "017",
+        "name": "Велес",
+        "city": "Велес",
+        "sigma_object": "30",
+        "active": true
+      },
+      "sigma_doc": "04-01010",
+      "units": 203,
+      "value_ex_vat_mkd": 191835,
+      "received_doc": "001-4142/1311-2026",
+      "received_at": "2026-09-01T09:45:00Z",
+      "in_transit": false,
+      "lag_days": 0
+    },
+    {
+      "day": "2026-09-01",
+      "shop": {
+        "code": "021",
+        "name": "Гостивар",
+        "city": "Гостивар",
+        "sigma_object": "32",
+        "active": true
+      },
+      "sigma_doc": "04-01011",
+      "units": 90,
+      "value_ex_vat_mkd": 85500,
+      "received_doc": "001-4142/1312-2026",
+      "received_at": "2026-09-05T09:37:00Z",
+      "in_transit": false,
+      "lag_days": 4
+    },
+    {
+      "day": "2026-09-01",
+      "shop": {
+        "code": "022",
+        "name": "Кочани",
+        "city": "Кочани",
+        "sigma_object": "33",
+        "active": true
+      },
+      "sigma_doc": "04-01012",
+      "units": 135,
+      "value_ex_vat_mkd": 130410,
+      "received_doc": "001-4142/1313-2026",
+      "received_at": "2026-09-02T09:45:00Z",
+      "in_transit": false,
+      "lag_days": 1
+    },
+    {
+      "day": "2026-09-01",
+      "shop": {
+        "code": "024",
+        "name": "Гевгелија",
+        "city": "Гевгелија",
+        "sigma_object": "35",
+        "active": true
+      },
+      "sigma_doc": "04-01013",
+      "units": 201,
+      "value_ex_vat_mkd": 170448,
+      "received_doc": "001-4142/1314-2026",
+      "received_at": "2026-09-04T09:24:00Z",
+      "in_transit": false,
+      "lag_days": 3
+    },
+    {
+      "day": "2026-09-01",
+      "shop": {
+        "code": "025",
+        "name": "Струга",
+        "city": "Струга",
+        "sigma_object": "36",
+        "active": true
+      },
+      "sigma_doc": "04-01014",
+      "units": 71,
+      "value_ex_vat_mkd": 59640,
+      "received_doc": "001-4142/1315-2026",
+      "received_at": "2026-09-04T09:29:00Z",
+      "in_transit": false,
+      "lag_days": 3
+    },
+    {
+      "day": "2026-09-01",
+      "shop": {
+        "code": "027",
+        "name": "Дебар",
+        "city": "Дебар",
+        "sigma_object": null,
+        "active": true
+      },
+      "sigma_doc": "04-01015",
+      "units": 136,
+      "value_ex_vat_mkd": 114648,
+      "received_doc": "001-4142/1316-2026",
+      "received_at": "2026-09-03T09:09:00Z",
+      "in_transit": false,
+      "lag_days": 2
+    }
+  ],
+  "totals": {
+    "invoices": 74,
+    "units": 9756,
+    "in_transit": 4,
+    "value_ex_vat_mkd": 8664671
+  }
+}
