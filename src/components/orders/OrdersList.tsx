@@ -40,7 +40,7 @@ const last8 = (p: string | null | undefined) => {
 
 /**
  * The orders: a table from md (columns join as the screen widens — products at
- * lg, department / seller and MEX at xl, the assignee at 2xl — so it never
+ * lg, department (+ seller) and MEX at xl, the seller's own column at 2xl — so it never
  * scrolls sideways) and compact cards below md. A row or card opens the order;
  * the checkbox and the ⋮ menu do not.
  */
@@ -102,7 +102,7 @@ function OrdersTable(p: OrdersListProps) {
             <th scope="col" className={cn(th, 'hidden w-[156px] xl:table-cell')}>{t('ordersList.col.department')}</th>
             <th scope="col" className={cn(th, 'w-[140px]')}>{t('ordersList.col.status')}</th>
             <th scope="col" className={cn(th, 'hidden w-[176px] 2xl:table-cell')}>{t('ordersList.col.mex')}</th>
-            <th scope="col" className={cn(th, 'hidden w-[136px] 2xl:table-cell')}>{t('ordersList.col.assigned')}</th>
+            <th scope="col" className={cn(th, 'hidden w-[150px] 2xl:table-cell')}>{t('ordersList.col.seller')}</th>
             <th scope="col" className="w-12 py-2 pr-2"><span className="sr-only">{t('common.actions')}</span></th>
           </tr>
         </thead>
@@ -133,15 +133,14 @@ function OrdersTable(p: OrdersListProps) {
                   <td className="px-2 py-2.5 text-right"><ValueCell o={o} /></td>
                   <td className="hidden px-2 py-2.5 xl:table-cell">
                     <DeptLine o={o} />
-                    <SellerLine o={o} />
-                    <div className="2xl:hidden"><AssignedLine o={o} /></div>
+                    <div className="2xl:hidden"><SellerLine o={o} /></div>
                   </td>
                   <td className="px-2 py-2.5">
                     <StatusBadge status={o.status} order={o} className="max-w-full whitespace-normal" />
                     <div className="mt-1 2xl:hidden"><MexBadge o={o} withTracking /></div>
                   </td>
                   <td className="hidden px-2 py-2.5 2xl:table-cell"><MexBadge o={o} withTracking /></td>
-                  <td className="hidden break-words px-2 py-2.5 text-xs 2xl:table-cell">{o.assigned_agent_name || <span className="text-muted-foreground">{t('ordersList.unassigned')}</span>}</td>
+                  <td className="hidden break-words px-2 py-2.5 text-xs 2xl:table-cell">{sellerOf(o) || <span className="text-muted-foreground">—</span>}</td>
                   <td className="py-2 pr-2" onClick={(e) => e.stopPropagation()}><RowMenu o={o} actions={p.actions(o)} /></td>
                 </tr>
                 {open && (
@@ -197,6 +196,7 @@ function OrderCard({ o, ...p }: OrdersListProps & { o: ApiOrder }) {
             <span className="tabular-nums">{when.day.slice(0, 5)} {when.time}</span>
           </div>
           {product && product !== '—' && <div className="line-clamp-1 break-words text-xs">{product}</div>}
+          {sellerOf(o) && <div className="break-words text-xs text-muted-foreground">{t('ordersList.seller.chip', { name: sellerOf(o) })}</div>}
           <div className="flex min-w-0 flex-wrap items-center gap-1.5">
             <MexBadge o={o} withTracking inline />
             <ViewAndDup o={o} p={p} />
@@ -281,21 +281,26 @@ export function DeptLine({ o, compact }: { o: Pick<ApiOrder, 'department'>; comp
   );
 }
 
+const SOLD_STATUSES = new Set(['confirmed', 'shipped', 'delivered', 'paid', 'returned']);
+
+/**
+ * WHO SOLD the order (owner 01.10.2026: "the column says which operator made the order", never who it
+ * happens to be assigned to now): the write-once sold_* stamp (seller_name from order_departments),
+ * else the confirmer on a real sale. A cancel / trash / open lead was never sold → null.
+ */
+export function sellerOf(o: Pick<ApiOrder, 'status' | 'seller_name' | 'confirmed_by_name'>): string | null {
+  if (o.seller_name) return o.seller_name;
+  return o.status && SOLD_STATUSES.has(o.status) ? (o.confirmed_by_name || null) : null;
+}
+
 function SellerLine({ o }: { o: ApiOrder }) {
   const { t } = useTranslation();
-  const seller = o.seller_name || o.confirmed_by_name || null;
+  const seller = sellerOf(o);
+  const sold = !!o.status && SOLD_STATUSES.has(o.status);
+  if (!seller && !sold) return null;
   return (
     <div className="mt-0.5 break-words text-xs text-muted-foreground" title={t('ordersPage.confirmedByTitle')}>
       {seller ? t('ordersList.seller.chip', { name: seller }) : t('ordersList.noSeller')}
-    </div>
-  );
-}
-
-function AssignedLine({ o }: { o: ApiOrder }) {
-  const { t } = useTranslation();
-  return (
-    <div className="break-words text-[11px] text-muted-foreground">
-      {o.assigned_agent_name ? t('ordersList.agent.chip', { name: o.assigned_agent_name }) : t('ordersList.unassigned')}
     </div>
   );
 }

@@ -22,6 +22,13 @@ import { STATUS_TONE, deliveryLabel, fullAddress, orderTotal, deriveCustomerSumm
 // Customer Info card — personal details from the most recent order plus lifetime
 // stats aggregated across the result set. `action` renders top-right (e.g. the
 // "Open in Calls & call" button in the topbar-search modal).
+const SOLD_STATUSES = new Set(['confirmed', 'shipped', 'delivered', 'paid', 'returned']);
+/** Who sold the order: the sold_* stamp (seller_name), else the confirmer on a real sale; nothing for a non-sale. */
+function sellerOf(order: { status?: string | null; seller_name?: string | null; confirmed_by_name?: string | null }): string | null {
+  if (order.seller_name) return order.seller_name;
+  return order.status && SOLD_STATUSES.has(order.status) ? (order.confirmed_by_name || null) : null;
+}
+
 export function CustomerSummaryCard({ orders, action }: { orders: any[]; action?: ReactNode }) {
   const { t } = useTranslation();
   const summary = useMemo(() => deriveCustomerSummary(orders), [orders]);
@@ -153,7 +160,7 @@ export function OrdersResultTable({ orders, orderHistory }: { orders: any[]; ord
                   <th className="text-left py-2 px-2 font-medium">{t('search.colNotes')}</th>
                   <th className="text-right py-2 px-2 font-medium">{t('search.colTotal')}</th>
                   <th className="text-left py-2 px-2 font-medium">{t('search.colStatus')}</th>
-                  <th className="text-left py-2 px-2 font-medium">{t('search.colAgent')}</th>
+                  <th className="text-left py-2 px-2 font-medium">{t('search.colSeller')}</th>
                   <th className="text-right py-2 px-3 font-medium">{t('search.colDate')}</th>
                 </tr>
               </thead>
@@ -230,8 +237,10 @@ export function OrdersResultTable({ orders, orderHistory }: { orders: any[]; ord
                             {order.status ? statusLabel(order.status) : '—'}
                           </Badge>
                         </td>
-                        <td className="py-2 px-2 max-w-[140px] truncate" title={order.assigned_agent_name || t('search.unassigned')}>
-                          {order.assigned_agent_name || <span className="text-muted-foreground/60">{t('search.unassigned')}</span>}
+                        {/* WHO SOLD IT (owner 01.10.2026) — the write-once sold_* stamp via order_departments; a cancel /
+                            trash / open lead was never sold, so it shows a dash, never "unassigned". */}
+                        <td className="py-2 px-2 max-w-[140px] truncate" title={sellerOf(order) || undefined}>
+                          {sellerOf(order) || <span className="text-muted-foreground/60">—</span>}
                         </td>
                         <td className="py-2 px-3 text-right text-muted-foreground whitespace-nowrap">
                           {format(new Date(order.created_at), 'dd/MM/yy HH:mm')}

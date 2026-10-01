@@ -1695,6 +1695,7 @@
     "colTotal": "Totali",
     "colStatus": "Statusi",
     "colAgent": "Agjenti",
+    "colSeller": "Shitësi",
     "colDate": "Data",
     "viewOnly": "Vetëm shikim",
     "notesTotal": "{{count}} shënime gjithsej",
@@ -2054,7 +2055,8 @@
       "customer": "Klienti",
       "products": "Produktet",
       "value": "Vlera",
-      "department": "Departamenti · shitësi",
+      "department": "Departamenti",
+      "seller": "Shitësi",
       "status": "Statusi",
       "mex": "MEX",
       "assigned": "Caktuar te"
@@ -3700,6 +3702,7 @@
   },
   "segTable": {
     "lastOrder": "Porosia e fundit",
+    "lastSeller": "Shitësi (shitja e fundit)",
     "reason": "Arsyeja",
     "totalSpend": "Shpenzimi total",
     "lastCall": "Thirrja e fundit",

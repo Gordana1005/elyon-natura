@@ -1695,6 +1695,7 @@
     "colTotal": "Общо",
     "colStatus": "Статус",
     "colAgent": "Агент",
+    "colSeller": "Продавач",
     "colDate": "Дата",
     "viewOnly": "Само преглед",
     "notesTotal": "Общо {{count}} бележки",
@@ -2054,7 +2055,8 @@
       "customer": "Клиент",
       "products": "Продукти",
       "value": "Стойност",
-      "department": "Отдел · продавач",
+      "department": "Отдел",
+      "seller": "Продавач",
       "status": "Статус",
       "mex": "MEX",
       "assigned": "Възложена на"
@@ -3700,6 +3702,7 @@
   },
   "segTable": {
     "lastOrder": "Последна поръчка",
+    "lastSeller": "Продавач (последна продажба)",
     "reason": "Причина",
     "totalSpend": "Общо похарчено",
     "lastCall": "Последно обаждане",

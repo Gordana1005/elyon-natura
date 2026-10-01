@@ -1695,6 +1695,7 @@
     "colTotal": "Total",
     "colStatus": "Status",
     "colAgent": "Agent",
+    "colSeller": "Seller",
     "colDate": "Date",
     "viewOnly": "View only",
     "notesTotal": "{{count}} notes total",
@@ -2054,7 +2055,8 @@
       "customer": "Customer",
       "products": "Products",
       "value": "Value",
-      "department": "Department · seller",
+      "department": "Department",
+      "seller": "Seller",
       "status": "Status",
       "mex": "MEX",
       "assigned": "Assigned"
@@ -3700,6 +3702,7 @@
   },
   "segTable": {
     "lastOrder": "Last order",
+    "lastSeller": "Seller (last sale)",
     "reason": "Reason",
     "totalSpend": "Total spend",
     "lastCall": "Last call",

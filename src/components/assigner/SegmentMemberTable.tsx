@@ -30,6 +30,8 @@ export interface SegmentMember {
   assigned_agent_id: string | null;
   assigned_agent_name: string | null;
   assigned_at?: string | null;
+  /** Who sold the customer's LAST sale (assigner_list_members, 20260943001900). */
+  last_seller?: string | null;
   last_call_at: string | null;
   last_call_outcome: string | null;
   in_call_again_until?: string | null;
@@ -121,7 +123,7 @@ export function SegmentMemberTable({
               <th className={cn(pad, 'text-right font-medium')}>{t('search.totalOrders')}</th>
               <th className={cn(pad, 'text-right font-medium')}>{t('clientProfile.metricAvgPkg')}</th>
               <th className={cn(pad, 'text-right font-medium')}>{t('segTable.totalSpend')}</th>
-              <th className={cn(pad, 'text-left font-medium')}>{t('predLists.colAssigned')}</th>
+              <th className={cn(pad, 'text-left font-medium')}>{t('segTable.lastSeller')}</th>
               <th className={cn(pad, 'text-left font-medium')}>{t('segTable.lastCall')}</th>
               {hasUnassign && <th className={cn(pad, 'w-10 text-center font-medium')}>{t('assigner.colAction')}</th>}
             </tr>
@@ -197,15 +199,15 @@ export function SegmentMemberTable({
                   <td className={cn(pad, 'text-right text-xs leading-tight')}>
                     <div className="font-semibold">{formatMoney(m.lifetime_value)}</div>
                   </td>
+                  {/* WHO SOLD to this customer last (owner 01.10.2026) — the assignment is a small note below,
+                      the board on top already shows each agent's assigned load. */}
                   <td className={cn(pad, 'text-xs')}>
-                    {m.assigned_agent_name ? (
-                      <span className="inline-flex items-center gap-1.5">
-                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
-                          {m.assigned_agent_name.charAt(0).toUpperCase()}
-                        </span>
-                        {m.assigned_agent_name}
-                      </span>
-                    ) : <span className="text-muted-foreground">—</span>}
+                    <div className="leading-tight">
+                      {m.last_seller ? <div className="font-medium">{m.last_seller}</div> : <span className="text-muted-foreground">—</span>}
+                      {m.assigned_agent_name && (
+                        <div className="mt-0.5 text-[10px] text-muted-foreground">{t('ordersList.agent.chip', { name: m.assigned_agent_name })}</div>
+                      )}
+                    </div>
                   </td>
                   <td className={cn(pad, 'text-xs')}>
                     {(() => {
@@ -274,6 +276,7 @@ export function SegmentMemberTable({
                 value={<>{formatMoney(m.trigger_price)}{m.trigger_event_at ? <span className="text-muted-foreground font-normal"> · {formatDate(m.trigger_event_at, 'dd MMM yy')}</span> : null}</>}
               />
               {showDept && <MobileCardField label={t('assigner.col.department')} value={deptText(m.department)} />}
+              <MobileCardField label={t('segTable.lastSeller')} value={m.last_seller || '—'} />
               <MobileCardField label={t('segTable.totalOrders')} value={m.paid_count} />
               <MobileCardField
                 label={t('segTable.avgPerPkg')}

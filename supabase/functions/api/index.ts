@@ -16205,9 +16205,21 @@ async function handleRequest(req: Request): Promise<Response> {
       // order they've been asked to settle, so there is no duplicated_from filter.
 
       const [ordersRes, leadsRes] = await Promise.all([orderQuery, leadQuery]);
+      // Each order's department and SELLER (who sold it — the write-once sold_* stamp), the
+      // same order_departments read as the /orders list (owner 01.10.2026: the customer window
+      // shows who sold each order, not who it happens to be assigned to now). Display only.
+      const searchDeptById: Record<string, { department: string | null; seller_name: string | null }> = {};
+      const searchIds = (ordersRes.data || []).map((o: any) => o.id);
+      if (searchIds.length) {
+        const { data: depts, error: deptErr } = await adminClient.rpc("order_departments", { p_ids: searchIds });
+        if (deptErr) console.error("order_departments (search):", deptErr.message);
+        for (const d of (depts || []) as any[]) searchDeptById[d.id] = { department: d.department ?? null, seller_name: d.seller_name ?? null };
+      }
       const orders = (ordersRes.data || []).map((o: any) => ({
         ...o,
         is_owned: isAdminOrManager || o.assigned_agent_id === user.id,
+        department: searchDeptById[o.id]?.department ?? null,
+        seller_name: searchDeptById[o.id]?.seller_name ?? null,
       }));
       const leads = (leadsRes.data || []).map((l: any) => ({
         ...l,
