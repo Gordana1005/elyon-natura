@@ -94,7 +94,7 @@ export function TvBoardCard({
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
         <span>
           {t('tvBoard.colWorked')}{' '}
-          <b className="font-semibold tabular-nums text-slate-200">{row.worked || 0}</b>
+          <b className="font-semibold tabular-nums text-slate-200">{row.worked || (department ? '—' : 0)}</b>
           {conv != null && <span className="tabular-nums"> · {t('leaderboard2.convShort', { pct: conv.toFixed(1) })}</span>}
         </span>
         <span className="inline-flex min-w-0 items-center gap-1 tabular-nums">

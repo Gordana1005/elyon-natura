@@ -27,12 +27,26 @@ export interface OrderOrigin {
     receiver_name?: string | null; receiver_city?: string | null;
     created_at?: string | null; delivered_at?: string | null; returned_at?: string | null;
   } | null;
-  collabbox?: { doc?: string | null; type?: string | null; type_name?: string | null; author?: string | null; doc_at?: string | null; amount_mkd?: number | null } | null;
+  collabbox?: {
+    doc?: string | null; type?: string | null; type_name?: string | null; author?: string | null; doc_at?: string | null; amount_mkd?: number | null;
+    /** when the operator BOOKED it (20260944000600); doc_at is the dispatch day */
+    booked_at?: string | null; booked_at_basis?: string | null;
+  } | null;
   altercpa?: { lead?: string | null; decision?: string | null; decided_at?: string | null; operator?: string | null } | null;
 }
 
 const ACCOUNT_LABEL: Record<string, string> = { bio_natural: 'BIO NATURAL', natura: 'NATURA' };
 const dt = (v?: string | null) => (v ? formatDate(v, 'dd.MM.yyyy HH:mm') : '—');
+const day = (v?: string | null) => (v ? formatDate(v, 'dd.MM.yyyy') : '');
+
+/** The collabBox document's time: when it was BOOKED, plus "for dispatch dd.mm" when collabBox dates it
+ *  on a later day (owner 01.10.2026: the sale counts the day the operator booked it). */
+function collabboxWhen(c: NonNullable<OrderOrigin['collabbox']>, forDispatch: (date: string) => string): string {
+  if (c.booked_at && c.doc_at && day(c.booked_at) !== day(c.doc_at)) {
+    return `${dt(c.booked_at)} · ${forDispatch(formatDate(c.doc_at, 'dd.MM'))}`;
+  }
+  return dt(c.booked_at ?? c.doc_at);
+}
 
 export function OrderOriginPanel({ origin, status }: { origin: OrderOrigin | null | undefined; status?: string | null }) {
   const { t } = useTranslation();
@@ -66,7 +80,8 @@ export function OrderOriginPanel({ origin, status }: { origin: OrderOrigin | nul
               origin.altercpa.operator, dt(origin.altercpa.decided_at),
             ].filter(Boolean).join(' · '))}
             {origin.collabbox && row('collabBox', [
-              origin.collabbox.type_name || origin.collabbox.type, origin.collabbox.author, dt(origin.collabbox.doc_at),
+              origin.collabbox.type_name || origin.collabbox.type, origin.collabbox.author,
+              collabboxWhen(origin.collabbox, (date) => t('orderOrigin.forDispatch', { date })),
             ].filter(Boolean).join(' · '))}
           </div>
         )}

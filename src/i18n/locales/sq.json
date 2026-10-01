@@ -7024,6 +7024,7 @@
     "kpiValue": "Vlera",
     "kpiCancelledSub": "{{n}} të anuluara pas shitjes — nuk numërohen",
     "kpiConvSub": "konvertimi {{pct}}%",
+    "kpiWorkedNoCrm": "asnjë vendim në CRM në këtë departament",
     "kpiNoSeller": "Pa shitës",
     "kpiNoSellerSub": "shitje pa agjent të kredituar",
     "kpiNoSellerBooked": "+ {{n}} rezervime nga autor i paemërtuar",
@@ -8390,6 +8391,7 @@
     "receiver": "Marrësi",
     "noParcel": "Ende nuk ka pako MEX",
     "paidWithoutProof": "Shënuar e paguar, por nuk ka pako MEX — nuk ka provë pagese",
+    "forDispatch": "për dërgim {{date}}",
     "via": {
       "crm": "në CRM",
       "altercpa": "në AlterCPA",
