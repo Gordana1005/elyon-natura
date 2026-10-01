@@ -272,7 +272,7 @@ function LeadCard({ lead, showPrice }: { lead: AlterCpaLead; showPrice: boolean 
     <li className="rounded-md border p-3 text-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-xs text-muted-foreground">
-          {lead.created_remote ? format(new Date(lead.created_remote), 'dd.MM.yy HH:mm') : '—'}
+          {lead.created_remote ? formatSkopje(lead.created_remote, 'dd.MM.yy HH:mm') : '—'}
         </span>
         <div className="flex flex-wrap items-center gap-1">
           <Badge variant="outline">{lead.geo || '??'}</Badge>
