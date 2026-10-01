@@ -13,6 +13,7 @@ import {
   Activity, Users, ShoppingCart, Truck, RotateCcw, Banknote,
   RefreshCw, Loader2, Circle, CheckCircle2, TrendingUp, Eye, Phone,
 } from 'lucide-react';
+import { formatSkopje } from '@/lib/skopjeTime';
 
 interface AgentInfo {
   user_id: string;
@@ -133,7 +134,7 @@ export default function OperationsPage() {
             <div className="min-w-0">
               <h1 className="text-base sm:text-xl font-bold truncate">{t('ops.commandCenter')}</h1>
               <p className="text-xs text-muted-foreground truncate">
-                {t('ops.liveData', { time: lastRefresh.toLocaleTimeString() })}
+                {t('ops.liveData', { time: formatSkopje(lastRefresh, 'HH:mm:ss') })}
               </p>
             </div>
           </div>
@@ -210,7 +211,7 @@ export default function OperationsPage() {
                         <span className="font-mono">{view.customer_phone}</span>
                       </div>
                       <p className="text-[10px] text-muted-foreground mt-0.5">
-                        {t('ops.since', { time: new Date(view.opened_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) })}
+                        {t('ops.since', { time: formatSkopje(view.opened_at, 'HH:mm') })}
                       </p>
                     </div>
                   </div>
@@ -256,7 +257,7 @@ export default function OperationsPage() {
                           )}
                         </p>
                         <p className="text-[11px] text-muted-foreground">
-                          {agent.login_time ? t('ops.since', { time: new Date(agent.login_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }) : t('ops.active')}
+                          {agent.login_time ? t('ops.since', { time: formatSkopje(agent.login_time, 'HH:mm') }) : t('ops.active')}
                         </p>
                       </div>
                     </div>

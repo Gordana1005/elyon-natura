@@ -27,6 +27,7 @@ import {
   apiGetAllCallScripts, apiCreateProductScript, apiUpdateProductScript, apiDeleteProductScript,
   type CallScript, type CallScriptHelper, type CallScriptTranslation,
 } from '@/lib/api';
+import { formatSkopje } from '@/lib/skopjeTime';
 
 type ProductScriptInput = {
   title: string;
@@ -177,7 +178,7 @@ function LegacyScriptTab({ scriptType, isAdmin }: { scriptType: { key: string; l
             {script?.updated_at && (
               <span className="flex items-center gap-1 text-xs text-muted-foreground">
                 <Clock className="h-3 w-3" />
-                {t('callScripts.lastUpdated', { date: new Date(script.updated_at).toLocaleString() })}
+                {t('callScripts.lastUpdated', { date: formatSkopje(script.updated_at, 'dd.MM.yyyy HH:mm') })}
               </span>
             )}
           </CardHeader>
@@ -590,7 +591,7 @@ function ProductScriptCard({
           {script.updated_at && (
             <p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground/60">
               <Clock className="h-3 w-3" />
-              Last updated: {new Date(script.updated_at).toLocaleString()}
+              Last updated: {formatSkopje(script.updated_at, 'dd.MM.yyyy HH:mm')}
             </p>
           )}
         </div>

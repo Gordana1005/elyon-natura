@@ -31,7 +31,7 @@ import {
   Plus, Copy, Pencil, Loader2, Handshake, KeyRound, BarChart3, PackageCheck,
   CheckCircle2, Banknote,
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { formatSkopje } from '@/lib/skopjeTime';
 import { cn } from '@/lib/utils';
 import { EmptyState } from '@/components/EmptyState';
 
@@ -582,7 +582,7 @@ function StatsDialog({ affiliate, onClose }: { affiliate: AffiliateAdmin; onClos
                   <tbody>
                     {[...(data?.days || [])].reverse().map((d) => (
                       <tr key={d.date} className="border-b last:border-0">
-                        <td className="px-3 py-1.5">{format(new Date(d.date), 'MMM d')}</td>
+                        <td className="px-3 py-1.5">{formatSkopje(d.date, 'MMM d')}</td>
                         <td className="px-3 py-1.5 text-right font-medium">{d.sent}</td>
                         <td className="px-3 py-1.5 text-right">{d.approved}</td>
                         <td className="px-3 py-1.5 text-right">{d.paid}</td>

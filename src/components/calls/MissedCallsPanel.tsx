@@ -8,7 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { format } from 'date-fns';
+import { formatSkopje } from '@/lib/skopjeTime';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useVoip } from '@/contexts/VoipContext';
@@ -63,7 +63,7 @@ const STATUS_VARIANTS: Record<string, 'default' | 'secondary' | 'destructive' | 
 function lastContactSub(r: MissedCall, t: (k: string) => string): string {
   const how = r.last_agent_source === 'call' ? t('missedCalls.contactCalled')
     : `${t('missedCalls.contactOrder')}${r.last_agent_detail ? ` ${r.last_agent_detail}` : ''}`;
-  const when = r.last_agent_at ? ` · ${format(new Date(r.last_agent_at), 'dd/MM')}` : '';
+  const when = r.last_agent_at ? ` · ${formatSkopje(r.last_agent_at, 'dd/MM')}` : '';
   return how + when;
 }
 
@@ -319,7 +319,7 @@ export function MissedCallsPanel() {
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-sm whitespace-nowrap text-muted-foreground">{format(new Date(r.occurred_at), 'dd/MM HH:mm')}</TableCell>
+                    <TableCell className="text-sm whitespace-nowrap text-muted-foreground">{formatSkopje(r.occurred_at, 'dd/MM HH:mm')}</TableCell>
                     {/* Last contacted by — admins can click to route the call to them */}
                     <TableCell className="text-sm">
                       {r.last_agent_name ? (
@@ -436,7 +436,7 @@ export function MissedCallsPanel() {
                   />
                 </div>
               </div>
-              <MobileCardField label={t('missedCalls.colWhen')} value={format(new Date(r.occurred_at), 'dd/MM HH:mm')} />
+              <MobileCardField label={t('missedCalls.colWhen')} value={formatSkopje(r.occurred_at, 'dd/MM HH:mm')} />
               <MobileCardField
                 label={t('missedCalls.colLastContactedBy')}
                 value={r.last_agent_name

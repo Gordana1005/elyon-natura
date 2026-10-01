@@ -6,6 +6,7 @@ import { apiGetAffiliatePortalStats, apiGetAffiliatePortalLeads } from '@/lib/ap
 import { formatEurExact } from '@/lib/currency';
 import { DateRangePicker, type DateRange } from '@/components/DateRangePicker';
 import { format, subDays } from 'date-fns';
+import { skopjeTodayLocal } from '@/lib/skopjeTime';
 import { Loader2 } from 'lucide-react';
 import { AffiliateKpiCards } from '@/components/affiliates/AffiliateKpiCards';
 import { AffiliateLeadsTable } from '@/components/affiliates/AffiliateLeadsTable';
@@ -17,8 +18,8 @@ import { AffiliateLeadsTable } from '@/components/affiliates/AffiliateLeadsTable
 
 // Default range = the last 30 days, matching the staff Dashboard tab.
 const last30Days = (): DateRange => ({
-  from: format(subDays(new Date(), 29), 'yyyy-MM-dd'),
-  to: format(new Date(), 'yyyy-MM-dd'),
+  from: format(subDays(skopjeTodayLocal(), 29), 'yyyy-MM-dd'),
+  to: format(skopjeTodayLocal(), 'yyyy-MM-dd'),   // Skopje's today
 });
 
 export default function AffiliateDashboardPage() {

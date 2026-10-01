@@ -14,7 +14,7 @@ import { cancelReasonLabel, isCancelSelectionValid } from '@/lib/cancellationRea
 import { isTrashSelectionValid, trashReasonLabel } from '@/lib/trashReasons';
 import { DISPOSITION_NOTE_MAX, DISPOSITION_NOTE_MIN, isDispositionNoteValid, normalizeNote } from '@/lib/dispositionNote';
 import {
-  callbackChoices, CALLBACK_MAX_MS, isValidCallback, skopjeClock, toDatetimeLocal, type CallbackChoice,
+  callbackChoices, CALLBACK_MAX_MS, fromDatetimeLocal, isValidCallback, skopjeClock, toDatetimeLocal, type CallbackChoice,
 } from '@/lib/callsWork/callbacks';
 import {
   isTypingTarget, outcomeForKey, OUTCOME_ORDER, TOP_CANCEL_REASONS, TOP_TRASH_REASONS, type CallOutcomeKey,
@@ -203,7 +203,7 @@ export function OutcomeBar({
     return () => window.removeEventListener('keydown', onKey);
   });
 
-  const customDate = customAt ? new Date(customAt) : null;
+  const customDate = fromDatetimeLocal(customAt);   // Skopje wall time, not the browser's clock
   const customValid = isValidCallback(customDate, now());
 
   return (

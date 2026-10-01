@@ -7,7 +7,7 @@ import { statusLabel } from '@/types';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { EmptyState } from '@/components/EmptyState';
-import { format } from 'date-fns';
+import { formatSkopje } from '@/lib/skopjeTime';
 import { Info, Loader2, Waypoints } from 'lucide-react';
 
 /**
@@ -88,8 +88,8 @@ export function SourcesTab() {
                   <TableCell className="text-right tabular-nums text-sm">{s.confirmed.toLocaleString()}</TableCell>
                   <TableCell className="text-right tabular-nums text-sm">{s.cancelled.toLocaleString()}</TableCell>
                   <TableCell className="text-right tabular-nums text-sm">{s.trashed.toLocaleString()}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{s.first_seen ? format(new Date(s.first_seen), 'dd.MM.yy') : '—'}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{s.last_seen ? format(new Date(s.last_seen), 'dd.MM.yy') : '—'}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{s.first_seen ? formatSkopje(s.first_seen, 'dd.MM.yy') : '—'}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{s.last_seen ? formatSkopje(s.last_seen, 'dd.MM.yy') : '—'}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

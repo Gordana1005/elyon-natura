@@ -33,6 +33,7 @@ import { CourierNoteField } from '@/components/order/CourierNoteField';
 import { AddressFields } from '@/components/address/AddressFields';
 import { MexPreview } from '@/components/address/MexPreview';
 import { useAddressResolution, EMPTY_ADDRESS, type AddressDraft } from '@/components/address/useAddressResolution';
+import { skopjeTodayLocal } from '@/lib/skopjeTime';
 
 type CreateStatus = 'confirmed' | 'call_again' | 'cancelled' | 'trashed' | 'pending';
 
@@ -565,7 +566,7 @@ export function CreateOrderModal({
                   mode="single"
                   selected={shipAfterDate}
                   onSelect={setShipAfterDate}
-                  disabled={(d) => d < new Date(new Date().setHours(0, 0, 0, 0))}
+                  disabled={(d) => d < skopjeTodayLocal() /* before Skopje's today */}
                   className="pointer-events-auto p-3"
                 />
               </PopoverContent>

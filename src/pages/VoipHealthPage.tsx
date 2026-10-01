@@ -22,6 +22,7 @@ import { formatDayDmy } from '@/i18n/dates';
 import {
   apiGetVoipHealth, apiGetVoipHealthHistory, apiGetRecordingCoverage, apiGetVoipMinutes,
 } from '@/lib/api';
+import { formatSkopje } from '@/lib/skopjeTime';
 
 type Range = '24h' | '7d' | '30d';
 
@@ -272,9 +273,9 @@ export default function VoipHealthPage() {
                     <ResponsiveContainer width="100%" height={220}>
                       <AreaChart data={history.data.snapshots}>
                         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                        <XAxis dataKey="captured_at" tickFormatter={(v) => new Date(v).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} fontSize={11} />
+                        <XAxis dataKey="captured_at" tickFormatter={(v) => formatSkopje(v, 'HH:mm')} fontSize={11} />
                         <YAxis allowDecimals={false} domain={[0, maxLines]} fontSize={11} />
-                        <Tooltip labelFormatter={(v) => new Date(v as string).toLocaleString()} />
+                        <Tooltip labelFormatter={(v) => formatSkopje(v as string, 'dd.MM.yyyy HH:mm')} />
                         <Area type="monotone" dataKey="active_lines" stroke={CHART_COLORS.primary} fill={CHART_COLORS.primary} fillOpacity={0.2} />
                       </AreaChart>
                     </ResponsiveContainer>
@@ -314,7 +315,7 @@ export default function VoipHealthPage() {
                         <tbody className="divide-y">
                           {coverage.data.gaps.map((g) => (
                             <tr key={g.id}>
-                              <td className="py-2 pr-3 tabular-nums">{g.call_at ? new Date(g.call_at).toLocaleString() : '—'}</td>
+                              <td className="py-2 pr-3 tabular-nums">{g.call_at ? formatSkopje(g.call_at, 'dd.MM.yyyy HH:mm') : '—'}</td>
                               <td className="py-2 pr-3">{g.agent_name || '—'}</td>
                               <td className="py-2 pr-3 tabular-nums">{g.customer_phone || '—'}</td>
                               <td className="py-2 pr-3">{g.outcome || '—'}</td>
@@ -365,9 +366,9 @@ export default function VoipHealthPage() {
                       <ResponsiveContainer width="100%" height={220}>
                         <AreaChart data={history.data.snapshots}>
                           <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                          <XAxis dataKey="captured_at" tickFormatter={(v) => new Date(v).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} fontSize={11} />
+                          <XAxis dataKey="captured_at" tickFormatter={(v) => formatSkopje(v, 'HH:mm')} fontSize={11} />
                           <YAxis domain={[0, 100]} fontSize={11} />
-                          <Tooltip labelFormatter={(v) => new Date(v as string).toLocaleString()} />
+                          <Tooltip labelFormatter={(v) => formatSkopje(v as string, 'dd.MM.yyyy HH:mm')} />
                           <Area type="monotone" dataKey="disk_pct" name={t('voipHealth.cards.disk')} stroke={CHART_COLORS.warning} fill={CHART_COLORS.warning} fillOpacity={0.15} />
                           <Area type="monotone" dataKey="mem_pct" name={t('voipHealth.cards.memory')} stroke={CHART_COLORS.tertiary} fill={CHART_COLORS.tertiary} fillOpacity={0.15} />
                         </AreaChart>

@@ -144,7 +144,7 @@ export function PersonalListButton({ phone, customerName, onClaimed, className }
           className="h-8 gap-1.5 text-xs rounded-r-none border-r-0 border-[hsl(var(--success))]/30 bg-[hsl(var(--success))]/10 text-[hsl(var(--success))] hover:bg-[hsl(var(--success))]/20 hover:text-[hsl(var(--success))]"
         >
           {busyPhoneAction === hold.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Unlock className="h-3 w-3" />}
-          {t('personalList.releaseExpires', { date: formatDate(new Date(hold.expires_at), 'd MMM') })}
+          {t('personalList.releaseExpires', { date: formatDate(hold.expires_at, 'd MMM') })}
         </Button>
       );
     }

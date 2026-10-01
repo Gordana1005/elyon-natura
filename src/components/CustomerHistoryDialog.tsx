@@ -223,7 +223,7 @@ export function CustomerHistoryDialog({ open, onClose, customerPhone, customerNa
                           <div className="flex items-center gap-2 shrink-0">
                             <div className="text-right">
                               <p className="font-bold text-primary text-sm">{formatMoney(o.price)}</p>
-                              <p className="text-[10px] text-muted-foreground">{formatDate(new Date(o.created_at), 'MMM d, yyyy')}</p>
+                              <p className="text-[10px] text-muted-foreground">{formatDate(o.created_at, 'MMM d, yyyy')}</p>
                             </div>
                             {hasDetails && (
                               isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -240,7 +240,7 @@ export function CustomerHistoryDialog({ open, onClose, customerPhone, customerNa
                                 <div className="space-y-1">
                                   {history.map(h => (
                                     <div key={h.id} className="flex items-center gap-2 text-xs">
-                                      <span className="text-muted-foreground w-28 shrink-0">{formatDate(new Date(h.changed_at), 'MMM d, HH:mm')}</span>
+                                      <span className="text-muted-foreground w-28 shrink-0">{formatDate(h.changed_at, 'MMM d, HH:mm')}</span>
                                       <div className="flex items-center gap-1">
                                         {h.from_status && (
                                           <>
@@ -267,7 +267,7 @@ export function CustomerHistoryDialog({ open, onClose, customerPhone, customerNa
                                 <div className="space-y-1">
                                   {notes.map(n => (
                                     <div key={n.id} className="text-xs bg-card rounded px-2 py-1 border">
-                                      <span className="text-muted-foreground">{formatDate(new Date(n.created_at), 'MMM d, HH:mm')}</span>
+                                      <span className="text-muted-foreground">{formatDate(n.created_at, 'MMM d, HH:mm')}</span>
                                       <span className="mx-1">·</span>
                                       <span className="font-medium">{n.author_name}</span>
                                       <span className="mx-1">·</span>
@@ -307,7 +307,7 @@ export function CustomerHistoryDialog({ open, onClose, customerPhone, customerNa
                           )}
                         </div>
                       </div>
-                      <p className="text-[10px] text-muted-foreground shrink-0">{formatDate(new Date(l.created_at), 'MMM d, yyyy')}</p>
+                      <p className="text-[10px] text-muted-foreground shrink-0">{formatDate(l.created_at, 'MMM d, yyyy')}</p>
                     </div>
                   ))}
                 </div>

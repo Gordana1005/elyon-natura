@@ -29,7 +29,8 @@ import {
   type AgentPayoutPreview,
 } from '@/lib/api';
 import { formatMoney, formatPriceInline, eurToDen, denToEur } from '@/lib/currency';
-import { formatDate } from '@/i18n/dates';
+import { formatDate, formatDayDmy } from '@/i18n/dates';
+import { skopjeToday } from '@/components/insights/shared/period';
 
 // DISPLAY ONLY — the payout maths (earned / settled / unpaid, the settlement
 // amount) is untouched and stays in the stored EUR; every figure on screen and
@@ -42,7 +43,10 @@ const dmy = (v: string | null | undefined) =>
 export default function PayoutTab() {
   const { t } = useTranslation();
   const { toast } = useToast();
-  const today = new Date().toISOString().slice(0, 10);
+  // The pickers' default day is Skopje's today (the UTC date was yesterday until 02:00). The
+  // settlement window itself (bare `from`, `to` + 'T23:59:59Z') is payout maths — deferred by the
+  // owner, left on its UTC days on purpose until he rules on it.
+  const today = skopjeToday();
   const monthStart = today.slice(0, 7) + '-01';
 
   const [from, setFrom] = useState(monthStart);
@@ -279,7 +283,7 @@ export default function PayoutTab() {
       const lines = (s.items || []).map((it: any) =>
         `<tr>
           <td style="padding:4px 8px;border-bottom:1px solid #eee">${esc(it.display_id || it.order_id?.slice(0, 8) || '—')}</td>
-          <td style="padding:4px 8px;border-bottom:1px solid #eee">${it.paid_at ? esc(dmy(it.paid_at)) : '—'}</td>
+          <td style="padding:4px 8px;border-bottom:1px solid #eee">${it.paid_at ? esc(formatDayDmy(it.paid_at)) : '—'}</td>
           <td style="padding:4px 8px;border-bottom:1px solid #eee;text-align:right">${Number(it.package_units)}</td>
           <td style="padding:4px 8px;border-bottom:1px solid #eee;text-align:right">${formatMoney(it.bonus_eur)}</td>
         </tr>`).join('');

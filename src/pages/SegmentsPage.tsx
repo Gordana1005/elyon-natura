@@ -12,7 +12,7 @@ import {
   Layers, Star, AlertTriangle, Shield, ShoppingBag, RotateCcw, Loader2, ChevronRight, Clock,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { formatSkopje } from '@/lib/skopjeTime';
 import { formatDate } from '@/i18n/dates';
 import { predictionListLabel } from '@/lib/predictionListLabel';
 import {
@@ -116,7 +116,7 @@ export default function SegmentsPage() {
             </p>
             {segments[0]?.engine_data_as_of && (
               <p className="text-xs text-emerald-700 mt-0.5">
-                {t('segments.engineAsOf', { date: formatDate(new Date(segments[0].engine_data_as_of), 'dd MMM HH:mm') })}
+                {t('segments.engineAsOf', { date: formatDate(segments[0].engine_data_as_of, 'dd MMM HH:mm') })}
               </p>
             )}
           </div>
@@ -193,8 +193,8 @@ export default function SegmentsPage() {
                     <tr key={c.phone} className="border-b last:border-0">
                       <td className="py-1.5 font-mono text-xs">{c.phone}</td>
                       <td className="py-1.5 capitalize">{c.last_status}</td>
-                      <td className="py-1.5 text-xs text-muted-foreground">{format(new Date(c.last_at), 'dd MMM yyyy HH:mm')}</td>
-                      <td className="py-1.5 text-xs font-medium text-amber-600">{format(new Date(c.cooldown_until), 'dd MMM yyyy')}</td>
+                      <td className="py-1.5 text-xs text-muted-foreground">{formatSkopje(c.last_at, 'dd MMM yyyy HH:mm')}</td>
+                      <td className="py-1.5 text-xs font-medium text-amber-600">{formatSkopje(c.cooldown_until, 'dd MMM yyyy')}</td>
                     </tr>
                   ))}
                 </tbody>

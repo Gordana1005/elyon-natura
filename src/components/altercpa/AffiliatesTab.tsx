@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { EmptyState } from '@/components/EmptyState';
-import { format } from 'date-fns';
+import { formatSkopje } from '@/lib/skopjeTime';
 import { Check, Info, Loader2, Users } from 'lucide-react';
 
 /**
@@ -134,8 +134,8 @@ export function AffiliatesTab() {
                     </div>
                   </TableCell>
                   <TableCell className="text-right tabular-nums text-sm">{Number(r.seen_count || 0).toLocaleString()}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{r.first_seen_at ? format(new Date(r.first_seen_at), 'dd.MM.yy') : '—'}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{r.last_seen_at ? format(new Date(r.last_seen_at), 'dd.MM.yy') : '—'}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{r.first_seen_at ? formatSkopje(r.first_seen_at, 'dd.MM.yy') : '—'}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{r.last_seen_at ? formatSkopje(r.last_seen_at, 'dd.MM.yy') : '—'}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

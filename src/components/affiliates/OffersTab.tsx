@@ -17,7 +17,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
 import { Plus, Pencil, Loader2, Tag, CheckCircle2 } from 'lucide-react';
-import { format } from 'date-fns';
+import { formatSkopje } from '@/lib/skopjeTime';
 import { cn } from '@/lib/utils';
 import { EmptyState } from '@/components/EmptyState';
 import { ProductCombobox } from '@/components/ProductCombobox';
@@ -157,7 +157,7 @@ export function OffersTab() {
                       {o.is_active ? t('affiliatesAdmin.offerActive') : t('affiliatesAdmin.offerRetired')}
                     </Badge>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground text-xs">{format(new Date(o.created_at), 'dd.MM.yyyy')}</td>
+                  <td className="px-4 py-3 text-muted-foreground text-xs">{formatSkopje(o.created_at, 'dd.MM.yyyy')}</td>
                   {isAdmin && (
                     <td className="px-4 py-3 text-right">
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(o)}>

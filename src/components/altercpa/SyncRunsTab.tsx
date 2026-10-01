@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { EmptyState } from '@/components/EmptyState';
 import { History, Info, Loader2, RefreshCw } from 'lucide-react';
-import { format } from 'date-fns';
+import { formatSkopje } from '@/lib/skopjeTime';
 import { cn } from '@/lib/utils';
 
 const statusBadge: Record<string, string> = {
@@ -90,16 +90,16 @@ function RunRow({ run }: { run: AlterCpaSyncRun }) {
   return (
     <TableRow>
       <TableCell className="whitespace-nowrap text-xs">
-        {format(new Date(run.started_at), 'dd.MM.yy HH:mm:ss')}
+        {formatSkopje(run.started_at, 'dd.MM.yy HH:mm:ss')}
         {run.duration_ms != null && (
           <div className="text-muted-foreground">{(run.duration_ms / 1000).toFixed(1)}s</div>
         )}
       </TableCell>
       <TableCell><Badge variant="outline">{t(`altercpa.kind_${run.kind}`, run.kind)}</Badge></TableCell>
       <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
-        {run.window_from ? format(new Date(run.window_from), 'dd.MM HH:mm') : '—'}
+        {run.window_from ? formatSkopje(run.window_from, 'dd.MM HH:mm') : '—'}
         {' → '}
-        {run.window_to ? format(new Date(run.window_to), 'dd.MM HH:mm') : '—'}
+        {run.window_to ? formatSkopje(run.window_to, 'dd.MM HH:mm') : '—'}
       </TableCell>
       <TableCell className="text-right tabular-nums">{run.fetched.toLocaleString()}</TableCell>
       <TableCell className="text-right tabular-nums">

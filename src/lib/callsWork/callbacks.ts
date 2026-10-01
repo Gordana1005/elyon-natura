@@ -2,6 +2,8 @@
 // Europe/Skopje clock whatever the browser says, and every choice falls inside the
 // 6-day call-again window the server enforces (callsOutcome.ts CALLBACK_MAX_MS = 5 days).
 
+import { fromSkopjeDatetimeLocal, skopjeWallToUtcMs, toSkopjeDatetimeLocal } from '@/lib/skopjeTime';
+
 const TZ = 'Europe/Skopje';
 
 /** YYYY-MM-DD and HH (0–23) of an instant on the Skopje clock. */
@@ -14,13 +16,11 @@ export function skopjeParts(at: Date): { day: string; hour: number; minute: numb
   return { day: `${v('year')}-${v('month')}-${v('day')}`, hour, minute: Number(v('minute')) };
 }
 
-/** The UTC instant of HH:MM on a Skopje calendar day (DST-correct: probe the offset at noon). */
+/** The UTC instant of HH:MM on a Skopje calendar day — DST-exact (the shared skopjeTime module;
+ *  the old noon probe was an hour off before 03:00 on the two changeover days). */
 export function skopjeWallToUtc(day: string, hour: number, minute = 0): Date {
   const [y, m, d] = day.split('-').map(Number);
-  const probe = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
-  const noonHour = skopjeParts(probe).hour;
-  const offsetHours = noonHour - 12; // CET +1 in winter, CEST +2 in summer
-  return new Date(Date.UTC(y, m - 1, d, hour, minute, 0) - offsetHours * 3_600_000);
+  return new Date(skopjeWallToUtcMs(y, m, d, hour, minute));
 }
 
 function nextDay(day: string, n = 1): string {
@@ -60,10 +60,16 @@ export function skopjeClock(at: Date): string {
 /** The latest callback the server accepts (5 days), for the custom picker's max. */
 export const CALLBACK_MAX_MS = 5 * 24 * 60 * 60 * 1000;
 
-/** A datetime-local value (the browser's clock — agents' browsers run on Skopje time). */
+/** A datetime-local value on the SKOPJE clock, whatever the browser's own clock (owner 01.10.2026:
+ *  the same time everywhere). Read it back with fromDatetimeLocal — never `new Date(value)`, which
+ *  reads it on the browser's clock. */
 export function toDatetimeLocal(at: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}T${pad(at.getHours())}:${pad(at.getMinutes())}`;
+  return toSkopjeDatetimeLocal(at);
+}
+
+/** A datetime-local value (Skopje wall time) → the instant; null when empty / unreadable. */
+export function fromDatetimeLocal(value: string | null | undefined): Date | null {
+  return fromSkopjeDatetimeLocal(value);
 }
 
 /** A custom pick is valid when it is in the future and within the window. */

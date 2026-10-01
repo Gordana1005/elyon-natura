@@ -7,6 +7,7 @@ import { formatEurExact, formatMoney } from '@/lib/currency';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DateRangePicker, type DateRange } from '@/components/DateRangePicker';
 import { format, subDays } from 'date-fns';
+import { skopjeTodayLocal } from '@/lib/skopjeTime';
 import { Handshake, Loader2 } from 'lucide-react';
 import { EmptyState } from '@/components/EmptyState';
 import { AffiliateKpiCards } from './AffiliateKpiCards';
@@ -15,8 +16,8 @@ import { approveRatePct } from './affiliateStage';
 
 // Default range = the last 30 days, matching what the partner portal shows.
 const last30Days = (): DateRange => ({
-  from: format(subDays(new Date(), 29), 'yyyy-MM-dd'),
-  to: format(new Date(), 'yyyy-MM-dd'),
+  from: format(subDays(skopjeTodayLocal(), 29), 'yyyy-MM-dd'),
+  to: format(skopjeTodayLocal(), 'yyyy-MM-dd'),   // Skopje's today
 });
 
 // Staff Dashboard tab on /affiliates-admin: the exact partner-portal view

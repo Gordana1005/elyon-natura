@@ -7,7 +7,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { formatOrderProducts } from '@/lib/monadonSubstitutes';
-import { format } from 'date-fns';
+import { formatSkopje } from '@/lib/skopjeTime';
 import { formatDate } from '@/i18n/dates';
 import { formatMoney } from '@/lib/currency';
 import { STATUS_COLORS, statusLabel } from '@/types';
@@ -196,7 +196,7 @@ function PastOrderRow({ order }: { order: NonNullable<CustomerIntelligence['orde
       </div>
       <div className="mt-0.5 text-muted-foreground truncate">{itemsLabel}</div>
       <div className="flex items-center justify-between text-[10px] text-muted-foreground/80 mt-0.5">
-        <span>{formatDate(new Date(order.date), 'dd MMM yyyy')}</span>
+        <span>{formatDate(order.date, 'dd MMM yyyy')}</span>
         {order.agent && <span>{order.agent}</span>}
       </div>
     </div>
@@ -227,7 +227,7 @@ function TimelineEvent({ event }: { event: any }) {
   return (
     <div className="flex items-start gap-2 text-xs">
       <span className="text-muted-foreground shrink-0 w-[70px]">
-        {format(new Date(event.date), 'dd/MM HH:mm')}
+        {formatSkopje(event.date, 'dd/MM HH:mm')}
       </span>
       <span className="font-medium">{label}</span>
       {event.agent && <span className="text-muted-foreground ml-auto">{t('intel.byAgent', { agent: event.agent })}</span>}

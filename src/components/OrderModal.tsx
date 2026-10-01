@@ -55,6 +55,7 @@ import { DISPOSITION_NOTE_MIN, isDispositionNoteValid, normalizeNote } from '@/l
 import type { CancellationReason, TrashReason } from '@/lib/api';
 import { format } from 'date-fns'; // machine 'yyyy-MM-dd' payloads only
 import { formatDate, formatDayDmy } from '@/i18n/dates';
+import { formatSkopje, skopjeTodayLocal } from '@/lib/skopjeTime';
 
 export type CallOutcome =
   | 'no_answer' | 'interested' | 'not_interested' | 'wrong_number' | 'call_again'
@@ -996,7 +997,7 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
                       mode="single"
                       selected={followUpDate}
                       onSelect={setFollowUpDate}
-                      disabled={(date) => date < new Date()}
+                      disabled={(date) => date <= skopjeTodayLocal() /* today and earlier, on the Skopje calendar */}
                       className="p-3 pointer-events-auto"
                     />
                   </PopoverContent>
@@ -1061,7 +1062,7 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
                         mode="single"
                         selected={shipAfterDate}
                         onSelect={setShipAfterDate}
-                        disabled={(date) => date < new Date()}
+                        disabled={(date) => date <= skopjeTodayLocal() /* today and earlier, on the Skopje calendar */}
                         className="p-3 pointer-events-auto"
                       />
                     </PopoverContent>
@@ -1321,7 +1322,7 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
                     <div key={log.id} className="rounded bg-muted/30 border p-2 text-xs">
                       <div className="flex items-center justify-between">
                         <span className="font-medium">{t(`outcome.${log.outcome}`, { defaultValue: log.outcome.replace(/_/g, ' ') })}</span>
-                        <span className="text-muted-foreground">{new Date(log.created_at).toLocaleString()}</span>
+                        <span className="text-muted-foreground">{formatSkopje(log.created_at, 'dd.MM.yyyy HH:mm:ss')}</span>
                       </div>
                       {log.notes && <p className="mt-0.5 text-muted-foreground">{log.notes}</p>}
                     </div>
