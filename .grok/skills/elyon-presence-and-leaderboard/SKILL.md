@@ -344,7 +344,9 @@ orders." ONE board, one row per person, the day split over the six departments.
     `order` types 10036 Нарачка in · 10050 Нарачка out · 10106 Социјални мрежи**, and not when the
     customer (komitent card / teleshop registry / the document's parcel) already has a CRM /
     AlterCPA sale with no parcel of its own, created 1 day before … 2 days after, at a price that
-    fits (the writer's `possible_twin_crm_sale` rule). **10111 LEADS and 10114 LEADS-OUT bookings
+    fits (the writer's `possible_twin_crm_sale` rule); a booking with NO phone is a twin of its
+    author's own priced CRM sale within ±10 min of the booking, or 1 day before … 2 days after it
+    with the same script-folded customer name (`20260944000630`; `elyon-collabbox-sync`). **10111 LEADS and 10114 LEADS-OUT bookings
     are `booked_twin` — shown, never counted**: their sale is the CRM / AlterCPA order (28.09: 17 of
     the 23 LEADS-OUT bookings with a known phone had the same agent's CRM sale minutes apart). Once
     the parcel exists the collabBox sync creates the order (`sold_at` = the document time), the

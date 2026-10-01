@@ -150,11 +150,21 @@ order naming the tracking id. Amount ≤ 0 → `replacement`. No holder → `cre
 | the komitent is skipped (card, teleshop registry or header name: employee, company, deceased, wrong number, test, operator account, do-not-ship, junk name) | `skipped · komitent_<verdict>` |
 | no valid Macedonian phone | `no_phone` (`no_komitent` / `komitent_card_not_read` / `no_valid_macedonian_phone`), retried 14 days |
 | one of the owner's test phones (`report_excluded_phones`) | `skipped · test_phone` |
-| **a twin:** a CRM / AlterCPA order on the same last-8 phone, not a collabBox order, status pending / take / call_again / confirmed / shipped / delivered / paid / returned, no parcel of its own, price > 0, a real product, not a disposition, created 1 day before … 2 days after the document, with price × 61,5 equal (±3 ден) to the amount, to the amount − 150, or to the goods | `conflict · possible_twin_crm_sale` — never a second order |
+| **a twin:** a CRM / AlterCPA order on the same last-8 phone, not a collabBox order, status pending / take / call_again / confirmed / shipped / delivered / paid / returned, no parcel of its own, price > 0, a real product, not a disposition, created 1 day before … 2 days after the document's SALE time (`collabbox_sale_at` — the booking; it was `doc_at`, the dispatch day, until `20260944000630`, so a copy booked days ahead became a second order when its parcel came), with price × 61,5 equal (±3 ден) to the amount, to the amount − 150, or to the goods | `conflict · possible_twin_crm_sale` — never a second order |
 | otherwise | **`created`** (`parcel_paid` / `parcel_returned` / `parcel_shipped`) |
 
-A near CRM sale (±3 days) whose price does NOT fit is only flagged `near_crm_sale_price_differs`
-and the order is created. **Conflicts are listed, never forced.**
+A near CRM sale (±3 days of the sale time) whose price does NOT fit is only flagged
+`near_crm_sale_price_differs` and the order is created. **Conflicts are listed, never forced.**
+
+**The same twin rule in the cohort (`insights_sale_rows`' `bk`, before the order exists):** a waiting
+booking is not counted when the customer's phone (card → teleshop registry → any stored card) has
+such a CRM / AlterCPA sale (14 days before … 2 days after `doc_at`). **With no phone** (a komitent new
+in collabBox) it is the author's own priced CRM sale created 1 day before … 2 days after the booking's
+sale time AND either within ±10 min of it or with the same customer name after the script fold —
+`collabbox_name_key()` (words → `mk_geo_norm`, sorted, ≥ 2 words), compared with the CRM sale's name
+or any name the CRM holds on that sale's phone (`20260944000630`, owner 01.10: 4 LEADS-OUT copies
+counted twice that day; it compared with `doc_at` ±10 min before). `leaderboard_day_v2` reads the
+cohort, so such a booking shows as `booked_twin` there.
 
 ### The rule that matters most: an order only once its MEX parcel exists
 
