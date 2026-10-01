@@ -44,6 +44,7 @@ function plLines(clock: string, rows: PLRow[]): Record<string, unknown>[] {
     line('Unclassified value (no Sigma rate)', (r) => r.vat_unclassified?.revenue_mkd ?? null, 'MKD'),
     line('Product cost (known)', (r) => -r.cogs_known_mkd, 'MKD'),
     line('Product cost (estimated, uncosted packages)', (r) => (r.cogs_est_mkd == null ? null : -r.cogs_est_mkd), 'MKD'),
+    line('Gifts and extra packed goods (collabBox)', (r) => (r.cogs_extra_mkd == null ? null : -r.cogs_extra_mkd), 'MKD'),
     line('Courier (MEX, delivered parcels)', (r) => -r.courier_mkd, 'MKD'),
     line('Returns (MEX return fee)', (r) => -r.returns_mkd, 'MKD'),
     line('Agent commission (current rule)', (r) => -r.commission_mkd, 'MKD'),
@@ -87,7 +88,7 @@ export default function PureProfitExportDialog({ data }: { data: ProfitResponse 
       const rows = [...data.products, ...(data.products_others ? [data.products_others] : [])];
       out.push({
         name: 'Products',
-        widths: [40, 12, 10, 8, 14, 13, 14, 14, 10, 12, 12, 16, 14, 9, 10],
+        widths: [40, 12, 10, 8, 14, 13, 14, 14, 14, 10, 12, 12, 16, 14, 9, 10],
         rows: rows.map((p) => ({
           'Product': p.key === '__mex_only__' ? 'MEX parcels without an order (contents unknown)' : p.key === '__others__' ? 'Others' : (p.name ?? p.key),
           'Kind': p.kind,
@@ -95,8 +96,9 @@ export default function PureProfitExportDialog({ data }: { data: ProfitResponse 
           'Free': p.free_packages,
           'Revenue (MKD)': p.revenue_mkd,
           'Cost / package (MKD)': p.unit_cost_mkd ?? '',
-          'Product cost (MKD)': p.cost_known ? p.cogs_mkd : '',
+          'Product cost (MKD)': p.cost_known || p.cost_partial ? p.cogs_mkd : '',
           'Estimated cost (MKD)': p.cost_known ? '' : (p.cogs_est_mkd ?? ''),
+          'Extra packed goods (MKD)': p.cogs_extra_mkd ?? '',
           // per product from Sigma (01.10.2026); "no" = no rate on file, taxed at the default
           'VAT rate %': p.vat_rate == null ? '' : Math.round(p.vat_rate * 100),
           'VAT rate from Sigma': p.vat_classified === undefined ? '' : p.vat_classified ? 'yes' : 'no',

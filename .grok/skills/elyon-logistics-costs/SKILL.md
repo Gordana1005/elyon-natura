@@ -47,8 +47,14 @@ The cohort strip ties to `insights_cohort` bucket by bucket; cash ties to its
                  Σ line value × r / (1 + r), r = the line's product rate from Sigma
                  (products.vat_rate: 5 % supplements, 18 % cosmetics / devices); a line with
                  no product or no rate at 5 % (DEFAULT_VAT_RATE) and reported as unclassified
-− COGS known     Σ packages × products.cost_price (> 0 only) × 61,5
-− COGS estimated uncosted revenue × (known COGS ÷ costed revenue) of the same view — LABELLED
+− COGS known     Σ packages × the unit cost — app_settings.stock_v2.profit.cost_source:
+                 'sigma' = Sigma CalcBuyPrice through the product's APPROVED recipe at the
+                 sale day (product_cost_history, денари, no ×61,5 — 20260945000800);
+                 'legacy' (the default until the owner switches) = products.cost_price × 61,5
+− COGS estimated uncosted revenue × ((known COGS + extra) ÷ costed revenue) of the same view — LABELLED
+− extra goods    Phase B (profit.extra_goods, Sigma only): the collabBox goods packed in each
+                 collected parcel − its order lines' cost (gifts …); a MEX-only parcel with
+                 known contents is costed by them — cogs_extra_mkd
 − courier        delivered parcels × 150 ден
 − returns        returned parcels × the rate card's return fee (MEX: 0)
 − lead cost      the slot stays wired at 0 — "not configured" until per-webmaster rates exist
@@ -88,6 +94,28 @@ The cohort strip ties to `insights_cohort` bucket by bucket; cash ties to its
   `P = (1+r)(target + cost + courier + tier(P) × 61,5 × γ)`, r = **the product's** Sigma
   rate (`productVatRate`), γ = the share of the product's packages today's rule actually
   pays commission on. No cost → no floor. The simulator starts at the product's rate.
+
+## Purchase cost from Sigma (owner decision 01.10.2026 — `docs/STOCK-V2.md` "Costs")
+
+- **Sigma CalcBuyPrice for everything, the whole history** (first load valid from `-infinity`);
+  the 69 old CRM `cost_price` placeholders are archived in `products_cost_legacy` (once, every
+  product) and `products.cost_price` becomes a GUARDED mirror = current cost_mkd / 61,5
+  (`tg_products_cost_guard`, written only by `product_costs_rebuild()`). Owners only.
+- A product's cost = Σ qty × `article_cost_at()` over its **approved** recipe (`product_articles`;
+  a bundle = its components, a packed gift line = a real cost); `product_cost_history` holds the
+  intervals (`complete` = every line costed). No approved recipe / an uncosted article = uncosted:
+  the labelled estimate, never a silent 0. `product_stock_exempt` products cost 0.
+- Load: `scripts/stock/costs-apply.mjs` (dry by default → `--apply --actor`), i.e.
+  `stock_article_costs_import()` (append-only) → `product_costs_rebuild(actor, true)`. An owner's
+  cost: `stock_article_cost_set()` (wins a tie, rebuilds). **After a recipe is approved the
+  rebuild must run** (`product_costs_rebuild(actor, false)`) or the profit keeps the old history.
+- `insights_profit()` (20260945000800): payload `cost_mode` legacy | sigma and `extra_goods`;
+  product rows carry `cost_mkd`, `pc`, `rc`, `cx`, `xr`; agg rows `cx`, `cxm`, `cxn`, `xr`, `xn`.
+  Legacy mode is the 0900 body to the denar (proved 02.10). Cache version **6**; the signature
+  includes the cost history, the approved recipes, the article costs and the switches.
+- September 2026 dry run (S's costs, S's recipes approved for the estimate): package cost coverage
+  31,1 % → 99,2 % on the cohort clock; the amounts are business-confidential — in the workstream
+  report, never in the repo.
 
 ## VAT per product (owner decision 01.10.2026 — `docs/VAT.md`)
 
@@ -170,6 +198,8 @@ rate card and the bonus tiers, converted once at the FROZEN 61,5 peg.
 - Any courier cost for Macedonia that is not the `mex` row (Speedy / Econt / a blend).
 - Charging COGS on a returned parcel.
 - An uncosted product at 0 cost presented as real margin, or as "clears the target".
+- Typing a purchase cost into `products.cost_price` (the guard refuses it) — set the article's cost
+  or the recipe; or mixing legacy and Sigma costs in one figure (`cost_mode` 'mixed').
 - Revenue from `paid_unproven` (CRM paid, no delivered parcel) in the profit.
 - Mixing the two clocks in one number, or a figure without its clock caption.
 - Changing the commission formula or its gate here (deferred by the owner).

@@ -10,6 +10,8 @@
  *   V3  the parts add up: Σ parts' VAT = the VAT line, Σ parts' revenue = the revenue
  *   V4  Σ products' VAT = the cohort's VAT line (± a denar per product row)
  *   V5  meta.vat says per_product_sigma, default 5 %
+ * Once the profit body carries the Sigma costs (cache version >= 6, 20260945000800) it checks the LIVE
+ * insights_profit() — the one the tab runs — instead of 0900's query text (VAT is untouched by the costs).
  *
  *   node scripts/vat/check-profit-vat.mjs --from 2026-09-22 --to 2026-09-28
  *
@@ -54,11 +56,14 @@ const IP = await loadTs('insightsProfit.ts');
 const w = IC.insightsWindows(from, to, false);
 const [probe] = await runSql(`SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public'
                                 AND table_name = 'products' AND column_name = 'vat_rate') AS col`);
+const [ver] = probe.col ? await runSql(`SELECT public.insights_profit_cache_version() AS v`) : [{ v: 0 }];
+const live = Number(ver?.v) >= 6;
 const q = migrationQueries(readFileSync(MIGRATION, 'utf8'));
 const bind = (s) => (probe.col ? s : inlineRates(s)).replaceAll('$1', `${lit(w.fromIso)}::timestamptz`).replaceAll('$2', `${lit(w.toEndIso)}::timestamptz`)
   .replaceAll('$3', `${lit(w.days <= 62 ? 'day' : 'month')}::text`).replaceAll('$4', 'true');
-const [co] = await runSql(bind(q.cohort));
-const [ca] = await runSql(bind(q.cash));
+const liveCall = (clock) => runSql(`SELECT public.insights_profit(${lit(w.fromIso)}::timestamptz, ${lit(w.toEndIso)}::timestamptz, ${lit(clock)}, NULL, true) AS jsonb_build_object`);
+const [co] = live ? await liveCall('cohort') : await runSql(bind(q.cohort));
+const [ca] = live ? await liveCall('cash') : await runSql(bind(q.cash));
 const cohort = co.jsonb_build_object, cash = ca.jsonb_build_object;
 const resp = IP.buildProfitResponse({ cohort, cash }, w, {
   defaultVatRate: 0.05, deliverEur: 2.439, returnEur: 0, rateSource: 'courier_rates', agentNames: new Set(),
@@ -84,7 +89,7 @@ const prodVat = sum(resp.products, 'vat_mkd') + n(resp.products_others?.vat_mkd)
 if (!near(prodVat, resp.cohort.total.vat_mkd, 2 + resp.products.length * 0.5)) fails.push(`V4 Σ products' VAT ${prodVat} ≠ ${resp.cohort.total.vat_mkd}`);
 if (resp.meta.vat.mode !== 'per_product_sigma' || resp.meta.vat.default_rate !== 0.05) fails.push(`V5 meta.vat ${JSON.stringify(resp.meta.vat).slice(0, 120)}`);
 
-console.log(`check-profit-vat ${w.from} → ${w.to} · rates from ${probe.col ? 'products.vat_rate' : 'docs/vat (not applied yet)'}`);
+console.log(`check-profit-vat ${w.from} → ${w.to} · rates from ${probe.col ? 'products.vat_rate' : 'docs/vat (not applied yet)'} · ${live ? `live insights_profit (cost ${cohort.cost_mode})` : '0900 query text'}`);
 for (const clock of ['cohort', 'cash']) {
   const t = resp[clock].total;
   console.log(`  ${clock.padEnd(6)} revenue ${t.revenue_mkd} · VAT ${t.vat_mkd} (${t.vat_split.map((p) => `${Math.round(p.rate * 100)}%: ${p.vat_mkd}`).join(' · ')}) · unclassified ${t.vat_unclassified.revenue_mkd} · net ${t.net_mkd}`);

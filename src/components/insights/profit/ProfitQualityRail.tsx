@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { Link } from 'react-router-dom';
 import { AlertTriangle, Info, OctagonAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ProfitQuality } from '@/lib/insightsApi/profit';
@@ -17,12 +18,19 @@ const RANK = { critical: 0, warning: 1, info: 2 } as const;
  * sales with no Sigma VAT rate (taxed at 5 %, with the biggest products), and
  * the settings still pending (lead cost, MEX return fee; per-product VAT not
  * active yet). Review queues only: nothing is fixed or merged automatically.
+ * Sigma costs (owner 01.10.2026): the old catalogue prices still in use, the
+ * packages whose product has no approved recipe / no Sigma cost (with a link to
+ * the recipes), parcels whose recipe costs more than what was packed.
  */
+const COST_KINDS: readonly string[] = ['cost_legacy', 'recipe_missing', 'extra_goods_negative'];
+const textKey = (kind: string, part: 'kind' | 'hint') =>
+  COST_KINDS.includes(kind) ? `profitCost.quality.${part}.${kind}` : `insights.profit.quality.${part}.${kind}`;
+
 export function ProfitQualityRail({ items, f }: { items: ProfitQuality[]; f: InsightsFormat }) {
   const { t } = f;
   const titleId = useId();
   const live = items
-    .filter((q) => q.count > 0 || q.kind === 'vat_flat_default')
+    .filter((q) => q.count > 0 || q.kind === 'vat_flat_default' || q.kind === 'cost_legacy')
     .sort((a, b) => RANK[a.severity] - RANK[b.severity] || (b.value_mkd ?? 0) - (a.value_mkd ?? 0));
   return (
     <section aria-labelledby={titleId} className="space-y-3">
@@ -30,14 +38,14 @@ export function ProfitQualityRail({ items, f }: { items: ProfitQuality[]; f: Ins
       <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {live.map((q) => {
           const Icon = ICON[q.severity];
-          const settings = q.kind === 'vat_flat_default' || q.kind === 'lead_cost_missing' || q.kind === 'return_fee_unconfirmed';
+          const settings = q.kind === 'vat_flat_default' || q.kind === 'lead_cost_missing' || q.kind === 'return_fee_unconfirmed' || q.kind === 'cost_legacy';
           return (
             <li key={q.kind} className={cn('flex min-w-0 flex-col rounded-xl border bg-card p-4 shadow-sm', BORDER[q.severity])}>
               <span className={cn('inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide', TEXT[q.severity])}>
                 <Icon className="h-3.5 w-3.5" aria-hidden />
                 {settings ? t('insights.profit.quality.pendingSetting') : t(`insights.common.quality.severity.${q.severity}`)}
               </span>
-              <h3 className="mt-1 text-sm font-medium leading-snug">{t(`insights.profit.quality.kind.${q.kind}`)}</h3>
+              <h3 className="mt-1 text-sm font-medium leading-snug">{t(textKey(q.kind, 'kind'))}</h3>
               {!settings && (
                 <div className="mt-1 flex flex-wrap items-baseline gap-x-2">
                   <span className="text-2xl font-semibold tabular-nums">{f.int(q.count)}</span>
@@ -47,7 +55,7 @@ export function ProfitQualityRail({ items, f }: { items: ProfitQuality[]; f: Ins
                   )}
                 </div>
               )}
-              <p className="mt-2 text-[11px] leading-snug text-muted-foreground">{t(`insights.profit.quality.hint.${q.kind}`)}</p>
+              <p className="mt-2 text-[11px] leading-snug text-muted-foreground">{t(textKey(q.kind, 'hint'))}</p>
               {q.top && q.top.length > 0 && (
                 <ol className="mt-2 space-y-0.5 text-[11px]">
                   {q.top.map((p) => {
@@ -63,6 +71,11 @@ export function ProfitQualityRail({ items, f }: { items: ProfitQuality[]; f: Ins
                     );
                   })}
                 </ol>
+              )}
+              {(q.kind === 'recipe_missing' || q.kind === 'cost_legacy') && (
+                <Link to="/products?recipe=none" className="mt-2 text-[11px] font-medium underline-offset-2 hover:underline">
+                  {t('profitCost.quality.link')}
+                </Link>
               )}
             </li>
           );

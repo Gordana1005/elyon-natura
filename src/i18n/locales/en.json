@@ -8464,5 +8464,100 @@
     "title": "Something did not load",
     "desc": "The page hit an error. Reload it — your work is saved on the server.",
     "reload": "Reload the page"
+  },
+  "profitCost": {
+    "source": {
+      "sigma": "Purchase costs: Sigma (CalcBuyPrice, {{date}})",
+      "legacy": "Purchase costs: the old CRM catalogue — being replaced by Sigma",
+      "mixed": "Purchase costs: partly Sigma, partly the old catalogue — refresh the period",
+      "coverage": "{{pct}} of packages costed",
+      "extraOn": "gifts and extra packed goods included",
+      "extraOff": "gifts packed in parcels not counted yet",
+      "recipes": "Recipes →"
+    },
+    "step": {
+      "extra": "Gifts and extra packed goods"
+    },
+    "chip": {
+      "sigma": "Sigma",
+      "legacy": "old prices"
+    },
+    "prod": {
+      "partial": "partly",
+      "partialTip": "The recipe or the cost starts inside the period: some packages are costed, the rest is estimated.",
+      "extra": "+ gifts {{v}}",
+      "setRecipes": "Recipes and purchase costs are set in Products →"
+    },
+    "quality": {
+      "kind": {
+        "cost_legacy": "Purchase costs come from the old CRM catalogue",
+        "recipe_missing": "Packages without a recipe or a Sigma purchase cost",
+        "extra_goods_negative": "The recipe costs more than what was packed"
+      },
+      "hint": {
+        "cost_legacy": "Profit is still computed with the old CRM catalogue prices (about 3× too high). It switches to Sigma once the costs and recipes are loaded.",
+        "recipe_missing": "The product has no approved recipe (which Sigma articles it is made of) or an article has no purchase cost. Their cost is estimated.",
+        "extra_goods_negative": "In these parcels collabBox shows fewer goods than the recipe says — check the recipe."
+      },
+      "link": "Set recipes →"
+    }
+  },
+  "productsRecipe": {
+    "col": "Purchase cost (Sigma)",
+    "colHint": "Sigma purchase cost (CalcBuyPrice) through the product recipe, in denars, without VAT",
+    "open": "Recipe and purchase cost — {{name}}",
+    "recipe": "recipe",
+    "filter": {
+      "label": "Recipe",
+      "all": "All",
+      "approved": "With recipe",
+      "proposed": "Proposed",
+      "none": "No recipe"
+    },
+    "status": {
+      "approved": "recipe approved",
+      "proposed": "proposed",
+      "none": "no recipe",
+      "exempt": "no goods"
+    },
+    "role": {
+      "main": "main",
+      "component": "component",
+      "gift": "gift"
+    },
+    "drawer": {
+      "title": "Recipe — {{name}}",
+      "subtitle": "Which Sigma articles the product is made of and what it costs. Only an approved recipe moves stock and purchase cost.",
+      "notDeployed": "Recipes are not enabled on the server yet.",
+      "exempt": "The product carries no goods (delivery, points, flyer) — purchase cost 0.",
+      "empty": "No recipe yet. Add the Sigma articles below.",
+      "lines": "Articles in the recipe",
+      "remove": "Remove {{name}}",
+      "qty": "Quantity",
+      "role": "Role",
+      "unitCost": "Cost",
+      "noCost": "no cost",
+      "lineCost": "Total",
+      "search": "Add an article — Sigma code or name",
+      "results": "Sigma articles",
+      "noResults": "No such article.",
+      "total": "Product purchase cost",
+      "incomplete": "Incomplete: an article has no Sigma purchase cost — the product stays uncosted.",
+      "err": {
+        "empty": "Add at least one article.",
+        "qty": "The quantity is between 0 and 100.",
+        "duplicate": "The same article is listed twice."
+      },
+      "approve": "Approve the proposal",
+      "propose": "Save as proposal",
+      "saveApprove": "Save and approve",
+      "note": "Every change is written to the audit log. The purchase cost is recomputed after approval.",
+      "approvedTitle": "Recipe approved",
+      "savedTitle": "Proposal saved"
+    },
+    "form": {
+      "cost": "Purchase cost (Sigma)",
+      "costHint": "Computed from the recipe and the Sigma prices — never typed in."
+    }
   }
 }

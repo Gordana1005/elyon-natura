@@ -33,6 +33,9 @@ import { BrandLineProposal } from '@/components/products/BrandLineProposal';
 import { KindProposal } from '@/components/products/KindProposal';
 import { ProductFormDialog } from '@/components/products/ProductFormDialog';
 import { useKindLabel } from '@/components/products/KindChip';
+import { RecipeDrawer } from '@/components/products/RecipeDrawer';
+import { isRecipeFilter, matchesRecipe, recipeCounts, recipeKnown, type RecipeFilter } from '@/components/products/recipe';
+import type { ProductRecipe } from '@/lib/stockV2Types';
 
 interface InventoryLog {
   id: string;
@@ -58,6 +61,11 @@ type ProposalOf = 'kind' | 'line';
  *     rows → "Постави вид" / "Постави линија".
  *   Предлог (?view=proposal&of=kind|line, admins + owners) — the kind
  *     proposal and the brand-line proposal, accept one / accept all sure.
+ *   Набавна (Сигма) + Рецепт (owners only, Stock v2 — owner 01.10.2026): the
+ *     product's purchase cost = its approved recipe (the Sigma articles it is made
+ *     of) × Sigma CalcBuyPrice, in денари; a click opens the recipe drawer (view /
+ *     propose / approve); "Рецепт" chips (?recipe=) once the catalogue sends the
+ *     recipe status.
  *   ДДВ (owners only, 01.10.2026) — each product's VAT rate from Sigma (5 % /
  *     18 %; Некласифицирано = none yet), its source and invoice evidence on the
  *     chip, set through the audited POST /api/products/vat-rate; a ДДВ chip row
@@ -78,8 +86,9 @@ export default function ProductsPage() {
   const { canSeeBusiness } = usePermissions();
   const kindLabel = useKindLabel();
   const canEdit = !!(user?.isAdmin || user?.isManager);
-  // Cost price is sensitive — admins only (the api strips it for everyone else).
-  const showCost = !!user?.isAdmin;
+  // Purchase cost (Sigma) and recipes are owners only (owner 01.10.2026; every active admin is an
+  // owner); the api strips the cost keys for everyone else.
+  const showCost = canSeeBusiness;
   // Lines and kinds are set by admins + owners (the api's gate: isAdmin || is_business_owner()).
   const canSetLine = !!user?.isAdmin || canSeeBusiness;
 
@@ -118,6 +127,7 @@ export default function ProductsPage() {
   const [logsProduct, setLogsProduct] = useState<ProductRow | null>(null);
   const [logs, setLogs] = useState<InventoryLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
+  const [recipeFor, setRecipeFor] = useState<ProductRow | null>(null);
 
   const fetchProducts = useCallback((first = false) => {
     if (first) setPhase('loading');
@@ -134,15 +144,23 @@ export default function ProductsPage() {
     apiGetSuppliers().then(setSuppliers).catch(() => {});
   }, [fetchProducts]);
 
+  // the recipe filter: owners, once the catalogue carries the recipe status (Stock v2)
+  const recipeVisible = showCost && recipeKnown(products);
+  const recipeParam = params.get('recipe');
+  const recipe: RecipeFilter = recipeVisible && isRecipeFilter(recipeParam) ? recipeParam : 'all';
+
   // Search keys are prepared once per catalogue, not per keystroke.
   const indexed = useMemo(() => indexRows(products), [products]);
   const filters = useMemo(() => ({ kind, line, status, vat, query: deferredQuery }), [kind, line, status, vat, deferredQuery]);
-  const rows = useMemo(() => filterCatalogue(indexed, filters), [indexed, filters]);
-  const facets = useMemo(() => facetCounts(indexed, filters), [indexed, filters]);
+  // every other chip counts within the recipe filter; the recipe chips count within the others
+  const indexedR = useMemo(() => (recipe === 'all' ? indexed : indexed.filter((i) => matchesRecipe(i.row, recipe))), [indexed, recipe]);
+  const rows = useMemo(() => filterCatalogue(indexedR, filters), [indexedR, filters]);
+  const facets = useMemo(() => facetCounts(indexedR, filters), [indexedR, filters]);
+  const recipeFacets = useMemo(() => (recipeVisible ? recipeCounts(filterCatalogue(indexed, filters)) : undefined), [recipeVisible, indexed, filters]);
   const page = useMemo(() => rows.slice(0, limit), [rows, limit]);
 
   // A new filter starts on the first page again.
-  useEffect(() => { setLimit(PAGE_SIZE); }, [kind, line, status, vat, deferredQuery]);
+  useEffect(() => { setLimit(PAGE_SIZE); }, [kind, line, status, vat, recipe, deferredQuery]);
 
   // A selection only ever holds shown rows: a filter change drops the rest.
   useEffect(() => {
@@ -160,6 +178,14 @@ export default function ProductsPage() {
   const applyLine = useCallback((res: SetBrandLineResult) => setProducts((ps) => applyLineChanges(ps, res)), []);
   const applyKind = useCallback((res: SetKindResult) => setProducts((ps) => applyKindChanges(ps, res)), []);
   const applyVat = useCallback((res: SetVatResult) => setProducts((ps) => applyVatChanges(ps, res)), []);
+  // a saved / approved recipe: the row's cost (product_cost_at, live from the recipe) and status follow at
+  // once; the profit's cost history follows when product_costs_rebuild() runs
+  const applyRecipe = useCallback((id: string, r: ProductRecipe) => setProducts((ps) => ps.map((x) => (x.id !== id ? x : {
+    ...x,
+    cost_mkd: r.exempt ? 0 : r.complete ? (r.cost_mkd ?? null) : null,
+    recipe_status: r.exempt ? 'exempt' : r.lines.some((l) => l.status === 'approved') ? 'approved'
+      : r.lines.some((l) => l.status === 'proposed') ? 'proposed' : 'none',
+  }))), []);
   const vatLabel = (r: VatRate | null) => (r === null ? t('products.vat.none') : ratePct(r));
 
   const handlersRef = useRef<RowHandlers>(null as unknown as RowHandlers);
@@ -204,6 +230,7 @@ export default function ProductsPage() {
         toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' });
       }
     },
+    onRecipe: (p) => setRecipeFor(p),
     onLogs: async (p) => {
       setLogsProduct(p);
       setLogsLoading(true);
@@ -219,6 +246,7 @@ export default function ProductsPage() {
     onEdit: (p) => handlersRef.current.onEdit(p),
     onToggleActive: (p) => handlersRef.current.onToggleActive(p),
     onLogs: (p) => handlersRef.current.onLogs(p),
+    onRecipe: (p) => handlersRef.current.onRecipe(p),
   }), []);
 
   const selectShown = useCallback((on: boolean) => setSelected(on ? new Set(rows.map((r) => r.id)) : new Set()), [rows]);
@@ -314,6 +342,8 @@ export default function ProductsPage() {
               line={line} onLine={(l) => setParam('line', l === 'all' ? null : l)}
               status={status} onStatus={(s) => setParam('status', s === 'active' ? null : s)}
               showVat={vatVisible} vat={vat} onVat={(v) => setParam('vat', v === 'all' ? null : v)}
+              recipe={recipe} recipeCounts={recipeFacets}
+              onRecipe={recipeVisible ? (r) => setParam('recipe', r === 'all' ? null : r) : undefined}
               facets={facets} shown={rows.length} total={products.length}
               canSelect={canSetLine} onSelectShown={() => selectShown(true)} f={f}
             />
@@ -359,6 +389,15 @@ export default function ProductsPage() {
         canSetLine={canSetLine}
         onSaved={() => fetchProducts()}
       />
+
+      {showCost && (
+        <RecipeDrawer
+          product={recipeFor}
+          open={!!recipeFor}
+          onOpenChange={(open) => { if (!open) setRecipeFor(null); }}
+          onChanged={applyRecipe}
+        />
+      )}
 
       {/* Inventory log */}
       <Dialog open={!!logsProduct} onOpenChange={(open) => !open && setLogsProduct(null)}>

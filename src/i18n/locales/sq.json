@@ -8464,5 +8464,100 @@
     "title": "Diçka nuk u ngarkua",
     "desc": "Faqja hasi një gabim. Rifreskojeni — puna juaj është ruajtur në server.",
     "reload": "Rifresko faqen"
+  },
+  "profitCost": {
+    "source": {
+      "sigma": "Çmimet e blerjes: Sigma (CalcBuyPrice, {{date}})",
+      "legacy": "Çmimet e blerjes: katalogu i vjetër CRM — po zëvendësohen me Sigma",
+      "mixed": "Çmimet e blerjes: pjesërisht Sigma, pjesërisht katalogu i vjetër — rifreskoni periudhën",
+      "coverage": "{{pct}} e paketave me çmim",
+      "extraOn": "dhuratat dhe malli shtesë i paketuar përfshihen",
+      "extraOff": "dhuratat në dërgesa ende nuk llogariten",
+      "recipes": "Recetat →"
+    },
+    "step": {
+      "extra": "Dhurata dhe mall shtesë i paketuar"
+    },
+    "chip": {
+      "sigma": "Sigma",
+      "legacy": "çmime të vjetra"
+    },
+    "prod": {
+      "partial": "pjesërisht",
+      "partialTip": "Receta ose çmimi fillojnë brenda periudhës: disa paketa kanë çmim, pjesa tjetër vlerësohet.",
+      "extra": "+ dhurata {{v}}",
+      "setRecipes": "Recetat dhe çmimet e blerjes vendosen te Produktet →"
+    },
+    "quality": {
+      "kind": {
+        "cost_legacy": "Çmimet e blerjes vijnë nga katalogu i vjetër CRM",
+        "recipe_missing": "Paketa pa recetë ose pa çmim blerjeje nga Sigma",
+        "extra_goods_negative": "Receta kushton më shumë se sa u paketua"
+      },
+      "hint": {
+        "cost_legacy": "Fitimi ende llogaritet me çmimet e vjetra të katalogut CRM (rreth 3 herë më të larta). Kalon në Sigma sapo të futen çmimet dhe recetat.",
+        "recipe_missing": "Produkti nuk ka recetë të miratuar (nga cilët artikuj të Sigma përbëhet) ose një artikull nuk ka çmim blerjeje. Kostoja e tyre vlerësohet.",
+        "extra_goods_negative": "Në këto dërgesa collabBox tregon më pak mall se sa thotë receta — kontrolloni recetën."
+      },
+      "link": "Vendos recetat →"
+    }
+  },
+  "productsRecipe": {
+    "col": "Çmimi i blerjes (Sigma)",
+    "colHint": "Çmimi i blerjes nga Sigma (CalcBuyPrice) sipas recetës së produktit, në denarë, pa TVSH",
+    "open": "Receta dhe çmimi i blerjes — {{name}}",
+    "recipe": "recetë",
+    "filter": {
+      "label": "Receta",
+      "all": "Të gjitha",
+      "approved": "Me recetë",
+      "proposed": "Propozim",
+      "none": "Pa recetë"
+    },
+    "status": {
+      "approved": "recetë e miratuar",
+      "proposed": "propozim",
+      "none": "pa recetë",
+      "exempt": "pa mall"
+    },
+    "role": {
+      "main": "kryesor",
+      "component": "përbërës",
+      "gift": "dhuratë"
+    },
+    "drawer": {
+      "title": "Receta — {{name}}",
+      "subtitle": "Nga cilët artikuj të Sigma përbëhet produkti dhe sa kushton. Vetëm receta e miratuar lëviz stokun dhe çmimin e blerjes.",
+      "notDeployed": "Recetat ende nuk janë aktivizuar në server.",
+      "exempt": "Produkti nuk mban mall (dërgesë, pikë, fletushkë) — çmimi i blerjes 0.",
+      "empty": "Nuk ka recetë. Shtoni artikujt e Sigma më poshtë.",
+      "lines": "Artikujt në recetë",
+      "remove": "Hiq {{name}}",
+      "qty": "Sasia",
+      "role": "Roli",
+      "unitCost": "Blerja",
+      "noCost": "pa çmim",
+      "lineCost": "Gjithsej",
+      "search": "Shto artikull — kodi ose emri në Sigma",
+      "results": "Artikujt e Sigma",
+      "noResults": "Nuk ka artikull të tillë.",
+      "total": "Çmimi i blerjes së produktit",
+      "incomplete": "E paplotë: një artikull nuk ka çmim blerjeje në Sigma — produkti mbetet pa çmim.",
+      "err": {
+        "empty": "Shtoni të paktën një artikull.",
+        "qty": "Sasia është mes 0 dhe 100.",
+        "duplicate": "I njëjti artikull është dy herë."
+      },
+      "approve": "Mirato propozimin",
+      "propose": "Ruaj si propozim",
+      "saveApprove": "Ruaj dhe mirato",
+      "note": "Çdo ndryshim shkruhet në regjistër. Çmimi i blerjes rillogaritet pas miratimit.",
+      "approvedTitle": "Receta u miratua",
+      "savedTitle": "Propozimi u ruajt"
+    },
+    "form": {
+      "cost": "Çmimi i blerjes (Sigma)",
+      "costHint": "Llogaritet nga receta dhe çmimet në Sigma — nuk futet me dorë."
+    }
   }
 }

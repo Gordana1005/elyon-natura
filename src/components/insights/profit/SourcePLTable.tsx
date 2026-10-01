@@ -60,6 +60,10 @@ export function SourcePLTable({ clockRows, total, meta, clockLabel, f }: {
     ...vatLines,
     { key: 'cogs_known', label: t('insights.profit.step.cogs_known'), value: (r) => neg(r.cogs_known_mkd), cost: true },
     { key: 'cogs_est', label: t('insights.profit.step.cogs_est'), value: (r) => neg(r.cogs_est_mkd), cost: true },
+    // Phase B (Sigma costs): gifts and other goods packed beyond the order lines
+    ...([total, ...clockRows].some((r) => (r.cogs_extra_mkd ?? 0) !== 0)
+      ? [{ key: 'cogs_extra', label: t('profitCost.step.extra'), value: (r: PLRow) => neg(r.cogs_extra_mkd ?? 0), cost: true }]
+      : []),
     { key: 'courier', label: t('insights.profit.step.courier', { fee: f.den(meta.courier.deliver_mkd) }), value: (r) => neg(r.courier_mkd), cost: true },
     { key: 'returns', label: t('insights.profit.step.returns', { fee: f.den(meta.courier.return_mkd) }), value: (r) => neg(r.returns_mkd), cost: true },
     { key: 'commission', label: t('insights.profit.step.commission'), value: (r) => neg(r.commission_mkd), cost: true },

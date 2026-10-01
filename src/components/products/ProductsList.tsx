@@ -12,10 +12,11 @@ import { useMinWidth } from '@/lib/products/useMinWidth';
 import { LineChip } from './LineChip';
 import { KindChip } from './KindChip';
 import { VatChip } from './VatChip';
+import { RecipeCost } from './RecipeCost';
 import type { VatRate } from '@/lib/products/vat';
 
-/** A row of GET /api/products/catalogue. */
-export type ProductRow = CatalogueRow;
+/** A row of GET /api/products/catalogue (+ the owners' Sigma cost and recipe status, Stock v2). */
+export type ProductRow = CatalogueRow & { cost_mkd?: number | null; recipe_status?: string | null };
 
 /** Stable callbacks (the page keeps them in useCallback) so a memoised row re-renders only when ITS data changes. */
 export interface RowHandlers {
@@ -26,10 +27,12 @@ export interface RowHandlers {
   onEdit: (p: ProductRow) => void;
   onToggleActive: (p: ProductRow) => void;
   onLogs: (p: ProductRow) => void;
+  /** Owners: open the recipe drawer (Sigma articles + purchase cost). */
+  onRecipe: (p: ProductRow) => void;
 }
 
 export interface RowFlags {
-  /** Cost is admins only (the api strips it for everyone else). */
+  /** "Набавна (Сигма)" + the recipe — owners only (is_business_owner(); owner 01.10.2026). */
   showCost: boolean;
   /** Edit / enable / disable: admins and managers. */
   canEdit: boolean;
@@ -62,7 +65,9 @@ function StatusBadge({ active }: { active: boolean }) {
  * The catalogue page (Производи 2.0): a table from xl (sticky header and first
  * column, 13 px), one card per product below it (two columns from md). Only ONE
  * of the two is mounted. Rows show the name, SKU, kind, line, the VAT rate (owners
- * only, from Sigma), sale price in денари and the status — never a machine description.
+ * only, from Sigma), the purchase cost "Набавна (Сигма)" in денари with the recipe
+ * status (owners only — a click opens the recipe), sale price in денари and the
+ * status — never a machine description.
  */
 export function ProductsList(props: ProductsListProps) {
   const wide = useMinWidth(1280);
@@ -91,7 +96,7 @@ function ProductsTable(p: ProductsListProps) {
             <th scope="col" className={th}>{t('products.colKind')}</th>
             <th scope="col" className={th}>{t('products.colLine')}</th>
             {p.showVat && <th scope="col" className={th}>{t('products.colVat')}</th>}
-            {p.showCost && <th scope="col" className={cn(th, 'text-right')}>{t('products.colCostPrice')}</th>}
+            {p.showCost && <th scope="col" className={cn(th, 'text-right')} title={t('productsRecipe.colHint')}>{t('productsRecipe.col')}</th>}
             <th scope="col" className={cn(th, 'text-right')}>{t('products.colSellingPrice')}</th>
             <th scope="col" className={th}>{t('ordersPage.colStatus')}</th>
             <th scope="col" className="px-2 py-2 pr-3 text-right font-medium">{t('common.actions')}</th>
@@ -142,7 +147,7 @@ const TableRow = memo(function TableRow({ r, selected, busy, showCost, canEdit, 
           <VatChip p={r} editable={showVat} busy={busy} onPick={(v) => h.onSetVat(r, v)} />
         </td>
       )}
-      {showCost && <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-muted-foreground">{formatMoney(r.cost_price || 0)}</td>}
+      {showCost && <td className="whitespace-nowrap px-1 py-1 text-right"><RecipeCost r={r} onOpen={() => h.onRecipe(r)} /></td>}
       <td className="whitespace-nowrap px-2 py-1.5 text-right font-semibold tabular-nums text-primary">{formatMoney(r.price)}</td>
       <td className="px-2 py-1.5"><StatusBadge active={r.is_active} /></td>
       <td className="px-2 py-1 pr-3 text-right"><RowActions r={r} canEdit={canEdit} h={h} compact /></td>
@@ -193,8 +198,8 @@ const ProductCard = memo(function ProductCard({ r, selected, busy, showCost, can
         </div>
         {showCost && (
           <div className="min-w-0">
-            <dt className={fact}>{t('products.colCostPrice')}</dt>
-            <dd className="tabular-nums text-muted-foreground">{formatMoney(r.cost_price || 0)}</dd>
+            <dt className={fact}>{t('productsRecipe.col')}</dt>
+            <dd className="-ml-1.5"><RecipeCost r={r} onOpen={() => h.onRecipe(r)} align="left" /></dd>
           </div>
         )}
       </dl>
