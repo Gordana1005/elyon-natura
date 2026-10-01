@@ -1,6 +1,6 @@
 ---
 name: elyon-collabbox-sync
-description: The collabBox (Accent Computers teleshop/office ERP) → Elyon CRM sync — the collabbox-sync Edge Function and migration 20260942000900 (+ the 15-minute schedule of 20260942001300). Covers the read-only headless client and its allow-list, the nightly 00:00 pass and the every-15-minutes full pass of yesterday + today, the retired live mode, collabbox_doc_role per document type, the writer collabbox_apply_documents / collabbox_apply_one and every ledger outcome in collabbox_documents, the rule "an order only once its MEX parcel exists", twins / conflicts / replacements / stornos / vanished documents, phones and komitent cards, seller credit, secrets and crons, freshness (collabbox_feed_state), the runbook (dry run one day, manual windows of at most 4 days, pause / resume), the known gaps, and how the collabBox history was loaded. Read before touching supabase/functions/collabbox-sync, collabbox_* tables or functions, scripts/collabbox-fetch.mjs, any collabBox import script, or anything that creates orders from collabBox.
+description: The collabBox (Accent Computers teleshop/office ERP) → Elyon CRM sync — the collabbox-sync Edge Function and migration 20260942000900 (+ the 15-minute schedule of 20260942001300). Covers the read-only headless client and its allow-list, the nightly 00:00 pass and the every-15-minutes full pass of yesterday + today, the retired live mode, collabbox_doc_role per document type, the writer collabbox_apply_documents / collabbox_apply_one and every ledger outcome in collabbox_documents, the rule "an order only once its MEX parcel exists", twins / conflicts / replacements / stornos / vanished documents, phones and komitent cards, seller credit, secrets and crons, freshness (collabbox_feed_state), the runbook (dry run one day, manual windows of at most 4 days, pause / resume), the known gaps, and how the collabBox history was loaded. Read before touching supabase/functions/collabbox-sync, collabbox_* tables or functions, scripts/collabbox-fetch.mjs, any collabBox import script, or anything that creates orders from collabBox. The 22 shops' tills are a SEPARATE reader (collabbox-shops — skill elyon-shops).
 ---
 
 # collabBox → CRM sync
@@ -20,6 +20,14 @@ refreshed at least every 15 minutes; MEX stays the final proof").
   PAUSED first design; §8 is what runs). `supabase/paused/20260939000350_collabbox_sync.sql` is
   **superseded — never apply it** (it would re-create these names with the old design).
 - Departments per type: `elyon-departments-and-sources`.
+- **Not this function: the shops.** The 22 retail shops' tills (10022 receipts, goods documents, stock per shop) are
+  read by a SEPARATE edge function, **`collabbox-shops`** (02.10.2026, `elyon-shops`, `docs/SHOPS.md`): same server,
+  same login (`COLLABBOX_USER` / `COLLABBOX_PASS`) and the same `x-collabbox-sync-secret`, but its OWN allow-list,
+  tables (`shop_*`), switch (`app_settings.shops_reader`) and crons, scheduled off this sync's minutes. It never runs
+  while a collabbox-sync run is running and never makes an order. Never merge the two allow-lists.
+- **Stock v2 reads this ledger:** a parcel's contents are its document's goods lines
+  (`collabbox_documents.payload->'lines'`, `code` = the Sigma article, kits already split) — `elyon-stock-v2`. Keep the
+  line `code` / `qty` / role in the payload as they are.
 
 ## What collabBox is — and is not
 
@@ -469,7 +477,7 @@ as paid) or the two August/September importers above. `reconcile-collabbox-mex.m
 ## Red flags
 
 - Any request to collabBox outside the allow-list, any write to collabBox, credentials in a log,
-  a file or a commit.
+  a file or a commit. Adding a shops request shape to this client (it belongs to `collabbox-shops`).
 - Creating an order without its MEX parcel, or setting a status / `paid` from collabBox.
 - Forcing a conflict, linking a parcel created before its document, a second order for one
   DocNumber.

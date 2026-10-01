@@ -17,8 +17,8 @@ do not (`formatDenari`).
 
 | | |
 |---|---|
-| **Database / API — CRM prices** | EUR, cent precision (`orders.price`, `order_items.price_per_unit`, costs, payouts). An internal accounting unit. |
-| **Database / API — denari-native money** | MEX cash-on-delivery (`orders.mex_cod_mkd`, `mex_parcels.cod_mkd`) and the web shop (`web_orders.total`, `currency` = MKD) are denari as recorded by MEX / the shop. Payload keys carrying them end in `_mkd`. |
+| **Database / API — CRM prices** | EUR, cent precision (`orders.price`, `order_items.price_per_unit`, payouts). An internal accounting unit. |
+| **Database / API — denari-native money** | MEX cash-on-delivery (`orders.mex_cod_mkd`, `mex_parcels.cod_mkd`) and the web shop (`web_orders.total`, `currency` = MKD) are denari as recorded by MEX / the shop; **purchase costs from Sigma** (`stock_article_costs.cost_mkd`, `product_cost_history.cost_mkd`, ex VAT — owner 01.10.2026, Sigma book values) and the shops' collabBox amounts (`shop_*`, with VAT) too. `products.cost_price` (EUR) is only a guarded mirror = cost_mkd / 61,5. Payload keys carrying them end in `_mkd`. |
 | **Everything a human sees** | Macedonian denari only — with ONE documented exception, below. |
 | **Conversion** | `MKD_PER_EUR = 61.5` in `src/lib/currency.ts`, applied at render time to EUR values only. |
 

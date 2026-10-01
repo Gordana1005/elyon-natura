@@ -1,9 +1,9 @@
 ---
 name: elyon-logistics-costs
-description: Use for any shipping/return/courier cost, the Pure Profit (Чиста добивка) P&L, the Margins (Маржи) tab, the courier rate card, VAT (per product from Sigma since 01.10.2026 — products.vat_rate, taxed per line), product cost (COGS) coverage, or how delivery & return losses are charged. Covers the MEX rate card (150 ден per delivered parcel, 0 on return), the per-product VAT (5 % supplements / 18 % cosmetics, unclassified at 5 % shown apart), the two P&L clocks (cohort vs cash), the cost-share estimate for uncosted packages, and today's commission line. Read before touching GET /api/insights/profit, insights_profit(), courier_rates, loadCourierRates or anything that totals what we pay to ship.
+description: Use for any shipping/return/courier cost, the Pure Profit (Чиста добивка) P&L, the Margins (Маржи) tab, the courier rate card, VAT (per product from Sigma since 01.10.2026 — products.vat_rate, taxed per line), product cost (COGS) — the Sigma purchase costs in denari, LIVE since 02.10.2026 (stock_v2.profit.cost_source = 'sigma', approved recipes, product_cost_history) — and its coverage, or how delivery & return losses are charged. Covers the MEX rate card (150 ден per delivered parcel, 0 on return), the per-product VAT (5 % supplements / 18 % cosmetics, unclassified at 5 % shown apart), the two P&L clocks (cohort vs cash), the cost-share estimate for uncosted packages, and today's commission line. Read before touching GET /api/insights/profit, insights_profit(), courier_rates, loadCourierRates or anything that totals what we pay to ship.
 ---
 
-# Elyon Logistics Costs & Pure Profit — Macedonian rules (29.09.2026; VAT per product 01.10.2026)
+# Elyon Logistics Costs & Pure Profit — Macedonian rules (29.09.2026; VAT per product 01.10.2026; Sigma purchase costs live 02.10.2026)
 
 **Macedonia ships with MEX Poshta only.** The Speedy / Econt table further down
 is the inherited Bulgarian calibration — history, never a Macedonian cost.
@@ -48,9 +48,10 @@ The cohort strip ties to `insights_cohort` bucket by bucket; cash ties to its
                  (products.vat_rate: 5 % supplements, 18 % cosmetics / devices); a line with
                  no product or no rate at 5 % (DEFAULT_VAT_RATE) and reported as unclassified
 − COGS known     Σ packages × the unit cost — app_settings.stock_v2.profit.cost_source:
-                 'sigma' = Sigma CalcBuyPrice through the product's APPROVED recipe at the
-                 sale day (product_cost_history, денари, no ×61,5 — 20260945000800);
-                 'legacy' (the default until the owner switches) = products.cost_price × 61,5
+                 'sigma' (LIVE since 02.10.2026) = Sigma CalcBuyPrice through the product's
+                 APPROVED recipe at the sale day (product_cost_history, денари, no ×61,5 —
+                 20260945000800); 'legacy' (the old products.cost_price × 61,5) is kept only
+                 as the fallback body — never switch back without the owner
 − COGS estimated uncosted revenue × ((known COGS + extra) ÷ costed revenue) of the same view — LABELLED
 − extra goods    Phase B (profit.extra_goods, Sigma only): the collabBox goods packed in each
                  collected parcel − its order lines' cost (gifts …); a MEX-only parcel with
@@ -80,23 +81,31 @@ The cohort strip ties to `insights_cohort` bucket by bucket; cash ties to its
   delivery charge, `забелешк…` note, `флаер…` flyer — and are NOT packages;
   a web GIFT line is a gift. A product / gift line with no price weight in a
   priced sale is a FREE package.
-- **Cost coverage.** In September 2026 only ~33 % of packages had a
-  `cost_price` (the teleshop / Bionatural catalogue has none; the AlterCPA
-  offers all carry €2,93, which looks like a placeholder). The owner sets cost
-  prices later; every product created on 28.09 (the 8 AlterCPA offers and the
-  325 of `complete-catalogue.mjs`) has cost 0. The tab therefore
-  shows THREE honest numbers: net with uncosted packages estimated (headline,
-  hatched), net on the costed packages alone, and the upper bound with
-  uncosted at 0. **Never invent a cost** and never let an uncosted product
-  read "above target".
+- **Cost coverage.** Until 02.10 only ~33 % of packages had a `cost_price`
+  (69 EUR placeholders, ~3× too high; the AlterCPA offers' €2,93 a
+  placeholder). Since the Sigma costs went live (below) a product is costed
+  when its recipe is APPROVED and every article has a Sigma cost — the 162
+  proposed recipes wait for the owner, so coverage grows as he approves them.
+  The tab still shows THREE honest numbers: net with uncosted packages
+  estimated (headline, hatched), net on the costed packages alone, and the
+  upper bound with uncosted at 0. **Never invent a cost** and never let an
+  uncosted product read "above target".
 - **Margins (Маржи)** reads the same payload: per-package economics per product
   (its own VAT, known cost, courier share, commission share) and the floor price
   `P = (1+r)(target + cost + courier + tier(P) × 61,5 × γ)`, r = **the product's** Sigma
   rate (`productVatRate`), γ = the share of the product's packages today's rule actually
   pays commission on. No cost → no floor. The simulator starts at the product's rate.
 
-## Purchase cost from Sigma (owner decision 01.10.2026 — `docs/STOCK-V2.md` "Costs")
+## Purchase cost from Sigma (owner decision 01.10.2026, LIVE 02.10.2026 — `docs/STOCK-V2.md` "Costs")
 
+- **Live state (02.10, read-only):** `stock_v2.profit.cost_source = 'sigma'` (switched 02.10 ~00:50 Skopje,
+  audited `settings.stock_v2.profit.cost_source`, after `costs-apply.mjs --apply`); 1.362 articles costed
+  (`stock_article_costs`: CalcBuyPrice of `Ф00001-04 StockObject 2026-09-30`, else the median 2026 sales BuyPrice;
+  the 144 Sigma rows with no cost were reported, never invented); 153 of the 154 approved-recipe products complete
+  in `product_cost_history` and mirrored into `products.cost_price`; all 706 legacy values archived in
+  `products_cost_legacy` (69 non-zero). `meta.cost.as_of` of `GET /insights/profit` = the Sigma snapshot day (30.09).
+  `profit.extra_goods` (Phase B — the packed gifts) stays **false** until the owner asks. Costs are DENARI — a
+  deliberate exception to "store EUR" (CLAUDE.md per-market rules, next to Currency).
 - **Sigma CalcBuyPrice for everything, the whole history** (first load valid from `-infinity`);
   the 69 old CRM `cost_price` placeholders are archived in `products_cost_legacy` (once, every
   product) and `products.cost_price` becomes a GUARDED mirror = current cost_mkd / 61,5
@@ -105,6 +114,8 @@ The cohort strip ties to `insights_cohort` bucket by bucket; cash ties to its
   a bundle = its components, a packed gift line = a real cost); `product_cost_history` holds the
   intervals (`complete` = every line costed). No approved recipe / an uncosted article = uncosted:
   the labelled estimate, never a silent 0. `product_stock_exempt` products cost 0.
+- BioNatural items are costed at Ф00001 production cost, never the АД Астра inter-company price. Sigma's own
+  balances / the 000217 MEX invoice are never used as COGS or stock (`elyon-stock-v2`).
 - Load: `scripts/stock/costs-apply.mjs` (dry by default → `--apply --actor`), i.e.
   `stock_article_costs_import()` (append-only) → `product_costs_rebuild(actor, true)`. An owner's
   cost: `stock_article_cost_set()` (wins a tie, rebuilds). **After a recipe is approved the
@@ -157,8 +168,9 @@ The cohort strip ties to `insights_cohort` bucket by bucket; cash ties to its
 - Freshness: a row is used only while `version` = `insights_profit_cache_version()`
   (bump it when the P&L logic changes) and `sig` = `insights_profit_cache_sig()`
   (catalogue names / cost prices / VAT rates, every alias row, test phones — entering
-  a cost price, changing a VAT rate or applying an alias invalidates every month).
-  **Version is 5** since `20260944000900` (per-product VAT); it was 4 since
+  a cost price, changing a VAT rate or applying an alias invalidates every month; since `20260945000800`
+  also the cost history, the approved recipes, the article costs and the `stock_v2.profit` switches).
+  **Version is 6** since `20260945000800` (Sigma costs); it was 5 since `20260944000900` (per-product VAT), 4 since
   `20260942001000` (six departments: a month cached with five sources had no
   `teleshop_out` block); the cache was refreshed by hand at v4 on 29.09, and the
   last 6 months again after the collabBox history backfill. The cache

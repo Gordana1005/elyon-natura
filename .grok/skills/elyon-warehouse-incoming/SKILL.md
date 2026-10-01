@@ -1,6 +1,6 @@
 ---
 name: elyon-warehouse-incoming
-description: Use for anything on /warehouse (Магацин) in the Macedonian Elyon CRM — rebuilt 01.10.2026 (plan Фаза 9, Insights style) into the tabs Испрати до MEX · За пакување · Залихи · Попис · Движења. Covers the warehouse queue (warehouse_queue send / pack / pack_stale, one call for the tiles), the manual "Испрати до MEX" push (switched OFF until the owner; mex_push_attempts, the MEX push settings card), the MEX 8 = за пакување semantics (reconcile never ships at 8, the collabBox writer, the Overview's "packed", the not-applied repair of ~260 orders), no printing (the MEX portal does it), the server guards on the old incoming-orders routes, and stock safety. Read before touching WarehousePage, src/components/warehouse/*, warehouseQueue.ts, the warehouse routes, or anything that decides when an order counts as packed or shipped.
+description: Use for anything on /warehouse (Магацин) in the Macedonian Elyon CRM — rebuilt 01.10.2026 (plan Фаза 9, Insights style) and on Stock v2 since 01–02.10 into the tabs Испрати до MEX · За пакување · Залихи · Пратки · Движења · Попис (the last four read Stock v2 — the preview banner while it is off, who sees quantities / money / counts / the switch). Covers the warehouse queue (warehouse_queue send / pack / pack_stale, one call for the tiles), the manual "Испрати до MEX" push (switched OFF until the owner; mex_push_attempts, the MEX push settings card), the MEX 8 = за пакување semantics (reconcile never ships at 8, the collabBox writer, the Overview's "packed", the not-applied repair of ~260 orders), no printing (the MEX portal does it), the server guards on the old incoming-orders routes, and stock safety. Read before touching WarehousePage, src/components/warehouse/*, warehouseQueue.ts, the warehouse routes, or anything that decides when an order counts as packed or shipped.
 ---
 
 # Warehouse (Магацин) — MACEDONIA, since 01.10.2026
@@ -11,8 +11,9 @@ auto-send is built, not scheduled). **MEX status 8 = за пакување**; th
 (4 / 10 / 9 / 1 / 3) makes the order shipped. **No printing and no packing list** — labels come
 from the MEX portal.
 
-`src/pages/WarehousePage.tsx` (Insights style; tabs deep-link with `?tab=send|pack|stock|count|movements`)
-+ `src/components/warehouse/*` + `src/lib/warehouseApi.ts`.
+`src/pages/WarehousePage.tsx` (Insights style; tabs deep-link with `?tab=send|pack|stock|parcels|movements|count`;
+`day` and `wh` follow the reader across tabs) + `src/components/warehouse/*` (queue tabs) +
+`src/components/warehouse/v2/*` (Stock v2 tabs) + `src/lib/warehouseApi.ts` / `src/lib/stockV2Api.ts`.
 
 ## The page, top to bottom
 
@@ -31,16 +32,33 @@ from the MEX portal.
   — CRM pushes, collabBox bookings and MEX-only parcels alike — grouped by Skopje day with their
   age; older than 14 days behind a "stale" chip. Read-only: the warehouse works it together with
   the MEX portal, where the labels are printed.
-- **Залихи** (`StockTab`) · **Попис** (`StockCountTab`; admin, warehouse or an owner) · **Движења**
-  (`MovementsTab`): restyled only — the stock LOGIC is deferred by the owner (sellable products
-  carry the placeholder 1.000). Active products by default; the low-stock threshold
-  (`products.low_stock_threshold`) is edited inline here by admins / managers, active products
-  only (also in the product form); Skopje dates; "Вчитај повеќе" (stock-movements takes `offset`).
+- **The four Stock v2 tabs (owner 01.10.2026; `elyon-stock-v2` is the law, `docs/STOCK-V2.md` the contract).**
+  Every figure is per Sigma ARTICLE and warehouse (picker = the tracked warehouses from `GET stock/v2/health`),
+  on a Skopje day, with a freshness line (пратки · Сигма · пресметано). **While `stock_v2.enabled` is false the
+  tabs read the computed preview (`preview=1`) under the banner "Преглед — пресметано од пратките, ништо не е
+  запишано"** — nothing is written until the owner approves the opening and switches it on.
+  - **Залихи** (`StockDayTab`, + `ArticleDrawer`): per article opening · out · back · in · other out · adjust ·
+    closing, to pack / with the courier / reserved / available (= closing − reserved), days of cover, negatives;
+    cost and value for owners only. The drawer = the article's day series and its moves.
+  - **Пратки** (`ParcelsDayTab`): the day's parcels as stock sees them — by account, department, status, city /
+    zone, hourly created vs picked up (`mex_parcels.picked_up_at`), units and gift units, each parcel's state and
+    lines source (override / collabBox / web / CRM); never a receiver name or phone; COD for owners only.
+  - **Движења** (`MovementsV2Tab`): the ledger (`stock_v2_movements`) — filters warehouse / article / kind / source /
+    text / corrections, the late days (recorded − event), Sigma documents with their version count, the running
+    balance when one article and one warehouse are filtered.
+  - **Попис** (`CountV2Tab`, + `StockV2HealthCard` for owners / admins): a count (dry preview first: system vs
+    counted, warnings / refusal codes `stock2.count.warn.*`), the count history (`GET stock/v2/counts`, value
+    difference for owners), pending counts an owner approves, and the health card — the switch (owners, with a
+    confirm), a dry run, the queues (unmapped, no lines, stale labels), recipe coverage, Sigma freshness.
+  - Access (`useStockAccess`): quantities = owners · admin · manager · warehouse; counting = owners · admin ·
+    warehouse (a non-owner's count is `pending`); money, configuration, the switch = owners only.
+  - The low-stock threshold (`products.low_stock_threshold`) is edited in the product form; the tiles still count
+    active products under it.
 - **MEX праќање card** (`MexPushSettingsCard`, admins): the global switch + one per account
   (BIO NATURAL / NATURA), with a confirm; `PATCH /api/warehouse/mex-push/settings`, audited
   `mex.push_settings`. Do not switch it on without the owner.
-- **Removed 01.10:** the old tabs Packing / Inventory / Movements / Count / History became the five
-  above — Историја is gone (it duplicated /orders and loaded 3.019 rows at once), and so are the
+- **Removed 01.10:** the old tabs Packing / Inventory / Movements / Count / History became the tabs
+  above (the v1 `StockTab` / `StockCountTab` / `MovementsTab` were replaced by the v2 tabs on 02.10) — Историја is gone (it duplicated /orders and loaded 3.019 rows at once), and so are the
   any-status dropdown (it allowed even "paid" and bypassed the rules), Delete, "Mark shipped" and
   the English CSV export. The Delayed / Shipment Calendar views of the BG-era skill no longer exist.
 
@@ -100,12 +118,14 @@ The `GET /api/warehouse/incoming-orders` handler still exists (the new page does
 
 ## Stock safety
 
-- Once the first stock count exists (migration `20260942000100`): MEX parcels move stock; marking
-  shipped / returned moves nothing (`elyon-stock-and-bigarena`). The MEX 8 repair and the push move
-  no stock either.
-- Only rows with `order_items.product_id` affect stock (legacy imports are skipped on purpose).
-- The stock count, thresholds and product detail are deferred by the owner — keep stock working,
-  add no detail.
+- **Stock v2 (`elyon-stock-v2`):** a MEX parcel moves stock at its label (`created_at_mex`), a MEX 7 return
+  brings it back; an order status moves nothing — marking shipped / returned, the MEX 8 repair and the push move
+  no stock. The status-driven deduction and the v1 count / MEX ledger are RETIRED (`20260945000700`) — never
+  bring them back. `products.stock_quantity` is a guarded mirror of the ledger.
+- Stock v2 runs in PREVIEW until the owner's 22.09 count sheet is loaded as the opening and he switches it on
+  (Попис → the health card). Never switch it on, approve an opening or approve recipes without him.
+- New goods are entered in Sigma (they reach Движења through the Sigma ingest), never typed in here:
+  `POST /restock` answers 410.
 
 ## Never
 
@@ -115,16 +135,19 @@ The `GET /api/warehouse/incoming-orders` handler still exists (the new page does
 - Build printing / labels / a packing slip in the CRM (the owner's call: the MEX portal does it).
 - Switch on the push, schedule the 11:00 auto-send or apply the MEX 8 repair without the owner.
 - Download all orders to count them — read the queue's counts.
+- Re-add a restock button, a typed stock quantity or a status-driven deduction (Stock v2 owns stock), or show a
+  stock cost / value / COD to a non-owner.
 
 ## Checks
 
-`npm test` (`mexPush.test.ts`, `warehouseQueue.test.ts`, `MexPushDialog.test.tsx`,
-`StockCountTab.test.tsx`, `warehouseText.test.ts`),
+`npm test` (`mexPush.test.ts`, `warehouseQueue.test.ts`, `MexPushDialog.test.tsx`, `warehouseText.test.ts`,
+`stockV2.test.ts`, `src/components/warehouse/v2/__tests__/*` — `StockDayTab` / `ParcelsDayTab` / `MovementsV2Tab` /
+`CountV2Tab` / `WarehousePage` / `stockV2Model`), `node scripts/verify-stock-v2.mjs --preview` (full once on),
 `node scripts/verify-insights-ties.mjs` after any change to `packed`, Playwright at 360 / 390 /
 768 / 1024 / 1280 / 1920 px (zero overflow) for UI changes.
 
 ## Companion skills
 
 `elyon-fulfilment-csv` (the CSV + push contract) · `elyon-products-catalogue` (the line → MEX
-profile) · `elyon-stock-and-bigarena` (stock) · `elyon-departments-and-sources` (the department
-chips) · `elyon-collabbox-sync` (the at-8 writer).
+profile) · `elyon-stock-v2` (stock — the law) · `elyon-stock-and-bigarena` (v1 history) ·
+`elyon-departments-and-sources` (the department chips) · `elyon-collabbox-sync` (the at-8 writer).
