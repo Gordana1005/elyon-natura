@@ -126,8 +126,8 @@ function orderToModalData(order: ApiOrder): OrderModalData {
 /**
  * Нарачки — every order, in the Insights look (Phase 11 A, 01.10.2026).
  *
- * Opens on "Нарачки" (confirmed · packed · shipped · paid · returned) for the
- * last 7 Skopje days; leads, cancels and trash are their own chips, each with
+ * Opens on "Нарачки" (confirmed · packed · shipped · paid · returned) for
+ * TODAY (Skopje), with ← / → by day (owner 01.10.2026); leads, cancels and trash are their own chips, each with
  * its count, and "Сите" is their sum. Everything that narrows the list lives in
  * the URL (lib/ordersList/listParams.ts) and is applied by the api
  * (supabase/functions/api/ordersList.ts): department, seller, MEX status,
