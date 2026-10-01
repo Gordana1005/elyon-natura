@@ -48,10 +48,10 @@ describe('the URL state', () => {
 });
 
 describe('defaults — "Нарачки", the last 7 Skopje days', () => {
-  it('opens on Нарачки for the last 7 days', () => {
+  it('opens on Нарачки for today (owner 01.10.2026)', () => {
     const s = readListParams(sp(''));
     expect(effectiveView(s, NO_DRILL)).toBe('orders');
-    expect(effectiveRange(s, TODAY, NO_DRILL)).toEqual({ preset: 'week', days: { from: '2026-09-25', to: '2026-10-01' } });
+    expect(effectiveRange(s, TODAY, NO_DRILL)).toEqual({ preset: 'today', days: { from: '2026-10-01', to: '2026-10-01' } });
   });
 
   it('a drill-down or a search lists every status and every date — unless the URL says otherwise', () => {
@@ -75,7 +75,7 @@ describe('the api parameters', () => {
   it('sends the view, Skopje days and the filters; prices go in EUR', () => {
     const p = toApiParams(readListParams(sp('dept=social&mex=at_mex,no_parcel&source=manual&seller=11111111-1111-4111-8111-111111111111&pmin=615&wm=77')), ctx);
     expect(p).toEqual({
-      view: 'orders', day_from: '2026-09-25', day_to: '2026-10-01', dept: 'social', mex: 'at_mex,no_parcel', source: 'manual',
+      view: 'orders', day_from: '2026-10-01', day_to: '2026-10-01', dept: 'social', mex: 'at_mex,no_parcel', source: 'manual',
       seller: '11111111-1111-4111-8111-111111111111', price_min: 10, cpa_webmaster: '77',
     });
     expect(toApiParams(readListParams(sp('range=all&view=all')), ctx)).toEqual({ view: 'all' });

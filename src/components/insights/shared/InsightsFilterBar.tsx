@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useIsFetching, useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { DmyDateInput } from './DmyDateInput';
-import { MAX_SPAN_DAYS, PERIOD_PRESETS, addDays, daysBetween, periodText, type PeriodPreset } from './period';
+import { PeriodStepper } from './PeriodStepper';
+import { MAX_SPAN_DAYS, PERIOD_PRESETS, addDays, daysBetween, periodText, type DayRange, type PeriodPreset } from './period';
 import { isInsightsQueryKey, useInsightsPeriod } from './useInsightsPeriod';
 
 const chip = 'inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
@@ -34,7 +35,17 @@ export function InsightsFilterBar({ className, children }: { className?: string;
   const [showCustom, setShowCustom] = useState(preset === 'custom');
   const [draft, setDraft] = useState<{ from: string | null; to: string | null }>(range);
   useEffect(() => { setDraft(range); }, [range.from, range.to]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (preset === 'custom') setShowCustom(true); }, [preset]);
+  // A custom period opens the date fields — except one reached with the ← / → arrows.
+  const stepped = useRef(false);
+  useEffect(() => {
+    if (preset === 'custom' && !stepped.current) setShowCustom(true);
+    stepped.current = false;
+  }, [preset]);
+  const step = (next: { preset: PeriodPreset; range: DayRange }) => {
+    stepped.current = true;
+    setShowCustom(false);
+    setPeriod(next.preset === 'custom' ? next : { preset: next.preset });
+  };
 
   const pick = (p: PeriodPreset) => {
     if (p === 'custom') { setShowCustom(true); return; }
@@ -67,7 +78,7 @@ export function InsightsFilterBar({ className, children }: { className?: string;
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <div role="group" aria-label={t('insights.common.period.label')} className="flex flex-wrap gap-1.5">
           {PERIOD_PRESETS.map((p) => {
-            const active = p === 'custom' ? (preset === 'custom' || showCustom) : preset === p && !showCustom;
+            const active = p === 'custom' ? showCustom : preset === p && !showCustom;
             return (
               <button key={p} type="button" aria-pressed={active} onClick={() => pick(p)} className={cn(chip, active ? chipOn : chipOff)}>
                 {t(`insights.common.period.${p}`)}
@@ -75,7 +86,7 @@ export function InsightsFilterBar({ className, children }: { className?: string;
             );
           })}
         </div>
-        <span className="text-xs font-medium tabular-nums" data-testid="insights-period">{periodText(range)}</span>
+        <PeriodStepper range={range} today={today} onStep={step} testId="insights-period" />
         <label className="flex items-center gap-2 text-xs">
           <Switch checked={compare} onCheckedChange={(v) => setPeriod({ compare: v })} aria-label={t('insights.common.period.compare')} />
           <span>{t('insights.common.period.compare')}</span>

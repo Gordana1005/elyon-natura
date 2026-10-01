@@ -3,7 +3,7 @@
  *
  *   ?search=…            name / order no. / product; a phone matches by its last 8 digits
  *   ?view=orders|leads|cancelled|trashed|all      the status chips (default: orders)
- *   ?range=today|week|month|year|all|custom (+ from=YYYY-MM-DD&to=…)   Skopje days (default: week)
+ *   ?range=today|week|month|year|all|custom (+ from=YYYY-MM-DD&to=…)   Skopje days (default: today)
  *   ?dept=a,b            the six departments (cohort_order_source keys)
  *   ?seller=<uuid>       sales_people.id — who is credited with the sale
  *   ?mex=a,b             MEX groups: at_mex · courier · delivered · returned · rejected · no_parcel
@@ -182,7 +182,8 @@ export function effectiveView(s: OrdersListState, ctx: ListContext): ListView {
 
 /** The period the list is showing: a preset and its Skopje days (null = all dates). */
 export function effectiveRange(s: OrdersListState, today: string, ctx: ListContext): { preset: ListRange; days: DayRange | null } {
-  const preset: ListRange = s.range ?? (opensEverything(s, ctx) ? 'all' : 'week');
+  // today by default (owner 01.10.2026), with ← / → to step day by day
+  const preset: ListRange = s.range ?? (opensEverything(s, ctx) ? 'all' : 'today');
   if (preset === 'all') return { preset, days: null };
   if (preset === 'custom') {
     // an open end is allowed here (from only / to only), unlike the Insights period

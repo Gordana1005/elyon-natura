@@ -17,7 +17,7 @@ import { apiErrorText } from '@/i18n/apiErrors';
 import { planExportWindow, clampPageRange, estimateExportRows } from '@/lib/exportPageRange';
 import {
   Download, Filter, Search, Loader2, CalendarIcon, X, Plus, History, Lock, Copy, CopyPlus, Package, Send,
-  ChevronDown, ListCollapse, Truck, Trash2, Ban,
+  ChevronDown, ChevronLeft, ChevronRight, ListCollapse, Truck, Trash2, Ban,
 } from 'lucide-react';
 import {
   apiGetOrders, apiGetOrderViewCounts, apiGetOrderSellers, apiGetAgents, apiGetProducts, apiBulkStatusUpdate,
@@ -55,7 +55,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { parseDrillParams, DRILL_LABEL_PARAM } from '@/components/insights/overview/model';
 import { OrdersDrillBanner } from '@/components/insights/overview/OrdersDrillBanner';
 import { OVERVIEW_COLOR_VARS } from '@/components/insights/overview/palette';
-import { periodText, skopjeToday } from '@/components/insights/shared/period';
+import { periodText, skopjeToday, stepRange } from '@/components/insights/shared/period';
 import { ResponsivePager } from '@/components/assigner/parts';
 import {
   activeFilterCount, clearDrillParams, clearListParams, effectiveRange, effectiveView, phoneLast8, readListParams,
@@ -1031,6 +1031,8 @@ export default function Orders() {
   const counts = countsData?.counts;
   const periodLabel = period.days ? periodText(period.days) : t('ordersList.period.all');
   const periodPresetLabel = period.preset === 'all' ? t('ordersList.period.all') : t(`insights.common.period.${period.preset}`);
+  const stepPeriod = (next: { preset: string; range: { from: string; to: string } }) =>
+    patch(next.preset === 'today' ? { range: null } : { range: 'custom', from: next.range.from, to: next.range.to });
   const firstRow = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const lastRow = Math.min(total, page * PAGE_SIZE);
   const searchIsPhone = !!phoneLast8(searchText);
@@ -1263,14 +1265,19 @@ export default function Orders() {
             <OrdersFilterFields value={state} onChange={patch} today={today} drill={!!drill} src={filterSrc} layout="inline" />
           </div>
           <div className="space-y-2 xl:hidden">
-            <button type="button" onClick={openSheet} className="flex w-full items-center justify-between gap-2 rounded-lg border bg-background px-3 py-2 text-left text-xs">
-              <span className="min-w-0">
-                <span className="text-muted-foreground">{t('ordersList.period.label')}: </span>
-                <span className="font-medium">{periodPresetLabel}</span>
-                {period.days && <span className="tabular-nums text-muted-foreground"> · {periodLabel}</span>}
-              </span>
-              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
-            </button>
+            {/* ← day → right here on a phone (owner 01.10.2026); the rest of the filters live in the sheet. */}
+            <div className="flex items-center gap-1.5">
+              {period.days && <PhoneDayArrow dir={-1} days={period.days} today={today} onStep={stepPeriod} />}
+              <button type="button" onClick={openSheet} className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-lg border bg-background px-3 py-2 text-left text-xs">
+                <span className="min-w-0 truncate">
+                  <span className="text-muted-foreground">{t('ordersList.period.label')}: </span>
+                  <span className="font-medium">{periodPresetLabel}</span>
+                  {period.days && <span className="tabular-nums text-muted-foreground"> · {periodLabel}</span>}
+                </span>
+                <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+              </button>
+              {period.days && <PhoneDayArrow dir={1} days={period.days} today={today} onStep={stepPeriod} />}
+            </div>
             <ActiveFilterChips value={state} onChange={patch} src={filterSrc} />
           </div>
         </section>
@@ -1561,5 +1568,23 @@ export default function Orders() {
         onExportValid={handleExportValidOnly}
       />
     </AppLayout>
+  );
+}
+
+/** One ← / → of the phone period row (the same step as the period's arrows, see stepRange). */
+function PhoneDayArrow({ dir, days, today, onStep }: {
+  dir: -1 | 1; days: { from: string; to: string }; today: string;
+  onStep: (next: { preset: string; range: { from: string; to: string } }) => void;
+}) {
+  const { t } = useTranslation();
+  const next = stepRange(days, dir, today);
+  const oneDay = days.from === days.to;
+  const label = t(dir < 0 ? (oneDay ? 'insights.common.period.prevDay' : 'insights.common.period.prevPeriod') : (oneDay ? 'insights.common.period.nextDay' : 'insights.common.period.nextPeriod'));
+  const Icon = dir < 0 ? ChevronLeft : ChevronRight;
+  return (
+    <button type="button" disabled={!next} onClick={() => next && onStep(next)} aria-label={label} title={label}
+      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border bg-background disabled:opacity-40">
+      <Icon className="h-4 w-4" aria-hidden />
+    </button>
   );
 }

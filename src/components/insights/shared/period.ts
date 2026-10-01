@@ -1,7 +1,7 @@
 /**
  * The ONE period every /insights tab counts by (owner rule 2026-09-28).
  *
- * Presets are Skopje days — Денес · Последни 7 дена (today and the six days
+ * Presets are Skopje days — Денес (the default, owner 01.10.2026) · Последни 7 дена (today and the six days
  * before it) · Овој месец (1st → today) · Оваа година (1 Jan → today) ·
  * Прилагодено —
  * and "compare" is the equal-length span right before (the server's
@@ -19,7 +19,8 @@
 
 export const PERIOD_PRESETS = ['today', 'week', 'month', 'year', 'custom'] as const;
 export type PeriodPreset = (typeof PERIOD_PRESETS)[number];
-export const DEFAULT_PERIOD_PRESET: PeriodPreset = 'week';
+/** Today by default (owner, 01.10.2026: "by default today, with arrows to go day by day"). */
+export const DEFAULT_PERIOD_PRESET: PeriodPreset = 'today';
 /** Longest custom span we ask for (the server refuses > 731; a year-to-date is ≤ 366). */
 export const MAX_SPAN_DAYS = 400;
 
@@ -99,6 +100,24 @@ export function presetRange(preset: PeriodPreset, today: string, custom?: Partia
       return { from, to };
     }
   }
+}
+
+/**
+ * The ← / → arrows next to the period (owner 01.10.2026, like the shop's dashboard): move the period
+ * by its own length — one day for a day, seven for the last 7 days. Never past today: → is disabled
+ * (null) when the period already ends today, and a step that would run past today lands on the span
+ * that ends today. A single day that lands on today is the 'today' preset again; anything else is
+ * a custom period.
+ */
+export function stepRange(r: DayRange, dir: -1 | 1, today: string): { preset: PeriodPreset; range: DayRange } | null {
+  if (!isYmd(r.from) || !isYmd(r.to)) return null;
+  if (dir > 0 && r.to >= today) return null;
+  const days = spanDays(r);
+  let from = addDays(r.from, dir * days);
+  let to = addDays(r.to, dir * days);
+  if (to > today) { to = today; from = addDays(today, -(days - 1)); }
+  const preset: PeriodPreset = days === 1 && to === today ? 'today' : 'custom';
+  return { preset, range: { from, to } };
 }
 
 /** The equal-length span immediately before `r` (what "compare" measures against). */

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Banknote, Check, ChevronDown, Package, Search, User, Users, Waypoints, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DmyDateInput } from '@/components/insights/shared/DmyDateInput';
-import { addDays, periodText } from '@/components/insights/shared/period';
+import { addDays, type DayRange, type PeriodPreset } from '@/components/insights/shared/period';
+import { PeriodStepper } from '@/components/insights/shared/PeriodStepper';
 import { sourceColorVar } from '@/components/insights/overview/palette';
 import { departmentLabel, affiliateLabel, sourceLabel, type WebmasterNames } from '@/lib/orderSource';
 import type { CpaAttributionDimensions, OrderViewCounts } from '@/lib/api';
@@ -207,7 +208,17 @@ function PeriodGroup({ value, onChange, today, drill }: { value: OrdersListState
   const eff = effectiveRange(value, today, { drill });
   const [custom, setCustom] = useState(eff.preset === 'custom');
   const [draft, setDraft] = useState<{ from: string | null; to: string | null }>({ from: value.from ?? eff.days?.from ?? null, to: value.to ?? eff.days?.to ?? null });
-  useEffect(() => { if (eff.preset === 'custom') setCustom(true); }, [eff.preset]);
+  // A custom period opens the date fields — except one reached with the ← / → arrows.
+  const stepped = useRef(false);
+  useEffect(() => {
+    if (eff.preset === 'custom' && !stepped.current) setCustom(true);
+    stepped.current = false;
+  }, [eff.preset]);
+  const step = (next: { preset: PeriodPreset; range: DayRange }) => {
+    stepped.current = true;
+    setCustom(false);
+    onChange(next.preset === 'today' ? { range: null } : { range: 'custom', from: next.range.from, to: next.range.to });
+  };
   useEffect(() => { setDraft({ from: value.from ?? eff.days?.from ?? null, to: value.to ?? eff.days?.to ?? null }); }, [value.from, value.to]); // eslint-disable-line react-hooks/exhaustive-deps
   const reversed = !!draft.from && !!draft.to && draft.from > draft.to;
   const min = addDays(today, -3 * 365);
@@ -222,18 +233,14 @@ function PeriodGroup({ value, onChange, today, drill }: { value: OrdersListState
       <div role="group" aria-label={t('ordersList.period.label')} className="flex flex-wrap items-center gap-1.5">
         <span className={cn(LABEL, 'mr-0.5')}>{t('ordersList.period.label')}</span>
         {LIST_RANGES.map((r) => {
-          const on = r === 'custom' ? custom || eff.preset === 'custom' : eff.preset === r && !custom;
+          const on = r === 'custom' ? custom : eff.preset === r && !custom;
           return (
             <button key={r} type="button" aria-pressed={on} onClick={() => pick(r)} className={cn(CHIP, on ? CHIP_ONE : CHIP_OFF)}>
               {label(r)}
             </button>
           );
         })}
-        {eff.days && (
-          <span className="text-xs font-medium tabular-nums" data-testid="orders-period" title={t('ordersList.period.hint')}>
-            {periodText(eff.days)}
-          </span>
-        )}
+        {eff.days && <PeriodStepper range={eff.days} today={today} onStep={step} testId="orders-period" />}
       </div>
       {custom && (
         <form

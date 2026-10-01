@@ -49,9 +49,9 @@ describe('ranges (Skopje days — the shared /insights period, ../shared/period)
       sources: ['altercpa', 'web'], teams: ['crm_prediction'],
     });
     // defaults stay out of the URL
-    const reset = writeOverviewParams(written, { preset: 'week', range: presetRange('week', today), compare: true, sources: [], teams: [] });
+    const reset = writeOverviewParams(written, { preset: 'today', range: presetRange('today', today), compare: true, sources: [], teams: [] });
     expect(reset.toString()).toBe('tab=overview');
-    expect(parseOverviewParams(reset, today)).toMatchObject({ preset: 'week', compare: true, sources: [], teams: [] });
+    expect(parseOverviewParams(reset, today)).toMatchObject({ preset: 'today', compare: true, sources: [], teams: [] });
   });
   it('ignores unknown sources in the URL', () => {
     expect(parseOverviewParams(new URLSearchParams('src=altercpa,bogus'), today).sources).toEqual(['altercpa']);

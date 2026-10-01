@@ -43,11 +43,24 @@ const period = () => screen.getByTestId('period').textContent;
 const preset = (k: string) => screen.getByRole('button', { name: i18n.t(`insights.common.period.${k}`) });
 
 describe('InsightsFilterBar', () => {
-  it('defaults to the last 7 days with compare on, and keeps the tab', () => {
+  it('defaults to today with compare on, and keeps the tab (owner 01.10.2026)', () => {
     renderAt('/insights?tab=sales');
-    expect(preset('week')).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('insights-period')).toHaveTextContent('22.09 – 28.09.2026');
-    expect(period()).toBe('2026-09-22|2026-09-28|cmp|2026-09-15|2026-09-21');
+    expect(preset('today')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('insights-period')).toHaveTextContent('28.09.2026');
+    expect(period()).toBe('2026-09-28|2026-09-28|cmp|2026-09-27|2026-09-27');
+  });
+
+  it('← / → step day by day; → stops at today and today goes back to the default', () => {
+    renderAt('/insights?tab=sales');
+    const next = screen.getByRole('button', { name: i18n.t('insights.common.period.nextDay') });
+    expect(next).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('insights.common.period.prevDay') }));
+    expect(period()).toBe('2026-09-27|2026-09-27|cmp|2026-09-26|2026-09-26');
+    expect(search().get('range')).toBe('custom');
+    expect(screen.queryByLabelText(i18n.t('insights.common.period.from'))).toBeNull(); // the date fields stay closed
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('insights.common.period.nextDay') }));
+    expect(search().has('range')).toBe(false);
+    expect(period()).toBe('2026-09-28|2026-09-28|cmp|2026-09-27|2026-09-27');
   });
 
   it('presets are calendar periods and live in the URL beside the other params', () => {
@@ -59,7 +72,7 @@ describe('InsightsFilterBar', () => {
     expect(screen.getByTestId('insights-period')).toHaveTextContent('01.09 – 28.09.2026');
     fireEvent.click(preset('year'));
     expect(period()).toBe('2026-01-01|2026-09-28|cmp|2025-04-05|2025-12-31'); // 271 days before
-    fireEvent.click(preset('week'));
+    fireEvent.click(preset('today'));
     expect(search().has('range')).toBe(false); // the default stays out of the URL
   });
 
@@ -99,6 +112,6 @@ describe('InsightsFilterBar', () => {
     renderAt('/insights?tab=overview');
     fireEvent.click(screen.getByRole('switch', { name: i18n.t('insights.common.period.compare') }));
     expect(search().get('compare')).toBe('0');
-    expect(period()).toBe('2026-09-22|2026-09-28|no-cmp|');
+    expect(period()).toBe('2026-09-28|2026-09-28|no-cmp|');
   });
 });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   MAX_SPAN_DAYS, formatDmy, isYmd, mondayOf, parseDmy, parsePeriodParams, periodText, presetRange, previousRange,
-  skopjeToday, spanDays, switchTabParams, writePeriodParams,
+  skopjeToday, spanDays, stepRange, switchTabParams, writePeriodParams,
 } from './period';
 
 // 28.09.2026 is a Monday.
@@ -77,10 +77,10 @@ describe('dd.mm.yyyy — the only way a day is written', () => {
 });
 
 describe('the period in the /insights URL', () => {
-  it('defaults: this week, compare on — and defaults stay out of the URL', () => {
+  it('defaults: today (owner 01.10.2026), compare on — and defaults stay out of the URL', () => {
     expect(parsePeriodParams(new URLSearchParams('tab=sales'), today))
-      .toEqual({ preset: 'week', range: { from: '2026-09-22', to: today }, compare: true });
-    const sp = writePeriodParams(new URLSearchParams('tab=sales&range=month&compare=0'), { preset: 'week', compare: true });
+      .toEqual({ preset: 'today', range: { from: today, to: today }, compare: true });
+    const sp = writePeriodParams(new URLSearchParams('tab=sales&range=month&compare=0'), { preset: 'today', compare: true });
     expect(sp.toString()).toBe('tab=sales');
   });
   it('round-trips a custom period and keeps every other param', () => {
@@ -112,5 +112,18 @@ describe('the period in the /insights URL', () => {
     expect(switchTabParams(sp, 'sales').toString()).toBe('tab=sales&range=custom&from=2026-09-01&to=2026-09-10&compare=0');
     expect(switchTabParams(new URLSearchParams('tab=overview&cmp=0'), 'stock').toString()).toBe('tab=stock&compare=0');
     expect(switchTabParams(new URLSearchParams(''), 'returns').toString()).toBe('tab=returns');
+  });
+});
+
+describe('stepRange — the ← / → arrows (owner 01.10.2026)', () => {
+  it('a day steps one day; → stops at today, and today is the today preset again', () => {
+    expect(stepRange({ from: today, to: today }, -1, today)).toEqual({ preset: 'custom', range: { from: '2026-09-27', to: '2026-09-27' } });
+    expect(stepRange({ from: today, to: today }, 1, today)).toBeNull();
+    expect(stepRange({ from: '2026-09-27', to: '2026-09-27' }, 1, today)).toEqual({ preset: 'today', range: { from: today, to: today } });
+  });
+  it('a longer period steps by its own length and never runs past today', () => {
+    expect(stepRange({ from: '2026-09-22', to: today }, -1, today)).toEqual({ preset: 'custom', range: { from: '2026-09-15', to: '2026-09-21' } });
+    expect(stepRange({ from: '2026-09-15', to: '2026-09-21' }, 1, today)).toEqual({ preset: 'custom', range: { from: '2026-09-22', to: today } });
+    expect(stepRange({ from: '2026-09-18', to: '2026-09-24' }, 1, today)).toEqual({ preset: 'custom', range: { from: '2026-09-22', to: today } });
   });
 });

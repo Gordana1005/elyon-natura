@@ -101,18 +101,18 @@ const chip = (key: string) => within(chips()).getByRole('button', { name: new Re
 const ready = () => screen.findAllByTestId('order-row', {}, { timeout: 10_000 });
 
 describe('/orders — Нарачки by default', { timeout: 30_000 }, () => {
-  it('opens on the "Нарачки" chip, for the last 7 Skopje days, with a count on every chip', async () => {
+  it('opens on the "Нарачки" chip, for today (Skopje), with a count on every chip', async () => {
     renderAt();
     await ready();
     const today = skopjeToday();
-    expect(lastOrdersCall()).toMatchObject({ view: 'orders', day_from: addDays(today, -6), day_to: today, page: 1, limit: 20 });
+    expect(lastOrdersCall()).toMatchObject({ view: 'orders', day_from: today, day_to: today, page: 1, limit: 20 });
     expect(lastOrdersCall().drill).toBeUndefined();
     expect(chip('orders')).toHaveAttribute('aria-pressed', 'true');
     expect(chip('cancelled')).toHaveAttribute('aria-pressed', 'false');
     await waitFor(() => expect(screen.getByTestId('view-count-orders').textContent).toBe('1.400'));
     expect(screen.getByTestId('view-count-all').textContent).toBe('3.027');
     // the counts ask for the same filters, without the chip
-    expect(api.counts.mock.calls[0][0]).toMatchObject({ day_from: addDays(today, -6), day_to: today });
+    expect(api.counts.mock.calls[0][0]).toMatchObject({ day_from: today, day_to: today });
     // "who is viewing": ONE request for the page, both phones
     expect(api.views).toHaveBeenCalledTimes(1);
     expect(api.views.mock.calls[0][0]).toEqual(['70123456', '75111222']);
