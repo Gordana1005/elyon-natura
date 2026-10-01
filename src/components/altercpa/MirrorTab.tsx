@@ -193,7 +193,11 @@ export function MirrorTab({ defaultGeo = 'MK' }: { defaultGeo?: string } = {}) {
         <EmptyState icon={<Globe className="h-8 w-8" />} title={t('altercpa.noLeads')} description={t('altercpa.noLeadsHint')} />
       ) : (
         <>
-          <div className="overflow-x-auto rounded-md border">
+          {/* Phones / small tablets: one card per lead — the UI law never lets a table scroll sideways. */}
+          <ul className="space-y-2 md:hidden">
+            {rows.map((l) => <LeadCard key={l.id} lead={l} showPrice={canSeeBusiness} />)}
+          </ul>
+          <div className="hidden overflow-x-auto rounded-md border md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -223,7 +227,6 @@ function LeadRow({ lead, showPrice }: { lead: AlterCpaLead; showPrice: boolean }
   // Shared React Query cache — one request for the whole table, not one per row.
   const webmasterNames = useWebmasterNames();
   const { t } = useTranslation();
-  const isMk = lead.geo === 'MK';
 
   return (
     <TableRow>
@@ -249,6 +252,65 @@ function LeadRow({ lead, showPrice }: { lead: AlterCpaLead; showPrice: boolean }
         ) : '—'}
       </TableCell>
       {showPrice && <TableCell className="whitespace-nowrap text-right text-sm">
+        <LeadPrice lead={lead} />
+      </TableCell>}
+      <TableCell className="text-xs text-muted-foreground" title={lead.webmaster ? `#${lead.webmaster}` : undefined}>
+        {affiliateLabel(lead.webmaster, webmasterNames)}
+      </TableCell>
+      <TableCell>
+        <LeadCrm lead={lead} />
+      </TableCell>
+    </TableRow>
+  );
+}
+
+/** One lead as a card (below md). Same fields as the table row, stacked. */
+function LeadCard({ lead, showPrice }: { lead: AlterCpaLead; showPrice: boolean }) {
+  const webmasterNames = useWebmasterNames();
+  const { t } = useTranslation();
+  return (
+    <li className="rounded-md border p-3 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-xs text-muted-foreground">
+          {lead.created_remote ? format(new Date(lead.created_remote), 'dd.MM.yy HH:mm') : '—'}
+        </span>
+        <div className="flex flex-wrap items-center gap-1">
+          <Badge variant="outline">{lead.geo || '??'}</Badge>
+          {lead.phase ? (
+            <Badge variant="outline" className={phaseBadge[lead.phase]}>{t(`altercpa.phase_${lead.phase}`)}</Badge>
+          ) : null}
+        </div>
+      </div>
+      <div className="mt-1 break-words font-medium [overflow-wrap:anywhere]">{lead.offer_name || '—'}</div>
+      <div className="mt-1 break-words [overflow-wrap:anywhere]">{lead.customer_name || '—'}</div>
+      <div className="font-mono text-xs text-muted-foreground">{lead.phone_raw || '—'}</div>
+      <div className="mt-2 flex flex-wrap items-end justify-between gap-2">
+        <div className="min-w-0 text-xs text-muted-foreground" title={lead.webmaster ? `#${lead.webmaster}` : undefined}>
+          {affiliateLabel(lead.webmaster, webmasterNames)}
+        </div>
+        <LeadCrm lead={lead} />
+      </div>
+      {showPrice && <div className="mt-2 text-right"><LeadPrice lead={lead} /></div>}
+    </li>
+  );
+}
+
+function LeadCrm({ lead }: { lead: AlterCpaLead }) {
+  const { t } = useTranslation();
+  return lead.orders?.display_id ? (
+    <span className="font-mono text-xs">{lead.orders.display_id}</span>
+  ) : (
+    <Badge variant="outline" className="text-xs text-muted-foreground">
+      {t(`altercpa.skip_${lead.skip_reason || 'none'}`)}
+    </Badge>
+  );
+}
+
+function LeadPrice({ lead }: { lead: AlterCpaLead }) {
+  const { t } = useTranslation();
+  const isMk = lead.geo === 'MK';
+  return (
+    <>
         {isMk && lead.price_eur != null ? (
           // Macedonia only: денари is what the customer and courier see.
           <>
@@ -270,20 +332,7 @@ function LeadRow({ lead, showPrice }: { lead: AlterCpaLead; showPrice: boolean }
             </div>
           </>
         )}
-      </TableCell>}
-      <TableCell className="text-xs text-muted-foreground" title={lead.webmaster ? `#${lead.webmaster}` : undefined}>
-        {affiliateLabel(lead.webmaster, webmasterNames)}
-      </TableCell>
-      <TableCell>
-        {lead.orders?.display_id ? (
-          <span className="font-mono text-xs">{lead.orders.display_id}</span>
-        ) : (
-          <Badge variant="outline" className="text-xs text-muted-foreground">
-            {t(`altercpa.skip_${lead.skip_reason || 'none'}`)}
-          </Badge>
-        )}
-      </TableCell>
-    </TableRow>
+    </>
   );
 }
 
