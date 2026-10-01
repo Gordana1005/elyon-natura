@@ -143,13 +143,13 @@ describe('Распределувач', { timeout: 30_000 }, () => {
     renderAt('/assigner');
     expect(await screen.findByText('Ана Петровска', {}, { timeout: 10_000 })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1, name: 'Распределувач' })).toBeInTheDocument();
-    expect(screen.getByText('Пендинзи за делење')).toBeInTheDocument();
+    expect(screen.getByText('Лидови за делење')).toBeInTheDocument();
     expect(screen.getByText('најстариот чека 4 дена')).toBeInTheDocument();
     expect(screen.getByText('Во живо')).toBeInTheDocument();
 
     // The tab counts are what each tab shows.
     expect(await screen.findByRole('tab', { name: 'Списоци (3)' })).toBeInTheDocument();       // NEWCOMERS is empty here
-    expect(await screen.findByRole('tab', { name: 'Пендинзи (3)' })).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: 'Лидови (3)' })).toBeInTheDocument();
     expect(await screen.findByRole('tab', { name: 'Повторни повици (7)' })).toBeInTheDocument();
     expect(await screen.findByRole('tab', { name: 'Одземање (35)' })).toBeInTheDocument();
 
@@ -172,7 +172,7 @@ describe('Распределувач', { timeout: 30_000 }, () => {
     expect(within(group).getByRole('button', { name: /Веб-продавница/ })).toHaveAttribute('aria-pressed', 'true');
     expect(within(group).getByRole('button', { name: 'Сите' })).toHaveAttribute('aria-pressed', 'false');
     // Pendings in the chosen department only.
-    expect(await screen.findByRole('tab', { name: 'Пендинзи (1)' })).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: 'Лидови (1)' })).toBeInTheDocument();
   });
 
   it('the DistributeBar previews with a dry run: "N → 1 агент: …"', async () => {

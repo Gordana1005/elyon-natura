@@ -75,7 +75,7 @@ describe('AgentBoard', () => {
     expect(ana).not.toHaveTextContent('На чекање');
     // the shift rides in the tile's title (the compact tile has no room for it)
     expect(ana.getAttribute('title')).toContain('08:00–16:00');
-    expect(within(ana).getByTitle('Пендинзи: 20 (0 недопрени · 0 во работа) — од нив 0 повторни повици')).toHaveTextContent('20');
+    expect(within(ana).getByTitle('Лидови: 20 (0 недопрени · 0 во работа) — од нив 0 повторни повици')).toHaveTextContent('20');
     expect(within(ana).getByTitle(/^Повторни повици: 10/)).toBeInTheDocument();
     expect(within(ana).getByTitle(/^Клиенти од списоци за јавување: 20/)).toBeInTheDocument();
     expect(ana.getAttribute('title')).toContain('Во разговор');
