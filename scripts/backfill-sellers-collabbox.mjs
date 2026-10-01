@@ -143,8 +143,9 @@ export const skopjeDay = (v) => SKOPJE_DAY.format(new Date(v));
 export const skopjeMonth = (v) => skopjeDay(v).slice(0, 7);
 
 export function loadCollab(dir) {
-  const ordersPath = join(dir, 'orders', 'orders_combined.csv');
-  const komPath = join(dir, 'komitenti_full.csv');
+  // the folder was reorganised by department on 01.10.2026 (collab_out/README.md)
+  const ordersPath = join(dir, '99-arhiva-surovo-prevzemanje', 'orders', 'orders_combined.csv');
+  const komPath = join(dir, '08-komitenti-klienti', 'komitenti_full.csv');
   const raw = readFileSync(ordersPath);
   const fileSha = createHash('sha256').update(raw).digest('hex');
   const docs = parseCsv(raw.toString('utf8')).map((d) => ({

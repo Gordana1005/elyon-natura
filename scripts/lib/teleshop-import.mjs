@@ -2,7 +2,7 @@
  * teleshop-import — the pure rules behind scripts/import-teleshop-collabbox.mjs.
  *
  * Nothing here touches the network or the database: every function is a pure transform of
- * the collabBox header crawl (C:\Users\Mile\collab_out\orders\type_<TipID>.csv), the komitent
+ * the collabBox header crawl (C:\Users\Mile\collab_out\99-arhiva-surovo-prevzemanje\orders\type_<TipID>.csv), the komitent
  * registry (komitenti_full.csv) and rows the importer read from the MK database. Keeping the
  * rules here makes them reviewable in one place and testable in isolation.
  *

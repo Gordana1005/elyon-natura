@@ -41,7 +41,7 @@ import { createInterface } from 'node:readline';
 import { createClient } from '@supabase/supabase-js';
 
 const MKD_PER_EUR = 61.5;                 // FROZEN — see src/lib/currency.ts
-const KOMITENTI = 'C:/Users/Mile/collab_out/komitenti_full.csv';
+const KOMITENTI = 'C:/Users/Mile/collab_out/08-komitenti-klienti/komitenti_full.csv';
 
 const FILE = process.argv[2];
 const APPLY = process.argv.includes('--apply');

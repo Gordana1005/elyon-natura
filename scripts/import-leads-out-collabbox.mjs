@@ -11,9 +11,10 @@
  *
  * A document becomes an order only when ALL hold:
  *   - its header + lines are in the --fetch file (scripts/collabbox-fetch.mjs --types 10114 --items xls);
- *   - public.collabbox_department(DocNumber, author, doc time) gives its department (owner 28.09.2026,
- *     whole history): Телешоп – Lead out (elyon_crm/collabbox_leads_out), or AlterCPA
- *     (team_collabbox_leads_out) when the author is in the AlterCPA team that day;
+ *   - public.collabbox_department(type, DocNumber, author, doc time) gives its department: 10114 is
+ *     Affiliate – Lead out (elyon_crm / collabbox_leads_out). [The 28.09 "AlterCPA team →
+ *     team_collabbox_leads_out" rule was WITHDRAWN by 20260942001100 — a team never decides a
+ *     department; this header described it, the live function does not.]
  *   - its MEX parcel (tracking id = DocNumber) is in the register, COD > 0, linked to no order and
  *     named by none, and no order already carries the DocNumber;
  *   - no live sale on the same last-8 phone, holding no parcel, created from 3 days before to 1 day

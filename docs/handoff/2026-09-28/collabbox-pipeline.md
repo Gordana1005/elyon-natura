@@ -132,7 +132,7 @@ This should be its own edge function plus SQL functions, so the shared `api` fun
 
 ## 6. One-off backfill, January–August
 
-Source: `C:\Users\Mile\collab_out\orders\type_*.csv` (header crawl of 09-10) joined with `mex_parcels`. Scratch script: `…\scratchpad\cbx\backfill.mjs`.
+Source: `C:\Users\Mile\collab_out\99-arhiva-surovo-prevzemanje\orders\type_*.csv` (moved there when the folder was reorganised by department on 01.10.2026) (header crawl of 09-10) joined with `mex_parcels`. Scratch script: `…\scratchpad\cbx\backfill.mjs`.
 
 **Documents that could be created** (value > 0, no existing order by DocNumber or tracking id), January–August 2026:
 

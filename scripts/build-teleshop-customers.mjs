@@ -10,8 +10,8 @@
  * Every statement is a single SELECT/WITH checked by assertReadOnly() AND sent with read_only: true,
  * so Postgres refuses a write that slipped past the text check. The token is never printed.
  *
- * READS    C:\Users\Mile\collab_out\komitenti_full.csv            the komitent registry (UTF-8 BOM)
- *          C:\Users\Mile\collab_out\orders\type_10036.csv / 10050  the teleshop document headers
+ * READS    C:\Users\Mile\collab_out\08-komitenti-klienti\komitenti_full.csv            the komitent registry (UTF-8 BOM)
+ *          C:\Users\Mile\collab_out\99-arhiva-surovo-prevzemanje\orders\type_10036.csv / 10050  the teleshop document headers
  *          public.orders (per last-8 key), public.customer_profiles, public.report_excluded_phones,
  *          public.mk_settlements
  * WRITES   exports/teleshop/customers-clean.json   one row per komitent on a teleshop document —
@@ -32,8 +32,8 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const REF = 'bmfxhgznttcnnlqloqzp';            // Macedonia — the ONLY project this script reads
 const FORBIDDEN_REF = 'sxymaloycddnoxudxaqp';  // live Bulgaria — never
 const API = `https://api.supabase.com/v1/projects/${REF}/database/query`;
-const DEFAULT_KOMITENTI = 'C:/Users/Mile/collab_out/komitenti_full.csv';
-const DEFAULT_ORDERS_DIR = 'C:/Users/Mile/collab_out/orders';
+const DEFAULT_KOMITENTI = 'C:/Users/Mile/collab_out/08-komitenti-klienti/komitenti_full.csv';
+const DEFAULT_ORDERS_DIR = 'C:/Users/Mile/collab_out/99-arhiva-surovo-prevzemanje/orders';
 
 // ── args ────────────────────────────────────────────────────────────────────
 const args = {};

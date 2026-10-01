@@ -132,8 +132,8 @@ import * as T from './lib/teleshop-import.mjs';
 
 export const KEY = 'teleshop-import';
 const ACTOR_NAME = 'System (import:teleshop-collabbox)';
-const DEFAULT_ORDERS_DIR = 'C:/Users/Mile/collab_out/orders';
-const DEFAULT_KOMITENTI = 'C:/Users/Mile/collab_out/komitenti_full.csv';
+const DEFAULT_ORDERS_DIR = 'C:/Users/Mile/collab_out/99-arhiva-surovo-prevzemanje/orders';
+const DEFAULT_KOMITENTI = 'C:/Users/Mile/collab_out/08-komitenti-klienti/komitenti_full.csv';
 const OUT_DIR = join(ROOT, 'exports', 'teleshop');
 const OTHER_TYPES = ['10106', '10111', '10114', '10112', '10055', '10063', '10058'];
 const SALE_STATUSES = new Set(['confirmed', 'shipped', 'delivered', 'paid', 'returned']);

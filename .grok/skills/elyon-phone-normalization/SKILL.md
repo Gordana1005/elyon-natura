@@ -1,15 +1,16 @@
 ---
 name: elyon-phone-normalization
-description: Use for any phone number handling, search, matching, import, or customer lookup in the Macedonia Elyon CRM. MACEDONIA stores E.164 with country code +383 (NOT the Bulgarian +359). Last-8-digits normalization for search is unchanged. Critical for search-prediction, customer intelligence, call queues, webhooks, and all order/lead lookups.
+description: Use for any phone number handling, search, matching, import, or customer lookup in the Macedonia Elyon CRM. MACEDONIA stores E.164 with country code +389 (NOT the Bulgarian +359, NOT +383). Last-8-digits normalization for search is unchanged. Critical for search-prediction, customer intelligence, call queues, webhooks, and all order/lead lookups.
 ---
 
 # Elyon Phone Normalization Skill
 
-> **MACEDONIA OVERRIDE:** this is the Macedonia fork. Store numbers as E.164 with **+383**, not the
-> Bulgarian **+359**. The last-8-digits search/matching rule below is country-agnostic and stays
-> exactly as written. The edge function's `normalizeBgPhone()` is already retargeted to +383 —
-> verify Macedonia digit-length rules against real numbers (`TODO(macedonia)`). Wherever this skill says
-> "+359" below, read it as **+383**.
+> **MACEDONIA OVERRIDE (CLAUDE.md wins):** store numbers as E.164 with **+389** (Macedonia), never the
+> Bulgarian **+359** and never +383 (an older note of this fork said +383 — it was wrong). The
+> last-8-digits search/matching rule below is country-agnostic and stays exactly as written. Use
+> `normalizeMkPhone()` for MK intake — and remember it is a REWRITER, not a validator (it turns a
+> foreign number into a +389 one; for multi-country data use `normalizePhoneForGeo`). Wherever this
+> skill says "+359" below, read it as **+389**.
 
 ## The Golden Rule
 

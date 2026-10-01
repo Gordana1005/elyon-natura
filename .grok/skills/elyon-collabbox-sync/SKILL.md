@@ -172,7 +172,9 @@ confirmed" line predates this 29.09 change; the function body is the law.)
   `created_at = confirmed_at` = the document time (Skopje wall clock, DST-exact). The department
   comes from the insert trigger (`collabbox_department` by type).
 - **Status from MEX, never from collabBox:** parcel 2 → `paid` (`paid_at` = delivered, `paid_basis
-  'mex'`), 7 → `returned`, anything else → `shipped`; linked with
+  'mex'`), 7 → `returned`, **8 → `confirmed` with `mex_sent_at` (за пакување — since
+  `20260943001210`, owner 30.09: MEX 8 = the parcel waits for the courier)**, 4 / 10 / 9 / 1 / 3 →
+  `shipped`; linked with
   `mex_link_parcel(DocNumber, order, 'collabbox_import', false)` — anything but `linked`/`already`
   rolls the insert back into `conflict · parcel_claimed_concurrently`. mex-reconcile keeps it
   current from then on.
