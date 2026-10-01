@@ -1,0 +1,3773 @@
+<form name="searchform" id="searchform" method="post" action="./Index?comp=repbydocitm#a1">
+<input type="hidden" name="mode" value="doListOptions">
+<input type="hidden" name="searchMode" value="doListOptions">
+<input type="hidden" name="isSelectList" id="isSelectList" value="isSelectList">
+<input type="hidden" id="isSelectListMagacin" name="isSelectListMagacin" value="1">
+<table cellpadding="0">
+<tr>
+<td>
+<table cellpadding="0">
+<tr>
+<td height="20" class="bgcolorCDCFEB"> Извештај по ставки од документи </td>
+<td>&nbsp;</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td>
+<table cellpadding="0" class="table">
+<tr>
+<td>
+<table cellpadding="2">
+<tr>
+<td colspan="3"></td>
+</tr>
+<tr>
+<td colspan="2" class="tekst">Фирма:</td>
+<td><TABLE cellpadding="0">
+<tr>
+<td> Можни опции </td>
+<td>
+</td>
+<td colspan = "2"> Избрани опции </td>
+</tr>
+<tr>
+<td>
+<SELECT NAME="sel_leftHolding" id="sel_leftHolding" multiple class="selectInput"style="width: 250px" size="6" ondblclick="cmdAdd_Click('leftHolding','holding',',',1);reloadComboForReportByDocument(2);">
+</SELECT>
+<input type="hidden" name="leftHolding" id="leftHolding" value="">
+<input type="hidden" name="captions_leftHolding" id="captions_leftHolding">
+</td>
+<td>
+<TABLE cellpadding="0">
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_next.gif" onClick="cmdAdd_Click('leftHolding','holding',',',1);reloadComboForReportByDocument(2);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_last.gif" onClick="cmdAddAll_Click('leftHolding','holding',',',1);reloadComboForReportByDocument(2);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/switch.gif" onClick="cmdSwapAll_Click('leftHolding','holding',',');reloadComboForReportByDocument(2);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_first.gif" onClick="cmdRemoveAll_Click('leftHolding','holding',',',1);reloadComboForReportByDocument(2);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_prior.gif" onClick="cmdRemove_Click('leftHolding','holding',',',1);reloadComboForReportByDocument(2);" >
+</td>
+</tr>
+</table>
+</td>
+<td>
+<SELECT NAME="sel_holding" id="sel_holding" multiple class="selectInput"style="width: 250px" size="6" ondblclick="cmdRemove_Click('leftHolding','holding',',',1);reloadComboForReportByDocument(2);">
+<option value="2">НАТУРА ТЕРАПИ STORES</option>
+</SELECT>
+<input type="hidden" name="holding" id="holding">
+<input type="hidden" name="captions_holding" id="captions_holding">
+</td>
+<td> &nbsp; <script>setCombos('leftHolding','holding',',');</script>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td colspan="2">Деловна единица: &nbsp;</td>
+<td><div id="deledinicaDiv" >
+<TABLE cellpadding="0">
+<tr>
+<td> Можни деловни единици </td>
+<td>
+</td>
+<td colspan = "2"> Избрани деловни единици </td>
+</tr>
+<tr>
+<td>
+<SELECT NAME="sel_leftdelid" id="sel_leftdelid" multiple class="selectInput"style="width: 250px" size="6" ondblclick="cmdAdd_Click('leftdelid','delid',',',1);reloadComboForReportByDocument(1);">
+</SELECT>
+<input type="hidden" name="leftdelid" id="leftdelid" value="">
+<input type="hidden" name="captions_leftdelid" id="captions_leftdelid">
+</td>
+<td>
+<TABLE cellpadding="0">
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_next.gif" onClick="cmdAdd_Click('leftdelid','delid',',',1);reloadComboForReportByDocument(1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_last.gif" onClick="cmdAddAll_Click('leftdelid','delid',',',1);reloadComboForReportByDocument(1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/switch.gif" onClick="cmdSwapAll_Click('leftdelid','delid',',');reloadComboForReportByDocument(1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_first.gif" onClick="cmdRemoveAll_Click('leftdelid','delid',',',1);reloadComboForReportByDocument(1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_prior.gif" onClick="cmdRemove_Click('leftdelid','delid',',',1);reloadComboForReportByDocument(1);" >
+</td>
+</tr>
+</table>
+</td>
+<td>
+<SELECT NAME="sel_delid" id="sel_delid" multiple class="selectInput"style="width: 250px" size="6" ondblclick="cmdRemove_Click('leftdelid','delid',',',1);reloadComboForReportByDocument(1);">
+<option value="2">01 Деловна единица 1</option>
+</SELECT>
+<input type="hidden" name="delid" id="delid">
+<input type="hidden" name="captions_delid" id="captions_delid">
+</td>
+<td> &nbsp; <script>setCombos('leftdelid','delid',',');</script>
+</td>
+</tr>
+</table>
+</div>
+</td>
+</tr>
+<tr>
+<td colspan="2">Магацин: &nbsp;</td>
+<td><div id="magacinDiv" >
+<TABLE cellpadding="0">
+<tr>
+<td> Можни опции </td>
+<td>
+</td>
+<td colspan = "2"> Избрани опции </td>
+</tr>
+<tr>
+<td>
+<SELECT NAME="sel_leftMagIds" id="sel_leftMagIds" multiple class="selectInput"style="width: 250px" size="8" ondblclick="cmdAdd_Click('leftMagIds','magid',',',1);">
+<option value="3">001 Централен магацин </option>
+<option value="5">002 Магацин за Call Centar</option>
+<option value="4">003 Продавница Карпош</option>
+<option value="6">004 Продавница Бисер</option>
+<option value="7">005 Продавница ГТЦ</option>
+<option value="8">006 Продавница Струмица</option>
+<option value="9">007 Продавница Битола</option>
+<option value="10">008 Продавница Тетово</option>
+<option value="11">009 Продавница Штип</option>
+<option value="12">010 Продавница Куманово</option>
+<option value="13">011 Продавница Прилеп</option>
+<option value="14">012 Продавница Кавадарци</option>
+<option value="15">013 Продавница Велес</option>
+<option value="16">014 Оштетена роба</option>
+<option value="17">015 Продавница Охрид</option>
+<option value="18">016 Продавница Струга</option>
+<option value="19">017 Продавница Гевгелија</option>
+<option value="37">020 Продавница Аеродром</option>
+<option value="38">021 Продавница Џон Кенеди</option>
+<option value="40">023 Продавница Кочани</option>
+<option value="41">024 Продавница Кичево</option>
+<option value="43">026 Продавница Ѓорче Петров</option>
+<option value="44">027 Продавница Драчево</option>
+<option value="45">028 Продавница Лимак</option>
+<option value="46">029 Продавница Сити Мол</option>
+</SELECT>
+<input type="hidden" name="leftMagIds" id="leftMagIds" value="">
+<input type="hidden" name="captions_leftMagIds" id="captions_leftMagIds">
+</td>
+<td>
+<TABLE cellpadding="0">
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_next.gif" onClick="cmdAdd_Click('leftMagIds','magid',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_last.gif" onClick="cmdAddAll_Click('leftMagIds','magid',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/switch.gif" onClick="cmdSwapAll_Click('leftMagIds','magid',',');" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_first.gif" onClick="cmdRemoveAll_Click('leftMagIds','magid',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_prior.gif" onClick="cmdRemove_Click('leftMagIds','magid',',',1);" >
+</td>
+</tr>
+</table>
+</td>
+<td>
+<SELECT NAME="sel_magid" id="sel_magid" multiple class="selectInput"style="width: 250px" size="8" ondblclick="cmdRemove_Click('leftMagIds','magid',',',1);">
+</SELECT>
+<input type="hidden" name="magid" id="magid">
+<input type="hidden" name="captions_magid" id="captions_magid">
+</td>
+<td> &nbsp; <script>setCombos('leftMagIds','magid',',');</script>
+</td>
+</tr>
+</table>
+</div>
+</td>
+</tr>
+<tr>
+<td colspan="2">Магацин влез:</td>
+<td><div id="magVlezDiv" >
+<TABLE cellpadding="0">
+<tr>
+<td> Можни магацини </td>
+<td>
+</td>
+<td colspan = "2"> Избрани магацини </td>
+</tr>
+<tr>
+<td>
+<SELECT NAME="sel_leftMagVlezIds" id="sel_leftMagVlezIds" multiple class="selectInput"style="width: 250px" size="6" ondblclick="cmdAdd_Click('leftMagVlezIds','rightMagVlezIds',',',1);">
+<option value="3">001 Централен магацин </option>
+<option value="5">002 Магацин за Call Centar</option>
+<option value="4">003 Продавница Карпош</option>
+<option value="6">004 Продавница Бисер</option>
+<option value="7">005 Продавница ГТЦ</option>
+<option value="8">006 Продавница Струмица</option>
+<option value="9">007 Продавница Битола</option>
+<option value="10">008 Продавница Тетово</option>
+<option value="11">009 Продавница Штип</option>
+<option value="12">010 Продавница Куманово</option>
+<option value="13">011 Продавница Прилеп</option>
+<option value="14">012 Продавница Кавадарци</option>
+<option value="15">013 Продавница Велес</option>
+<option value="16">014 Оштетена роба</option>
+<option value="17">015 Продавница Охрид</option>
+<option value="18">016 Продавница Струга</option>
+<option value="19">017 Продавница Гевгелија</option>
+<option value="37">020 Продавница Аеродром</option>
+<option value="38">021 Продавница Џон Кенеди</option>
+<option value="40">023 Продавница Кочани</option>
+<option value="41">024 Продавница Кичево</option>
+<option value="43">026 Продавница Ѓорче Петров</option>
+<option value="44">027 Продавница Драчево</option>
+<option value="45">028 Продавница Лимак</option>
+<option value="46">029 Продавница Сити Мол</option>
+</SELECT>
+<input type="hidden" name="leftMagVlezIds" id="leftMagVlezIds" value="">
+<input type="hidden" name="captions_leftMagVlezIds" id="captions_leftMagVlezIds">
+</td>
+<td>
+<TABLE cellpadding="0">
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_next.gif" onClick="cmdAdd_Click('leftMagVlezIds','rightMagVlezIds',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_last.gif" onClick="cmdAddAll_Click('leftMagVlezIds','rightMagVlezIds',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/switch.gif" onClick="cmdSwapAll_Click('leftMagVlezIds','rightMagVlezIds',',');" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_first.gif" onClick="cmdRemoveAll_Click('leftMagVlezIds','rightMagVlezIds',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_prior.gif" onClick="cmdRemove_Click('leftMagVlezIds','rightMagVlezIds',',',1);" >
+</td>
+</tr>
+</table>
+</td>
+<td>
+<SELECT NAME="sel_rightMagVlezIds" id="sel_rightMagVlezIds" multiple class="selectInput"style="width: 250px" size="6" ondblclick="cmdRemove_Click('leftMagVlezIds','rightMagVlezIds',',',1);">
+</SELECT>
+<input type="hidden" name="rightMagVlezIds" id="rightMagVlezIds">
+<input type="hidden" name="captions_rightMagVlezIds" id="captions_rightMagVlezIds">
+</td>
+<td> &nbsp; <script>setCombos('leftMagVlezIds','rightMagVlezIds',',');</script>
+</td>
+</tr>
+</table>
+</div>
+<input type="checkbox" id="prikaziMagVlez" name="prikaziMagVlez" /> Прикажи влезен магацин </td>
+</tr>
+<tr>
+<td colspan="2">Магацин излез:</td>
+<td><div id="magIzlezDiv" >
+<TABLE cellpadding="0">
+<tr>
+<td> Можни магацини </td>
+<td>
+</td>
+<td colspan = "2"> Избрани магацини </td>
+</tr>
+<tr>
+<td>
+<SELECT NAME="sel_leftMagIzlezIds" id="sel_leftMagIzlezIds" multiple class="selectInput"style="width: 250px" size="6" ondblclick="cmdAdd_Click('leftMagIzlezIds','rightMagIzlezIds',',',1);">
+<option value="3">001 Централен магацин </option>
+<option value="5">002 Магацин за Call Centar</option>
+<option value="4">003 Продавница Карпош</option>
+<option value="6">004 Продавница Бисер</option>
+<option value="7">005 Продавница ГТЦ</option>
+<option value="8">006 Продавница Струмица</option>
+<option value="9">007 Продавница Битола</option>
+<option value="10">008 Продавница Тетово</option>
+<option value="11">009 Продавница Штип</option>
+<option value="12">010 Продавница Куманово</option>
+<option value="13">011 Продавница Прилеп</option>
+<option value="14">012 Продавница Кавадарци</option>
+<option value="15">013 Продавница Велес</option>
+<option value="16">014 Оштетена роба</option>
+<option value="17">015 Продавница Охрид</option>
+<option value="18">016 Продавница Струга</option>
+<option value="19">017 Продавница Гевгелија</option>
+<option value="37">020 Продавница Аеродром</option>
+<option value="38">021 Продавница Џон Кенеди</option>
+<option value="40">023 Продавница Кочани</option>
+<option value="41">024 Продавница Кичево</option>
+<option value="43">026 Продавница Ѓорче Петров</option>
+<option value="44">027 Продавница Драчево</option>
+<option value="45">028 Продавница Лимак</option>
+<option value="46">029 Продавница Сити Мол</option>
+</SELECT>
+<input type="hidden" name="leftMagIzlezIds" id="leftMagIzlezIds" value="">
+<input type="hidden" name="captions_leftMagIzlezIds" id="captions_leftMagIzlezIds">
+</td>
+<td>
+<TABLE cellpadding="0">
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_next.gif" onClick="cmdAdd_Click('leftMagIzlezIds','rightMagIzlezIds',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_last.gif" onClick="cmdAddAll_Click('leftMagIzlezIds','rightMagIzlezIds',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/switch.gif" onClick="cmdSwapAll_Click('leftMagIzlezIds','rightMagIzlezIds',',');" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_first.gif" onClick="cmdRemoveAll_Click('leftMagIzlezIds','rightMagIzlezIds',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_prior.gif" onClick="cmdRemove_Click('leftMagIzlezIds','rightMagIzlezIds',',',1);" >
+</td>
+</tr>
+</table>
+</td>
+<td>
+<SELECT NAME="sel_rightMagIzlezIds" id="sel_rightMagIzlezIds" multiple class="selectInput"style="width: 250px" size="6" ondblclick="cmdRemove_Click('leftMagIzlezIds','rightMagIzlezIds',',',1);">
+</SELECT>
+<input type="hidden" name="rightMagIzlezIds" id="rightMagIzlezIds">
+<input type="hidden" name="captions_rightMagIzlezIds" id="captions_rightMagIzlezIds">
+</td>
+<td> &nbsp; <script>setCombos('leftMagIzlezIds','rightMagIzlezIds',',');</script>
+</td>
+</tr>
+</table>
+</div>
+<input type="checkbox" id="prikaziMagIzlez" name="prikaziMagIzlez" /> Прикажи излезен магацин </td>
+</tr>
+<tr>
+<td colspan="2">Трошковно место:</td>
+<td>
+<TABLE cellpadding="0">
+<tr>
+<td> Можни трошковни места </td>
+<td>
+</td>
+<td colspan = "2"> Избрани трошковни места </td>
+</tr>
+<tr>
+<td>
+<SELECT NAME="sel_troskovnoMesto" id="sel_troskovnoMesto" multiple class="selectInput"style="width: 250px" size="6" ondblclick="cmdAdd_Click('troskovnoMesto','selectedTroskovnoMesto',',',1);">
+<option value="0">Нема сетирано трошковни места</option>
+</SELECT>
+<input type="hidden" name="troskovnoMesto" id="troskovnoMesto" value="">
+<input type="hidden" name="captions_troskovnoMesto" id="captions_troskovnoMesto">
+</td>
+<td>
+<TABLE cellpadding="0">
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_next.gif" onClick="cmdAdd_Click('troskovnoMesto','selectedTroskovnoMesto',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_last.gif" onClick="cmdAddAll_Click('troskovnoMesto','selectedTroskovnoMesto',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_first.gif" onClick="cmdRemoveAll_Click('troskovnoMesto','selectedTroskovnoMesto',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_prior.gif" onClick="cmdRemove_Click('troskovnoMesto','selectedTroskovnoMesto',',',1);" >
+</td>
+</tr>
+</table>
+</td>
+<td>
+<SELECT NAME="sel_selectedTroskovnoMesto" id="sel_selectedTroskovnoMesto" multiple class="selectInput"style="width: 250px" size="6" ondblclick="cmdRemove_Click('troskovnoMesto','selectedTroskovnoMesto',',',1);">
+</SELECT>
+<input type="hidden" name="selectedTroskovnoMesto" id="selectedTroskovnoMesto">
+<input type="hidden" name="captions_selectedTroskovnoMesto" id="captions_selectedTroskovnoMesto">
+</td>
+<td> &nbsp; <script>setCombos('troskovnoMesto','selectedTroskovnoMesto',',');</script>
+</td>
+</tr>
+</table>
+<input type="checkbox" id="prikaziTroskovno" name="prikaziTroskovno" /> Прикажи трошковно место</td>
+</tr>
+<tr>
+<td colspan="2">Профитен центар :</td>
+<td>
+<TABLE cellpadding="0">
+<tr>
+<td> Можни профитни центри </td>
+<td>
+</td>
+<td colspan = "2"> Избрани профитни центри </td>
+</tr>
+<tr>
+<td>
+<SELECT NAME="sel_profitenCentar" id="sel_profitenCentar" multiple class="selectInput"style="width: 250px" size="6" ondblclick="cmdAdd_Click('profitenCentar','selectedProfitenCentar',',',1);">
+<option value="0">Нема сетирано профитни центри</option>
+</SELECT>
+<input type="hidden" name="profitenCentar" id="profitenCentar" value="">
+<input type="hidden" name="captions_profitenCentar" id="captions_profitenCentar">
+</td>
+<td>
+<TABLE cellpadding="0">
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_next.gif" onClick="cmdAdd_Click('profitenCentar','selectedProfitenCentar',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_last.gif" onClick="cmdAddAll_Click('profitenCentar','selectedProfitenCentar',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_first.gif" onClick="cmdRemoveAll_Click('profitenCentar','selectedProfitenCentar',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_prior.gif" onClick="cmdRemove_Click('profitenCentar','selectedProfitenCentar',',',1);" >
+</td>
+</tr>
+</table>
+</td>
+<td>
+<SELECT NAME="sel_selectedProfitenCentar" id="sel_selectedProfitenCentar" multiple class="selectInput"style="width: 250px" size="6" ondblclick="cmdRemove_Click('profitenCentar','selectedProfitenCentar',',',1);">
+</SELECT>
+<input type="hidden" name="selectedProfitenCentar" id="selectedProfitenCentar">
+<input type="hidden" name="captions_selectedProfitenCentar" id="captions_selectedProfitenCentar">
+</td>
+<td> &nbsp; <script>setCombos('profitenCentar','selectedProfitenCentar',',');</script>
+</td>
+</tr>
+</table>
+<input type="checkbox" id="prikaziProfiten" name="prikaziProfiten" /> Прикажи профитен центар</td>
+</tr>
+<tr>
+<td colspan="2">Тип на документ: &nbsp;</td>
+<td>
+<TABLE cellpadding="0">
+<tr>
+<td> Типови на документи </td>
+<td>
+</td>
+<td colspan = "2"> Избрани типови на документи </td>
+</tr>
+<tr>
+<td>
+<SELECT NAME="sel_dokTipSelection" id="sel_dokTipSelection" multiple class="selectInput"style="width: 300px" size="6" ondblclick="cmdAdd_Click('dokTipSelection','doktipid',',',1);">
+<option value="10023">Invoice</option>
+<option value="10114">LEADS-OUT Нарачка</option>
+<option value="10049">Влезна-Трошковна Фактура</option>
+<option value="10042">Влезна Фактура</option>
+<option value="10024">Девизна Исплата</option>
+<option value="10025">Девизна Уплата</option>
+<option value="10026">Девизна Фактура</option>
+<option value="10018">Дневен Финансиски Извештај</option>
+<option value="10002">Жиро Исплата</option>
+<option value="10003">Жиро Уплата</option>
+<option value="10072">Задолжување на вработен/инвентар</option>
+<option value="10062">Записник за оштетена роба</option>
+<option value="10080">Испратница Количинска</option>
+<option value="10064">Испратница Натура</option>
+<option value="10004">Испратница Продавници</option>
+<option value="10038">Книжно одобрение/задолжение</option>
+<option value="10039">Книжно одобрение/задолжение на влезни ф-ри</option>
+<option value="10068">Компензација исплата</option>
+<option value="10069">Компензација уплата</option>
+<option value="10005">Лагер-попис разлика</option>
+<option value="10006">Материјално Префрлање Влез</option>
+<option value="10007">Материјално Префрлање Излез</option>
+<option value="10040">Налог за производство</option>
+<option value="10041">Налог за расклопување</option>
+<option value="10036">Нарачка in</option>
+<option value="10111">Нарачка LEADS</option>
+<option value="10050">Нарачка out</option>
+<option value="10112">Нарачка WEB</option>
+<option value="10037">Нарачка до добавувач</option>
+<option value="10110">Нарачка Лимак</option>
+<option value="10097">Нарачка Продавница Аеродром</option>
+<option value="10082">Нарачка Продавница Бисер</option>
+<option value="10085">Нарачка Продавница Битола</option>
+<option value="10091">Нарачка Продавница Велес</option>
+<option value="10094">Нарачка Продавница Гевгелија</option>
+<option value="10104">Нарачка Продавница Ѓорче Петров</option>
+<option value="10095">Нарачка Продавница Гостивар</option>
+<option value="10083">Нарачка Продавница ГТЦ</option>
+<option value="10105">Нарачка Продавница Драчево</option>
+<option value="10099">Нарачка Продавница Ист Гејт</option>
+<option value="10090">Нарачка Продавница Кавадарци</option>
+<option value="10081">Нарачка Продавница Карпош</option>
+<option value="10101">Нарачка Продавница Кичево</option>
+<option value="10100">Нарачка Продавница Кочани</option>
+<option value="10088">Нарачка Продавница Куманово</option>
+<option value="10092">Нарачка Продавница Охрид</option>
+<option value="10096">Нарачка Продавница Партизанска </option>
+<option value="10089">Нарачка Продавница Прилеп</option>
+<option value="10093">Нарачка Продавница Струга</option>
+<option value="10084">Нарачка Продавница Струмица</option>
+<option value="10086">Нарачка Продавница Тетово</option>
+<option value="10098">Нарачка Продавница Џон Кенеди</option>
+<option value="10087">Нарачка Продавница Штип</option>
+<option value="10107">Нарачка Продавници</option>
+<option value="10055">Нарачка С. Мрежи-Продавница</option>
+<option value="10113">Нарачка Сити Мол</option>
+<option value="10106">Нарачка Социјални Мрежи</option>
+<option value="10008">Нивелација</option>
+<option value="10009">Одобрение за попуст</option>
+<option value="10073">Плата</option>
+<option value="10060">ПЛТ од Препратница</option>
+<option value="10044">Повратница до добавувач</option>
+<option value="10074">Повратница од купувач</option>
+<option value="10010">Повратница од малопродажба</option>
+<option value="10011">Пописна Листа</option>
+<option value="10012">Почетна состојба доб.</option>
+<option value="10051">Почетна состојба добавувач девизна</option>
+<option value="10013">Почетна состојба куп.</option>
+<option value="10015">Препратница</option>
+<option value="10061">ПРЕПРАТНИЦА МЕЃУ ПРОДАВНИЦИ</option>
+<option value="10014">Приемен лист во трговија</option>
+<option value="10016">Приемница</option>
+<option value="10033">Приемница-Увоз</option>
+<option value="10066">Промет Малопродажба</option>
+<option value="10017">Профактура</option>
+<option value="10065">Реекспорт </option>
+<option value="10059">Резервација за Клиенти по продажни места</option>
+<option value="10067">Склопување на пакети</option>
+<option value="10034">Трошоци-Увоз</option>
+<option value="10019">Фактура</option>
+<option value="10020">Фактура-Испратницa</option>
+<option value="10045">Фактура казнена камата</option>
+<option value="10078">Фактура Пошта</option>
+<option value="10021">Фактура-Приемница</option>
+<option value="10075">Фактура- Приемница Консигнација</option>
+<option value="10022">Фискална Сметка</option>
+<option value="10070">Цесија исплата</option>
+<option value="10071">Цесија уплата</option>
+<option value="10035">Шпедитерска фактура</option>
+</SELECT>
+<input type="hidden" name="dokTipSelection" id="dokTipSelection" value="">
+<input type="hidden" name="captions_dokTipSelection" id="captions_dokTipSelection">
+</td>
+<td>
+<TABLE cellpadding="0">
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_next.gif" onClick="cmdAdd_Click('dokTipSelection','doktipid',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_last.gif" onClick="cmdAddAll_Click('dokTipSelection','doktipid',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_first.gif" onClick="cmdRemoveAll_Click('dokTipSelection','doktipid',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_prior.gif" onClick="cmdRemove_Click('dokTipSelection','doktipid',',',1);" >
+</td>
+</tr>
+</table>
+</td>
+<td>
+<SELECT NAME="sel_doktipid" id="sel_doktipid" multiple class="selectInput"style="width: 300px" size="6" ondblclick="cmdRemove_Click('dokTipSelection','doktipid',',',1);">
+</SELECT>
+<input type="hidden" name="doktipid" id="doktipid">
+<input type="hidden" name="captions_doktipid" id="captions_doktipid">
+</td>
+<td> &nbsp; <script>setCombos('dokTipSelection','doktipid',',');</script>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td colspan="2">Комитент</td>
+<td>
+<STYLE TYPE="text/css"><!--@import url(themes/collabbox/dimming.css);--></STYLE><STYLE TYPE="text/css"><!--@import url(themes/collabbox/keystable.css);--></STYLE><div id="modalDialog"><div id="boxIn"></div></div>
+<table><tbody><tr><td><input type="text" id="idcom" name="idcom" onkeypress="checkSearch(event); " onfocus="ch13NajdiKartica(idcom, event); " value="" size="9">
+</td>
+<td><input type="text" id="komitent" name="komitent" onkeypress="checkSearch(event); " value="" size="30">
+</td>
+<td><img id="idcomImage" name="idcomImage" onclick="getResults(); " src="themes/collabbox/images/browse.png" alt="SEARCH">
+<input type="hidden" id="hidPovKom" name="hidPovKom" value="">
+<input type="hidden" id="isFromBootstrap" name="isFromBootstrap" value="0">
+</td>
+</tr>
+</tbody>
+</table>
+<input type="checkbox" name="chkSiteKomitenti" id="chkSiteKomitenti" value="chk">со поврз. ком. <input type="hidden" name="hidPovKom" id="hidPovKom" value="">
+</td>
+</tr>
+<tr>
+<td colspan="2">Прикажи детали за комитент</td>
+<td><input type="checkbox" name="chkKominDetails" value="chk"></td>
+</tr>
+<tr>
+<td colspan="2">Адреса:</td>
+<td><select id="lokacija" name="lokacija"><option value="-2">Избери комитент</option>
+</select>
+</td>
+</tr>
+<tr>
+<td colspan="2">Тип на комитент:</td>
+<td><select id="tipNaKomitent" name="tipNaKomitent"><option value="-2">Сите типови на коминтент</option>
+</select>
+</td>
+</tr>
+<tr>
+<td colspan="2"></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2">Автор: &nbsp;</td>
+<td><TABLE cellpadding="0">
+<tr>
+<td> Можни опции </td>
+<td>
+</td>
+<td colspan = "2"> Избрани опции </td>
+</tr>
+<tr>
+<td>
+<SELECT NAME="sel_userid" id="sel_userid" multiple class="selectInput"style="width: 250px" size="7" ondblclick="cmdAdd_Click('userid','selectedUserIds',',',1);">
+<option value="313" >Корисник 313</option>
+<option value="322" >Корисник 322</option>
+<option value="324" >Корисник 324</option>
+<option value="2" >Корисник 2</option>
+<option value="353" >Корисник 353</option>
+<option value="320" >Корисник 320</option>
+<option value="333" >Корисник 333</option>
+<option value="284" >Корисник 284</option>
+<option value="354" >Корисник 354</option>
+<option value="389" >Корисник 389</option>
+<option value="321" >Корисник 321</option>
+<option value="356" >Корисник 356</option>
+<option value="388" >Корисник 388</option>
+<option value="332" >Корисник 332</option>
+<option value="331" >Корисник 331</option>
+<option value="330" >Корисник 330</option>
+<option value="86" >Корисник 86</option>
+<option value="310" >Корисник 310</option>
+<option value="285" >Корисник 285</option>
+<option value="209" >Корисник 209</option>
+<option value="272" >Корисник 272</option>
+<option value="274" >Корисник 274</option>
+<option value="142" >Корисник 142</option>
+<option value="167" >Корисник 167</option>
+<option value="294" >Корисник 294</option>
+<option value="262" >Корисник 262</option>
+<option value="385" >Корисник 385</option>
+<option value="373" >Корисник 373</option>
+<option value="236" >Корисник 236</option>
+<option value="311" >Корисник 311</option>
+<option value="371" >Корисник 371</option>
+<option value="267" >Корисник 267</option>
+<option value="386" >Корисник 386</option>
+<option value="387" >Корисник 387</option>
+<option value="304" >Корисник 304</option>
+<option value="222" >Корисник 222</option>
+<option value="165" >Корисник 165</option>
+<option value="281" >Корисник 281</option>
+<option value="204" >Корисник 204</option>
+<option value="307" >Корисник 307</option>
+<option value="287" >Корисник 287</option>
+<option value="249" >Корисник 249</option>
+<option value="223" >Корисник 223</option>
+<option value="198" >Корисник 198</option>
+<option value="342" >Корисник 342</option>
+<option value="391" >Корисник 391</option>
+<option value="377" >Корисник 377</option>
+<option value="151" >Корисник 151</option>
+<option value="297" >Корисник 297</option>
+<option value="369" >Корисник 369</option>
+<option value="363" >Корисник 363</option>
+<option value="301" >Корисник 301</option>
+<option value="382" >Корисник 382</option>
+<option value="384" >Корисник 384</option>
+<option value="346" >Корисник 346</option>
+<option value="256" >Корисник 256</option>
+<option value="392" >Корисник 392</option>
+<option value="224" >Корисник 224</option>
+<option value="138" >Корисник 138</option>
+<option value="261" >Корисник 261</option>
+<option value="368" >Корисник 368</option>
+<option value="140" >Корисник 140</option>
+<option value="169" >Корисник 169</option>
+<option value="185" >Корисник 185</option>
+<option value="379" >Корисник 379</option>
+<option value="163" >Корисник 163</option>
+<option value="308" >Корисник 308</option>
+<option value="27" >Корисник 27</option>
+<option value="196" >Корисник 196</option>
+<option value="351" >Корисник 351</option>
+<option value="186" >Корисник 186</option>
+<option value="122" >Корисник 122</option>
+<option value="357" >Корисник 357</option>
+<option value="183" >Корисник 183</option>
+<option value="298" >Корисник 298</option>
+<option value="265" >Корисник 265</option>
+<option value="362" >Корисник 362</option>
+<option value="123" >Корисник 123</option>
+<option value="206" >Корисник 206</option>
+<option value="250" >Корисник 250</option>
+<option value="211" >Корисник 211</option>
+<option value="177" >Корисник 177</option>
+<option value="137" >Корисник 137</option>
+<option value="383" >Корисник 383</option>
+<option value="104" >Корисник 104</option>
+<option value="372" >Корисник 372</option>
+<option value="230" >Корисник 230</option>
+<option value="323" >Корисник 323</option>
+<option value="109" >Корисник 109</option>
+<option value="125" >Корисник 125</option>
+<option value="370" >Корисник 370</option>
+<option value="340" >Корисник 340</option>
+<option value="338" >Корисник 338</option>
+<option value="380" >Корисник 380</option>
+<option value="360" >Корисник 360</option>
+<option value="376" >Корисник 376</option>
+<option value="216" >Корисник 216</option>
+<option value="189" >Корисник 189</option>
+<option value="217" >Корисник 217</option>
+<option value="359" >Корисник 359</option>
+<option value="358" >Корисник 358</option>
+<option value="390" >Корисник 390</option>
+<option value="367" >Корисник 367</option>
+<option value="130" >Корисник 130</option>
+<option value="178" >Корисник 178</option>
+<option value="252" >Корисник 252</option>
+<option value="141" >Корисник 141</option>
+<option value="242" >Корисник 242</option>
+<option value="112" >Корисник 112</option>
+<option value="154" >Корисник 154</option>
+<option value="364" >Корисник 364</option>
+<option value="352" >Корисник 352</option>
+<option value="253" >Корисник 253</option>
+<option value="309" >Корисник 309</option>
+<option value="303" >Корисник 303</option>
+<option value="207" >Корисник 207</option>
+<option value="306" >Корисник 306</option>
+<option value="180" >Корисник 180</option>
+<option value="243" >Корисник 243</option>
+<option value="194" >Корисник 194</option>
+<option value="335" >Корисник 335</option>
+<option value="254" >Корисник 254</option>
+<option value="212" >Корисник 212</option>
+<option value="365" >Корисник 365</option>
+<option value="374" >Корисник 374</option>
+<option value="334" >Корисник 334</option>
+<option value="23" >Корисник 23</option>
+<option value="106" >Корисник 106</option>
+<option value="190" >Корисник 190</option>
+<option value="280" >Корисник 280</option>
+<option value="220" >Корисник 220</option>
+<option value="215" >Корисник 215</option>
+<option value="288" >Корисник 288</option>
+<option value="191" >Корисник 191</option>
+<option value="208" >Корисник 208</option>
+<option value="271" >Корисник 271</option>
+<option value="336" >Корисник 336</option>
+<option value="113" >Корисник 113</option>
+<option value="378" >Корисник 378</option>
+<option value="134" >Корисник 134</option>
+<option value="84" >Корисник 84</option>
+<option value="315" >Корисник 315</option>
+<option value="329" >Корисник 329</option>
+<option value="366" >Корисник 366</option>
+<option value="240" >Корисник 240</option>
+<option value="187" >Корисник 187</option>
+<option value="244" >Корисник 244</option>
+</SELECT>
+<input type="hidden" name="userid" id="userid" value="">
+<input type="hidden" name="captions_userid" id="captions_userid">
+</td>
+<td>
+<TABLE cellpadding="0">
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_next.gif" onClick="cmdAdd_Click('userid','selectedUserIds',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_last.gif" onClick="cmdAddAll_Click('userid','selectedUserIds',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/switch.gif" onClick="cmdSwapAll_Click('userid','selectedUserIds',',');" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_first.gif" onClick="cmdRemoveAll_Click('userid','selectedUserIds',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_prior.gif" onClick="cmdRemove_Click('userid','selectedUserIds',',',1);" >
+</td>
+</tr>
+</table>
+</td>
+<td>
+<SELECT NAME="sel_selectedUserIds" id="sel_selectedUserIds" multiple class="selectInput"style="width: 250px" size="7" ondblclick="cmdRemove_Click('userid','selectedUserIds',',',1);">
+</SELECT>
+<input type="hidden" name="selectedUserIds" id="selectedUserIds">
+<input type="hidden" name="captions_selectedUserIds" id="captions_selectedUserIds">
+</td>
+<td> &nbsp; <script>setCombos('userid','selectedUserIds',',');</script>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td colspan="2">Комерцијалист: &nbsp;</td>
+<td><TABLE cellpadding="0">
+<tr>
+<td> Можни опции </td>
+<td>
+</td>
+<td colspan = "2"> Избрани опции </td>
+</tr>
+<tr>
+<td>
+<SELECT NAME="sel_komercijalistiId" id="sel_komercijalistiId" multiple class="selectInput"style="width: 250px" size="7" ondblclick="cmdAdd_Click('komercijalistiId','selectedKomercijalistiIds',',',1);">
+<option value="313" >Корисник 313</option>
+<option value="322" >Корисник 322</option>
+<option value="324" >Корисник 324</option>
+<option value="152" >Корисник 152</option>
+<option value="320" >Корисник 320</option>
+<option value="132" >Корисник 132</option>
+<option value="284" >Корисник 284</option>
+<option value="354" >Корисник 354</option>
+<option value="321" >Корисник 321</option>
+<option value="285" >Корисник 285</option>
+<option value="319" >Корисник 319</option>
+<option value="86" >Корисник 86</option>
+<option value="209" >Корисник 209</option>
+<option value="291" >Корисник 291</option>
+<option value="305" >Корисник 305</option>
+<option value="312" >Корисник 312</option>
+<option value="274" >Корисник 274</option>
+<option value="258" >Корисник 258</option>
+<option value="263" >Корисник 263</option>
+<option value="267" >Корисник 267</option>
+<option value="268" >Корисник 268</option>
+<option value="304" >Корисник 304</option>
+<option value="290" >Корисник 290</option>
+<option value="281" >Корисник 281</option>
+<option value="301" >Корисник 301</option>
+<option value="273" >Корисник 273</option>
+<option value="302" >Корисник 302</option>
+<option value="300" >Корисник 300</option>
+<option value="279" >Корисник 279</option>
+<option value="275" >Корисник 275</option>
+<option value="278" >Корисник 278</option>
+<option value="308" >Корисник 308</option>
+<option value="295" >Корисник 295</option>
+<option value="282" >Корисник 282</option>
+<option value="341" >Корисник 341</option>
+<option value="387" >Корисник 387</option>
+<option value="342" >Корисник 342</option>
+<option value="391" >Корисник 391</option>
+<option value="377" >Корисник 377</option>
+<option value="168" >Корисник 168</option>
+<option value="193" >Корисник 193</option>
+<option value="143" >Корисник 143</option>
+<option value="192" >Корисник 192</option>
+<option value="165" >Корисник 165</option>
+<option value="249" >Корисник 249</option>
+<option value="237" >Корисник 237</option>
+<option value="164" >Корисник 164</option>
+<option value="246" >Корисник 246</option>
+<option value="153" >Корисник 153</option>
+<option value="179" >Корисник 179</option>
+<option value="251" >Корисник 251</option>
+<option value="136" >Корисник 136</option>
+<option value="236" >Корисник 236</option>
+<option value="229" >Корисник 229</option>
+<option value="222" >Корисник 222</option>
+<option value="223" >Корисник 223</option>
+<option value="124" >Корисник 124</option>
+<option value="224" >Корисник 224</option>
+<option value="88" >Корисник 88</option>
+<option value="144" >Корисник 144</option>
+<option value="219" >Корисник 219</option>
+<option value="225" >Корисник 225</option>
+<option value="96" >Корисник 96</option>
+<option value="211" >Корисник 211</option>
+<option value="104" >Корисник 104</option>
+<option value="121" >Корисник 121</option>
+<option value="213" >Корисник 213</option>
+<option value="234" >Корисник 234</option>
+<option value="235" >Корисник 235</option>
+<option value="145" >Корисник 145</option>
+<option value="250" >Корисник 250</option>
+<option value="227" >Корисник 227</option>
+<option value="228" >Корисник 228</option>
+<option value="6" >Корисник 6</option>
+<option value="205" >Корисник 205</option>
+<option value="253" >Корисник 253</option>
+<option value="245" >Корисник 245</option>
+<option value="233" >Корисник 233</option>
+<option value="199" >Корисник 199</option>
+<option value="163" >Корисник 163</option>
+<option value="206" >Корисник 206</option>
+<option value="296" >Корисник 296</option>
+<option value="309" >Корисник 309</option>
+<option value="259" >Корисник 259</option>
+<option value="238" >Корисник 238</option>
+<option value="147" >Корисник 147</option>
+<option value="283" >Корисник 283</option>
+<option value="226" >Корисник 226</option>
+<option value="150" >Корисник 150</option>
+<option value="299" >Корисник 299</option>
+<option value="256" >Корисник 256</option>
+<option value="379" >Корисник 379</option>
+<option value="351" >Корисник 351</option>
+<option value="318" >Корисник 318</option>
+<option value="357" >Корисник 357</option>
+<option value="349" >Корисник 349</option>
+<option value="372" >Корисник 372</option>
+<option value="230" >Корисник 230</option>
+<option value="323" >Корисник 323</option>
+<option value="340" >Корисник 340</option>
+<option value="338" >Корисник 338</option>
+<option value="350" >Корисник 350</option>
+<option value="380" >Корисник 380</option>
+<option value="216" >Корисник 216</option>
+<option value="217" >Корисник 217</option>
+<option value="207" >Корисник 207</option>
+<option value="210" >Корисник 210</option>
+<option value="180" >Корисник 180</option>
+<option value="190" >Корисник 190</option>
+<option value="280" >Корисник 280</option>
+<option value="220" >Корисник 220</option>
+<option value="215" >Корисник 215</option>
+<option value="255" >Корисник 255</option>
+<option value="214" >Корисник 214</option>
+<option value="221" >Корисник 221</option>
+<option value="208" >Корисник 208</option>
+<option value="328" >Корисник 328</option>
+<option value="270" >Корисник 270</option>
+<option value="232" >Корисник 232</option>
+<option value="252" >Корисник 252</option>
+<option value="264" >Корисник 264</option>
+<option value="352" >Корисник 352</option>
+<option value="348" >Корисник 348</option>
+<option value="243" >Корисник 243</option>
+<option value="335" >Корисник 335</option>
+<option value="212" >Корисник 212</option>
+<option value="271" >Корисник 271</option>
+<option value="336" >Корисник 336</option>
+<option value="378" >Корисник 378</option>
+<option value="84" >Корисник 84</option>
+<option value="240" >Корисник 240</option>
+</SELECT>
+<input type="hidden" name="komercijalistiId" id="komercijalistiId" value="">
+<input type="hidden" name="captions_komercijalistiId" id="captions_komercijalistiId">
+</td>
+<td>
+<TABLE cellpadding="0">
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_next.gif" onClick="cmdAdd_Click('komercijalistiId','selectedKomercijalistiIds',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_last.gif" onClick="cmdAddAll_Click('komercijalistiId','selectedKomercijalistiIds',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/switch.gif" onClick="cmdSwapAll_Click('komercijalistiId','selectedKomercijalistiIds',',');" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_first.gif" onClick="cmdRemoveAll_Click('komercijalistiId','selectedKomercijalistiIds',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_prior.gif" onClick="cmdRemove_Click('komercijalistiId','selectedKomercijalistiIds',',',1);" >
+</td>
+</tr>
+</table>
+</td>
+<td>
+<SELECT NAME="sel_selectedKomercijalistiIds" id="sel_selectedKomercijalistiIds" multiple class="selectInput"style="width: 250px" size="7" ondblclick="cmdRemove_Click('komercijalistiId','selectedKomercijalistiIds',',',1);">
+</SELECT>
+<input type="hidden" name="selectedKomercijalistiIds" id="selectedKomercijalistiIds">
+<input type="hidden" name="captions_selectedKomercijalistiIds" id="captions_selectedKomercijalistiIds">
+</td>
+<td> &nbsp; <script>setCombos('komercijalistiId','selectedKomercijalistiIds',',');</script>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td colspan="2"></td>
+<td>
+</td>
+</tr>
+<tr>
+<td colspan="2">Артикли:</td>
+<td><input type="text" name="prodcode" id="prodcode" size="6" class="ac_input" value="" autocomplete="off" onkeypress="ch13PopupFindProduct(this,event);">
+<input type="text" name="proddesc" id="proddesc" size="40" class="ac_input" value="" autocomplete="off" onkeypress="ch13PopupFindProduct(this,event);">
+<a href="javascript:chooseProduct();"><img src="images/pronajdi.png" height="16"></a>
+</td>
+</tr>
+<tr>
+<td colspan="2">Број на документ од-до: &nbsp;</td>
+<td class="list"><input type="text" name="brojod" size="10" class="textInput" value="" onKeyUp="javascript:validateInteger(this);">
+<input type="text" name="brojdo" size="10" class="textInput" value="" onKeyUp="javascript:validateInteger(this);">
+</td>
+</tr>
+<tr>
+<td colspan="2"> Датум од-до (дд.мм.гггг): &nbsp;</td>
+<td><input type="text" name="datumod" id="datumod" size="10" maxlength="10" class="textInput" value="24.09.2026" onKeyUp="validateDate(this);" onclick="return showCalendar(this.name,'dd.mm.y')">
+<input type="text" name="datumdo" id="datumdo" size="10" maxlength="10" class="textInput" value="01.10.2026" onKeyUp="validateDate(this);" onclick="return showCalendar(this.name,'dd.mm.y')"></td>
+</tr>
+<tr>
+<td colspan="2">Час од-до (чч:мм):&nbsp;</td>
+<td><input type="text" name="casOd" id="casOd" size="10" maxlength="5" class="textInput" value="" onKeyUp="validateCas(this);" onblur="checkTimeFieldCasOd(document.getElementById('casOd'));">
+<input type="text" name="casDo" id="casDo" size="10" maxlength="5" class="textInput" value="" onKeyUp="validateCas(this);" onblur="checkTimeFieldCasDo(document.getElementById('casDo'));">
+</td>
+</tr>
+<tr>
+<td colspan="2">Вариабилен период &nbsp;</td>
+<td><SELECT NAME="predefiniraniIntervali" id="predefiniraniIntervali" class="selectInput">
+<option value="0" SELECTED>Избери варијабилен период</option>
+<option value="1">Тековен ден</option>
+<option value="6">Минатиот ден</option>
+<option value="23">Тековен ден -2</option>
+<option value="24">Тековен ден -3</option>
+<option value="25">Тековен ден -4</option>
+<option value="26">Тековен ден -5</option>
+<option value="27">Тековен ден -6</option>
+<option value="28">Тековен ден -7</option>
+<option value="2">Тековна недела</option>
+<option value="7">Минатата недела</option>
+<option value="29">Тековна недела -2</option>
+<option value="30">Тековна недела -3</option>
+<option value="31">Тековна недела -4</option>
+<option value="32">Тековна недела -5</option>
+<option value="3">Тековен месец</option>
+<option value="8">Минатиот месец</option>
+<option value="18">Тековен месец -1</option>
+<option value="19">Тековен месец -2</option>
+<option value="20">Тековен месец -3</option>
+<option value="33">Тековен месец -4</option>
+<option value="34">Тековен месец -5</option>
+<option value="4">Тековно тромесечие</option>
+<option value="9">Минатото тромесечие</option>
+<option value="11">Прво тромесечие</option>
+<option value="12">Второ тромесечие</option>
+<option value="13">Трето тромесечие</option>
+<option value="14">Четврто тромесечие</option>
+<option value="35">Тековно тромесечие -2</option>
+<option value="36">Тековно тромесечие -3</option>
+<option value="37">Тековно тромесечие -4</option>
+<option value="21">Тековно полугодие</option>
+<option value="22">Тековно полугодие -1</option>
+<option value="38">Тековно полугодие -2</option>
+<option value="39">Тековно полугодие -3</option>
+<option value="40">Тековно полугодие -4</option>
+<option value="41">Тековно полугодие -5</option>
+<option value="5">Тековна година</option>
+<option value="10">Минатата година</option>
+<option value="15">Тековна година -1</option>
+<option value="16">Тековна година -2</option>
+<option value="17">Тековна година -3</option>
+<option value="42">Тековна година -4</option>
+<option value="43">Тековна година -5</option>
+<option value="44">MTD</option>
+<option value="45">YTD</option>
+<option value="46">YTD -1</option>
+<option value="47">YTD -2</option>
+<option value="48">YTD -3</option>
+<option value="49">YTD -4</option>
+<option value="50">YTD -5</option>
+<option value="51">Последни 30 дена (од вчера)</option>
+<option value="52">MTD од вчера</option>
+<option value="53">YTD од вчера</option>
+<option value="54">Понеделник претходна недела</option>
+<option value="55">Недела претходна недела</option>
+</SELECT>
+</td>
+</tr>
+<tr>
+<td colspan="2"> Реален датум на креирање од-до (дд.мм.гггг): &nbsp;</td>
+<td><input type="text" name="realdatumod" id="realdatumod" size="10" maxlength="10" class="textInput" value="" onKeyUp="validateDate(this);" onclick="return showCalendar(this.name,'dd.mm.y')">
+<input type="text" name="realdatumdo" id="realdatumdo" size="10" maxlength="10" class="textInput" value="" onKeyUp="validateDate(this);" onclick="return showCalendar(this.name,'dd.mm.y')"></td>
+</tr>
+<tr>
+<!-- <td colspan="2">Прикажи само &nbsp;</td>-->
+<td><tr>
+<td colspan = "2"> Прикажи </td>
+<td>
+<SELECT NAME="limitResults" id="limitResults" class="selectInput">
+<option value="0">сите резултати</option>
+<option value="1" SELECTED>50 записи</option>
+<option value="2">100 записи</option>
+<option value="3">150 записи</option>
+<option value="4">200 записи</option>
+<option value="5">250 записи</option>
+<option value="6">500 записи</option>
+</SELECT> по страна </td>
+</tr>
+<!-- по страна --></td>
+</tr>
+<tr>
+<td colspan="3" class="bgcolorCDCFEB"><a href="javascript:toggleLayer('artikliLayer');">Артикли</a></td>
+</tr>
+<tr id="artikliLayer1">
+<td colspan="2">За групи на артикли: &nbsp; <div>
+<a><img src="./images/treelist.gif" height="18" >
+</a>&nbsp; </div>
+</td>
+<td><TABLE cellpadding="0">
+<tr>
+<td> Можни опции </td>
+<td>
+</td>
+<td colspan = "2"> Избрани опции </td>
+</tr>
+<tr>
+<td>
+<SELECT NAME="sel_artgrpid" id="sel_artgrpid" multiple class="selectInput"style="width: 250px" size="6" ondblclick="cmdAdd_Click('artgrpid','selartgrpid',',',1);">
+<option value="20">ELIXY</option>
+<option value="33">I AM </option>
+<option value="0137">LEADS</option>
+<option value="34">АД АСТРА</option>
+<option value="013601">ГУМЕНИ БОНБОНИ</option>
+<option value="0136">ГУМЕНИ БОНБОНИ</option>
+<option value="0135">ДРУГИ АРТИКЛИ</option>
+<option value="02">Козметика</option>
+<option value="10">КУПОНИ</option>
+<option value="32">ЛОЈАЛИТИ</option>
+<option value="35">Мултилевел</option>
+<option value="30">НАГРАДИ</option>
+<option value="307001">НАГРАДНА ДОБРО ЗДРАВЈЕ И УБАВО ПАТУВАЊЕ</option>
+<option value="7000">НАГРАДНИ ИГРА ЦИТРОЕН</option>
+<option value="01">Продукти</option>
+<option value="04">Суплименти-Капсули</option>
+<option value="31">Суплименти-таблети</option>
+<option value="03">Течни Суплементи</option>
+<option value="99">Услуги</option>
+</SELECT>
+<input type="hidden" name="artgrpid" id="artgrpid" value="">
+<input type="hidden" name="captions_artgrpid" id="captions_artgrpid">
+</td>
+<td>
+<TABLE cellpadding="0">
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_next.gif" onClick="cmdAdd_Click('artgrpid','selartgrpid',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_last.gif" onClick="cmdAddAll_Click('artgrpid','selartgrpid',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/switch.gif" onClick="cmdSwapAll_Click('artgrpid','selartgrpid',',');" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_first.gif" onClick="cmdRemoveAll_Click('artgrpid','selartgrpid',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_prior.gif" onClick="cmdRemove_Click('artgrpid','selartgrpid',',',1);" >
+</td>
+</tr>
+</table>
+</td>
+<td>
+<SELECT NAME="sel_selartgrpid" id="sel_selartgrpid" multiple class="selectInput"style="width: 250px" size="6" ondblclick="cmdRemove_Click('artgrpid','selartgrpid',',',1);">
+</SELECT>
+<input type="hidden" name="selartgrpid" id="selartgrpid">
+<input type="hidden" name="captions_selartgrpid" id="captions_selartgrpid">
+</td>
+<td> &nbsp; <script>setCombos('artgrpid','selartgrpid',',');</script>
+</td>
+</tr>
+</table>
+</td>
+<tr id="artikliLayer4">
+<td colspan="2">Вклучи ги подгрупите: &nbsp;</td>
+<td><input type="checkbox" name="cbsubgroups" value="ON" id="cbsubgroups" checked>
+</td>
+</tr>
+</tr>
+<tr id="artikliLayer2">
+<td colspan="2"></td>
+<td></td>
+<tr id="artikliLayer6">
+<td colspan="2">Вклучи ги подгрупите за бренд &nbsp;</td>
+<td></td>
+</tr>
+<tr id="artikliLayer5">
+<td colspan="2"></td>
+<td></td>
+</tr>
+<tr id="artikliLayer3">
+<td colspan="2">Тип на ресурс:&nbsp;</td>
+<td><TABLE cellpadding="0">
+<tr>
+<td> Можни опции </td>
+<td>
+</td>
+<td colspan = "2"> Избрани опции </td>
+</tr>
+<tr>
+<td>
+<SELECT NAME="sel_resursiid" id="sel_resursiid" multiple class="selectInput"style="width: 250px" size="3" ondblclick="cmdAdd_Click('resursiid','selresursiid',',',1);">
+<option value="1">Артикл</option>
+<option value="3">Консигнација</option>
+<option value="2">Услуга</option>
+</SELECT>
+<input type="hidden" name="resursiid" id="resursiid" value="">
+<input type="hidden" name="captions_resursiid" id="captions_resursiid">
+</td>
+<td>
+<TABLE cellpadding="0">
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_next.gif" onClick="cmdAdd_Click('resursiid','selresursiid',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_last.gif" onClick="cmdAddAll_Click('resursiid','selresursiid',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/switch.gif" onClick="cmdSwapAll_Click('resursiid','selresursiid',',');" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_first.gif" onClick="cmdRemoveAll_Click('resursiid','selresursiid',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_prior.gif" onClick="cmdRemove_Click('resursiid','selresursiid',',',1);" >
+</td>
+</tr>
+</table>
+</td>
+<td>
+<SELECT NAME="sel_selresursiid" id="sel_selresursiid" multiple class="selectInput"style="width: 250px" size="3" ondblclick="cmdRemove_Click('resursiid','selresursiid',',',1);">
+</SELECT>
+<input type="hidden" name="selresursiid" id="selresursiid">
+<input type="hidden" name="captions_selresursiid" id="captions_selresursiid">
+</td>
+<td> &nbsp; <script>setCombos('resursiid','selresursiid',',');</script>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr id="artikliLayer7">
+<td colspan="2">Прикажи оригинална шифра &nbsp;</td>
+<td><input type="checkbox" name="cborgsifra" value="ON" id="cborgsifra">
+</td>
+</tr>
+<tr id="artikliLayer8">
+<td colspan="2">Прикажи оригинален назив &nbsp;</td>
+<td><input type="checkbox" name="cborgopis" value="ON" id="cborgopis">
+</td>
+</tr>
+<tr id="artikliLayer9">
+<td colspan="2">Артикли со данок &nbsp;</td>
+<td><SELECT NAME="danokproc" id="danokproc" class="selectInput">
+<option value="-1" SELECTED>Сите</option>
+<option value="0">0.0</option>
+<option value="5">5.0</option>
+<option value="10">10.0</option>
+<option value="18">18.0</option>
+</SELECT>
+</td>
+</tr>
+<tr id="artikliLayer10">
+<td colspan="2">Прикажи ДДВ процент по артикл &nbsp;</td>
+<td><input type="checkbox" name="cbdanokproc" value="ON" id="cbdanokproc">
+</td>
+</tr>
+<tr>
+<td colspan="4" class="bgcolorCDCFEB"><a href="javascript:toggleLayer('dopolnitelni');">Дополнителни параметри</a></td>
+</tr>
+<!-- <tr id="dopolnitelni12">
+<td><input type="checkbox" name="chkZiroSmetki" value="chk"></td>
+<td>Жиро сметка:&nbsp;</td>
+<td></td>
+</tr> -->
+<tr id="dopolnitelni13">
+<td colspan="2">Наслов на документ: &nbsp;</td>
+<td><input type="text" name="broj" id="broj" class="textinput" placeholder="Внесете број!" onkeyup="javascript:checkElement('chkDocNum');">
+</td>
+</tr>
+<!-- <tr id="dopolnitelni14">
+<td colspan="2">Забелешка:&nbsp;</td>
+<td></td>
+</tr> -->
+<tr id="dopolnitelni15">
+<td><input type="checkbox" name="chkBrVlFaktura" value="chk"></td>
+<td>Број на влезна фактура &nbsp;</td>
+<td><input type="text" name="eBoxBrVlezFak" id="eBoxBrVlezFak" class="textinput" placeholder="Број на влезна фактура!" onkeyup="javascript:checkElement('brVlFaktura');">
+</td>
+</tr>
+<tr id="dopolnitelni16">
+<td><input type="checkbox" name="chkDataDospeva" value="chk"></td>
+<td>Датум на доспевање &nbsp;</td>
+<td><div id="datDospeva" >
+<SELECT NAME="customOperator" id="customOperator" class="selectInput" onChange="javascript:checkElement('chkDataDospeva');">
+<option value="1">=</option>
+<option value="2"><></option>
+<option value="3">></option>
+<option value="4"><</option>
+<option value="5">>=</option>
+<option value="6"><=</option>
+</SELECT>
+<input type="text" name="customValue" id="customValue" class="textInput" value="01.10.2026" size="12" maxlength="10" autocomplete="off" onkeyup="validateDate(this);" onkeypress="javascript:checkElement('chkDataDospeva');" onClick="javascript:return showCalendar(this.name,'dd.mm.y');">
+</div>
+</td>
+</tr>
+<tr id="dopolnitelni18">
+<td colspan="2">Сума со ддв &nbsp;</td>
+<td>од &nbsp;<input type="text" name="sumaod" id="sumaod" class="numberInput" size="10" onkeyup="javascript:validateFloat(event);checkElement('chkSuma');"> &nbsp;до &nbsp;<input type="text" name="sumado" id="sumado" class="numberInput" size="10" onkeyup="javascript:validateFloat(event);checkElement('chkSuma');">
+</td>
+</tr>
+<tr id="dopolnitelni34">
+<td><input type="checkbox" name="chkValuta" ></td>
+<td>Валута</td>
+<td><select id="cmbValuti" name="cmbValuti" onchange="checkElement('chkValuta'); "><option value="0">Изберете валута</option>
+<option value="1">MKD</option>
+<option value="2">USD</option>
+<option value="3">EUR</option>
+</select>
+</td>
+</tr>
+<tr id="dopolnitelni19">
+<td><input type="checkbox" name="chkRealizacija" ></td>
+<td>Реализација &nbsp;</td>
+<td><SELECT NAME="realizacija" id="realizacija" class="selectinput" onChange="javascript:checkElement('chkRealizacija');">
+<option value="1">Реализирани</option>
+<option value="0" SELECTED>Нереализирани</option>
+</SELECT>
+</td>
+</tr>
+<tr id="dopolnitelni38">
+<td><input type="checkbox" name="chkStatusNaDokument" ></td>
+<td>Статус на документот: &nbsp;</td>
+<td><SELECT NAME="statusNaDokument" id="statusNaDokument" class="selectinput" onChange="javascript:checkElement('chkStatusNaDokument');">
+<option value="1">Финални документи</option>
+<option value="0">Избришани документи</option>
+</SELECT>
+</td>
+</tr>
+<tr id="dopolnitelni20">
+<td><input type="checkbox" name="chkKnizenje" ></td>
+<td>Книжење &nbsp;</td>
+<td><SELECT NAME="knizenje" id="knizenje" class="selectinput" onChange="javascript:checkElement('chkKnizenje');">
+<option value="1">Прокнижени</option>
+<option value="0" SELECTED>Непрокнижени</option>
+</SELECT>
+</td>
+</tr>
+<tr id="dopolnitelni21">
+<td><input type="checkbox" name="chkStorno" ></td>
+<td>Сторнирање &nbsp;</td>
+<td><SELECT NAME="storno" id="storno" class="selectinput" onChange="javascript:checkElement('chkStorno');">
+<option value="1">Сторнирани</option>
+<option value="0">Несторнирани</option>
+</SELECT>
+</td>
+</tr>
+<TR id="dopolnitelni22">
+<td><input type="checkbox" name="chkFiscal" ></td>
+<td>Фискални документи</td>
+<td><SELECT NAME="fiscalCombo" id="fiscalCombo" class="selectInput" onChange="javascript:checkElement('chkFiscal');">
+<option value="0" SELECTED>Фискално испечатени</option>
+<option value="1">Фискално неиспечатени</option>
+</SELECT>
+</td>
+</TR>
+<TR id="dopolnitelni23">
+<td><input type="checkbox" name="chkRabat" ></td>
+<td>Рабат</td>
+<td><SELECT NAME="rabatCombo" id="rabatCombo" class="selectInput" onChange="javascript:checkElement('chkRabat');">
+<option value="0">Без рабат</option>
+<option value="1">Со рабат</option>
+</SELECT> &nbsp; од &nbsp;<input type="text" name="rabatOD" id="rabatOD" class="numberInput" size="10" autocomplete="off" onkeyup="javascript:validateFloat(event);checkElement('chkRabat');"> &nbsp;до &nbsp;<input type="text" name="rabatDO" id="rabatDO" class="numberInput" size="10" autocomplete="off" onkeyup="javascript:validateFloat(event);checkElement('chkRabat');">
+</td>
+</TR>
+<TR id="dopolnitelni26">
+<td colspan="2">Денарски/Девизен Приказ</td>
+<td><SELECT NAME="cmbDenDev" id="cmbDenDev" class="selectInput">
+<option value="0">денарски и девизни во денари </option>
+<option value="1">само денарски во денари</option>
+<option value="2">само девизни во девизи</option>
+<option value="3">само девизни во денари</option>
+</SELECT>
+</td>
+</TR>
+<tr id="dopolnitelni1">
+<td colspan="2">Сортирај по: &nbsp;</td>
+<td><TABLE cellpadding="0">
+<tr>
+<td> Избор за сортирање </td>
+<td>
+</td>
+<td colspan = "2"> Избрани колони </td>
+</tr>
+<tr>
+<td>
+<SELECT NAME="sel_selectionList" id="sel_selectionList" multiple class="selectInput"style="width: 250px" size="6" ondblclick="cmdAdd_Click('selectionList','orderby',',',0);">
+<option value="object.creation_datetime">Датум и време</option>
+<option value="doktip.doktip">Тип на документ</option>
+<option value="artikli.artgrupa">Група на артикли</option>
+<option value="artikli.artsifra">Шифра на артикл</option>
+<option value="artikli.opis">Опис на артикл</option>
+<option value="artikli.originalna_sifra">Оригинална шифра</option>
+<option value="artikli.originalen_naziv">Оригинален назив</option>
+<option value="komitenti.IMEKOM">Име на комитент</option>
+<option value="komitenti.IDKOM">Шифра на комитент</option>
+<option value="dok_sodrz.kolicina_vlez">Количина влез</option>
+<option value="dok_sodrz.kolicina_izlez">Количина излез</option>
+<option value="((cena_nab + danok_nab) * IF(doktipvlezizlez='-', dok_sodrz.kolicina_izlez, dok_sodrz.kolicina_vlez))">Набавна вредност со ДДВ</option>
+<option value="((cena_prod + danok_prod) * dok_sodrz.kolicina_izlez)">Продажна вредност со ДДВ</option>
+<option value="object.creation_datetime, dokumenti.dokbroj, dok_sodrz.reden_broj">Реден број</option>
+<option value="delovniedinici.oznaka">Шифра на деловна единица</option>
+<option value="delovniedinici.opis">Име на деловна единица</option>
+</SELECT>
+<input type="hidden" name="selectionList" id="selectionList" value="">
+<input type="hidden" name="captions_selectionList" id="captions_selectionList">
+</td>
+<td>
+<TABLE cellpadding="0">
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_next.gif" onClick="cmdAdd_Click('selectionList','orderby',',',0);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_last.gif" onClick="cmdAddAll_Click('selectionList','orderby',',',0);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_first.gif" onClick="cmdRemoveAll_Click('selectionList','orderby',',',0);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_prior.gif" onClick="cmdRemove_Click('selectionList','orderby',',',0);" >
+</td>
+</tr>
+</table>
+</td>
+<td>
+<SELECT NAME="sel_orderby" id="sel_orderby" multiple class="selectInput"style="width: 250px" size="6" ondblclick="cmdRemove_Click('selectionList','orderby',',',0);">
+</SELECT>
+<input type="hidden" name="orderby" id="orderby">
+<input type="hidden" name="captions_orderby" id="captions_orderby">
+</td>
+<td>
+<TABLE >
+<tr>
+<td>
+<img src="themes/collabbox/images/arrow_up.gif" alt="Помести за едно погоре" height="12" onClick="cmdMoveUp_Click('selectionList','orderby',',');" >
+<img src="themes/collabbox/images/arrow_down.gif" alt="Помести за едно подолу" height="12" onClick="cmdMoveDown_Click('selectionList','orderby',',');" >
+</td>
+</tr>
+</table>
+<script>setCombos('selectionList','orderby',',');</script>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr id="dopolnitelni2">
+<td colspan="2">Начин на печатење:</td>
+<td><SELECT NAME="cmbMF" id="cmbMF" class="selectInput">
+<option value="0">Сите</option>
+<option value="1">Материјални документи</option>
+<option value="2">Финансови документи</option>
+<option value="3">МатеријалноФинансови документи</option>
+<option value="4">Материјални и МатеријалноФинансови документи</option>
+<option value="5">Финансови и МатеријалноФинансови документи</option>
+<option value="6">Непознато</option>
+</SELECT>
+</td>
+</tr>
+<tr id="dopolnitelni3">
+<td colspan="2">Прикажи:</td>
+<td><SELECT NAME="cmbProkaz" id="cmbProkaz" class="selectInput" onChange="javascript:checkSelectedReport(this.value)">
+<option value="0">Продажна цена и ДДВ</option>
+<option value="5">Набавна цена</option>
+<option value="1">Набавна и продажна цена</option>
+<option value="3">Извештај со даночни броеви</option>
+<option value="4">Извештај за промет</option>
+</SELECT>
+</td>
+</tr>
+<tr id="dopolnitelni4">
+<td colspan="2">Групирано по: &nbsp;</td>
+<td><SELECT NAME="groupby" id="groupby" class="selectInput">
+<option value="-1">Нема групирање</option>
+<option value="doktip.doktip">Тип на документ</option>
+<option value="dokumenti.brojdolg">Број на документ</option>
+<option value="komitenti.IMEKOM,dokumenti.idkom">Комитент</option>
+<option value="tip_komitent">Тип на комитент</option>
+<option value="dokumenti.iddeled">Деловна единица</option>
+<option value="dokumenti.idkom, dokumenti.lokbroj">Локација на комитент</option>
+<option value="dokumenti.idkom, dokumenti.lokbroj, artikli.idart">Локација на комитент и артикл</option>
+<option value="idart">артикли</option>
+<option value="artikli.tip_brand_id">Тип бренд</option>
+<option value="artikli.artgrupa">Група на артикли</option>
+<option value="avtor">Aвтор</option>
+<option value="region_id">Регион</option>
+<option value="dokumenti.magvlez">Влезен магацин</option>
+<option value="dokumenti.magizlez">Излезен магацин</option>
+<option value="valuta_id">Валута</option>
+<option value="dokumenti.komercijalist_id">Комерцијалист</option>
+<option value="value_caption">Продал</option>
+<option value="artikli.danok">ДДВ на артикл</option>
+<option value="grDatum">Датум</option>
+</SELECT>
+</td>
+</tr>
+<tr id="dopolnitelni24">
+<td colspan="2">Приказ на сложени артикли &nbsp;</td>
+<td><SELECT NAME="cmbSlozenArtikl" id="cmbSlozenArtikl" class="selectInput">
+<option value="0">главен и делови</option>
+<option value="1">само главен</option>
+<option value="2">само делови</option>
+</SELECT>
+</td>
+</tr>
+<tr id="dopolnitelni8">
+<td colspan="2">Опис на ставка: &nbsp;</td>
+<td><input type="text" name="edbOpisStavka" size="20" class="textInput" value=""></td>
+</tr>
+<tr id="dopolnitelni41">
+<td colspan="2">Статус на испорака &nbsp;</td>
+<td><select id="edbStatusNaIsporaka" name="edbStatusNaIsporaka"><option value="Одбери статус">Одбери статус</option>
+</select> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <input type="checkbox" id="chkPrikaziStatus" name="chkPrikaziStatus" value=""> &nbsp;Прикажи статус</td>
+</tr>
+<tr id="dopolnitelni5">
+<td colspan="2">Само вк.износ: &nbsp;</td>
+<td><input type="checkbox" name="onlySums" id="onlySums"> &nbsp;&nbsp;&nbsp;&nbsp;Печати колони за ДДВ <input type="checkbox" name="printDDVCoulmns" id="printDDVCoulmns" onChange="showHideDDVByType();"> &nbsp;&nbsp;&nbsp;&nbsp;Печати ДДВ суми по група на процент <input type="checkbox" name="printDDVByTypeCoulmns" id="printDDVByTypeCoulmns">
+</td>
+</tr>
+<tr id="dopolnitelni10">
+<td colspan="2">Единица Мерка: &nbsp;</td>
+<td><input type="checkbox" name="edmerka" id="edmerka">
+</td>
+</tr>
+<tr id="dopolnitelni11">
+<td><input type="checkbox" id="chkFilterPoSeriski" name="chkFilterPoSeriski" value="">
+</td>
+<td>Сериски број::&nbsp;</td>
+<td><input type="text" name="brSeriski" id="brSeriski" class="textinput" value="" placeholder="Сериски број:" onkeyup="javascript:checkElement('chkFilterPoSeriski');"> &nbsp;&nbsp;&nbsp;&nbsp;<input type="checkbox" id="chkSeriskiBroj" name="chkSeriskiBroj" value=""> &nbsp;Прикажи го серискиот број</td>
+</tr>
+<tr id="dopolnitelni14">
+<td><input type="checkbox" id="chkFilterPoZabeleska" name="chkFilterPoZabeleska" value="">
+</td>
+<td>Забелешка:&nbsp;</td>
+<td><input type="text" name="filpozabeleska" id="filpozabeleska" class="textinput" value="" placeholder="Забелешка" onkeyup="javascript:checkElement('chkFilterPoZabeleska');"> &nbsp;&nbsp;&nbsp;&nbsp;<input type="checkbox" id="chkZabeleska" name="chkZabeleska" value=""> &nbsp;Прикажи ја забелешката</td>
+</tr>
+<tr id="dopolnitelni12">
+<td colspan="2">Вклучено ДДВ: &nbsp;</td>
+<td><input type="checkbox" name="ddv" id="ddv"checked></td>
+</tr>
+<tr id="dopolnitelni31">
+<td colspan="2">Игнорирај групирани документи &nbsp;</td>
+<td><input type="checkbox" name="chkInoreGroupDoc" id="chkInoreGroupDoc"></td>
+</tr>
+<tr id="dopolnitelni25">
+<td colspan="2">Прикажи единечна цена: &nbsp;</td>
+<td><input type="checkbox" name="edinecnaCena" value="ON" id="edinecnaCena">
+</td>
+</tr>
+<tr id="dopolnitelni37">
+<td colspan="2">Прикажи акциза: &nbsp;</td>
+<td><input type="checkbox" name="prikaziAkciza" value="ON" id="prikaziAkciza">
+</td>
+</tr>
+<tr id="dopolnitelni29">
+<td colspan="2">Прикажи ID на артикл: &nbsp;</td>
+<td><input type="checkbox" name="idArtikl" value="ON" id="idArtikl">
+</td>
+</tr>
+<tr id="dopolnitelni27">
+<td colspan="2">Град:&nbsp;</td>
+<td><select id="gradId" name="gradId"><option value="0" selected="selected">Избери град</option>
+<option value="43">АГИНО СЕЛО 1322</option>
+<option value="45">АДЖИБЕГОВО 2227</option>
+<option value="44">АДЖИ МАТОВО 2227</option>
+<option value="46">АЈВАТОВЦИ 1041</option>
+<option value="47">АЈДУЧКА ЧЕШМА</option>
+<option value="48">АЈРАНЛИ</option>
+<option value="49">АЛАКИНЦЕ 2220</option>
+<option value="50">АЛАШЕВЦЕ 1325</option>
+<option value="51">АЛГУЊА 1303</option>
+<option value="52">АЛДАНЦИ 7524</option>
+<option value="53">АЛДИНЦИ 1050</option>
+<option value="54">АЛИ КОЧ 2420</option>
+<option value="55">АЛИ ЛОБАСИ</option>
+<option value="56">АЛИНЦИ (БИТОЛСКО) 7215</option>
+<option value="57">АЛИНЦИ (ПРИЛЕПСКО) 7512</option>
+<option value="58">АЉИНЦЕ 1303</option>
+<option value="59">АМЗАБЕГОВО 2227</option>
+<option value="60">АНГЕЛЦИ 2411</option>
+<option value="61">АРАЗЛИ</option>
+<option value="62">АРАНЃЕЛ 6254</option>
+<option value="63">АРАЧИНОВО 1045</option>
+<option value="64">АРБАНАШКО 1302</option>
+<option value="65">АРБАСАНЦИ 2225</option>
+<option value="66">АРБИНОВО 6346</option>
+<option value="67">АРВАТИ 7317</option>
+<option value="68">АРГУЛИЦА 2207</option>
+<option value="69">АРИЛЕВО 7550</option>
+<option value="70">АРМАТУШ 7212</option>
+<option value="71">АРНАКИЈА 1063</option>
+<option value="72">АСАМАТИ 7316</option>
+<option value="73">АТИШТА 6258</option>
+<option value="74">АЏИЕВЦИ 1254</option>
+<option value="75">БАБИНО 7244</option>
+<option value="76">БАБУНА 1400</option>
+<option value="77">БАДАР 1044</option>
+<option value="78">БАДИЛЕН 2434</option>
+<option value="79">БАЗЕРНИК 7244</option>
+<option value="80">БАЈКОВО 2434</option>
+<option value="81">БАЈЛОВЦЕ 1302</option>
+<option value="82">БАЈРАМБОС 2461</option>
+<option value="83">БАЈРАМОВЦИ 1258</option>
+<option value="84">БАЛАНЦИ 1258</option>
+<option value="85">БАЛДОВЕНЦИ 7211</option>
+<option value="86">БАЛИН ДОЛ 1230</option>
+<option value="87">БАЛИНЦИ 2460</option>
+<option value="88">БАЛТАЛИЈА 2000</option>
+<option value="89">БАНИЦА 2414</option>
+<option value="90">БАНИШТЕ 1250</option>
+<option value="91">БАНСКО 2432</option>
+<option value="92">БАЊА 2301</option>
+<option value="93">БАЊАНИ 1011</option>
+<option value="94">БАЊИЦА 1413</option>
+<option value="95">БАРАКЛИ</option>
+<option value="96">БАРАКОВО 7240</option>
+<option value="97">БАРАТЛИЈА 1332</option>
+<option value="98">БАРБАРЕВО 2434</option>
+<option value="99">БАРДОВЦИ 1060</option>
+<option value="100">БАРЕШАНИ 7221</option>
+<option value="101">БАРОВО 1054</option>
+<option value="102">БАРОВО 1437</option>
+<option value="103">БАС</option>
+<option value="104">БАТАЊЕ 2000</option>
+<option value="105">БАТИНЦИ 1050</option>
+<option value="106">БАЧ 7225</option>
+<option value="107">БАЧИШТА 6257</option>
+<option value="108">БАШАЛИ</option>
+<option value="109">БАШИБОС 2461</option>
+<option value="110">БАШИНО СЕЛО 1406</option>
+<option value="111">БАШТЕВО 1333</option>
+<option value="112">БЕГНИШТЕ 1430</option>
+<option value="113">БЕДИЊЕ 1300</option>
+<option value="114">БЕЗИКОВО 2300</option>
+<option value="115">БЕЗОВО 6337</option>
+<option value="116">БЕКИРЛИЈА 2208</option>
+<option value="118">БЕЛАНОВЦЕ 1325</option>
+<option value="117">БЕЛА ЦРКВА 7525</option>
+<option value="119">БЕЛЕШТЕВИЦА 1408</option>
+<option value="120">БЕЛИ 2300</option>
+<option value="121">БЕЛИЦА 6255</option>
+<option value="122">БЕЛИЦА 6533</option>
+<option value="123">БЕЛИЧИЦА 1256</option>
+<option value="125">БЕЛОВИШТЕ 1225</option>
+<option value="126">БЕЛОВИШТЕ 1230</option>
+<option value="127">БЕЛОВОДИЦА 7500</option>
+<option value="124">БЕЛО ПОЛЕ 7504</option>
+<option value="128">БЕЛОТИНО 2413</option>
+<option value="129">БЕЛУШИНО 7507</option>
+<option value="130">БЕЛЧЕ 7240</option>
+<option value="131">БЕЛЧИШТА 6344</option>
+<option value="132">БЕЉАКОВЦЕ 1304</option>
+<option value="133">БЕНЧЕ 6535</option>
+<option value="134">БЕРАНЦИ 7245</option>
+<option value="135">БЕРИКОВО 6254</option>
+<option value="1">Берово 2330</option>
+<option value="136">БЕРОВЦИ 7500</option>
+<option value="137">БЕСВИЦА 1442</option>
+<option value="138">БЕШИШТЕ 7508</option>
+<option value="139">БИБАЈ 1256</option>
+<option value="140">БИГЛА 2320</option>
+<option value="141">БИГОР ДОЛЕНЦИ 6258</option>
+<option value="142">БИДЖОВО 6330</option>
+<option value="143">БИЉАНИК</option>
+<option value="144">БИЉАНОВЦЕ 1300</option>
+<option value="145">БИРИНО</option>
+<option value="146">БИСТРЕНЦИ 1442</option>
+<option value="147">БИСТРИЦА 1415</option>
+<option value="148">БИСТРИЦА 7221</option>
+<option value="149">БИТОВО 6535</option>
+<option value="2">Битола 7000</option>
+<option value="150">БИТУШЕ 1254</option>
+<option value="151">БЛАТЕЦ 2314</option>
+<option value="152">БЛАЦЕ 1227</option>
+<option value="153">БЛАЦЕ (БУТЕЛСКО) 1011</option>
+<option value="154">БЛАЦЕ (ПЕТРОВЕЦ) 1044</option>
+<option value="155">БЛИЗАНСКО 6535</option>
+<option value="156">БЛИЗАНЦИ 1360</option>
+<option value="3">Богданци 1484</option>
+<option value="157">БОГДЕВО 1256</option>
+<option value="158">БОГОВИЊЕ 1220</option>
+<option value="159">БОГОЈЦИ 6338</option>
+<option value="160">БОГОМИЛА 1415</option>
+<option value="161">БОГОРОЈЦА 1488</option>
+<option value="162">БОГОСЛОВЕЦ 2227</option>
+<option value="163">БОЗОВЦЕ 1217</option>
+<option value="164">БОИШТЕ 7202</option>
+<option value="165">БОЈАНЕ 1063</option>
+<option value="166">БОЈАНЧИШТЕ 1437</option>
+<option value="167">БОЛЕТИН 1255</option>
+<option value="168">БОЛНО 7310</option>
+<option value="169">БОМОВО 1250</option>
+<option value="170">БОНЧЕ 7514</option>
+<option value="171">БОРИЕВО 2433</option>
+<option value="172">БОРИНО 7507</option>
+<option value="173">БОРИСОВО 2435</option>
+<option value="174">БОРОВО 1333</option>
+<option value="175">БОРОЕЦ 6336</option>
+<option value="176">БОРОТИНО 7525</option>
+<option value="177">БОСИЛОВО 2431</option>
+<option value="178">БОТУН 6344</option>
+<option value="179">БОХУЛА 1437</option>
+<option value="180">БРАЗДА 1011</option>
+<option value="181">БРАИЛОВО 7505</option>
+<option value="182">БРАЈКОВЦИ 2460</option>
+<option value="183">БРАЈЧИНО 7318</option>
+<option value="184">БРАТИН ДОЛ 7205</option>
+<option value="185">БРВЕНИЦА 1216</option>
+<option value="186">БРЕЖАНИ 6344</option>
+<option value="187">БРЕЗНИЦА 6533</option>
+<option value="188">БРЕЗНИЦА (КАТЛАНОВСКА) 1044</option>
+<option value="189">БРЕЗНО 1224</option>
+<option value="190">БРЕЗОВО 7244</option>
+<option value="191">БРЕСТ 1011</option>
+<option value="192">БРЕСТ 2000</option>
+<option value="193">БРЕСТ 6535</option>
+<option value="194">БРЕШКО 1302</option>
+<option value="195">БРЕШТАНИ 1258</option>
+<option value="196">БРЖДАНИ 6255</option>
+<option value="197">БРЗАК 1322</option>
+<option value="198">БРНИК 7213</option>
+<option value="199">БРЊАРЦИ 1045</option>
+<option value="200">БРОД 7225</option>
+<option value="201">БРОДЕЦ 1011</option>
+<option value="202">БРОДЕЦ 1217</option>
+<option value="203">БРОДЕЦ 1256</option>
+<option value="204">БРОШТИЦА 1258</option>
+<option value="205">БРУСНИК 1441</option>
+<option value="206">БРУСНИК 7000</option>
+<option value="207">БРУШАНИ 1430</option>
+<option value="208">БРЧЕВО 6338</option>
+<option value="209">БУДАКОВО 7212</option>
+<option value="210">БУДИМИРЦИ 7214</option>
+<option value="211">БУДИНАРЦИ 2332</option>
+<option value="212">БУЗАЛКОВО 1408</option>
+<option value="213">БУЈКОВЦИ 1042</option>
+<option value="214">БУКОВИЌ 1063</option>
+<option value="215">БУКОВЉАНЕ 1302</option>
+<option value="216">БУКОВО 7000</option>
+<option value="217">БУКОЈЧАНИ 6253</option>
+<option value="218">БУЛАЧАНИ 1040</option>
+<option value="219">БУЛУНТУЛИ 2461</option>
+<option value="220">БУНАРЧЕ 1437</option>
+<option value="221">БУНАРЏИК 1041</option>
+<option value="222">БУНЕШ 2212</option>
+<option value="223">БУРИЛОВЦИ 2225</option>
+<option value="224">БУРИЛЧЕВО 2333</option>
+<option value="225">БУРИНЕЦ 6337</option>
+<option value="226">БУСИЛЦИ 1413</option>
+<option value="227">БУЧИМ 2420</option>
+<option value="228">БУЧИН 7525</option>
+<option value="229">БУЧИНЦИ 1042</option>
+<option value="230">БУЧИШТЕ 2210</option>
+<option value="231">ВАК'В 1323</option>
+<option value="232">ВАКСИНЦЕ 1324</option>
+<option value="233">ВАКУФ 1360</option>
+<option value="7">Валандово 2460</option>
+<option value="234">ВАПИЛА 6306</option>
+<option value="235">ВАРВАРА 1212</option>
+<option value="236">ВАРВАРИЦА 2414</option>
+<option value="237">ВАРДИНО 7240</option>
+<option value="238">ВАРОВИШТЕ 1330</option>
+<option value="239">ВАРОШ 7500</option>
+<option value="240">ВАСИЛЕВО 2411</option>
+<option value="241">ВАТАША 1430</option>
+<option value="242">ВАШАРЕЈЦА 7245</option>
+<option value="243">ВЕВЧАНИ 6335</option>
+<option value="244">ВЕЈСЕЛИ</option>
+<option value="245">ВЕЈЦЕ 1200</option>
+<option value="246">ВЕЛГОШТИ 6000</option>
+<option value="247">ВЕЛЕБРДО 1254</option>
+<option value="8">Велес 1400</option>
+<option value="248">ВЕЛЕСЕЛО 7225</option>
+<option value="249">ВЕЛЕСТОВО 6000</option>
+<option value="250">ВЕЛЕШТА 6334</option>
+<option value="251">ВЕЛМЕВЦИ 6245</option>
+<option value="252">ВЕЛМЕЈ 6344</option>
+<option value="253">ВЕЛУШИНА 7223</option>
+<option value="254">ВЕЉУСА 2414</option>
+<option value="255">ВЕПРЧАНИ 7506</option>
+<option value="256">ВЕСЕЛЧАНИ 7512</option>
+<option value="257">ВЕТЕРСКО 1407</option>
+<option value="258">ВЕТРЕН 2320</option>
+<option value="259">ВЕТУНИЦА 1316</option>
+<option value="260">ВЕШАЛА 1217</option>
+<option value="261">ВЕШЈЕ 1443</option>
+<option value="262">ВИДОВИШТЕ 2305</option>
+<option value="263">ВИДРАНИ 6255</option>
+<option value="264">ВИДУШЕ 1255</option>
+<option value="265">ВИЗБЕГОВО 1010</option>
+<option value="9">Виница 2310</option>
+<option value="266">ВИНИЧАНИ 1420</option>
+<option value="267">ВИНИЧЕ</option>
+<option value="268">ВИНИЧКА КРШЛА 2310</option>
+<option value="269">ВИНЦЕ 1323</option>
+<option value="270">ВИР 6533</option>
+<option value="271">ВИРОВО 7244</option>
+<option value="272">ВИРЧЕ 2325</option>
+<option value="273">ВИСОКА МААЛА 2416</option>
+<option value="274">ВИТАНЦИ 1413</option>
+<option value="275">ВИТОЛИШТЕ 7508</option>
+<option value="276">ВИШНИ 6333</option>
+<option value="277">ВИШТИЦА 1306</option>
+<option value="278">ВЛАДИЕВЦИ 2412</option>
+<option value="279">ВЛАДИЛОВЦИ 1414</option>
+<option value="280">ВЛАДИМИРОВО 2331</option>
+<option value="281">ВЛАСИКИ 1258</option>
+<option value="284">ВОЃАНИ 7525</option>
+<option value="282">ВОДОВРАТИ 1420</option>
+<option value="283">ВОДОЧА 2414</option>
+<option value="285">ВОЗАРЦИ 1424</option>
+<option value="286">ВОИСЛАВЦИ 2425</option>
+<option value="287">ВОЈНИК 1304</option>
+<option value="288">ВОЈНИЦА 1413</option>
+<option value="289">ВОЈШАНЦИ 1440</option>
+<option value="290">ВОЛИНО 6341</option>
+<option value="291">ВОЛКОВИЈА 1237</option>
+<option value="292">ВОЛКОВИЈА 1256</option>
+<option value="293">ВОЛКОВО 1060</option>
+<option value="294">ВОЛКОВО 7500</option>
+<option value="295">ВОЛКОДЕРИ 7315</option>
+<option value="296">ВОЛЧЕ 6535</option>
+<option value="297">ВРАГОТУРЦЕ 1302</option>
+<option value="298">ВРАЖАЛЕ 1053</option>
+<option value="299">ВРАНЕШТИЦА 6258</option>
+<option value="300">ВРАНИНЦИ 2300</option>
+<option value="301">ВРАНИШТА 6334</option>
+<option value="302">ВРАНОВЦИ 1234</option>
+<option value="303">ВРАНЧЕ 7504</option>
+<option value="304">ВРАЊЕВЦИ</option>
+<option value="305">ВРАПЧИШТЕ 1238</option>
+<option value="306">ВРАТИСЛАВЦИ 2320</option>
+<option value="307">ВРАТНИЦА 1225</option>
+<option value="308">ВРАЧЕВЦЕ 1303</option>
+<option value="309">ВРБЕН 1256</option>
+<option value="310">ВРБИЦА 2333</option>
+<option value="311">ВРБЈАНИ 1255</option>
+<option value="312">ВРБЈАНИ 6346</option>
+<option value="313">ВРБЈАНИ 7509</option>
+<option value="314">ВРБОЕЦ 7524</option>
+<option value="315">ВРЖОГРНЦИ 1316</option>
+<option value="316">ВРПСКО 7508</option>
+<option value="317">ВРСАКОВО 2000</option>
+<option value="318">ВРТЕКИЦА 1050</option>
+<option value="319">ВРТЕШКА 2207</option>
+<option value="320">ВРУТОК 1231</option>
+<option value="321">ВУЧИДОЛ (ВОЛКОВО) 1060</option>
+<option value="322">ГАБАЛАВЦИ 7241</option>
+<option value="323">ГАБАР 1330</option>
+<option value="324">ГАБРЕВЦИ 2424</option>
+<option value="325">ГАБРЕШ 1305</option>
+<option value="326">ГАБРОВНИК 1415</option>
+<option value="327">ГАБРОВО 1489</option>
+<option value="328">ГАБРОВО 2320</option>
+<option value="329">ГАБРОВО 2435</option>
+<option value="622">ЃАВАТО 1484</option>
+<option value="623">ЃАВАТО 7314</option>
+<option value="330">ГАЈРАНЦИ 2210</option>
+<option value="331">ГАЈРЕ 1217</option>
+<option value="332">ГАЛАТЕ 1238</option>
+<option value="333">ГАЛИЧАНИ 7500</option>
+<option value="334">ГАЛИЧНИК 1254</option>
+<option value="335">ГАЛИШТЕ 1423</option>
+<option value="336">ГАРАНИ 6262</option>
+<option value="337">ГАРВАН 2424</option>
+<option value="338">ГАРИ 1250</option>
+<option value="339">ГАРНИКОВО 1430</option>
+<option value="10">Гевгелија 1480</option>
+<option value="340">ГЕРМАН 1316</option>
+<option value="341">ГЕРМИЈАН 7225</option>
+<option value="624">ЃЕРМО 1200</option>
+<option value="342">ГЕЧЕРЛИЈА 2430</option>
+<option value="343">ГИНОВЦИ 1332</option>
+<option value="344">ГЛАВОВИЦА 2300</option>
+<option value="345">ГЛАЖЊА 1307</option>
+<option value="346">ГЛИШИЌ 1430</option>
+<option value="347">ГЛОБОЧИЦА 6337</option>
+<option value="348">ГЛОЃИ 1211</option>
+<option value="349">ГЛУВО 1011</option>
+<option value="350">ГЛУМОВО 1060</option>
+<option value="351">ГНЕОТИНО 7211</option>
+<option value="352">ГНИЛЕШ 7225</option>
+<option value="353">ГОВРЛЕВО 1054</option>
+<option value="354">ГОДИВЈЕ 6346</option>
+<option value="355">ГОДИВЈЕ 7524</option>
+<option value="359">ГОЛЕМА РЕЧИЦА 1219</option>
+<option value="360">ГОЛЕМА ЦРЦОРИЈА 1334</option>
+<option value="356">ГОЛЕМ ГАБЕР 2207</option>
+<option value="361">ГОЛЕМО ИЛИНО 7244</option>
+<option value="362">ГОЛЕМО КОЊАРИ 7509</option>
+<option value="363">ГОЛЕМО ЦРСКО 6255</option>
+<option value="357">ГОЛЕМ ПАПРАДНИК 1258</option>
+<option value="358">ГОЛЕМ РАДОБИЛ 7500</option>
+<option value="364">ГОЛОЗИНЦИ 1413</option>
+<option value="365">ГОПЕШ 7314</option>
+<option value="625">ЃОПЧЕЛИ 1485</option>
+<option value="366">ГОРАЧИНО 2000</option>
+<option value="367">ГОРЕНЦИ 1258</option>
+<option value="368">ГОРЕНЦИ 6341</option>
+<option value="369">ГОРЈАНЕ 1235</option>
+<option value="370">ГОРНА БАЊИЦА 1230</option>
+<option value="371">ГОРНА БЕЛА ЦРКВА 7315</option>
+<option value="372">ГОРНА БЕЛИЦА 6335</option>
+<option value="373">ГОРНА БОШАВА 1437</option>
+<option value="374">ГОРНА ВРАШТИЦА</option>
+<option value="376">ГОРНА ЃОНОВИЦА 1230</option>
+<option value="375">ГОРНА ДУШОГУБИЦА 6261</option>
+<option value="377">ГОРНА ЛЕШНИЦА 1226</option>
+<option value="378">ГОРНИ БАЛВАН 2000</option>
+<option value="379">ГОРНИ ДИСАН 1443</option>
+<option value="380">ГОРНИ ЛИПОВИЌ 2424</option>
+<option value="381">ГОРНИ МАНАСТИРЕЦ 6533</option>
+<option value="382">ГОРНИ ПОДЛОГ 2307</option>
+<option value="383">ГОРНИ СТУБОЛ 2210</option>
+<option value="384">ГОРНО АГЛАРЦИ 7211</option>
+<option value="385">ГОРНО БАРБАРЕВО 2210</option>
+<option value="386">ГОРНО БОТУШЕ 6535</option>
+<option value="387">ГОРНО ВРАНОВЦИ 1413</option>
+<option value="388">ГОРНО ГРАДЧЕ 2300</option>
+<option value="389">ГОРНО ДИВЈАЦИ 7550</option>
+<option value="390">ГОРНО ДЈУДЈАНЦЕ 2220</option>
+<option value="391">ГОРНО ДОБРЕНОЕЦ 6261</option>
+<option value="392">ГОРНО ДУПЕНИ 7315</option>
+<option value="393">ГОРНО ЕГРИ 7224</option>
+<option value="394">ГОРНО ЈАБОЛЧИШТЕ 1413</option>
+<option value="395">ГОРНО ЈЕЛОВЦЕ 1231</option>
+<option value="396">ГОРНО КАРАСЛАРИ 1400</option>
+<option value="397">ГОРНО КОЈНАРЕ 1308</option>
+<option value="398">ГОРНО КОЛИЧАНИ 1050</option>
+<option value="399">ГОРНО КОЊАРЕ 1043</option>
+<option value="400">ГОРНО КОСОВРАСТИ 1250</option>
+<option value="401">ГОРНО КРАТОВО 1360</option>
+<option value="402">ГОРНО КРУШЈЕ 6533</option>
+<option value="403">ГОРНО КРУШЈЕ 7320</option>
+<option value="404">ГОРНО ЛАКОЧЕРЕЈ 6000</option>
+<option value="405">ГОРНО ЛИСИЧЕ 1000</option>
+<option value="406">ГОРНО МЕЛНИЧАНИ 1250</option>
+<option value="407">ГОРНО НЕРЕЗИ 1020</option>
+<option value="408">ГОРНО ОРИЗАРИ 1000</option>
+<option value="409">ГОРНО ОРИЗАРИ 1010</option>
+<option value="410">ГОРНО ОРИЗАРИ 1408</option>
+<option value="411">ГОРНО ОРИЗАРИ 7000</option>
+<option value="412">ГОРНО ПАЛЧИШТЕ 1219</option>
+<option value="413">ГОРНО СВИЛАРЕ 1060</option>
+<option value="414">ГОРНО СЕДЛАРЦЕ 1213</option>
+<option value="415">ГОРНО СЕЛО 7504</option>
+<option value="416">ГОРНО СОЊЕ 1054</option>
+<option value="417">ГОРНО СРЕДОРЕЧЈЕ 6344</option>
+<option value="418">ГОРНО СТРОГОМИШТА 6253</option>
+<option value="419">ГОРНО ТАТЕШИ 6334</option>
+<option value="420">ГОРНО ТРОГЕРЦИ 2000</option>
+<option value="421">ГОРНО ЦРНИЛИШТЕ 2227</option>
+<option value="422">ГОРНО ЧАРЛИЈА 7216</option>
+<option value="423">ГОРНО ЧИЧЕВО 1420</option>
+<option value="424">ГОРЊАНЕ 1011</option>
+<option value="425">ГОРОБИНЦИ 2220</option>
+<option value="11">Гостивар 1230</option>
+<option value="426">ГОСТИРАЖНИ 7505</option>
+<option value="427">ГОЦЕ ДЕЛЧЕВ 1000</option>
+<option value="428">ГОЦЕ ДЕЛЧЕВ 1047</option>
+<option value="429">ГОШИНЦЕ 1307</option>
+<option value="430">ГРАД 2320</option>
+<option value="431">ГРАДЕЦ 1235</option>
+<option value="432">ГРАДЕЦ 1330</option>
+<option value="433">ГРАДЕЦ 2310</option>
+<option value="434">ГРАДЕЦ 2464</option>
+<option value="435">ГРАДЕШНИЦА 7214</option>
+<option value="436">ГРАДИШТЕ 1309</option>
+<option value="437">ГРАДМАНЦИ 1044</option>
+<option value="438">ГРАДОВЦИ 1053</option>
+<option value="439">ГРАДОШОРЦИ 2411</option>
+<option value="440">ГРАДСКО 1420</option>
+<option value="441">ГРАДСКО БАЛДОВЦИ 2410</option>
+<option value="442">ГРАЕШНИЦА 7223</option>
+<option value="443">ГРАИШТЕ 7240</option>
+<option value="444">ГРАЧАНИ 1060</option>
+<option value="445">ГРБОВЕЦ 1430</option>
+<option value="446">ГРДОВЦИ 2305</option>
+<option value="447">ГРЕКАЈ 1256</option>
+<option value="448">ГРЕШНИЦА 6257</option>
+<option value="449">ГРЕШНИЦА 6530</option>
+<option value="450">ГРИЗИЛЕВЦИ 2210</option>
+<option value="451">ГРКО ПОЛЕ 6344</option>
+<option value="452">ГРЉАНИ 2310</option>
+<option value="453">ГРНЧАРИ 7316</option>
+<option value="454">ГРНЧИШТЕ 1400</option>
+<option value="455">ГРУМАЗИ 7211</option>
+<option value="456">ГРУНИШТА 7214</option>
+<option value="457">ГРУПЧИН 1218</option>
+<option value="458">ГРУШИНО 1045</option>
+<option value="459">ГРЧЕЦ 1060</option>
+<option value="460">ГРЧИШТЕ 2460</option>
+<option value="461">ГУДЈАКОВО</option>
+<option value="626">ЃУЗЕМЕЛЦИ 2208</option>
+<option value="462">ГУЈНОВЦИ 2210</option>
+<option value="463">ГУЛИНЦИ 1316</option>
+<option value="464">ГУМАЛЕВО 1053</option>
+<option value="465">ГУРГУРНИЦА 1213</option>
+<option value="466">Д'ЛГА 1323</option>
+<option value="467">ДАБИЉА 2430</option>
+<option value="468">ДАБЈАНИ 7537</option>
+<option value="469">ДАБНИЦА 7500</option>
+<option value="470">ДАБНИШТЕ 1430</option>
+<option value="471">ДАВИДОВО 2464</option>
+<option value="472">ДАЛБЕГОВЦИ 7212</option>
+<option value="473">ДАМЈАН 2420</option>
+<option value="474">ДВОРИШТЕ 1420</option>
+<option value="475">ДВОРИШТЕ 2330</option>
+<option value="476">ДВОРЦЕ 1062</option>
+<option value="477">ДВОРЦИ 6539</option>
+<option value="12">Дебар 1250</option>
+<option value="478">ДЕБРЕШЕ 1234</option>
+<option value="479">ДЕБРЕШТЕ 7537</option>
+<option value="480">ДЕБРИШТЕ 1422</option>
+<option value="481">ДЕВИЧ 6530</option>
+<option value="482">ДЕДЕБАЛЦИ 7212</option>
+<option value="483">ДЕДЕЛИ 2461</option>
+<option value="484">ДЕДИНО 2424</option>
+<option value="485">ДЕЈКОВЕЦ 1053</option>
+<option value="486">ДЕЈЛОВЦЕ 1302</option>
+<option value="487">ДЕЛИСИНЦИ 2227</option>
+<option value="488">ДЕЛОГОЖДА 6338</option>
+<option value="13">Делчево 2320</option>
+<option value="489">ДЕЉАДРОВЦИ 1042</option>
+<option value="14">Демир Капија 1442</option>
+<option value="15">Демир Хисар 7240</option>
+<option value="490">ДЕСОВО 7504</option>
+<option value="491">ДИВЉЕ 1043</option>
+<option value="492">ДИМОНЦЕ 1361</option>
+<option value="493">ДИХОВО 7205</option>
+<option value="494">ДЈУЛЕЛИ</option>
+<option value="495">ДЈУРДЈЕВИШТЕ 1235</option>
+<option value="496">ДЛАБОЧИЦА 1302</option>
+<option value="497">ДЛАБОЧИЦА 1333</option>
+<option value="498">ДЛАПКИН ДОЛ 6257</option>
+<option value="499">ДОБАРЦЕ 1218</option>
+<option value="500">ДОБОВЈАНИ 6334</option>
+<option value="501">ДОБРАЧА 1302</option>
+<option value="502">ДОБРЕВО 2210</option>
+<option value="503">ДОБРЕЈЦИ 2411</option>
+<option value="504">ДОБРИ ДОЛ 1054</option>
+<option value="505">ДОБРИ ДОЛ 1236</option>
+<option value="506">ДОБРИНО 1053</option>
+<option value="507">ДОБРОВЕНИ 7225</option>
+<option value="508">ДОБРОМИРИ 7211</option>
+<option value="509">ДОБРОТИНО 1430</option>
+<option value="510">ДОБРОШАНЕ 1300</option>
+<option value="511">ДОБРОШАНИ 2000</option>
+<option value="512">ДОБРОШИНЦИ 2416</option>
+<option value="513">ДОБРОШТЕ 1211</option>
+<option value="514">ДОБРУШЕВО 7215</option>
+<option value="515">ДОВЕЗЕНЦЕ 1304</option>
+<option value="16">Дојран</option>
+<option value="516">ДОЛАНИ 2000</option>
+<option value="517">ДОЛГАЕЦ 7505</option>
+<option value="518">ДОЛГАШ 1258</option>
+<option value="519">ДОЛЕНЦИ 7244</option>
+<option value="520">ДОЛЕНЦИ 7314</option>
+<option value="521">ДОЛНА БАЊИЦА 1230</option>
+<option value="522">ДОЛНА БЕЛА ЦРКВА 7316</option>
+<option value="523">ДОЛНА БЕЛИЦА 6334</option>
+<option value="524">ДОЛНА БОШАВА 1437</option>
+<option value="525">ДОЛНА ВРАШТИЦА 2420</option>
+<option value="527">ДОЛНА ЃОНОВИЦА 1230</option>
+<option value="526">ДОЛНА ДУШОГУБИЦА 6261</option>
+<option value="528">ДОЛНА ЛЕШНИЦА 1226</option>
+<option value="529">ДОЛНЕНИ 7504</option>
+<option value="530">ДОЛНИ БАЛВАН 2000</option>
+<option value="531">ДОЛНИ ДИСАН 1443</option>
+<option value="532">ДОЛНИ ЛИПОВИЌ 2424</option>
+<option value="533">ДОЛНИ МАНАСТИРЕЦ 6533</option>
+<option value="534">ДОЛНИ ПОДЛОГ 2307</option>
+<option value="535">ДОЛНИ РАДЕШ 2424</option>
+<option value="536">ДОЛНИ СТУБОЛ 2210</option>
+<option value="537">ДОЛНО АГЛАРЦИ 7211</option>
+<option value="538">ДОЛНО БАРБАРЕВО 2210</option>
+<option value="539">ДОЛНО БОТУШЕ 6535</option>
+<option value="540">ДОЛНО ВРАНОВЦИ 1414</option>
+<option value="541">ДОЛНО ГРАДЧЕ 2300</option>
+<option value="542">ДОЛНО ДИВЈАЦИ 7550</option>
+<option value="543">ДОЛНО ДЈУДЈАНЦЕ 2220</option>
+<option value="544">ДОЛНО ДОБРЕНОЕЦ 6261</option>
+<option value="545">ДОЛНО ДУПЕНИ 7318</option>
+<option value="546">ДОЛНО ЕГРИ 7223</option>
+<option value="547">ДОЛНО ЈАБОЛЧИШТЕ 1413</option>
+<option value="548">ДОЛНО ЈЕЛОВЦЕ 1231</option>
+<option value="549">ДОЛНО КАРАСЛАРИ 1400</option>
+<option value="550">ДОЛНО КОЈНАРЕ 1300</option>
+<option value="551">ДОЛНО КОЛИЧАНИ 1050</option>
+<option value="552">ДОЛНО КОЊАРЕ 1043</option>
+<option value="553">ДОЛНО КОЊСКО 6000</option>
+<option value="554">ДОЛНО КОСОВРАСТИ 1250</option>
+<option value="555">ДОЛНО КРУШЈЕ 6533</option>
+<option value="556">ДОЛНО ЛАКОЧЕРЕЈ 6000</option>
+<option value="557">ДОЛНО ЛИСИЧЕ 1050</option>
+<option value="558">ДОЛНО МЕЛНИЧАНИ 1250</option>
+<option value="559">ДОЛНО НЕРЕЗИ 1020</option>
+<option value="560">ДОЛНО ОРЕХОВО 7211</option>
+<option value="561">ДОЛНО ОРИЗАРИ 1408</option>
+<option value="562">ДОЛНО ОРИЗАРИ 7204</option>
+<option value="563">ДОЛНО ПАЛЧИШТЕ 1210</option>
+<option value="564">ДОЛНО ПЕРОВО 7315</option>
+<option value="565">ДОЛНО СВИЛАРЕ 1060</option>
+<option value="566">ДОЛНО СЕДЛАРЦЕ 1216</option>
+<option value="567">ДОЛНО СОЊЕ 1054</option>
+<option value="568">ДОЛНО СРЕДОРЕЧЈЕ 6344</option>
+<option value="569">ДОЛНО СРПЦИ 7245</option>
+<option value="570">ДОЛНО СТРОГОМИШТА 6253</option>
+<option value="571">ДОЛНО ТАТЕШИ 6334</option>
+<option value="572">ДОЛНО ТРОГЕРЦИ 2000</option>
+<option value="573">ДОЛНО ЦРНИЛИШТЕ 2227</option>
+<option value="574">ДОЛНО ЧАРЛИЈА 7216</option>
+<option value="575">ДОЛНО ЧИЧЕВО 1420</option>
+<option value="576">ДОРЛОМБОС 2413</option>
+<option value="577">ДОРФУЛИЈА 2208</option>
+<option value="578">ДРАГАРИНО 7241</option>
+<option value="579">ДРАГОБРАШТА 2316</option>
+<option value="580">ДРАГОВ ДОЛ 6533</option>
+<option value="581">ДРАГОЕВО 2000</option>
+<option value="582">ДРАГОЖАНИ 7241</option>
+<option value="583">ДРАГОЖЕЛ 1430</option>
+<option value="584">ДРАГОМАНЦЕ 1303</option>
+<option value="585">ДРАГОШ 7223</option>
+<option value="586">ДРАДЊА 1423</option>
+<option value="587">ДРАЖЕВО 2436</option>
+<option value="588">ДРАМЧЕ 2320</option>
+<option value="589">ДРАСЛАЈЦА 6330</option>
+<option value="590">ДРАЧЕВИЦА 1050</option>
+<option value="591">ДРАЧЕВИЦА 1442</option>
+<option value="592">ДРАЧЕВО 1050</option>
+<option value="593">ДРВОШ 2430</option>
+<option value="594">ДРЕВЕНИК 7245</option>
+<option value="595">ДРЕВЕНО 2212</option>
+<option value="596">ДРЕН 1442</option>
+<option value="597">ДРЕН 7500</option>
+<option value="598">ДРЕНАК 1330</option>
+<option value="599">ДРЕНОВО 1413</option>
+<option value="600">ДРЕНОВО 1423</option>
+<option value="601">ДРЕНОВО 6530</option>
+<option value="602">ДРЕНОВЦИ 7504</option>
+<option value="603">ДРЕНОК 2210</option>
+<option value="604">ДРЕНОК 6337</option>
+<option value="605">ДРЕЊЕ 1330</option>
+<option value="606">ДРЖАНЦИ</option>
+<option value="607">ДРЖИЛОВО 1050</option>
+<option value="608">ДРМЕНИ 7315</option>
+<option value="609">ДРУГОВО 6261</option>
+<option value="610">ДУБРОВНИЦА 1334</option>
+<option value="611">ДУБРОВО 1440</option>
+<option value="612">ДУКАТИНО 2412</option>
+<option value="613">ДУЛИЦА 2304</option>
+<option value="614">ДУМАНОВЦЕ 1307</option>
+<option value="615">ДУЊЕ 7506</option>
+<option value="616">ДУПЈАНИ 6258</option>
+<option value="617">ДУПЈАЧАНИ 7504</option>
+<option value="618">ДУРАЧКА РЕКА 1330</option>
+<option value="619">ДУРУТЛИ 2461</option>
+<option value="620">ДУРУТЛИЈА</option>
+<option value="621">ДУФ 1231</option>
+<option value="627">ЕБЕПЛИЈА 2207</option>
+<option value="628">ЕВЛА 1258</option>
+<option value="629">ЕВЛА 7310</option>
+<option value="630">ЕДЕКЛЕРЦИ</option>
+<option value="631">ЕДИНАКОВЦИ 7240</option>
+<option value="632">ЕДНОКУЌЕВО 2431</option>
+<option value="633">ЕДРЕНИКОВО 2414</option>
+<option value="634">ЕЗЕРЕНИ 7315</option>
+<option value="635">ЕЛЕВЦИ 1258</option>
+<option value="636">ЕЛОВЕЦ 1413</option>
+<option value="637">ЕЛОВО 1050</option>
+<option value="638">ЕЛШАНИ 6000</option>
+<option value="639">ЕМИРИЦА 1360</option>
+<option value="640">ЕРЕКОВЦИ 7514</option>
+<option value="641">ЕРЏЕЛИЈА 2225</option>
+<option value="642">ЕХЛОЕЦ 6261</option>
+<option value="643">ЖАБЕНИ 7223</option>
+<option value="644">ЖАБЈАНИ 7537</option>
+<option value="645">ЖВАН 7244</option>
+<option value="646">ЖЕГЉАНЕ 1302</option>
+<option value="647">ЖЕЛЕЗНА РЕКА 1239</option>
+<option value="648">ЖЕЛЕЗНЕЦ 7244</option>
+<option value="649">ЖЕЛЕЗНИЦА 1360</option>
+<option value="650">ЖЕЛИНО 1226</option>
+<option value="651">ЖЕЉУВИНО 1302</option>
+<option value="652">ЖЕРОВЈАНЕ 1213</option>
+<option value="653">ЖИВАЛЕВО 1360</option>
+<option value="654">ЖИВИЊЕ 1305</option>
+<option value="655">ЖИВОВО 7508</option>
+<option value="656">ЖИВОЈНО 7225</option>
+<option value="657">ЖИГАНЦИ 2333</option>
+<option value="658">ЖИДИЛОВО 1335</option>
+<option value="659">ЖИЛЧЕ 1228</option>
+<option value="660">ЖИРОВНИЦА 1255</option>
+<option value="661">ЖИТИНЕНИ 1258</option>
+<option value="662">ЖИТОШЕ 7507</option>
+<option value="663">ЖУБРИНО 6254</option>
+<option value="664">ЖУЖЊЕ 1256</option>
+<option value="665">ЖУРЧЕ 7240</option>
+<option value="666">ЗАБРЧАНИ 7504</option>
+<option value="667">ЗАВОЈ 6306</option>
+<option value="668">ЗАГОРАНИ 7512</option>
+<option value="669">ЗАГОРИЧЕ 7240</option>
+<option value="670">ЗАГОРЦИ 2424</option>
+<option value="671">ЗАГРАД 6535</option>
+<option value="672">ЗАГРАЧАНИ 6333</option>
+<option value="673">ЗАЈАС 6253</option>
+<option value="674">ЗАПОЛЖАНИ 7504</option>
+<option value="675">ЗАРАПИНЦИ 2210</option>
+<option value="676">ЗАШЛЕ 7244</option>
+<option value="677">ЗБАЖДИ 6338</option>
+<option value="678">ЗВЕГОР 2320</option>
+<option value="679">ЗВЕЧАН 6535</option>
+<option value="680">ЗГРОПОЛЦИ 1420</option>
+<option value="681">ЗДУЊЕ 1230</option>
+<option value="682">ЗДУЊЕ 6535</option>
+<option value="683">ЗЕЛЕНГРАД 2212</option>
+<option value="684">ЗЕЛЕНИКОВО 1053</option>
+<option value="685">ЗЛАТАРИ 7320</option>
+<option value="686">ЗЛЕОВО 2423</option>
+<option value="687">ЗЛЕСТИ 6344</option>
+<option value="41">Злетово 2212</option>
+<option value="688">ЗЛЕШЕВО</option>
+<option value="689">ЗЛОКУКАНЕ 1325</option>
+<option value="690">ЗЛОКУКАНИ 7221</option>
+<option value="691">ЗЛОКУЌАНИ 1060</option>
+<option value="692">ЗОВИЌ 7214</option>
+<option value="693">ЗОВИЌ 2 7214</option>
+<option value="694">ЗРЗЕ 7505</option>
+<option value="695">ЗРКЛЕ 6535</option>
+<option value="696">ЗРНОВЦИ 2305</option>
+<option value="697">ЗУБОВО</option>
+<option value="698">ЗУБОВЦЕ 1234</option>
+<option value="699">ЗУБОВЦЕ 1304</option>
+<option value="700">ИБЕРЛИ 1442</option>
+<option value="701">ИВАНКОВЦИ 1407</option>
+<option value="702">ИВАНЧИШТА 6261</option>
+<option value="703">ИВАЊЕВЦИ 7245</option>
+<option value="704">ИВЕНИ 7213</option>
+<option value="705">ИДРИЗОВО 1047</option>
+<option value="706">ИЖИШТЕ 6539</option>
+<option value="707">ИЗБИШТА 7320</option>
+<option value="708">ИЗВОР 1325</option>
+<option value="709">ИЗВОР 1414</option>
+<option value="710">ИЗВОР 6261</option>
+<option value="711">ИЗДЕГЛАВЈЕ 6344</option>
+<option value="712">ИЛИНДЕН 1041</option>
+<option value="713">ИЛИНО 7316</option>
+<option value="714">ИЛИОВО 2320</option>
+<option value="715">ИЛОВИЦА 2433</option>
+<option value="716">ИНЧЕ 6535</option>
+<option value="717">ИНЏИКОВО 1040</option>
+<option value="718">ИЊЕВО 2425</option>
+<option value="719">ИСТИБАЊА 2312</option>
+<option value="720">ЈАБЛАНИЦА 6336</option>
+<option value="721">ЈАБОЛЦИ 1054</option>
+<option value="722">ЈАВОРЕЦ 6261</option>
+<option value="723">ЈАГОЛ 6254</option>
+<option value="724">ЈАГОЛ ДОЛЕНЦИ 6254</option>
+<option value="725">ЈАЖИНЦЕ 1206</option>
+<option value="726">ЈАКИМОВО 2310</option>
+<option value="727">ЈАКРЕНОВО 7537</option>
+<option value="728">ЈАМИШТЕ 2212</option>
+<option value="729">ЈАМУЛАРЦИ</option>
+<option value="730">ЈАНКОВЕЦ 7320</option>
+<option value="731">ЈАНОШЕВО</option>
+<option value="732">ЈАНЧЕ 1254</option>
+<option value="733">ЈАНЧИШТЕ 1215</option>
+<option value="734">ЈАРГУЛИЦА 2423</option>
+<option value="735">ЈАСЕНОВО 1414</option>
+<option value="736">ЈАСТРЕБНИК 2300</option>
+<option value="737">ЈАЧИНЦЕ 1304</option>
+<option value="738">ЈЕГУНОВЦЕ 1215</option>
+<option value="739">ЈЕДОАРЦЕ 1212</option>
+<option value="740">ЈЕЛОВЈАНЕ 1221</option>
+<option value="741">ЈЕЛОШНИК 1211</option>
+<option value="742">ЈОСИФОВО 2462</option>
+<option value="743">ЈУДОВО 6255</option>
+<option value="744">ЈУНУЗЛИЈА</option>
+<option value="745">ЈУРУМЛЕРИ 1047</option>
+<option value="746">К'ШАЊЕ 1309</option>
+<option value="17">Кавадарци 1430</option>
+<option value="747">КАВРАК 1360</option>
+<option value="748">КАДИНО 1043</option>
+<option value="749">КАДИНО СЕЛО 7500</option>
+<option value="750">КАДРИФАКОВО 2225</option>
+<option value="751">КАЖАНИ 7314</option>
+<option value="752">КАЗАНДОЛ 2461</option>
+<option value="753">КАЛАЊЕВО 1440</option>
+<option value="754">КАЛАПЕТРОВЦИ 2207</option>
+<option value="755">КАЛАУЗЛИЈА 2207</option>
+<option value="756">КАЛАУЗЛИЈА 2420</option>
+<option value="757">КАЛДИРЕЦ 1050</option>
+<option value="758">КАЛЕН 7506</option>
+<option value="759">КАЛИМАНЦИ 2310</option>
+<option value="760">КАЛИШТА 6333</option>
+<option value="761">КАЛИШТЕ 1235</option>
+<option value="762">КАЛКОВО 2464</option>
+<option value="763">КАЛНИШТЕ 2210</option>
+<option value="765">КАЛУЃЕРИЦА 2423</option>
+<option value="764">КАЛУДЈЕРЕЦ 6535</option>
+<option value="766">КАМЕН ДОЛ 1422</option>
+<option value="767">КАМЕЊАНЕ 1221</option>
+<option value="768">КАНАРЕВО 1314</option>
+<option value="769">КАНАТЛАРЦИ 7514</option>
+<option value="770">КАНИНО 7223</option>
+<option value="771">КАПИНОВО 1415</option>
+<option value="772">КАРАБИЧАНЕ 1308</option>
+<option value="773">КАРАБУЊИШТЕ 1408</option>
+<option value="774">КАРАДЖАЛАР</option>
+<option value="775">КАРАЛОБАСИ</option>
+<option value="776">КАРАМАНИ 7204</option>
+<option value="777">КАРАСЛАРИ 1400</option>
+<option value="778">КАРАТМАНОВО 2208</option>
+<option value="779">КАРБИНЦИ 2207</option>
+<option value="780">КАРБУНИЦА 6258</option>
+<option value="781">КАРЛОВЦЕ 1302</option>
+<option value="782">КАРПОШ 1321</option>
+<option value="783">КАТЛАНОВО 1044</option>
+<option value="784">КАФА 1239</option>
+<option value="785">КЕПЕКЧЕЛИЈА 2207</option>
+<option value="786">КЕСЕНДРЕ 1423</option>
+<option value="787">КЕТЕНОВО 1360</option>
+<option value="788">КИСЕЛА ЈАБУКА 1060</option>
+<option value="789">КИСЕЛИЦА 1330</option>
+<option value="790">КИСЕЛИЦА 2320</option>
+<option value="18">Кичево 6250</option>
+<option value="791">КИЧИНИЦА 1256</option>
+<option value="792">КИШАВА 7223</option>
+<option value="793">КИШИНО 2208</option>
+<option value="794">КЛАДНИК 6255</option>
+<option value="795">КЛЕНОЕЦ 6261</option>
+<option value="796">КЛЕПАЧ 7514</option>
+<option value="797">КЛЕЧЕВЦЕ 1304</option>
+<option value="798">КЛИМЕШТАНИ 6342</option>
+<option value="799">КЛИНОВО 1437</option>
+<option value="800">КЛИСУРА 1442</option>
+<option value="801">КЛУКОВЕЦ 1408</option>
+<option value="802">КНЕЖЕВО 1360</option>
+<option value="803">КНЕЖИНО 6260</option>
+<option value="804">КНЕЖЈЕ 2220</option>
+<option value="805">КОВАНЦИ 1483</option>
+<option value="806">КОВАЧ 6535</option>
+<option value="807">КОВЧЕ 6535</option>
+<option value="808">КОЖЛЕ 1044</option>
+<option value="809">КОЗБУНАР 2420</option>
+<option value="810">КОЗИЦА 6255</option>
+<option value="811">КОЗИЧИНО 6258</option>
+<option value="812">КОЗЈАК 2207</option>
+<option value="813">КОЗЈАК 7315</option>
+<option value="814">КОИНЦЕ 1302</option>
+<option value="815">КОЈКОВО 1360</option>
+<option value="1678">ЌОЈЛИЈА 1043</option>
+<option value="816">КОКИНО 1302</option>
+<option value="817">КОКОШИЊЕ 1309</option>
+<option value="818">КОКРЕ 7506</option>
+<option value="819">КОЛАРИ 6253</option>
+<option value="820">КОЛЕШИНО 2435</option>
+<option value="821">КОЛИБАРИ 6253</option>
+<option value="822">КОЛИЦКО 1305</option>
+<option value="823">КОНДОВО 1060</option>
+<option value="824">КОНОПИШТЕ 1437</option>
+<option value="825">КОНОПНИЦА 1330</option>
+<option value="826">КОНСКО 1480</option>
+<option value="827">КОНЧЕ 2424</option>
+<option value="828">КОЊАРИ 1250</option>
+<option value="829">КОЊСКО 7315</option>
+<option value="830">КОЊУХ 1360</option>
+<option value="831">КОПАНИЦА 1063</option>
+<option value="832">КОПАНЦЕ 1215</option>
+<option value="833">КОПАЧИН ДОЛ 1218</option>
+<option value="834">КОПРИШНИЦА 1442</option>
+<option value="835">КОРЕНИЦА 7524</option>
+<option value="836">КОРЕШНИЦА 1442</option>
+<option value="837">КОРИТО 1237</option>
+<option value="838">КОРОШИШТА 6338</option>
+<option value="839">КОСЕВИЦА 2304</option>
+<option value="840">КОСЕЛ 6306</option>
+<option value="841">КОСЕЛАРИ 2208</option>
+<option value="842">КОСЕЛИЈА</option>
+<option value="843">КОСМАТАЦ 1304</option>
+<option value="844">КОСОВО 6535</option>
+<option value="845">КОСОВО ДАБЈЕ 2320</option>
+<option value="846">КОСТИН ДОЛ 2300</option>
+<option value="847">КОСТИН ДОЛ 2304</option>
+<option value="848">КОСТИНЦИ 7505</option>
+<option value="849">КОСТУР 1335</option>
+<option value="850">КОСТУРИНО 2413</option>
+<option value="19">Кочани 2300</option>
+<option value="851">КОЧИЛАРИ 1400</option>
+<option value="852">КОЧИШТА 1258</option>
+<option value="853">КОЧИШТЕ 7240</option>
+<option value="854">КОЧУЛИ 2461</option>
+<option value="855">КОЏАЛИЈА 2421</option>
+<option value="856">КОЏАЏИК 1258</option>
+<option value="857">КОШАНИ 1430</option>
+<option value="858">КОШАРИ 1330</option>
+<option value="859">КОШАРКА 1442</option>
+<option value="860">КОШЕВО 2207</option>
+<option value="861">КОШИНО 7537</option>
+<option value="862">КРАВАРИ 7000</option>
+<option value="863">КРАЈНИЦИ 1413</option>
+<option value="864">КРАКОРНИЦА 1256</option>
+<option value="865">КРАНИ 7317</option>
+<option value="866">КРАПА 6530</option>
+<option value="20">Кратово 1360</option>
+<option value="867">КРЕМЕНИЦА 7225</option>
+<option value="868">КРИВА КРУША 1413</option>
+<option value="21">Крива Паланка 1330</option>
+<option value="869">КРИВЕНИ 7320</option>
+<option value="870">КРИВИ ДОЛ 2000</option>
+<option value="871">КРИВИ КАМЕН 1332</option>
+<option value="872">КРИВОГАШТАНИ 7524</option>
+<option value="873">КРИВОЛАК 1441</option>
+<option value="874">КРИВЦИ 1250</option>
+<option value="875">КРИЛАТИЦА 1360</option>
+<option value="876">КРКЛИНО 7241</option>
+<option value="877">КРКЉА 1335</option>
+<option value="878">КРНИНО 1414</option>
+<option value="879">КРЊЕВО 1437</option>
+<option value="880">КРСТЕЦ 7500</option>
+<option value="881">КРСТОАР 7221</option>
+<option value="882">КРСТОВ ДОЛ 1334</option>
+<option value="883">КРУПИШТЕ 2202</option>
+<option value="884">КРУШЕАНИ 7524</option>
+<option value="885">КРУШЕВИЦА 1421</option>
+<option value="886">КРУШЕВИЦА 7506</option>
+<option value="22">Крушево 7550</option>
+<option value="887">КРУШИЦА 2220</option>
+<option value="888">КРУШИЦА 6258</option>
+<option value="889">КРУШЈЕ 1407</option>
+<option value="890">КРУШОПЕК 1060</option>
+<option value="891">КУКЛИЦА 1361</option>
+<option value="892">КУКЛИШ 2410</option>
+<option value="893">КУКОВО 2210</option>
+<option value="894">КУКУРЕЧАНИ 7241</option>
+<option value="895">КУМАНИЧЕВО 1437</option>
+<option value="23">Куманово 1300</option>
+<option value="896">КУМАРИНО 1407</option>
+<option value="897">КУНДИНО 2210</option>
+<option value="898">КУНОВО 1230</option>
+<option value="899">КУНОВО 1360</option>
+<option value="900">КУРАТИЦА 6306</option>
+<option value="901">КУРБИНОВО 7316</option>
+<option value="902">КУРИДЕРЕ 1420</option>
+<option value="903">КУРИЈА 1440</option>
+<option value="904">КУРТАМЗАЛИ 2461</option>
+<option value="905">КУРФАЛИЈА 2207</option>
+<option value="906">КУТЛЕШЕВО 7504</option>
+<option value="907">КУТЛИБЕГ 1309</option>
+<option value="908">КУТРЕТИНО 7240</option>
+<option value="909">КУЧЕВИШТЕ 1011</option>
+<option value="910">КУЧИЛАТ</option>
+<option value="911">КУЧИЦА 2207</option>
+<option value="912">КУЧИЧИНО 2333</option>
+<option value="913">КУЧКАРЕВО 1305</option>
+<option value="914">КУЧКОВО 1060</option>
+<option value="915">КУШКУЛИЈА</option>
+<option value="916">ЛАБУНИШТА 6336</option>
+<option value="917">ЛАВЦЕ 1200</option>
+<option value="918">ЛАВЦИ 7000</option>
+<option value="919">ЛАВЦИ 7315</option>
+<option value="920">ЛАВЧАНИ 6261</option>
+<option value="921">ЛАГАДИН 6000</option>
+<option value="922">ЛАЖАНИ 7507</option>
+<option value="923">ЛАЖЕЦ 7223</option>
+<option value="924">ЛАЗАРОВЦИ 6262</option>
+<option value="925">ЛАЗАРОПОЛЕ 1250</option>
+<option value="926">ЛАКАВИЦА 1230</option>
+<option value="927">ЛАКАВИЦА 2000</option>
+<option value="928">ЛАКАЈЦА 6336</option>
+<option value="929">ЛАКИ 2314</option>
+<option value="930">ЛАКТИЊЕ 6346</option>
+<option value="931">ЛАРЦЕ 1218</option>
+<option value="932">ЛАСКАРЦИ 1063</option>
+<option value="933">ЛАТОВО 6530</option>
+<option value="934">ЛЕВА РЕКА 7320</option>
+<option value="935">ЛЕЗОВО 2210</option>
+<option value="936">ЛЕНИШТА 7500</option>
+<option value="937">ЛЕПОПЕЛЦИ 2333</option>
+<option value="938">ЛЕРА 7314</option>
+<option value="939">ЛЕСКИ 2310</option>
+<option value="940">ЛЕСКОВИЦА 2000</option>
+<option value="941">ЛЕСКОВО 7244</option>
+<option value="942">ЛЕСКОЕЦ 6306</option>
+<option value="943">ЛЕСКОЕЦ 7310</option>
+<option value="944">ЛЕСНОВО 2212</option>
+<option value="945">ЛЕТЕВЦИ 1044</option>
+<option value="946">ЛЕУНОВО 1256</option>
+<option value="947">ЛЕШАНИ 6344</option>
+<option value="948">ЛЕШКИ 2300</option>
+<option value="949">ЛЕШНИЦА 1230</option>
+<option value="950">ЛЕШНИЦА 6257</option>
+<option value="951">ЛЕШОК 1204</option>
+<option value="952">ЛИВАДА 6338</option>
+<option value="953">ЛИВОИШТА 6306</option>
+<option value="954">ЛИПА</option>
+<option value="955">ЛИПЕЦ 2314</option>
+<option value="956">ЛИПКОВО 1307</option>
+<option value="957">ЛИПОВ ДОЛ 2207</option>
+<option value="958">ЛИСЕЦ 1217</option>
+<option value="959">ЛИСИЧАНИ 6539</option>
+<option value="960">ЛИСИЧЕ 1413</option>
+<option value="961">ЛИСОЛАЈ 7241</option>
+<option value="962">ЛОГОВАРДИ 7000</option>
+<option value="963">ЛОЖАНИ 6334</option>
+<option value="964">ЛОЗАНОВО 1330</option>
+<option value="965">ЛОЗНАНИ 7245</option>
+<option value="966">ЛОЗОВО 2208</option>
+<option value="967">ЛОЈАНЕ 1326</option>
+<option value="968">ЛОКВЕНИ 7524</option>
+<option value="969">ЛОКВИЦА 6530</option>
+<option value="970">ЛОКОВ 6338</option>
+<option value="971">ЛОМНИЦА 1235</option>
+<option value="972">ЛОПАТЕ 1328</option>
+<option value="973">ЛОПАТИЦА 7241</option>
+<option value="974">ЛОПАТИЦА 7514</option>
+<option value="975">ЛУБНИЦА 2424</option>
+<option value="976">ЛУГУНЦИ</option>
+<option value="977">ЛУКЕ 1334</option>
+<option value="978">ЛУКОВИЦА 1218</option>
+<option value="979">ЛУКОВИЦА 2304</option>
+<option value="980">ЛУКОВО 1360</option>
+<option value="981">ЛУКОВО 6337</option>
+<option value="982">ЛУПШТЕ 6535</option>
+<option value="983">ЉУБАНИШТА 6322</option>
+<option value="984">ЉУБАНЦИ 1011</option>
+<option value="985">ЉУБИН 1060</option>
+<option value="986">ЉУБИНЦИ 1316</option>
+<option value="987">ЉУБОДРАГ 1327</option>
+<option value="988">ЉУБОЈНО 7318</option>
+<option value="989">ЉУБОТЕН 1010</option>
+<option value="990">ЉУБОТЕН 2000</option>
+<option value="991">ЉУБОШ 1050</option>
+<option value="992">М'ГЛЕНЦЕ 1302</option>
+<option value="993">МАВРОВИ АНОВИ 1256</option>
+<option value="994">МАВРОВО 1256</option>
+<option value="995">МАГАРЕВО 7205</option>
+<option value="996">МАЖУЧИШТЕ 7500</option>
+<option value="997">МАЈДЕН 1437</option>
+<option value="25">Македонска Каменица 2304</option>
+<option value="24">Македонски Брод 6530</option>
+<option value="998">МАКОВО 7000</option>
+<option value="999">МАКРЕШ 1314</option>
+<option value="1000">МАКРЕШ 2220</option>
+<option value="1004">МАЛА РЕЧИЦА 1201</option>
+<option value="1005">МАЛА ЦРЦОРИЈА 1334</option>
+<option value="1001">МАЛ ГАБЕР 2207</option>
+<option value="1006">МАЛИ ВЛАЈ 6333</option>
+<option value="1007">МАЛИНО 2220</option>
+<option value="1008">МАЛКОЕЦ 6261</option>
+<option value="1015">МАЛОВИШТЕ 7314</option>
+<option value="1009">МАЛО ИЛИНО 7244</option>
+<option value="1010">МАЛО КОЊАРИ 7509</option>
+<option value="1011">МАЛО МРАМОРАНИ 7504</option>
+<option value="1012">МАЛО РУВЦИ 7500</option>
+<option value="1016">МАЛОТИНО 1302</option>
+<option value="1013">МАЛО ТУРЧАНЕ 1230</option>
+<option value="1014">МАЛО ЦРСКО 6255</option>
+<option value="1002">МАЛ ПАПРАДНИК 1258</option>
+<option value="1003">МАЛ РАДОБИЛ 7500</option>
+<option value="1017">МАЛЧИШТЕ 1050</option>
+<option value="1018">МАМУДОВЦИ 6262</option>
+<option value="1019">МАМУТЧЕВО 1407</option>
+<option value="1020">МАНАСТИР 7508</option>
+<option value="1021">МАНАСТИР ДОЛЕНЦИ 6261</option>
+<option value="1022">МАНАСТИРЕЦ 1422</option>
+<option value="1023">МАРВИНЦИ 2460</option>
+<option value="1024">МАРГАРИ 7505</option>
+<option value="1025">МАРЕНА 1426</option>
+<option value="1026">МАРИНО 1041</option>
+<option value="1027">МАРКОВА СУШИЦА 1054</option>
+<option value="1028">МАРТИНИЦА 1330</option>
+<option value="1029">МАРТОЛЦИ 1414</option>
+<option value="1030">МАРУЛ 7514</option>
+<option value="1031">МАРЧИНО 2210</option>
+<option value="1032">МАТЕЈЧЕ 1306</option>
+<option value="1033">МАТКА 1060</option>
+<option value="1034">МАЧЕВО 2332</option>
+<option value="1035">МЕГЛЕНЦИ 7211</option>
+<option value="1036">МЕЛНИЦА 1413</option>
+<option value="1037">МЕМЕШЛИ 2413</option>
+<option value="1038">МЕРДИТА 0000</option>
+<option value="1039">МЕРДИТА 1230</option>
+<option value="1040">МЕРОВО 1218</option>
+<option value="1041">МЕТЕЖЕВО 1330</option>
+<option value="1042">МЕТИМИР 7202</option>
+<option value="1043">МЕЧКУЕВЦИ 2220</option>
+<option value="1044">МЕЏИТЛИЈА 7225</option>
+<option value="1045">МЕШЕИШТА 6342</option>
+<option value="1046">МИДИНЦИ 6253</option>
+<option value="1047">МИЛАДИНОВЦИ 1042</option>
+<option value="1048">МИЛЕТИНО 1227</option>
+<option value="1049">МИЛЕТКОВО 1489</option>
+<option value="1050">МИЛИНО 2208</option>
+<option value="1051">МИЛОШЕВО 7524</option>
+<option value="1052">МИЛУТИНЦЕ</option>
+<option value="1053">МИОКАЗИ 6258</option>
+<option value="1054">МИРАВЦИ 1489</option>
+<option value="1055">МИРКОВЦИ 1011</option>
+<option value="1056">МИРЧЕ АЦЕВ</option>
+<option value="1057">МИСЛЕШЕВО 6330</option>
+<option value="1058">МИСЛОДЕЖДА 6338</option>
+<option value="1059">МИТРАШИНЦИ 2332</option>
+<option value="1060">МИТРОЈ КРСТИ 1230</option>
+<option value="1061">МИЧАК</option>
+<option value="1062">МЛАДО НАГОРИЧАНЕ 1312</option>
+<option value="1063">МОГИЛА 7216</option>
+<option value="1064">МОГИЛЕЦ 6535</option>
+<option value="1065">МОГОРЧЕ 1250</option>
+<option value="1066">МОДРИЧ 6337</option>
+<option value="1067">МОДРИШТЕ 6533</option>
+<option value="1068">МОЖДИВЊАК 1333</option>
+<option value="1069">МОИН 1480</option>
+<option value="1070">МОЈАНЦИ 1045</option>
+<option value="1071">МОЈАНЦИ 2307</option>
+<option value="1072">МОЈНО 7215</option>
+<option value="1073">МОКРЕНИ 1415</option>
+<option value="1074">МОКРИЕВО 2435</option>
+<option value="1075">МОКРИНО 2435</option>
+<option value="1076">МОНОСПИТОВО 2432</option>
+<option value="1077">МОРАНИ 1050</option>
+<option value="1078">МОРОДВИС 2305</option>
+<option value="1079">МОРОИШТА 6330</option>
+<option value="1080">МОШТИЦА 2304</option>
+<option value="1081">МРАЛИНО 1043</option>
+<option value="1082">МРАМОРЕЦ 6346</option>
+<option value="1083">МРЕЖИЧКО 1437</option>
+<option value="1084">МРЕНОГА 7244</option>
+<option value="1085">МРЗЕН ОРАОВЕЦ 1421</option>
+<option value="1086">МРЗЕНЦИ 1480</option>
+<option value="1087">МРШЕВЦИ 1042</option>
+<option value="1088">МУРАТЛИЈА</option>
+<option value="1089">МУРГАШ 1304</option>
+<option value="1090">МУРТИНО 2432</option>
+<option value="1091">МУСИНЦИ 7215</option>
+<option value="1092">МУСТАФИНО 2225</option>
+<option value="1093">МУШКОВО 1360</option>
+<option value="1094">НАКОЛЕЦ 7318</option>
+<option value="1095">НАС.ИГО ТРИЧКОВИЌ 1300</option>
+<option value="1096">НЕБОЈАНИ 2300</option>
+<option value="1097">НЕБРЕГОВО 7504</option>
+<option value="1098">НЕГОРЦИ 1483</option>
+<option value="26">Неготино 1440</option>
+<option value="1099">НЕГРЕВО 2326</option>
+<option value="1100">НЕГРЕНОВЦИ</option>
+<option value="1101">НЕЖИЛОВО 1360</option>
+<option value="1102">НЕЖИЛОВО 1415</option>
+<option value="1103">НЕМАЊИЦА 2220</option>
+<option value="1104">НЕОКАЗИ 2210</option>
+<option value="40">Непознат</option>
+<option value="1105">НЕПРОШТЕНО 1204</option>
+<option value="1106">НЕРАВ 1330</option>
+<option value="1107">НЕРАШТЕ 1203</option>
+<option value="1108">НЕРЕЗИ 6337</option>
+<option value="1109">НИВИЧАНИ 2300</option>
+<option value="1110">НИВИЧИНО 2416</option>
+<option value="1111">НИВИШТЕ 1256</option>
+<option value="1112">НИЖЕПОЛЕ 7205</option>
+<option value="1113">НИКИФОРОВО 1256</option>
+<option value="1114">НИКИШТАНЕ 1060</option>
+<option value="1115">НИКОДИН 7500</option>
+<option value="1116">НИКОЛИЌ 1487</option>
+<option value="1117">НИКОМАН 2207</option>
+<option value="1118">НИКУЉАНЕ 1303</option>
+<option value="1119">НИКУШТАК 1306</option>
+<option value="1120">НИСТРОВО 1256</option>
+<option value="1121">НИЧПУР 1256</option>
+<option value="1125">НОВА БРЕЗНИЦА 1054</option>
+<option value="1128">НОВАК 1258</option>
+<option value="1129">НОВАКЕ 1210</option>
+<option value="1126">НОВА МААЛА 2416</option>
+<option value="1127">НОВА МЕЗДРА 2220</option>
+<option value="1130">НОВАЦИ 7211</option>
+<option value="1131">НОВАЧАНИ 1406</option>
+<option value="1122">НОВ ДОЈРАН 1485</option>
+<option value="1123">НОВ ИСТЕВНИК 2325</option>
+<option value="1124">НОВ КАРАОРМАН 2207</option>
+<option value="1132">НОВО ЗМИРНЕВО 7241</option>
+<option value="1133">НОВО КОНСКО 1480</option>
+<option value="1134">НОВО КОЊАРЕВО 2434</option>
+<option value="1135">НОВО ЛАГОВО 7500</option>
+<option value="1154">НОВОСЕЛАНИ 7245</option>
+<option value="1155">НОВОСЕЛАНИ 7504</option>
+<option value="1136">НОВО СЕЛАНИ 2333</option>
+<option value="1137">НОВО СЕЛО</option>
+<option value="1138">НОВО СЕЛО 1060</option>
+<option value="1139">НОВО СЕЛО 2000</option>
+<option value="1140">НОВО СЕЛО 2300</option>
+<option value="1141">НОВО СЕЛО 2434</option>
+<option value="1142">НОВО СЕЛО 6254</option>
+<option value="1143">НОВО СЕЛО 6330</option>
+<option value="1144">НОВО СЕЛО 6344</option>
+<option value="1145">НОВО СЕЛО 7213</option>
+<option value="1146">НОВО СЕЛО 7240</option>
+<option value="1147">НОВО СЕЛО (ВРАПЧИШКО) 1234</option>
+<option value="1148">НОВО СЕЛО (ГОСТИВАРСКО) 1230</option>
+<option value="1149">НОВО СЕЛО (ЖЕРОВЈАНЕ) 1220</option>
+<option value="1150">НОВО СЕЛО (К.ВОДА) 1053</option>
+<option value="1151">НОВО СЕЛО (САРАКИНО) 1218</option>
+<option value="1152">НОВО СЕЛО (Т. ВЕЛЕС) 1407</option>
+<option value="1153">НОВО СЕЛО (ЧАШКА) 1413</option>
+<option value="1156">НОВОСЕЉАНЕ 1304</option>
+<option value="1157">НОГАЕВЦИ 1420</option>
+<option value="1158">НОРОВО 7507</option>
+<option value="1159">НОШПАЛ 7215</option>
+<option value="1160">ОБЕДНИК 7202</option>
+<option value="1161">ОБЛАВЦЕ 1314</option>
+<option value="1162">ОБЛАКОВО 7241</option>
+<option value="1163">ОБЛЕШЕВО 2301</option>
+<option value="1164">ОБРШАНИ 7525</option>
+<option value="1165">ОГЊАНЦИ 1043</option>
+<option value="1166">ОГУТ 1330</option>
+<option value="1167">ОДЖАЛИЈА 2207</option>
+<option value="1168">ОДРЕНО 1332</option>
+<option value="1169">ОДРИ 1225</option>
+<option value="1170">ОЗДОЛЕНИ 6344</option>
+<option value="1171">ОЗОРМИШТЕ 1228</option>
+<option value="1172">ОКТИСИ 6335</option>
+<option value="1173">ОЛЕВЕНИ 7221</option>
+<option value="1174">ОМОРАНИ 1414</option>
+<option value="1175">ОПАЕ 1300</option>
+<option value="1176">ОПЕЊЦА 6306</option>
+<option value="1177">ОПИЛА 1316</option>
+<option value="1178">ОПТИЧАРИ 7000</option>
+<option value="1179">ОРАОВ ДОЛ 1415</option>
+<option value="1180">ОРАОВЕЦ 1413</option>
+<option value="1181">ОРАОВИЦА 2423</option>
+<option value="1182">ОРАХ 1314</option>
+<option value="1183">ОРАШАЦ 1305</option>
+<option value="1184">ОРАШЈЕ 1225</option>
+<option value="1185">ОРГАНЏАЛИ 2461</option>
+<option value="1186">ОРЕЛ 2220</option>
+<option value="1187">ОРЕОВЕЦ 6530</option>
+<option value="1188">ОРЕОВЕЦ 7500</option>
+<option value="1189">ОРЕХОВО 7000</option>
+<option value="1190">ОРЕШАНИ 1053</option>
+<option value="1191">ОРЕШЕ 1415</option>
+<option value="1192">ОРИЗАРЕ 1307</option>
+<option value="1193">ОРИЗАРИ 2302</option>
+<option value="1194">ОРКУШЕ 1231</option>
+<option value="1195">ОРЛАНЦИ 1045</option>
+<option value="1196">ОРЛАНЦИ 6258</option>
+<option value="1197">ОРЛЕ 7000</option>
+<option value="1198">ОРМАН 1060</option>
+<option value="1199">ОРМАН 6000</option>
+<option value="1200">ОРМАНЛИ 2413</option>
+<option value="1201">ОРОВНИК 6000</option>
+<option value="1202">ОСИНЧАНИ 1050</option>
+<option value="1203">ОСИЧЕ 1302</option>
+<option value="1204">ОСИЧЕ 1330</option>
+<option value="1205">ОСЛОМЕЈ 6254</option>
+<option value="1206">ОСОЈ 1250</option>
+<option value="1207">ОСОЈ 6260</option>
+<option value="1208">ОСОЛНИЦА 1258</option>
+<option value="1209">ОСТРЕЦ 7223</option>
+<option value="1210">ОСТРИЛЦИ 7550</option>
+<option value="1211">ОТЕШЕВО 7315</option>
+<option value="1212">ОТИШАНИ 1250</option>
+<option value="1213">ОТИШТИНО 1413</option>
+<option value="1214">ОТЉА 1315</option>
+<option value="1215">ОТОВИЦА 1406</option>
+<option value="1216">ОТОШНИЦА 1316</option>
+<option value="1217">ОТУЊЕ 1212</option>
+<option value="1218">ОТУШИШТЕ 1224</option>
+<option value="27">Охрид 6000</option>
+<option value="1219">ОЧИПАЛА 2320</option>
+<option value="1220">ОЏОВЦИ 1258</option>
+<option value="1221">ПАВЛЕШЕНЦИ 2220</option>
+<option value="1222">ПАГАРУША 1050</option>
+<option value="1223">ПАДАЛИШТЕ 1239</option>
+<option value="1224">ПАКЛИШТЕ</option>
+<option value="1225">ПАКОШЕВО 1053</option>
+<option value="1226">ПАЛАТИЦА 1228</option>
+<option value="1227">ПАЛИГРАД 1050</option>
+<option value="1228">ПАЛИКУРА 1422</option>
+<option value="1229">ПАНИЧАРИ 1063</option>
+<option value="1230">ПАНТЕЛЕЈ 2300</option>
+<option value="1231">ПАНЧАРЕВО</option>
+<option value="1232">ПАПАВНИЦА 2420</option>
+<option value="1233">ПАПРАДИШТЕ 1415</option>
+<option value="1234">ПАПРАДИШТЕ 6254</option>
+<option value="1235">ПАРАЛОВО 7211</option>
+<option value="1236">ПАРЕШИ 1258</option>
+<option value="1237">ПАТЕЕЦ 6258</option>
+<option value="1238">ПАТЕТИНО 2220</option>
+<option value="1239">ПАТИШКА РЕКА 1050</option>
+<option value="1240">ПАШАДЖИКОВО 2300</option>
+<option value="1241">ПАШИНО РУВЦИ 7525</option>
+<option value="1242">ПЕЗОВО 1309</option>
+<option value="1243">ПЕКЉАНИ 2316</option>
+<option value="1244">ПЕЛИНЦЕ 1302</option>
+<option value="1245">ПЕНДАК 1361</option>
+<option value="1246">ПЕНУШ 2000</option>
+<option value="1247">ПЕПЕЛИШТЕ 1441</option>
+<option value="1248">ПЕСОЧАНИ 6344</option>
+<option value="1249">ПЕСТРИШИНО 2210</option>
+<option value="1250">ПЕТАЛИНО 0000</option>
+<option value="1251">ПЕТРАЛИНЦИ 2430</option>
+<option value="1252">ПЕТРАЛИЦА 1332</option>
+<option value="1253">ПЕТРИНО 7310</option>
+<option value="1254">ПЕТРИШИНО 2210</option>
+<option value="1255">ПЕТРОВЕЦ 1043</option>
+<option value="1256">ПЕТРОВО 1489</option>
+<option value="28">Пехчево 2326</option>
+<option value="1257">ПЕЧКОВО 1231</option>
+<option value="1258">ПЕШИРОВО 2227</option>
+<option value="1259">ПЕШТАЛЕВО 7505</option>
+<option value="1260">ПЕШТАНИ 6000</option>
+<option value="1261">ПЕШТАНИ 7506</option>
+<option value="1262">ПЕШТЕРНИЦА 1440</option>
+<option value="1263">ПИПЕРЕВО 2411</option>
+<option value="1264">ПИПЕРОВО 2000</option>
+<option value="1265">ПИРАВА 2463</option>
+<option value="1266">ПИРОК 1214</option>
+<option value="1267">ПИСКУПШТИНА 6337</option>
+<option value="1268">ПИШИЦА 2210</option>
+<option value="1269">ПЛАВУШ</option>
+<option value="1270">ПЛАКЕ 6306</option>
+<option value="1271">ПЛАСНИЦА 6539</option>
+<option value="1272">ПЛЕВЕЊЕ 1415</option>
+<option value="1273">ПЛЕТВАР 7500</option>
+<option value="1274">ПЛЕШАНЦИ 2210</option>
+<option value="1275">ПОБОЖЈЕ 1011</option>
+<option value="1276">ПОГУЛЕВО 2420</option>
+<option value="1277">ПОДАРЕШ 2423</option>
+<option value="1278">ПОДБРЕГЕ 1215</option>
+<option value="1279">ПОДВИС 6261</option>
+<option value="1280">ПОДГОРЦИ 6336</option>
+<option value="1281">ПОДИНО 7245</option>
+<option value="1282">ПОДЛЕС 1420</option>
+<option value="1283">ПОДМОЛ 7514</option>
+<option value="1284">ПОДМОЛЕ 6000</option>
+<option value="1285">ПОДМОЧАНИ 7316</option>
+<option value="1286">ПОДРЖИ КОЊ 1334</option>
+<option value="1287">ПОЕШЕВО 7000</option>
+<option value="1288">ПОЖАРАНЕ 1238</option>
+<option value="1289">ПОКРАЈЧЕВО 2423</option>
+<option value="1290">ПОКРВЕНИК 7315</option>
+<option value="1291">ПОЛАКИ 2300</option>
+<option value="1292">ПОЛЕТО 2320</option>
+<option value="1293">ПОЛОГ 7225</option>
+<option value="1294">ПОЛЧИШТЕ 7508</option>
+<option value="1295">ПОМЕНОВО 1414</option>
+<option value="1296">ПОПАДИЈА 1414</option>
+<option value="1297">ПОПОВЈАНИ 6254</option>
+<option value="1298">ПОПОЕЦ 6261</option>
+<option value="1299">ПОПОЛЖАНИ 6261</option>
+<option value="1300">ПОПЧЕВО 2413</option>
+<option value="1301">ПОРОДИН 7223</option>
+<option value="1302">ПОРОЈ 1212</option>
+<option value="1303">ПОУМ 6338</option>
+<option value="1304">ПОЧИВАЛО 2207</option>
+<option value="1305">ПРАВЕДНИК 1430</option>
+<option value="1306">ПРАЛЕНИК 1258</option>
+<option value="1307">ПРВЦЕ 1225</option>
+<option value="1308">ПРДЕЈЦИ 1483</option>
+<option value="1309">ПРЕВАЛЕЦ 1408</option>
+<option value="1310">ПРЕГЛОВО 6539</option>
+<option value="1311">ПРЕЉУБИШТЕ 1228</option>
+<option value="1312">ПРЕЉУБЈЕ 7315</option>
+<option value="1313">ПРЕМКА 6262</option>
+<option value="1314">ПРЕОД 2220</option>
+<option value="1315">ПРЕСЕКА 2300</option>
+<option value="1316">ПРЕСИЛ 7525</option>
+<option value="1317">ПРЕТОР 7316</option>
+<option value="1318">ПРЖДЕВО 1440</option>
+<option value="1319">ПРИБАЧЕВО 2302</option>
+<option value="1320">ПРИБИЛЦИ 7240</option>
+<option value="1321">ПРИКОВЦИ 1360</option>
+<option value="29">Прилеп 7500</option>
+<option value="1322">ПРИЛЕПЕЦ 7500</option>
+<option value="1323">ПРИПЕЧАНИ 2207</option>
+<option value="1324">ПРИПОР 2300</option>
+<option value="1325">ПРИСАД 7500</option>
+<option value="1326">ПРИСОВЈАНИ 6338</option>
+<option value="1327">ПРИСОЈНИЦА 1254</option>
+<option value="1328">ПРНАЛИЈА 2207</option>
+<option value="1329">ПРНАЛИЈА 2420</option>
+<option value="30">Пробиштип 2210</option>
+<option value="1330">ПРОБИШТИП ИНД. НАСЕЛБА 2210</option>
+<option value="1331">ПРОЕВЦЕ 1300</option>
+<option value="1332">ПРОСЕНИКОВО 2411</option>
+<option value="1333">ПРОСТРАЊЕ 6255</option>
+<option value="1334">ПРСТЕН 2461</option>
+<option value="1335">ПРШОВЦЕ 1224</option>
+<option value="1336">ПСАЧА 1332</option>
+<option value="1337">ПУЗАЉКА 1303</option>
+<option value="1338">ПУЗДЕРЦИ 2210</option>
+<option value="1339">ПУСТА РЕКА 7550</option>
+<option value="1340">ПУТУРУС 7212</option>
+<option value="1341">ПУХЧЕ 2000</option>
+<option value="1342">ПЧИЊА 1323</option>
+<option value="1343">Р'ЖАНОВО 1437</option>
+<option value="1344">Р'ЖАНОВО 6338</option>
+<option value="1345">Р'НКОВЦЕ 1307</option>
+<option value="1346">РАБЕТИНО 6258</option>
+<option value="1347">РАБОРЦИ 2413</option>
+<option value="1348">РАБРОВО 2460</option>
+<option value="1349">РАВЕН 1231</option>
+<option value="1350">РАДАЊЕ 2207</option>
+<option value="1351">РАДИБУШ 1316</option>
+<option value="1352">РАДИОВЦЕ 1213</option>
+<option value="1353">РАДИЧЕВО 2412</option>
+<option value="1354">РАДИШАНИ 1010</option>
+<option value="1355">РАДЊА 1437</option>
+<option value="1356">РАДОБОР 7216</option>
+<option value="31">Радовиш 2420</option>
+<option value="1357">РАДОВО 2433</option>
+<option value="1358">РАДОВО 7240</option>
+<option value="1359">РАДОЖДА 6333</option>
+<option value="1360">РАДОЛИШТА 6333</option>
+<option value="1361">РАДУША 1062</option>
+<option value="1362">РАЕЦ 1423</option>
+<option value="1363">РАЗЛОВЦИ 2325</option>
+<option value="1364">РАЈЦА 7316</option>
+<option value="1365">РАЈЧАНИ 2300</option>
+<option value="1366">РАЈЧИЦА 1250</option>
+<option value="1367">РАКИТЕЦ 2424</option>
+<option value="1368">РАКИТНИЦА 7240</option>
+<option value="1369">РАКЛЕ 7500</option>
+<option value="1370">РАКЛИШ 2420</option>
+<option value="1371">РАКОВЕЦ 1214</option>
+<option value="1372">РАКОВЕЦ 1413</option>
+<option value="1373">РАКОТИНЦИ 1054</option>
+<option value="1374">РАМНА 7314</option>
+<option value="1375">РАМНЕ 6000</option>
+<option value="1376">РАМНЕ 6535</option>
+<option value="1377">РАМНИ ГАБЕР 1050</option>
+<option value="1378">РАМНО 1302</option>
+<option value="1379">РАНКОВЦЕ 1316</option>
+<option value="1380">РАНЧИНЦИ 2220</option>
+<option value="1381">РАОВИК 1063</option>
+<option value="1382">РАОТИНЦЕ 1215</option>
+<option value="1383">РАПЕШ 7000</option>
+<option value="1384">РАСИНО 6306</option>
+<option value="1385">РАСТЕШ 6535</option>
+<option value="1386">РАСТОЈЦА 7240</option>
+<option value="1387">РАТАВИЦА 2212</option>
+<option value="1388">РАТАЕ 1228</option>
+<option value="1389">РАТЕВО 2330</option>
+<option value="1390">РАШТАК 1040</option>
+<option value="1391">РАШТАНИ 1408</option>
+<option value="1392">РАШТАНИ 6260</option>
+<option value="1393">РАШТАНИ 7241</option>
+<option value="1394">РАШЧЕ 1060</option>
+<option value="1395">РЕЖАНОВЦЕ 1300</option>
+<option value="1396">РЕСАВА 1430</option>
+<option value="32">Ресен 7310</option>
+<option value="1397">РЕЧАНЕ 1231</option>
+<option value="1398">РЕЧАНИ 2300</option>
+<option value="1399">РЕЧАНИ (ЗАЈАСКО) 6257</option>
+<option value="1400">РЕЧАНИ (ЧЕЛОПЕЧКО) 6258</option>
+<option value="1401">РЕЧИЦА 1300</option>
+<option value="1402">РЕЧИЦА 6306</option>
+<option value="1403">РЖАНИЧИНО 1043</option>
+<option value="1404">РИБАРЦИ 1422</option>
+<option value="1405">РИБАРЦИ 7211</option>
+<option value="1406">РИБНИЦА 1256</option>
+<option value="1407">РИЛЕВО 7505</option>
+<option value="1408">РИЧ 2413</option>
+<option value="1409">РЛЕВЦИ 1413</option>
+<option value="1410">РОБОВО 2326</option>
+<option value="1411">РОБОВО 2431</option>
+<option value="1412">РОГАЧЕВО 1206</option>
+<option value="1413">РОГЛЕ 1218</option>
+<option value="1414">РОЖДЕН 1437</option>
+<option value="1415">РОМАНОВЦЕ 1322</option>
+<option value="1416">РОПАЉЦЕ 1306</option>
+<option value="1417">РОПОТОВО 7537</option>
+<option value="1418">РОСОКИ 1250</option>
+<option value="1419">РОСОМАН 1422</option>
+<option value="1420">РОСТУШЕ 1254</option>
+<option value="1421">РОТИНО 7313</option>
+<option value="1422">РУГИНЦЕ 1314</option>
+<option value="1423">РУДНИК 1407</option>
+<option value="1424">РУДНИК РАДУША 1062</option>
+<option value="1425">РУЉАК 2207</option>
+<option value="1426">РУНИЦА 1325</option>
+<option value="1427">РУСИНОВО 2315</option>
+<option value="1428">РУСЈАЦИ 6530</option>
+<option value="1429">САЖДЕВО 7537</option>
+<option value="1430">САКУЛИЦА 1360</option>
+<option value="1431">САМОИЛОВО 2434</option>
+<option value="1432">САМОКОВ 6535</option>
+<option value="1433">САНДЕВО 1011</option>
+<option value="1434">САРАЈ 1060</option>
+<option value="1435">САРАЈ 2430</option>
+<option value="1438">САРАЌИНО 1226</option>
+<option value="1436">САРАМЗАЛИНО 2227</option>
+<option value="1437">САРАНДИНОВО 7504</option>
+<option value="1439">САРИДЈОЛ</option>
+<option value="1440">САРЧИЕВО 2000</option>
+<option value="1441">САСА 2304</option>
+<option value="1442">САЧЕВО 2432</option>
+<option value="1443">СВЕКАНИ 1420</option>
+<option value="1444">СВЕТА 7240</option>
+<option value="1445">СВЕТА ПЕТКА 1054</option>
+<option value="33">Свети Николе 2220</option>
+<option value="1446">СВЕТИ ТОДОРИ 7245</option>
+<option value="1447">СВЕТО МИТРАНИ 7524</option>
+<option value="1448">СВЕТОРАЧЕ 6258</option>
+<option value="1449">СВИДОВИЦА 2410</option>
+<option value="1450">СВИНИШТА</option>
+<option value="1451">СВИЊИШТА</option>
+<option value="1452">СВИЊИШТЕ 6255</option>
+<option value="1453">СЕВЕНДЕКЛИ 2461</option>
+<option value="1454">СЕДЛАРЕВО 1218</option>
+<option value="1455">СЕДЛАРЦИ 2414</option>
+<option value="1456">СЕКИРАНИ 7241</option>
+<option value="1457">СЕКИРНИК 2433</option>
+<option value="1458">СЕКИРЦИ 7505</option>
+<option value="1459">СЕЛЕМЛИ 1488</option>
+<option value="1460">СЕЛНИК 2320</option>
+<option value="1461">СЕЛОКУЌИ 1250</option>
+<option value="1462">СЕЛЦЕ</option>
+<option value="1463">СЕЛЦЕ 1200</option>
+<option value="1464">СЕЛЦЕ 2000</option>
+<option value="1465">СЕЛЦЕ 7500</option>
+<option value="1466">СЕЛЦЕ КЕЧ 1220</option>
+<option value="1467">СЕЛЦИ 6337</option>
+<option value="1468">СЕМЕНИШТЕ 1063</option>
+<option value="1469">СЕНОКОС 1235</option>
+<option value="1470">СЕНОКОС 7504</option>
+<option value="1471">СЕНЦЕ 1256</option>
+<option value="1472">СЕРМЕНИН 1483</option>
+<option value="1473">СЕТОЛЕ 1200</option>
+<option value="1474">СИМНИЦА 1230</option>
+<option value="1475">СИНГЕЛИЌ 1040</option>
+<option value="1476">СИНИЧАНЕ 1221</option>
+<option value="1477">СИРИЧИНО 1228</option>
+<option value="1478">СИРКОВО 1421</option>
+<option value="1479">СИРУЛА 6306</option>
+<option value="1480">СКАНДАЛЦИ</option>
+<option value="1481">СКАЧИНЦИ 1420</option>
+<option value="1482">СКАЧКОВЦЕ 1305</option>
+<option value="34">Скопје 1000</option>
+<option value="1483">СКОРУША 2424</option>
+<option value="1484">СКОЧИВИР 7225</option>
+<option value="1485">СКРЕБАТНО 6306</option>
+<option value="1486">СКУДРИЊЕ 1257</option>
+<option value="1487">СЛАВЕЈ 7509</option>
+<option value="1488">СЛАДУЕВО 7240</option>
+<option value="1489">СЛАНСКО 6530</option>
+<option value="1490">СЛАТИНА 6533</option>
+<option value="1491">СЛАТИНО 1204</option>
+<option value="1492">СЛАТИНО 6344</option>
+<option value="1493">СЛАТИНСКИ ЧИФЛИК 6344</option>
+<option value="1494">СЛЕПЧЕ 7240</option>
+<option value="1495">СЛЕПЧЕ 7505</option>
+<option value="1496">СЛИВИЦА 7225</option>
+<option value="1497">СЛИВЈЕ 7505</option>
+<option value="1498">СЛИВНИК 1413</option>
+<option value="1499">СЛИВНИЦА 7316</option>
+<option value="1500">СЛИВОВО 6346</option>
+<option value="1501">СЛОЕШТИЦА 7244</option>
+<option value="1502">СЛП 1408</option>
+<option value="1503">СЛУПЧАНЕ 1325</option>
+<option value="1504">СМЕСНИЦА 1053</option>
+<option value="1505">СМИЛАНЦИ 2423</option>
+<option value="1506">СМИЛЕВО 7202</option>
+<option value="1507">СМИЛОВЦИ 1414</option>
+<option value="1508">СМИЉКОВЦИ 1040</option>
+<option value="1509">СМОЈМИРОВО 2330</option>
+<option value="1510">СМОКВИЦА 1489</option>
+<option value="1511">СМОЛАНИ 7500</option>
+<option value="1512">СМОЛАРИ 2436</option>
+<option value="1513">СНЕГОВО 7000</option>
+<option value="1514">СОБРИ 2461</option>
+<option value="1515">СОВИЧ 7225</option>
+<option value="1516">СОГЛЕ 1415</option>
+<option value="1517">СОЈАКЛАРИ 1407</option>
+<option value="1518">СОКОЛАРЦИ 2333</option>
+<option value="1519">СОПИШТЕ 1054</option>
+<option value="1520">СОПОТ 1308</option>
+<option value="1521">СОПОТ 1406</option>
+<option value="1522">СОПОТ 1427</option>
+<option value="1523">СОПОТ 2220</option>
+<option value="1524">СОПОТНИЦА 7244</option>
+<option value="1525">СОПОТСКО 7320</option>
+<option value="42">Софија</option>
+<option value="1526">СОФИЛАРИ 2000</option>
+<option value="1527">СОШАНИ 6344</option>
+<option value="1528">СПАНЧЕВО 2301</option>
+<option value="1529">СПАС 1250</option>
+<option value="1530">СРБИНОВО 1239</option>
+<option value="1531">СРБИЦА 6254</option>
+<option value="1532">СРБЈАНИ 6261</option>
+<option value="1533">СРЕДНО ЕГРИ 7223</option>
+<option value="1534">СРЕДНО КОЊАРЕ 1043</option>
+<option value="1535">СРЕДОРЕК 7504</option>
+<option value="1536">СРЕТЕНОВО 1487</option>
+<option value="1537">СРЕТКОВО 1230</option>
+<option value="1538">СРПЦИ</option>
+<option value="1539">СТАЈКОВЦИ 1040</option>
+<option value="1540">СТАМЕР 2320</option>
+<option value="1541">СТАНИЦА ЗЕЛЕНИКОВО 1053</option>
+<option value="1542">СТАНУЛОВЦИ 2225</option>
+<option value="1543">СТАНЦИ 1330</option>
+<option value="1544">СТАНЧА 1316</option>
+<option value="1545">СТАЊЕВЦИ 2220</option>
+<option value="1550">СТАРАВИНА 7214</option>
+<option value="1549">СТАРА МЕЗДРА 2220</option>
+<option value="1546">СТАР ДОЈРАН 1487</option>
+<option value="1551">СТАРИ ГРАД 1414</option>
+<option value="1547">СТАР ИСТЕВНИК 2325</option>
+<option value="1548">СТАР КАРАОРМАН 2000</option>
+<option value="1552">СТАРО БАЛДОВЦИ 2430</option>
+<option value="1559">СТАРОЕЦ 6258</option>
+<option value="1553">СТАРО ЗМИРНЕВО 7241</option>
+<option value="1554">СТАРО КОЊАРЕВО 2436</option>
+<option value="1555">СТАРО ЛАГОВО 7500</option>
+<option value="1556">СТАРО НАГОРИЧАНЕ 1303</option>
+<option value="1557">СТАРО СЕЛО 1225</option>
+<option value="1558">СТАРО СЕЛО 6533</option>
+<option value="1560">СТЕНЧЕ 1237</option>
+<option value="1561">СТЕЊЕ 7315</option>
+<option value="1562">СТЕПАНЦЕ 1302</option>
+<option value="1563">СТЕПАНЦИ 1414</option>
+<option value="1564">СТЕПАНЦИ 2000</option>
+<option value="1565">СТИНИК 2434</option>
+<option value="1566">СТИПОНА 7310</option>
+<option value="1567">СТОЈАКОВО 1488</option>
+<option value="1568">СТРАГОВО 1437</option>
+<option value="1569">СТРАЖА 1325</option>
+<option value="1570">СТРАЈАНЕ 1239</option>
+<option value="35">Странство</option>
+<option value="1571">СТРАХОЈАДИЦА 1053</option>
+<option value="1572">СТРАЦИН 1361</option>
+<option value="1573">СТРАЧИНЦИ 1040</option>
+<option value="1574">СТРЕЖЕВО</option>
+<option value="1575">СТРЕЗОВЦЕ 1304</option>
+<option value="1576">СТРЕЛЦИ 6262</option>
+<option value="1577">СТРИМА 1315</option>
+<option value="1578">СТРИМНИЦА 1226</option>
+<option value="1579">СТРИСОВЦИ 2210</option>
+<option value="1580">СТРМАШЕВО 1442</option>
+<option value="1581">СТРМОШ 2210</option>
+<option value="1582">СТРНОВАЦ 1303</option>
+<option value="1583">СТРОВИЈА 7505</option>
+<option value="1584">СТРОИМАНЦИ 2220</option>
+<option value="36">Струга 6330</option>
+<option value="1585">СТРУГОВО 7240</option>
+<option value="37">Струмица 2400</option>
+<option value="1586">СТУДЕНА БАРА 1323</option>
+<option value="1587">СТУДЕНИЧАНИ 1050</option>
+<option value="1588">СУВО ГРЛО 2000</option>
+<option value="1589">СУВО ГРЛО 7244</option>
+<option value="1590">СУВОДОЛ 6530</option>
+<option value="1591">СУВОДОЛ 7211</option>
+<option value="1592">СУВОДОЛ 7240</option>
+<option value="1593">СУДИК 2000</option>
+<option value="1594">СУЛДУРЦИ 2425</option>
+<option value="1595">СУПУРГЕ 2420</option>
+<option value="1596">СУШЕВО 1308</option>
+<option value="1597">СУШЕВО 2000</option>
+<option value="1598">СУШЕВО 2412</option>
+<option value="1599">СУШИЦА 2434</option>
+<option value="1600">СУШИЦА 6535</option>
+<option value="1601">СУШИЦА (ГОСТИВАРСКА) 1230</option>
+<option value="1602">СУШИЦА (КАТЛАНОВСКА) 1043</option>
+<option value="1603">СУШИЦА (РОСТУШКА) 1254</option>
+<option value="1605">ТАБАНОВЦЕ 1308</option>
+<option value="1606">ТАЖЕВО 6533</option>
+<option value="1607">ТАЈМИШТЕ 6253</option>
+<option value="1608">ТАЛАШМАНЦЕ 1360</option>
+<option value="1609">ТАНАТАРЦИ 2000</option>
+<option value="1610">ТАНУШЕ 1256</option>
+<option value="1611">ТАНУШЕВЦИ 1011</option>
+<option value="1612">ТАОР 1053</option>
+<option value="1613">ТАРИНЦИ 2207</option>
+<option value="1614">ТАТАР ЕЛЕВЦИ 1250</option>
+<option value="1615">ТАТАРЛИ</option>
+<option value="1616">ТАТОМИР 1360</option>
+<option value="1617">ТАШМАРУНИШТА 6334</option>
+<option value="1618">ТЕАРЦЕ 1224</option>
+<option value="1619">ТЕКИЈА 1042</option>
+<option value="1620">ТЕНОВО 1213</option>
+<option value="1621">ТЕОВО 1415</option>
+<option value="1622">ТЕПОВЦИ 7211</option>
+<option value="1623">ТЕРАНЦИ 2301</option>
+<option value="1624">ТЕРЗЕЛИ</option>
+<option value="1625">ТЕСТЕМЕЛЦИ 2000</option>
+<option value="38">Тетово 1200</option>
+<option value="1626">ТИМЈАНИК 1443</option>
+<option value="1627">ТИСОВИЦА 1053</option>
+<option value="1604">Т ЛМИНЦИ 1333</option>
+<option value="1628">ТОДОРОВЦИ 2304</option>
+<option value="1629">ТОМИНО СЕЛО 6533</option>
+<option value="1630">ТОПЛИК</option>
+<option value="1631">ТОПЛИЦА 1242</option>
+<option value="1632">ТОПЛИЦА 7500</option>
+<option value="1633">ТОПОЛНИЦА 2420</option>
+<option value="1634">ТОПОЛНИЦА 6533</option>
+<option value="1635">ТОПОЛОВИК 1360</option>
+<option value="1636">ТОПОЛЧАНИ 7512</option>
+<option value="1637">ТОСКА 6338</option>
+<option value="1638">ТРАБОТИВИШТЕ 2325</option>
+<option value="1639">ТРАП 7212</option>
+<option value="1640">ТРАПЧИН ДОЛ 6253</option>
+<option value="1641">ТРЕБЕНИШТА 6341</option>
+<option value="1642">ТРЕБИНО 6530</option>
+<option value="1643">ТРЕБИЧИНО 2414</option>
+<option value="1644">ТРЕБИШТЕ 1254</option>
+<option value="1645">ТРЕБОВЉЕ 6535</option>
+<option value="1646">ТРЕБОШ 1226</option>
+<option value="1647">ТРЕМНИК 1440</option>
+<option value="1648">ТРЕСОНЧЕ 1250</option>
+<option value="1649">ТРИ ВОДИ 2410</option>
+<option value="1651">ТРИПАТАНЦИ 2210</option>
+<option value="1650">ТРИ ЧЕШМИ 2205</option>
+<option value="1652">ТРКАЊЕ 2307</option>
+<option value="1653">ТРН 7204</option>
+<option value="1654">ТРНАНИК</option>
+<option value="1655">ТРНОВАЦ 1360</option>
+<option value="1656">ТРНОВО 1239</option>
+<option value="1657">ТРНОВО 1335</option>
+<option value="1658">ТРНОВО 7205</option>
+<option value="1659">ТРНОВЦИ 7245</option>
+<option value="1660">ТРОЈАЦИ 7500</option>
+<option value="1661">ТРОЈКРСТИ 7512</option>
+<option value="1662">ТРОМЕЃА 1310</option>
+<option value="1663">ТРООЛО 2210</option>
+<option value="1664">ТРПЕЈЦА 6322</option>
+<option value="1665">ТРСИНО 2316</option>
+<option value="1666">ТРСТЕНИК 1422</option>
+<option value="1667">ТРСТЕНИК 2220</option>
+<option value="1668">ТРУБАРЕВО 1047</option>
+<option value="1669">ТУДЕНЦЕ 1228</option>
+<option value="1670">ТУИН 6254</option>
+<option value="1671">ТУМЧЕВИШТЕ 1237</option>
+<option value="1672">ТУРАЛЕВО 1360</option>
+<option value="1673">ТУРИЈА 2320</option>
+<option value="1674">ТУРЈЕ 6346</option>
+<option value="1675">ТУРНОВО 2433</option>
+<option value="1676">ТУРСКО (ПОДВИС) 7245</option>
+<option value="1677">ТУРСКО РУДАРИ 2212</option>
+<option value="1679">УБОГО 1420</option>
+<option value="1680">УДОВО 2464</option>
+<option value="1681">УЗЕМ 1335</option>
+<option value="1682">УЛАНЦИ 1420</option>
+<option value="1683">УЛАРЦИ 2333</option>
+<option value="1684">УМИН ДОЛ 1327</option>
+<option value="1685">УМЛЕНА 2326</option>
+<option value="1686">УМОВО 1050</option>
+<option value="1687">УРВИЧ 1221</option>
+<option value="1688">УСЈЕ 1000</option>
+<option value="1689">УТОВО 7240</option>
+<option value="1690">ФАЛИШЕ 1216</option>
+<option value="1691">ФАРИШ 1423</option>
+<option value="1692">ФИЛИПОВЦИ 1360</option>
+<option value="1693">ФОРИНО 1237</option>
+<option value="1694">ФРАНГОВО 6333</option>
+<option value="1695">ФУРКА 1485</option>
+<option value="1696">ХАДЖИ-РЕДЖЕПЛИ</option>
+<option value="1697">ХАДЖИ-СЕЈДЕЛИ</option>
+<option value="1698">ХАДЖИ-ХАМЗАЛИ</option>
+<option value="1699">ХАМЕ 1250</option>
+<option value="1700">ХАМЗАЛИ 2430</option>
+<option value="1701">ХУДАВЕРЛИЈА</option>
+<option value="1702">ХУМА 1480</option>
+<option value="1703">ЦАПАРИ 7313</option>
+<option value="1704">ЦАРЕВ ДВОР 7315</option>
+<option value="1705">ЦАРЕВИК 7500</option>
+<option value="1706">ЦВЕТИШНИЦА 1302</option>
+<option value="1707">ЦВЕТОВО 1050</option>
+<option value="1708">ЦВИЛАНЦЕ 1302</option>
+<option value="1709">ЦЕНТАР ЖУПА 1258</option>
+<option value="1710">ЦЕР 6255</option>
+<option value="1711">ЦЕРА 2300</option>
+<option value="1712">ЦЕРОВО 1218</option>
+<option value="1713">ЦЕРОВО 1230</option>
+<option value="1714">ЦЕРОВО 7244</option>
+<option value="1715">ЦРВЕНА ВОДА 1050</option>
+<option value="1716">ЦРВЕНА ВОДА 6344</option>
+<option value="1717">ЦРВЕНА НИВА 2300</option>
+<option value="1718">ЦРВЕНИ БРЕГОВИ 1441</option>
+<option value="1719">ЦРВИВЦИ 6254</option>
+<option value="1720">ЦРВУЛЕВО 2207</option>
+<option value="1721">ЦРЕШЕВО 1040</option>
+<option value="1722">ЦРЕШКА</option>
+<option value="1723">ЦРЕШНЕВО 6533</option>
+<option value="1724">ЦРЕШЊЕВО 1415</option>
+<option value="1725">ЦРКВИНО 1400</option>
+<option value="1726">ЦРН ВРВ 1050</option>
+<option value="1728">ЦРНИК 2326</option>
+<option value="1729">ЦРНИЛИШТЕ 7516</option>
+<option value="1730">ЦРНИЧАНИ 1485</option>
+<option value="1731">ЦРНИЧАНИ 7212</option>
+<option value="1727">ЦРН КАМЕН 2312</option>
+<option value="1732">ЦРНОБОЦИ 1258</option>
+<option value="1733">ЦРНОБУКИ 7241</option>
+<option value="1734">ЦРНОВЕЦ 7241</option>
+<option value="1735">ЧАЈЛАНЕ 1063</option>
+<option value="1736">ЧАЈЛЕ 1243</option>
+<option value="1737">ЧАЛАКЛИ 2461</option>
+<option value="1738">ЧАЛОШЕВО 1400</option>
+<option value="1739">ЧАНАКЛИЈА 2416</option>
+<option value="1740">ЧАНИШТЕ 7506</option>
+<option value="1741">ЧАРДАКЛИЈА 2000</option>
+<option value="1742">ЧАУШЛИ 2460</option>
+<option value="1743">ЧАШКА 1413</option>
+<option value="1744">ЧЕГРАНЕ 1237</option>
+<option value="1745">ЧЕЛЕВЕЦ 1442</option>
+<option value="1746">ЧЕЛОПЕК 1227</option>
+<option value="1747">ЧЕЛОПЕК 1303</option>
+<option value="1748">ЧЕЛОПЕЦИ 6258</option>
+<option value="1749">ЧЕМЕРСКО 1437</option>
+<option value="1750">ЧЕПЕЛИ</option>
+<option value="1751">ЧЕПИГОВО 7512</option>
+<option value="1752">ЧЕРКЕЗИ 1317</option>
+<option value="1753">ЧЕТИРЦЕ 1308</option>
+<option value="1754">ЧЕШИНОВО 2333</option>
+<option value="1755">ЧЕШМЕМАЛЕ</option>
+<option value="1756">ЧЕШТОВО</option>
+<option value="1757">ЧИФЛИК 1054</option>
+<option value="1758">ЧИФЛИК 1218</option>
+<option value="1759">ЧИФЛИК 1442</option>
+<option value="1760">ЧИФЛИК 2000</option>
+<option value="1761">ЧИФЛИК 2301</option>
+<option value="1762">ЧИФЛИК 2320</option>
+<option value="1763">ЧИФЛИК 2326</option>
+<option value="1764">ЧУМОВО 7500</option>
+<option value="1765">ЧУЧЕР 1011</option>
+<option value="1766">ЏЕПИН 6338</option>
+<option value="1767">ЏЕПИШТЕ 1250</option>
+<option value="1768">ЏЕПЧИШТЕ 1212</option>
+<option value="1769">ЏИДИМИРЦИ 1407</option>
+<option value="1770">ЏИДИМИРЦИ 1441</option>
+<option value="1771">ЏУМАБОС 2461</option>
+<option value="1772">ШАИНТАШ</option>
+<option value="1773">ШАШАВАРЛИЈА 2207</option>
+<option value="1774">ШЕЛЕВЕРЦИ 7512</option>
+<option value="1775">ШЕМШЕВО 1228</option>
+<option value="1776">ШЕОБА</option>
+<option value="1777">ШЕШКОВО 1423</option>
+<option value="1778">ШИВЕЦ 1424</option>
+<option value="1779">ШИПКОВИЦА 1217</option>
+<option value="1780">ШИПКОВИЦА 2420</option>
+<option value="1781">ШИПОКНО 6000</option>
+<option value="1782">ШИШЕВО 1060</option>
+<option value="1783">ШЛЕГОВО 1360</option>
+<option value="1784">ШОПСКО РУДАРЕ 1360</option>
+<option value="1785">ШОПУР 2000</option>
+<option value="1786">ШТАВИЦА 7500</option>
+<option value="1787">ШТАЛКОВИЦА 2212</option>
+<option value="39">Штип 2000</option>
+<option value="1788">ШТРБОВО 7317</option>
+<option value="1789">ШТУКА 2433</option>
+<option value="1790">ШТУРОВО 2420</option>
+<option value="1791">ШУМ 6333</option>
+<option value="1792">ШУПЛИ КАМЕН 1300</option>
+<option value="1793">ШУРЛЕНЦИ 7315</option>
+<option value="1794">ШУТОВО 6262</option>
+</select>
+</td>
+</tr>
+<tr id="dopolnitelni28">
+<td colspan="2">Регион:&nbsp;</td>
+<td><select id="regionId" name="regionId"><option value="0">Избери регион</option>
+<option value="7">Регион Битола</option>
+<option value="11">Регион Велес</option>
+<option value="6">Регион Кавадарци</option>
+<option value="10">Регион Кичево</option>
+<option value="2">Регион Куманово</option>
+<option value="9">Регион Прилеп</option>
+<option value="1">Регион Скопје</option>
+<option value="8">Регион Струга</option>
+<option value="4">Регион Струмица</option>
+<option value="5">Регион Тетово</option>
+<option value="3">Регион Штип</option>
+</select>
+</td>
+</tr>
+<tr id="dopolnitelni33">
+<td colspan="2"><label for="prikazSamoNaPosledenDokument">Приказ само на последен документ:&nbsp;</label></td>
+<td><input type="checkbox" id="prikazSamoNaPosledenDokument" name="prikazSamoNaPosledenDokument" /></td>
+</tr>
+<tr id="dopolnitelni30">
+<td colspan="2"><label for="fiksniAtributi">Фиксни атрибути: &nbsp;</label></td>
+<td><div ><input type="checkbox" name="cbFiksniAtributi" value="ON" id="cbFiksniAtributi" onchange ="javascript:showLagerListaFiksniAtributiComboBox();">
+</div>
+<div id="lagerListaFiksniAtributiDiv" name="lagerListaFiksniAtributiDiv"><SELECT NAME="cmbArtiklFiksniAtributiType_1" id="cmbArtiklFiksniAtributiType_1" class="selectInput">
+<option value="0">Избери фиксен атрибут</option>
+<option value="1">Боја</option>
+<option value="2">Број</option>
+<option value="3">Конфекциски број</option>
+<option value="4">Потекло</option>
+<option value="5">Датум на производство</option>
+<option value="6">Датум на важност</option>
+<option value="7">Сериски</option>
+<option value="8">Пол</option>
+<option value="9">Сезона</option>
+</SELECT>
+<img onclick="javascript:addNewComboBoxFiksniAtributiWithGrupirajPoAtribut();; " src="themes/collabbox/images/add_new_item_24px.png" height="18px">
+<label FOR="hcbGrupiranjPoAtributot_1"> Групирај по атрибутот</label>
+<input type="checkbox" id="hcbGrupiranjPoAtributot_1" name="hcbGrupiranjPoAtributot_1" class="grupirajPoAtribut" onclick="javascript: checkGrupirajPoAtributot(this); " value="">
+<input type="hidden" id="brojFiksniAtributi" name="brojFiksniAtributi" value="1">
+<input type="hidden" id="redosledFiksniAtributi" name="redosledFiksniAtributi" value="">
+<input type="hidden" id="showFiksniAtributi" name="showFiksniAtributi" value="false">
+</div>
+</td>
+</tr>
+<tr id="dopolnitelni40">
+<td colspan="2"><label for="atributNaStavka">Атрибут на ставка: &nbsp;</label></td>
+<td><div ><input type="checkbox" name="cbAtributiNaStavka" value="ON" id="cbAtributiNaStavka" onchange ="javascript:showAtributiNaStavkaComboBox();">
+</div>
+<div id="atributiNaStavkaDiv" name="atributiNaStavkaDiv"><SELECT NAME="cmbAtributiNaStavka" id="cmbAtributiNaStavka" class="selectInput" onChange="javascript:crtajPoleZaVrednostNaAtributNaStavka(this);">
+<option value="#-1">Избери атрибут</option>
+<option value="Item identificator#12">Item identificator</option>
+</SELECT>
+</div>
+</td>
+</tr>
+<tr id="dopolnitelni32">
+<td colspan="2"></td>
+<td></td>
+</tr>
+<tr id="dopolnitelni35">
+<td colspan="2">Прикажи деловна единица:</td>
+<td><input type="checkbox" name="showWorkingUnit" value="ON" id="showWorkingUnit">
+</td>
+</tr>
+<tr id="dopolnitelni36">
+<td colspan="2">Прикажи локација на комитент:</td>
+<td><input type="checkbox" name="showLokacija" value="ON" id="showLokacija">
+</td>
+</tr>
+<tr id="dopolnitelni42">
+<td colspan="2">Прикажи цена:</td>
+<td><SELECT NAME="tipCenaId" id="tipCenaId" class="selectInput"style="display:inline ">
+<option value="-1">Нема</option>
+<option value="1">Малопродажна цена</option>
+<option value="3">Мултилевел Маркетинг</option>
+</SELECT>
+<label for="cenaNaDatumNaLager">&nbsp;Цена на датум на лагер:&nbsp;</label><input type="checkbox" name="cenaNaDatumNaLager" value="ON" id="cenaNaDatumNaLager">
+</td>
+</tr>
+<tr id="dopolnitelni43">
+<td colspan="2"></td>
+<td></td>
+</tr>
+<tr id="dopolnitelni44">
+<td colspan="2">Прикажи даночен индикатор: &nbsp;</td>
+<td><input type="checkbox" name="prikaziDanocenIndikator" value="ON" id="prikaziDanocenIndikator">
+</td>
+</tr>
+<tr id="dopolnitelni7">
+<td colspan="3"><TABLE id="customFieldTable" class="table">
+<tr>
+<td colspan = "2">
+<input type="hidden" name="customDataType_Delivered" id="customDataType_Delivered" value="12">
+<input type="hidden" name="customObjectID_Delivered" id="customObjectID_Delivered" value="1491908">
+<input type="hidden" name="customDataType_In Delivery" id="customDataType_In Delivery" value="12">
+<input type="hidden" name="customObjectID_In Delivery" id="customObjectID_In Delivery" value="1491900">
+<input type="hidden" name="customDataType_Part number" id="customDataType_Part number" value="4">
+<input type="hidden" name="customObjectID_Part number" id="customObjectID_Part number" value="10434">
+<input type="hidden" name="customDataType_Payed By Kolporter" id="customDataType_Payed By Kolporter" value="12">
+<input type="hidden" name="customObjectID_Payed By Kolporter" id="customObjectID_Payed By Kolporter" value="1916936">
+<input type="hidden" name="customDataType_Picked Up" id="customDataType_Picked Up" value="12">
+<input type="hidden" name="customObjectID_Picked Up" id="customObjectID_Picked Up" value="1491910">
+<input type="hidden" name="customDataType_Problematic" id="customDataType_Problematic" value="12">
+<input type="hidden" name="customObjectID_Problematic" id="customObjectID_Problematic" value="1491909">
+<input type="hidden" name="customDataType_Received at Callporter " id="customDataType_Received at Callporter " value="12">
+<input type="hidden" name="customObjectID_Received at Callporter " id="customObjectID_Received at Callporter " value="1827829">
+<input type="hidden" name="customDataType_Received at MEX station" id="customDataType_Received at MEX station" value="12">
+<input type="hidden" name="customObjectID_Received at MEX station" id="customObjectID_Received at MEX station" value="1491922">
+<input type="hidden" name="customDataType_Return to sender" id="customDataType_Return to sender" value="12">
+<input type="hidden" name="customObjectID_Return to sender" id="customObjectID_Return to sender" value="1491924">
+<input type="hidden" name="customDataType_Shipment created" id="customDataType_Shipment created" value="12">
+<input type="hidden" name="customObjectID_Shipment created" id="customObjectID_Shipment created" value="1491934">
+<input type="hidden" name="customDataType_Брза пошта" id="customDataType_Брза пошта" value="16">
+<input type="hidden" name="customObjectID_Брза пошта" id="customObjectID_Брза пошта" value="50454">
+<input type="hidden" name="customDataType_број на дфи" id="customDataType_број на дфи" value="6">
+<input type="hidden" name="customObjectID_број на дфи" id="customObjectID_број на дфи" value="221269">
+<input type="hidden" name="customDataType_Број на извод" id="customDataType_Број на извод" value="12">
+<input type="hidden" name="customObjectID_Број на извод" id="customObjectID_Број на извод" value="10095">
+<input type="hidden" name="customDataType_Во готово" id="customDataType_Во готово" value="6">
+<input type="hidden" name="customObjectID_Во готово" id="customObjectID_Во готово" value="10296">
+<input type="hidden" name="customDataType_вратено" id="customDataType_вратено" value="16">
+<input type="hidden" name="customObjectID_вратено" id="customObjectID_вратено" value="10505">
+<input type="hidden" name="customDataType_Делко" id="customDataType_Делко" value="16">
+<input type="hidden" name="customObjectID_Делко" id="customObjectID_Делко" value="50456">
+<input type="hidden" name="customDataType_денови на доспевање" id="customDataType_денови на доспевање" value="4">
+<input type="hidden" name="customObjectID_денови на доспевање" id="customObjectID_денови на доспевање" value="10284">
+<input type="hidden" name="customDataType_денови на доспевање добавувач" id="customDataType_денови на доспевање добавувач" value="4">
+<input type="hidden" name="customObjectID_денови на доспевање добавувач" id="customObjectID_денови на доспевање добавувач" value="10285">
+<input type="hidden" name="customDataType_денови на доспевање купувач" id="customDataType_денови на доспевање купувач" value="4">
+<input type="hidden" name="customObjectID_денови на доспевање купувач" id="customObjectID_денови на доспевање купувач" value="10286">
+<input type="hidden" name="customDataType_достава" id="customDataType_достава" value="16">
+<input type="hidden" name="customObjectID_достава" id="customObjectID_достава" value="10503">
+<input type="hidden" name="customDataType_Други трошоци" id="customDataType_Други трошоци" value="6">
+<input type="hidden" name="customObjectID_Други трошоци" id="customObjectID_Други трошоци" value="10228">
+<input type="hidden" name="customDataType_Едшоп" id="customDataType_Едшоп" value="16">
+<input type="hidden" name="customObjectID_Едшоп" id="customObjectID_Едшоп" value="10639">
+<input type="hidden" name="customDataType_Експрес пошта" id="customDataType_Експрес пошта" value="16">
+<input type="hidden" name="customObjectID_Експрес пошта" id="customObjectID_Експрес пошта" value="50452">
+<input type="hidden" name="customDataType_Екстра трошоци" id="customDataType_Екстра трошоци" value="6">
+<input type="hidden" name="customObjectID_Екстра трошоци" id="customObjectID_Екстра трошоци" value="10229">
+<input type="hidden" name="customDataType_Замена" id="customDataType_Замена" value="16">
+<input type="hidden" name="customObjectID_Замена" id="customObjectID_Замена" value="14567">
+<input type="hidden" name="customDataType_Земја на потекло" id="customDataType_Земја на потекло" value="12">
+<input type="hidden" name="customObjectID_Земја на потекло" id="customObjectID_Земја на потекло" value="10281">
+<input type="hidden" name="customDataType_Износ" id="customDataType_Износ" value="6">
+<input type="hidden" name="customObjectID_Износ" id="customObjectID_Износ" value="10088">
+<input type="hidden" name="customDataType_Искористени поени" id="customDataType_Искористени поени" value="12">
+<input type="hidden" name="customObjectID_Искористени поени" id="customObjectID_Искористени поени" value="174668">
+<input type="hidden" name="customDataType_Комерцијалист" id="customDataType_Комерцијалист" value="70">
+<input type="hidden" name="customObjectID_Комерцијалист" id="customObjectID_Комерцијалист" value="136283">
+<input type="hidden" name="customDataType_Комитенти баркод" id="customDataType_Комитенти баркод" value="12">
+<input type="hidden" name="customObjectID_Комитенти баркод" id="customObjectID_Комитенти баркод" value="173258">
+<input type="hidden" name="customDataType_Курсна разлика" id="customDataType_Курсна разлика" value="6">
+<input type="hidden" name="customObjectID_Курсна разлика" id="customObjectID_Курсна разлика" value="10214">
+<input type="hidden" name="customDataType_Мекс пошта" id="customDataType_Мекс пошта" value="16">
+<input type="hidden" name="customObjectID_Мекс пошта" id="customObjectID_Мекс пошта" value="99683">
+<input type="hidden" name="customDataType_Набавна вредност" id="customDataType_Набавна вредност" value="6">
+<input type="hidden" name="customObjectID_Набавна вредност" id="customObjectID_Набавна вредност" value="1674327">
+<input type="hidden" name="customDataType_Начин на плаќање" id="customDataType_Начин на плаќање" value="2003">
+<input type="hidden" name="customObjectID_Начин на плаќање" id="customObjectID_Начин на плаќање" value="10290">
+<input type="hidden" name="customDataType_неплатено" id="customDataType_неплатено" value="16">
+<input type="hidden" name="customObjectID_неплатено" id="customObjectID_неплатено" value="10507">
+<input type="hidden" name="customDataType_непратено" id="customDataType_непратено" value="16">
+<input type="hidden" name="customObjectID_непратено" id="customObjectID_непратено" value="10506">
+<input type="hidden" name="customDataType_Оддел" id="customDataType_Оддел" value="12">
+<input type="hidden" name="customObjectID_Оддел" id="customObjectID_Оддел" value="10436">
+<input type="hidden" name="customDataType_откажано" id="customDataType_откажано" value="16">
+<input type="hidden" name="customObjectID_откажано" id="customObjectID_откажано" value="10640">
+<input type="hidden" name="customDataType_платено" id="customDataType_платено" value="16">
+<input type="hidden" name="customObjectID_платено" id="customObjectID_платено" value="10504">
+<input type="hidden" name="customDataType_Повторна достава" id="customDataType_Повторна достава" value="16">
+<input type="hidden" name="customObjectID_Повторна достава" id="customObjectID_Повторна достава" value="14551">
+<input type="hidden" name="customDataType_Покасна нарачка" id="customDataType_Покасна нарачка" value="12">
+<input type="hidden" name="customObjectID_Покасна нарачка" id="customObjectID_Покасна нарачка" value="13750">
+<input type="hidden" name="customDataType_Поштарина" id="customDataType_Поштарина" value="16">
+<input type="hidden" name="customObjectID_Поштарина" id="customObjectID_Поштарина" value="14555">
+<input type="hidden" name="customDataType_пратено" id="customDataType_пратено" value="16">
+<input type="hidden" name="customObjectID_пратено" id="customObjectID_пратено" value="15221">
+<input type="hidden" name="customDataType_Преостанати поени" id="customDataType_Преостанати поени" value="12">
+<input type="hidden" name="customObjectID_Преостанати поени" id="customObjectID_Преостанати поени" value="174670">
+<input type="hidden" name="customDataType_Со картичка" id="customDataType_Со картичка" value="6">
+<input type="hidden" name="customObjectID_Со картичка" id="customObjectID_Со картичка" value="10297">
+<input type="hidden" name="customDataType_Со картичка (DINERS)" id="customDataType_Со картичка (DINERS)" value="6">
+<input type="hidden" name="customObjectID_Со картичка (DINERS)" id="customObjectID_Со картичка (DINERS)" value="10298">
+<input type="hidden" name="customDataType_Со картичка (MASTERCARD)" id="customDataType_Со картичка (MASTERCARD)" value="6">
+<input type="hidden" name="customObjectID_Со картичка (MASTERCARD)" id="customObjectID_Со картичка (MASTERCARD)" value="10299">
+<input type="hidden" name="customDataType_Со картичка (VISA)" id="customDataType_Со картичка (VISA)" value="6">
+<input type="hidden" name="customObjectID_Со картичка (VISA)" id="customObjectID_Со картичка (VISA)" value="10300">
+<input type="hidden" name="customDataType_Транспорт" id="customDataType_Транспорт" value="6">
+<input type="hidden" name="customObjectID_Транспорт" id="customObjectID_Транспорт" value="10226">
+<input type="hidden" name="customDataType_Увозник" id="customDataType_Увозник" value="12">
+<input type="hidden" name="customObjectID_Увозник" id="customObjectID_Увозник" value="10282">
+<input type="hidden" name="customDataType_Фабрички број" id="customDataType_Фабрички број" value="4">
+<input type="hidden" name="customObjectID_Фабрички број" id="customObjectID_Фабрички број" value="10433">
+<input type="hidden" name="customDataType_Шофер" id="customDataType_Шофер" value="16">
+<input type="hidden" name="customObjectID_Шофер" id="customObjectID_Шофер" value="99685">
+<input type="hidden" name="customDataType_Шпед.ДДВ" id="customDataType_Шпед.ДДВ" value="6">
+<input type="hidden" name="customObjectID_Шпед.ДДВ" id="customObjectID_Шпед.ДДВ" value="10230">
+<input type="hidden" name="customDataType_Шпедитерски трошоци" id="customDataType_Шпедитерски трошоци" value="6">
+<input type="hidden" name="customObjectID_Шпедитерски трошоци" id="customObjectID_Шпедитерски трошоци" value="10227">
+<SELECT NAME="custom" id="custom" class="selectinput"style="max-width: 400px; ">
+<option value="Delivered">Delivered</option>
+<option value="In Delivery">In Delivery</option>
+<option value="Part number">Part number</option>
+<option value="Payed By Kolporter">Payed By Kolporter</option>
+<option value="Picked Up">Picked Up</option>
+<option value="Problematic">Problematic</option>
+<option value="Received at Callporter ">Received at Callporter </option>
+<option value="Received at MEX station">Received at MEX station</option>
+<option value="Return to sender">Return to sender</option>
+<option value="Shipment created">Shipment created</option>
+<option value="Брза пошта">Брза пошта</option>
+<option value="број на дфи">број на дфи</option>
+<option value="Број на извод">Број на извод</option>
+<option value="Во готово">Во готово</option>
+<option value="вратено">вратено</option>
+<option value="Делко">Делко</option>
+<option value="денови на доспевање">денови на доспевање</option>
+<option value="денови на доспевање добавувач">денови на доспевање добавувач</option>
+<option value="денови на доспевање купувач">денови на доспевање купувач</option>
+<option value="достава">достава</option>
+<option value="Други трошоци">Други трошоци</option>
+<option value="Едшоп">Едшоп</option>
+<option value="Експрес пошта">Експрес пошта</option>
+<option value="Екстра трошоци">Екстра трошоци</option>
+<option value="Замена">Замена</option>
+<option value="Земја на потекло">Земја на потекло</option>
+<option value="Износ">Износ</option>
+<option value="Искористени поени">Искористени поени</option>
+<option value="Комерцијалист">Комерцијалист</option>
+<option value="Комитенти баркод">Комитенти баркод</option>
+<option value="Курсна разлика">Курсна разлика</option>
+<option value="Мекс пошта">Мекс пошта</option>
+<option value="Набавна вредност">Набавна вредност</option>
+<option value="Начин на плаќање">Начин на плаќање</option>
+<option value="неплатено">неплатено</option>
+<option value="непратено">непратено</option>
+<option value="Оддел">Оддел</option>
+<option value="откажано">откажано</option>
+<option value="платено">платено</option>
+<option value="Повторна достава">Повторна достава</option>
+<option value="Покасна нарачка">Покасна нарачка</option>
+<option value="Поштарина">Поштарина</option>
+<option value="пратено">пратено</option>
+<option value="Преостанати поени">Преостанати поени</option>
+<option value="Со картичка">Со картичка</option>
+<option value="Со картичка (DINERS)">Со картичка (DINERS)</option>
+<option value="Со картичка (MASTERCARD)">Со картичка (MASTERCARD)</option>
+<option value="Со картичка (VISA)">Со картичка (VISA)</option>
+<option value="Транспорт">Транспорт</option>
+<option value="Увозник">Увозник</option>
+<option value="Фабрички број">Фабрички број</option>
+<option value="Шофер">Шофер</option>
+<option value="Шпед.ДДВ">Шпед.ДДВ</option>
+<option value="Шпедитерски трошоци">Шпедитерски трошоци</option>
+</SELECT>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td colspan = "3">
+<input type="hidden" name="number" id="number" value="0">
+<input type="hidden" name="delcustom" id="delcustom" value="none">
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td colspan="3"></td>
+</tr>
+<tr>
+<td colspan="3">
+<input type="hidden" name="savedSearchId" value="-1">
+<input type="hidden" name="savedSearchTitle" value="">
+<input type="hidden" name="savedSearchType" value="0">
+<input type="hidden" name="searchParentId" value="10">
+<input type="hidden" name="autorun" value="true">
+<!-- export to excel button -->
+<!-- export to excel button END-->
+</td>
+</tr>
+<tr>
+<td colspan="3"></td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</form>
