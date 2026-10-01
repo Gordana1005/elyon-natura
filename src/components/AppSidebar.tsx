@@ -18,6 +18,7 @@ import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { PresenceHeaderButton } from '@/components/presence/PresenceHeaderButton';
 import { PBX_CONFIG } from '@/lib/voip/pbxConfig';
+import { navItemActive } from '@/lib/navActive';
 
 interface NavItem {
   /** i18n key under nav.* — resolved with t() at render time */
@@ -57,7 +58,8 @@ const sections: NavSection[] = [
     labelKey: '',
     items: [
       { titleKey: 'nav.calls', path: '/calls', icon: PhoneCall, moduleKey: 'calls' },
-      { titleKey: 'nav.callAgain', path: '/call-again', icon: Clock, moduleKey: 'calls' },
+      // A queue inside /calls since plan Фаза 11 (/call-again redirects there).
+      { titleKey: 'nav.callAgain', path: '/calls?queue=call-again', icon: Clock, moduleKey: 'calls' },
       { titleKey: 'nav.personalList', path: '/personal-list', icon: Lock, moduleKey: 'calls' },
     ],
   },
@@ -282,7 +284,9 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?:
             >
               {section.items.map(item => {
                 // Sub-routes (/settings/teams, /segments/:id…) keep their menu item lit; '/' stays exact.
-                const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(`${item.path}/`));
+                // A query item (/calls?queue=call-again) is lit only on that view, and its
+                // plain sibling (/calls) is not lit while that view is open.
+                const isActive = navItemActive(item.path, location.pathname, location.search, section.items.map((i) => i.path));
                 const linkContent = (
                   <Link
                     key={item.path}

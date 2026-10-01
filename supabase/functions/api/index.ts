@@ -83,6 +83,10 @@ import * as OL from "./ordersList.ts";
 // unit-tested in mexPush.test.ts / warehouseQueue.test.ts).
 import * as MP from "./mexPush.ts";
 import * as WQ from "./warehouseQueue.ts";
+// /calls — the outcome IS the call log (plan Фаза 11, 2026-10-01): body validation, which open
+// order an outcome acts on, the order / record / call_logs / member shapes and the orchestrator
+// behind POST /api/calls/outcome (pure, unit-tested in callsOutcome.test.ts).
+import * as CO from "./callsOutcome.ts";
 
 // ============================================================
 // INPUT VALIDATION SCHEMAS
@@ -1036,6 +1040,371 @@ async function clearCallObligation(client: any, agentId: string, phone: string |
   if (obLast8 === last8) {
     await client.from("agent_call_obligations").delete().eq("agent_id", agentId);
   }
+}
+
+// ── No-answer → humane paced retries + 9-consecutive auto-trash ─────
+// Moved VERBATIM out of POST /api/call-logs on 01.10.2026 (plan Фаза 11, /calls) so
+// POST /api/calls/outcome runs the very same lifecycle — one definition, two callers.
+// The caller logs the call FIRST: the trailing streak and today's count include it.
+async function applyNoAnswerLifecycle(
+  adminClient: any,
+  user: { id: string; email?: string | null },
+  customer_phone: string,
+): Promise<void> {
+  // Every real no-answer call lands here, so this is the single source of
+  // truth for the "doesn't pick up" lifecycle (both the call strip and the
+  // manual "Didn't Answer" button log a no_answer call). We count the
+  // trailing consecutive no-answers for this phone, and separately how many
+  // no-answers already happened TODAY (Europe/Skopje), to pace the calls:
+  //   • max 2 calls/day, spaced ~3–4h apart, kept on the SAME agent;
+  //   • after the 2nd no-answer today the client resurfaces at ~09:00 Skopje
+  //     the next morning (not again today — don't anger the customer);
+  //   • across ~4–5 calling days this reaches 9 no-answers → Unreachable:
+  //     move to Trash (reason "not_reachable"). Trash, NOT cancel, so cancel
+  //     insights stay clean. One trashed order: reuse a workable order if one
+  //     exists, else create a single one.
+  // No stub orders are created for the no-answer/call-again cycle itself.
+  // These knobs are hardcoded for now; they can later move to app_settings
+  // (like the Personal-List cap) to be tuned without a deploy.
+  const UNREACHABLE_TRASH_STREAK = 9;                     // consecutive no-answers → auto-trash
+  const MAX_CALLS_PER_DAY = 2;                            // per client, per Skopje day
+  const INTRA_DAY_COOLDOWN_MS = 3.5 * 60 * 60 * 1000;     // ~3–4h between the 2 daily attempts
+  const NEXT_DAY_RESUME_HOUR = 9;                         // Skopje local hour to resurface next morning
+  {
+    const digits = customer_phone.replace(/\D/g, "");
+    const last8 = digits.length >= 8 ? digits.slice(-8) : digits;
+    if (last8) {
+      // HARD LOCK (2026-08-10): a call outcome may only move an order that is
+      // unassigned or already the caller's. Before this, one agent's
+      // "didn't answer" parked — and on the 9th strike trashed — leads that
+      // belonged to a colleague, because every update below matched on phone
+      // alone. `user.id` is the JWT sub, so it is safe to interpolate.
+      const ownedByCaller = `assigned_agent_id.is.null,assigned_agent_id.eq.${user.id}`;
+      // Fetch enough history to both count the trailing streak (up to 9) and
+      // count today's no-answers — comfortably above the 9-streak window.
+      const { data: recentLogs } = await adminClient
+        .from("call_logs")
+        .select("outcome, connection_state, created_at")
+        .ilike("customer_phone", `%${last8}`)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      const logIsNoAnswer = (lg: any) => lg.outcome === "no_answer" || lg.connection_state === "no_answer";
+      let streak = 0;
+      for (const lg of recentLogs || []) {
+        if (logIsNoAnswer(lg)) streak++;
+        else break;
+      }
+
+      // Does this customer have a LIVE LEAD? If so the 9-strike auto-trash is
+      // off for them entirely (operator rule, 2026-08-10): a lead the customer
+      // asked for is chased until the AGENT decides it is dead — nine
+      // unanswered rings is not that decision. The rule stays on for
+      // prediction-list customers, who are cold outreach we initiated.
+      // This guard also stops a synthetic "Not reachable" order being
+      // invented alongside a real, open lead.
+      const { data: liveLead } = await adminClient
+        .from("orders")
+        .select("id")
+        .ilike("customer_phone", `%${last8}`)
+        .in("status", ["pending", "take", "call_again"])
+        .in("source_type", LEAD_SOURCE_TYPES)
+        .limit(1)
+        .maybeSingle();
+      const hasLiveLead = !!liveLead;
+
+      if (streak >= UNREACHABLE_TRASH_STREAK && !hasLiveLead) {
+        const NOTE = `Auto-trash: unreachable — ${UNREACHABLE_TRASH_STREAK} consecutive no-answers (doesn't pick up the phone)`;
+        const { data: workable } = await adminClient
+          .from("orders")
+          .select("id, notes")
+          .ilike("customer_phone", `%${last8}`)
+          .in("status", ["pending", "take", "call_again", "duplicated"])
+          .or(ownedByCaller)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (workable) {
+          await adminClient
+            .from("orders")
+            .update({
+              status: "trashed",
+              trash_reason: "not_reachable",
+              assigned_agent_id: null,
+              assigned_agent_name: null,
+              assigned_at: null,
+              next_call_after: null,
+              call_again_since: null,
+              notes: [workable.notes, NOTE].filter(Boolean).join("\n"),
+            })
+            .eq("id", workable.id);
+        } else {
+          await adminClient.from("orders").insert({
+            product_name: "Not reachable",
+            customer_phone,
+            status: "trashed",
+            trash_reason: "not_reachable",
+            price: 0,
+            quantity: 1,
+            notes: NOTE,
+          });
+        }
+        // Drop them from every calling queue. last_call_at is stamped too —
+        // an outcome without a date rendered as "never" in member tables.
+        await adminClient
+          .from("prediction_segment_members")
+          .update({ is_completed: true, last_call_outcome: "trash", last_call_at: new Date().toISOString(), in_call_again_until: null, call_again_since: null })
+          .ilike("customer_phone", `%${last8}`);
+      } else {
+        // Not unreachable yet — pace the retries. The current call is already
+        // logged above, so recentLogs includes it: count today's no-answers
+        // (Europe/Skopje day). Once the daily cap is hit, push to tomorrow
+        // morning; otherwise a short 3–4h intra-day gap.
+        const { startISO: skopjeTodayStart, day: skopjeToday } = skopjeDayStart();
+        const skopjeTodayStartMs = new Date(skopjeTodayStart).getTime();
+        const noAnswersToday = (recentLogs || []).filter(
+          (lg) => logIsNoAnswer(lg) && lg.created_at && new Date(lg.created_at).getTime() >= skopjeTodayStartMs,
+        ).length;
+        let cooldownUntil: string;
+        if (noAnswersToday >= MAX_CALLS_PER_DAY) {
+          // ~09:00 Skopje the next calling day (same agent — assignment kept).
+          const [ty, tm, td] = skopjeToday.split("-").map(Number);
+          const tomorrow = new Date(Date.UTC(ty, tm - 1, td + 1)).toISOString().slice(0, 10);
+          cooldownUntil = new Date(
+            new Date(skopjeMidnight(tomorrow)).getTime() + NEXT_DAY_RESUME_HOUR * 3600 * 1000,
+          ).toISOString();
+        } else {
+          cooldownUntil = new Date(Date.now() + INTRA_DAY_COOLDOWN_MS).toISOString();
+        }
+        const nowIso = new Date().toISOString();
+        // Prediction member: cooldown + mark as awaiting follow-up. Scoped to
+        // the caller for the same reason as the orders below — a colleague's
+        // no-answer must not park someone else's member row.
+        await adminClient
+          .from("prediction_segment_members")
+          .update({ in_call_again_until: cooldownUntil, last_call_at: nowIso, last_call_outcome: "no_answer" })
+          .ilike("customer_phone", `%${last8}`)
+          .or(ownedByCaller)
+          .eq("is_completed", false);
+        // call_again_since = the FIRST no-answer that opened the window
+        // (anchored, never reset while it keeps ringing).
+        await adminClient
+          .from("prediction_segment_members")
+          .update({ call_again_since: nowIso })
+          .ilike("customer_phone", `%${last8}`)
+          .or(ownedByCaller)
+          .eq("is_completed", false)
+          .is("call_again_since", null);
+        // Mark the EXISTING workable LEAD as Call Again (never create a 2nd
+        // order) so the operator sees it was already called.
+        //
+        // LEADS ONLY (operator rule, 2026-08-10). Call Again is a state of an
+        // unsettled inbound order: the customer asked for something, we
+        // haven't closed it, so we keep ringing. A prediction-list customer
+        // who doesn't answer is simply a NO ANSWER — the member row above
+        // already carries the cooldown and `last_call_outcome='no_answer'`,
+        // and they return to their own list. Flipping their `manual` order to
+        // call_again put prediction work into the agent's Pendings queue and
+        // buried the partner's leads.
+        //
+        // The lead STAYS with the agent who worked it: claim it for the caller
+        // if nobody owned it, and never touch a colleague's row. Without the
+        // claim the order goes back to the free pool the moment the take lock
+        // releases, and starts circulating between agents again.
+        //
+        // NO COOLDOWN ON LEADS (operator rule, 2026-08-10): `next_call_after`
+        // is left NULL so the lead never leaves its agent's queue and they
+        // can ring back whenever they judge it right. The paced schedule was
+        // built for cold prediction outreach; on a lead the customer is
+        // waiting for US, and hiding it until 09:00 tomorrow made agents
+        // think their call agains had vanished. The record of when they
+        // called is in `call_logs` — the pacing was guidance, the log is fact.
+        const { data: caller } = await adminClient
+          .from("profiles").select("full_name").eq("user_id", user.id).maybeSingle();
+        await adminClient
+          .from("orders")
+          .update({
+            status: "call_again",
+            next_call_after: null,
+            assigned_agent_id: user.id,
+            assigned_agent_name: caller?.full_name || user.email || null,
+            assigned_at: nowIso,
+          })
+          .ilike("customer_phone", `%${last8}`)
+          .in("status", ["pending", "take", "call_again"])
+          .in("source_type", LEAD_SOURCE_TYPES)
+          .is("assigned_agent_id", null);
+        await adminClient
+          .from("orders")
+          .update({ status: "call_again", next_call_after: null })
+          .ilike("customer_phone", `%${last8}`)
+          .in("status", ["pending", "take", "call_again"])
+          .in("source_type", LEAD_SOURCE_TYPES)
+          .eq("assigned_agent_id", user.id);
+        await adminClient
+          .from("orders")
+          .update({ call_again_since: nowIso })
+          .ilike("customer_phone", `%${last8}`)
+          .eq("status", "call_again")
+          .in("source_type", LEAD_SOURCE_TYPES)
+          .eq("assigned_agent_id", user.id)
+          .is("call_again_since", null);
+      }
+    }
+  }
+}
+
+// ── POST /api/calls/outcome — the database half ─────────────────────────────
+// callsOutcome.ts DECIDES (which order, the patch, the record, the call row, the member
+// patch); these ports only read and write. Every write uses the service role, scoped the
+// way the old browser calls were: an open order by id and its current status, the member
+// row by list + phone suffix + the caller, the call row as the caller.
+function callsOutcomePorts(
+  adminClient: any,
+  actor: { id: string; email: string | null; name: string | null; isAdminOrManager: boolean; isWarehouse: boolean },
+  lookups: {
+    attribution: (phone: string) => Promise<CO.Attribution | null>;
+    knownName: (phone: string) => Promise<string | null>;
+  },
+  now: Date,
+): CO.CallsOutcomePorts {
+  const actorName = actor.name || actor.email || null;
+  // Claim-on-action (PATCH /orders/:id/status): agents only — an admin / manager settling
+  // someone's order must not become its owner, warehouse never owns leads.
+  const coActor = { id: actor.id, name: actorName, claims: !actor.isAdminOrManager && !actor.isWarehouse };
+  const writeHistory = async (orderId: string, from: string | null, to: string) => {
+    const { error } = await adminClient.from("order_history").insert({
+      order_id: orderId, from_status: from, to_status: to, changed_by: actor.id, changed_by_name: actorName,
+    });
+    if (error) console.error("calls/outcome order_history:", error.message);
+  };
+  return {
+    async listOpenOrders(last8) {
+      // = GET /orders/open-lead: every open order for the phone, any owner, newest first.
+      const { data, error } = await adminClient
+        .from("orders")
+        .select("id, display_id, status, assigned_agent_id, assigned_agent_name, source_type, duplicated_from_display, created_at")
+        .ilike("customer_phone", `%${last8}`)
+        .in("status", [...CO.OPEN_ORDER_STATES])
+        .order("created_at", { ascending: false })
+        .limit(5);
+      if (error) throw new Error(sanitizeDbError(error));
+      return data || [];
+    },
+    async applyToOpenOrder({ orderId, outcome, reason, note, callbackAt }) {
+      const { data: order, error } = await adminClient
+        .from("orders")
+        .select("id, status, assigned_agent_id, call_again_since, cancelled_at, cancelled_by_agent_id")
+        .eq("id", orderId)
+        .maybeSingle();
+      if (error || !order) return { ok: false as const, status: 404, code: "order_not_found", error: "Order not found" };
+      const plan = CO.openOrderPatch({ order, outcome, reason, note, callbackAt, now, actor: coActor });
+      if (!plan.ok) return plan;
+      // Guarded on the status just read: a colleague settling it in between is a 409, never an overwrite.
+      const { data: moved, error: updErr } = await adminClient
+        .from("orders").update(plan.patch).eq("id", orderId).eq("status", plan.from).select("id");
+      if (updErr) return { ok: false as const, status: 400, code: "update_failed", error: sanitizeDbError(updErr) };
+      if (!moved || moved.length === 0) {
+        return { ok: false as const, status: 409, code: "order_moved", error: "The order changed while you were on it — open the customer again." };
+      }
+      if (plan.changed) await writeHistory(orderId, plan.from, plan.to);
+      return { ok: true as const, from: plan.from, to: plan.to, changed: plan.changed };
+    },
+    async createDispositionRecord({ phone, outcome, reason, note }) {
+      const [name, attribution, lastSale] = await Promise.all([
+        lookups.knownName(phone),
+        lookups.attribution(phone),
+        adminClient.rpc("last_sale_product", { p_phone: phone }).maybeSingle()
+          .then((r: any) => (r?.error ? null : r?.data ?? null), () => null),
+      ]);
+      const row = CO.dispositionOrderRow({
+        phone, outcome, reason, note, customerName: name, lastSale, attribution,
+        actor: { ...coActor, assignToSelf: !actor.isAdminOrManager }, now,
+      });
+      const { data, error } = await adminClient.from("orders").insert(row).select("id, product_name").single();
+      if (error || !data) return { ok: false as const, status: 400, error: sanitizeDbError(error) };
+      await writeHistory(data.id, null, String(row.status));
+      return { ok: true as const, id: data.id, product_name: data.product_name };
+    },
+    async insertCallLog(row) {
+      // VOIP parity (POST /call-logs, "dedupe the call row with its result"): the softphone
+      // logs its own 'answered' row the moment a call ends; a result recorded within 5 min
+      // re-tags THAT row instead of adding a second one. With VOIP off there is no such row.
+      if (row.outcome !== "no_answer") {
+        const p8 = CO.phone8(row.customer_phone);
+        const { data: cands } = await adminClient
+          .from("call_logs")
+          .select("id, notes")
+          .eq("agent_id", row.agent_id)
+          .ilike("customer_phone", `%${p8}`)
+          .not("started_at", "is", null)
+          .in("outcome", ["answered", "interested"])
+          .gte("ended_at", new Date(now.getTime() - 5 * 60 * 1000).toISOString())
+          .order("ended_at", { ascending: false })
+          .limit(1);
+        const hit = (cands || [])[0];
+        if (p8 && hit) {
+          const { error: tagErr } = await adminClient.from("call_logs").update({
+            outcome: row.outcome,
+            notes: [hit.notes, row.notes].filter(Boolean).join("\n") || null,
+            ...(row.context_id ? { context_type: row.context_type, context_id: row.context_id } : {}),
+          }).eq("id", hit.id);
+          if (!tagErr) return { ok: true as const, id: hit.id };
+        }
+      }
+      let res = await adminClient.from("call_logs").insert(row).select("id").single();
+      // The api may go live before migration 20260943001700 (call_logs.source): degrade, never fail.
+      if (res.error && (res.error.code === "PGRST204" || /\bsource\b/i.test(res.error.message || ""))) {
+        const { source: _source, ...legacy } = row;
+        res = await adminClient.from("call_logs").insert(legacy).select("id").single();
+      }
+      if (res.error || !res.data) return { ok: false as const, error: sanitizeDbError(res.error) };
+      return { ok: true as const, id: res.data.id };
+    },
+    async afterNoAnswer(phone) {
+      await applyNoAnswerLifecycle(adminClient, { id: actor.id, email: actor.email }, phone);
+    },
+    async clearMissedCalls(last8) {
+      if (last8.length < 7) return;
+      await adminClient.from("missed_calls")
+        .update({ status: "called_back" })
+        .eq("linked_phone_norm", last8)
+        .in("status", ["new", "assigned"]);
+    },
+    async clearObligation(phone) {
+      await clearCallObligation(adminClient, actor.id, phone);
+    },
+    async markMember({ listId, last8, patch }) {
+      // markAfterCall parity: only the caller's own member row in that list (suffix match, rule 7).
+      const { count, error } = await adminClient
+        .from("prediction_segment_members")
+        .update(patch, { count: "exact" })
+        .eq("list_id", listId)
+        .ilike("customer_phone", `%${last8}`)
+        .eq("assigned_agent_id", actor.id);
+      if (error) { console.error("calls/outcome member:", error.message); return 0; }
+      return count ?? 0;
+    },
+    notify({ outcome, orderChanged }) {
+      broadcastAssigner({ agent_id: actor.id });
+      // Agent tiles listen on the TV channel; a cancel / trash / callback is a `refresh`, not confetti.
+      if (orderChanged && outcome !== "confirmed" && outcome !== "no_answer") {
+        void broadcastLeaderboard("refresh", { agent_id: actor.id });
+      }
+    },
+  };
+}
+
+// GET /api/calls/progress reads the caller's row of leaderboard_day_v2 (the TV board — one
+// calculation everywhere). ~150 ms for the whole floor, so one result per isolate is shared
+// for 30 s instead of being recomputed for every agent's poll.
+const LB_SELF_TTL_MS = 30_000;
+let lbTodayCache: { day: string; at: number; data: unknown } | null = null;
+async function leaderboardTodayCached(adminClient: any, day: string): Promise<unknown | null> {
+  if (lbTodayCache && lbTodayCache.day === day && Date.now() - lbTodayCache.at < LB_SELF_TTL_MS) return lbTodayCache.data;
+  const { data, error } = await adminClient.rpc("leaderboard_day_v2", { p_day: day, p_department: null, p_team: null });
+  if (error || !data) { console.error("calls/progress leaderboard_day_v2:", error?.message); return null; }
+  lbTodayCache = { day, at: Date.now(), data };
+  return data;
 }
 
 // CORS headers — origin is set per-request in the serve wrapper below.
@@ -11707,207 +12076,12 @@ async function handleRequest(req: Request): Promise<Response> {
       // release this agent's mandatory-answer obligation for the customer.
       await clearCallObligation(adminClient, user.id, customer_phone);
 
-      // ── No-answer → humane paced retries + 9-consecutive auto-trash ─────
-      // Every real no-answer call lands here, so this is the single source of
-      // truth for the "doesn't pick up" lifecycle (both the call strip and the
-      // manual "Didn't Answer" button log a no_answer call). We count the
-      // trailing consecutive no-answers for this phone, and separately how many
-      // no-answers already happened TODAY (Europe/Skopje), to pace the calls:
-      //   • max 2 calls/day, spaced ~3–4h apart, kept on the SAME agent;
-      //   • after the 2nd no-answer today the client resurfaces at ~09:00 Skopje
-      //     the next morning (not again today — don't anger the customer);
-      //   • across ~4–5 calling days this reaches 9 no-answers → Unreachable:
-      //     move to Trash (reason "not_reachable"). Trash, NOT cancel, so cancel
-      //     insights stay clean. One trashed order: reuse a workable order if one
-      //     exists, else create a single one.
-      // No stub orders are created for the no-answer/call-again cycle itself.
-      // These knobs are hardcoded for now; they can later move to app_settings
-      // (like the Personal-List cap) to be tuned without a deploy.
-      const UNREACHABLE_TRASH_STREAK = 9;                     // consecutive no-answers → auto-trash
-      const MAX_CALLS_PER_DAY = 2;                            // per client, per Skopje day
-      const INTRA_DAY_COOLDOWN_MS = 3.5 * 60 * 60 * 1000;     // ~3–4h between the 2 daily attempts
-      const NEXT_DAY_RESUME_HOUR = 9;                         // Skopje local hour to resurface next morning
+      // No-answer → paced retries + the 9-strike rule (applyNoAnswerLifecycle, shared
+      // with POST /api/calls/outcome). This call is already logged above, so the
+      // streak and today's count include it.
       const isNoAnswer = outcome === "no_answer" || connection_state === "no_answer";
       if (isNoAnswer && customer_phone) {
-        const digits = customer_phone.replace(/\D/g, "");
-        const last8 = digits.length >= 8 ? digits.slice(-8) : digits;
-        if (last8) {
-          // HARD LOCK (2026-08-10): a call outcome may only move an order that is
-          // unassigned or already the caller's. Before this, one agent's
-          // "didn't answer" parked — and on the 9th strike trashed — leads that
-          // belonged to a colleague, because every update below matched on phone
-          // alone. `user.id` is the JWT sub, so it is safe to interpolate.
-          const ownedByCaller = `assigned_agent_id.is.null,assigned_agent_id.eq.${user.id}`;
-          // Fetch enough history to both count the trailing streak (up to 9) and
-          // count today's no-answers — comfortably above the 9-streak window.
-          const { data: recentLogs } = await adminClient
-            .from("call_logs")
-            .select("outcome, connection_state, created_at")
-            .ilike("customer_phone", `%${last8}`)
-            .order("created_at", { ascending: false })
-            .limit(20);
-          const logIsNoAnswer = (lg: any) => lg.outcome === "no_answer" || lg.connection_state === "no_answer";
-          let streak = 0;
-          for (const lg of recentLogs || []) {
-            if (logIsNoAnswer(lg)) streak++;
-            else break;
-          }
-
-          // Does this customer have a LIVE LEAD? If so the 9-strike auto-trash is
-          // off for them entirely (operator rule, 2026-08-10): a lead the customer
-          // asked for is chased until the AGENT decides it is dead — nine
-          // unanswered rings is not that decision. The rule stays on for
-          // prediction-list customers, who are cold outreach we initiated.
-          // This guard also stops a synthetic "Not reachable" order being
-          // invented alongside a real, open lead.
-          const { data: liveLead } = await adminClient
-            .from("orders")
-            .select("id")
-            .ilike("customer_phone", `%${last8}`)
-            .in("status", ["pending", "take", "call_again"])
-            .in("source_type", LEAD_SOURCE_TYPES)
-            .limit(1)
-            .maybeSingle();
-          const hasLiveLead = !!liveLead;
-
-          if (streak >= UNREACHABLE_TRASH_STREAK && !hasLiveLead) {
-            const NOTE = `Auto-trash: unreachable — ${UNREACHABLE_TRASH_STREAK} consecutive no-answers (doesn't pick up the phone)`;
-            const { data: workable } = await adminClient
-              .from("orders")
-              .select("id, notes")
-              .ilike("customer_phone", `%${last8}`)
-              .in("status", ["pending", "take", "call_again", "duplicated"])
-              .or(ownedByCaller)
-              .order("created_at", { ascending: false })
-              .limit(1)
-              .maybeSingle();
-            if (workable) {
-              await adminClient
-                .from("orders")
-                .update({
-                  status: "trashed",
-                  trash_reason: "not_reachable",
-                  assigned_agent_id: null,
-                  assigned_agent_name: null,
-                  assigned_at: null,
-                  next_call_after: null,
-                  call_again_since: null,
-                  notes: [workable.notes, NOTE].filter(Boolean).join("\n"),
-                })
-                .eq("id", workable.id);
-            } else {
-              await adminClient.from("orders").insert({
-                product_name: "Not reachable",
-                customer_phone,
-                status: "trashed",
-                trash_reason: "not_reachable",
-                price: 0,
-                quantity: 1,
-                notes: NOTE,
-              });
-            }
-            // Drop them from every calling queue. last_call_at is stamped too —
-            // an outcome without a date rendered as "never" in member tables.
-            await adminClient
-              .from("prediction_segment_members")
-              .update({ is_completed: true, last_call_outcome: "trash", last_call_at: new Date().toISOString(), in_call_again_until: null, call_again_since: null })
-              .ilike("customer_phone", `%${last8}`);
-          } else {
-            // Not unreachable yet — pace the retries. The current call is already
-            // logged above, so recentLogs includes it: count today's no-answers
-            // (Europe/Skopje day). Once the daily cap is hit, push to tomorrow
-            // morning; otherwise a short 3–4h intra-day gap.
-            const { startISO: skopjeTodayStart, day: skopjeToday } = skopjeDayStart();
-            const skopjeTodayStartMs = new Date(skopjeTodayStart).getTime();
-            const noAnswersToday = (recentLogs || []).filter(
-              (lg) => logIsNoAnswer(lg) && lg.created_at && new Date(lg.created_at).getTime() >= skopjeTodayStartMs,
-            ).length;
-            let cooldownUntil: string;
-            if (noAnswersToday >= MAX_CALLS_PER_DAY) {
-              // ~09:00 Skopje the next calling day (same agent — assignment kept).
-              const [ty, tm, td] = skopjeToday.split("-").map(Number);
-              const tomorrow = new Date(Date.UTC(ty, tm - 1, td + 1)).toISOString().slice(0, 10);
-              cooldownUntil = new Date(
-                new Date(skopjeMidnight(tomorrow)).getTime() + NEXT_DAY_RESUME_HOUR * 3600 * 1000,
-              ).toISOString();
-            } else {
-              cooldownUntil = new Date(Date.now() + INTRA_DAY_COOLDOWN_MS).toISOString();
-            }
-            const nowIso = new Date().toISOString();
-            // Prediction member: cooldown + mark as awaiting follow-up. Scoped to
-            // the caller for the same reason as the orders below — a colleague's
-            // no-answer must not park someone else's member row.
-            await adminClient
-              .from("prediction_segment_members")
-              .update({ in_call_again_until: cooldownUntil, last_call_at: nowIso, last_call_outcome: "no_answer" })
-              .ilike("customer_phone", `%${last8}`)
-              .or(ownedByCaller)
-              .eq("is_completed", false);
-            // call_again_since = the FIRST no-answer that opened the window
-            // (anchored, never reset while it keeps ringing).
-            await adminClient
-              .from("prediction_segment_members")
-              .update({ call_again_since: nowIso })
-              .ilike("customer_phone", `%${last8}`)
-              .or(ownedByCaller)
-              .eq("is_completed", false)
-              .is("call_again_since", null);
-            // Mark the EXISTING workable LEAD as Call Again (never create a 2nd
-            // order) so the operator sees it was already called.
-            //
-            // LEADS ONLY (operator rule, 2026-08-10). Call Again is a state of an
-            // unsettled inbound order: the customer asked for something, we
-            // haven't closed it, so we keep ringing. A prediction-list customer
-            // who doesn't answer is simply a NO ANSWER — the member row above
-            // already carries the cooldown and `last_call_outcome='no_answer'`,
-            // and they return to their own list. Flipping their `manual` order to
-            // call_again put prediction work into the agent's Pendings queue and
-            // buried the partner's leads.
-            //
-            // The lead STAYS with the agent who worked it: claim it for the caller
-            // if nobody owned it, and never touch a colleague's row. Without the
-            // claim the order goes back to the free pool the moment the take lock
-            // releases, and starts circulating between agents again.
-            //
-            // NO COOLDOWN ON LEADS (operator rule, 2026-08-10): `next_call_after`
-            // is left NULL so the lead never leaves its agent's queue and they
-            // can ring back whenever they judge it right. The paced schedule was
-            // built for cold prediction outreach; on a lead the customer is
-            // waiting for US, and hiding it until 09:00 tomorrow made agents
-            // think their call agains had vanished. The record of when they
-            // called is in `call_logs` — the pacing was guidance, the log is fact.
-            const { data: caller } = await adminClient
-              .from("profiles").select("full_name").eq("user_id", user.id).maybeSingle();
-            await adminClient
-              .from("orders")
-              .update({
-                status: "call_again",
-                next_call_after: null,
-                assigned_agent_id: user.id,
-                assigned_agent_name: caller?.full_name || user.email || null,
-                assigned_at: nowIso,
-              })
-              .ilike("customer_phone", `%${last8}`)
-              .in("status", ["pending", "take", "call_again"])
-              .in("source_type", LEAD_SOURCE_TYPES)
-              .is("assigned_agent_id", null);
-            await adminClient
-              .from("orders")
-              .update({ status: "call_again", next_call_after: null })
-              .ilike("customer_phone", `%${last8}`)
-              .in("status", ["pending", "take", "call_again"])
-              .in("source_type", LEAD_SOURCE_TYPES)
-              .eq("assigned_agent_id", user.id);
-            await adminClient
-              .from("orders")
-              .update({ call_again_since: nowIso })
-              .ilike("customer_phone", `%${last8}`)
-              .eq("status", "call_again")
-              .in("source_type", LEAD_SOURCE_TYPES)
-              .eq("assigned_agent_id", user.id)
-              .is("call_again_since", null);
-          }
-        }
+        await applyNoAnswerLifecycle(adminClient, user, customer_phone);
       }
 
       // Auto-update prediction lead status based on outcome
@@ -11947,6 +12121,103 @@ async function handleRequest(req: Request): Promise<Response> {
       // to call_again, a no-answer parking a member, an auto-trash, a claim).
       broadcastAssigner({ agent_id: user.id });
       return json({ ...data, order_warning });
+    }
+
+    // ── /calls: the outcome IS the call log (plan Фаза 11, 2026-10-01) ─────────
+    // POST /api/calls/outcome {phone, outcome, reason?, note?, order_id?, list_id?,
+    // callback_at?, started_at?} — one tap, one call: the open order moved (or the
+    // cancel / trash record written), ONE call_logs row (source 'handset'), the
+    // obligation cleared, the list member marked. 409 choose_order {leads} when the
+    // customer has several open orders and none was chosen. The old endpoints
+    // (open-lead, PATCH status, POST /orders, POST /call-logs) stay for old bundles.
+    if (req.method === "POST" && path === "calls/outcome") {
+      if (!canMutateOrders) return json({ error: "Forbidden" }, 403);
+      if (!checkUserRateLimit(user.id, "calls.outcome", 60)) {
+        return json({ error: "Rate limit exceeded — slow down", code: "rate_limited" }, 429);
+      }
+      let raw: unknown;
+      try { raw = await req.json(); } catch { return json({ error: "Invalid JSON", code: "invalid_body" }, 400); }
+      const now = new Date();
+      const parsed = CO.parseCallOutcomeBody(raw, now);
+      if (!parsed.ok) return json({ error: parsed.error, code: parsed.code }, 400);
+      const { data: me } = await adminClient.from("profiles").select("full_name").eq("user_id", user.id).maybeSingle();
+      const ports = callsOutcomePorts(
+        adminClient,
+        { id: user.id, email: user.email ?? null, name: me?.full_name ?? null, isAdminOrManager, isWarehouse },
+        { attribution: resolvePredictionAttribution, knownName: resolveKnownCustomerName },
+        now,
+      );
+      try {
+        const res = await CO.recordCallOutcome(ports, parsed.input, { agentId: user.id, now });
+        return json(res.body, res.status);
+      } catch (e: any) {
+        console.error("calls/outcome:", e?.message || e);
+        return json({ error: "The outcome could not be recorded", code: "failed" }, 500);
+      }
+    }
+
+    // GET /api/calls/call-again — "Мои": the caller's own callbacks (lead orders in
+    // call_again + list members with an open call-again window — the Assigner's
+    // definition), due first, then by due time, with the REAL last call. Never expires
+    // anything on read (cron call-again-expiry runs every 5 min). Managers see everyone's
+    // in the Assigner's call-agains tab.
+    if (req.method === "GET" && path === "calls/call-again") {
+      const CAP = 500;
+      const [ordersRes, membersRes] = await Promise.all([
+        adminClient
+          .from("orders")
+          .select("id, display_id, customer_phone, customer_name, product_name, next_call_after, call_again_since")
+          .eq("assigned_agent_id", user.id)
+          .eq("status", "call_again")
+          .in("source_type", LEAD_SOURCE_TYPES)
+          .order("call_again_since", { ascending: true, nullsFirst: false })
+          .limit(CAP),
+        adminClient
+          .from("prediction_segment_members")
+          .select("list_id, customer_phone, customer_name, in_call_again_until, call_again_since, last_call_at, last_call_outcome, prediction_segment_lists(name)")
+          .eq("assigned_agent_id", user.id)
+          .not("call_again_since", "is", null)
+          .eq("is_completed", false)
+          .order("call_again_since", { ascending: true })
+          .limit(CAP),
+      ]);
+      if (ordersRes.error) return json({ error: sanitizeDbError(ordersRes.error) }, 400);
+      if (membersRes.error) return json({ error: sanitizeDbError(membersRes.error) }, 400);
+      const p8s = [...new Set([...(ordersRes.data || []), ...(membersRes.data || [])]
+        .map((r: any) => CO.phone8(r.customer_phone)).filter(Boolean))];
+      let lastCalls: CO.LastCallRow[] = [];
+      if (p8s.length > 0) {
+        const { data: lc, error: lcErr } = await adminClient.rpc("bulk_last_calls", { p8s });
+        if (lcErr) console.error("calls/call-again bulk_last_calls:", lcErr.message);
+        lastCalls = (lc || []) as CO.LastCallRow[];
+      }
+      const shaped = CO.shapeMyCallbacks({
+        orders: (ordersRes.data || []) as CO.CallbackOrderRow[],
+        members: (membersRes.data || []) as CO.CallbackMemberRow[],
+        lastCalls,
+        now: new Date(),
+      });
+      return json({ generated_at: new Date().toISOString(), ...shaped, items: redactCustomerList(shaped.items, piiFlags) });
+    }
+
+    // GET /api/calls/progress — the /calls progress row: my outcomes today (call_logs —
+    // every /calls outcome writes one) and my sales / decisions today from the TV board
+    // (leaderboard_day_v2). Counts only, no money. Skopje day.
+    if (req.method === "GET" && path === "calls/progress") {
+      const { startISO, day } = skopjeDayStart();
+      const [callsRes, lb] = await Promise.all([
+        adminClient.from("call_logs").select("id", { count: "exact", head: true })
+          .eq("agent_id", user.id).gte("created_at", startISO),
+        leaderboardTodayCached(adminClient, day),
+      ]);
+      const self = lb ? CO.pickLeaderboardSelf(lb, user.id) : null;
+      return json({
+        day,
+        calls_today: callsRes.count ?? 0,
+        sales_today: lb ? (self?.sales ?? 0) : null,
+        worked_today: lb ? (self?.worked ?? 0) : null,
+        generated_at: new Date().toISOString(),
+      });
     }
 
     // GET /api/call-history (list all call logs with filters, pagination, enriched data)
@@ -13008,14 +13279,15 @@ async function handleRequest(req: Request): Promise<Response> {
     // Two sources, merged and de-duped by phone (the order row wins):
     //   A) prediction_segment_members in an open window (call_again_since set)
     //   B) orders currently in 'call_again' status (the order the agent called)
-    // Sorted by in_call_again_until ASC so soonest-due appears first. Expiry is
-    // lazy: anything past its 3-day window is reverted here before we read.
+    // Sorted by in_call_again_until ASC so soonest-due appears first.
+    // Kept for old bundles: /call-again now redirects to /calls?queue=call-again
+    // (GET /api/calls/call-again). It no longer expires anything on read — the
+    // pg_cron job call-again-expiry (every 5 min) runs expire_call_again_window().
     if (req.method === "GET" && path === "call-again-queue") {
       const mine = url.searchParams.get("mine") !== "false";
       // Any floor agent may browse the whole callback list — opening one on
       // /calls claims it. Affiliates never reach this route.
       const restrictToMe = mine;
-      await adminClient.rpc("expire_call_again_window");
 
       // ── Source A: prediction members in an open window ──
       let qa = adminClient
@@ -13247,7 +13519,7 @@ async function handleRequest(req: Request): Promise<Response> {
           type: "assignment",
           title: "Call Agains assigned to you",
           message: `${assigned} customer${assigned === 1 ? "" : "s"} to call back — open Call Again.`,
-          link: "/call-again",
+          link: "/calls?queue=call-again",
           // English above is the fallback; the reader sees their own locale via
           // notif.callAgainsAssigned.* (all four locales). The namespace is
           // `notif`, matching notif.shippedUnpaid / notif.unpaidDigest — see

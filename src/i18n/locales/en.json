@@ -2382,6 +2382,119 @@
     "agentNoHolds": "This agent hasn't claimed any customers.",
     "agentsSummary": "{{agents}} agents holding {{customers}} customers"
   },
+  "callsWork": {
+    "barLabel": "Call outcome",
+    "outcome": {
+      "no_answer": "No answer",
+      "call_again": "Call again",
+      "cancelled": "Cancelled",
+      "trash": "Trash",
+      "confirmed": "Confirm"
+    },
+    "outcomeHint": {
+      "no_answer": "Didn't pick up — next customer at once (undo for 5 seconds)",
+      "call_again": "Answered and asked for a call later — pick a time",
+      "cancelled": "Doesn't want it — pick a reason",
+      "trash": "Wrong number, rude, unreachable… — pick a reason",
+      "confirmed": "Ordered — open the order form"
+    },
+    "pick": {
+      "call_again": "When should we call back?",
+      "cancelled": "Why did they cancel?",
+      "trash": "Why trash?"
+    },
+    "otherReason": "Other…",
+    "otherTime": "Other time…",
+    "close": "Close",
+    "callback": {
+      "in1h": "In 1 hour",
+      "in3h": "In 3 hours",
+      "evening": "This evening",
+      "tomorrow": "Tomorrow"
+    },
+    "dialog": {
+      "cancelled": "Cancelled — reason",
+      "trash": "Trash — reason",
+      "call_again": "Call again — time",
+      "saveCancelled": "Save cancellation",
+      "saveTrash": "Move to trash",
+      "saveCallback": "Schedule the call",
+      "callbackLabel": "Date and time",
+      "callbackHint": "Within 5 days at most."
+    },
+    "undo": {
+      "noAnswer": "No answer — {{name}}",
+      "button": "Undo"
+    },
+    "toast": {
+      "cancelled": "Cancellation recorded",
+      "trash": "Moved to trash",
+      "callAgain": "Call back at {{time}}",
+      "failed": "The outcome was not saved",
+      "routeMissing": "The server doesn't have the new version yet — refresh the page in a moment.",
+      "orderMoved": "The order changed while you were on it — open the customer again."
+    },
+    "dial": {
+      "callNumber": "Call {{phone}}",
+      "copy": "Copy",
+      "copied": "Number copied",
+      "copiedDesc": "Call from your own phone, then record the outcome below.",
+      "copyFailed": "The number could not be copied",
+      "fromHandset": "Call from your own phone",
+      "open": "Open",
+      "openNumber": "Open a number",
+      "openPlaceholder": "Open a number…"
+    },
+    "progress": {
+      "title": "Today",
+      "left": "In the queue",
+      "leftSub": "customers to call",
+      "calls": "Calls today",
+      "callsSub": "every outcome is one call",
+      "sales": "Sales today",
+      "salesSub": "as on the TV board"
+    },
+    "queue": {
+      "label": "Queues",
+      "main": "Queue",
+      "callAgain": "Call agains",
+      "leads": "Leads"
+    },
+    "callbacks": {
+      "dueNow": "Now",
+      "dueAt": "at {{time}}",
+      "dueOn": "{{date}} at {{time}}",
+      "lead": "Lead",
+      "list": "List",
+      "lastCall": "Last call {{when}} — {{outcome}}",
+      "noCall": "No call yet",
+      "waiting_one": "waiting {{count}} day",
+      "waiting_other": "waiting {{count}} days",
+      "open": "Call",
+      "loadFailed": "Your call agains could not be loaded.",
+      "retry": "Try again",
+      "emptyTitle": "No call agains",
+      "emptyDesc": "When a customer asks to be called later or doesn't answer, they show up here.",
+      "intro": "Your call agains — the ones due now first (longest waiting first), then by time. Every agent's call agains are in the Assigner.",
+      "section": {
+        "due": "Due now",
+        "soon": "Soon (within 2 hours)",
+        "later": "Later"
+      },
+      "dueCta_one": "{{count}} call again is due",
+      "dueCta_other": "{{count}} call agains are due"
+    },
+    "quality": {
+      "HIGH": "High",
+      "MEDIUM": "Medium",
+      "RISK": "Risk",
+      "reason": "{{paid}} paid · {{returned}} returned · {{total}} orders"
+    },
+    "cooldownReason": {
+      "paid": "paid order",
+      "other": "order"
+    }
+  },
   "callsPage": {
     "enterPhone": "Enter a phone number",
     "enterPhoneDesc": "At least 6 digits required.",

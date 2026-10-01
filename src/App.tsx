@@ -17,6 +17,7 @@ import LoginPage from "./pages/LoginPage";
 import StartPage from "./pages/StartPage";
 import { AppErrorBoundary } from "./components/AppErrorBoundary";
 import NotFound from "./pages/NotFound";
+import { CallAgainRedirect } from "./components/calls/work/CallAgainRedirect";
 
 // Lazy: every other page splits into its own chunk and loads on first navigation.
 // We deliberately DO NOT configure rollup manualChunks — Vite's automatic
@@ -42,7 +43,6 @@ const MissedCallsPage = lazy(() => import("./pages/MissedCallsPage"));
 const SegmentsPage = lazy(() => import("./pages/SegmentsPage"));
 const SegmentDetailPage = lazy(() => import("./pages/SegmentDetailPage"));
 const PersonalListPage = lazy(() => import("./pages/PersonalListPage"));
-const CallAgainPage = lazy(() => import("./pages/CallAgainPage"));
 const VoipHealthPage = lazy(() => import("./pages/VoipHealthPage"));
 const AffiliatesAdminPage = lazy(() => import("./pages/AffiliatesAdminPage"));
 const AlterCpaPage = lazy(() => import("./pages/AlterCpaPage"));
@@ -152,7 +152,8 @@ const App = () => (
                 <Route path="/segments" element={<ProtectedRoute moduleKey="segments"><SegmentsPage /></ProtectedRoute>} />
                 <Route path="/segments/:id" element={<ProtectedRoute moduleKey="segments"><SegmentDetailPage /></ProtectedRoute>} />
                 <Route path="/personal-list" element={<ProtectedRoute moduleKey="calls"><PersonalListPage /></ProtectedRoute>} />
-                <Route path="/call-again" element={<ProtectedRoute moduleKey="calls"><CallAgainPage /></ProtectedRoute>} />
+                {/* Plan Фаза 11: the callbacks are a queue inside /calls ("Мои"); everyone's are the Assigner's tab. */}
+                <Route path="/call-again" element={<CallAgainRedirect />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>

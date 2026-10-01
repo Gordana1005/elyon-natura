@@ -2382,6 +2382,119 @@
     "agentNoHolds": "Ky agjent nuk ka klientë të rezervuar.",
     "agentsSummary": "{{agents}} agjentë me {{customers}} klientë të rezervuar"
   },
+  "callsWork": {
+    "barLabel": "Rezultati i thirrjes",
+    "outcome": {
+      "no_answer": "Nuk përgjigjet",
+      "call_again": "Përsëri",
+      "cancelled": "Anuloi",
+      "trash": "Kosh",
+      "confirmed": "Konfirmo"
+    },
+    "outcomeHint": {
+      "no_answer": "Nuk u përgjigj — klienti tjetër menjëherë (mund të kthehet për 5 sekonda)",
+      "call_again": "U përgjigj dhe kërkoi thirrje më vonë — zgjidh orën",
+      "cancelled": "Nuk e do — zgjidh arsyen",
+      "trash": "Numër i gabuar, i vrazhdë, i paarritshëm… — zgjidh arsyen",
+      "confirmed": "Porositi — hap formularin e porosisë"
+    },
+    "pick": {
+      "call_again": "Kur të telefonojmë përsëri?",
+      "cancelled": "Pse anuloi?",
+      "trash": "Pse në kosh?"
+    },
+    "otherReason": "Tjetër…",
+    "otherTime": "Orë tjetër…",
+    "close": "Mbyll",
+    "callback": {
+      "in1h": "Pas 1 ore",
+      "in3h": "Pas 3 orësh",
+      "evening": "Sonte",
+      "tomorrow": "Nesër"
+    },
+    "dialog": {
+      "cancelled": "Anuloi — arsyeja",
+      "trash": "Kosh — arsyeja",
+      "call_again": "Thirrje përsëri — ora",
+      "saveCancelled": "Ruaj anulimin",
+      "saveTrash": "Vendos në kosh",
+      "saveCallback": "Planifiko thirrjen",
+      "callbackLabel": "Data dhe ora",
+      "callbackHint": "Më së shumti brenda 5 ditëve."
+    },
+    "undo": {
+      "noAnswer": "Nuk përgjigjet — {{name}}",
+      "button": "Kthe"
+    },
+    "toast": {
+      "cancelled": "Anulimi u regjistrua",
+      "trash": "U vendos në kosh",
+      "callAgain": "Thirrje përsëri në {{time}}",
+      "failed": "Rezultati nuk u ruajt",
+      "routeMissing": "Serveri nuk e ka ende versionin e ri — rifresko faqen pas pak.",
+      "orderMoved": "Porosia ndryshoi ndërsa ishit në të — hapeni klientin përsëri."
+    },
+    "dial": {
+      "callNumber": "Telefono {{phone}}",
+      "copy": "Kopjo",
+      "copied": "Numri u kopjua",
+      "copiedDesc": "Telefono nga telefoni yt, pastaj regjistro rezultatin më poshtë.",
+      "copyFailed": "Numri nuk mund të kopjohej",
+      "fromHandset": "Telefono nga telefoni yt",
+      "open": "Hap",
+      "openNumber": "Hap një numër",
+      "openPlaceholder": "Hap një numër…"
+    },
+    "progress": {
+      "title": "Sot",
+      "left": "Në radhë",
+      "leftSub": "klientë për të telefonuar",
+      "calls": "Thirrje sot",
+      "callsSub": "çdo rezultat është një thirrje",
+      "sales": "Shitje sot",
+      "salesSub": "si në tabelën e TV-së"
+    },
+    "queue": {
+      "label": "Radhët",
+      "main": "Radha",
+      "callAgain": "Thirrje përsëri",
+      "leads": "Lida"
+    },
+    "callbacks": {
+      "dueNow": "Tani",
+      "dueAt": "në {{time}}",
+      "dueOn": "{{date}} në {{time}}",
+      "lead": "Lid",
+      "list": "Listë",
+      "lastCall": "Thirrja e fundit {{when}} — {{outcome}}",
+      "noCall": "Ende pa thirrje",
+      "waiting_one": "pret {{count}} ditë",
+      "waiting_other": "pret {{count}} ditë",
+      "open": "Telefono",
+      "loadFailed": "Thirrjet përsëri nuk u ngarkuan.",
+      "retry": "Provo përsëri",
+      "emptyTitle": "Nuk ke thirrje përsëri",
+      "emptyDesc": "Kur një klient kërkon të telefonosh më vonë ose nuk përgjigjet, shfaqet këtu.",
+      "intro": "Thirrjet e tua përsëri — së pari ato për tani (kush pret më gjatë), pastaj sipas orës. Thirrjet përsëri të të gjithë agjentëve janë te Caktuesi.",
+      "section": {
+        "due": "Për tani",
+        "soon": "Së shpejti (brenda 2 orëve)",
+        "later": "Më vonë"
+      },
+      "dueCta_one": "{{count}} thirrje përsëri pret",
+      "dueCta_other": "{{count}} thirrje përsëri presin"
+    },
+    "quality": {
+      "HIGH": "I lartë",
+      "MEDIUM": "Mesatar",
+      "RISK": "Rrezik",
+      "reason": "{{paid}} të paguara · {{returned}} të kthyera · {{total}} porosi"
+    },
+    "cooldownReason": {
+      "paid": "porosi e paguar",
+      "other": "porosi"
+    }
+  },
   "callsPage": {
     "enterPhone": "Shkruaj një numër telefoni",
     "enterPhoneDesc": "Kërkohen të paktën 6 shifra.",

@@ -2,21 +2,36 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Phone, PhoneOutgoing, ArrowRight, Layers } from 'lucide-react';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useIsMobile, useMaxWidth } from '@/hooks/use-mobile';
 import { AppLayout } from '@/layouts/AppLayout';
-import { ChooseAnswerButton } from '@/components/calls/ChooseAnswerButton';
 import { PromoOfTheDayBanner, PROMO_QUERY_KEY } from '@/components/calls/PromoOfTheDayBanner';
 import { ClientProfileCard } from '@/components/calls/ClientProfileCard';
 import { useMyQueue, useQueueMutations, PENDINGS_QUEUE_ID, type QueueMember, type QueueListSummary } from '@/components/calls/useMyQueue';
 import { getCallSession, setCallSession, type CallSessionSnapshot } from '@/components/calls/callSession';
+import { OutcomeBar } from '@/components/calls/work/OutcomeBar';
+import { DialPanel } from '@/components/calls/work/DialPanel';
+import { UndoBar } from '@/components/calls/work/UndoBar';
+import { CallsProgress } from '@/components/calls/work/CallsProgress';
+import { CallAgainQueue } from '@/components/calls/work/CallAgainQueue';
+import { QueueTabs, type CallsView } from '@/components/calls/work/QueueTabs';
+import { useCallsLive, useDeferredOutcome, useDocumentHidden } from '@/components/calls/work/useCallsWork';
 import { OrderModal, OrderModalData } from '@/components/OrderModal';
 import { CreateOrderModal } from '@/components/CreateOrderModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { apiGetOrder, apiGetOrders, apiCreateOrder, apiUpdateOrderStatus, apiReleaseActiveView, apiLookupPersonalHold, apiReleasePersonalHold, apiLogCall, apiGetMyPendingsSummary, apiGetOpenLead, apiGetMyCallObligation, apiRegisterCallObligation, apiClaimCallback, type CancellationReason, type TrashReason, type OpenLead } from '@/lib/api';
+import { apiGetOrder, apiGetOrders, apiReleaseActiveView, apiLookupPersonalHold, apiReleasePersonalHold, apiGetMyPendingsSummary, apiGetOpenLead, apiGetMyCallObligation, apiRegisterCallObligation, apiClaimCallback, type CancellationReason, type TrashReason, type OpenLead } from '@/lib/api';
+import {
+  apiGetCallsProgress, apiGetMyCallbacks, apiRecordCallOutcome, CallOutcomeError, CALLS_QUERY_KEYS,
+  type MyCallback, type RecordOutcomeBody, type RecordOutcomeResult,
+} from '@/lib/callsWorkApi';
+import { livePollInterval, type CallOutcomeKey } from '@/lib/callsWork/outcomes';
+import { skopjeClock } from '@/lib/callsWork/callbacks';
+import { formatLocalDisplay, toLocalDial } from '@/lib/callsWork/dial';
+import { PBX_CONFIG } from '@/lib/voip/pbxConfig';
 import { cancelReasonLabel } from '@/lib/cancellationReasons';
+import { trashReasonLabel } from '@/lib/trashReasons';
 import { useTranslation } from 'react-i18next';
 import { useVoip, type LinkedContext } from '@/contexts/VoipContext';
 import { useToast } from '@/hooks/use-toast';
@@ -120,6 +135,9 @@ export default function CallsPage() {
   const [handOpenedPhone, setHandOpenedPhone] = useState<string | null>(null);
   const [currentPendingOrderId, setCurrentPendingOrderId] = useState<string | null>(() => restored?.currentPendingOrderId ?? null);
   const isMobile = useIsMobile();
+  // Below 2xl the full number input + list select collided with the topbar's search /
+  // language / break buttons (drawn on top of each other at 1024 and 1280) — icon buttons there.
+  const compactHeader = useMaxWidth(1535);
 
   // Queue state — invisible to the agent. We pick the first list with members
   // automatically. After a call ends we mark the customer in the data layer
@@ -149,6 +167,20 @@ export default function CallsPage() {
   // agent to confirm before swapping to the next member.
   const [pendingAdvance, setPendingAdvance] = useState<{ phone: string; outcome: string } | null>(() => restored?.pendingAdvance ?? null);
 
+  // ── Plan Фаза 11: the one-tap outcomes, the callbacks view, live queues ──
+  // ?queue=call-again shows "Повторни повици · Мои" (the old /call-again page).
+  const view: CallsView = searchParams.get('queue') === 'call-again' ? 'call-again' : 'queue';
+  const [busyOutcome, setBusyOutcome] = useState<CallOutcomeKey | null>(null);
+  // When the current attempt started: the customer appearing on screen, then the tel:
+  // tap / the copied number. Sent with the outcome so the call row carries real times.
+  const attemptAtRef = useRef<{ phone: string; at: number } | null>(null);
+  // The customer was opened from the callbacks view → go back there after the outcome.
+  const fromCallbacksRef = useRef(false);
+  const deferred = useDeferredOutcome();
+  // Polls pause while the tab is hidden and back off to 60 s while a queue is empty;
+  // the `assigner` broadcast (useCallsLive below) refreshes them the moment work moves.
+  const hidden = useDocumentHidden();
+
   const { data: pendingData } = useQuery({
     queryKey: ['calls-page-pendings', user?.id],
     // The whole lead lifecycle, inbound sources only.
@@ -165,7 +197,7 @@ export default function CallsPage() {
     // 1). Parked leads stay visible — just sorted last, see pendingOrders below.
     queryFn: () => apiGetOrders({ status: 'pending,take,call_again', agent_id: user?.id, lead_only: true, limit: 100 }),
     enabled: !!user?.id,
-    refetchInterval: 15_000,
+    refetchInterval: (q) => livePollInterval(15_000, !(q.state.data as { orders?: unknown[] } | undefined)?.orders?.length, hidden),
   });
 
   // Counts behind the virtual "Pendings" queue entry (left / talked today).
@@ -173,8 +205,36 @@ export default function CallsPage() {
     queryKey: ['my-pendings-summary', user?.id],
     queryFn: apiGetMyPendingsSummary,
     enabled: !!user?.id,
-    refetchInterval: 30_000,
+    refetchInterval: (q) => livePollInterval(30_000, !q.state.data?.open, hidden),
   });
+
+  // "Повторни повици · Мои" — also feeds the tab's due badge.
+  const callbacksQuery = useQuery({
+    queryKey: CALLS_QUERY_KEYS.callbacks(user?.id),
+    queryFn: apiGetMyCallbacks,
+    enabled: !!user?.id,
+    staleTime: 15_000,
+    refetchInterval: (q) => livePollInterval(view === 'call-again' ? 30_000 : 60_000, !q.state.data?.total, hidden),
+  });
+
+  // The progress row: my outcomes today + my sales today as the TV board counts them.
+  const { data: progress } = useQuery({
+    queryKey: CALLS_QUERY_KEYS.progress(user?.id),
+    queryFn: apiGetCallsProgress,
+    enabled: !!user?.id,
+    staleTime: 20_000,
+    refetchInterval: hidden ? false : 60_000,
+  });
+
+  const refreshQueues = useCallback(() => {
+    qc.invalidateQueries({ queryKey: ['calls-page-pendings', user?.id] });
+    qc.invalidateQueries({ queryKey: ['my-pendings-summary', user?.id] });
+    qc.invalidateQueries({ queryKey: ['my-queue-summary'] });
+    qc.invalidateQueries({ queryKey: CALLS_QUERY_KEYS.callbacks(user?.id) });
+    qc.invalidateQueries({ queryKey: CALLS_QUERY_KEYS.progress(user?.id) });
+  }, [qc, user?.id]);
+  // A manager hands work over, a claim, a distribution → the api broadcasts; refresh now.
+  useCallsLive(user?.id, refreshQueues);
 
   // Queue order (see src/lib/pendingQueue.ts):
   //   1. fresh leads (pending / take) — always first
@@ -375,6 +435,15 @@ export default function CallsPage() {
   const phoneDigits = selectedPhone.replace(/\D/g, '');
   const phoneReady = phoneDigits.length >= 6;
 
+  // The attempt starts when the customer appears; a tel: tap / copy restarts it.
+  useEffect(() => {
+    attemptAtRef.current = selectedPhone ? { phone: selectedPhone, at: Date.now() } : null;
+  }, [selectedPhone]);
+  const attemptStartIso = useCallback((phone: string): string | undefined => {
+    const a = attemptAtRef.current;
+    return a && a.phone === phone ? new Date(a.at).toISOString() : undefined;
+  }, []);
+
   // Heartbeat-based TAKE: while a customer is loaded, this hook keeps the
   // server-side active_call_views row alive. First heartbeat flips the
   // customer's pending/call_again orders to status='take' so other agents
@@ -410,6 +479,19 @@ export default function CallsPage() {
     if (!next) return;
     if (next.replace(/\D/g, '').length < 6) {
       toast({ title: t('callsPage.enterPhone'), description: t('callsPage.enterPhoneDesc'), variant: 'destructive' });
+      return;
+    }
+    // VOIP off (plan Фаза 11): the CRM no longer pretends to place the call — the
+    // mock engine "answered" every dial after 800 ms. The number just becomes the
+    // customer on screen; the agent dials it from their phone (DialPanel).
+    if (!PBX_CONFIG.useRealVoip) {
+      deferred.commit();
+      setSelectedPhone(next);
+      queueCurrentPhone.current = null;
+      setCurrentSource('manual');
+      setCurrentPendingOrderId(null);
+      setManualPhoneDraft('');
+      takeCallback(next);
       return;
     }
     if (state !== 'idle') return;
@@ -568,14 +650,17 @@ export default function CallsPage() {
         clearLastFinished();
         return;
       }
+      // (VOIP mode only — with VOIP off no softphone call ever finishes.) The outcome
+      // endpoint re-tags the softphone's own call row instead of adding a second one.
       if (outcome === 'cancelled') {
-        void handleAnswerCancelled(cancellation_reason || 'other', cancellation_reason_notes || '');
+        const reason = cancellation_reason || 'other';
+        void handleCancel(reason, cancellation_reason_notes || (reason === 'other' ? (reason_text || t('outcome.cancelled')) : ''));
         clearLastFinished();
         return;
       }
       if (outcome === 'trash') {
-        // In-call bar has only free text (no structured key); store it as the note.
-        void handleAnswerTrashed(undefined, (reason_text || '').replace(/^Reason:\s*/, ''));
+        // In-call bar has only free text (no structured key): 'other' + the text as the note.
+        void handleTrash('other', (reason_text || '').replace(/^Reason:\s*/, '') || t('outcome.trash'));
         clearLastFinished();
         return;
       }
@@ -643,8 +728,9 @@ export default function CallsPage() {
   // 0 open orders → null (caller creates a record). Exactly 1 → that one.
   // More than 1 → park the action and ask; the dialog resumes it with the
   // agent's pick. `intent` is only used to word the dialog.
+  // The same dialog answers POST /calls/outcome's 409 choose_order (the server's leads).
   const [orderChoice, setOrderChoice] = useState<
-    { leads: OpenLead[]; intent: 'confirm' | 'cancel' | 'trash'; resolve: (id: string | null) => void } | null
+    { leads: OpenLead[]; intent: 'confirm' | 'cancel' | 'trash' | 'call_again'; resolve: (id: string | null) => void } | null
   >(null);
   const chooseOpenOrder = useCallback(async (
     phone: string,
@@ -711,10 +797,37 @@ export default function CallsPage() {
     return true;
   }, [user, obligationExempt, handOpenedPhone, normalizePhoneKey, qc, toast, t]);
 
+  // The handset dial (tel: tap / number copied) — the same promise as pressing Call,
+  // decided synchronously because a tel: link cannot wait for the network: block only
+  // when a DIFFERENT hand-opened client is still owed, register the debt in the
+  // background. A no-answer still in its undo window is sent first — it may be the
+  // very answer that debt is waiting for.
+  const beforeAttempt = useCallback((): boolean => {
+    const phone = selectedPhone;
+    const key = normalizePhoneKey(phone || '');
+    const pendingKey = deferred.pending ? normalizePhoneKey(deferred.pending.body.phone) : null;
+    deferred.commit();
+    if (user && !obligationExempt && key.length >= 8 && normalizePhoneKey(handOpenedPhone || '') === key) {
+      const owed = obligation ? normalizePhoneKey(obligation.customer_phone) : null;
+      if (owed && owed !== key && owed !== pendingKey) {
+        toast({ title: t('callsPage.finishCurrentFirst'), description: t('callsPage.finishCurrentFirstDesc'), variant: 'destructive' });
+        return false;
+      }
+      void apiRegisterCallObligation(phone, 'hand_opened')
+        .then(({ obligation: standing }) => qc.setQueryData(['call-obligation', user.id], { obligation: standing ?? null }))
+        .catch(() => { /* never block a call on a network hiccup */ });
+    }
+    attemptAtRef.current = { phone, at: Date.now() };
+    return true;
+  }, [selectedPhone, normalizePhoneKey, deferred, user, obligationExempt, handOpenedPhone, obligation, toast, t, qc]);
+
   // Refreshing or re-logging in must not shake off the debt: with nothing on
   // screen yet, the owed client is restored before the queue picks anyone.
+  // (Not while that client's "no answer" is still in its undo window — the answer
+  // is on its way; restoring them would serve the same customer twice.)
   useEffect(() => {
     if (obligationExempt || !obligation) return;
+    if (deferred.pending && normalizePhoneKey(deferred.pending.body.phone) === normalizePhoneKey(obligation.customer_phone)) return;
     if (!selectedPhone) {
       autoPickedRef.current = true;   // the debt outranks the queue's auto-pick
       queueCurrentPhone.current = null;
@@ -778,27 +891,78 @@ export default function CallsPage() {
     [ordersData]
   );
 
-  // Human labels for the cancellation reasons (used when creating synthetic records
-  // so the expanded view on /orders shows nice full text instead of just the key).
-  // Shared source of truth — see @/lib/cancellationReasons.
+  // ── One-tap outcomes (plan Фаза 11) — the outcome IS the call log ──
+  // POST /api/calls/outcome does, in ONE server call, what this page used to do in
+  // 2–4: find the open order (409 choose_order → the "Which order?" dialog below),
+  // move it or write the cancel / trash record (with the last purchase as the
+  // product), write the call row, clear the obligation, mark the list member.
 
-  // ── Choose Answer outcomes ──
-  // Shared tail: refresh dossier, mark the queue member, advance to next.
-  const finishOutcome = useCallback(async (phone: string, queueOutcome: string, retryMs?: number) => {
-    // Extra-reliable release of the active view for this phone before we move on.
-    // Complements the hook's release on phone change / unmount.
-    try { await apiReleaseActiveView(phone); } catch { /* best effort */ }
+  // The list the customer was served from — markAfterCall's own condition.
+  const outcomeListId = useCallback((phone: string): string | undefined => (
+    currentSource === 'prediction' && activeListId && activeListId !== PENDINGS_QUEUE_ID && phone === queueCurrentPhone.current
+      ? activeListId
+      : undefined
+  ), [currentSource, activeListId]);
 
+  const outcomeBody = useCallback((outcome: CallOutcomeKey, phone: string): RecordOutcomeBody => {
+    const listId = outcomeListId(phone);
+    const startedAt = attemptStartIso(phone);
+    return {
+      phone,
+      outcome,
+      ...(listId ? { list_id: listId } : {}),
+      ...(startedAt ? { started_at: startedAt } : {}),
+    };
+  }, [outcomeListId, attemptStartIso]);
+
+  // Send it; when the customer has several open orders the agent picks one and it is
+  // sent again with that order — the code never guesses (BG, 2026-08-12).
+  const sendOutcome = useCallback(async (
+    body: RecordOutcomeBody,
+    intent: 'cancel' | 'trash' | 'call_again',
+  ): Promise<RecordOutcomeResult | null> => {
+    try {
+      return await apiRecordCallOutcome(body);
+    } catch (err) {
+      if (err instanceof CallOutcomeError && err.code === 'choose_order' && err.leads.length > 0 && !body.order_id) {
+        const chosen = await new Promise<string | null>((resolve) => setOrderChoice({ leads: err.leads, intent, resolve }));
+        if (!chosen) return null;
+        return apiRecordCallOutcome({ ...body, order_id: chosen });
+      }
+      throw err;
+    }
+  }, []);
+
+  const outcomeErrorText = useCallback((err: unknown): string => {
+    if (err instanceof CallOutcomeError) {
+      if (err.status === 404) return t('callsWork.toast.routeMissing');
+      if (err.code === 'order_moved' || err.code === 'order_not_open') return t('callsWork.toast.orderMoved');
+      return err.message;
+    }
+    return (err as Error)?.message || t('common.unknownError');
+  }, [t]);
+
+  const invalidateCustomer = useCallback((phone: string) => {
     qc.invalidateQueries({ queryKey: ['calls-page-orders', phone] });
     qc.invalidateQueries({ queryKey: ['customer-history', phone] });
     qc.invalidateQueries({ queryKey: ['customer-intelligence', phone] });
+  }, [qc]);
+
+  // Shared tail of every outcome: refresh what moved, then the next customer — or
+  // back to "Повторни повици" when the customer was opened from there.
+  const afterOutcome = useCallback((phone: string) => {
+    void apiReleaseActiveView(phone).catch(() => { /* best effort */ });
+    invalidateCustomer(phone);
+    refreshQueues();
+    qc.invalidateQueries({ queryKey: ['my-queue-members'] });
     refreshObligation();
-    if (currentSource === 'prediction' && activeListId && phone === queueCurrentPhone.current) {
-      void markAfterCall(activeListId, phone, queueOutcome, retryMs ? { retryMs } : undefined);
-    }
     setPendingAdvance(null);
     advanceQueue(phone);
-  }, [qc, currentSource, activeListId, markAfterCall, advanceQueue, refreshObligation]);
+    if (fromCallbacksRef.current) {
+      fromCallbacksRef.current = false;
+      setSearchParams({ queue: 'call-again' });
+    }
+  }, [invalidateCustomer, refreshQueues, qc, refreshObligation, advanceQueue, setSearchParams]);
 
   // Confirmed → open the order modal (status forced confirmed there).
   // A customer with an actionable pending order (a lead) gets the SAME modal,
@@ -807,6 +971,7 @@ export default function CallsPage() {
   // sparse webhook row went straight to confirmed with no products/address.
   const handleAnswerConfirmed = useCallback(async () => {
     if (!phoneReady) return;
+    deferred.commit();
     // Ask the server first: the queue row is NOT authoritative once a customer can
     // have several open orders (pending lead + duplicate). Only fall back to the
     // remembered/queue id when there is exactly one — chooseOpenOrder returns null
@@ -823,179 +988,152 @@ export default function CallsPage() {
       phone: selectedPhone,
       ...(pendingId ? { existingOrderId: pendingId } : {}),
     });
-  }, [phoneReady, selectedPhone, currentPendingOrderId, activePendingOrder, chooseOpenOrder]);
+  }, [phoneReady, deferred, selectedPhone, currentPendingOrderId, activePendingOrder, chooseOpenOrder]);
 
-  // Fetch this customer's recent orders fresh so the recorded name always matches
-  // the customer on screen (not a lagging memo). The PRODUCT is not decided here:
-  // POST /orders fills the last purchase from the full history (an agent's order
-  // search only returns their own orders — see the cancel handler below).
-  const resolveCustomerForRecord = useCallback(async (phone: string) => {
-    let recent: any[] = ordersData?.orders || [];
-    try {
-      const data: any = await apiGetOrders({ search: phone, limit: 5 });
-      if (data?.orders?.length) recent = data.orders;
-    } catch { /* fall back to cached */ }
-    const name = recent[0]?.customer_name || currentCustomerName || undefined;
-    return { name };
-  }, [ordersData, currentCustomerName]);
-
-  // Cancel → record a cancelled order (reason + note + the customer's past
-  // product) so it shows in the customer's dossier, then advance.
-  const handleAnswerCancelled = useCallback(async (reason: CancellationReason, notes: string) => {
+  // Откажа — a reason is required (the bar never sends one without it). An open lead
+  // is cancelled in place; no open order → a cancel record carrying the last purchase.
+  const handleCancel = useCallback(async (reason: CancellationReason, note: string) => {
     const phone = selectedPhone;
-    // Server-backed lookup, not just the local queue: a lead handed over by a
-    // manager is invisible to this agent's RLS view, and without this the cancel
-    // landed on a brand-new synthetic row while the real lead stayed open
-    // forever (the orphaned-outcome bug).
-    const chosen = await chooseOpenOrder(phone, 'cancel');
-    const pendingId = chosen ?? currentPendingOrderId ?? activePendingOrder?.id ?? null;
-    if (pendingId) {
-      try {
-        await apiUpdateOrderStatus(pendingId, 'cancelled', {
-          cancellation_reason: reason,
-          cancellation_reason_notes: notes || undefined,
-        });
-        toast({ title: t('callsPage.cancellationRecorded'), description: t('callsPage.savedToOrder') });
-        qc.invalidateQueries({ queryKey: ['calls-page-pendings', user?.id] });
-      qc.invalidateQueries({ queryKey: ['my-pendings-summary', user?.id] });
-        qc.invalidateQueries({ queryKey: ['calls-page-orders', phone] });
-        qc.invalidateQueries({ queryKey: ['customer-history', phone] });
-        qc.invalidateQueries({ queryKey: ['customer-intelligence', phone] });
-        refreshObligation();
-        try { await apiReleaseActiveView(phone); } catch { /* best effort */ }
-        setPendingAdvance(null);
-        advanceQueue(phone);
-        return;
-      } catch (err: any) {
-        toast({ title: t('callsPage.cancellationFailed'), description: err?.message, variant: 'destructive' });
-        return;
-      }
-    }
-
+    if (!phone) return;
+    deferred.commit();
+    setBusyOutcome('cancelled');
     try {
-      const { name } = await resolveCustomerForRecord(phone);
-      const reasonLabel = cancelReasonLabel(reason);
-      const fullReasonText = notes ? `${reasonLabel}\n\n${notes}` : reasonLabel;
-
-      // The product is the customer's LAST PURCHASE, filled by POST /orders from the
-      // full history (last_sale_product). This page can't see it: RLS scopes an
-      // agent's order search to their own orders, which is how 7.170 records ended
-      // up as the placeholder below (owner audit, 30.09.2026).
-      await apiCreateOrder({
-        product_name: 'No prior product on file',
-        customer_name: name,
-        customer_phone: phone,
-        status: 'cancelled',
-        cancellation_reason: reason,
-        cancellation_reason_notes: fullReasonText,
+      const res = await sendOutcome({ ...outcomeBody('cancelled', phone), reason, ...(note ? { note } : {}) }, 'cancel');
+      if (!res) return;
+      toast({
+        title: t('callsWork.toast.cancelled'),
+        description: [cancelReasonLabel(reason), res.order_action === 'created' ? res.product_name : null].filter(Boolean).join(' · '),
       });
-      toast({ title: t('callsPage.cancellationRecorded'), description: t('callsPage.savedToHistory') });
-      finishOutcome(phone, 'cancelled');
-    } catch (err: any) {
-      toast({ title: t('callsPage.cancellationFailed'), description: err?.message, variant: 'destructive' });
+      afterOutcome(phone);
+    } catch (err) {
+      toast({ title: t('callsPage.cancellationFailed'), description: outcomeErrorText(err), variant: 'destructive' });
+    } finally {
+      setBusyOutcome(null);
     }
-  }, [selectedPhone, currentPendingOrderId, activePendingOrder, chooseOpenOrder, resolveCustomerForRecord, toast, finishOutcome, qc, user?.id, advanceQueue]);
+  }, [selectedPhone, deferred, sendOutcome, outcomeBody, toast, t, afterOutcome, outcomeErrorText]);
 
-  // Trash → record a trashed order with a STRUCTURED reason (orders.trash_reason)
-  // + optional free-text note. Works for both a live pending order and the
-  // synthetic no-order case. reasonKey is undefined for the in-call bar path
-  // (free text only); a manager's deliberate reason still lands in the column.
-  const handleAnswerTrashed = useCallback(async (reasonKey?: TrashReason, notes?: string) => {
+  // Корпа — the structured reason decides the sticky trash (engine v3.7-mk).
+  const handleTrash = useCallback(async (reason: TrashReason, note: string) => {
     const phone = selectedPhone;
-    const trashReason = reasonKey;
-    const trashNotes = (notes || '').trim() || undefined;
-    // Same server-backed lookup as Cancel — trash the lead that exists, never a
-    // synthetic row beside it.
-    const chosen = await chooseOpenOrder(phone, 'trash');
-    const pendingId = chosen ?? currentPendingOrderId ?? activePendingOrder?.id ?? null;
-    if (pendingId) {
-      try {
-        await apiUpdateOrderStatus(pendingId, 'trashed', {
-          trash_reason: trashReason,
-          trash_reason_notes: trashNotes,
-        });
-        toast({ title: t('callsPage.markedTrash'), description: t('callsPage.savedToOrder') });
-        qc.invalidateQueries({ queryKey: ['calls-page-pendings', user?.id] });
-      qc.invalidateQueries({ queryKey: ['my-pendings-summary', user?.id] });
-        qc.invalidateQueries({ queryKey: ['calls-page-orders', phone] });
-        qc.invalidateQueries({ queryKey: ['customer-history', phone] });
-        qc.invalidateQueries({ queryKey: ['customer-intelligence', phone] });
-        refreshObligation();
-        setPendingAdvance(null);
-        advanceQueue(phone);
-        return;
-      } catch (err: any) {
-        toast({ title: t('callsPage.recordFailed'), description: err?.message, variant: 'destructive' });
-        return;
-      }
-    }
-
+    if (!phone) return;
+    deferred.commit();
+    setBusyOutcome('trash');
     try {
-      const { name } = await resolveCustomerForRecord(phone);
-      // Product = last purchase, filled server-side (see the cancel handler above).
-      await apiCreateOrder({
-        product_name: 'No prior product on file',
-        customer_name: name,
-        customer_phone: phone,
-        status: 'trashed',
-        trash_reason: trashReason,
-        trash_reason_notes: trashNotes,
-      });
-      toast({ title: t('callsPage.markedTrash'), description: t('callsPage.savedToHistory') });
-      finishOutcome(phone, 'trash');
-    } catch (err: any) {
-      toast({ title: t('callsPage.recordFailed'), description: err?.message, variant: 'destructive' });
+      const res = await sendOutcome({ ...outcomeBody('trash', phone), reason, ...(note ? { note } : {}) }, 'trash');
+      if (!res) return;
+      toast({ title: t('callsWork.toast.trash'), description: trashReasonLabel(reason) });
+      afterOutcome(phone);
+    } catch (err) {
+      toast({ title: t('callsPage.recordFailed'), description: outcomeErrorText(err), variant: 'destructive' });
+    } finally {
+      setBusyOutcome(null);
     }
-  }, [selectedPhone, currentPendingOrderId, activePendingOrder, chooseOpenOrder, resolveCustomerForRecord, toast, finishOutcome, qc, user?.id, advanceQueue]);
+  }, [selectedPhone, deferred, sendOutcome, outcomeBody, toast, t, afterOutcome, outcomeErrorText]);
 
-  // Didn't Answer → log a no-answer call and let the server own the lifecycle:
-  // it parks the customer ~1 day (prediction member hold + pending-order
-  // cooldown) so they sit in Call Again and resurface tomorrow, and after 5
-  // consecutive no-answers it auto-trashes them as "not reachable". We do NOT
-  // create stub orders here anymore (that produced duplicate Takes/Call-Agains
-  // and polluted conversion insights).
-  const handleAnswerDidntAnswer = useCallback(async () => {
+  // Повторно — the customer answered and asked for a call at a time: a lead goes to
+  // call_again parked until then, a list member is held until then. Shows in "Мои".
+  const handleCallAgain = useCallback(async (at: Date) => {
     const phone = selectedPhone;
+    if (!phone) return;
+    deferred.commit();
+    setBusyOutcome('call_again');
+    try {
+      const res = await sendOutcome({ ...outcomeBody('call_again', phone), callback_at: at.toISOString() }, 'call_again');
+      if (!res) return;
+      toast({ title: t('callsWork.toast.callAgain', { time: skopjeClock(at) }) });
+      afterOutcome(phone);
+    } catch (err) {
+      toast({ title: t('callsWork.toast.failed'), description: outcomeErrorText(err), variant: 'destructive' });
+    } finally {
+      setBusyOutcome(null);
+    }
+  }, [selectedPhone, deferred, sendOutcome, outcomeBody, toast, t, afterOutcome, outcomeErrorText]);
+
+  // Не одговара — one tap. The next customer comes up at once; the outcome is sent
+  // when the 5 s undo closes (useDeferredOutcome). The server owns the lifecycle:
+  // the 2-a-day pacing and the 9-strike Unreachable rule for list customers, a lead
+  // to call_again (never auto-trashed) — no stub orders.
+  const handleNoAnswer = useCallback(() => {
+    const phone = selectedPhone;
+    if (!phone) return;
+    const body = outcomeBody('no_answer', phone);
     const disposedId = currentPendingOrderId ?? activePendingOrder?.id ?? null;
-    try {
-      await apiLogCall({
-        context_type: 'standalone',
-        context_id: null,
-        outcome: 'no_answer',
-        connection_state: 'no_answer',
-        customer_phone: phone,
+    const snap = {
+      selectedPhone, currentSource, currentPendingOrderId, activeListId, handOpenedPhone,
+      queuePhone: queueCurrentPhone.current,
+      member: queueMembers.find((m) => m.customer_phone === phone) ?? null,
+      fromCallbacks: fromCallbacksRef.current,
+    };
+    const label = currentCustomerName || (activePendingOrder as { customer_name?: string | null } | null)?.customer_name || snap.member?.customer_name
+      || formatLocalDisplay(toLocalDial(phone)) || phone;
+    // Flip locally before the advance so the sort already treats this lead as
+    // call_again (behind the fresh ones). The server catches up in 5 s.
+    if (disposedId) {
+      qc.setQueryData(['calls-page-pendings', user?.id], (old: any) => {
+        if (!old?.orders) return old;
+        return {
+          ...old,
+          orders: old.orders.map((o: any) => (o.id === disposedId
+            ? { ...o, status: 'call_again', call_again_since: o.call_again_since || new Date().toISOString() }
+            : o)),
+        };
       });
-      toast({ title: t('callsPage.movedToCallAgain'), description: t('callsPage.noAnswerResurface') });
-      try { await apiReleaseActiveView(phone); } catch { /* best effort */ }
-      // Flip locally before advance so sort already treats this row as
-      // call_again (behind remaining pending/take). Refetch follows.
-      if (disposedId) {
-        qc.setQueryData(['calls-page-pendings', user?.id], (old: any) => {
-          if (!old?.orders) return old;
-          return {
-            ...old,
-            orders: old.orders.map((o: any) =>
-              o.id === disposedId
-                ? { ...o, status: 'call_again', call_again_since: o.call_again_since || new Date().toISOString() }
-                : o,
-            ),
-          };
-        });
-      }
-      qc.invalidateQueries({ queryKey: ['calls-page-pendings', user?.id] });
-      qc.invalidateQueries({ queryKey: ['my-pendings-summary', user?.id] });
-      qc.invalidateQueries({ queryKey: ['calls-page-orders', phone] });
-      qc.invalidateQueries({ queryKey: ['customer-history', phone] });
-      qc.invalidateQueries({ queryKey: ['customer-intelligence', phone] });
-      qc.invalidateQueries({ queryKey: ['my-queue-summary'] });
-      qc.invalidateQueries({ queryKey: ['my-queue-members'] });
-      refreshObligation();
-      setPendingAdvance(null);
-      advanceQueue(phone);
-    } catch (err: any) {
-      toast({ title: t('callsPage.noAnswerFailed'), description: err?.message, variant: 'destructive' });
     }
-  }, [selectedPhone, currentPendingOrderId, activePendingOrder, toast, qc, user?.id, advanceQueue, refreshObligation, t]);
+    deferred.schedule({
+      body,
+      label,
+      onCommitted: () => {
+        invalidateCustomer(phone);
+        refreshQueues();
+        qc.invalidateQueries({ queryKey: ['my-queue-members'] });
+        refreshObligation();
+      },
+      onFailed: (err) => {
+        toast({ title: t('callsPage.noAnswerFailed'), description: outcomeErrorText(err), variant: 'destructive' });
+        refreshQueues();
+      },
+      onUndo: () => {
+        // Nothing was sent — put the customer back exactly where they were.
+        queueCurrentPhone.current = snap.queuePhone;
+        if (snap.member) {
+          const m = snap.member;
+          setQueueMembers((prev) => (prev.some((x) => x.customer_phone === m.customer_phone) ? prev : [m, ...prev]));
+        }
+        setActiveListId(snap.activeListId); // a no-op unless the advance moved to another list
+        setSelectedPhone(snap.selectedPhone);
+        setCurrentSource(snap.currentSource);
+        setCurrentPendingOrderId(snap.currentPendingOrderId);
+        setHandOpenedPhone(snap.handOpenedPhone);
+        fromCallbacksRef.current = snap.fromCallbacks;
+        if (snap.fromCallbacks) setSearchParams({}, { replace: true });
+        qc.invalidateQueries({ queryKey: ['calls-page-pendings', user?.id] }); // undo the local flip
+      },
+    });
+    void apiReleaseActiveView(phone).catch(() => { /* best effort */ });
+    setPendingAdvance(null);
+    advanceQueue(phone);
+    if (fromCallbacksRef.current) {
+      fromCallbacksRef.current = false;
+      setSearchParams({ queue: 'call-again' });
+    }
+  }, [
+    selectedPhone, outcomeBody, currentPendingOrderId, activePendingOrder, currentSource, activeListId, handOpenedPhone,
+    queueMembers, currentCustomerName, qc, user?.id, deferred, invalidateCustomer, refreshQueues, refreshObligation,
+    toast, t, outcomeErrorText, advanceQueue, setSearchParams,
+  ]);
+
+  // Opening a callback from "Повторни повици": a hand-opened client (claims the
+  // callback, owes an answer) — the ?phone= path the old /call-again page used.
+  const openCallback = useCallback((item: MyCallback) => {
+    deferred.commit();
+    fromCallbacksRef.current = true;
+    setSearchParams({ phone: item.customer_phone });
+  }, [deferred, setSearchParams]);
+
+  const setView = useCallback((v: CallsView) => {
+    if (v === view) return;
+    setSearchParams(v === 'call-again' ? { queue: 'call-again' } : {});
+  }, [view, setSearchParams]);
 
   // When an order is created from the modal, immediately mark the current
   // queue member done (mapping the chosen status → queue outcome) and advance
@@ -1049,20 +1187,40 @@ export default function CallsPage() {
     qc.invalidateQueries({ queryKey: ['customer-intelligence', phone] });
     refreshObligation();
 
-    if (activeListId && phone === queueCurrentPhone.current) {
+    const isListMember = !!activeListId && phone === queueCurrentPhone.current;
+    if (queueOutcome === 'confirmed') {
+      // The confirm is a call outcome too (plan Фаза 11): one call row against the
+      // order the form confirmed, the member completed server-side. An api without
+      // the route (404) falls back to the old browser write.
+      const body = outcomeBody('confirmed', phone);
+      void apiRecordCallOutcome({ ...body, ...(createOrderProps.existingOrderId ? { order_id: createOrderProps.existingOrderId } : {}) })
+        .then(() => { refreshQueues(); qc.invalidateQueries({ queryKey: ['my-queue-members'] }); })
+        .catch(() => { if (isListMember && activeListId) void markAfterCall(activeListId, phone, 'confirmed'); });
+    } else if (isListMember && activeListId) {
       void markAfterCall(activeListId, phone, queueOutcome);
     }
     // Clear any pending "Next customer" banner from a prior call end and jump.
     setPendingAdvance(null);
     advanceQueue(phone);
-  }, [createOrderProps.phone, createOrderProps.isManual, createOrderProps.existingOrderId, selectedPhone, activeListId, markAfterCall, advanceQueue, qc, user?.id, refreshObligation]);
+    if (fromCallbacksRef.current) {
+      fromCallbacksRef.current = false;
+      setSearchParams({ queue: 'call-again' });
+    }
+  }, [createOrderProps.phone, createOrderProps.isManual, createOrderProps.existingOrderId, selectedPhone, activeListId, markAfterCall, advanceQueue, qc, user?.id, refreshObligation, outcomeBody, refreshQueues, setSearchParams]);
+
+  // VOIP off: the topbar number input OPENS the number as the customer (the agent
+  // dials it from their phone); with the softphone it still places the call.
+  const voipOn = PBX_CONFIG.useRealVoip;
+  const dialLabels = voipOn
+    ? { title: t('callsPage.dialANumber'), button: t('callsPage.call'), placeholder: t('callsPage.dialNewNumber') }
+    : { title: t('callsWork.dial.openNumber'), button: t('callsWork.dial.open'), placeholder: t('callsWork.dial.openPlaceholder') };
 
   // Topbar controls (next to the "Calls" title): the manual dial input and the
   // queue picker. The queue shows for ANYONE with assigned lists — agents
   // included — so they know which list they're working.
   const headerControls = (
     <div className="flex items-center gap-1.5">
-      {isMobile ? (
+      {compactHeader ? (
         <>
           {/* Mobile: a single phone icon that opens a dial dialog (keeps the topbar uncluttered). */}
           <Button
@@ -1070,13 +1228,13 @@ export default function CallsPage() {
             variant="outline"
             className="h-8 w-8 shrink-0"
             onClick={() => setDialOpen(true)}
-            aria-label={t('callsPage.dialANumber')}
+            aria-label={dialLabels.title}
           >
             <PhoneOutgoing className="h-4 w-4" />
           </Button>
           <Dialog open={dialOpen} onOpenChange={setDialOpen}>
             <DialogContent className="max-w-xs">
-              <DialogHeader><DialogTitle>{t('callsPage.dialANumber')}</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>{dialLabels.title}</DialogTitle></DialogHeader>
               <Input
                 autoFocus
                 type="tel"
@@ -1090,10 +1248,10 @@ export default function CallsPage() {
               <DialogFooter>
                 <Button
                   onClick={() => { void submitManualPhone(); setDialOpen(false); }}
-                  disabled={state !== 'idle' || !manualPhoneDraft.trim()}
+                  disabled={(voipOn && state !== 'idle') || !manualPhoneDraft.trim()}
                   className="w-full gap-1.5"
                 >
-                  <PhoneOutgoing className="h-4 w-4" /> {t('callsPage.call')}
+                  <PhoneOutgoing className="h-4 w-4" /> {dialLabels.button}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -1158,23 +1316,24 @@ export default function CallsPage() {
             value={manualPhoneDraft}
             onChange={(e) => setManualPhoneDraft(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') void submitManualPhone(); }}
-            placeholder={t('callsPage.dialNewNumber')}
+            placeholder={dialLabels.placeholder}
+            aria-label={dialLabels.title}
             className="h-6 text-xs font-mono border-0 shadow-none focus-visible:ring-0 px-1 bg-transparent w-36"
           />
           <Button
             size="sm"
             onClick={() => { void submitManualPhone(); }}
-            disabled={state !== 'idle' || !manualPhoneDraft.trim()}
+            disabled={(voipOn && state !== 'idle') || !manualPhoneDraft.trim()}
             variant="outline"
             className="h-6 gap-1 text-[10px] px-1.5"
           >
             <PhoneOutgoing className="h-2.5 w-2.5" />
-            {t('callsPage.call')}
+            {dialLabels.button}
           </Button>
         </div>
       )}
 
-      {allQueues.length > 0 && !isMobile && (
+      {allQueues.length > 0 && !compactHeader && (
         <div
           className={`inline-flex items-center gap-1.5 rounded-xl border bg-background px-2 py-0.5 ${hoverLift} ${
             pendingsWaiting > 0 ? 'border-amber-400 ring-1 ring-amber-300/60' : ''
@@ -1183,7 +1342,7 @@ export default function CallsPage() {
         >
           <Layers className={`h-3 w-3 shrink-0 ${pendingsWaiting > 0 ? 'text-amber-500' : 'text-muted-foreground'}`} />
           <Select value={activeListId || ''} onValueChange={switchToList}>
-            <SelectTrigger className="h-6 text-xs min-w-[140px] border-0 shadow-none focus:ring-0">
+            <SelectTrigger className="h-6 text-xs min-w-[140px] max-w-[16rem] border-0 shadow-none focus:ring-0">
               <SelectValue placeholder={t('callsPage.listsCount', { count: allQueues.length })} />
             </SelectTrigger>
             <SelectContent>
@@ -1209,50 +1368,40 @@ export default function CallsPage() {
     </div>
   );
 
-  // Green dial button — in the customer strip next to "Add to Personal List".
-  // Only while idle; during a call the SidebarCallIndicator shows the live call,
-  // and the line resets to idle the instant it ends so this reappears at once.
-  const dialButton = phoneReady && state === 'idle' ? (
-    <Button
-      size="sm"
-      onClick={() => { void handleDial(); }}
-    >
-      <Phone className="h-3.5 w-3.5" /> {t('callsPage.dialBtn', { phone: selectedPhone })}
-    </Button>
+  // The Call button (plan Фаза 11). VOIP off: a tel: link on a phone, the number +
+  // copy on a computer — the agent dials from their own handset and the outcome tap
+  // logs the call (no Call / End). VOIP on: the softphone's green button, as before.
+  const dialButton = phoneReady ? (
+    <DialPanel
+      phone={selectedPhone}
+      isMobile={isMobile}
+      voip={voipOn}
+      voipIdle={state === 'idle'}
+      onVoipDial={() => { void handleDial(); }}
+      onAttempt={beforeAttempt}
+      className={isMobile ? 'basis-full' : undefined}
+    />
   ) : null;
 
-  // Calling controls below the customer strip: the active call widget and the
-  // Choose Answer button on ONE centered row — the widget sits left and the
-  // button shifts right as the widget expands (Answered / Not Answered), never
-  // stacking. The queue moved to the topbar; the green dial into the strip.
+  // Under the customer strip: the one-tap outcome bar (pinned to the bottom edge on
+  // phones), then the softphone's "Next customer" pause (VOIP mode) and the promo.
   const actionBar = (
     <div className="space-y-3">
-      {/* Three columns on desktop: an empty spacer, the button dead-centre, and
-          the promo strip filling the free space on the right — so the promo
-          costs horizontal room, not vertical (the History cards never move
-          down). Below lg it collapses to a centred stack. */}
-      <div className="flex flex-col items-center gap-3 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-center">
-        {/* The active-call strip is now a global floating element pinned
-            top-left (mounted once in App.tsx) — no longer rendered inline. */}
-        {phoneReady && (
-          <ChooseAnswerButton
-            onConfirmed={handleAnswerConfirmed}
-            onCancelled={handleAnswerCancelled}
-            onTrashed={handleAnswerTrashed}
-            onDidntAnswer={handleAnswerDidntAnswer}
-            className="h-9 min-w-[180px] shrink-0 justify-center text-sm mt-1 lg:col-start-2 lg:justify-self-center !bg-transparent border border-orange-500 text-orange-600 hover:!bg-orange-50 hover:border-orange-600 hover:text-orange-700 dark:hover:!bg-orange-500/10 dark:hover:text-orange-300 transition-all duration-200 ease-out hover:-translate-y-[1px] hover:shadow-sm"
-          />
-        )}
-        {/* Product of the Day — a one-line strip in the right column on desktop,
-            a full-width card under the button on mobile (the component picks).
-            Explicit col-start so it stays right even when the button is absent
-            (empty queue). Renders nothing when no promo is running. */}
-        <PromoOfTheDayBanner className="lg:col-start-3 lg:mt-1 lg:justify-self-stretch" />
-      </div>
+      {phoneReady && (
+        <OutcomeBar
+          busy={busyOutcome}
+          onNoAnswer={handleNoAnswer}
+          onCallAgain={(at) => { void handleCallAgain(at); }}
+          onCancel={(r, n) => { void handleCancel(r, n); }}
+          onTrash={(r, n) => { void handleTrash(r, n); }}
+          onConfirm={() => { void handleAnswerConfirmed(); }}
+          keyboard={!isMobile}
+        />
+      )}
 
       {pendingAdvance && pendingAdvance.phone === selectedPhone && (
-        <div className={`rounded-xl border border-[hsl(var(--success))]/30 bg-[hsl(var(--success))]/5 px-4 py-3 flex items-center gap-4 text-sm ${hoverLift}`}>
-          <div className="flex-1">
+        <div className={`rounded-xl border border-[hsl(var(--success))]/30 bg-[hsl(var(--success))]/5 px-4 py-3 flex flex-wrap items-center gap-3 text-sm ${hoverLift}`}>
+          <div className="min-w-0 flex-1">
             {t('callsPage.markedAs')} <strong>{t(`outcome.${pendingAdvance.outcome}`, { defaultValue: pendingAdvance.outcome.replace(/_/g, ' ') })}</strong>{t('callsPage.stayHint')}
           </div>
           <Button size="sm" onClick={handleNextCustomer} className="gap-1.5 shrink-0">
@@ -1261,13 +1410,47 @@ export default function CallsPage() {
         </div>
       )}
 
+      {/* Product of the Day — renders nothing when no promo is running. */}
+      <PromoOfTheDayBanner />
     </div>
   );
 
+  // The progress row: what is left in the queue on screen · my outcomes today · my sales today.
+  const activeQueue = allQueues.find((q) => q.list_id === activeListId) ?? null;
+  const progressLeft = activeQueue
+    ? activeQueue.remaining
+    : allQueues.length > 0 ? allQueues.reduce((s, q) => s + q.remaining, 0) : (pendingsSummary ? pendingsSummary.ready : null);
+  const progressLeftSub = activeQueue
+    ? (activeQueue.is_pendings ? t('callsWork.queue.leads') : predictionListLabel(activeQueue.list_name))
+    : null;
+  const callbacksDue = callbacksQuery.data?.due ?? 0;
+  const barShown = view === 'queue' && phoneReady;
+
   return (
     <AppLayout title="" headerActions={headerControls}>
-      <div className="space-y-5">
-        {!phoneReady ? (
+      {/* Bottom padding on phones = room for the pinned outcome bar. */}
+      <div className={`space-y-3 md:space-y-4 ${barShown ? 'pb-28 md:pb-0' : ''}`}>
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+          <QueueTabs view={view} onChange={setView} dueCount={callbacksDue} />
+          <div className="lg:w-[30rem]">
+            <CallsProgress
+              left={progressLeft}
+              leftSub={progressLeftSub}
+              callsToday={progress?.calls_today ?? null}
+              salesToday={progress?.sales_today ?? null}
+            />
+          </div>
+        </div>
+
+        {view === 'call-again' ? (
+          <CallAgainQueue
+            data={callbacksQuery.data}
+            isLoading={callbacksQuery.isLoading}
+            isError={callbacksQuery.isError}
+            onRetry={() => { void callbacksQuery.refetch(); }}
+            onOpen={openCallback}
+          />
+        ) : !phoneReady ? (
           <div className="space-y-4">
             <EmptyState
               icon={<Phone className="h-6 w-6" />}
@@ -1281,6 +1464,13 @@ export default function CallsPage() {
                     : t('callsPage.noAssignedDesc')}
               size="lg"
             />
+            {callbacksDue > 0 && (
+              <div className="flex justify-center">
+                <Button variant="outline" size="sm" onClick={() => setView('call-again')} className="gap-1.5">
+                  {t('callsWork.callbacks.dueCta', { count: callbacksDue })} <ArrowRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
             {state !== 'idle' && (
               <p className="text-xs text-[hsl(var(--success))] font-medium text-center pt-2">
                 {t('callsPage.activeCallInProgress')}
@@ -1316,6 +1506,8 @@ export default function CallsPage() {
           </div>
         )}
       </div>
+
+      <UndoBar pending={deferred.pending} onUndo={deferred.undo} />
 
       <OrderModal
         open={!!orderModalData}
