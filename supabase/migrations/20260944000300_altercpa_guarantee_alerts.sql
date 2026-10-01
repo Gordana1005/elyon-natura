@@ -197,64 +197,80 @@ BEGIN
   _digest := CASE WHEN _digest BETWEEN 0 AND 23 THEN _digest ELSE 18 END;
 
   -- unreachable: 12:00–20:59, today, C + O < required
-  IF _hour BETWEEN 12 AND 20 THEN
-    FOR r IN
-      SELECT x.webmaster, x.leads, x.counted, x.open
-      FROM public.altercpa_guarantee_rates(_today, _today) x
-      WHERE x.grain = 'webmaster' AND x.leads >= _min
-        AND public.altercpa_need_confirm(x.counted, x.leads, _target) > x.open
-    LOOP
-      PERFORM public.notify_altercpa_guarantee(r.webmaster, _today, 'unreachable', _target, r.leads, r.counted, r.open, NULL);
-    END LOOP;
-  END IF;
+  BEGIN  -- each kind on its own: one failing kind never takes the others down
+    IF _hour BETWEEN 12 AND 20 THEN
+      FOR r IN
+        SELECT x.webmaster, x.leads, x.counted, x.open
+        FROM public.altercpa_guarantee_rates(_today, _today) x
+        WHERE x.grain = 'webmaster' AND x.leads >= _min
+          AND public.altercpa_need_confirm(x.counted, x.leads, _target) > x.open
+      LOOP
+        PERFORM public.notify_altercpa_guarantee(r.webmaster, _today, 'unreachable', _target, r.leads, r.counted, r.open, NULL);
+      END LOOP;
+    END IF;
+  EXCEPTION WHEN OTHERS THEN
+    RAISE WARNING 'altercpa_guarantee_sweep unreachable failed: % (%)', SQLERRM, SQLSTATE;
+  END;
 
   -- digest: one per person, only if some webmaster of today still needs confirmations
-  IF _hour = _digest THEN
-    SELECT string_agg(coalesce(w.name, '#' || x.webmaster) || ' '
-                      || round(x.counted * 100.0 / x.leads, 1) || '% +' || x.need || '/' || x.open,
-                      ' · ' ORDER BY x.need DESC, x.webmaster),
-           sum(x.leads)::integer, sum(x.counted)::integer, sum(x.open)::integer
-      INTO _items, _tl, _tc, _to
-    FROM (
-      SELECT g.webmaster, g.leads, g.counted, g.open,
-             public.altercpa_need_confirm(g.counted, g.leads, _target) AS need
-      FROM public.altercpa_guarantee_rates(_today, _today) g
-      WHERE g.grain = 'webmaster' AND g.leads >= _min
-    ) x
-    LEFT JOIN LATERAL (
-      SELECT aw.name FROM public.altercpa_webmasters aw
-      WHERE aw.wm_id = x.webmaster AND aw.name IS NOT NULL
-      ORDER BY aw.seen_count DESC LIMIT 1
-    ) w ON true
-    WHERE x.need > 0;
-    IF _items IS NOT NULL THEN
-      PERFORM public.notify_altercpa_guarantee('*', _today, 'digest', _target, _tl, _tc, _to, _items);
+  BEGIN  -- each kind on its own: one failing kind never takes the others down
+    IF _hour = _digest THEN
+      SELECT string_agg(coalesce(w.name, '#' || x.webmaster) || ' '
+                        || round(x.counted * 100.0 / x.leads, 1) || '% +' || x.need || '/' || x.open,
+                        ' · ' ORDER BY x.need DESC, x.webmaster),
+             sum(x.leads)::integer, sum(x.counted)::integer, sum(x.open)::integer
+        INTO _items, _tl, _tc, _to
+      FROM (
+        SELECT g.webmaster, g.leads, g.counted, g.open,
+               public.altercpa_need_confirm(g.counted, g.leads, _target) AS need
+        FROM public.altercpa_guarantee_rates(_today, _today) g
+        WHERE g.grain = 'webmaster' AND g.leads >= _min
+      ) x
+      LEFT JOIN LATERAL (
+        SELECT aw.name FROM public.altercpa_webmasters aw
+        WHERE aw.wm_id = x.webmaster AND aw.name IS NOT NULL
+        ORDER BY aw.seen_count DESC LIMIT 1
+      ) w ON true
+      WHERE x.need > 0;
+      IF _items IS NOT NULL THEN
+        PERFORM public.notify_altercpa_guarantee('*', _today, 'digest', _target, _tl, _tc, _to, _items);
+      END IF;
     END IF;
-  END IF;
+  EXCEPTION WHEN OTHERS THEN
+    RAISE WARNING 'altercpa_guarantee_sweep digest failed: % (%)', SQLERRM, SQLSTATE;
+  END;
 
   -- verdict_close: 21:xx, today, under target
-  IF _hour = 21 THEN
-    FOR r IN
-      SELECT x.webmaster, x.leads, x.counted, x.open
-      FROM public.altercpa_guarantee_rates(_today, _today) x
-      WHERE x.grain = 'webmaster' AND x.leads >= _min
-        AND public.altercpa_need_confirm(x.counted, x.leads, _target) > 0
-    LOOP
-      PERFORM public.notify_altercpa_guarantee(r.webmaster, _today, 'verdict_close', _target, r.leads, r.counted, r.open, NULL);
-    END LOOP;
-  END IF;
+  BEGIN  -- each kind on its own: one failing kind never takes the others down
+    IF _hour = 21 THEN
+      FOR r IN
+        SELECT x.webmaster, x.leads, x.counted, x.open
+        FROM public.altercpa_guarantee_rates(_today, _today) x
+        WHERE x.grain = 'webmaster' AND x.leads >= _min
+          AND public.altercpa_need_confirm(x.counted, x.leads, _target) > 0
+      LOOP
+        PERFORM public.notify_altercpa_guarantee(r.webmaster, _today, 'verdict_close', _target, r.leads, r.counted, r.open, NULL);
+      END LOOP;
+    END IF;
+  EXCEPTION WHEN OTHERS THEN
+    RAISE WARNING 'altercpa_guarantee_sweep verdict_close failed: % (%)', SQLERRM, SQLSTATE;
+  END;
 
   -- verdict_final: 10:xx, the cohort settle_days old, still under target
-  IF _hour = 10 THEN
-    FOR r IN
-      SELECT x.webmaster, x.leads, x.counted, x.open
-      FROM public.altercpa_guarantee_rates(_today - _settle, _today - _settle) x
-      WHERE x.grain = 'webmaster' AND x.leads >= _min
-        AND public.altercpa_need_confirm(x.counted, x.leads, _target) > 0
-    LOOP
-      PERFORM public.notify_altercpa_guarantee(r.webmaster, _today - _settle, 'verdict_final', _target, r.leads, r.counted, r.open, NULL);
-    END LOOP;
-  END IF;
+  BEGIN  -- each kind on its own: one failing kind never takes the others down
+    IF _hour = 10 THEN
+      FOR r IN
+        SELECT x.webmaster, x.leads, x.counted, x.open
+        FROM public.altercpa_guarantee_rates(_today - _settle, _today - _settle) x
+        WHERE x.grain = 'webmaster' AND x.leads >= _min
+          AND public.altercpa_need_confirm(x.counted, x.leads, _target) > 0
+      LOOP
+        PERFORM public.notify_altercpa_guarantee(r.webmaster, _today - _settle, 'verdict_final', _target, r.leads, r.counted, r.open, NULL);
+      END LOOP;
+    END IF;
+  EXCEPTION WHEN OTHERS THEN
+    RAISE WARNING 'altercpa_guarantee_sweep verdict_final failed: % (%)', SQLERRM, SQLSTATE;
+  END;
 EXCEPTION WHEN OTHERS THEN
   -- The scheduler must never error the cron job; a warning lands in the log.
   RAISE WARNING 'altercpa_guarantee_sweep failed: % (%)', SQLERRM, SQLSTATE;

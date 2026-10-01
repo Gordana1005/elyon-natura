@@ -32,8 +32,9 @@ export interface OutcomeBarProps {
   busy?: CallOutcomeKey | null;
   onNoAnswer: () => void;
   onCallAgain: (at: Date) => void;
-  onCancel: (reason: CancellationReason, note: string) => void;
-  onTrash: (reason: TrashReason, note: string) => void;
+  /** May return a promise: `false` keeps the note step (and the typed note) open, e.g. when the server refused. */
+  onCancel: (reason: CancellationReason, note: string) => void | Promise<boolean | void>;
+  onTrash: (reason: TrashReason, note: string) => void | Promise<boolean | void>;
   onConfirm: () => void;
   /** Desktop shortcuts 1–5 (and 1–5 inside an open reason / time row). Default on. */
   keyboard?: boolean;
@@ -126,8 +127,16 @@ export function OutcomeBar({
   const pickCallback = (at: Date) => { closeAll(); onCallAgain(at); };
   // A reason chip never sends: it opens the note step (the note travels with the outcome).
   const openStep = (next: NoteStep) => { setPanel(null); setStep(next); setShowHint(false); };
-  const sendCancel = (r: CancellationReason, note: string) => { closeAll(); setDraft(''); onCancel(r, normalizeNote(note)); };
-  const sendTrash = (r: TrashReason, note: string) => { closeAll(); setDraft(''); onTrash(r, normalizeNote(note)); };
+  // The typed note is dropped only once the outcome went through: an async handler that
+  // resolves `false` (refused, network error, the order chooser closed) keeps the step open.
+  const finish = () => { closeAll(); setDraft(''); };
+  const settle = (res: void | Promise<boolean | void>) => {
+    if (res && typeof (res as Promise<unknown>).then === 'function') {
+      void (res as Promise<boolean | void>).then((ok) => { if (ok !== false) finish(); }, () => {});
+    } else finish();
+  };
+  const sendCancel = (r: CancellationReason, note: string) => settle(onCancel(r, normalizeNote(note)));
+  const sendTrash = (r: TrashReason, note: string) => settle(onTrash(r, normalizeNote(note)));
 
   const draftValid = isDispositionNoteValid(draft);
   const stepBack = () => { if (step) { setPanel(step.kind); setStep(null); setShowHint(false); } };

@@ -997,12 +997,14 @@ async function applyOutcomeToOrder(
   let dispositionNote: string | null = null;
   if (rule.to === "cancelled" || rule.to === "trashed") {
     const isCancel = rule.to === "cancelled";
-    const gate = DN.dispositionNoteGate({
-      from: order.status, to: rule.to,
-      raw: isCancel ? cancellationReasonNotes : trashReasonNotes,
-      min: noteMin ?? DN.DISPOSITION_NOTE_MIN,
-      reason: isCancel ? cancellationReason : (trashReason ?? (outcome === "wrong_number" ? "wrong_number" : null)),
-    });
+    const raw = isCancel ? cancellationReasonNotes : trashReasonNotes;
+    const min = noteMin ?? DN.DISPOSITION_NOTE_MIN;
+    // While the setting is 0 (the rollout window) a stale bundle that sends no note field at all
+    // is not refused over the 'other' rule — /call-logs never enforced it before 01.10.2026.
+    const gateReason = min === 0 && raw === undefined
+      ? null
+      : (isCancel ? cancellationReason : (trashReason ?? (outcome === "wrong_number" ? "wrong_number" : null)));
+    const gate = DN.dispositionNoteGate({ from: order.status, to: rule.to, raw, min, reason: gateReason });
     if (!gate.ok) return { ok: false, status: 400, error: gate.error, code: gate.code, min: gate.min };
     dispositionNote = gate.note;
   }
@@ -14513,8 +14515,10 @@ async function handleRequest(req: Request): Promise<Response> {
       const NB_COLS = "id, owner_id, title, color, position, created_at, updated_at, deleted_at";
       const NOTE_COLS = "id, notebook_id, owner_id, title, body, pinned, version, created_at, updated_at, deleted_at";
       const pnJson = async (): Promise<unknown> => { try { return await req.json(); } catch { return null; } };
+      // Fails CLOSED: if the role lookup errors, the owner is treated as an admin, so a manager is refused.
       const pnOwnerIsAdmin = async (uid: string) => {
-        const { data } = await adminClient.from("user_roles").select("role").eq("user_id", uid).eq("role", "admin").limit(1);
+        const { data, error } = await adminClient.from("user_roles").select("role").eq("user_id", uid).eq("role", "admin").limit(1);
+        if (error) return true;
         return !!(data && data.length);
       };
       // Admins need no lookup, plain agents never read others; only a manager asks whether the owner is an admin.
@@ -14803,6 +14807,8 @@ async function handleRequest(req: Request): Promise<Response> {
           adminClient.from("profiles").select("user_id, full_name, email, is_active").in("user_id", ids),
           adminClient.from("user_roles").select("user_id").eq("role", "admin").in("user_id", ids),
         ]);
+        // Fails CLOSED: without the admin list a manager could see admins' notebooks in the list.
+        if (adminRes.error) return json({ error: sanitizeDbError(adminRes.error) }, 500);
         const profiles = new Map(((profRes.data || []) as any[]).map((p) => [p.user_id, p]));
         const adminIds = new Set(((adminRes.data || []) as any[]).map((r) => r.user_id));
         return json({ authors: PN.shapeAuthors(pnViewer, (agg || []) as any[], profiles, adminIds) });
@@ -21237,12 +21243,14 @@ async function getPersonalListCap(adminClient: any): Promise<number> {
 // The note minimum for a cancel / trash a person makes (owner 01.10.2026,
 // app_settings.disposition_note_min, migration 20260944000100). Read on the hot /calls
 // path, so cached 60 s per instance; PATCH /app-settings clears this instance's copy.
-// Missing / invalid → 5 (DN.parseNoteMin); a failed read keeps the last value read, else 5.
+// Missing / invalid → 5 (DN.parseNoteMin); a failed read keeps the last value read, else 0
+// (a read hiccup must not start refusing stale bundles during the rollout window; the
+// frontend enforces 5 on its own).
 let dispositionNoteMinCache: { value: number; at: number } | null = null;
 async function getDispositionNoteMin(adminClient: any): Promise<number> {
   const now = Date.now();
   if (dispositionNoteMinCache && now - dispositionNoteMinCache.at < 60_000) return dispositionNoteMinCache.value;
-  const fallback = dispositionNoteMinCache?.value ?? DN.DISPOSITION_NOTE_MIN;
+  const fallback = dispositionNoteMinCache?.value ?? 0;
   try {
     const { data, error } = await adminClient
       .from("app_settings")

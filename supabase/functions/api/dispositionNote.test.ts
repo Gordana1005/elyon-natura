@@ -110,18 +110,19 @@ describe("dispositionNoteGate — rule + check + whether to write the column", (
 });
 
 describe("parseNoteMin — app_settings.disposition_note_min", () => {
-  it("an integer 0..50 (a numeric string too); missing or invalid → 5", () => {
+  it("an integer 0..5 (a numeric string too); missing or invalid → 5", () => {
     expect(parseNoteMin(0)).toBe(0);
     expect(parseNoteMin(5)).toBe(5);
     expect(parseNoteMin("0")).toBe(0);
-    expect(parseNoteMin(" 12 ")).toBe(12);
-    expect(parseNoteMin(50)).toBe(50);
-    for (const bad of [undefined, null, "", "abc", -1, 51, 5.5, "5.5", true, {}, []]) {
+    expect(parseNoteMin(" 3 ")).toBe(3);
+    expect(parseNoteMin(50)).toBe(5); // above the frontend's 5 → invalid → default
+    for (const bad of [undefined, null, "", "abc", -1, 6, 51, 5.5, "5.5", true, {}, []]) {
       expect(parseNoteMin(bad)).toBe(5);
     }
   });
   it("parseNoteMinInput refuses instead of defaulting (the admin's PATCH)", () => {
-    expect(parseNoteMinInput(7)).toBe(7);
+    expect(parseNoteMinInput(5)).toBe(5);
+    expect(parseNoteMinInput(7)).toBeNull();
     expect(parseNoteMinInput("0")).toBe(0);
     expect(parseNoteMinInput(51)).toBeNull();
     expect(parseNoteMinInput("x")).toBeNull();

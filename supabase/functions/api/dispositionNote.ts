@@ -28,7 +28,7 @@
 export const DISPOSITION_NOTE_MIN = 5;
 export const DISPOSITION_NOTE_MAX = 1000;
 /** The setting's own bounds (Settings / PATCH /app-settings). */
-export const NOTE_MIN_SETTING_MAX = 50;
+export const NOTE_MIN_SETTING_MAX = 5; // never above the frontend's fixed 5 (src/lib/dispositionNote.ts) — a higher server minimum would lose typed notes
 export const DISPOSITION_STATUSES = ["cancelled", "trashed"] as const;
 
 export type NoteErrorCode = "note_required" | "note_too_short" | "note_too_long";
@@ -124,7 +124,7 @@ export function parseNoteMin(v: unknown): number {
   return n == null ? DISPOSITION_NOTE_MIN : n;
 }
 
-/** A value an admin sends for the setting: an integer 0..50 (a numeric string too), else null. */
+/** A value an admin sends for the setting: an integer 0..5 (a numeric string too), else null. */
 export function parseNoteMinInput(v: unknown): number | null {
   let n: number;
   if (typeof v === "number") n = v;

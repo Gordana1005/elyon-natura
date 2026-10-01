@@ -998,39 +998,43 @@ export default function CallsPage() {
 
   // Откажа — a reason is required (the bar never sends one without it). An open lead
   // is cancelled in place; no open order → a cancel record carrying the last purchase.
-  const handleCancel = useCallback(async (reason: CancellationReason, note: string) => {
+  const handleCancel = useCallback(async (reason: CancellationReason, note: string): Promise<boolean> => {
     const phone = selectedPhone;
-    if (!phone) return;
+    if (!phone) return false;
     deferred.commit();
     setBusyOutcome('cancelled');
     try {
       const res = await sendOutcome({ ...outcomeBody('cancelled', phone), reason, ...(note ? { note } : {}) }, 'cancel');
-      if (!res) return;
+      if (!res) return false;
       toast({
         title: t('callsWork.toast.cancelled'),
         description: [cancelReasonLabel(reason), res.order_action === 'created' ? res.product_name : null].filter(Boolean).join(' · '),
       });
       afterOutcome(phone);
+      return true;
     } catch (err) {
       toast({ title: t('callsPage.cancellationFailed'), description: outcomeErrorText(err), variant: 'destructive' });
+      return false;
     } finally {
       setBusyOutcome(null);
     }
   }, [selectedPhone, deferred, sendOutcome, outcomeBody, toast, t, afterOutcome, outcomeErrorText]);
 
   // Корпа — the structured reason decides the sticky trash (engine v3.7-mk).
-  const handleTrash = useCallback(async (reason: TrashReason, note: string) => {
+  const handleTrash = useCallback(async (reason: TrashReason, note: string): Promise<boolean> => {
     const phone = selectedPhone;
-    if (!phone) return;
+    if (!phone) return false;
     deferred.commit();
     setBusyOutcome('trash');
     try {
       const res = await sendOutcome({ ...outcomeBody('trash', phone), reason, ...(note ? { note } : {}) }, 'trash');
-      if (!res) return;
+      if (!res) return false;
       toast({ title: t('callsWork.toast.trash'), description: trashReasonLabel(reason) });
       afterOutcome(phone);
+      return true;
     } catch (err) {
       toast({ title: t('callsPage.recordFailed'), description: outcomeErrorText(err), variant: 'destructive' });
+      return false;
     } finally {
       setBusyOutcome(null);
     }
@@ -1398,8 +1402,8 @@ export default function CallsPage() {
           busy={busyOutcome}
           onNoAnswer={handleNoAnswer}
           onCallAgain={(at) => { void handleCallAgain(at); }}
-          onCancel={(r, n) => { void handleCancel(r, n); }}
-          onTrash={(r, n) => { void handleTrash(r, n); }}
+          onCancel={(r, n) => handleCancel(r, n)}
+          onTrash={(r, n) => handleTrash(r, n)}
           onConfirm={() => { void handleAnswerConfirmed(); }}
           keyboard={!isMobile}
           resetKey={selectedPhone}
