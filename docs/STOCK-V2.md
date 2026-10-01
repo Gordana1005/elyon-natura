@@ -239,6 +239,81 @@ Also: `stock_sigma_rule_set(p_row jsonb, p_actor uuid)`.
 - Phase B, behind `stock_v2.profit.extra_goods`: per parcel, the ledger COGS minus the order-line COGS is added as "дополнително спакувано".
 - Cache version 5 → 6, and the signature includes the cost history and the approved recipes.
 
+### Engine notes — what workstream E built (deviations and additions, 02.10.2026)
+**Apply order:** `…0100` → `…0200` → `…0300` → `…0400` → `…0900` (M, `picked_up_at`) → `…0500` → `…0600` / `…0650` / `…0700` / `…0800`.
+`…0500` refuses to install without `mex_parcels.picked_up_at`. `…0300`'s `stock_v2_desired()` reads it only for a count saved with `packed_counted` (dynamic SQL), so `…0300` installs without it.
+
+**Deviations from the text above:**
+- `available = closing − reserved`, **not** `closing − to_pack − reserved`. A parcel is deducted when MEX creates the label, so `closing` already excludes `to_pack` and `with_courier`. The comment in `stockV2Types.ts` should be corrected by the lead.
+- `in` also counts `damaged_in`. `adjust` also counts an `opening` move that falls inside the day (an opening not counted at 00:00).
+- `days_cover = max(closing, 0) / avg_out_14d`. `avg_out_14d` divides by the days since the scope start while fewer than 14 have passed.
+- `stock_v2_parcel_lines(p_from, p_to)` and `stock_v2_parcels(p_from, p_to)` take an optional `p_to` (DEFAULT NULL = no end). Calls with only `p_from` behave as the contract says.
+- `stock_v2_article_series` always carries `article.cost_mkd`. The function has no `p_money`, so the api strips the key for non-owners.
+- `stock_v2_set` does not run a pass itself. The api runs `stock_v2_apply('switch_on')` after switching on.
+
+**Additions:**
+- **Writers:**
+  - `stock_v2_count_approve(p_count, p_actor)` (lead request).
+  - `stock_v2_manual_move_void(p_move, p_reason, p_actor)`.
+- **Readers:**
+  - `stock_v2_config()` returns `StockConfig`.
+  - `stock_v2_position_at(p_at, p_warehouse, p_preview)` returns on_hand, to_pack and with_courier per article (`on_hand()` wraps it).
+  - `stock_v2_reserved_lines()`.
+- **Helpers:**
+  - `stock_v2_settings()`, `stock_v2_enabled()`, `stock_v2_scope_from()`.
+  - `stock_v2_num()`, `stock_v2_alias_key()`, `stock_v2_wh()`.
+  - `stock_v2_sigma_object()`, `stock_v2_sigma_excluded()`.
+  - `stock_v2_cost_at()`, `stock_v2_parse_lines()`, `stock_v2_audit()`.
+  - `stock_v2_moves_sql()`, `stock_v2_wh_ref()`, `stock_v2_freshness()`.
+
+**Semantics the contract left open:**
+- **Balance at t** = Σ moves with `event_at < t`, plus a count (`opening` / `count_adjust`) at exactly t. A count's adjustment uses the non-count moves in [previous count of that article, this count).
+- **Counts:**
+  - Only the listed articles are adjusted. A `full` count warns `not_counted:N` and never zeroes the rest.
+  - `packed_counted` takes the units still at MEX 8 at `counted_at` off the counted figure.
+  - The opening must be the earliest approved count of its warehouse.
+  - A non-owner's count is `pending` and must be dated after the last approved count.
+  - Warnings are codes: `parcels_near_count:N` (± 2 h), `no_opening`, `old_count`, `pending_owner_approval`, `not_counted:N`.
+- **Resolver:**
+  - A vanished collabBox document still supplies the lines, flagged `provisional`.
+  - `provisional` also marks CRM lines on a collabBox-numbered parcel (`NNN-SSSS-…`): a document is expected.
+  - A test phone is caught on the parcel, on the claiming web order or on any holding order.
+  - "No lines" under 2 days old is `waiting_lines`.
+  - Recipes are taken at the parcel's `created_at_mex`.
+  - Kits expand one level, for parcel lines only (never for Sigma documents).
+  - Only **approved** aliases are used. Alias keys: codes / SKUs / shop ids upper-trimmed, names via `product_alias_norm`.
+- **Routes:**
+  - The lowest `priority` wins, and a route must ship from a tracked warehouse.
+  - The return route is the one valid at `returned_at`.
+  - Override payloads: `route` → `{warehouse, return_warehouse}`; `damaged_return` → `{warehouse}` (default `damaged`); `unpacked` → `{event_at}` (default now); `lines` → `{lines:[{code, qty}]}`.
+  - Action `clear` deactivates the override.
+  - A note of 3 or more characters is required on overrides and manual moves.
+- **Sigma:**
+  - A line's `side` picks the object: `out` = `object_from`, `in` = `object_to`. A one-object document falls back to the object it has. A line with no side follows the document's direction.
+  - Kinds: transfer → `transfer_out` / `transfer_in`. Otherwise `ledger_kind`, flipped `production_in` ↔ `production_use` when the side disagrees. If none is set: `shop_out` / `receipt`.
+  - An item code that is not a `stock_articles` row is skipped and counted in `health.sigma.unknown_items`.
+  - Objects match keys as written, or as `company-object`.
+- **Write gates:**
+  - The guard triggers (`elyon.stock_write`) sit on E's tables only: warehouses, keys, routes, articles, kits, recipes, exempt, aliases, counts, manual moves, overrides, parcel state, and `stock_moves` (append-only).
+  - The Sigma staging tables and the cost tables are protected by RLS and grants only. Their writers (S / P) add any gate themselves.
+  - `stock_article_costs` refuses UPDATE / DELETE.
+- **Writer errors:** writers answer `{ok:false, error:'<code>'}` instead of raising. The exception is `stock_v2_config_set`, which raises 22023 so that a bad patch writes nothing.
+- **`stock_v2_apply`:**
+  - It returns `{status: ok | disabled | busy | failed, run_id, dry, trigger, groups, moves, corrections, parcels, parcel_states_changed, units_out, units_back, by_kind{kind:{rows, qty}}, samples[50], duration_ms}`.
+  - Dry runs are logged in `stock_runs` when the transaction is writable.
+  - `supabase_read_only_user` may EXECUTE it: in a read-only transaction a dry pass writes nothing.
+- **Filters:**
+  - `stock_v2_movements` takes `{from, to (inclusive Skopje days), warehouse, article, kind, source, q, corrections: true = only / false = without (also 'only' / 'hide'), preview}`.
+  - `stock_v2_parcels_day` takes `{warehouse, account, department, status, city, state}`. It never shows test phones. `returned_units` = units returned that day, whatever the creation day. `hourly.picked_up` counts every pickup of that hour (account filter only).
+- **`health`:**
+  - Extra keys: `queues.unmapped_parcels`, `queues.states`, `recipes.exempt`, `sigma.docs_type_not_included`, `sigma.unknown_items`; `last_run.stats.error`.
+  - `negatives` come from the ledger when the switch is on, and from the preview when it is off.
+- **`reserved_now` is an estimate:**
+  - Confirmed CRM orders with no parcel (`warehouse_send_base()`), through approved recipes.
+  - collabBox order / order_unless_held / credit documents of the last 14 days with no parcel, not tied to a queued order.
+  - Unmapped lines are counted, never guessed.
+- **Before articles are loaded,** every parcel is `unmapped` and a pass writes nothing. The preview becomes meaningful once S loads `articles.json`, plus approved recipes for web / CRM-only parcels.
+
 ## Data files from `docs/stock/build_sigma_stock.py`
 Output goes to `exports/stock/`, which is gitignored and never committed (business-confidential costs).
 
