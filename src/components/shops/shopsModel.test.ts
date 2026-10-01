@@ -6,7 +6,7 @@ import detail from './__fixtures__/detail.owner.json';
 import matrix from './__fixtures__/matrix.owner.json';
 import {
   availableSorts, backfillShare, compactQty, controlState, defaultSort, filterMatrix, filterStock, hasKey, hourlyRows,
-  parseSort, parseStockBasis, salesLate, snapshotIsRecent, sortShops, stripShopsMoney, tabParams, topSellerCodes,
+  isShelfGoods, parseSort, parseStockBasis, salesLate, snapshotIsRecent, sortShops, stripShopsMoney, tabParams, topSellerCodes,
   vsDir, withParam, zeroShops,
 } from './shopsModel';
 
@@ -132,6 +132,18 @@ describe('stock of one shop', () => {
 
 describe('the matrix', () => {
   const top = topSellerCodes(M.articles);
+  it('shelf goods only: no ПОЕН, bags or till-assembled bundles', () => {
+    expect(isShelfGoods({ code: '000109', name: 'АЛОЕ ВЕРА ГЕЛ СО АРОНИЈА 1Л' })).toBe(true);
+    expect(isShelfGoods({ code: '001659', name: 'MAGNESIUM BISGLYCINATE 120/1' })).toBe(true);
+    expect(isShelfGoods({ code: '001595', name: '100 %WHEY Чоколадо 400 гр' })).toBe(true);
+    expect(isShelfGoods({ code: 'ПОЕН-65', name: 'ПОЕН-65' })).toBe(false);
+    expect(isShelfGoods({ code: '1506', name: 'ХАРТИЕНА КЕСА' })).toBe(false);
+    expect(isShelfGoods({ code: '600067', name: '1+1 ПРОСТАТОЛ' })).toBe(false);
+    expect(isShelfGoods({ code: '700061', name: 'ТУРМЕРИК 1+1' })).toBe(false);
+    expect(isShelfGoods({ code: '000569', name: '3/1 ДИАБЕТОЛ ФОРТЕ + VITAMIN D' })).toBe(false);
+    expect(isShelfGoods({ code: '000553', name: '2+2 АЛОЕ ВЕРА ГЕЛ -АРОНИЈА 1Л' })).toBe(false);
+    expect(isShelfGoods({ code: '800314', name: '2 КРЕАТИН ВО ПРАВ 200ГР' })).toBe(false);
+  });
   it('top sellers = the 20 best 30-day sellers', () => {
     expect(top.size).toBe(20);
     const best = [...M.articles].sort((a, b) => b.sold_30d_total - a.sold_30d_total)[0];

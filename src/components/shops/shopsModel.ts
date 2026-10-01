@@ -191,9 +191,24 @@ export type MatrixArticle = ShopsStockMatrix['articles'][number];
 export const TOP_SELLERS_N = 20;
 export const NO_BRAND = '__none__';
 
-/** The chain's top sellers by 30-day units (only articles that sold). */
+/**
+ * Shelf goods only (02.10.2026, the first live read): never a loyalty ПОЕН voucher, a bag / consumable
+ * (≤ 4-digit codes such as 1506 ХАРТИЕНА КЕСА) or a bundle the till assembles at the moment of sale
+ * (collabBox bundle codes 1xxxxx–9xxxxx, names like "1+1 …", "ТУРМЕРИК 1+1", "3/1 ДИАБЕТОЛ …", "2 КРЕАТИН …").
+ * Twin of the SQL rule in shops_stock_rows() (migration 20260946000400).
+ */
+export function isShelfGoods(a: Pick<MatrixArticle, 'code' | 'name'>): boolean {
+  const code = String(a.code ?? '').trim();
+  const name = String(a.name ?? '');
+  if (/^поен/i.test(code) || /^поен/i.test(name)) return false;
+  if (/^\d{1,4}$/.test(code) || /^[1-9]\d{5}$/.test(code)) return false;
+  if (/\d\s*\+\s*\d/.test(name) || /^\s*\d+\s*\/\s*\d+\s/.test(name) || /^\s*[1-9]\s+[^0-9%]/.test(name)) return false;
+  return true;
+}
+
+/** The chain's top sellers by 30-day units (only shelf goods that sold). */
 export function topSellerCodes(articles: MatrixArticle[], n = TOP_SELLERS_N): Set<string> {
-  return new Set([...articles].filter((a) => a.sold_30d_total > 0)
+  return new Set([...articles].filter((a) => a.sold_30d_total > 0 && isShelfGoods(a))
     .sort((a, b) => b.sold_30d_total - a.sold_30d_total || a.code.localeCompare(b.code))
     .slice(0, n).map((a) => a.code));
 }
