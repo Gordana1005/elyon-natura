@@ -1218,6 +1218,134 @@
       "accept": "Prano",
       "acceptFor": "Prano {{line}} për {{name}}",
       "accepted": "Vendosur"
+    },
+    "colKind": "Lloji",
+    "kind": {
+      "label": "Lloji",
+      "product": "Produkt",
+      "bundle": "Paketë / promocion",
+      "gift": "Dhuratë",
+      "other": "Tjetër",
+      "none": "I papërcaktuar",
+      "setFor": "Lloji i {{name}}",
+      "clear": "I papërcaktuar (pastro)",
+      "savedTitle": "Lloji u ruajt",
+      "saved": "{{kind}}: {{updated}} të ndryshuar, {{unchanged}} ishin tashmë"
+    },
+    "kindFilter": {
+      "label": "Shfaq",
+      "product": "Produkte",
+      "bundle": "Paketa dhe promocione",
+      "gift": "Dhurata",
+      "other": "Tjetër",
+      "none": "I papërcaktuar",
+      "all": "Të gjitha"
+    },
+    "status": {
+      "label": "Statusi",
+      "all": "Të gjitha",
+      "active": "Aktive",
+      "inactive": "Të çaktivizuara"
+    },
+    "showMore": "Shfaq edhe {{n}}",
+    "shownPage": "Shfaqen {{shown}} nga {{total}}",
+    "bulkKind": {
+      "setKind": "Cakto llojin",
+      "setKindFor": "Lloji për {{n}} të zgjedhura"
+    },
+    "proposalTabs": {
+      "label": "Propozim për",
+      "line": "Linjën",
+      "kind": "Llojin"
+    },
+    "kindProposal": {
+      "title": "Propozimi i llojit të produkteve",
+      "rule": "Rregulli (pronari, 01.10): së pari shfaqen produktet e zakonshme. Paketat dhe promocionet (1+1, 2x, set, PACK, dhuratë …), sendet (peshore, blender, toster, shejker …) dhe dhuratat (produkte që pothuajse gjithmonë jepen falas pranë një produkti të paguar) marrin llojin e tyre.",
+      "kpiTitle": "Propozimi shkurt",
+      "kpi": {
+        "auto": "Gati për pranim",
+        "autoSub": "të papërcaktuara, propozim i sigurt",
+        "low": "Të pasigurta",
+        "lowSub": "dhurata të mundshme — vendosni ju",
+        "decided": "Të përcaktuara",
+        "differs": "Ndryshe nga propozimi",
+        "ofProducts": "nga {{n}} produkte"
+      },
+      "acceptAll": "Prano të sigurtat ({{n}})",
+      "acceptAllTitle": "Të pranohen {{n}} propozime të sigurta?",
+      "acceptAllBody": "Lloji caktohet vetëm te produktet e papërcaktuara me propozim të sigurt. Dhuratat e pasigurta mbeten për ju. Çdo ndryshim shkruhet në regjistër.",
+      "acceptAllConfirm": "Prano",
+      "acceptedAll": "U caktuan {{updated}} lloje.",
+      "filterLabel": "Shfaq",
+      "filter": {
+        "todo": "Të papërcaktuara",
+        "auto": "Gati për pranim",
+        "low": "Të pasigurta",
+        "differs": "Ndryshe",
+        "decided": "Të përcaktuara",
+        "all": "Të gjitha"
+      },
+      "empty": "Nuk ka produkte për këtë filtër",
+      "suggested": "Propozim",
+      "current": "Lloji",
+      "lines": "Rreshta porosie",
+      "confidence": {
+        "high": "I sigurt",
+        "low": "I pasigurt"
+      },
+      "reason": {
+        "promo": "„{{hit}}“ në emër — promocion",
+        "bundle_word": "„{{hit}}“ në emër — paketë",
+        "multi_pack": "Disa copë („{{hit}}“) në emër",
+        "plus_joiner": "Disa produkte të bashkuara me „+“",
+        "object_set": "Sende („{{hit}}“)",
+        "object_word": "Send: „{{hit}}“",
+        "free_in_orders": "{{pct}} nga {{lines}} rreshta janë falas pranë një produkti të paguar",
+        "single": "Emri i një produkti",
+        "empty_name": "Pa emër"
+      },
+      "accept": "Prano",
+      "acceptFor": "Prano „{{kind}}“ për {{name}}",
+      "accepted": "U caktua"
+    },
+    "form": {
+      "titleNew": "Produkt i ri",
+      "titleEdit": "Ndrysho produktin",
+      "sectionBasic": "Bazë",
+      "sectionPrices": "Çmimet",
+      "sectionCode": "Kodet",
+      "sectionStock": "Stoku",
+      "sectionDetails": "Detaje",
+      "name": "Emri i produktit",
+      "kind": "Lloji",
+      "line": "Linja",
+      "active": "Aktiv",
+      "activeHint": "Një produkt i çaktivizuar nuk ofrohet në porosi të re.",
+      "price": "Çmimi i shitjes",
+      "cost": "Çmimi i blerjes",
+      "costHint": "E shohin vetëm pronarët.",
+      "sku": "SKU",
+      "skuHint": "Bosh = caktohet automatikisht.",
+      "barcode": "Barkodi",
+      "stock": "Sasia në stok",
+      "threshold": "Pragu i stokut të ulët",
+      "supply": "Ditë për paketë",
+      "description": "Përshkrimi",
+      "category": "Kategoria",
+      "supplier": "Furnizuesi",
+      "ownersOnly": "Llojin dhe linjën i caktojnë pronarët.",
+      "errors": {
+        "required": "Fushë e detyrueshme",
+        "tooLong": "Shumë i gjatë",
+        "number": "Shkruani një shumë në denarë",
+        "wholeNumber": "Shkruani një numër të plotë",
+        "days": "Numër i plotë nga 1 deri në 3.650"
+      },
+      "fixErrors": "Rregulloni fushat e shënuara",
+      "partialTitle": "Produkti u ruajt, por jo gjithçka",
+      "partialKind": "lloji nuk u ruajt: {{error}}",
+      "partialLine": "linja nuk u ruajt: {{error}}",
+      "nothingChanged": "Nuk ka ndryshime për t’u ruajtur"
     }
   },
   "userRole": {

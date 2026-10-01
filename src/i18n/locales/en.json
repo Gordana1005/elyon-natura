@@ -1218,6 +1218,134 @@
       "accept": "Accept",
       "acceptFor": "Accept {{line}} for {{name}}",
       "accepted": "Set"
+    },
+    "colKind": "Kind",
+    "kind": {
+      "label": "Kind",
+      "product": "Product",
+      "bundle": "Bundle / promotion",
+      "gift": "Gift",
+      "other": "Other",
+      "none": "Not decided",
+      "setFor": "Kind of {{name}}",
+      "clear": "Not decided (clear)",
+      "savedTitle": "Kind saved",
+      "saved": "{{kind}}: {{updated}} changed, {{unchanged}} already were"
+    },
+    "kindFilter": {
+      "label": "Show",
+      "product": "Products",
+      "bundle": "Bundles & promotions",
+      "gift": "Gifts",
+      "other": "Other",
+      "none": "Not decided",
+      "all": "All"
+    },
+    "status": {
+      "label": "Status",
+      "all": "All",
+      "active": "Active",
+      "inactive": "Disabled"
+    },
+    "showMore": "Show {{n}} more",
+    "shownPage": "Showing {{shown}} of {{total}}",
+    "bulkKind": {
+      "setKind": "Set kind",
+      "setKindFor": "Kind for {{n}} selected"
+    },
+    "proposalTabs": {
+      "label": "Proposal for",
+      "line": "Line",
+      "kind": "Kind"
+    },
+    "kindProposal": {
+      "title": "Proposed kind of each product",
+      "rule": "Rule (owner, 01.10): the ordinary products come first. Bundles and promotions (1+1, 2x, set, PACK, gift …), objects (scale, blender, toaster, shaker …) and gifts (products almost always given free next to a paid one) get their own kind.",
+      "kpiTitle": "The proposal at a glance",
+      "kpi": {
+        "auto": "Ready to accept",
+        "autoSub": "not decided, sure proposal",
+        "low": "Uncertain",
+        "lowSub": "possible gifts — you decide",
+        "decided": "Decided",
+        "differs": "Differs from the proposal",
+        "ofProducts": "of {{n}} products"
+      },
+      "acceptAll": "Accept the sure ones ({{n}})",
+      "acceptAllTitle": "Accept {{n}} sure proposals?",
+      "acceptAllBody": "A kind is set only on undecided products with a sure proposal. Uncertain gifts stay for you. Every change is written to the audit log.",
+      "acceptAllConfirm": "Accept",
+      "acceptedAll": "{{updated}} kinds set.",
+      "filterLabel": "Show",
+      "filter": {
+        "todo": "Not decided",
+        "auto": "Ready to accept",
+        "low": "Uncertain",
+        "differs": "Differs",
+        "decided": "Decided",
+        "all": "All"
+      },
+      "empty": "No products for this filter",
+      "suggested": "Proposal",
+      "current": "Kind",
+      "lines": "Order lines",
+      "confidence": {
+        "high": "Sure",
+        "low": "Uncertain"
+      },
+      "reason": {
+        "promo": "\"{{hit}}\" in the name — a promotion",
+        "bundle_word": "\"{{hit}}\" in the name — a bundle",
+        "multi_pack": "Several units (\"{{hit}}\") in the name",
+        "plus_joiner": "Several products joined with \"+\"",
+        "object_set": "Objects (\"{{hit}}\")",
+        "object_word": "Object: \"{{hit}}\"",
+        "free_in_orders": "{{pct}} of {{lines}} order lines are free next to a paid product",
+        "single": "The name of one product",
+        "empty_name": "No name"
+      },
+      "accept": "Accept",
+      "acceptFor": "Accept \"{{kind}}\" for {{name}}",
+      "accepted": "Set"
+    },
+    "form": {
+      "titleNew": "New product",
+      "titleEdit": "Edit product",
+      "sectionBasic": "Basics",
+      "sectionPrices": "Prices",
+      "sectionCode": "Codes",
+      "sectionStock": "Stock",
+      "sectionDetails": "Details",
+      "name": "Product name",
+      "kind": "Kind",
+      "line": "Line",
+      "active": "Active",
+      "activeHint": "A disabled product is not offered on a new order.",
+      "price": "Selling price",
+      "cost": "Cost price",
+      "costHint": "Only owners see it.",
+      "sku": "SKU",
+      "skuHint": "Empty = assigned automatically.",
+      "barcode": "Barcode",
+      "stock": "Stock quantity",
+      "threshold": "Low-stock threshold",
+      "supply": "Days per pack",
+      "description": "Description",
+      "category": "Category",
+      "supplier": "Supplier",
+      "ownersOnly": "Owners set the kind and the line.",
+      "errors": {
+        "required": "Required",
+        "tooLong": "Too long",
+        "number": "Enter an amount in denars",
+        "wholeNumber": "Enter a whole number",
+        "days": "A whole number from 1 to 3,650"
+      },
+      "fixErrors": "Fix the marked fields",
+      "partialTitle": "The product was saved, but not everything",
+      "partialKind": "the kind was not saved: {{error}}",
+      "partialLine": "the line was not saved: {{error}}",
+      "nothingChanged": "Nothing to save"
     }
   },
   "userRole": {

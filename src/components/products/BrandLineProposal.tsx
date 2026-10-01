@@ -21,6 +21,7 @@ import {
   type BrandLine, type BrandLineProposal as Proposal, type ProposalConfidence, type ProposalFilter,
   type ProposalRow, type SetBrandLineResult,
 } from '@/lib/products/brandLines';
+import { useMinWidth } from '@/lib/products/useMinWidth';
 import { LineBadge, LineChip } from './LineChip';
 import { chip, chipOff, chipOne } from './ProductFilters';
 
@@ -260,10 +261,12 @@ interface ListProps {
 
 function ProposalList(p: ListProps) {
   const { t } = useTranslation();
+  // One layout mounted (Производи 2.0): the table from xl, the cards below.
+  const wide = useMinWidth(1280);
   const th = 'whitespace-nowrap px-2 py-2 text-left font-medium';
   return (
     <>
-      <div className="relative hidden max-h-[70vh] overflow-auto rounded-xl border bg-card shadow-sm xl:block">
+      {wide && <div className="relative max-h-[70vh] overflow-auto rounded-xl border bg-card shadow-sm">
         <table className="w-full text-[13px]">
           <caption className="sr-only">{t('products.proposal.title')}</caption>
           <thead className="sticky top-0 z-20 bg-card text-[11px] text-muted-foreground shadow-[0_1px_0_hsl(var(--border))]">
@@ -291,8 +294,8 @@ function ProposalList(p: ListProps) {
             ))}
           </tbody>
         </table>
-      </div>
-      <ul className="grid min-w-0 gap-3 md:grid-cols-2 xl:hidden" aria-label={t('products.proposal.title')}>
+      </div>}
+      {!wide && <ul className="grid min-w-0 gap-3 md:grid-cols-2" aria-label={t('products.proposal.title')}>
         {p.rows.map((r) => (
           <li key={r.id} className="min-w-0 space-y-3 rounded-xl border bg-card p-3 shadow-sm">
             <ProductName r={r} />
@@ -305,7 +308,7 @@ function ProposalList(p: ListProps) {
             </div>
           </li>
         ))}
-      </ul>
+      </ul>}
     </>
   );
 }

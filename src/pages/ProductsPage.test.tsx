@@ -3,291 +3,310 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import i18n from '@/i18n';
 
-// Производи: the brand line on every product (plan 30.09, Фаза 4) — the line
-// chips filter, the bulk "Постави линија", the Предлог view (accept one, accept
-// all ≥ 90 %, pick a line per row), who may set lines, and that editing still
-// works. GET /api/products and the proposal are fixtures; the layout a shell.
+// Производи 2.0 (owner 01.10.2026): the page opens on the ordinary PRODUCTS; kind chips (Пакети и
+// промоции · Подароци · Друго · Неодредено · Сите) and line chips filter; 50 rows a page; the new
+// product form (sections, only what changed, kind + line through their audited routes); a manager
+// edits but never sees cost; the Предлог tab carries both proposals. The api is mocked; the layout a shell.
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: { auth: { getSession: async () => ({ data: { session: null } }) } },
 }));
-const auth: { user: { id: string; isAdmin: boolean; isManager: boolean } } = {
-  user: { id: 'u-admin', isAdmin: true, isManager: false },
-};
+const auth: { user: { id: string; isAdmin: boolean; isManager: boolean } } = { user: { id: 'u-admin', isAdmin: true, isManager: false } };
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => auth }));
 const perms = { canSeeBusiness: true };
 vi.mock('@/contexts/PermissionsContext', () => ({ usePermissions: () => perms }));
 vi.mock('@/layouts/AppLayout', () => ({
   AppLayout: ({ title, children }: { title: string; children: React.ReactNode }) => <div><h1>{title}</h1>{children}</div>,
 }));
-const getProducts = vi.fn();
-const getProposal = vi.fn();
+const getCatalogue = vi.fn();
+const getKindProposal = vi.fn();
+const setKind = vi.fn();
+const getLineProposal = vi.fn();
 const setLine = vi.fn();
 const updateProduct = vi.fn();
+const createProduct = vi.fn();
 vi.mock('@/lib/api', async (orig) => ({
   ...(await orig<typeof import('@/lib/api')>()),
-  apiGetProducts: (...a: unknown[]) => getProducts(...a),
+  apiGetProductCatalogue: (...a: unknown[]) => getCatalogue(...a),
   apiGetSuppliers: async () => [{ id: 's1', name: 'Natura DOO' }],
-  apiGetBrandLineProposal: (...a: unknown[]) => getProposal(...a),
+  apiGetKindProposal: (...a: unknown[]) => getKindProposal(...a),
+  apiSetProductKind: (...a: unknown[]) => setKind(...a),
+  apiGetBrandLineProposal: (...a: unknown[]) => getLineProposal(...a),
   apiSetBrandLine: (...a: unknown[]) => setLine(...a),
   apiUpdateProduct: (...a: unknown[]) => updateProduct(...a),
-  apiCreateProduct: vi.fn(),
+  apiCreateProduct: (...a: unknown[]) => createProduct(...a),
   apiGetInventoryLogs: async () => [],
 }));
 
+let wide = true;
 beforeAll(async () => {
   globalThis.ResizeObserver ??= class { observe() {} unobserve() {} disconnect() {} } as unknown as typeof ResizeObserver;
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: (query: string) => ({
+      matches: query.includes('1280') ? wide : false, media: query, onchange: null,
+      addListener: () => {}, removeListener: () => {}, addEventListener: () => {}, removeEventListener: () => {}, dispatchEvent: () => false,
+    }),
+  });
   await i18n.changeLanguage('mk');
 });
 afterEach(() => {
   vi.clearAllMocks();
   auth.user = { id: 'u-admin', isAdmin: true, isManager: false };
   perms.canSeeBusiness = true;
+  wide = true;
 });
 
 const { default: ProductsPage } = await import('./ProductsPage');
 
-const ID = {
-  neuro: '11111111-1111-4111-8111-111111111111',
-  mag: '22222222-2222-4222-8222-222222222222',
-  snail: '33333333-3333-4333-8333-333333333333',
-  uro: '44444444-4444-4444-8444-444444444444',
-  alpha: '55555555-5555-4555-8555-555555555555',
-};
-const product = (id: string, name: string, brand_line: string | null, extra: Record<string, unknown> = {}) => ({
-  id, name, description: null, price: 20, cost_price: 5, sku: `SKU-${name.slice(0, 3)}`, stock_quantity: 1000,
-  low_stock_threshold: 5, days_of_supply_per_unit: 15, is_active: true, category: '', supplier_id: null, suppliers: null,
-  brand_line, ...extra,
+const uid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+const P = (n: number, name: string, kind: string | null, o: Record<string, unknown> = {}) => ({
+  id: uid(n), name, sku: `SKU-${n}`, barcode: null, price: 20, cost_price: 5, suggested_price: 20, stock_quantity: 1000,
+  low_stock_threshold: 5, days_of_supply_per_unit: 15, is_active: true, category: '', description: '', supplier_id: null,
+  supplier_name: null, brand_line: null, kind, created_at: null, ...o,
 });
-const PRODUCTS = [
-  product(ID.neuro, 'Neurofix', 'bio_natural'),
-  product(ID.mag, 'MAGNESIUM CITRAT 325mg', null),
-  product(ID.snail, 'СНАИЛ КОМПЛЕКС cps 30', null),
-  product(ID.uro, 'Urofix', null),
-  product(ID.alpha, 'ALPHA MALE 60 cps', 'natura_therapy'),
+const ROWS = [
+  P(1, 'Neurofix', 'product', { brand_line: 'bio_natural' }),
+  P(2, 'СНАИЛ КОМПЛЕКС cps 30', 'product', { brand_line: 'natura_therapy' }),
+  P(3, '2x Diet Shake + Slim Complex', 'bundle', { brand_line: 'ad_astra' }),
+  P(4, 'ГЛУКОЗАМИН СУЛФАТ 30 cps', 'gift'),
+  P(5, 'ТЕЛЕСНА ВАГА', 'other', { is_active: false }),
+  P(6, 'Arthriva', null, { description: 'Креиран автоматски (complete-catalogue, run x): производ со продажби' }),
 ];
+const idOf = (name: string) => ROWS.find((r) => r.name === name)!.id;
 
-const prow = (id: string, name: string, o: Record<string, unknown>) => ({
-  id, name, sku: null, is_active: true, brand_line: null, brand_line_set_at: null, brand_line_set_by_name: null,
-  bio_natural: 0, natura: 0, parcels: 0, majority: null, share: null, bucket: 'none', anchor: null, hint: null,
-  suggested: null, suggested_profile: null, confidence: 'none', conflict: false, reason: 'no_parcels', auto: false, ...o,
+const KR = (n: number, name: string, o: Record<string, unknown>) => ({
+  id: uid(n), name, sku: null, is_active: true, kind: null, kind_set_at: null, kind_set_by_name: null, suggested: 'product',
+  confidence: 'high', reason: 'single', hit: null, lines: 0, free_lines: 0, free_share: null, auto: true, ...o,
 });
-const PROPOSAL = {
-  days: 180, generated_at: '2026-09-30T20:00:00Z',
-  summary: { products: 5, sure: 3, mixed: 1, none: 0, anchors: 2, conflicts: 1, hints: { ad_astra: 0, dr_becker: 0 }, decided: 0, auto: 3, few_parcels_auto: 0 },
+const KIND_PROPOSAL = {
+  generated_at: '2026-10-01T00:00:00Z',
+  summary: { products: 3, suggested: { product: 1, bundle: 1, gift: 1, other: 0, none: 0 }, decided: 0, auto: 2, low: 1, differs: 0 },
   rows: [
-    prow(ID.mag, 'MAGNESIUM CITRAT 325mg', { bio_natural: 97, natura: 13895, parcels: 13992, majority: 'natura', share: 0.993, bucket: 'sure', suggested: 'natura_therapy', suggested_profile: 'natura', confidence: 'high', reason: 'parcels_sure', auto: true }),
-    prow(ID.neuro, 'Neurofix', { bio_natural: 2570, natura: 21, parcels: 2591, majority: 'bio_natural', share: 0.99, bucket: 'sure', anchor: 'neurofix', suggested: 'bio_natural', suggested_profile: 'bio_natural', confidence: 'anchor', reason: 'anchor_name', auto: true }),
-    prow(ID.snail, 'СНАИЛ КОМПЛЕКС cps 30', { bio_natural: 30, natura: 2846, parcels: 2876, majority: 'natura', share: 0.99, bucket: 'sure', suggested: 'natura_therapy', suggested_profile: 'natura', confidence: 'high', reason: 'parcels_sure', auto: true }),
-    prow(ID.uro, 'Urofix', { bio_natural: 1800, natura: 205, parcels: 2005, majority: 'bio_natural', share: 0.898, bucket: 'mixed', suggested: 'bio_natural', suggested_profile: 'bio_natural', confidence: 'low', reason: 'parcels_mixed' }),
-    prow(ID.alpha, 'ALPHA MALE 60 cps', { bio_natural: 21, natura: 306, parcels: 327, majority: 'natura', share: 0.936, bucket: 'sure', anchor: 'alphamale', suggested: 'bio_natural', suggested_profile: 'bio_natural', confidence: 'conflict', conflict: true, reason: 'anchor_conflict' }),
+    KR(6, 'Arthriva', {}),
+    KR(7, 'СПИРУЛИНА 150+150 tbl', { suggested: 'bundle', reason: 'promo', hit: '150+150' }),
+    KR(8, 'САУ ПАЛМЕТТО (Saw Palmetto) 30 cps', { suggested: 'gift', reason: 'free_in_orders', confidence: 'low', auto: false, lines: 100, free_lines: 83, free_share: 0.83 }),
   ],
 };
-
-/** The writer's answer for (ids, line) against the current fixtures. */
-const answer = (ids: string[], line: string | null) => ({
-  line, mex_profile: null, requested: ids.length, updated: ids.length, unchanged: 0, missing: [],
-  changes: ids.map((id) => ({ id, name: id, from: null, to: line })),
-});
+const LINE_PROPOSAL = {
+  days: 180, generated_at: '2026-10-01T00:00:00Z',
+  summary: { products: 1, sure: 1, mixed: 0, none: 0, anchors: 0, conflicts: 0, hints: { ad_astra: 0, dr_becker: 0 }, decided: 0, auto: 1, few_parcels_auto: 0 },
+  rows: [{
+    id: uid(6), name: 'Arthriva', sku: null, is_active: true, brand_line: null, brand_line_set_at: null, brand_line_set_by_name: null,
+    bio_natural: 30, natura: 0, parcels: 30, majority: 'bio_natural', share: 1, bucket: 'sure', anchor: null, hint: null,
+    suggested: 'bio_natural', suggested_profile: 'bio_natural', confidence: 'high', conflict: false, reason: 'parcels_sure', auto: true,
+  }],
+};
+const kindAnswer = (ids: string[], kind: string | null) => ({ kind, requested: ids.length, updated: ids.length, unchanged: 0, missing: [], changes: ids.map((id) => ({ id, name: id, from: null, to: kind })) });
+const lineAnswer = (ids: string[], line: string | null) => ({ line, mex_profile: null, requested: ids.length, updated: ids.length, unchanged: 0, missing: [], changes: ids.map((id) => ({ id, name: id, from: null, to: line })) });
 
 let location = '';
-function LocationProbe() {
-  location = useLocation().search;
-  return null;
-}
-function renderAt(url = '/products') {
-  getProducts.mockResolvedValue(structuredClone(PRODUCTS));
-  getProposal.mockResolvedValue(structuredClone(PROPOSAL));
-  setLine.mockImplementation(async (ids: string[], line: string | null) => answer(ids, line));
-  return render(
-    <MemoryRouter initialEntries={[url]}>
-      <ProductsPage />
-      <LocationProbe />
-    </MemoryRouter>,
-  );
+function LocationProbe() { location = useLocation().search; return null; }
+function renderAt(url = '/products', rows: unknown[] = ROWS) {
+  getCatalogue.mockResolvedValue({ generated_at: null, rows: structuredClone(rows) });
+  getKindProposal.mockResolvedValue(structuredClone(KIND_PROPOSAL));
+  getLineProposal.mockResolvedValue(structuredClone(LINE_PROPOSAL));
+  setKind.mockImplementation(async (ids: string[], kind: string | null) => kindAnswer(ids, kind));
+  setLine.mockImplementation(async (ids: string[], line: string | null) => lineAnswer(ids, line));
+  updateProduct.mockResolvedValue({});
+  return render(<MemoryRouter initialEntries={[url]}><ProductsPage /><LocationProbe /></MemoryRouter>);
 }
 
 const t = (k: string, o?: Record<string, unknown>) => i18n.t(k, o) as string;
-const catalogue = () => screen.getByRole('table', { name: t('nav.products') });
-const shownNames = () => within(catalogue()).getAllByRole('rowheader').map((h) => PRODUCTS.find((p) => h.textContent?.includes(p.name))?.name);
-const rowOf = (name: string) => within(catalogue()).getByRole('rowheader', { name: new RegExp(name) }).closest('tr')!;
-const lineChips = () => within(screen.getByRole('search')).getByRole('group', { name: t('products.colLine') });
+const table = () => screen.getByRole('table', { name: t('nav.products') });
+const shownNames = () => within(table()).queryAllByRole('rowheader').map((h) => ROWS.find((p) => h.textContent?.includes(p.name))?.name);
+const rowOf = (name: string) => within(table()).getByRole('rowheader', { name: new RegExp(name) }).closest('tr')!;
+const group = (labelKey: string) => within(screen.getByRole('search')).getByRole('group', { name: t(labelKey) });
+const chipIn = (labelKey: string, label: string) => within(group(labelKey)).getByRole('button', { name: new RegExp(`^${label}`) });
+const loaded = () => screen.findByRole('table', { name: t('nav.products') }, { timeout: 10_000 });
 
-describe('Производи — the line on every product', { timeout: 30_000 }, () => {
-  it('every product carries its line; the chips filter and count (URL ?line=)', async () => {
+describe('Производи 2.0 — the list', { timeout: 30_000 }, () => {
+  it('opens on the ordinary PRODUCTS: the Производи chip is on, the rest are counted', async () => {
     renderAt();
-    await screen.findByRole('table', { name: t('nav.products') }, { timeout: 10_000 });
-    expect(shownNames()).toHaveLength(5);
-    expect(within(rowOf('Neurofix')).getByRole('button', { name: t('products.line.setFor', { name: 'Neurofix' }) }).textContent).toContain('Bio Natural');
-    expect(within(rowOf('Urofix')).getByRole('button', { name: t('products.line.setFor', { name: 'Urofix' }) }).textContent).toContain(t('products.line.none'));
-
-    const chip = (label: string) => within(lineChips()).getByRole('button', { name: new RegExp(`^${label}`) });
-    expect(chip('Bio Natural').textContent).toContain('1');
-    expect(chip(t('products.line.none')).textContent).toContain('3');
-    fireEvent.click(chip('Bio Natural'));
-    expect(shownNames()).toEqual(['Neurofix']);
-    await waitFor(() => expect(new URLSearchParams(location).get('line')).toBe('bio_natural'));
-    fireEvent.click(chip(t('products.line.none')));
-    expect(shownNames()).toEqual(['MAGNESIUM CITRAT 325mg', 'СНАИЛ КОМПЛЕКС cps 30', 'Urofix']);
-    fireEvent.click(chip('Ad Astra'));
-    expect(screen.getByText(t('products.nothingMatches'))).toBeTruthy();
-    fireEvent.click(chip(t('products.line.all')));
-    expect(shownNames()).toHaveLength(5);
+    await loaded();
+    // Macedonian order: Cyrillic first
+    expect(shownNames()).toEqual(['СНАИЛ КОМПЛЕКС cps 30', 'Neurofix']);
+    const products = chipIn('products.kindFilter.label', t('products.kindFilter.product'));
+    expect(products.getAttribute('aria-pressed')).toBe('true');
+    expect(products.textContent).toContain('2');
+    expect(chipIn('products.kindFilter.label', t('products.kindFilter.bundle')).textContent).toContain('1');
+    expect(chipIn('products.kindFilter.label', t('products.kindFilter.all')).textContent).toContain('6');
+    // no machine description anywhere on the page
+    expect(screen.queryByText(/Креиран автоматски/)).toBeNull();
   });
 
-  it('search finds Cyrillic from Latin and keeps the line filter', async () => {
-    renderAt('/products?line=none');
-    await screen.findByRole('table', { name: t('nav.products') }, { timeout: 10_000 });
-    fireEvent.change(within(screen.getByRole('search')).getByRole('searchbox'), { target: { value: 'snail' } });
+  it('the kind chips filter (URL ?kind=) and combine with the line chips', async () => {
+    renderAt();
+    await loaded();
+    fireEvent.click(chipIn('products.kindFilter.label', t('products.kindFilter.bundle')));
+    expect(shownNames()).toEqual(['2x Diet Shake + Slim Complex']);
+    await waitFor(() => expect(new URLSearchParams(location).get('kind')).toBe('bundle'));
+    fireEvent.click(chipIn('products.kindFilter.label', t('products.kindFilter.gift')));
+    expect(shownNames()).toEqual(['ГЛУКОЗАМИН СУЛФАТ 30 cps']);
+    fireEvent.click(chipIn('products.kindFilter.label', t('products.kindFilter.other')));
+    expect(shownNames()).toEqual(['ТЕЛЕСНА ВАГА']);
+    fireEvent.click(chipIn('products.kindFilter.label', t('products.kindFilter.none')));
+    expect(shownNames()).toEqual(['Arthriva']);
+    fireEvent.click(chipIn('products.kindFilter.label', t('products.kindFilter.all')));
+    expect(shownNames()).toHaveLength(6);
+    fireEvent.click(chipIn('products.colLine', 'Natura Therapy'));
     expect(shownNames()).toEqual(['СНАИЛ КОМПЛЕКС cps 30']);
+    fireEvent.click(chipIn('products.status.label', t('products.status.inactive')));
+    expect(screen.getByText(t('products.nothingMatches'))).toBeTruthy();
   });
 
-  it('one product: the chip picks a line and saves it (audited api)', async () => {
+  it('search finds Cyrillic from Latin across kinds (with ?kind=all)', async () => {
+    renderAt('/products?kind=all');
+    await loaded();
+    fireEvent.change(within(screen.getByRole('search')).getByRole('searchbox'), { target: { value: 'snail' } });
+    await waitFor(() => expect(shownNames()).toEqual(['СНАИЛ КОМПЛЕКС cps 30']));
+  });
+
+  it('50 rows a page, then "Прикажи уште"', async () => {
+    const many = Array.from({ length: 63 }, (_, i) => P(100 + i, `Product ${String(i).padStart(2, '0')}`, 'product'));
+    renderAt('/products', many);
+    await loaded();
+    expect(within(table()).getAllByRole('rowheader')).toHaveLength(50);
+    fireEvent.click(screen.getByRole('button', { name: t('products.showMore', { n: '13' }) }));
+    expect(within(table()).getAllByRole('rowheader')).toHaveLength(63);
+    expect(screen.queryByRole('button', { name: /Прикажи уште/ })).toBeNull();
+  });
+
+  it('cards below xl, the same facts', async () => {
+    wide = false;
     renderAt();
-    await screen.findByRole('table', { name: t('nav.products') }, { timeout: 10_000 });
-    fireEvent.click(within(rowOf('Urofix')).getByRole('button', { name: t('products.line.setFor', { name: 'Urofix' }) }));
+    const list = await screen.findByRole('list', { name: t('nav.products') }, { timeout: 10_000 });
+    expect(screen.queryByRole('table', { name: t('nav.products') })).toBeNull();
+    expect(within(list).getAllByRole('listitem')).toHaveLength(2);
+    expect(within(list).getByText('Neurofix')).toBeTruthy();
+  });
+
+  it('one product: the kind chip sets the kind (audited api) and the row leaves the Производи view', async () => {
+    renderAt();
+    await loaded();
+    fireEvent.click(within(rowOf('Neurofix')).getByRole('button', { name: t('products.kind.setFor', { name: 'Neurofix' }) }));
     const picker = await screen.findByRole('dialog');
-    fireEvent.click(within(picker).getByRole('button', { name: /^Bio Natural/ }));
-    await waitFor(() => expect(setLine).toHaveBeenCalledWith([ID.uro], 'bio_natural'));
-    await waitFor(() =>
-      expect(within(rowOf('Urofix')).getByRole('button', { name: t('products.line.setFor', { name: 'Urofix' }) }).textContent).toContain('Bio Natural'));
+    fireEvent.click(within(picker).getByRole('button', { name: new RegExp(`^${t('products.kind.bundle')}`) }));
+    await waitFor(() => expect(setKind).toHaveBeenCalledWith([idOf('Neurofix')], 'bundle'));
+    await waitFor(() => expect(shownNames()).toEqual(['СНАИЛ КОМПЛЕКС cps 30']));
   });
 
-  it('bulk: select rows → "Постави линија" → one call with every id', async () => {
-    renderAt();
-    await screen.findByRole('table', { name: t('nav.products') }, { timeout: 10_000 });
-    fireEvent.click(within(rowOf('MAGNESIUM')).getByRole('checkbox', { name: t('products.bulk.selectRow', { name: 'MAGNESIUM CITRAT 325mg' }) }));
-    fireEvent.click(within(rowOf('СНАИЛ')).getByRole('checkbox', { name: t('products.bulk.selectRow', { name: 'СНАИЛ КОМПЛЕКС cps 30' }) }));
+  it('bulk: select → "Постави вид" → one call with every id', async () => {
+    renderAt('/products?kind=all');
+    await loaded();
+    fireEvent.click(within(rowOf('Arthriva')).getByRole('checkbox'));
+    fireEvent.click(within(rowOf('ТЕЛЕСНА ВАГА')).getByRole('checkbox'));
     const bar = screen.getByRole('region', { name: t('products.bulk.setLine') });
-    expect(within(bar).getByTestId('products-selected').textContent).toBe(t('products.bulk.selected', { n: '2' }));
-    fireEvent.click(within(bar).getByRole('button', { name: t('products.bulk.setLine') }));
+    fireEvent.click(within(bar).getByRole('button', { name: t('products.bulkKind.setKind') }));
     const picker = await screen.findByRole('dialog');
-    fireEvent.click(within(picker).getByRole('button', { name: /^Natura Therapy/ }));
-    await waitFor(() => expect(setLine).toHaveBeenCalledWith([ID.mag, ID.snail], 'natura_therapy'));
-    await waitFor(() => expect(screen.queryByRole('region', { name: t('products.bulk.setLine') })).toBeNull());
-    const chip = (name: string) => within(rowOf(name)).getByRole('button', { name: t('products.line.setFor', { name }) });
-    expect(chip('MAGNESIUM CITRAT 325mg').textContent).toContain('Natura Therapy');
-    expect(chip('СНАИЛ КОМПЛЕКС cps 30').textContent).toContain('Natura Therapy');
+    fireEvent.click(within(picker).getByRole('button', { name: new RegExp(`^${t('products.kind.other')}`) }));
+    await waitFor(() => expect(setKind).toHaveBeenCalledTimes(1));
+    expect(setKind.mock.calls[0][1]).toBe('other');
+    expect([...setKind.mock.calls[0][0]].sort()).toEqual([idOf('Arthriva'), idOf('ТЕЛЕСНА ВАГА')].sort());
   });
 
-  it('"select all" in the header takes every shown row (the filter applies)', async () => {
-    renderAt('/products?line=none');
-    await screen.findByRole('table', { name: t('nav.products') }, { timeout: 10_000 });
-    fireEvent.click(within(catalogue()).getByRole('checkbox', { name: t('products.bulk.selectAll') }));
-    expect(screen.getByTestId('products-selected').textContent).toBe(t('products.bulk.selected', { n: '3' }));
-  });
-
-  it('an agent sees the line but cannot set it, select rows or open the proposal', async () => {
-    auth.user = { id: 'u-agent', isAdmin: false, isManager: false };
-    perms.canSeeBusiness = false;
-    renderAt('/products?view=proposal');
-    await screen.findByRole('table', { name: t('nav.products') }, { timeout: 10_000 });
-    expect(within(rowOf('Neurofix')).getByText('Bio Natural')).toBeTruthy();
-    expect(within(catalogue()).queryByRole('button', { name: t('products.line.setFor', { name: 'Neurofix' }) })).toBeNull();
-    expect(within(catalogue()).queryAllByRole('checkbox')).toHaveLength(0);
-    expect(screen.queryByRole('tab', { name: t('products.tabs.proposal') })).toBeNull();
-    expect(getProposal).not.toHaveBeenCalled();
-    // … nor add / edit (admins and managers)
-    expect(screen.queryByRole('button', { name: t('products.addProduct') })).toBeNull();
-  });
-
-  it('a manager (not an owner) edits products but does not set lines', async () => {
+  it('a manager edits products but sees no cost and sets no kind / line', async () => {
     auth.user = { id: 'u-man', isAdmin: false, isManager: true };
     perms.canSeeBusiness = false;
     renderAt();
-    await screen.findByRole('table', { name: t('nav.products') }, { timeout: 10_000 });
-    expect(within(catalogue()).queryAllByRole('checkbox')).toHaveLength(0);
-    expect(within(rowOf('Urofix')).getByRole('button', { name: t('products.editOf', { name: 'Urofix' }) })).toBeTruthy();
-    // cost is admins only
-    expect(within(catalogue()).queryByRole('columnheader', { name: t('products.colCostPrice') })).toBeNull();
+    await loaded();
+    expect(within(table()).queryByRole('columnheader', { name: t('products.colCostPrice') })).toBeNull();
+    expect(within(table()).queryAllByRole('checkbox')).toHaveLength(0);
+    expect(within(rowOf('Neurofix')).queryByRole('button', { name: t('products.kind.setFor', { name: 'Neurofix' }) })).toBeNull();
+    fireEvent.click(within(rowOf('Neurofix')).getByRole('button', { name: t('products.editOf', { name: 'Neurofix' }) }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).queryByLabelText(new RegExp(t('products.form.cost')))).toBeNull();
+    expect(within(dialog).queryByRole('radiogroup')).toBeNull();
+    expect(within(dialog).getByText(t('products.form.ownersOnly'))).toBeTruthy();
   });
 
-  it('editing still works: the dialog opens filled, and disable still saves', async () => {
-    updateProduct.mockResolvedValue({});
-    renderAt();
-    await screen.findByRole('table', { name: t('nav.products') }, { timeout: 10_000 });
-    fireEvent.click(within(rowOf('Urofix')).getByRole('button', { name: t('products.editOf', { name: 'Urofix' }) }));
-    const dialog = await screen.findByRole('dialog');
-    expect((within(dialog).getByRole('textbox', { name: t('products.productNameReq') }) as HTMLInputElement).value).toBe('Urofix');
-    fireEvent.click(within(dialog).getByRole('button', { name: t('common.save') }));
-    await waitFor(() => expect(updateProduct).toHaveBeenCalled());
-    const [id, body] = updateProduct.mock.calls[0];
-    expect(id).toBe(ID.uro);
-    // the form holds денари and sends EUR (the round trip rounds to whole денари, as before)
-    expect(body).toMatchObject({ name: 'Urofix', is_active: true, stock_quantity: 1000, low_stock_threshold: 5 });
-    expect(body.price).toBeCloseTo(20, 1);
-    expect(body.cost_price).toBeCloseTo(5, 1);
-    expect(body).not.toHaveProperty('brand_line');
-
-    updateProduct.mockClear();
-    fireEvent.click(within(rowOf('Neurofix')).getByRole('button', { name: t('products.disable') }));
-    await waitFor(() => expect(updateProduct).toHaveBeenCalledWith(ID.neuro, { is_active: false }));
+  it('an agent sees the list only — no edit, no proposal', async () => {
+    auth.user = { id: 'u-agent', isAdmin: false, isManager: false };
+    perms.canSeeBusiness = false;
+    renderAt('/products?view=proposal');
+    await loaded();
+    expect(screen.queryByRole('tab', { name: t('products.tabs.proposal') })).toBeNull();
+    expect(getKindProposal).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: t('products.addProduct') })).toBeNull();
   });
 });
 
-describe('Производи → Предлог', { timeout: 30_000 }, () => {
-  const proposalTable = () => screen.getByRole('table', { name: t('products.proposal.title') });
-  const prowOf = (name: string) => within(proposalTable()).getByRole('rowheader', { name: new RegExp(name) }).closest('tr')!;
-
-  it('shows the tiles, the reasons and the undecided rows first', async () => {
-    renderAt('/products?view=proposal');
-    await screen.findByRole('table', { name: t('products.proposal.title') }, { timeout: 10_000 });
-    expect(getProposal).toHaveBeenCalled();
-    // default filter = undecided (Neurofix / ALPHA MALE are undecided in the proposal fixture too)
-    expect(within(proposalTable()).getAllByRole('rowheader')).toHaveLength(5);
-    expect(within(prowOf('ALPHA MALE')).getByText(t('products.proposal.confidence.conflict'))).toBeTruthy();
-    expect(within(prowOf('Neurofix')).getByText(t('products.proposal.reason.anchor_name'))).toBeTruthy();
-    // a mixed row offers "Прифати" too (the owner decides), a conflict row as well
-    expect(within(prowOf('Urofix')).getByRole('button', { name: t('products.proposal.acceptFor', { line: 'Bio Natural', name: 'Urofix' }) })).toBeTruthy();
-  });
-
-  it('accept one: sets the suggested line of that product only', async () => {
-    renderAt('/products?view=proposal');
-    await screen.findByRole('table', { name: t('products.proposal.title') }, { timeout: 10_000 });
-    fireEvent.click(within(prowOf('Neurofix')).getByRole('button', { name: t('products.proposal.acceptFor', { line: 'Bio Natural', name: 'Neurofix' }) }));
-    await waitFor(() => expect(setLine).toHaveBeenCalledWith([ID.neuro], 'bio_natural'));
-    // done → it leaves the "not decided" queue and shows under "decided"
-    await waitFor(() => expect(within(proposalTable()).queryByRole('rowheader', { name: /Neurofix/ })).toBeNull());
-    const chips = screen.getByRole('group', { name: t('products.proposal.filterLabel') });
-    fireEvent.click(within(chips).getByRole('button', { name: new RegExp(`^${t('products.proposal.filter.decided')}`) }));
-    expect(within(prowOf('Neurofix')).getByText(t('products.proposal.accepted'))).toBeTruthy();
-    expect(within(proposalTable()).getAllByRole('rowheader')).toHaveLength(1);
-  });
-
-  it('accept all ≥ 90 %: confirms, then one call per line with the auto rows only', async () => {
-    renderAt('/products?view=proposal');
-    await screen.findByRole('table', { name: t('products.proposal.title') }, { timeout: 10_000 });
-    fireEvent.click(screen.getByRole('button', { name: t('products.proposal.acceptAll', { n: '3' }) }));
-    const confirm = await screen.findByRole('alertdialog');
-    expect(within(confirm).getByTestId('accept-all-plan').textContent).toContain('Natura Therapy');
-    fireEvent.click(within(confirm).getByRole('button', { name: t('products.proposal.acceptAllConfirm') }));
-    await waitFor(() => expect(setLine).toHaveBeenCalledTimes(2));
-    expect(setLine).toHaveBeenNthCalledWith(1, [ID.mag, ID.snail], 'natura_therapy');
-    expect(setLine).toHaveBeenNthCalledWith(2, [ID.neuro], 'bio_natural');
-    // the mixed Urofix and the conflicting ALPHA MALE are never in it
-    for (const [ids] of setLine.mock.calls) {
-      expect(ids).not.toContain(ID.uro);
-      expect(ids).not.toContain(ID.alpha);
+describe('Производи 2.0 — the product form', { timeout: 30_000 }, () => {
+  it('has the five sections, the full name, and saves only what changed (+ the kind via its route)', async () => {
+    renderAt();
+    await loaded();
+    fireEvent.click(within(rowOf('СНАИЛ')).getByRole('button', { name: t('products.editOf', { name: 'СНАИЛ КОМПЛЕКС cps 30' }) }));
+    const dialog = await screen.findByRole('dialog');
+    for (const s of ['sectionBasic', 'sectionPrices', 'sectionCode', 'sectionStock', 'sectionDetails']) {
+      expect(within(dialog).getByRole('group', { name: t(`products.form.${s}`) })).toBeTruthy();
     }
-    // the button now has nothing left to accept
-    await waitFor(() => expect(screen.getByRole('button', { name: t('products.proposal.acceptAll', { n: '0' }) })).toBeDisabled());
+    const name = within(dialog).getByLabelText(new RegExp(`^${t('products.form.name')}`)) as HTMLTextAreaElement;
+    expect(name.tagName).toBe('TEXTAREA');
+    expect(name.value).toBe('СНАИЛ КОМПЛЕКС cps 30');
+    expect(within(dialog).getByLabelText(new RegExp(t('products.form.cost')))).toBeTruthy();   // admins see cost
+    fireEvent.change(within(dialog).getByLabelText(t('products.form.barcode')), { target: { value: '5310000000' } });
+    fireEvent.click(within(within(dialog).getAllByRole('radiogroup')[0]).getByRole('radio', { name: t('products.kind.gift') }));
+    fireEvent.click(within(dialog).getByRole('button', { name: t('common.save') }));
+    await waitFor(() => expect(updateProduct).toHaveBeenCalledWith(idOf('СНАИЛ КОМПЛЕКС cps 30'), { barcode: '5310000000' }));
+    await waitFor(() => expect(setKind).toHaveBeenCalledWith([idOf('СНАИЛ КОМПЛЕКС cps 30')], 'gift'));
+    expect(setLine).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
-  it('pick a line per row: any line, even against the suggestion', async () => {
-    renderAt('/products?view=proposal');
-    await screen.findByRole('table', { name: t('products.proposal.title') }, { timeout: 10_000 });
-    fireEvent.click(within(prowOf('ALPHA MALE')).getByRole('button', { name: t('products.line.setFor', { name: 'ALPHA MALE 60 cps' }) }));
-    const picker = await screen.findByRole('dialog');
-    fireEvent.click(within(picker).getByRole('button', { name: /^Natura Therapy/ }));
-    await waitFor(() => expect(setLine).toHaveBeenCalledWith([ID.alpha], 'natura_therapy'));
+  it('validates: an empty name and a bad price stop the save', async () => {
+    renderAt();
+    await loaded();
+    fireEvent.click(screen.getByRole('button', { name: t('products.addProduct') }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(within(dialog).getByLabelText(new RegExp(`^${t('products.form.price')}`)), { target: { value: 'abc' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: t('common.save') }));
+    expect(await within(dialog).findByText(t('products.form.errors.required'))).toBeTruthy();
+    expect(within(dialog).getByText(t('products.form.errors.number'))).toBeTruthy();
+    expect(createProduct).not.toHaveBeenCalled();
   });
 
-  it('the proposal chips filter (mixed → Urofix only)', async () => {
+  it('creates with every field in EUR, then the chosen kind and line', async () => {
+    createProduct.mockResolvedValue({ id: uid(99) });
+    renderAt();
+    await loaded();
+    fireEvent.click(screen.getByRole('button', { name: t('products.addProduct') }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(within(dialog).getByLabelText(new RegExp(`^${t('products.form.name')}`)), { target: { value: 'Zinc 30' } });
+    fireEvent.change(within(dialog).getByLabelText(new RegExp(`^${t('products.form.price')}`)), { target: { value: '615' } });
+    const [kinds, lines] = within(dialog).getAllByRole('radiogroup');
+    fireEvent.click(within(kinds).getByRole('radio', { name: t('products.kind.product') }));
+    fireEvent.click(within(lines).getByRole('radio', { name: 'Natura Therapy' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: t('common.save') }));
+    await waitFor(() => expect(createProduct).toHaveBeenCalled());
+    expect(createProduct.mock.calls[0][0]).toMatchObject({ name: 'Zinc 30', price: 10, days_of_supply_per_unit: 15, barcode: null });
+    await waitFor(() => expect(setKind).toHaveBeenCalledWith([uid(99)], 'product'));
+    await waitFor(() => expect(setLine).toHaveBeenCalledWith([uid(99)], 'natura_therapy'));
+  });
+});
+
+describe('Производи 2.0 — Предлог', { timeout: 30_000 }, () => {
+  const kindTable = () => screen.getByRole('table', { name: t('products.kindProposal.title') });
+
+  it('the kind proposal: reasons, accept one, accept all sure', async () => {
     renderAt('/products?view=proposal');
+    await screen.findByRole('table', { name: t('products.kindProposal.title') }, { timeout: 10_000 });
+    expect(within(kindTable()).getByText(t('products.kindProposal.reason.promo', { hit: '150+150' }))).toBeTruthy();
+    fireEvent.click(within(kindTable()).getByRole('button', { name: t('products.kindProposal.acceptFor', { kind: t('products.kind.bundle'), name: 'СПИРУЛИНА 150+150 tbl' }) }));
+    await waitFor(() => expect(setKind).toHaveBeenCalledWith([uid(7)], 'bundle'));
+    fireEvent.click(screen.getByRole('button', { name: t('products.kindProposal.acceptAll', { n: '1' }) }));
+    const confirm = await screen.findByRole('alertdialog');
+    fireEvent.click(within(confirm).getByRole('button', { name: t('products.kindProposal.acceptAllConfirm') }));
+    await waitFor(() => expect(setKind).toHaveBeenLastCalledWith([uid(6)], 'product'));
+    // the uncertain gift is never in it
+    for (const [ids] of setKind.mock.calls) expect(ids).not.toContain(uid(8));
+  });
+
+  it('the line proposal sits beside it (?of=line)', async () => {
+    renderAt('/products?view=proposal');
+    await screen.findByRole('table', { name: t('products.kindProposal.title') }, { timeout: 10_000 });
+    fireEvent.click(screen.getByRole('tab', { name: t('products.proposalTabs.line') }));
     await screen.findByRole('table', { name: t('products.proposal.title') }, { timeout: 10_000 });
-    const chips = screen.getByRole('group', { name: t('products.proposal.filterLabel') });
-    fireEvent.click(within(chips).getByRole('button', { name: new RegExp(`^${t('products.proposal.filter.mixed')}`) }));
-    const names = within(proposalTable()).getAllByRole('rowheader').map((h) => h.textContent);
-    expect(names).toHaveLength(1);
-    expect(names[0]).toContain('Urofix');
+    await waitFor(() => expect(new URLSearchParams(location).get('of')).toBe('line'));
+    fireEvent.click(within(screen.getByRole('table', { name: t('products.proposal.title') })).getByRole('button', { name: t('products.proposal.acceptFor', { line: 'Bio Natural', name: 'Arthriva' }) }));
+    await waitFor(() => expect(setLine).toHaveBeenCalledWith([uid(6)], 'bio_natural'));
   });
 });

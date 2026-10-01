@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { History, Loader2, Package, Plus } from 'lucide-react';
+import { ChevronDown, History, Loader2, Package, Plus } from 'lucide-react';
 import { AppLayout } from '@/layouts/AppLayout';
 import { apiErrorText } from '@/i18n/apiErrors';
 import { formatDate } from '@/i18n/dates';
-import { apiGetInventoryLogs, apiGetProducts, apiGetSuppliers, apiSetBrandLine, apiUpdateProduct } from '@/lib/api';
+import {
+  apiGetInventoryLogs, apiGetProductCatalogue, apiGetSuppliers, apiSetBrandLine, apiSetProductKind, apiUpdateProduct,
+} from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/contexts/PermissionsContext';
 import { useToast } from '@/hooks/use-toast';
@@ -18,13 +20,18 @@ import { LoadError } from '@/components/insights/shared/LoadError';
 import { useInsightsFormat } from '@/components/insights/shared/useInsightsFormat';
 import { cn } from '@/lib/utils';
 import {
-  LINE_NAMES, applyLineChanges, filterProducts, isLineFilter, lineCounts,
-  type BrandLine, type LineFilter, type SetBrandLineResult,
+  LINE_NAMES, applyLineChanges, isLineFilter, type BrandLine, type LineFilter, type SetBrandLineResult,
 } from '@/lib/products/brandLines';
-import { ProductsList, type ProductRow } from '@/components/products/ProductsList';
-import { BulkLineBar, ProductFilters } from '@/components/products/ProductFilters';
+import {
+  DEFAULT_KIND_FILTER, PAGE_SIZE, applyKindChanges, byName, facetCounts, filterCatalogue, indexRows, isKindFilter,
+  isStatusFilter, type KindFilter, type ProductKind, type SetKindResult, type StatusFilter,
+} from '@/lib/products/kinds';
+import { ProductsList, type ProductRow, type RowHandlers } from '@/components/products/ProductsList';
+import { BulkBar, ProductFilters } from '@/components/products/ProductFilters';
 import { BrandLineProposal } from '@/components/products/BrandLineProposal';
+import { KindProposal } from '@/components/products/KindProposal';
 import { ProductFormDialog } from '@/components/products/ProductFormDialog';
+import { useKindLabel } from '@/components/products/KindChip';
 
 interface InventoryLog {
   id: string;
@@ -36,23 +43,26 @@ interface InventoryLog {
 }
 
 type View = 'list' | 'proposal';
+type ProposalOf = 'kind' | 'line';
 
 /**
- * Производи: the catalogue in the Insights look, and every product's BRAND LINE
- * (plan 30.09.2026, "Фаза 4"; migration 20260943001300). Owner ruling 30.09:
- * the line decides the MEX account when the CRM ships — Bio Natural and
- * Dr.Becker via BIO NATURAL, Natura Therapy and Ad Astra via NATURA.
+ * Производи 2.0 (owner 01.10.2026) — the catalogue in the Insights look.
  *
- *   Производи (?view=list, the default) — search, the line chips (Сите ·
- *     Natura Therapy · Bio Natural · Ad Astra · Dr.Becker · Неодредено, ?line=),
- *     a table from xl / cards below, a line chip on every product, and for
- *     admins + owners: select rows → "Постави линија".
- *   Предлог (?view=proposal, admins + owners) — the suggestion from the MEX
- *     parcels, accept one, accept all ≥ 90 %, or pick a line per row.
+ *   Производи (?view=list, the default) — opens on the ordinary PRODUCTS:
+ *     search · Прикажи (?kind=, default Производи; Пакети и промоции · Подароци ·
+ *     Друго · Неодредено · Сите) · Линија (?line=) · Статус (?status=), every
+ *     chip with the count a click would show; a table from xl, cards below,
+ *     50 rows a page + "Прикажи уште"; name, SKU, kind, line, sale price in
+ *     денари, status — never a machine description. Admins + owners select
+ *     rows → "Постави вид" / "Постави линија".
+ *   Предлог (?view=proposal&of=kind|line, admins + owners) — the kind
+ *     proposal and the brand-line proposal, accept one / accept all sure.
  *
- * Every line write goes through POST /api/products/brand-line (audited). Add /
- * edit / enable / disable and the inventory log work as before (admins and
- * managers; cost admins only). Stock is deferred by the owner — nothing added.
+ * Speed (the owner: "кочи"): one lean request (GET /api/products/catalogue),
+ * filtering over prepared search keys in memory, the search deferred, ONE
+ * layout mounted (the old page mounted table AND cards for all 706 rows —
+ * 57.000 elements), memoised rows, and local updates instead of reloading the
+ * catalogue after each click. Kind and line writes are audited server-side.
  */
 export default function ProductsPage() {
   const { t } = useTranslation();
@@ -60,28 +70,36 @@ export default function ProductsPage() {
   const { toast } = useToast();
   const { user } = useAuth();
   const { canSeeBusiness } = usePermissions();
+  const kindLabel = useKindLabel();
   const canEdit = !!(user?.isAdmin || user?.isManager);
-  // Cost price is sensitive — admins only. Managers edit products but never see cost.
+  // Cost price is sensitive — admins only (the api strips it for everyone else).
   const showCost = !!user?.isAdmin;
-  // Lines are set by admins + owners (the api's gate: isAdmin || is_business_owner()).
+  // Lines and kinds are set by admins + owners (the api's gate: isAdmin || is_business_owner()).
   const canSetLine = !!user?.isAdmin || canSeeBusiness;
 
   const [params, setParams] = useSearchParams();
   const view: View = canSetLine && params.get('view') === 'proposal' ? 'proposal' : 'list';
+  const proposalOf: ProposalOf = params.get('of') === 'line' ? 'line' : 'kind';
+  const kindParam = params.get('kind');
+  const kind: KindFilter = isKindFilter(kindParam) ? kindParam : DEFAULT_KIND_FILTER;
   const lineParam = params.get('line');
   const line: LineFilter = isLineFilter(lineParam) ? lineParam : 'all';
-  const setParam = (key: string, value: string | null) =>
+  const statusParam = params.get('status');
+  const status: StatusFilter = isStatusFilter(statusParam) ? statusParam : 'all';
+  const setParam = useCallback((key: string, value: string | null) =>
     setParams((prev) => {
       const next = new URLSearchParams(prev);
       if (value == null) next.delete(key); else next.set(key, value);
       return next;
-    }, { replace: true });
+    }, { replace: true }), [setParams]);
 
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading');
   const [loadError, setLoadError] = useState('');
   const [suppliers, setSuppliers] = useState<{ id: string; name: string }[]>([]);
   const [query, setQuery] = useState('');
+  const deferredQuery = useDeferredValue(query);
+  const [limit, setLimit] = useState(PAGE_SIZE);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [busyIds, setBusyIds] = useState<ReadonlySet<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -92,8 +110,8 @@ export default function ProductsPage() {
 
   const fetchProducts = useCallback((first = false) => {
     if (first) setPhase('loading');
-    apiGetProducts()
-      .then((data: ProductRow[]) => { setProducts(data ?? []); setPhase('ready'); })
+    apiGetProductCatalogue()
+      .then((data) => { setProducts([...(data?.rows ?? [])].sort(byName)); setPhase('ready'); })
       .catch((err: unknown) => {
         if (first) { setLoadError(apiErrorText(err)); setPhase('error'); }
         else toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' });
@@ -105,8 +123,15 @@ export default function ProductsPage() {
     apiGetSuppliers().then(setSuppliers).catch(() => {});
   }, [fetchProducts]);
 
-  const counts = useMemo(() => lineCounts(products), [products]);
-  const rows = useMemo(() => filterProducts(products, { line, query }), [products, line, query]);
+  // Search keys are prepared once per catalogue, not per keystroke.
+  const indexed = useMemo(() => indexRows(products), [products]);
+  const filters = useMemo(() => ({ kind, line, status, query: deferredQuery }), [kind, line, status, deferredQuery]);
+  const rows = useMemo(() => filterCatalogue(indexed, filters), [indexed, filters]);
+  const facets = useMemo(() => facetCounts(indexed, filters), [indexed, filters]);
+  const page = useMemo(() => rows.slice(0, limit), [rows, limit]);
+
+  // A new filter starts on the first page again.
+  useEffect(() => { setLimit(PAGE_SIZE); }, [kind, line, status, deferredQuery]);
 
   // A selection only ever holds shown rows: a filter change drops the rest.
   useEffect(() => {
@@ -118,47 +143,76 @@ export default function ProductsPage() {
     });
   }, [rows]);
 
-  const toggleSelect = (id: string) =>
-    setSelected((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
-  const selectShown = (on: boolean) => setSelected(on ? new Set(rows.map((r) => r.id)) : new Set());
+  const markBusy = (ids: string[], on: boolean) =>
+    setBusyIds((s) => { const n = new Set(s); ids.forEach((id) => (on ? n.add(id) : n.delete(id))); return n; });
 
-  const applyResult = (res: SetBrandLineResult) => setProducts((ps) => applyLineChanges(ps, res));
+  const applyLine = useCallback((res: SetBrandLineResult) => setProducts((ps) => applyLineChanges(ps, res)), []);
+  const applyKind = useCallback((res: SetKindResult) => setProducts((ps) => applyKindChanges(ps, res)), []);
 
-  const savedToast = (res: SetBrandLineResult, l: BrandLine | null) => toast({
-    title: t('products.line.savedTitle'),
-    description: t('products.line.saved', {
-      line: l ? LINE_NAMES[l] : t('products.line.none'), updated: f.int(res.updated), unchanged: f.int(res.unchanged),
-    }),
-  });
-
-  const setLine = async (p: ProductRow, l: BrandLine | null) => {
-    setBusyIds((s) => new Set([...s, p.id]));
-    try {
-      const res = await apiSetBrandLine([p.id], l);
-      applyResult(res);
-      savedToast(res, l);
-    } catch (err: unknown) {
-      toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' });
-    } finally {
-      setBusyIds((s) => { const n = new Set(s); n.delete(p.id); return n; });
-    }
+  const handlersRef = useRef<RowHandlers>(null as unknown as RowHandlers);
+  handlersRef.current = {
+    onToggleSelect: (id) => setSelected((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; }),
+    onSetLine: async (p, l) => {
+      markBusy([p.id], true);
+      try {
+        const res = await apiSetBrandLine([p.id], l);
+        applyLine(res);
+        toast({ title: t('products.line.savedTitle'), description: t('products.line.saved', { line: l ? LINE_NAMES[l] : t('products.line.none'), updated: f.int(res.updated), unchanged: f.int(res.unchanged) }) });
+      } catch (err: unknown) {
+        toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' });
+      } finally { markBusy([p.id], false); }
+    },
+    onSetKind: async (p, k) => {
+      markBusy([p.id], true);
+      try {
+        const res = await apiSetProductKind([p.id], k);
+        applyKind(res);
+        toast({ title: t('products.kind.savedTitle'), description: t('products.kind.saved', { kind: kindLabel(k), updated: f.int(res.updated), unchanged: f.int(res.unchanged) }) });
+      } catch (err: unknown) {
+        toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' });
+      } finally { markBusy([p.id], false); }
+    },
+    onEdit: (p) => setForm({ open: true, product: p }),
+    onToggleActive: async (p) => {
+      try {
+        await apiUpdateProduct(p.id, { is_active: !p.is_active });
+        setProducts((ps) => ps.map((x) => (x.id === p.id ? { ...x, is_active: !p.is_active } : x)));
+      } catch (err: unknown) {
+        toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' });
+      }
+    },
+    onLogs: async (p) => {
+      setLogsProduct(p);
+      setLogsLoading(true);
+      try { setLogs(await apiGetInventoryLogs(p.id)); } catch { setLogs([]); } finally { setLogsLoading(false); }
+    },
   };
+  // Stable identities for the memoised rows; each call reads the latest closure.
+  const handlers = useMemo<RowHandlers>(() => ({
+    onToggleSelect: (id) => handlersRef.current.onToggleSelect(id),
+    onSetLine: (p, l) => handlersRef.current.onSetLine(p, l),
+    onSetKind: (p, k) => handlersRef.current.onSetKind(p, k),
+    onEdit: (p) => handlersRef.current.onEdit(p),
+    onToggleActive: (p) => handlersRef.current.onToggleActive(p),
+    onLogs: (p) => handlersRef.current.onLogs(p),
+  }), []);
 
-  const setLineBulk = async (l: BrandLine | null) => {
+  const selectShown = useCallback((on: boolean) => setSelected(on ? new Set(rows.map((r) => r.id)) : new Set()), [rows]);
+
+  const bulk = async (write: (ids: string[]) => Promise<SetBrandLineResult | SetKindResult>, apply: (r: never) => void, done: (updated: number, unchanged: number) => void) => {
     const ids = [...selected];
-    if (ids.length === 0) return;
+    if (!ids.length) return;
     setBulkBusy(true);
     try {
-      // The api takes 1.000 per call; the catalogue is ~700.
       let updated = 0;
       let unchanged = 0;
       for (let i = 0; i < ids.length; i += 1000) {
-        const res = await apiSetBrandLine(ids.slice(i, i + 1000), l);
-        applyResult(res);
+        const res = await write(ids.slice(i, i + 1000));
+        apply(res as never);
         updated += res.updated;
         unchanged += res.unchanged;
       }
-      savedToast({ updated, unchanged } as SetBrandLineResult, l);
+      done(updated, unchanged);
       setSelected(new Set());
     } catch (err: unknown) {
       toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' });
@@ -166,29 +220,19 @@ export default function ProductsPage() {
       setBulkBusy(false);
     }
   };
-
-  const toggleActive = async (p: ProductRow) => {
-    try {
-      await apiUpdateProduct(p.id, { is_active: !p.is_active });
-      fetchProducts();
-    } catch (err: unknown) {
-      toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' });
-    }
-  };
-
-  const openLogs = async (p: ProductRow) => {
-    setLogsProduct(p);
-    setLogsLoading(true);
-    try {
-      setLogs(await apiGetInventoryLogs(p.id));
-    } catch { setLogs([]); }
-    finally { setLogsLoading(false); }
-  };
+  const setLineBulk = (l: BrandLine | null) => bulk((ids) => apiSetBrandLine(ids, l), applyLine as (r: never) => void, (updated, unchanged) =>
+    toast({ title: t('products.line.savedTitle'), description: t('products.line.saved', { line: l ? LINE_NAMES[l] : t('products.line.none'), updated: f.int(updated), unchanged: f.int(unchanged) }) }));
+  const setKindBulk = (k: ProductKind | null) => bulk((ids) => apiSetProductKind(ids, k), applyKind as (r: never) => void, (updated, unchanged) =>
+    toast({ title: t('products.kind.savedTitle'), description: t('products.kind.saved', { kind: kindLabel(k), updated: f.int(updated), unchanged: f.int(unchanged) }) }));
 
   const tabs: { key: View; label: string }[] = [
     { key: 'list', label: t('products.tabs.list') },
     ...(canSetLine ? [{ key: 'proposal' as const, label: t('products.tabs.proposal') }] : []),
   ];
+  const segment = (on: boolean) => cn(
+    'h-9 rounded-md px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:h-8',
+    on ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+  );
 
   return (
     <AppLayout title={t('nav.products')}>
@@ -198,11 +242,7 @@ export default function ProductsPage() {
             <div role="tablist" aria-label={t('nav.products')} className="inline-flex rounded-lg border bg-muted/40 p-0.5">
               {tabs.map((tab) => (
                 <button key={tab.key} type="button" role="tab" aria-selected={view === tab.key}
-                  onClick={() => setParam('view', tab.key === 'list' ? null : tab.key)}
-                  className={cn(
-                    'h-9 rounded-md px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:h-8',
-                    view === tab.key ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
-                  )}>
+                  onClick={() => setParam('view', tab.key === 'list' ? null : tab.key)} className={segment(view === tab.key)}>
                   {tab.label}
                 </button>
               ))}
@@ -218,20 +258,35 @@ export default function ProductsPage() {
         </div>
 
         {view === 'proposal' ? (
-          <BrandLineProposal onChanged={applyResult} f={f} />
+          <div className="min-w-0 space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('products.proposalTabs.label')}</span>
+              <div role="tablist" aria-label={t('products.proposalTabs.label')} className="inline-flex rounded-lg border bg-muted/40 p-0.5">
+                {(['kind', 'line'] as const).map((k) => (
+                  <button key={k} type="button" role="tab" aria-selected={proposalOf === k}
+                    onClick={() => setParam('of', k === 'kind' ? null : k)} className={segment(proposalOf === k)}>
+                    {t(`products.proposalTabs.${k}`)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {proposalOf === 'kind' ? <KindProposal onChanged={applyKind} f={f} /> : <BrandLineProposal onChanged={applyLine} f={f} />}
+          </div>
         ) : phase === 'error' ? (
           <LoadError text={loadError} onRetry={() => fetchProducts(true)} />
         ) : phase === 'loading' ? (
           <div className="space-y-3" aria-busy="true">
-            <Skeleton className="h-24 rounded-xl" />
+            <Skeleton className="h-32 rounded-xl" />
             <Skeleton className="h-64 rounded-xl" />
           </div>
         ) : (
           <>
             <ProductFilters
               query={query} onQuery={setQuery}
+              kind={kind} onKind={(k) => setParam('kind', k === DEFAULT_KIND_FILTER ? null : k)}
               line={line} onLine={(l) => setParam('line', l === 'all' ? null : l)}
-              counts={counts} shown={rows.length} total={products.length}
+              status={status} onStatus={(s) => setParam('status', s === 'all' ? null : s)}
+              facets={facets} shown={rows.length} total={products.length}
               canSelect={canSetLine} onSelectShown={() => selectShown(true)} f={f}
             />
             {products.length === 0 ? (
@@ -239,16 +294,25 @@ export default function ProductsPage() {
             ) : rows.length === 0 ? (
               <EmptyState icon={<Package className="h-5 w-5" />} title={t('products.nothingMatches')} size="sm" />
             ) : (
-              <div className="min-w-0 space-y-3">
+              <div className="min-w-0 space-y-3" aria-busy={query !== deferredQuery}>
                 <ProductsList
-                  rows={rows} showCost={showCost} canEdit={canEdit} canSetLine={canSetLine}
-                  selected={selected} onToggleSelect={toggleSelect} onSelectShown={selectShown}
-                  busyIds={busyIds} onSetLine={setLine}
-                  onEdit={(p) => setForm({ open: true, product: p })}
-                  onToggleActive={toggleActive} onLogs={openLogs}
+                  rows={page} showCost={showCost} canEdit={canEdit} canSetLine={canSetLine}
+                  selected={selected} onSelectShown={selectShown} busyIds={busyIds} handlers={handlers}
                 />
+                {rows.length > page.length && (
+                  <div className="flex flex-col items-center gap-1">
+                    <Button variant="outline" className="h-10" onClick={() => setLimit((n) => n + PAGE_SIZE)}>
+                      <ChevronDown className="mr-1.5 h-4 w-4" aria-hidden />
+                      {t('products.showMore', { n: f.int(Math.min(PAGE_SIZE, rows.length - page.length)) })}
+                    </Button>
+                    <span className="text-xs tabular-nums text-muted-foreground" data-testid="products-page">
+                      {t('products.shownPage', { shown: f.int(page.length), total: f.int(rows.length) })}
+                    </span>
+                  </div>
+                )}
                 {canSetLine && (
-                  <BulkLineBar count={selected.size} busy={bulkBusy} onSet={setLineBulk} onClear={() => setSelected(new Set())} f={f} />
+                  <BulkBar count={selected.size} busy={bulkBusy} onSetLine={setLineBulk} onSetKind={setKindBulk}
+                    onClear={() => setSelected(new Set())} f={f} />
                 )}
               </div>
             )}
@@ -262,6 +326,8 @@ export default function ProductsPage() {
         product={form.product}
         suppliers={suppliers}
         showCost={showCost}
+        canSetKind={canSetLine}
+        canSetLine={canSetLine}
         onSaved={() => fetchProducts()}
       />
 
