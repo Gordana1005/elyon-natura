@@ -122,7 +122,7 @@ export async function sql(query, { readOnly = false } = {}) {
       });
       const text = await res.text();
       if (!res.ok) {
-        const err = new Error(`Management API ${res.status}: ${text.slice(0, 2000)}`);
+        const err = new Error(`Management API ${res.status}: ${text.slice(0, 200000)}`);
         err.status = res.status;
         throw err;
       }
