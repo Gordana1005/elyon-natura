@@ -12,7 +12,7 @@ import type { InsightsFormat } from '@/components/insights/shared/useInsightsFor
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/contexts/PermissionsContext';
 import { apiErrorText } from '@/i18n/apiErrors';
-import { apiStockV2Config, apiStockV2Health } from '@/lib/stockV2Api';
+import { apiStockV2Health } from '@/lib/stockV2Api';
 import type { StockFreshness, StockHealth, StockWarehouseCode, StockWarehouseRef } from '@/lib/stockV2Types';
 import { cn } from '@/lib/utils';
 import { parseHm } from './stockV2Model';
@@ -63,21 +63,23 @@ export function warehouseName(f: InsightsFormat, code: string, known?: string | 
 }
 
 /**
- * The warehouses to pick from: owners read the config (every active, tracked warehouse); everyone
- * else gets `main` plus each warehouse with an opening count, named from what the api sent.
+ * The warehouses to pick from, the same for every stock role: the active, TRACKED warehouses the
+ * health read lists (`StockHealth.warehouses`, in their sort order). `main` is always offered, and so
+ * is each warehouse with an opening count (an api older than 02.10.2026 sends no list — then that is
+ * all there is), named from what the api sent.
  */
-export function useWarehouseOptions(f: InsightsFormat, opts: { isOwner: boolean; health?: StockHealth; seen?: StockWarehouseRef | null }): WarehouseOption[] {
-  const config = useQuery({ queryKey: ['stock2', 'config'], queryFn: apiStockV2Config, enabled: opts.isOwner, staleTime: 5 * 60_000, retry: 0 });
+export function useWarehouseOptions(f: InsightsFormat, opts: { health?: StockHealth; seen?: StockWarehouseRef | null }): WarehouseOption[] {
   const seenCode = opts.seen?.code;
   const seenName = opts.seen?.name;
+  const health = opts.health;
   return useMemo(() => {
     const out = new Map<string, string>();
-    for (const w of config.data?.warehouses ?? []) if (w.active && w.tracked) out.set(w.code, w.name);
+    for (const w of health?.warehouses ?? []) if (w.tracked) out.set(w.code, w.name);
     if (!out.has('main')) out.set('main', '');
-    for (const o of opts.health?.openings ?? []) if (!out.has(o.warehouse)) out.set(o.warehouse, '');
+    for (const o of health?.openings ?? []) if (!out.has(o.warehouse)) out.set(o.warehouse, '');
     if (seenCode) out.set(seenCode, seenName || out.get(seenCode) || '');
     return [...out].map(([code, name]) => ({ code, name: warehouseName(f, code, name) }));
-  }, [config.data, opts.health, seenCode, seenName, f]);
+  }, [health, seenCode, seenName, f]);
 }
 
 /** A warehouse select. With `allowAll` an empty value means every warehouse. */

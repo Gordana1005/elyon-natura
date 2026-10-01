@@ -8,7 +8,11 @@ import {
   resultError, shapeArticleRows, shapeConfig, shapeRecipe, shapeSigmaStatus, sigmaSignature, sigmaVerdictStatus,
   statusMovesStock, stockAccess, stockCan, stockRpcError, stripStockMoney, timingSafeEqual, verifySigmaSignature,
   type StockCaller,
+  COUNT_CODES, COUNT_CODE_ALIASES, COUNT_REFUSAL_MAX_CODES, countCode, countRefusal, isMissingFunction,
+  normalizeCountWarnings, parseCountsQuery, shapeCountHistory, shapeCountResult, shapeWarehouseRefs,
 } from "./stockV2.ts";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 const q = (o: Record<string, string>) => new URLSearchParams(o);
 const TODAY = "2026-10-01";
@@ -256,6 +260,7 @@ describe("body parsers", () => {
   it("void reason", () => {
     expect(parseReasonBody({ reason: "  wrong shelf  " })).toEqual({ ok: true, value: "wrong shelf" });
     expect(parseReasonBody({ reason: "no" })).toEqual({ ok: false, error: "reason_required" });
+    expect(parseReasonBody({ reason: "abcd" })).toEqual({ ok: false, error: "reason_required" });
     expect(parseReasonBody({})).toEqual({ ok: false, error: "reason_required" });
     expect(parseReasonBody({ reason: "x".repeat(501) })).toEqual({ ok: false, error: "reason_too_long" });
   });
@@ -633,5 +638,139 @@ describe("shapes", () => {
     expect(ARTICLE_RE.test("L00123")).toBe(true);
     expect(ARTICLE_RE.test("l00123")).toBe(false);
     expect(ARTICLE_RE.test("0001234")).toBe(false);
+  });
+});
+
+// ── integration 02.10.2026: counts history, warehouses for every role, count codes, cost rebuild ──
+describe("GET stock/v2/counts", () => {
+  it("parses ?warehouse&limit — every warehouse and 50 by default, ≤ 500", () => {
+    expect(parseCountsQuery(q({}))).toEqual({ ok: true, value: { warehouse: null, limit: 50 } });
+    expect(parseCountsQuery(q({ warehouse: "main", limit: "10" }))).toEqual({ ok: true, value: { warehouse: "main", limit: 10 } });
+    expect(parseCountsQuery(q({ warehouse: "Main!" }))).toEqual({ ok: false, error: "bad_warehouse" });
+    expect(parseCountsQuery(q({ limit: String(MAX_LIMIT + 1) }))).toEqual({ ok: false, error: "bad_limit" });
+    expect(parseCountsQuery(q({ limit: "0" }))).toEqual({ ok: false, error: "bad_limit" });
+  });
+
+  const SQL_ROW = {
+    id: "c0000000-0000-4000-8000-000000000001", warehouse: "main", counted_at: "2026-09-21T22:00:00+00:00", kind: "opening",
+    source: "sigma_variant", status: "approved", packed_counted: false, lines: 2, diff_units: 15, value_diff_mkd: 6183.61,
+    note: "opening", created_by_name: "Mile Stoev", created_at: "2026-10-01T22:52:48Z", approved_by_name: "Mile Stoev",
+    approved_at: "2026-09-23T08:00:00Z", void_reason: null, extra: "dropped",
+  };
+  it("shapes StockCountHistoryRow exactly; value_diff_mkd only for owners, whatever the SQL sent", () => {
+    const { extra: _extra, ...contract } = SQL_ROW;
+    expect(shapeCountHistory([SQL_ROW], true)).toEqual([contract]);
+    const [staff] = shapeCountHistory([SQL_ROW], false);
+    expect(staff).not.toHaveProperty("value_diff_mkd");
+    expect(staff).not.toHaveProperty("extra");
+    expect(Object.keys(staff).sort()).toEqual(Object.keys(contract).filter((k) => k !== "value_diff_mkd").sort());
+    // a count with no system figure has no difference (null), never 0
+    expect(shapeCountHistory([{ ...SQL_ROW, diff_units: null }], false)[0].diff_units).toBeNull();
+    // malformed rows and non-arrays are dropped
+    expect(shapeCountHistory([{ warehouse: "main" }, null, 3], true)).toEqual([]);
+    expect(shapeCountHistory({ ok: false }, true)).toEqual([]);
+    // an unknown kind / status never leaks through
+    expect(shapeCountHistory([{ ...SQL_ROW, kind: "x", status: "y" }], false)[0]).toMatchObject({ kind: "partial", status: "pending" });
+  });
+
+  it("the readers exist in migration 20260945000510 with the signatures the api calls, service role only", () => {
+    const sql = readFileSync(resolve(__dirname, "../../migrations/20260945000510_stock_v2_counts_reader.sql"), "utf8");
+    expect(sql).toContain("CREATE OR REPLACE FUNCTION public.stock_v2_counts(");
+    expect(sql).toMatch(/p_warehouse text\s+DEFAULT NULL,\s+p_limit\s+integer DEFAULT 50,\s+p_money\s+boolean DEFAULT false/);
+    expect(sql).toContain("CREATE OR REPLACE FUNCTION public.stock_v2_product_overview()");
+    expect(sql).toContain("GRANT EXECUTE ON FUNCTION %s TO service_role");
+    expect(sql).toContain("REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon, authenticated");
+    // the only money key the counts reader emits is stripped for a non-owner
+    expect(stripStockMoney({ value_diff_mkd: 1, diff_units: 2 })).toEqual({ diff_units: 2 });
+  });
+});
+
+describe("StockHealth.warehouses — every stock role", () => {
+  it("the ACTIVE warehouses as StockWarehouseRef, by sort then code — no keys, no money", () => {
+    const rows = [
+      { code: "lab", name: "Лабораторија", role: "lab", tracked: false, active: true, sort: 50, id: 5 },
+      { code: "main", name: "Главен магацин Скопје", role: "main", tracked: true, active: true, sort: 10 },
+      { code: "old", name: "Стар", role: "other", tracked: true, active: false, sort: 1 },
+      { code: "damaged", name: "Оштетена роба", role: "damaged", tracked: true, active: true, sort: 30 },
+      { code: "", name: "?", role: "other", tracked: true, active: true, sort: 0 },
+    ];
+    expect(shapeWarehouseRefs(rows)).toEqual([
+      { code: "main", name: "Главен магацин Скопје", role: "main", tracked: true },
+      { code: "damaged", name: "Оштетена роба", role: "damaged", tracked: true },
+      { code: "lab", name: "Лабораторија", role: "lab", tracked: false },
+    ]);
+    expect(shapeWarehouseRefs(null)).toEqual([]);
+    // a non-owner's health view keeps them (moneyView strips only money keys)
+    expect(moneyView(false, { warehouses: shapeWarehouseRefs(rows) }).warehouses).toHaveLength(3);
+  });
+});
+
+describe("POST stock/v2/count — warnings and refusals as codes", () => {
+  it("warnings: codes kept, aliases renamed, free text kept, empty / duplicates dropped", () => {
+    expect(countCode("parcels_near_count:12")).toBe("parcels_near_count:12");
+    expect(countCode("whole_units_only")).toBe("kom_fraction");
+    expect(countCode("whole_units_only:000123")).toBe("kom_fraction:000123");
+    expect(countCode("  Нешто ново  ")).toBe("Нешто ново");
+    expect(countCode("")).toBeNull();
+    expect(countCode(7)).toBeNull();
+    expect(normalizeCountWarnings(["no_opening", "parcels_near_count:3", "no_opening", "", null, "pending_owner_approval"]))
+      .toEqual(["no_opening", "parcels_near_count:3", "pending_owner_approval"]);
+    expect(normalizeCountWarnings(undefined)).toEqual([]);
+    const res = shapeCountResult({ ok: true, dry: true, warnings: ["not_counted:4", "whole_units_only"], lines: [], totals: {} });
+    expect(res).toMatchObject({ ok: true, dry: true, warnings: ["not_counted:4", "kom_fraction"] });
+    expect(shapeCountResult(null)).toBeNull();
+  });
+
+  it("refusals name the offending article codes (≤ 10, then +N) and keep their HTTP status", () => {
+    const unknown = countRefusal({ ok: false, error: "unknown_article", bad: [
+      { line: 1, code: "000123", qty: 2, why: "unknown_article" }, { line: 3, code: "000456", qty: 1, why: "unknown_article" },
+      { line: 4, code: "000123", qty: 1, why: "unknown_article" }, { line: 5, code: "000789", qty: 1, why: "duplicate_article" },
+    ] });
+    expect(unknown).toEqual({ status: 404, body: { error: "unknown_article:000123, 000456", code: "unknown_article" } });
+    const kom = countRefusal({ ok: false, error: "whole_units_only", bad: [{ line: 2, code: "100123", qty: 1.5, why: "whole_units_only" }] });
+    expect(kom).toEqual({ status: 400, body: { error: "kom_fraction:100123", code: "kom_fraction" } });
+    const many = countRefusal({ ok: false, error: "unknown_article",
+      bad: Array.from({ length: COUNT_REFUSAL_MAX_CODES + 3 }, (_, i) => ({ code: String(100000 + i), why: "unknown_article" })) });
+    expect(many!.body.error).toMatch(/^unknown_article:100000, .*100009 \+3$/);
+    // no lines named → the bare code
+    expect(countRefusal({ ok: false, error: "unknown_article" })!.body.error).toBe("unknown_article");
+    expect(countRefusal({ ok: false, error: "before_last_count", last_count_at: "2026-09-22T00:00:00+02:00" }))
+      .toEqual({ status: 409, body: { error: "before_last_count", code: "before_last_count", last_count_at: "2026-09-22T00:00:00+02:00" } });
+    expect(countRefusal({ ok: false, error: "opening_exists" })!.status).toBe(409);
+    expect(countRefusal({ ok: false, error: "opening_not_first" })!.status).toBe(409);
+    expect(countRefusal({ ok: false, error: "unknown_warehouse" })!.status).toBe(404);
+    expect(countRefusal({ ok: false, error: "Something Odd!" })).toEqual({ status: 400, body: { error: "failed" } });
+    expect(countRefusal({ ok: true, warnings: [] })).toBeNull();
+  });
+
+  it("every code stock_v2_count_save() can answer is one the UI translates (SQL twin + all four locales)", () => {
+    const sql = readFileSync(resolve(__dirname, "../../migrations/20260945000400_stock_v2_writers.sql"), "utf8");
+    const between = (a: string, b: string) => sql.slice(sql.indexOf(a), sql.indexOf(b));
+    const save = between("CREATE OR REPLACE FUNCTION public.stock_v2_count_save(", "CREATE OR REPLACE FUNCTION public.stock_v2_count_approve(");
+    const parse = between("CREATE OR REPLACE FUNCTION public.stock_v2_parse_lines(", "CREATE OR REPLACE FUNCTION public.stock_v2_cost_at(");
+    expect(save.length).toBeGreaterThan(1000);
+    expect(parse.length).toBeGreaterThan(500);
+    const warn = [...save.matchAll(/v_warn \|\| \(?'([a-z_]+)/g)].map((m) => m[1]);
+    expect([...new Set(warn)].sort()).toEqual(["no_opening", "not_counted", "old_count", "parcels_near_count", "pending_owner_approval"]);
+    const refusals = ["before_last_count", "opening_exists", "opening_not_first"];
+    for (const c of refusals) expect(save).toContain(`'error', '${c}'`);
+    for (const c of ["unknown_article", "whole_units_only"]) expect(parse).toContain(`'${c}'`);
+    const codes = new Set<string>(COUNT_CODES);
+    for (const c of [...warn, ...refusals, "unknown_article", "whole_units_only"]) {
+      expect(codes.has(COUNT_CODE_ALIASES[c] ?? c), c).toBe(true);
+    }
+    for (const lang of ["mk", "en", "sq", "bg"]) {
+      const loc = JSON.parse(readFileSync(resolve(__dirname, `../../../src/i18n/locales/${lang}.json`), "utf8"));
+      for (const c of COUNT_CODES) expect(typeof loc.stock2.count.warn[c], `${lang}: stock2.count.warn.${c}`).toBe("string");
+    }
+  });
+});
+
+describe("a function its migration has not created yet", () => {
+  it("PGRST202 / 42883 = missing (ignored by the best-effort calls); anything else is a real failure", () => {
+    expect(isMissingFunction({ code: "PGRST202" })).toBe(true);
+    expect(isMissingFunction({ code: "42883" })).toBe(true);
+    expect(isMissingFunction({ code: "42501" })).toBe(false);
+    expect(isMissingFunction(null)).toBe(false);
   });
 });

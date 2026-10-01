@@ -49,6 +49,7 @@
 import type { InsightsWindow } from "./insightsCommon.ts";
 import { addDaysYmd, skopjeDayEndIso, skopjeMidnightIso, skopjeTodayYmd } from "./overview.ts";
 import { DEFAULT_VAT_RATE, VAT_RATES, vatShare } from "./vatRates.ts";
+import { isValidYmd, skopjeYmd } from "./skopjeTime.ts";
 
 /** VAT is per product from Sigma (owner decision 01.10.2026, docs/VAT.md; it
  *  replaces the flat 18 % of 28.09). A line whose product has no rate yet — a
@@ -178,6 +179,8 @@ export interface ProfitSettings {
   /** Where the rate came from: the 'mex' row, or the api's fallback. */
   rateSource: "courier_rates" | "fallback";
   agentNames: ReadonlySet<string>;
+  /** The Sigma snapshot day of the loaded costs (sigmaCostAsOf) — meta.cost.as_of; absent → SIGMA_COST_AS_OF. */
+  costAsOf?: string | null;
 }
 
 /** The MEX row of the rate card (loadCourierRates' map), per parcel in EUR. */
@@ -987,8 +990,51 @@ export interface VatMeta {
 }
 
 /** The Sigma snapshot the first cost load came from (owner 01.10.2026: CalcBuyPrice of
- *  Ф00001-04, StockObject of 29.09.2026) — the label's date. */
+ *  Ф00001-04, StockObject of 29.09.2026) — the label's date when the loaded costs do not say
+ *  one (ProfitSettings.costAsOf, from sigmaCostAsOf()). */
 export const SIGMA_COST_AS_OF = "2026-09-29";
+
+export interface SigmaCostRefRow { source_ref?: unknown; valid_from?: unknown }
+
+const REF_YMD_RE = /(\d{4})-(\d{2})-(\d{2})/;
+const REF_DMY_RE = /(\d{1,2})\.(\d{1,2})\.(\d{4})/;
+
+/** The day a cost row's Sigma snapshot was taken: the date in its source_ref ("Ф00001-04 StockObject
+ *  2026-09-30", "… 30.09.2026"), else its valid_from's Skopje day; '-infinity' / nothing → null. */
+export function sigmaCostRowDay(r: SigmaCostRefRow): string | null {
+  const ref = typeof r.source_ref === "string" ? r.source_ref : "";
+  let m = REF_YMD_RE.exec(ref);
+  if (m && isValidYmd(`${m[1]}-${m[2]}-${m[3]}`)) return `${m[1]}-${m[2]}-${m[3]}`;
+  m = REF_DMY_RE.exec(ref);
+  if (m) {
+    const ymd = `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+    if (isValidYmd(ymd)) return ymd;
+  }
+  if (typeof r.valid_from === "string" && /^\d{4}-/.test(r.valid_from)) {
+    const ms = Date.parse(r.valid_from);
+    if (Number.isFinite(ms)) return skopjeYmd(ms) || null;
+  }
+  return null;
+}
+
+/**
+ * The label's date from the Sigma cost rows actually loaded (the newest rows of
+ * stock_article_costs with a Sigma source): the day most of them name; a tie → the later day.
+ * null when none names a day (the caller keeps SIGMA_COST_AS_OF).
+ */
+export function sigmaCostAsOf(rows: readonly SigmaCostRefRow[] | null | undefined): string | null {
+  const n = new Map<string, number>();
+  for (const r of rows || []) {
+    const d = r ? sigmaCostRowDay(r) : null;
+    if (d) n.set(d, (n.get(d) ?? 0) + 1);
+  }
+  let best: string | null = null;
+  for (const [d, c] of n) {
+    const bc = best === null ? -1 : n.get(best)!;
+    if (c > bc || (c === bc && d > best!)) best = d;
+  }
+  return best;
+}
 
 /** The unit cost's source of a payload: sigma / legacy (an older body = legacy). */
 export const costModeOf = (rpc: Pick<ProfitRpc, "cost_mode"> | null | undefined): "legacy" | "sigma" | "mixed" =>
@@ -1010,14 +1056,16 @@ export interface CostMeta {
   partial_products: number;
 }
 
-function costMeta(cohortRpc: ProfitRpc, cashRpc: ProfitRpc, cohort: ProfitClock, cash: ProfitClock, products: ProductRow[]): CostMeta {
+function costMeta(
+  cohortRpc: ProfitRpc, cashRpc: ProfitRpc, cohort: ProfitClock, cash: ProfitClock, products: ProductRow[], asOf?: string | null,
+): CostMeta {
   const a = costModeOf(cohortRpc), b = costModeOf(cashRpc);
   const source = a === b ? a : "mixed";
   const cov = (r: PLRow) => ({ packages: r.coverage_packages, revenue: r.coverage_revenue });
   return {
     source,
     basis: source === "sigma" ? "sigma_calcbuyprice" : "catalogue_cost_price",
-    as_of: source === "sigma" ? SIGMA_COST_AS_OF : null,
+    as_of: source === "sigma" ? (asOf && isValidYmd(asOf) ? asOf : SIGMA_COST_AS_OF) : null,
     extra_goods: !!cohortRpc.extra_goods && !!cashRpc.extra_goods,
     coverage: { cohort: cov(cohort.total), cash: cov(cash.total) },
     uncosted_products: products.filter((p) => p.package && !p.cost_known && !p.cost_partial && p.packages > 0).length,
@@ -1078,7 +1126,7 @@ export function buildProfitResponse(
       granularity: gran,
       vat: vatMeta(r.cohort, r.cash, cohort, cash, s),
       // the purchase cost's source (owner 01.10.2026: Sigma CalcBuyPrice for everything)
-      cost: costMeta(r.cohort, r.cash, cohort, cash, products.rows),
+      cost: costMeta(r.cohort, r.cash, cohort, cash, products.rows, s.costAsOf),
       courier: {
         deliver_mkd: r0(s.deliverEur * MKD_PER_EUR),
         return_mkd: r0(s.returnEur * MKD_PER_EUR),

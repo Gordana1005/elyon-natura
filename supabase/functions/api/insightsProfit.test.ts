@@ -5,6 +5,7 @@ import {
   PROFIT_PRODUCTS_MAX, PROFIT_SOURCES,
   coalesceRanges, loadProfitClocks, mergeProfitRpcs, PROFIT_CACHE_MIN_DAYS, profitPieces, refreshMonths, webmasterNames,
   DEFAULT_VAT_RATE, vatOf, vatPerLine, vatUnclassifiedOf, buildQuality,
+  SIGMA_COST_AS_OF, sigmaCostAsOf, sigmaCostRowDay,
 } from "./insightsProfit.ts";
 import type { AggRow, CommRow, ProductRpcRow, ProfitCacheRow, ProfitRpc, ProfitSettings } from "./insightsProfit.ts";
 import type { InsightsWindow } from "./insightsCommon.ts";
@@ -746,6 +747,34 @@ describe("Sigma purchase costs + extra packed goods (owner 01.10.2026, migration
     expect(lk).toContain("cost_legacy");
     expect(lk).toContain("uncosted_packages");
     expect(lk).not.toContain("recipe_missing");
+  });
+
+  it("meta.cost.as_of = the Sigma snapshot day the loaded costs name (stock_article_costs.source_ref)", () => {
+    // what the 01.10 load wrote: 1.273 CalcBuyPrice rows of the 30.09 StockObject + 89 last-buy-price rows with no date
+    const rows = [
+      ...Array.from({ length: 5 }, () => ({ source_ref: "Ф00001-04 StockObject 2026-09-30", valid_from: "-infinity" })),
+      { source_ref: "Ф00001-01/02/09 StockObject 2026-09-30", valid_from: "-infinity" },
+      { source_ref: "Ф00001-04 2026 sales lines, median of 12", valid_from: "-infinity" },
+      { source_ref: null, valid_from: "-infinity" },
+      { source_ref: "Sigma StockObject 2026-09-29", valid_from: "-infinity" },
+    ];
+    expect(sigmaCostAsOf(rows)).toBe("2026-09-30");
+    expect(sigmaCostRowDay({ source_ref: "LagerLista 29.09.2026 15:26" })).toBe("2026-09-29");
+    // no date in the ref → the row's valid_from, on the Skopje calendar
+    expect(sigmaCostRowDay({ source_ref: "bulk", valid_from: "2026-10-14T22:30:00+00:00" })).toBe("2026-10-15");
+    expect(sigmaCostRowDay({ source_ref: "bulk", valid_from: "-infinity" })).toBeNull();
+    // a tie → the later day; nothing named → null (the label keeps SIGMA_COST_AS_OF)
+    expect(sigmaCostAsOf([{ source_ref: "x 2026-09-29" }, { source_ref: "x 2026-09-30" }])).toBe("2026-09-30");
+    expect(sigmaCostAsOf([{ source_ref: "owner" }])).toBeNull();
+    expect(sigmaCostAsOf(null)).toBeNull();
+    const meta = (asOf: string | null | undefined) => (buildProfitResponse(
+      { cohort: SIGMA, cash: { ...CASH, cost_mode: "sigma", extra_goods: true } }, WEEK, { ...SETTINGS, costAsOf: asOf }, NOW,
+    ).meta as { cost: { as_of: string | null } }).cost.as_of;
+    expect(meta("2026-09-30")).toBe("2026-09-30");
+    expect(meta(null)).toBe(SIGMA_COST_AS_OF);
+    expect(meta("30.09.2026")).toBe(SIGMA_COST_AS_OF);   // only a YYYY-MM-DD day is taken
+    // legacy costs carry no Sigma date whatever the rows say
+    expect((buildProfitResponse({ cohort: COHORT, cash: CASH }, WEEK, { ...SETTINGS, costAsOf: "2026-09-30" }, NOW).meta as { cost: { as_of: unknown } }).cost.as_of).toBeNull();
   });
 
   it("the monthly merge sums the cost keys, keeps the highest unit cost and one cost mode", () => {

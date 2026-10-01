@@ -143,6 +143,9 @@ export interface StockUnmappedRow { source: string; code: string | null; name: s
 export interface StockHealth {
   enabled: boolean;
   preview_available: boolean;
+  /** The ACTIVE warehouses (sort order) — every stock role gets them; the pickers offer the tracked ones.
+   *  Added by the api (not stock_v2_health); an api older than 02.10.2026 sends none. */
+  warehouses: StockWarehouseRef[];
   openings: { warehouse: StockWarehouseCode; count_id: string; counted_at: string; status: string; source: string }[];
   last_run: { at: string; status: string; trigger: string; stats: Record<string, unknown> } | null;
   pending: { groups: number; units: number };
@@ -174,9 +177,37 @@ export interface StockCountResult {
   dry: boolean;
   count_id?: string;
   status?: 'pending' | 'approved';
-  warnings: string[];                // e.g. parcels created within ±2 h of the count time
+  /**
+   * CODES, translated by the UI as stock2.count.warn.<code> ("<code>:<n>" fills {{n}}):
+   * parcels_near_count:N (parcels created within ±2 h of the count time) · no_opening · old_count
+   * (> 30 days back) · pending_owner_approval · not_counted:N (a full count left N articles out).
+   * Anything else is free text, shown as sent. A REFUSED count answers HTTP 4xx with
+   * `error` = before_last_count · opening_exists · opening_not_first · unknown_article:<codes> ·
+   * kom_fraction:<codes> (a piece article with a fractional quantity) — the same vocabulary.
+   */
+  warnings: string[];
   lines: StockCountPreviewLine[];
   totals: { lines: number; system_qty: number; counted_qty: number; diff: number; value_diff_mkd?: number | null };
+}
+
+/** GET stock/v2/counts?warehouse&limit → StockCountHistoryRow[] (newest first; stock_v2_counts, …0510). */
+export interface StockCountHistoryRow {
+  id: string;
+  warehouse: StockWarehouseCode;
+  counted_at: string;
+  kind: 'opening' | 'full' | 'partial';
+  source: string;
+  status: 'pending' | 'approved' | 'void';
+  packed_counted: boolean;
+  lines: number;
+  diff_units: number | null;         // Σ(counted − what the system showed when the count was saved)
+  value_diff_mkd?: number | null;    // owners only: that difference × each article's cost at the count time
+  note: string | null;
+  created_by_name: string | null;
+  created_at: string;
+  approved_by_name: string | null;
+  approved_at: string | null;
+  void_reason: string | null;
 }
 
 export interface StockManualMoveRequest {

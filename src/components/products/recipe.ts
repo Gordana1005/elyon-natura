@@ -8,8 +8,10 @@
  *   VAT) — "Набавна (Сигма)", shown to owners only.
  *
  *   The catalogue row (GET /products/catalogue) carries, for owners, `cost_mkd` (the current complete
- *   cost) and `recipe_status` — when the api does not send them yet, the column falls back to the EUR
- *   mirror products.cost_price (× 61,5) and the "Рецепт" filter stays hidden.
+ *   cost, stock_v2_product_overview — migration 20260945000510) and `recipe_status`. The column shows
+ *   cost_mkd only — never the EUR mirror products.cost_price × 61,5 (before the costs were rebuilt it
+ *   held the archived CRM prices, which are not Sigma's). When the api does not send them yet the
+ *   column says "—" and the "Рецепт" filter stays hidden.
  */
 import type { ProductRecipe, ProductRecipeLine } from '@/lib/stockV2Types';
 
@@ -59,13 +61,13 @@ export function recipeCounts(rows: readonly RecipeFields[]): Record<RecipeFilter
 }
 
 /**
- * "Набавна (Сигма)" of a catalogue row in денари: cost_mkd when the api sends it; else the EUR mirror
- * × 61,5 (frozen peg); null = no cost (0 is "none" for the mirror — Sigma never costs a product at 0).
+ * "Набавна (Сигма)" of a catalogue row in денари: the api's cost_mkd (the current complete Sigma cost;
+ * an exempt product 0); null = no cost — also when the api sends none (never the EUR mirror).
  */
 export function sigmaCostMkd(r: RecipeFields): number | null {
-  if (r.cost_mkd !== undefined) return r.cost_mkd == null ? null : Number(r.cost_mkd);
-  const eur = Number(r.cost_price ?? 0);
-  return eur > 0 ? Math.round(eur * 61.5 * 100) / 100 : null;
+  if (r.cost_mkd === undefined || r.cost_mkd === null) return null;
+  const n = Number(r.cost_mkd);
+  return Number.isFinite(n) ? n : null;
 }
 
 // ── the drawer's draft ────────────────────────────────────────────────────────────────────────────

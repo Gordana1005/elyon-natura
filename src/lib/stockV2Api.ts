@@ -13,8 +13,8 @@
  */
 import { apiFetch } from '@/lib/api';
 import type {
-  ProductRecipe, StockArticleRow, StockArticleSeries, StockConfig, StockCountRequest, StockCountResult, StockDay,
-  StockHealth, StockManualMoveRequest, StockMovementsPage, StockParcelsDay, StockWarehouseCode,
+  ProductRecipe, StockArticleRow, StockArticleSeries, StockConfig, StockCountHistoryRow, StockCountRequest, StockCountResult,
+  StockDay, StockHealth, StockManualMoveRequest, StockMovementsPage, StockParcelsDay, StockWarehouseCode,
 } from '@/lib/stockV2Types';
 
 /** Builds `path?k=v…`, leaving out empty values (so the api's defaults apply). */
@@ -77,29 +77,11 @@ export const apiProductRecipe = (productId: string): Promise<ProductRecipe> =>
   apiFetch(`products/${encodeURIComponent(productId)}/articles`);
 
 /**
- * The count history of a warehouse. NOT in the contract yet (docs/STOCK-V2.md lists only POST
- * stock/v2/count, …/void, …/approve) — proposed as `GET stock/v2/counts?warehouse&limit` returning
- * `StockCountHistoryRow[]` (newest first). Until the api has it, the Попис tab falls back to
- * `StockHealth.openings`.
+ * The count history of a warehouse: `GET stock/v2/counts?warehouse&limit` → StockCountHistoryRow[]
+ * (newest first; stock_v2_counts, migration 20260945000510). While that reader is not applied the
+ * api answers 503 and the Попис tab falls back to `StockHealth.openings`.
  */
-export interface StockCountHistoryRow {
-  id: string;
-  warehouse: StockWarehouseCode;
-  counted_at: string;
-  kind: 'opening' | 'full' | 'partial';
-  source: string;
-  status: 'pending' | 'approved' | 'void';
-  packed_counted: boolean;
-  lines: number;
-  diff_units: number | null;
-  value_diff_mkd?: number | null;   // owners only
-  note: string | null;
-  created_by_name: string | null;
-  created_at: string;
-  approved_by_name: string | null;
-  approved_at: string | null;
-  void_reason: string | null;
-}
+export type { StockCountHistoryRow };
 export const apiStockV2Counts = (warehouse?: StockWarehouseCode, limit = 50): Promise<StockCountHistoryRow[]> =>
   apiFetch(withQuery('stock/v2/counts', { warehouse, limit }));
 

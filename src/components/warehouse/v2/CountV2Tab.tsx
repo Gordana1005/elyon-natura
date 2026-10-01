@@ -14,10 +14,11 @@ import { useToast } from '@/hooks/use-toast';
 import { apiErrorText } from '@/i18n/apiErrors';
 import { useMinWidth } from '@/lib/products/useMinWidth';
 import { fromSkopjeDatetimeLocal, skopjeTodayYmd, toSkopjeDatetimeLocal } from '@/lib/skopjeTime';
+import i18n from '@/i18n';
 import {
-  apiStockV2Articles, apiStockV2Count, apiStockV2CountApprove, apiStockV2CountVoid, apiStockV2Counts, type StockCountHistoryRow,
+  apiStockV2Articles, apiStockV2Count, apiStockV2CountApprove, apiStockV2CountVoid, apiStockV2Counts,
 } from '@/lib/stockV2Api';
-import type { StockArticleRow, StockCountRequest, StockCountResult } from '@/lib/stockV2Types';
+import type { StockArticleRow, StockCountHistoryRow, StockCountRequest, StockCountResult } from '@/lib/stockV2Types';
 import { cn } from '@/lib/utils';
 import { moment } from './moves';
 import {
@@ -54,10 +55,25 @@ function clearDraft() {
   try { window.localStorage.removeItem(DRAFT_KEY); } catch { /* private window */ }
 }
 
-/** "parcels_near_count:12" → its words; anything unknown is shown as the api sent it. */
+/** "parcels_near_count:12" → its words; anything unknown (a new code, free text) is shown as the api sent it. */
 function warningText(f: InsightsFormat, w: string): string {
   const [code, ...rest] = w.split(':');
-  return f.t(`stock2.count.warn.${code.trim()}`, { n: rest.join(':').trim(), defaultValue: w });
+  const key = `stock2.count.warn.${code.trim()}`;
+  // i18n.exists first: a dev build renders a missing key as ⟪key⟫ even with a defaultValue
+  if (!/^[a-z][a-z0-9_]*$/.test(code.trim()) || !i18n.exists(key)) return w;
+  return f.t(key, { n: rest.join(':').trim() });
+}
+
+/**
+ * A refused count speaks the warnings' vocabulary ("unknown_article:000123, 000456",
+ * "kom_fraction:100123", "before_last_count", "opening_exists" …) — its words; anything else
+ * through the general api-error text.
+ */
+function countErrorText(f: InsightsFormat, e: unknown): string {
+  const msg = e instanceof Error ? e.message.trim() : '';
+  const code = msg.split(':')[0].trim();
+  if (/^[a-z][a-z0-9_]*$/.test(code) && i18n.exists(`stock2.count.warn.${code}`)) return warningText(f, msg);
+  return apiErrorText(e);
 }
 
 /**
@@ -76,7 +92,7 @@ export function CountV2Tab({ f }: { f: InsightsFormat }) {
   const [sp, setSp] = useSearchParams();
   const wh = sp.get('wh') || 'main';
   const health = useStockHealthLite();
-  const options = useWarehouseOptions(f, { isOwner: access.isOwner, health: health.data });
+  const options = useWarehouseOptions(f, { health: health.data });
 
   const [draft, setDraft] = useState<Draft>(() => loadDraft());
   useEffect(() => { saveDraft(draft); }, [draft]);
@@ -125,7 +141,7 @@ export function CountV2Tab({ f }: { f: InsightsFormat }) {
       const names = new Map(r.lines.map((l) => [l.code, l.name]));
       setDraft((d) => ({ ...d, lines: d.lines.map((l) => (l.name ? l : { ...l, name: names.get(l.code) ?? '' })) }));
     } catch (e) {
-      toast({ title: t('common.error'), description: apiErrorText(e), variant: 'destructive' });
+      toast({ title: t('common.error'), description: countErrorText(f, e), variant: 'destructive' });
     } finally { setBusy(null); }
   };
   const save = async () => {
@@ -139,7 +155,7 @@ export function CountV2Tab({ f }: { f: InsightsFormat }) {
       toast({ title: t(r.status === 'approved' ? 'stock2.count.savedApproved' : 'stock2.count.savedPending') });
       void qc.invalidateQueries({ queryKey: ['stock2'] });
     } catch (e) {
-      toast({ title: t('common.error'), description: apiErrorText(e), variant: 'destructive' });
+      toast({ title: t('common.error'), description: countErrorText(f, e), variant: 'destructive' });
     } finally { setBusy(null); }
   };
 

@@ -31,10 +31,12 @@ describe('the catalogue: recipe status and the Sigma cost', () => {
     expect(matchesRecipe({}, 'none')).toBe(true);
   });
 
-  it('"Набавна (Сигма)" = cost_mkd when sent, else the EUR mirror × 61,5; 0 / null = none', () => {
+  it('"Набавна (Сигма)" = the api\'s cost_mkd only — never the EUR mirror × 61,5', () => {
     expect(sigmaCostMkd({ cost_mkd: 55.9981, cost_price: 9 })).toBe(55.9981);
+    expect(sigmaCostMkd({ cost_mkd: 0 })).toBe(0);                 // an exempt product (no goods)
     expect(sigmaCostMkd({ cost_mkd: null, cost_price: 9 })).toBeNull();
-    expect(sigmaCostMkd({ cost_price: 100 / 61.5 })).toBe(100);
+    // an api without the Stock v2 reader: no cost shown, whatever the mirror holds (the archived CRM prices)
+    expect(sigmaCostMkd({ cost_price: 100 / 61.5 })).toBeNull();
     expect(sigmaCostMkd({ cost_price: 0 })).toBeNull();
   });
 });

@@ -10148,16 +10148,24 @@ async function handleRequest(req: Request): Promise<Response> {
     // the page over these ~700 rows (instant) — a round trip per chip would be slower.
     if (req.method === "GET" && path === "products/catalogue") {
       const catQuery = (cols: string) => supabase.from("products").select(cols).order("name", { ascending: true });
-      let { data, error } = await catQuery(PC.CATALOGUE_SELECT);
+      // VAT per product (20260944000900), the Sigma purchase cost and the recipe status (Stock v2,
+      // stock_v2_product_overview, 20260945000510) — owners only.
+      const catVatOwner = await isBusinessOwner(user.id);
+      const [first, ovRes]: any[] = await Promise.all([
+        catQuery(PC.CATALOGUE_SELECT),
+        catVatOwner ? adminClient.rpc("stock_v2_product_overview") : Promise.resolve({ data: null, error: null }),
+      ]);
+      let { data, error } = first;
       // the VAT columns arrive with 20260944000900 — an api deployed first still serves the page
       if (error && PC.isMissingVatColumn(error)) ({ data, error } = await catQuery(PC.CATALOGUE_SELECT_NO_VAT));
       if (error) return json({ error: sanitizeDbError(error) }, 400);
-      // VAT per product (20260944000900): rate, Sigma item and evidence — owners only.
-      const catVatOwner = await isBusinessOwner(user.id);
+      // reader not applied yet (or failed): no cost_mkd / recipe_status — the page shows "—" and no recipe chips
+      if (ovRes.error && !SV2.isMissingFunction(ovRes.error)) console.error("stock_v2_product_overview failed:", ovRes.error.code);
+      const catRecipes = catVatOwner && !ovRes.error ? PC.recipeOverviewMap(ovRes.data) : null;
       return json({
         generated_at: new Date().toISOString(),
         vat_visible: catVatOwner,
-        rows: (data || []).map((p: any) => PC.shapeCatalogueRow(p, { showCost: catVatOwner, showVat: catVatOwner })),
+        rows: (data || []).map((p: any) => PC.shapeCatalogueRow(p, { showCost: catVatOwner, showVat: catVatOwner, recipes: catRecipes })),
       });
     }
 
@@ -10427,11 +10435,21 @@ async function handleRequest(req: Request): Promise<Response> {
       if (error) return raFail(fn, error);
       const refused = SV2.resultError(data);
       if (refused) return json(refused.body, refused.status);
-      // A recipe that moved can change a product's derived stock — refresh the mirror now
-      // (a no-op while Stock v2 is off; the cron would catch up anyway). Best-effort.
+      // A recipe / exemption that moved changes the product's cost history: rebuild it now so the
+      // profit and the /products cost follow (product_costs_rebuild, …0600 — the recipe writers of
+      // …0400 do not call it). The write already stands, so a failed rebuild is reported, not raised.
+      let costRebuild: unknown = null;
+      const { data: cr, error: crErr } = await adminClient.rpc("product_costs_rebuild", { p_actor: user.id, p_archive_legacy: false });
+      if (crErr) {
+        if (!SV2.isMissingFunction(crErr)) console.error("product_costs_rebuild failed:", crErr.code);
+        costRebuild = { ok: false, error: SV2.isMissingFunction(crErr) ? "not_installed" : "failed" };
+      } else costRebuild = cr;
+      // ...and its derived stock: refresh the mirror (…0700; a no-op while Stock v2 is off, the cron
+      // would catch up anyway). Before …0700 is applied the function does not exist — ignored.
       const { error: mErr } = await adminClient.rpc("products_stock_mirror_refresh", {});
-      if (mErr && mErr.code !== "PGRST202") console.error("products_stock_mirror_refresh failed:", mErr.code);
-      return json(SV2.moneyView(raOwner, data ?? { ok: true }));
+      if (mErr && !SV2.isMissingFunction(mErr)) console.error("products_stock_mirror_refresh failed:", mErr.code);
+      const base = data && typeof data === "object" && !Array.isArray(data) ? data : { ok: true, result: data };
+      return json(SV2.moneyView(raOwner, { ...base, cost_rebuild: costRebuild }));
     }
 
     // GET /api/products/:id/inventory-logs
@@ -16614,8 +16632,8 @@ async function handleRequest(req: Request): Promise<Response> {
     // Every route calls ONE contract SQL function with the service role and
     // p_actor = the caller; the SQL writers audit themselves (audit_log).
     //   read  (owners · admin · manager · warehouse; money keys for owners only)
-    //     GET  health · day · article · parcels · movements · config · articles
-    //          · sigma/status · sigma/month-check
+    //     GET  health (+ the active warehouses) · day · article · parcels · movements · counts
+    //          · config · articles · sigma/status · sigma/month-check
     //   count (owners · admin · warehouse; a non-owner's count is saved pending)
     //     POST count · count/:id/void (a pending count; an approved one: owners)
     //   owners only
@@ -16665,10 +16683,16 @@ async function handleRequest(req: Request): Promise<Response> {
       // ── reads ──────────────────────────────────────────────────────
       if (svGet && svSub === "health") {
         if (!SV2.stockCan(svCaller, "read")) return svDeny("read");
-        const r = await svRpc("stock_v2_health", { p_detail: url.searchParams.get("detail") !== "0" });
+        // + `warehouses` (the active ones, no money): every stock role's pickers read them here,
+        // not from the owners-only configuration.
+        const [r, whRes]: any[] = await Promise.all([
+          svRpc("stock_v2_health", { p_detail: url.searchParams.get("detail") !== "0" }),
+          adminClient.from("stock_warehouses").select("code, name, role, tracked, active, sort").eq("active", true),
+        ]);
         if (r.res) return r.res;
+        if (whRes.error) console.error("stock_warehouses (health) failed:", whRes.error.code);
         const base = r.data && typeof r.data === "object" && !Array.isArray(r.data) ? r.data : {};
-        return svOut({ ...base, access: SV2.stockAccess(svCaller) });
+        return svOut({ ...base, warehouses: SV2.shapeWarehouseRefs(whRes.data || []), access: SV2.stockAccess(svCaller) });
       }
 
       if (svGet && svSub === "day") {
@@ -16807,6 +16831,16 @@ async function handleRequest(req: Request): Promise<Response> {
       }
 
       // ── counts ─────────────────────────────────────────────────────
+      // GET stock/v2/counts?warehouse&limit → StockCountHistoryRow[] (stock_v2_counts, …0510), newest
+      // first; value_diff_mkd for owners only (the SQL computes it only with p_money).
+      if (svGet && svSub === "counts") {
+        if (!SV2.stockCan(svCaller, "read")) return svDeny("read");
+        const p = SV2.parseCountsQuery(url.searchParams);
+        if (!p.ok) return json({ error: p.error }, 400);
+        const r = await svRpc("stock_v2_counts", { p_warehouse: p.value.warehouse, p_limit: p.value.limit, p_money: svOwner });
+        return r.res ?? svOut(SV2.shapeCountHistory(r.data, svOwner));
+      }
+
       if (req.method === "POST" && svSub === "count") {
         if (!SV2.stockCan(svCaller, "count")) return svDeny("count");
         const b = await svBody();
@@ -16814,12 +16848,16 @@ async function handleRequest(req: Request): Promise<Response> {
         const p = SV2.parseCountRequest(b.body, Date.now());
         if (!p.ok) return json({ error: p.error }, 400);
         const v = p.value;
-        const r = await svRpc("stock_v2_count_save", {
+        const { data, error } = await adminClient.rpc("stock_v2_count_save", {
           p_warehouse: v.warehouse, p_counted_at: v.counted_at, p_kind: v.kind, p_lines: v.lines, p_source: v.source,
           p_source_ref: v.source_ref, p_packed_counted: v.packed_counted, p_note: v.note, p_actor: user.id,
           p_is_owner: svOwner, p_dry: v.dry,
         });
-        return r.res ?? svOut(r.data);
+        if (error) return svFail("stock_v2_count_save", error);
+        // warnings and refusals as the codes the Попис tab translates ("unknown_article:000123, …")
+        const refused = SV2.countRefusal(data);
+        if (refused) return json(refused.body, refused.status);
+        return svOut(SV2.shapeCountResult(data));
       }
 
       const svCountAct = req.method === "POST" ? svSub.match(/^count\/([^/]+)\/(void|approve)$/) : null;
@@ -16933,6 +16971,8 @@ async function handleRequest(req: Request): Promise<Response> {
         if (b.res) return b.res;
         const p = SV2.parseArticleCostBody(b.body, Date.now());
         if (!p.ok) return json({ error: p.error }, 400);
+        // stock_article_cost_set() runs product_costs_rebuild() itself, in the same transaction (…0600),
+        // so the profit's cost history already follows — its result carries `rebuild`.
         const r = await svRpc("stock_article_cost_set", {
           p_article: p.value.code, p_cost_mkd: p.value.cost_mkd, p_valid_from: p.value.valid_from, p_note: p.value.note, p_actor: user.id,
         });
@@ -19306,13 +19346,18 @@ async function handleRequest(req: Request): Promise<Response> {
         adminClient.from("profiles").select("user_id,full_name").range(0, 9999),
         adminClient.from("user_roles").select("user_id, role")
           .in("role", ["agent", "pending_agent", "prediction_agent", "admin", "manager"]).range(0, 9999),
+        // the newest Sigma cost rows — the snapshot day they name is the cost label's date (meta.cost.as_of)
+        adminClient.from("stock_article_costs").select("source_ref, valid_from")
+          .in("source", ["sigma_calcbuyprice", "sigma_last_buyprice"]).order("recorded_at", { ascending: false }).limit(200),
       ]);
       try {
         pfClocks = await IPF.loadProfitClocks(pfWin, pfDeps);
       } catch (e) {
         return json({ error: e instanceof Error ? e.message : "insights_profit failed" }, 500);
       }
-      const [pfPco, pfPca, pfRates, pfProfiles, pfRoles] = await pfRest;
+      const [pfPco, pfPca, pfRates, pfProfiles, pfRoles, pfCostRefs] = await pfRest;
+      // the label falls back to SIGMA_COST_AS_OF when the rows say no day (or the table is not there)
+      if (pfCostRefs.error) console.error("stock_article_costs (as_of):", pfCostRefs.error.code);
       if (pfProfiles.error || pfRoles.error) return json({ error: "profit: agent list unavailable" }, 500);
       // The comparison is additive: a failed previous-period scan shows no delta, never a wrong one.
       if (pfPco.error) console.error("insights_profit (prev):", pfPco.error.message);
@@ -19329,6 +19374,7 @@ async function handleRequest(req: Request): Promise<Response> {
           defaultVatRate: VT.DEFAULT_VAT_RATE,
           ...IPF.mexRate(pfRates.rates, pfRates.fallback),
           agentNames: IPF.commissionAgentNames(pfProfiles.data ?? [], pfRoles.data ?? []),
+          costAsOf: pfCostRefs.error ? null : IPF.sigmaCostAsOf(pfCostRefs.data ?? []),
         },
         new Date(),
         pfClocks.cache,

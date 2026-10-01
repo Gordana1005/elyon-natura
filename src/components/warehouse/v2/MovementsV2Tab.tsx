@@ -14,7 +14,7 @@ import type { StockMovementsPage } from '@/lib/stockV2Types';
 import { cn } from '@/lib/utils';
 import { MoveBadges, MoveCard, kindLabel, moment, qtyTone, sourceLabel, sourceRef } from './moves';
 import {
-  Empty, Failed, Loading, Pager, WarehousePicker, patchParams, readPageOffset, useStockAccess, useStockHealthLite,
+  Empty, Failed, Loading, Pager, WarehousePicker, patchParams, readPageOffset, useStockHealthLite,
   useWarehouseOptions, warehouseName,
 } from './shared';
 import { ARTICLE_CODE_RE, MOVE_KINDS, MOVE_SOURCES, fmtQty, fmtSigned } from './stockV2Model';
@@ -31,7 +31,6 @@ const QUICK = [1, 7, 30] as const;
  */
 export function MovementsV2Tab({ f }: { f: InsightsFormat }) {
   const { t } = f;
-  const access = useStockAccess();
   const [sp, setSp] = useSearchParams();
   const today = skopjeToday();
   let from = isYmd(sp.get('from')) ? sp.get('from')! : today;
@@ -63,7 +62,7 @@ export function MovementsV2Tab({ f }: { f: InsightsFormat }) {
   }, [search]);
 
   const health = useStockHealthLite();
-  const options = useWarehouseOptions(f, { isOwner: access.isOwner, health: health.data });
+  const options = useWarehouseOptions(f, { health: health.data });
   const q = useQuery<StockMovementsPage>({
     queryKey: ['stock2', 'movements', from, to, wh, art, text, kind, source, corr, offset],
     queryFn: () => apiStockV2Movements({ from, to, warehouse: wh || null, article: art, q: text, kind, source, corrections: corr, limit: LIMIT, offset }),
