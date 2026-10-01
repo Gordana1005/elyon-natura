@@ -6,6 +6,12 @@ import type {
 } from '@/lib/stockV2Types';
 
 const MAIN = { code: 'main', name: 'Главен магацин Скопје', role: 'main', tracked: true };
+/** The active warehouses the health read lists (every stock role gets them; the pickers offer the tracked ones). */
+export const WAREHOUSES = [
+  MAIN,
+  { code: 'wh08', name: 'Сигма 08 Кол Центар (преглед)', role: 'review', tracked: false },
+  { code: 'damaged', name: 'Оштетена роба', role: 'damaged', tracked: true },
+];
 
 function article(over: Partial<StockDayArticle> & Pick<StockDayArticle, 'code' | 'name'>): StockDayArticle {
   return {
@@ -114,6 +120,7 @@ export function ownerParcelsDay(): StockParcelsDay {
 export function health(over: Partial<StockHealth> = {}): StockHealth {
   return {
     enabled: false, preview_available: true,
+    warehouses: WAREHOUSES,
     openings: [{ warehouse: 'main', count_id: 'c-1', counted_at: '2026-09-21T22:00:00Z', status: 'approved', source: 'sigma_variant' }],
     last_run: { at: new Date(Date.now() - 6 * 60_000).toISOString(), status: 'ok', trigger: 'cron', stats: {} },
     pending: { groups: 1520, units: 8400 },

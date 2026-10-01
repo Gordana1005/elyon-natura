@@ -8775,7 +8775,12 @@
         "before_last_count": "The count is before the last approved count.",
         "kom_fraction": "A piece article has a fractional quantity ({{n}}).",
         "unknown_article": "Unknown article code: {{n}}",
-        "opening_exists": "This warehouse already has an approved opening count."
+        "opening_exists": "This warehouse already has an approved opening count.",
+        "opening_not_first": "The opening count must be the earliest approved count of this warehouse.",
+        "no_opening": "This warehouse has no approved opening count yet.",
+        "old_count": "The count is more than 30 days old — check the date.",
+        "pending_owner_approval": "The count will wait for an owner's approval before it changes the stock.",
+        "not_counted": "Full count: {{n}} articles with stock were not entered — their stock stays as it is."
       }
     },
     "health": {

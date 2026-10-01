@@ -1,6 +1,6 @@
 // ============================================================================
 // Stock v2 (owner 01.10.2026, docs/STOCK-V2.md) — the pure half of
-//   GET  /api/stock/v2/{health,day,article,parcels,movements,config,articles,
+//   GET  /api/stock/v2/{health,day,article,parcels,movements,counts,config,articles,
 //                       sigma/status,sigma/month-check}
 //   POST /api/stock/v2/{count,count/:id/void,count/:id/approve,move,parcel-override,
 //                       switch,run,article-cost,alias}      PUT /api/stock/v2/config
@@ -365,6 +365,18 @@ export function parseArticlesQuery(q: QueryLike): Parsed<ArticlesQuery> {
   const preview = parseBoolParam(q.get("preview"));
   if (!preview.ok) return fail("bad_preview");
   return ok({ q: cleanSearch(q.get("q")), warehouse: wh.value!, active, limit, preview: preview.value });
+}
+
+export interface CountsQuery { warehouse: string | null; limit: number }
+
+/** GET stock/v2/counts?warehouse&limit — every warehouse when absent, the newest 50 by default, ≤ 500. */
+export function parseCountsQuery(q: QueryLike): Parsed<CountsQuery> {
+  const wh = warehouseParam(trimmed(q, "warehouse"), null);
+  if (!wh.ok) return wh;
+  const l = trimmed(q, "limit");
+  const limit = l === "" ? 50 : Number(l);
+  if (!Number.isInteger(limit) || limit < 1 || limit > MAX_LIMIT) return fail("bad_limit");
+  return ok({ warehouse: wh.value, limit });
 }
 
 // ── body parsing ─────────────────────────────────────────────────────────────
@@ -833,7 +845,7 @@ export function resultErrorStatus(code: string): number {
     case "owners_only": case "forbidden": return 403;
     case "not_found": case "unknown_article": case "unknown_product": case "unknown_warehouse": case "unknown_count": return 404;
     case "disabled": case "busy": case "conflict": case "no_opening": case "already_void": case "already_approved":
-    case "not_pending": case "opening_exists": return 409;
+    case "not_pending": case "opening_exists": case "opening_not_first": case "before_last_count": return 409;
     case "not_installed": case "not_configured": return 503;
     default: return 400;
   }
@@ -866,6 +878,12 @@ export function stockRpcError(err: { code?: string; message?: string } | null | 
   return { status: 500, body: { error: "failed" } };
 }
 
+/** A PostgREST / Postgres error that only says "this function is not there" (its migration is not applied). */
+export function isMissingFunction(err: { code?: string } | null | undefined): boolean {
+  const c = String(err?.code ?? "");
+  return c === "PGRST202" || c === "42883";
+}
+
 /** A jsonb result of the shape {ok:false, error} → the HTTP error; anything else is a success (null). */
 export function resultError(data: unknown): HttpError | null {
   if (!isObj(data) || data.ok !== false) return null;
@@ -875,8 +893,85 @@ export function resultError(data: unknown): HttpError | null {
   return { status: resultErrorStatus(code), body };
 }
 
+// ── POST stock/v2/count: warnings and refusals as CODES the UI translates ────
+/**
+ * The count codes the /warehouse Попис tab translates — i18n `stock2.count.warn.<code>`, where
+ * "<code>:<n>" fills {{n}}. stock_v2_count_save() (…0400) already answers codes:
+ *   warnings  parcels_near_count:N · no_opening · old_count (> 30 days back) ·
+ *             pending_owner_approval · not_counted:N (a full count left articles out)
+ *   refusals  before_last_count · opening_exists · opening_not_first ·
+ *             unknown_article / whole_units_only (+ the offending lines in `bad`)
+ * The aliases rename the SQL's word to the UI's (whole_units_only → kom_fraction); a code
+ * the UI does not know, or free text, goes through unchanged (the UI shows it as sent).
+ */
+export const COUNT_CODES = [
+  "parcels_near_count", "in_past", "before_last_count", "kom_fraction", "unknown_article", "opening_exists",
+  "opening_not_first", "no_opening", "old_count", "pending_owner_approval", "not_counted",
+] as const;
+export const COUNT_CODE_ALIASES: Readonly<Record<string, string>> = { whole_units_only: "kom_fraction" };
+const COUNT_CODE_RE = /^([a-z][a-z0-9_]{1,40})(:[\s\S]*)?$/;
+/** At most this many article codes are named in one refusal ("unknown_article:000123, 000456 +3"). */
+export const COUNT_REFUSAL_MAX_CODES = 10;
+
+/** One warning → its code ("parcels_near_count:12"), an alias renamed; free text kept as it is; empty → null. */
+export function countCode(w: unknown): string | null {
+  if (typeof w !== "string") return null;
+  const s = w.trim();
+  if (!s) return null;
+  const m = COUNT_CODE_RE.exec(s);
+  if (!m) return s.slice(0, 300);
+  return (COUNT_CODE_ALIASES[m[1]] ?? m[1]) + (m[2] ?? "");
+}
+
+/** StockCountResult.warnings: codes, de-duplicated, order kept. */
+export function normalizeCountWarnings(v: unknown): string[] {
+  const out: string[] = [];
+  for (const w of Array.isArray(v) ? v : []) {
+    const c = countCode(w);
+    if (c && !out.includes(c)) out.push(c);
+  }
+  return out;
+}
+
+/** A successful stock_v2_count_save() result with its warnings as codes (everything else untouched). */
+export function shapeCountResult<T>(data: T): T {
+  if (!isObj(data)) return data;
+  return { ...data, warnings: normalizeCountWarnings(data.warnings) } as T;
+}
+
+/**
+ * A refused count ({ok:false, error, bad?, last_count_at?}) → the HTTP error whose `error` is the
+ * code the UI translates — with the article codes for unknown_article / kom_fraction
+ * ("unknown_article:000123, 000456"), `code` = the bare code, `last_count_at` for before_last_count.
+ * Not a refusal → null.
+ */
+export function countRefusal(data: unknown): HttpError | null {
+  if (!isObj(data) || data.ok !== false) return null;
+  const raw = typeof data.error === "string" ? data.error.trim() : "";
+  if (!/^[a-z][a-z0-9_]{1,40}$/.test(raw)) return resultError(data);
+  const code = COUNT_CODE_ALIASES[raw] ?? raw;
+  let error = code;
+  if (code === "unknown_article" || code === "kom_fraction") {
+    const arts: string[] = [];
+    for (const b of Array.isArray(data.bad) ? data.bad : []) {
+      if (!isObj(b) || (b.why !== undefined && b.why !== raw)) continue;
+      const c = typeof b.code === "string" ? b.code.trim() : "";
+      if (c && !arts.includes(c)) arts.push(c.slice(0, 20));
+    }
+    if (arts.length) {
+      const shown = arts.slice(0, COUNT_REFUSAL_MAX_CODES).join(", ");
+      const more = arts.length - COUNT_REFUSAL_MAX_CODES;
+      error = `${code}:${shown}${more > 0 ? ` +${more}` : ""}`;
+    }
+  }
+  const body: HttpError["body"] & { code: string; last_count_at?: string } = { error, code };
+  if (typeof data.detail === "string") body.detail = data.detail.slice(0, 300);
+  if (code === "before_last_count" && typeof data.last_count_at === "string") body.last_count_at = data.last_count_at;
+  return { status: resultErrorStatus(code), body };
+}
+
 // ── response shapes built in TS (no SQL getter in the contract) ─────────────
-const num = (v: unknown): number => { const n = typeof v === "number" ? v : Number(v ?? 0); return Number.isFinite(n) ? n : 0; };
+const num =(v: unknown): number => { const n = typeof v === "number" ? v : Number(v ?? 0); return Number.isFinite(n) ? n : 0; };
 const numOrNull = (v: unknown): number | null => (v === null || v === undefined || v === "" ? null : Number.isFinite(Number(v)) ? Number(v) : null);
 const str = (v: unknown): string | null => (v === null || v === undefined || v === "" ? null : String(v));
 
@@ -1078,4 +1173,52 @@ export function shapeSigmaStatus(input: SigmaStatusInput): Record<string, unknow
     },
     batches,
   };
+}
+
+export interface WarehouseRow { code: unknown; name: unknown; role: unknown; tracked: unknown; active?: unknown; sort?: unknown }
+
+/**
+ * StockHealth.warehouses — the ACTIVE warehouses as StockWarehouseRef (code, name, role, tracked), by
+ * sort then code. No money and no keys / routes, so every stock role gets it: the warehouse pickers of
+ * a non-owner no longer depend on the owners-only configuration.
+ */
+export function shapeWarehouseRefs(rows: WarehouseRow[] | null | undefined): { code: string; name: string; role: string; tracked: boolean }[] {
+  return [...(rows || [])]
+    .filter((w) => w && w.active !== false && typeof w.code === "string" && w.code !== "")
+    .sort((a, b) => num(a.sort) - num(b.sort) || String(a.code).localeCompare(String(b.code)))
+    .map((w) => ({ code: String(w.code), name: String(w.name ?? ""), role: String(w.role ?? ""), tracked: w.tracked === true }));
+}
+
+const COUNT_KIND_SET = new Set<string>(COUNT_KINDS);
+const COUNT_STATUS_SET = new Set(["pending", "approved", "void"]);
+
+/**
+ * GET stock/v2/counts → StockCountHistoryRow[] from stock_v2_counts() (…0510): exactly the contract's
+ * keys; `value_diff_mkd` only when `money` (owners) — never for anyone else, whatever the SQL sent.
+ */
+export function shapeCountHistory(data: unknown, money: boolean): Record<string, unknown>[] {
+  const out: Record<string, unknown>[] = [];
+  for (const r of Array.isArray(data) ? data : []) {
+    if (!isObj(r) || typeof r.id !== "string") continue;
+    const row: Record<string, unknown> = {
+      id: r.id,
+      warehouse: String(r.warehouse ?? ""),
+      counted_at: str(r.counted_at),
+      kind: COUNT_KIND_SET.has(String(r.kind)) ? r.kind : "partial",
+      source: String(r.source ?? "manual"),
+      status: COUNT_STATUS_SET.has(String(r.status)) ? r.status : "pending",
+      packed_counted: r.packed_counted === true,
+      lines: num(r.lines),
+      diff_units: numOrNull(r.diff_units),
+      note: str(r.note),
+      created_by_name: str(r.created_by_name),
+      created_at: str(r.created_at),
+      approved_by_name: str(r.approved_by_name),
+      approved_at: str(r.approved_at),
+      void_reason: str(r.void_reason),
+    };
+    if (money) row.value_diff_mkd = numOrNull(r.value_diff_mkd);
+    out.push(row);
+  }
+  return out;
 }

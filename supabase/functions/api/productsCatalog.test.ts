@@ -5,7 +5,7 @@ import {
   KIND_RE_BUNDLE_WORD, KIND_RE_HIT_TRIM, KIND_RE_JOINER, KIND_RE_MULTI_PACK, KIND_RE_NUTRIENT_PLUS, KIND_RE_OBJECT, KIND_RE_PROMO,
   classifyKindByName, humanCategory, humanDescription, isMachineCategory, isMachineDescription, parseProductPatch,
   parseSetKindBody, proposeKind, shapeCatalogueRow, shapeKindProposal, shapeSetKindResult, stripKindFields,
-  EDITABLE_FIELDS, DERIVED_FIELDS, withCostVisibility,
+  EDITABLE_FIELDS, DERIVED_FIELDS, withCostVisibility, recipeOverviewMap, NO_RECIPE,
 } from "./productsCatalog.ts";
 
 // Производи 2.0 (owner 01.10.2026). Product names below are real catalogue spellings; no customer data.
@@ -193,5 +193,45 @@ describe("cost visibility on a returned product row", () => {
     expect(withCostVisibility(row, true)).toEqual(row);
     expect(withCostVisibility(row, false)).toEqual({ id: "p1", name: "Zinc", price: 10 });
     expect(row).toHaveProperty("cost_price", 2);
+  });
+});
+
+describe("GET /products/catalogue — the owners' Sigma cost and recipe status (Stock v2)", () => {
+  const ID1 = "aaaaaaaa-0000-4000-8000-000000000001";
+  const ID2 = "aaaaaaaa-0000-4000-8000-000000000002";
+  const ID3 = "AAAAAAAA-0000-4000-8000-000000000003";
+  const base = (id: string) => ({ id, name: "Zinc", price: 10, cost_price: 2, is_active: true, kind: "product" });
+  const OVERVIEW = [
+    { product_id: ID1, recipe_status: "approved", cost_mkd: 123.4567 },
+    { product_id: ID2, recipe_status: "proposed", cost_mkd: null },
+    { product_id: ID3, recipe_status: "exempt", cost_mkd: "0" },
+    { product_id: "not-a-uuid", recipe_status: "approved", cost_mkd: 1 },
+    { product_id: "aaaaaaaa-0000-4000-8000-000000000004", recipe_status: "weird", cost_mkd: "x" },
+    null,
+  ];
+  it("reads stock_v2_product_overview(): lower-cased ids, unknown status → none, a bad cost → null", () => {
+    const m = recipeOverviewMap(OVERVIEW);
+    expect(m.size).toBe(4);
+    expect(m.get(ID1)).toEqual({ recipe_status: "approved", cost_mkd: 123.4567 });
+    expect(m.get(ID2)).toEqual({ recipe_status: "proposed", cost_mkd: null });
+    expect(m.get(ID3.toLowerCase())).toEqual({ recipe_status: "exempt", cost_mkd: 0 });
+    expect(m.get("aaaaaaaa-0000-4000-8000-000000000004")).toEqual({ recipe_status: "none", cost_mkd: null });
+    expect(recipeOverviewMap({ ok: false }).size).toBe(0);
+  });
+  it("owners get cost_mkd + recipe_status on every row (none / null when the overview has nothing)", () => {
+    const recipes = recipeOverviewMap(OVERVIEW);
+    expect(shapeCatalogueRow(base(ID1), { showCost: true, recipes })).toMatchObject({ cost_price: 2, cost_mkd: 123.4567, recipe_status: "approved" });
+    expect(shapeCatalogueRow(base(ID3), { showCost: true, recipes })).toMatchObject({ cost_mkd: 0, recipe_status: "exempt" });
+    const other = shapeCatalogueRow(base("bbbbbbbb-0000-4000-8000-000000000009"), { showCost: true, recipes });
+    expect(other).toMatchObject({ cost_mkd: NO_RECIPE.cost_mkd, recipe_status: NO_RECIPE.recipe_status });
+    expect(other.cost_mkd).toBeNull();
+  });
+  it("stripped for everyone else, and absent while the reader is not applied", () => {
+    const recipes = recipeOverviewMap(OVERVIEW);
+    for (const row of [shapeCatalogueRow(base(ID1), { showCost: false, recipes }), shapeCatalogueRow(base(ID1), { showCost: true, recipes: null })]) {
+      expect(row).not.toHaveProperty("cost_mkd");
+      expect(row).not.toHaveProperty("recipe_status");
+    }
+    expect(shapeCatalogueRow(base(ID1), { showCost: false, recipes })).not.toHaveProperty("cost_price");
   });
 });

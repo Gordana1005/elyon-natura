@@ -314,6 +314,32 @@ Also: `stock_sigma_rule_set(p_row jsonb, p_actor uuid)`.
   - Unmapped lines are counted, never guessed.
 - **Before articles are loaded,** every parcel is `unmapped` and a pass writes nothing. The preview becomes meaningful once S loads `articles.json`, plus approved recipes for web / CRM-only parcels.
 
+### Integration notes — what the integration workstream added (02.10.2026)
+**Migration `…0510` (`20260945000510_stock_v2_counts_reader.sql`)**, two read-only readers (service_role + the read-only harness). It needs `…0100` and `…0400`; apply it any time after `…0500`.
+- `stock_v2_counts(p_warehouse text DEFAULT NULL, p_limit int DEFAULT 50, p_money bool DEFAULT false) RETURNS jsonb` → `StockCountHistoryRow[]`.
+  - `diff_units` = Σ(counted − `system_qty_at_save`), null when no line has a system figure.
+  - `value_diff_mkd` only with `p_money`: the difference × `stock_v2_cost_at(article, counted_at)`; 0 when nothing differs; uncosted lines count as nothing.
+  - Names come from `profiles.full_name`, else the e-mail. An unknown warehouse answers `{ok:false, error:'unknown_warehouse'}` (404).
+- `stock_v2_product_overview() RETURNS jsonb` → `[{product_id, recipe_status, cost_mkd}]`, one jsonb value, so the PostgREST row cap never truncates it.
+  - `recipe_status`: exempt > approved > proposed > none, over the lines valid now or later.
+  - `cost_mkd`: the current `product_cost_history` interval when complete, else null; 0 for an exempt product.
+
+**api:**
+- `GET stock/v2/counts` (quantities roles). `value_diff_mkd` is computed only for owners and stripped again by `shapeCountHistory`.
+- `GET stock/v2/health` adds `warehouses: StockWarehouseRef[]`, the active warehouses in sort order. Every stock role gets them, and every picker offers the tracked ones. The UI no longer reads the owners-only config for its pickers.
+- `POST stock/v2/count` answers codes:
+  - **Warnings:** `parcels_near_count:N`, `no_opening`, `old_count`, `pending_owner_approval`, `not_counted:N`.
+  - **Refusals:** HTTP 4xx with `error` = `before_last_count` (+ `last_count_at`), `opening_exists`, `opening_not_first`, `unknown_article:<codes>` or `kom_fraction:<codes>` (≤ 10 codes, then `+N`). The SQL's `whole_units_only` is renamed `kom_fraction`.
+  - The UI translates `stock2.count.warn.<code>`, where `<code>:<n>` fills `{{n}}`. Free text is shown as sent.
+- `POST products/articles`, `…/approve` and `…/exempt` run `product_costs_rebuild(actor, false)` after the write, so the profit's cost history and the `/products` cost follow. The response carries `cost_rebuild`. Then `products_stock_mirror_refresh()` runs, ignored while `…0700` is not applied.
+  - `POST stock/v2/article-cost` needs no extra call: `stock_article_cost_set()` already rebuilds in its own transaction.
+- `GET products/catalogue`, owners only: `cost_mkd` and `recipe_status` per row from `stock_v2_product_overview()`.
+  - Absent for everyone else, and absent while `…0510` is not applied.
+  - `/products` "Набавна (Сигма)" shows `cost_mkd` only, never the EUR mirror × 61.5. The "Рецепт" chips (incl. "Без рецепт") appear once the status arrives.
+- `GET insights/profit`: `meta.cost.as_of` is the Sigma snapshot day the loaded costs name. It is the most common date in the newest 200 Sigma `stock_article_costs.source_ref`, else their `valid_from`.
+  - The 01.10 load says **2026-09-30** (`Ф00001-04 StockObject 2026-09-30`).
+  - `SIGMA_COST_AS_OF` (29.09) is only the fallback.
+
 ## Data files from `docs/stock/build_sigma_stock.py`
 Output goes to `exports/stock/`, which is gitignored and never committed (business-confidential costs).
 
@@ -340,6 +366,7 @@ Output goes to `exports/stock/`, which is gitignored and never committed (busine
 | GET | `stock/v2/article?code&warehouse&from&to&preview` | → `StockArticleSeries` |
 | GET | `stock/v2/parcels?day&warehouse&account&department&status&city&state&limit&offset` | → `StockParcelsDay` |
 | GET | `stock/v2/movements?from&to&warehouse&article&kind&source&q&corrections&limit&offset` | → `StockMovementsPage` |
+| GET | `stock/v2/counts?warehouse&limit` | → `StockCountHistoryRow[]` (newest first; `value_diff_mkd` owners only) |
 | POST | `stock/v2/count` | `StockCountRequest` → `StockCountResult` |
 | POST | `stock/v2/count/:id/void` | `{reason}` |
 | POST | `stock/v2/count/:id/approve` | (owners) |

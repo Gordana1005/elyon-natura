@@ -8775,7 +8775,12 @@
         "before_last_count": "Inventarizimi është para të fundit të miratuar.",
         "kom_fraction": "Një artikull me copë ka sasi me presje ({{n}}).",
         "unknown_article": "Kod artikulli i panjohur: {{n}}",
-        "opening_exists": "Kjo magazinë ka tashmë një inventarizim fillestar të miratuar."
+        "opening_exists": "Kjo magazinë ka tashmë një inventarizim fillestar të miratuar.",
+        "opening_not_first": "Inventarizimi fillestar duhet të jetë më i hershmi i miratuar në këtë magazinë.",
+        "no_opening": "Kjo magazinë ende nuk ka inventarizim fillestar të miratuar.",
+        "old_count": "Inventarizimi është më i vjetër se 30 ditë — kontrolloni datën.",
+        "pending_owner_approval": "Inventarizimi do të presë miratimin e pronarit para se të ndryshojë stokun.",
+        "not_counted": "Inventarizim i plotë: {{n}} artikuj me stok nuk u futën — stoku i tyre mbetet siç është."
       }
     },
     "health": {

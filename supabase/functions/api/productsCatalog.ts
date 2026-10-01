@@ -378,6 +378,13 @@ export interface CatalogueRow {
   brand_line: string | null;
   kind: ProductKind | null;
   created_at: string | null;
+  /**
+   * Stock v2 (stock_v2_product_overview, 20260945000510) — owners only (showCost + the overview):
+   * the current COMPLETE Sigma purchase cost in денари without VAT (null = no complete cost; an exempt
+   * product 0) and the recipe status. Absent when the caller is not an owner or the reader is not installed.
+   */
+  cost_mkd?: number | null;
+  recipe_status?: RecipeStatus;
   /** VAT per product from Sigma (20260944000900) — present only for an owner (showVat). */
   vat_rate?: VatRate | null;
   vat_source?: string | null;
@@ -401,7 +408,36 @@ export const isMissingVatColumn = (err: { message?: string; code?: string } | nu
 export const suggestedPrice = (priceEur: number, costEur: number): number =>
   priceEur > 0 ? priceEur : Math.max((costEur || 0) * 3, 15);
 
-export function shapeCatalogueRow(p: Record<string, unknown>, opts: { showCost: boolean; showVat?: boolean }): CatalogueRow {
+// ── Stock v2: the recipe status + Sigma cost of each product (owners) ────────
+/** approved = moves stock and cost · proposed = waits for an owner · none · exempt = no goods (delivery, ПОЕН …). */
+export const RECIPE_STATUSES = ["approved", "proposed", "none", "exempt"] as const;
+export type RecipeStatus = typeof RECIPE_STATUSES[number];
+export interface RecipeOverview { recipe_status: RecipeStatus; cost_mkd: number | null }
+
+/**
+ * stock_v2_product_overview() (20260945000510: [{product_id, recipe_status, cost_mkd}], only products
+ * with something) → product id → overview. Anything malformed is skipped; an unknown status is 'none'.
+ */
+export function recipeOverviewMap(data: unknown): Map<string, RecipeOverview> {
+  const out = new Map<string, RecipeOverview>();
+  for (const r of Array.isArray(data) ? data : []) {
+    if (!isObj(r) || typeof r.product_id !== "string" || !UUID_RE.test(r.product_id)) continue;
+    const cost = r.cost_mkd == null || r.cost_mkd === "" ? null : Number(r.cost_mkd);
+    out.set(r.product_id.toLowerCase(), {
+      recipe_status: oneOf(r.recipe_status, RECIPE_STATUSES) ?? "none",
+      cost_mkd: cost !== null && Number.isFinite(cost) ? cost : null,
+    });
+  }
+  return out;
+}
+
+/** A product with nothing in the overview: no recipe, no cost. */
+export const NO_RECIPE: RecipeOverview = { recipe_status: "none", cost_mkd: null };
+
+export function shapeCatalogueRow(
+  p: Record<string, unknown>,
+  opts: { showCost: boolean; showVat?: boolean; recipes?: Map<string, RecipeOverview> | null },
+): CatalogueRow {
   const price = num(p.price);
   const cost = num(p.cost_price);
   const sup = isObj(p.suppliers) ? p.suppliers : null;
@@ -425,6 +461,12 @@ export function shapeCatalogueRow(p: Record<string, unknown>, opts: { showCost: 
     created_at: str(p.created_at),
   };
   if (opts.showCost) row.cost_price = cost;
+  // the Sigma cost and the recipe: owners only, and only once the reader answered (else the UI says "—")
+  if (opts.showCost && opts.recipes) {
+    const o = opts.recipes.get(String(p.id).toLowerCase()) ?? NO_RECIPE;
+    row.cost_mkd = o.cost_mkd;
+    row.recipe_status = o.recipe_status;
+  }
   if (opts.showVat) Object.assign(row, productVatOf(p));
   return row;
 }

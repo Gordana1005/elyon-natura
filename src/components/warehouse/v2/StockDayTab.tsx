@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils';
 import { ArticleDrawer } from './ArticleDrawer';
 import {
   DayTimeStepper, Empty, Failed, FreshnessLine, Loading, PreviewBanner, StatTile as Tile, WarehousePicker, patchParams,
-  useStockAccess, useStockHealthLite, usePreviewFlag, useWarehouseOptions,
+  useStockHealthLite, usePreviewFlag, useWarehouseOptions,
 } from './shared';
 import { ARTICLE_SORTS, fmtCover, fmtQty, fmtSigned, filterArticles, hasKey, parseHm, type ArticleSort } from './stockV2Model';
 
@@ -34,7 +34,6 @@ const FIRST_ROWS = 100;
  */
 export function StockDayTab({ f }: { f: InsightsFormat }) {
   const { t } = f;
-  const access = useStockAccess();
   const [sp, setSp] = useSearchParams();
   const today = skopjeToday();
   const dayParam = sp.get('day');
@@ -57,7 +56,7 @@ export function StockDayTab({ f }: { f: InsightsFormat }) {
     refetchInterval: day === today ? 5 * 60_000 : false,
   });
   const d = data.data;
-  const options = useWarehouseOptions(f, { isOwner: access.isOwner, health: health.data, seen: d?.warehouse });
+  const options = useWarehouseOptions(f, { health: health.data, seen: d?.warehouse });
   const money = !!d && (hasKey(d.totals, 'value_mkd') || d.articles.some((a) => hasKey(a, 'value_mkd')));
   const sort: ArticleSort = sortParam && ARTICLE_SORTS.includes(sortParam) && (sortParam !== 'value' || money) ? sortParam : 'out';
   const rows = useMemo(() => filterArticles(d?.articles ?? [], { q, negative: neg, sort }, f.lang), [d, q, neg, sort, f.lang]);

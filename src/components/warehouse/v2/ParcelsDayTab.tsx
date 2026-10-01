@@ -15,7 +15,7 @@ import { formatSkopje } from '@/lib/skopjeTime';
 import { cn } from '@/lib/utils';
 import {
   DayTimeStepper, Empty, Failed, Loading, Pager, Pill, WarehousePicker, patchParams, readPageOffset,
-  useStockAccess, useStockHealthLite, useWarehouseOptions,
+  useStockHealthLite, useWarehouseOptions,
 } from './shared';
 import { HOURLY_COLOR_VARS, PARCEL_STATES, accountLabel, STATUS_GROUPS, STATUS_TONE, fmtQty, hasKey, s2Var } from './stockV2Model';
 
@@ -36,7 +36,6 @@ const STATE_TONE: Record<string, 'emerald' | 'amber' | 'red' | 'slate' | 'blue'>
  */
 export function ParcelsDayTab({ f }: { f: InsightsFormat }) {
   const { t } = f;
-  const access = useStockAccess();
   const [sp, setSp] = useSearchParams();
   const today = skopjeToday();
   const dayParam = sp.get('day');
@@ -51,7 +50,7 @@ export function ParcelsDayTab({ f }: { f: InsightsFormat }) {
   const set = (patch: Record<string, string | null>) => setSp((p) => patchParams(p, patch), { replace: true });
 
   const health = useStockHealthLite();
-  const options = useWarehouseOptions(f, { isOwner: access.isOwner, health: health.data });
+  const options = useWarehouseOptions(f, { health: health.data });
   const q = useQuery<StockParcelsDay>({
     queryKey: ['stock2', 'parcels', day, wh, account, dept, status, city, state, offset],
     queryFn: () => apiStockV2Parcels({ day, warehouse: wh || null, account, department: dept, status, city, state, limit: LIMIT, offset }),

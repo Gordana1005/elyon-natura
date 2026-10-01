@@ -165,6 +165,70 @@ describe('Попис v2', { timeout: 30_000 }, () => {
     await waitFor(() => expect(h.voidC).toHaveBeenCalledWith('c-5', 'грешен магацин'));
   });
 
+  it('every stock role picks from the active, tracked warehouses of the health read — no owners-only config', async () => {
+    h.owner = false;
+    setViewport(390);
+    renderAt(<Tab />, '/warehouse?tab=count');
+    const select = await screen.findByRole('combobox', { name: new RegExp('^' + i18n.t('stock2.common.warehouse')) });
+    expect(within(select).getAllByRole('option').map((o) => o.textContent)).toEqual(['Главен магацин Скопје', 'Оштетена роба']);
+    expect(h.config).not.toHaveBeenCalled();
+    fireEvent.change(select, { target: { value: 'damaged' } });
+    await waitFor(() => expect(h.counts).toHaveBeenLastCalledWith('damaged'));
+  });
+
+  it('the preview says every warning code in words; free text is shown as sent', async () => {
+    h.owner = false;
+    setViewport(1280);
+    renderAt(<Tab />, '/warehouse?tab=count');
+    await pasteTwo();
+    h.count.mockResolvedValueOnce(countResult({ warnings: ['not_counted:4', 'pending_owner_approval', 'no_opening', 'Нешто ново'] }));
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('stock2.count.preview') }));
+    const preview = await screen.findByTestId('stock2-count-preview');
+    expect(within(preview).getByText(i18n.t('stock2.count.warn.not_counted', { n: '4' }))).toBeInTheDocument();
+    expect(within(preview).getByText(i18n.t('stock2.count.warn.pending_owner_approval'))).toBeInTheDocument();
+    expect(within(preview).getByText(i18n.t('stock2.count.warn.no_opening'))).toBeInTheDocument();
+    expect(within(preview).getByText('Нешто ново')).toBeInTheDocument();
+  });
+
+  it('a refused count is said in words — with the article codes the api names', async () => {
+    setViewport(1280);
+    renderAt(<Tab />, '/warehouse?tab=count');
+    await pasteTwo();
+    const preview = () => fireEvent.click(screen.getByRole('button', { name: i18n.t('stock2.count.preview') }));
+    h.count.mockRejectedValueOnce(new Error('unknown_article:100123, 100456'));
+    preview();
+    await waitFor(() => expect(h.toast).toHaveBeenLastCalledWith(expect.objectContaining({
+      variant: 'destructive', description: i18n.t('stock2.count.warn.unknown_article', { n: '100123, 100456' }),
+    })));
+    h.count.mockRejectedValueOnce(new Error('kom_fraction:100123'));
+    preview();
+    await waitFor(() => expect(h.toast).toHaveBeenLastCalledWith(expect.objectContaining({
+      description: i18n.t('stock2.count.warn.kom_fraction', { n: '100123' }),
+    })));
+    h.count.mockRejectedValueOnce(new Error('before_last_count'));
+    preview();
+    await waitFor(() => expect(h.toast).toHaveBeenLastCalledWith(expect.objectContaining({
+      description: i18n.t('stock2.count.warn.before_last_count'),
+    })));
+    // anything else goes through the general api-error words
+    h.count.mockRejectedValueOnce(new Error('Rate limit exceeded — slow down'));
+    preview();
+    await waitFor(() => expect(h.toast).toHaveBeenLastCalledWith(expect.objectContaining({ description: i18n.t('apiErrors.rateLimited') })));
+  });
+
+  it('history: an owner sees the value of a count difference', async () => {
+    setViewport(1280);
+    h.counts.mockResolvedValue([{
+      id: 'c-6', warehouse: 'main', counted_at: '2026-09-21T22:00:00Z', kind: 'opening', source: 'sigma_variant', status: 'approved',
+      packed_counted: false, lines: 2, diff_units: 15, value_diff_mkd: 6183.61, note: null, created_by_name: 'Mile Stoev',
+      created_at: '2026-10-01T22:52:48Z', approved_by_name: 'Mile Stoev', approved_at: '2026-10-01T22:52:48Z', void_reason: null,
+    }]);
+    renderAt(<Tab />, '/warehouse?tab=count');
+    const hist = await screen.findByTestId('stock2-count-history');
+    expect(await within(hist).findByText(/6\.184 ден/)).toBeInTheDocument();
+    expect(within(hist).queryByText(i18n.t('stock2.count.historyPartial'))).not.toBeInTheDocument();
+  });
+
   it('history falls back to the openings while the api has no count list', async () => {
     setViewport(390);
     h.counts.mockRejectedValue(new Error('HTTP 404'));
