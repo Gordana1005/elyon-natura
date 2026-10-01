@@ -20,6 +20,7 @@ const ANOMALY: Record<ShopsAnomaly['kind'], { icon: LucideIcon; tone: string }> 
   zero_top_seller: { icon: Flame, tone: TONE_TEXT.critical },
   delivery_not_received: { icon: Truck, tone: TONE_TEXT.warning },
   control_mismatch: { icon: EqualNot, tone: TONE_TEXT.critical },
+  book_correction: { icon: AlertTriangle, tone: TONE_TEXT.warning },
 };
 
 /**

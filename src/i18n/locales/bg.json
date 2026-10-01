@@ -8588,7 +8588,8 @@
       "big_return": "Голямо връщане",
       "zero_top_seller": "Топ артикул на 0",
       "delivery_not_received": "Доставката не е приета",
-      "control_mismatch": "Контролата не съвпада"
+      "control_mismatch": "Контролата не съвпада",
+      "book_correction": "Счетоводна корекция (не е стока)"
     }
   },
   "stockCount": {

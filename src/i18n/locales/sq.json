@@ -8588,7 +8588,8 @@
       "big_return": "Kthim i madh",
       "zero_top_seller": "Më i shituri në 0",
       "delivery_not_received": "Dorëzimi nuk është pranuar",
-      "control_mismatch": "Kontrolli nuk përputhet"
+      "control_mismatch": "Kontrolli nuk përputhet",
+      "book_correction": "Korrigjim kontabël (jo mall)"
     }
   },
   "stockCount": {

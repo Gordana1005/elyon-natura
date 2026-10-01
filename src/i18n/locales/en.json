@@ -8588,7 +8588,8 @@
       "big_return": "Large return",
       "zero_top_seller": "Best seller at 0",
       "delivery_not_received": "Delivery not received",
-      "control_mismatch": "Control mismatch"
+      "control_mismatch": "Control mismatch",
+      "book_correction": "Book correction (not goods)"
     }
   },
   "stockCount": {
