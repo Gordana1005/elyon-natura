@@ -57,6 +57,11 @@ import * as DISP from "./dispositions.ts";
 // and the audited writer — query / body validation and the response shapes
 // (pure, unit-tested in brandLine.test.ts).
 import * as BL from "./brandLine.ts";
+// Производи 2.0 (owner 01.10.2026, migration 20260943001400): the product KIND
+// (product / bundle / gift / other) proposal + audited writer, the lean catalogue
+// for /products, the machine-text filter and the product field whitelist (pure,
+// unit-tested in productsCatalog.test.ts).
+import * as PC from "./productsCatalog.ts";
 // The one "Смени" page (plan Фаза 8, migrations 20260943001000–1100): the login gate's decision,
 // cell validation / diffing, the runway summary and the response shapes (pure, shifts.test.ts).
 import * as SH from "./shifts.ts";
@@ -352,6 +357,9 @@ const createProductSchema = z.object({
   price: z.number().min(0).max(10000000).optional().default(0),
   cost_price: z.number().min(0).max(10000000).optional().default(0),
   sku: z.string().max(50).nullable().optional().default(null),
+  // Производи 2.0: the form's Код / Залиха sections — before, the insert dropped these silently.
+  barcode: z.string().trim().max(50).nullable().optional().default(null),
+  days_of_supply_per_unit: z.number().int().min(1).max(3650).optional().default(15),
   stock_quantity: z.number().int().min(0).max(1000000).optional().default(0),
   low_stock_threshold: z.number().int().min(0).max(100000).optional().default(5),
   photo_url: z.string().url().max(2000).nullable().optional().default(null),
@@ -9526,13 +9534,70 @@ async function handleRequest(req: Request): Promise<Response> {
         // Default the agent sees = website retail price when set; otherwise the
         // cost×3 / €15 floor so it's never €0. Agents can edit down (discounts).
         const suggested_price = price > 0 ? price : Math.max(cost * PRICE_MULTIPLIER, PRICE_FLOOR);
-        const out: any = { ...p, suggested_price };
+        // The 28.09 catalogue scripts' notes ("Креиран автоматски (…)", "Од продажби — …")
+        // are never shown anywhere (owner 01.10) — blanked here for every caller.
+        const out: any = { ...p, suggested_price, description: PC.humanDescription(p.description), category: PC.humanCategory(p.category) };
         if (!isAdmin) delete out.cost_price; // call agents/managers never see cost
         return out;
       });
-      // `*` carries brand_line / brand_line_set_by / brand_line_set_at
-      // (20260943001300) to every login that can read products — a line is not money.
+      // `*` carries brand_line / kind (+ their _set_by / _set_at; 20260943001300 / 001400)
+      // to every login that can read products — a line or a kind is not money.
       return json(result);
+    }
+
+    // GET /api/products/catalogue — the lean catalogue the /products page reads
+    // (Производи 2.0): only the columns its list, filters and form use (≈ 45 % of
+    // the GET /products payload), machine text blanked, the supplier's name
+    // flattened, cost only for admins (as GET /products). Filtering is done by
+    // the page over these ~700 rows (instant) — a round trip per chip would be slower.
+    if (req.method === "GET" && path === "products/catalogue") {
+      const { data, error } = await supabase
+        .from("products")
+        .select(PC.CATALOGUE_SELECT)
+        .order("name", { ascending: true });
+      if (error) return json({ error: sanitizeDbError(error) }, 400);
+      return json({
+        generated_at: new Date().toISOString(),
+        rows: (data || []).map((p: any) => PC.shapeCatalogueRow(p, { showCost: isAdmin })),
+      });
+    }
+
+    // GET /api/products/kind-proposal — the kind suggestion per product (SQL
+    // product_kind_proposal, 20260943001400): from the NAME (1+1, 2x, сет, PACK,
+    // подарок … → bundle; вага, блендер, тостер, шејкер … → other) and, for a
+    // single product, from its order lines (mostly free beside a paid product →
+    // gift). Read-only. Admins + owners (the ones who set kinds).
+    if (req.method === "GET" && path === "products/kind-proposal") {
+      if (!isAdmin && !(await isBusinessOwner(user.id))) return json({ error: "owners_only" }, 403);
+      const { data, error } = await adminClient.rpc("product_kind_proposal");
+      if (error) {
+        const e = PC.kindRpcError(error);
+        return json({ error: e ? e.error : sanitizeDbError(error) }, 400);
+      }
+      return json(PC.shapeKindProposal(data));
+    }
+
+    // POST /api/products/kind {ids: uuid[], kind: product | bundle | gift | other | null}
+    // — set (null = back to Неодредено) the kind of up to 1.000 products. The SQL
+    // writer (products_set_kind, the only writer — a trigger refuses any other)
+    // skips rows already of that kind and writes ONE audit_log row
+    // (products.set_kind) in the same transaction. Admins + owners.
+    // Response: {kind, requested, updated, unchanged, missing[], changes[]}.
+    if (req.method === "POST" && path === "products/kind") {
+      if (!isAdmin && !(await isBusinessOwner(user.id))) return json({ error: "owners_only" }, 403);
+      if (!checkUserRateLimit(user.id, "products.kind", 60)) {
+        return json({ error: "Rate limit exceeded — try again in a minute" }, 429);
+      }
+      let body: unknown;
+      try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
+      const parsed = PC.parseSetKindBody(body);
+      if (!parsed.ok) return json({ error: parsed.error }, 400);
+      const { data, error } = await adminClient.rpc("products_set_kind", PC.setKindRpcArgs(parsed.args, user.id));
+      if (error) {
+        const e = PC.kindRpcError(error);
+        return json({ error: e ? e.error : sanitizeDbError(error) }, 400);
+      }
+      return json(PC.shapeSetKindResult(data));
     }
 
     // GET /api/products/brand-line-proposal?days=180 — the brand-line suggestion
@@ -9590,6 +9655,8 @@ async function handleRequest(req: Request): Promise<Response> {
           price: body.price,
           cost_price: isAdmin ? body.cost_price : 0, // cost is admin-only
           sku: body.sku,
+          barcode: body.barcode || null,
+          days_of_supply_per_unit: body.days_of_supply_per_unit,
           stock_quantity: body.stock_quantity,
           low_stock_threshold: body.low_stock_threshold,
           photo_url: body.photo_url,
@@ -9607,12 +9674,19 @@ async function handleRequest(req: Request): Promise<Response> {
     if (req.method === "PATCH" && segments[0] === "products" && segments.length === 2) {
       if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
       const productId = segments[1];
-      const body = await req.json();
-      // cost_price is admin-only — managers can edit everything else.
-      if (!isAdmin && "cost_price" in body) delete body.cost_price;
-      // The brand line is set only via POST /products/brand-line (audited; a DB
-      // trigger refuses any other writer) — drop it here instead of failing.
-      BL.stripBrandLineFields(body);
+      let raw: unknown;
+      try { raw = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
+      // The brand line and the kind are set only via POST /products/brand-line and
+      // POST /products/kind (audited; DB triggers refuse any other writer) — drop them
+      // here instead of failing.
+      BL.stripBrandLineFields(raw);
+      PC.stripKindFields(raw);
+      // Only the product form's fields, validated; cost_price is admin-only — managers
+      // edit everything else (a manager's cost is dropped, as before).
+      const patch = PC.parseProductPatch(raw, { canCost: isAdmin });
+      if (!patch.ok) return json({ error: patch.error }, 400);
+      const body: any = patch.update;
+      if (Object.keys(body).length === 0) return json({ error: "Nothing to update" }, 400);
 
       // If stock_quantity is changing, log it
       if (body.stock_quantity !== undefined) {

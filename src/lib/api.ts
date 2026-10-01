@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { BrandLine, BrandLineProposal, SetBrandLineResult } from '@/lib/products/brandLines';
+import type { CatalogueRow, KindProposal, ProductKind, SetKindResult } from '@/lib/products/kinds';
 
 const API_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api`;
 
@@ -1034,6 +1035,13 @@ export const apiGetBrandLineProposal = (days?: number): Promise<BrandLineProposa
   apiFetch(`products/brand-line-proposal${days ? `?days=${days}` : ''}`);
 export const apiSetBrandLine = (ids: string[], line: BrandLine | null): Promise<SetBrandLineResult> =>
   apiFetch('products/brand-line', { method: 'POST', body: JSON.stringify({ ids, line }) });
+// Производи 2.0 (migration 20260943001400): the lean catalogue of /products, the
+// kind proposal and the audited kind writer — admins + owners. `kind: null` = Неодредено.
+export const apiGetProductCatalogue = (): Promise<{ generated_at: string | null; rows: CatalogueRow[] }> =>
+  apiFetch('products/catalogue');
+export const apiGetKindProposal = (): Promise<KindProposal> => apiFetch('products/kind-proposal');
+export const apiSetProductKind = (ids: string[], kind: ProductKind | null): Promise<SetKindResult> =>
+  apiFetch('products/kind', { method: 'POST', body: JSON.stringify({ ids, kind }) });
 
 // Suppliers
 export const apiGetSuppliers = () => apiFetch('suppliers');
