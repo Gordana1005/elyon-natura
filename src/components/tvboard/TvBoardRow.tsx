@@ -102,7 +102,7 @@ export function TvBoardRow({
         </div>
         {money && <div className="font-semibold text-slate-300" style={{ fontSize: `${smallVh}vh` }}>{den(row.total_value_mkd)}</div>}
       </div>
-      {/* Worked — the whole day */}
+      {/* Worked — the whole day, or the chosen department's (20260944000600); "—" when none */}
       <div className="text-center tabular-nums text-slate-200">
         <div>{row.worked || '—'}</div>
         {conv != null && <div className="text-slate-400" style={{ fontSize: `${smallVh}vh` }}>{t('leaderboard2.convShort', { pct: conv.toFixed(1) })}</div>}

@@ -448,7 +448,7 @@ describe("parity with 20260942000900", () => {
 describe("parseRequest", () => {
   const today = "2026-09-29";
   it("defaults, the cron path, what runs in the background", () => {
-    expect(parseRequest({}, today)).toEqual({ ok: true, req: { mode: "manual", dry: false, from: null, to: null, days: 3, trigger: "manual", background: true } });
+    expect(parseRequest({}, today)).toEqual({ ok: true, req: { mode: "manual", dry: false, from: null, to: null, days: 3, trigger: "manual", background: true, ahead: 0 } });
     expect(parseRequest({ mode: "nightly", trigger: "cron" }, today)).toMatchObject({ ok: true, req: { mode: "nightly", trigger: "cron", background: true } });
     expect(parseRequest({ mode: "manual", from: "2026-09-27", wait: true }, today)).toMatchObject({ ok: true, req: { background: false } });
     expect(parseRequest({ mode: "live", trigger: "cron" }, today)).toMatchObject({ ok: true, req: { background: false } });

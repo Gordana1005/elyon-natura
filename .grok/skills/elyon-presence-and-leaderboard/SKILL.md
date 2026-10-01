@@ -336,7 +336,11 @@ orders." ONE board, one row per person, the day split over the six departments.
     person.** Stamp or ledger, never both; nobody → `day_totals.no_seller` with insights_people's
     reasons. Sales cancelled / trashed after the sale: shown apart, never in sales or value.
   - **booked** = `collabbox_booked_today(p_day)` (a drift-checked copy of its filter; no order
-    holds the DocNumber yet), department by document type. **Counted into the total ONLY for the
+    holds the DocNumber yet), department by document type. **The day is the day the operator BOOKED
+    it** (owner 01.10.2026, `20260944000500` / `000600`): `collabbox_sale_at(doc_at, booked_at)` — collabBox
+    dates a document on its DISPATCH day; from 01.10.2026 on a sale counts the day it was booked,
+    delivery later only validates (paid) or returns it. A booking stays a booking until an ORDER holds
+    its parcel (the 07:37–07:50 morning gap is closed — `elyon-collabbox-sync` "The booking day"). **Counted into the total ONLY for the
     `order` types 10036 Нарачка in · 10050 Нарачка out · 10106 Социјални мрежи**, and not when the
     customer (komitent card / teleshop registry / the document's parcel) already has a CRM /
     AlterCPA sale with no parcel of its own, created 1 day before … 2 days after, at a price that
@@ -349,7 +353,11 @@ orders." ONE board, one row per person, the day split over the six departments.
   - **total** = sales + counted bookings (count and денари) — what ranks.
   - **worked / conversion** = `v_sales_work` over the WHOLE day, every department (the decisions on
     the owner's test orders out): worked, sale / cancel / trash / callback decisions, conversion =
-    sale decisions ÷ worked; per department as well.
+    sale decisions ÷ worked; per department as well. **With `p_department` the row's (and the
+    summary's) worked / sale / cancel / trash / callback decisions and conversion are THAT
+    department's** (`20260944000600`; they used to be the whole day's on a department board). A
+    department with no CRM decisions — teleshop calls leave no CRM record — has worked 0 and
+    conversion NULL: the TV shows "—" (`leaderboard2.kpiWorkedNoCrm`), never a misleading 0 %.
   - **time** = `agent_presence_days` of the day + the live state (today only); `n/a` without a CRM
     login.
   - **rank** = rank() among non-managers with a total > 0, by total денари then count (equal
@@ -504,6 +512,11 @@ day: L1 every person × department = a truth computed straight from orders + `v_
 board = `insights_cohort` per department; L3 once and only once; L4 rank; L5 roster; L6 safety
 counters; L7 filters; exit 1 on any FAIL. PASS 22–29.09 and on September + July (29.09 09:00), and
 22–29.09 again after 20260942001800 (`40f1425`, 11:44 — before the `…1850` / `…1860` reversal).
+Since 01.10 (`20260944000600`): the truth reads a booking's BOOKING day once `collabbox_sale_at` exists,
+L7 also checks a department board's worked / decisions / conversion = that department's cell, and the
+team check honours the legacy aliases (`teamFilterMatches` = `sales_team_filter_matches`). A filter
+check on TODAY can race live writes — check filters on a closed day. `node scripts/verify-booking-day.mjs`
+(B1–B4) proves the booking day.
 `node scripts/verify-attribution.mjs` C4/C5 tie the two v1 boards to the sales ledger (read-only).
 `node scripts/verify-stamp-parity.mjs` proves the cron and the backfill script stamp alike.
 Tests: `src/lib/presence/state.test.ts`, `supabase/functions/api/leaderboard.test.ts`,

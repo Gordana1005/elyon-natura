@@ -54,8 +54,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 // the file holding the LATEST body of leaderboard_day_v2 (--inline runs it): 20260942001900 counts
 // the day's collabBox bookings from THE cohort's booking rows (1200 wrote the board, 1800 passed the
 // department override through it)
-// the newest leaderboard_day_v2 body (teams = business lines: team:lane filter, lanes, 20260943000950)
-const MIGRATION = join(ROOT, 'supabase', 'migrations', '20260943000950_teams_line_consumers.sql');
+// the newest leaderboard_day_v2 body (teams = business lines: team:lane filter, lanes, 20260943000950;
+// bookings on their BOOKING day + a department's own decisions, 20260944000600)
+const MIGRATION = join(ROOT, 'supabase', 'migrations', '20260944000600_booking_day_readers.sql');
 const SIG = 'public.leaderboard_day_v2(date,text,text)';
 export const DEPARTMENTS = ['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web'];
 const YMD = /^\d{4}-\d{2}-\d{2}$/;
@@ -114,8 +115,10 @@ async function board(ctx, day, department = null, team = null) {
  *  first v_sales_work sale decision, the day's decisions; the collabBox bookings the
  *  cohort counts (its kind 'booking' rows, 20260942001900) and the rest of
  *  collabbox_booked_today's documents as not counted. */
-export function truthSql(from, to) {
+export function truthSql(from, to, { bookingDay = true } = {}) {
   if (!validYmd(from) || !validYmd(to)) throw new Error('bad window');
+  // a booking's day: the day it was BOOKED (collabbox_sale_at, 20260944000500) — doc_at before it exists
+  const saleAt = bookingDay ? 'public.collabbox_sale_at(d.doc_at, d.booked_at)' : 'd.doc_at';
   return `
 WITH
 dd AS (
@@ -203,7 +206,7 @@ bk AS MATERIALIZED (
          public.cohort_order_source((public.collabbox_department(d.doc_type_id, d.doc_number, d.author_person_id, d.doc_at))[1],
                                     (public.collabbox_department(d.doc_type_id, d.doc_number, d.author_person_id, d.doc_at))[2],
                                     d.doc_number) AS dept
-  FROM dd JOIN public.collabbox_documents d ON d.doc_at BETWEEN dd.f AND dd.t
+  FROM dd JOIN public.collabbox_documents d ON ${saleAt} BETWEEN dd.f AND dd.t AND d.doc_at >= dd.f
   WHERE d.outcome IN ('booked', 'awaiting_parcel') AND d.vanished_at IS NULL AND NOT d.is_storno AND d.amount_mkd > 0
     AND d.doc_type_id IN ('10036', '10050', '10111', '10114', '10106')
     AND NOT EXISTS (SELECT 1 FROM public.orders o WHERE o.external_source = 'collabbox' AND o.external_order_id = d.doc_number)
@@ -440,6 +443,16 @@ async function verifyDay(ctx, day) {
   };
 }
 
+/** JS twin of public.sales_team_filter_matches (20260943000950): a key, 'none', or a legacy alias —
+ *  altercpa_leads = the old team + affiliate lane in; crm_prediction = the old team + lane out anywhere. */
+export function teamFilterMatches(filter, team, lane) {
+  if (filter === 'none') return team == null;
+  if (filter === 'altercpa_leads') return team === 'altercpa_leads' || (team === 'affiliate' && lane === 'in');
+  if (filter === 'crm_prediction') return team === 'crm_prediction' || lane === 'out';
+  if (filter.includes(':')) return team === filter.split(':')[0] && lane === filter.split(':')[1];
+  return team === filter;
+}
+
 async function filterChecks(ctx, day, all) {
   const lines = [];
   const rows = all.rows ?? [];
@@ -451,18 +464,23 @@ async function filterChecks(ctx, day, all) {
     });
     lines.push(tie(`${d}: the same people`, want.map((r) => r.person_id).sort().join(','), (f.rows ?? []).map((r) => r.person_id).sort().join(',')));
     let diff = 0;
+    let work = 0;
     for (const r of f.rows ?? []) {
       const c = rows.find((x) => x.person_id === r.person_id)?.departments?.[d] ?? {};
       if (n(r.sales) !== n(c.sales) || r0(r.value_mkd) !== r0(c.value_mkd) || n(r.booked) !== n(c.booked)) diff++;
       if (Object.keys(r.departments ?? {}).some((k) => k !== d)) diff++;
+      // 20260944000600: worked / sale decisions / conversion are that department's too
+      if (ctx.deptWork && (n(r.worked) !== n(c.worked) || n(r.sale_decisions) !== n(c.sale_decisions)
+          || (n(r.worked) === 0 ? r.conversion != null : Math.abs(n(r.conversion) - n(c.sale_decisions) / n(c.worked)) > 1e-4))) work++;
     }
     lines.push(tie(`${d}: every row = that department's cell`, 0, diff));
+    if (ctx.deptWork) lines.push(tie(`${d}: worked / decisions / conversion = that department's`, 0, work));
     lines.push(...structureChecks(f, ctx.managers).filter((l) => /^rank|ranked|managers/.test(l.label)).map((l) => ({ ...l, label: `${d}: ${l.label}` })));
   }
   const teams = [...new Set([...(all.teams ?? []).map((t) => t.key), 'none'])];
   for (const tk of teams) {
     const f = await board(ctx, day, null, tk);
-    const want = rows.filter((r) => (r.team_key ?? 'none') === tk);
+    const want = rows.filter((r) => teamFilterMatches(tk, r.team_key ?? null, r.team_lane ?? null));
     lines.push(tie(`team ${tk}: its badge holders`, want.map((r) => r.person_id).sort().join(','), (f.rows ?? []).map((r) => r.person_id).sort().join(',')));
     let diff = 0;
     for (const r of f.rows ?? []) {
@@ -498,15 +516,19 @@ export function parseArgs(argv) {
 async function main() {
   let args;
   try { args = parseArgs(process.argv.slice(2)); } catch (e) { console.error(e.message); process.exit(2); }
-  const [live] = await runSql(`SELECT to_regprocedure('${SIG}') IS NOT NULL AS ok`);
+  const [live] = await runSql(`SELECT to_regprocedure('${SIG}') IS NOT NULL AS ok,
+      to_regprocedure('public.collabbox_sale_at(timestamptz,timestamptz)') IS NOT NULL AS booking_day,
+      coalesce((SELECT position('pa.sale_d' in p.prosrc) > 0 FROM pg_proc p WHERE p.oid = to_regprocedure('${SIG}')), false) AS dept_work`);
   const ctx = {
     live: live.ok === true && !args.inline,
+    bookingDay: live.booking_day === true,
+    deptWork: live.dept_work === true || args.inline,
     migration: readFileSync(MIGRATION, 'utf8'),
     filtersDay: args.filtersDay,
     timings: [],
   };
   const t0 = Date.now();
-  ctx.truth = truthMap(await runSql(truthSql(args.from, args.to)));
+  ctx.truth = truthMap(await runSql(truthSql(args.from, args.to, { bookingDay: ctx.bookingDay })));
   const rosterRows = await runSql(rosterSql(args.from, args.to));
   ctx.roster = rosterRows.filter((r) => r.why !== 'manager');
   ctx.managers = new Set(rosterRows.filter((r) => r.why === 'manager').map((r) => r.pid));

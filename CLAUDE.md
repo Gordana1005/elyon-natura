@@ -210,6 +210,14 @@ target **explicitly** and verify it before running:
   `card_unpaid` never counts, `cancelled` is shown apart. The TV board's web view (`leaderboard_web_live`) = the
   cohort's web part on every day since 01.01.2026 — the days 30.07–03.09.2026 (the old shop was never migrated)
   come from the MEX-only web parcels. See `elyon-web-shop-bridge`.
+- **A collabBox sale counts on the day the operator BOOKED it (owner, 01.10; `20260944000500`/`0600`)**:
+  collabBox dates a document on its DISPATCH day; `collabbox_documents.booked_at` (+ basis seen /
+  sequence / doc, decided once) and THE sale time `collabbox_sale_at(doc_at, booked_at)` feed the board,
+  the cohort, Операции and the orders the sync makes (sold / confirmed / created). Closed months never
+  move (`collabbox_booking_day_since()` = 01.10.2026 — September only with the owner). The frequent pass
+  reads the documents dated up to 14 days ahead; a booking stays a booking until an ORDER holds its
+  parcel. History: `scripts/backfill-collabbox-booked-at.mjs` (dry run → owner → `--apply`); check
+  `node scripts/verify-booking-day.mjs`. See `elyon-collabbox-sync` "The booking day".
 - **The Assigner (redesigned 30.09, `20260942001950`–`001970`)**: a live board of ALL profiles on top (5 s poll +
   Realtime broadcast `assigner`), lists split by the BUYER's department (`customer_departments` = the department of
   the customer's LAST PURCHASE, refreshed every 10 min), distribution chosen ON THE SERVER (`assigner_distribute`:

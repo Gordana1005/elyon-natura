@@ -82,7 +82,7 @@ export interface BoardRow {
   live_credited: number;
   booked_twin: number;
   booked_twin_value_mkd?: number;
-  worked: number;                // the whole day, every department
+  worked: number;                // the whole day — or, with ?department, that department's (20260944000600)
   sale_decisions: number;
   cancelled: number;
   trashed: number;

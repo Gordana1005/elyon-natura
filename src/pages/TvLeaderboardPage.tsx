@@ -248,8 +248,11 @@ export default function TvLeaderboardPage() {
     return <StatCard label={t('tvBoard.onlineNow')} value={`${n('online_now')}/${n('people')}`} sub={sub} />;
   };
 
+  // With a department chosen, worked / sale decisions are THAT department's (20260944000600). A teleshop
+  // department has no CRM decisions (its calls leave no CRM record): "—", never a misleading 0 %.
   const worked = n('worked');
   const convAll = worked > 0 ? (n('sale_decisions') / worked) * 100 : null;
+  const noCrmWork = !!dept && worked === 0;
   const label = data ? dayLabel(data.day, Math.max(0, daysBetween(data.day, today))) : '';
   const viewLabel = [
     dept ? t(`leaderboard2.dept.${deptKey(dept)}`) : t('leaderboard2.allDepartments'),
@@ -328,8 +331,9 @@ export default function TvLeaderboardPage() {
           sub={t('leaderboard2.kpiSalesSub', { orders: n('sales'), booked: n('booked') })} />
         <StatCard label={t('leaderboard2.kpiValue')} value={money ? formatDenari(n('total_value_mkd')) : '—'}
           sub={n('cancelled_after_sale') > 0 ? t('leaderboard2.kpiCancelledSub', { n: n('cancelled_after_sale') }) : undefined} />
-        <StatCard label={t('tvBoard.colWorked')} value={String(worked)}
-          sub={convAll == null ? undefined : t('leaderboard2.kpiConvSub', { pct: convAll.toFixed(1) })} />
+        <StatCard label={t('tvBoard.colWorked')} value={noCrmWork ? '—' : String(worked)}
+          sub={noCrmWork ? t('leaderboard2.kpiWorkedNoCrm')
+            : convAll == null ? undefined : t('leaderboard2.kpiConvSub', { pct: convAll.toFixed(1) })} />
         <StatCard label={t('leaderboard2.kpiNoSeller')} className="col-span-2 sm:col-span-1"
           value={money && n('no_seller') > 0 ? `${n('no_seller')} · ${formatDenari(n('no_seller_value_mkd'))}` : String(n('no_seller'))}
           sub={n('booked_no_person') > 0 ? t('leaderboard2.kpiNoSellerBooked', { n: n('booked_no_person') }) : t('leaderboard2.kpiNoSellerSub')} />

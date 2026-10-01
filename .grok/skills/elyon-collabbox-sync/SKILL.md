@@ -42,7 +42,7 @@ refreshed at least every 15 minutes; MEX stays the final proof").
 | Job | UTC | Skopje gate (inside `invoke_collabbox_sync`) | Body sent |
 |---|---|---|---|
 | `collabbox-sync` | `0 22,23 * * *` | proceeds only at **00:xx**, once per Skopje day (no `nightly` run row for today) — DST-proof, one of the two slots is 00:xx | `{mode:'nightly', trigger:'cron'}` → window `collabbox_nightly_window(3, 14)` |
-| `collabbox-sync-frequent` | `*/15 4-21 * * *` | **07:00–22:59** | `{mode:'manual', trigger:'cron', from: yesterday, to: today}` — a FULL pass (headers, lines, orders once the parcel exists, seller credit, awaiting rows) |
+| `collabbox-sync-frequent` | `*/15 4-21 * * *` | **07:00–22:59** | `{mode:'manual', trigger:'cron', from: yesterday, to: today, ahead_days: 14}` — a FULL pass (headers, lines, orders once the parcel exists, seller credit, awaiting rows) **+ the documents DATED tomorrow … today + 14** (one header search + one line-items request for the whole range, since `20260944000500` — see "The booking day") |
 | ~~`collabbox-live`~~ | retired by 20260942001300 | (was 08:00–20:15, headers only → `booked`) | mode `live` stays callable by hand |
 
 Both are silent no-ops until the Vault row `collabbox_sync_secret` exists; `invoke_collabbox_sync`
@@ -190,7 +190,9 @@ confirmed" line predates this 29.09 change; the function body is the law.)
   (read tonight or stored, `source 'card'`) → `teleshop_import_customers` → the parcel receiver →
   `collabbox_customers` rows of `source 'parcel'`. A card phone that differs from the parcel's is
   flagged `phone_differs_from_parcel`. Stored `+389` + 8 digits.
-- **Seller:** `sold_at` = document time, `sold_via 'collabbox'`, `sold_by_ext` = the identity's
+- **Sale time (since `20260944000500`):** `created_at = confirmed_at = sold_at` = THE sale time
+  `collabbox_sale_at(doc_at, booked_at)` — the booking (from 01.10.2026 on), else the document time.
+- **Seller:** `sold_at` = the sale time, `sold_via 'collabbox'`, `sold_by_ext` = the identity's
   own spelling, `sold_by_person_id` via `collabbox_author_identity()` (`sales_person_identities`,
   `collabbox_author` first then `order_name`, whitespace-normalised). No agent-facing field
   (`confirmed_by_*`, `assigned_*`). Flags `no_author` / `author_unmapped`.
@@ -209,6 +211,56 @@ rule — never overwritten) · `not_a_sale` · `doc_predates_order` (document > 
 order) · `parcel_shared` · `no_author`. `sold_at` = the document time unless that moves the sale
 into another Skopje month than its cohort day (AlterCPA decision, confirmed_at, created_at) —
 then the cohort day (closed months never move).
+
+## The booking day — `booked_at` (owner 01.10.2026; `20260944000500` / `20260944000600`)
+
+> "Денот кога операторот ја внел … ако потврдам нарачка ми се брои за денес … достава после 5 дена само
+> ќе ја валидира порачката, или ќе ја направи return" — a collabBox sale counts on the day the operator
+> BOOKED it, on the board and everywhere live.
+
+- **Why:** collabBox's `Datum` (`doc_at`) is the **dispatch day** with the booking's clock time
+  (`002-9102-177916/2026` reads 01.10 10:30 but sits between 177909 at 30.09 10:08 and 177920 at
+  30.09 11:19). DocNumbers are allocated in booking order per series (`NNN-SSSS/yyyy`; ≤ 10 min of
+  disorder measured, a few 9110 LEADS documents are dated a day BACK).
+- **Reading ahead:** the frequent pass also reads the documents dated tomorrow … today + 14
+  (`ahead_days`, `aheadRange()` in `collabbox.ts`: one header search + one line-items request, the
+  same request shapes; skipped with a warning when time or requests run out; vanished-marking per
+  ahead day that returned documents). The run row's `ahead_to` records the range read. Before this,
+  on 01.10, 83 order-type documents dated 02–09.10 were invisible.
+- **`collabbox_documents.booked_at` + `booked_at_basis`**, decided ONCE at the first sighting by
+  `collabbox_estimate_booked_at(doc, doc_at, first_seen_at, first_run_id)` (the writer passes it; the
+  trigger `trg_collabbox_documents_booked_at` fills any other insert, keeps it write-once —
+  `SET LOCAL elyon.collabbox_booked_at_backfill = 'on'` lets the backfill re-decide — and clamps it to
+  ≤ `doc_at`): **`seen`** — a full pass (`kind` manual/nightly, `ok`) that had read the day (its window,
+  or `(window_to, ahead_to]`) finished before the sighting and started < 23 h before it, so it was
+  booked in between → its clock time on the latest day ≤ the sighting (exact even across midnight;
+  the first pass of the morning sees an evening booking); **`sequence`** — the 3rd smallest
+  `LEAST(doc_at, first_seen_at)` of the next 20 numbers of the series (+ 60 min) bounds it → its clock
+  time on the latest day ≤ that bound; **`doc`** — `doc_at`. Never more than 31 days back. TWIN:
+  `scripts/lib/collabbox-booking-day.mjs` (constants checked by `bookingDay.test.ts`; JS = SQL proven
+  on 8.504 real documents in PGlite, and again by the backfill's dry run once applied). NULL =
+  undecided (read as `doc_at`).
+- **THE sale time** `collabbox_sale_at(doc_at, booked_at)` = `booked_at` when it is earlier AND on or
+  after `collabbox_booking_day_since()` (01.10.2026 00:00 Skopje — the owner's default: closed months
+  never move, nothing moves INTO September), else `doc_at`. Read by the writer (the order's
+  created / confirmed / sold, `collabbox_credit_order`'s time), `collabbox_booked_today`,
+  `leaderboard_day_v2`'s `bkd`, `insights_sale_rows`' booking rows, `insights_work`. Never derive a
+  collabBox sale day from `doc_at` again. `order_origin` carries `booked_at` (the order window shows
+  "booked … · за испорака дд.мм").
+- **The morning gap (fixed in `insights_sale_rows`, `20260944000600`):** MEX registers the night's
+  parcels ~07:34, mex-reconcile ~07:37, this sync makes the orders ~07:50. A booking now stays a
+  booking until an ORDER holds its parcel, and a parcel whose document is still counted as a booking
+  is never MEX-only — on 01.10, 263 documents of 30.09 (588.150 ден; 157 Нарачка out) used to jump to
+  no-seller MEX-only parcels of 01.10 for those minutes.
+- **History:** `scripts/backfill-collabbox-booked-at.mjs` (dry run default, read-only; `--apply
+  --expect ledger=N,orders=M --actor` after the owner's OK, quiet window, no pass running; ledger-first
+  `data_repair_runs` key `collabbox-booked-at`; `--rollback --run`). With the default cutoff nothing
+  moves (booked_at is information below 01.10); the dry run prints the what-ifs for 01.09 / 01.03.
+  Check: `node scripts/verify-booking-day.mjs` (B1 decided · B2 ≤ doc_at · B3 board = cohort, no
+  morning gap · B4 the ahead range is read, every ahead document of the local collab_out export is in
+  the ledger).
+- **Apply order:** `20260944000500` → `20260944000600` → deploy `collabbox-sync` (it falls back without
+  `ahead_to` if deployed first, but must not be) → backfill dry run → owner → `--apply`.
 
 ## The ledger — `collabbox_documents` (PK DocNumber)
 
@@ -261,7 +313,8 @@ live_last_ok_at · booked_today · stale_to_pack`.
   last error and the 7-day strip — and overlaid on the Overview's freshness by
   `GET /api/insights/overview` (`IC.overlayFreshness`).
 
-`collabbox_booked_today(day)` = per author / person / type, the day's documents of 10036 · 10050 ·
+`collabbox_booked_today(day)` = per author / person / type, the day's (the BOOKING day's, since
+`20260944000500`) documents of 10036 · 10050 ·
 10111 · 10114 · 10106 with outcome `booked` or `awaiting_parcel`, amount > 0, not storno, not
 vanished, that no order holds yet (no order with that external ref or tracking id, no linked
 parcel). Its consumer is the TV leaderboard: `leaderboard_day_v2` (`20260942001200`) keeps a
@@ -388,4 +441,6 @@ as paid) or the two August/September importers above. `reconcile-collabbox-mex.m
   series when the type is known.
 - `× 61,5` on a COD or a document amount (they are already денари).
 - Applying anything from `supabase/paused/`.
+- A collabBox sale day computed from `doc_at` (the dispatch day) instead of `collabbox_sale_at`, a write
+  of `booked_at` outside the write-once guard, or moving a closed month's sales without the owner.
 - Anything aimed at the Bulgarian project.
