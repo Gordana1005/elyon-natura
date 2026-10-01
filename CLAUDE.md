@@ -207,7 +207,10 @@ target **explicitly** and verify it before running:
   AlterCPA (a commercial artifact — the ~30 % confirmation guarantee); nothing is ever pushed to AlterCPA. An
   orphan 9110/9103 parcel is linked to the ONE order on its last-8 phone created −10 d … +1 d that holds no
   parcel and fits no other orphan parcel — amount ignored (up-sells); > 72 h apart the collabBox document must
-  carry the product BY NAME. One definition: `link_lead_parcels_plan()`; cron `link-lead-parcels` 21:02 Skopje
+  carry the product BY NAME. **Rule 2b (`20260944000980`):** before the uniqueness check, a candidate cancelled /
+  trashed AS A DUPLICATE (`duplicate_order`, the bridge's "duplicate — …" trash note, the mirror's trashed reason 7 —
+  never free text) and an AlterCPA lead created after the parcel's collabBox booking (`collabbox_sale_at`; a date-only
+  import by Skopje day) are dropped. One definition: `link_lead_parcels_plan()`; cron `link-lead-parcels` 21:02 Skopje
   (switch `app_settings.link_lead_parcels`, seeded `report`); backfill `scripts/repair-link-lead-parcels.mjs`;
   every run undone by `scripts/rollback-repair.mjs --run <id>`; proof `node scripts/verify-parcel-link-rules.mjs`.
   Old September `credit_pending` LEADS documents: `scripts/collabbox-recredit.mjs`. See `docs/ALTERCPA-BRIDGE.md`.

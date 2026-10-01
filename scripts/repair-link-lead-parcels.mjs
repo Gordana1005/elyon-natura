@@ -45,7 +45,7 @@ import {
   loadPayoutOrderIds, printTable,
 } from './lib/repair-kit.mjs';
 import {
-  KEY, PLAN_MIGRATION, PLAN_SIG, DEFAULT_DAYS, EXPECTED, readMigration, functionBody, inlinePlanSql, rpcPlanSql,
+  KEY, PLAN_MIGRATION, LINK_MIGRATION, PLAN_SIG, DEFAULT_DAYS, EXPECTED, readMigration, functionBody, inlinePlanSql, rpcPlanSql,
   planOf, planHashParity, planCsvRows, moveTable, compareWithElyonRepair,
 } from './lib/link-lead-parcels.mjs';
 import { loadCandidates as loadElyonCandidates, classifyLinks as classifyElyon } from './repair-link-elyon-parcels.mjs';
@@ -110,7 +110,7 @@ async function main() {
 
   const m = await resolveMode({ forceInline: !!args.inline && !APPLY });
   console.log(`  rules: ${m.mode === 'rpc' ? 'the LIVE public.link_lead_parcels_plan()' : `the migration FILE's plan body (${PLAN_MIGRATION}, inline)`}`);
-  if (m.live && m.liveMd5 !== m.fileMd5) warn(`the live plan body (md5 ${m.liveMd5}) differs from ${PLAN_MIGRATION} (md5 ${m.fileMd5})`);
+  if (m.live && m.liveMd5 !== m.fileMd5) warn(`the live plan body (md5 ${m.liveMd5}) differs from ${PLAN_MIGRATION} (md5 ${m.fileMd5}) — is it applied? (a dry run for --apply plans with the LIVE body; --inline previews the file)`);
   else if (m.live) ok('the live plan body equals the migration file');
 
   if (APPLY) {
@@ -202,7 +202,7 @@ async function main() {
   if (hash !== plan.hash) die('internal: the recorded hash differs from the plan hash.');
   console.log(bold(`\nDry run recorded: ${green(id)}`) + `  (hash ${hash.slice(0, 12)}…)\n` +
     (m.applyFn ? `  node scripts/repair-link-lead-parcels.mjs --apply --run ${id}${days !== DEFAULT_DAYS ? ` --days ${days}` : ''}\n`
-      : `  apply needs migration 20260944000950 first: node scripts/assert-mk-target.mjs && node scripts/apply-migration-mk.mjs ${PLAN_MIGRATION}\n` +
+      : `  apply needs migration ${LINK_MIGRATION} first: node scripts/assert-mk-target.mjs && node scripts/apply-migration-mk.mjs ${LINK_MIGRATION}\n` +
         `  then: node scripts/repair-link-lead-parcels.mjs --apply --run ${id} — it re-plans with the LIVE function and refuses\n` +
         '  unless the hash still equals this run (anything moved since → dry-run again)\n'));
 }

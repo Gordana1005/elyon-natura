@@ -21,6 +21,12 @@ operation. It shares **nothing at runtime** with Bulgaria (own repo / own Supaba
 > `20260943001700`.** Where to continue and what waits for the owner: `docs/handoff/2026-09-29/CONTINUE-HERE.md`
 > (§ DONE 30.09–01.10, § NEXT).
 
+- **Owner-approved manual links + rule 2b + duplicate unproven-paid (owner, 01.10 night; branch `manual-links-dupes`,
+  BUILT, NOT APPLIED):** `scripts/repair-link-manual-approved.mjs` — the 32 approved pairs of the reviewer's list (dry
+  run `c169cace`, 124.880 ден, 0 skipped); `20260944000980` — the nightly linker drops dead DUPLICATES and AlterCPA
+  leads created after the collabBox booking before the uniqueness check (read-only today: 4 → 11 links, 40 → 33
+  manual, the 7 new = the reviewer's picks); `scripts/repair-duplicate-unproven-paid.mjs` — 20 C7 duplicate leads
+  cancelled as `duplicate_order` pointing to the sibling (dry run `8623884f`). Apply order: the commit message.
 - **Phone + date parcel links + no-parcel exemptions (owner, 01.10 evening; branch `parcel-link-rules`, BUILT, NOT
   APPLIED):** `20260944000950` (`link_lead_parcels_plan()` = the rules, `link_lead_parcels()` = the apply into the
   repair ledger, cron `link-lead-parcels` 21:02 Skopje, switch `app_settings.link_lead_parcels` seeded `report`) and

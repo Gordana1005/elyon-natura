@@ -236,6 +236,10 @@ must carry the product by name. `link_lead_parcels_plan()` is the single definit
 `link-lead-parcels` 21:02 Skopje, switch `app_settings.link_lead_parcels`, backfill
 `scripts/repair-link-lead-parcels.mjs`, undo `scripts/rollback-repair.mjs --run <id>`). Details:
 `docs/ALTERCPA-BRIDGE.md` "Phone + date links". Re-ships stay with `repair-link-elyon-parcels.mjs`.
+Rule 2b (`20260944000980`): dead DUPLICATES (`duplicate_order`, the "duplicate — …" trash note, the mirror's trashed
+reason 7 — never free text) and AlterCPA leads created after the parcel's collabBox booking are dropped before the
+uniqueness check. A duplicate LEAD is marked cancelled + `duplicate_order` (never status `duplicated` — that is the
+re-issue copy of `POST /orders/:id/duplicate`); see `scripts/repair-duplicate-unproven-paid.mjs`.
 
 **Only the lead's own parcel reopens it (29.09, `mayReviveWith`).** A cancelled or trashed
 AlterCPA lead fits a fresh parcel on its phone only when the parcel is series **9110** ("Нарачка

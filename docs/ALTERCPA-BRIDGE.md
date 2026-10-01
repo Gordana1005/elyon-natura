@@ -295,6 +295,41 @@ Re-ships (the order already holds its first, dead parcel) stay with `scripts/rep
 The 01.10.2026 dry run: 397 orphan parcels → 98 links (323.820 ден; 80 cancelled — all AlterCPA-panel
 cancels, none a `no_parcel_7d` — 14 confirmed, 3 trashed, 1 paid) + 46 manual.
 
+**Rule 2b — "the safe rule" (owner, 01.10.2026, `20260944000980`, re-emits `link_lead_parcels_plan` from its live
+body).** Before the uniqueness check (rule 3) a candidate that cannot be the parcel's sale is DROPPED:
+- **duplicate** — the order is cancelled / trashed AS A DUPLICATE by one of the CRM's own marks: `cancellation_reason`
+  or `trash_reason` = `duplicate_order` (also what the bridge writes for an AlterCPA cancel reason 7); a trash with
+  reason `other` and notes `duplicate` / `duplicate — …` (`crmReasonFor`'s label for an AlterCPA trash reason 7); or
+  the mirror's own `altercpa_leads` decision `trashed`, reason 7. Never an operator's free text ("веќе нарачал"),
+  never a living order. (`duplicated` is no candidate at all — in this CRM it is the re-issue COPY of
+  `POST /orders/:id/duplicate`, not a duplicate lead.)
+- **after_booking** — an AlterCPA lead order (`sale_source_detail` bridge / history, or a ledger row) that came into
+  existence (the earlier of `created_at` / `created_remote`) AFTER the parcel's collabBox booking
+  (`collabbox_sale_at(doc_at, booked_at)` of the live document numbered with the tracking id; no document → nothing
+  dropped); a date-only history import (the 14:00:00 stamp) is compared by Skopje DAY.
+
+Everything else is unchanged (proven byte-for-byte in `src/lib/linkLeadParcels.test.ts`); a parcel whose candidates
+were all dropped stays on the manual list (`only_excluded_candidates`) so `leads_parcel_orders_plan` still treats it as
+a link-plan candidate; each listed candidate carries `excluded`. Read-only 01.10.2026 ~23:55: before 4 link / 40
+manual → after **11 link / 33 manual** of 156 parcels (16 pairs dropped: 11 duplicate, 5 after_booking); the 7 new
+links are exactly the reviewer's picks, 0 different. `verify-parcel-link-rules.mjs` L10 re-derives the drops
+independently. Revert: re-apply the 0950 plan body.
+
+**Owner-approved manual links (01.10.2026).** The reviewer's proposal per manual parcel is
+`exports/MEX_рачна_проверка_предлог_2026-10-01.xlsx` (PII, gitignored); the owner approved every "ПОВРЗИ со ORD-…"
+row — 32 parcels (19 high + 13 medium). `scripts/repair-link-manual-approved.mjs` (key `link-manual-approved`)
+re-validates each pair live and links it with link_lead_parcels' semantics through the repair-kit (undo
+`scripts/rollback-repair.mjs --run <id>`); then `scripts/collabbox-recredit.mjs` credits their LEADS documents
+(30 at `credit_pending`: 11 July, 14 August, 5 September; the holder's existing seller stamp wins —
+`other_decider`).
+
+**Duplicate "paid without MEX proof" leads (owner, 01.10.2026).** Of the C7 orders, a lead whose customer's parcel
+sits on a SIBLING created ≤ 72 h apart on the same last-8 phone is cancelled as a duplicate —
+`cancellation_reason 'duplicate_order'`, notes "duplicate of ORD-… which holds the parcel … (owner 01.10.2026)",
+a system write dated on the lead's own day; `sold_*` and the AlterCPA ledger untouched, nothing pushed.
+`scripts/repair-duplicate-unproven-paid.mjs` (key `duplicate-unproven-paid`, undo `rollback-repair.mjs`). The ones
+whose parcel sits on an order > 3 days apart stay (owner).
+
 **A LEADS document becomes an order when MEX delivered or returned its parcel — owner, Mile, 01.10.2026
 (`20260944000970`).** Verbatim: *"If there is delivery from MEX too or return, then of course we will import them,
 that way we know that MEX really tried to deliver that order."* Many AlterCPA leads never reach the CRM (the
