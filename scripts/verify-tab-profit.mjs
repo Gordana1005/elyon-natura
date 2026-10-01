@@ -26,8 +26,10 @@
  *   P5  the grains agree: Σ days = Σ sources = Σ webmasters (AlterCPA); Σ product
  *       revenue / known cost = the P&L's
  *   P6  the api's P&L (insightsProfit.ts, the same file the api runs): Σ sources =
- *       total on every line, VAT = revenue × r/(1+r), courier = parcels × the MEX
- *       rate, Σ product commission = the commission line, net = revenue − costs
+ *       total on every line, VAT = Σ per line at each product's Sigma rate (the RPC's
+ *       vt — 20260944000900; an older body: revenue × 5/105) and = its 5 % / 18 % parts,
+ *       courier = parcels × the MEX rate, Σ product commission = the commission line,
+ *       net = revenue − costs
  *   H   the headline numbers of both clocks
  *
  * Safety: pinned to Macedonia (the guard, runSql and assertReadOnly of
@@ -41,11 +43,12 @@ import { runSql } from './verify-insights-ties.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 // the newest migration that emits insights_profit() (its query text is what runs)
-const MIGRATIONS = ['20260942000200_insights_profit_monthly.sql', '20260941000300_insights_profit.sql']
+const MIGRATIONS = ['20260944000900_product_vat_rate.sql', '20260942000200_insights_profit_monthly.sql', '20260941000300_insights_profit.sql']
   .map((m) => join(ROOT, 'supabase', 'migrations', m));
 const MIGRATION = MIGRATIONS.find((p) => { try { readFileSync(p); return true; } catch { return false; } });
 const EXIT = { OK: 0, FAIL: 1, ERROR: 2 };
-const VAT_RATE = 0.18;           // index.ts VAT_RATE
+// VAT per product from Sigma (01.10.2026, docs/VAT.md): the rate of a line with no product rate
+const DEFAULT_VAT_RATE = 0.05;   // vatRates.ts DEFAULT_VAT_RATE
 class UsageError extends Error {}
 
 const n = (v) => (v == null ? 0 : Number(v) || 0);
@@ -207,7 +210,7 @@ export async function verify({ from, to, sql, now = new Date() }) {
   // P6 — the api's P&L
   const mex = rates.find((r) => r.service === 'door') ?? rates[0];
   const settings = {
-    vatRate: VAT_RATE,
+    defaultVatRate: DEFAULT_VAT_RATE,
     deliverEur: n(mex?.deliver_cost), returnEur: n(mex?.return_cost), rateSource: mex ? 'courier_rates' : 'fallback',
     agentNames: IP.commissionAgentNames(people[0].profiles ?? [], people[0].roles ?? []),
   };
@@ -221,7 +224,14 @@ export async function verify({ from, to, sql, now = new Date() }) {
         if (!near(sum(c.by_source, f), c.total[f], 4)) fails.push(`${clock} Σ sources ${f} ${sum(c.by_source, f)} ≠ total ${c.total[f]}`);
       }
       const t = c.total;
-      if (!near(t.vat_mkd, t.revenue_mkd * VAT_RATE / (1 + VAT_RATE), 1)) fails.push(`${clock} VAT ${t.vat_mkd}`);
+      const rpc = clock === 'cohort' ? cohort : cash;
+      const perLine = rpc.vat_mode === 'per_line';
+      const vt = sum((rpc.agg ?? []).filter((a) => a.dim === 's' && a.g === 'collected'), 'vt');
+      const expected = perLine ? vt : t.revenue_mkd * DEFAULT_VAT_RATE / (1 + DEFAULT_VAT_RATE);
+      if (!near(t.vat_mkd, expected, 1)) fails.push(`${clock} VAT ${t.vat_mkd} ≠ ${perLine ? 'Σ per line' : 'revenue × 5/105'} ${Math.round(expected)}`);
+      const parts = t.vat_split ?? [];
+      if (!near(sum(parts, 'vat_mkd'), t.vat_mkd, 1 + parts.length)) fails.push(`${clock} VAT parts ${sum(parts, 'vat_mkd')} ≠ ${t.vat_mkd}`);
+      if (!near(sum(parts, 'revenue_mkd'), t.revenue_mkd, 1 + parts.length)) fails.push(`${clock} VAT parts' revenue ${sum(parts, 'revenue_mkd')} ≠ ${t.revenue_mkd}`);
       if (!near(t.courier_mkd, t.parcels_delivered * deliver, 1)) fails.push(`${clock} courier ${t.courier_mkd} ≠ ${t.parcels_delivered} × ${deliver}`);
       const costs = t.vat_mkd + t.cogs_known_mkd + (t.cogs_est_mkd ?? 0) + t.courier_mkd + t.returns_mkd + t.commission_mkd + t.lead_cost_mkd;
       if (!near(t.revenue_mkd - costs, t.net_mkd, 4)) fails.push(`${clock} net ${t.net_mkd} ≠ revenue − costs ${t.revenue_mkd - costs}`);
@@ -326,7 +336,7 @@ export async function verifyCache({ from, to, sql, now = new Date() }) {
   const people = await sql(`SELECT (SELECT json_agg(json_build_object('user_id', user_id, 'full_name', full_name)) FROM public.profiles) AS profiles,
                 (SELECT json_agg(json_build_object('user_id', user_id, 'role', role)) FROM public.user_roles
                   WHERE role IN ('agent','pending_agent','prediction_agent','admin','manager')) AS roles`);
-  const settings = { vatRate: VAT_RATE, deliverEur: 2.439, returnEur: 0, rateSource: 'courier_rates',
+  const settings = { defaultVatRate: DEFAULT_VAT_RATE, deliverEur: 2.439, returnEur: 0, rateSource: 'courier_rates',
     agentNames: IP.commissionAgentNames(people[0].profiles ?? [], people[0].roles ?? []) };
   const build = (co, ca) => IP.buildProfitResponse({ cohort: co, cash: ca }, w, settings, now);
   const merge = (clock, useCache) => {

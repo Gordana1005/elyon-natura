@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { BrandLine, BrandLineProposal, SetBrandLineResult } from '@/lib/products/brandLines';
 import type { CatalogueRow, KindProposal, ProductKind, SetKindResult } from '@/lib/products/kinds';
+import type { SetVatResult, VatRate } from '@/lib/products/vat';
 
 const API_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api`;
 
@@ -1037,8 +1038,13 @@ export const apiSetBrandLine = (ids: string[], line: BrandLine | null): Promise<
   apiFetch('products/brand-line', { method: 'POST', body: JSON.stringify({ ids, line }) });
 // Производи 2.0 (migration 20260943001400): the lean catalogue of /products, the
 // kind proposal and the audited kind writer — admins + owners. `kind: null` = Неодредено.
-export const apiGetProductCatalogue = (): Promise<{ generated_at: string | null; rows: CatalogueRow[] }> =>
+/** `vat_visible`: the rows carry the VAT columns (the caller is an owner — 20260944000900). */
+export const apiGetProductCatalogue = (): Promise<{ generated_at: string | null; vat_visible?: boolean; rows: CatalogueRow[] }> =>
   apiFetch('products/catalogue');
+// VAT per product from Sigma (owner 01.10.2026, migration 20260944000900): the audited
+// writer — owners only. `rate: null` = back to unclassified.
+export const apiSetProductVatRate = (ids: string[], rate: VatRate | null, note?: string): Promise<SetVatResult> =>
+  apiFetch('products/vat-rate', { method: 'POST', body: JSON.stringify({ ids, rate, ...(note ? { note } : {}) }) });
 export const apiGetKindProposal = (): Promise<KindProposal> => apiFetch('products/kind-proposal');
 export const apiSetProductKind = (ids: string[], kind: ProductKind | null): Promise<SetKindResult> =>
   apiFetch('products/kind', { method: 'POST', body: JSON.stringify({ ids, kind }) });
@@ -2072,12 +2078,18 @@ export interface InsightsResponse {
       product: string; packages: number; orders: number;
       unit_cost: number; unit_price: number;
       cogs: number; revenue: number; profit: number;
+      vat_rate?: number;            // the product's Sigma rate (0.05 / 0.18); the default 0.05 when none
+      vat_classified?: boolean;     // false = no product rate on file (taxed at the default)
+      vat?: number;                 // the VAT in its revenue
       net_revenue?: number;         // revenue excl. VAT
       net_profit?: number;          // net_revenue − cogs
     }[];
     cash_collected?: number;        // money in: cash actually collected (paid)
-    vat?: number;                   // VAT included in collected cash (gross ÷ 6 at 20%)
-    vat_rate?: number;              // e.g. 0.20
+    vat?: number;                   // VAT in the collected cash, per product (Sigma rates, 01.10.2026)
+    vat_mode?: 'per_product_sigma';
+    vat_rate?: number;              // the default (0.05) for a product with no rate — not a flat rate
+    vat_by_rate?: Record<string, { revenue: number; vat: number }>;
+    vat_unclassified?: { revenue: number; vat: number };
     cogs?: number;                  // product cost of what sold
     agent_commissions?: number;     // first-confirmer bonus (agents only)
     delivery_cost?: number;         // courier outbound on all shipped
@@ -2101,10 +2113,11 @@ export interface InsightsResponse {
   };
 
   // Margin Lab — realized price of every paid package + the floor each product
-  // needs to net `target_profit_per_package`. Floor = 1.2·(target+cogs+deliver+commission).
+  // needs to net `target_profit_per_package`. Floor = (1 + the product's VAT)·(target+cogs+deliver+commission).
   margin_lab?: {
     target_profit_per_package: number;
-    vat_rate: number;
+    vat_mode?: 'per_product_sigma';
+    vat_rate: number;               // the default (0.05) — each by_product row carries its own rate
     blended_deliver_cost: number;   // default delivery/order for the bundle simulator
     commission_tiers: { max: number | null; bonus: number }[];
     realized: {

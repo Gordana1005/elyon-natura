@@ -84,6 +84,14 @@ operation. It shares **nothing at runtime** with Bulgaria (own repo / own Supaba
   "лидови" (never "на чекање"); "На чекање" only for the order status pending. `mk.json` has 0 "прогноз…".
 - Docs + skills brought to 01.10: CLAUDE.md, 8 skills (assigner, warehouse, fulfilment, presence, departments,
   segments, i18n, security) + the new `elyon-products-catalogue`.
+- **VAT per product, from Sigma** (owner, 01.10.2026; branch `vat-per-product`, migration `…44000900`;
+  `docs/VAT.md`) — **replaces the flat 18 % of 28.09.** `products.vat_rate` (+ source, Sigma item, invoice
+  evidence) backfilled for all 706 products from `docs/vat/crm_products_vat.json` (431 at 5 %, 275 at 18 %);
+  written only by the audited `products_set_vat_rate()` (owners: the ДДВ chip / filter / "Постави ДДВ" on
+  /products, `POST /api/products/vat-rate`); shown to owners only. `insights_profit()` taxes each LINE at its
+  product's rate (unclassified lines at 5 %, shown apart), cache version 5; the waterfall reads "ДДВ по производ
+  (Сигма)" with the 5 % / 18 % parts; Margins' floor price and simulator use the product's rate. **September
+  (cohort): VAT 2.393.066 → 764.811 ден, net profit +1.628.255.** Open for the accountant: docs/VAT.md §5.
 
 ## 🟢 Earlier state: 30.09.2026
 
@@ -246,7 +254,7 @@ operation. It shares **nothing at runtime** with Bulgaria (own repo / own Supaba
   - managers' access to Активност;
   - product-name mapping (233 names) and line rules (ПОЕН / ДОСТАВА / gift);
   - cost prices (33% coverage; the AlterCPA €2,93 placeholder);
-  - VAT; MEX return fee; lead price per webmaster;
+  - ~~VAT~~ (decided 01.10: per product from Sigma — docs/VAT.md); MEX return fee; lead price per webmaster;
   - stock count plus MEX-driven stock movements;
   - return reason capture;
   - 928 MEX-shipped AlterCPA cancels credited to nobody;
@@ -593,7 +601,7 @@ panel shows the bare hashes.
 | COD | `codFor()` returns amount **and** currency together; rounds once to the nearest 10 ден. |
 | Timezone | `Europe/Skopje` throughout (DB functions, edge fn, frontend). |
 | Phone | `+389`, 8 subscriber digits (national `0`+8=9, E.164 `389`+8=11). `normalizeMkPhone`. |
-| VAT | **18%** — ⚠️ unconfirmed, see below. |
+| VAT | **Per product, from Sigma** (01.10.2026): 5 % supplements, 18 % cosmetics / devices; `products.vat_rate`, taxed per line — `docs/VAT.md`. |
 | Language | Default `mk`; `en`/`sq`/`bg` also shipped. Call-script + promo base language = `mk`. |
 | Login | `elyon-mk.local` |
 | Webhook | Accepts **EUR or MKD only** — anything else is a 400. |
@@ -633,8 +641,8 @@ was actually quoted on the phone.
    80.360 orders, including the three biggest earners ProstaFix, GlucoFix and ArthroFix. Replace it
    with real per-product costs before trusting any profit figure. Mapping and proposed shelf prices:
    `scripts/data/altercpa-product-map.json`, reviewed in `…-review.md`.
-2. **VAT rate.** 18% is Macedonia's standard rate, but food supplements may fall under the
-   preferential 5%/10% band. `VAT_RATE` (edge fn) feeds every profit report.
+2. ~~**VAT rate.**~~ **Decided 01.10.2026:** per product from Sigma (5 % supplements, 18 % cosmetics /
+   devices), every line at its product's rate — `docs/VAT.md` (the accountant's open questions are in its §5).
 3. **Commission tiers.** Still `<25€→1, 25–35€→2, ≥35€→3`. Note the hero band is now **tier 3**:
    twelve products sit at 2.490 ден (€40.49), i.e. €3/package, not the €2 assumed when this was
    written. A comp-plan decision, not a port decision. `MarginLabTab.tsx` duplicates the tier
@@ -706,8 +714,8 @@ mostly small, but each one bites somebody eventually.
 - `.grok/skills/elyon-currency/SKILL.md` documents the **opposite of the shipped code** — it says
   "Macedonia is euro-native, display EUR only" and references `formatEur`/`formatLev`, none of which
   exist. Anyone following it would break the denar display. **Rewrite before relying on it.**
-- `.grok/skills/elyon-logistics-costs/SKILL.md` teaches **VAT 20%** and the lev peg (Bulgarian).
-  The code is 18%.
+- ~~`.grok/skills/elyon-logistics-costs/SKILL.md` teaches **VAT 20%**~~ — rewritten; VAT is per product
+  since 01.10.2026 (`docs/VAT.md`).
 - `docs/USERS_ROLES_PERMISSIONS.md` describes "the 7 roles" (there are nine) and the Bulgarian
   `@elyoncrm.local` login domain.
 - `docs/SECURITY.md` describes the **Bulgarian** Supabase project's auth settings, not this one —

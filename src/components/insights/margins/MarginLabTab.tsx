@@ -12,8 +12,9 @@ import { ClockCaption } from '../shared/ClockCaption';
 import { STATUS_TEXT } from '../shared/cohortPalette';
 import { useInsightsFormat, type InsightsFormat } from '../shared/useInsightsFormat';
 import {
-  floorPrice, floorStatus, isRealProduct, productUnit, simPriceFor, simulate, type FloorStatus,
+  defaultVatRate, floorPrice, floorStatus, isRealProduct, productUnit, productVatRate, simPriceFor, simulate, type FloorStatus,
 } from '../profit/profitModel';
+import { VAT_RATES } from '@/lib/products/vat';
 import { useProfitQuery } from '../profit/useProfitQuery';
 
 /** Net profit per package the floor prices must clear — €7 by the old default, in денари. */
@@ -23,7 +24,7 @@ const TOP = 25;
 /**
  * Insights → Маржи (Margin Lab), owners only — on EXACTLY the Pure Profit
  * basis (the same GET /insights/profit answer): the period's collected sales
- * (cohort clock), all six departments, VAT, known product cost, the MEX courier
+ * (cohort clock), all six departments, VAT per product (Sigma), known product cost, the MEX courier
  * share, today's commission as the P&L charges it. What a package really
  * sells for, what each product nets per package, the price that would clear
  * the target, and a bundle simulator in денари (price, cost, return rate). A
@@ -59,7 +60,8 @@ export default function MarginLabTab() {
 function MarginLabBody({ data, f }: { data: ProfitResponse; f: InsightsFormat }) {
   const { t } = f;
   const [target, setTarget] = useState(DEFAULT_TARGET_MKD);
-  const vat = data.meta.vat.rate;
+  // VAT per product from Sigma (01.10.2026): each product at its own rate, this one where it has none
+  const dRate = defaultVatRate(data.meta);
   const products = useMemo(() => data.products.filter((p) => isRealProduct(p) && p.packages > 0), [data.products]);
 
   // Net per package over the costed products — the same rows as the table below.
@@ -103,7 +105,7 @@ function MarginLabBody({ data, f }: { data: ProfitResponse; f: InsightsFormat })
       </ul>
 
       <BySource data={data} f={f} />
-      <FloorTable products={products} target={target} vat={vat} f={f} />
+      <FloorTable products={products} target={target} defaultRate={dRate} f={f} />
       <Simulator products={products} data={data} target={target} f={f} />
     </>
   );
@@ -180,7 +182,7 @@ const STATUS_CLS: Record<FloorStatus, string> = {
   no_cost: 'border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200',
 };
 
-function FloorTable({ products, target, vat, f }: { products: ProfitProduct[]; target: number; vat: number; f: InsightsFormat }) {
+function FloorTable({ products, target, defaultRate, f }: { products: ProfitProduct[]; target: number; defaultRate: number; f: InsightsFormat }) {
   const { t } = f;
   const titleId = useId();
   const [q, setQ] = useState('');
@@ -193,10 +195,12 @@ function FloorTable({ products, target, vat, f }: { products: ProfitProduct[]; t
       .map((p) => {
         const u = productUnit(p);
         const status = floorStatus(u, target);
-        const floor = u ? floorPrice(u.cost, u.courier, target, vat, p.commission_share ?? 0) : null;
-        return { p, u, status, floor, uplift: floor != null && u && u.price > 0 ? floor / u.price - 1 : null };
+        // the floor carries THIS product's VAT (5 % supplement, 18 % cosmetic)
+        const rate = productVatRate(p, defaultRate);
+        const floor = u ? floorPrice(u.cost, u.courier, target, rate, p.commission_share ?? 0) : null;
+        return { p, u, status, floor, rate, uplift: floor != null && u && u.price > 0 ? floor / u.price - 1 : null };
       });
-  }, [products, q, target, vat]);
+  }, [products, q, target, defaultRate]);
   const visible = all || q ? rows : rows.slice(0, TOP);
   const counts = { clears: 0, below: 0, no_cost: 0 } as Record<FloorStatus, number>;
   for (const r of rows) counts[r.status]++;
@@ -208,7 +212,7 @@ function FloorTable({ products, target, vat, f }: { products: ProfitProduct[]; t
           <h2 id={titleId} className="flex items-center gap-2 text-base font-semibold">
             <FlaskConical className="h-4 w-4 text-muted-foreground" aria-hidden />{t('insights.margins.floor.title')}
           </h2>
-          <p className="text-xs text-muted-foreground">{t('insights.margins.floor.help', { gross: f.pct(1 + vat, 0), target: f.den(target) })}</p>
+          <p className="text-xs text-muted-foreground">{t('insights.margins.floor.help', { target: f.den(target) })}</p>
           <p className="mt-1 flex flex-wrap gap-2 text-[11px]">
             {(['clears', 'below', 'no_cost'] as const).map((s) => {
               const Icon = STATUS_ICON[s];
@@ -246,7 +250,7 @@ function FloorTable({ products, target, vat, f }: { products: ProfitProduct[]; t
           <tbody>
             {visible.length === 0 ? (
               <tr><td colSpan={11} className="px-3 py-6 text-center text-muted-foreground">{t('insights.profit.prod.none')}</td></tr>
-            ) : visible.map(({ p, u, status, floor, uplift }) => {
+            ) : visible.map(({ p, u, status, floor, rate, uplift }) => {
               const Icon = STATUS_ICON[status];
               return (
                 <tr key={p.key} className="border-b last:border-0">
@@ -256,7 +260,12 @@ function FloorTable({ products, target, vat, f }: { products: ProfitProduct[]; t
                   </th>
                   <td className="px-3 py-2 text-right tabular-nums">{f.int(p.packages)}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{u ? f.den(Math.round(u.price)) : '—'}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{u ? f.den(Math.round(u.vat)) : '—'}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                    {u ? f.den(Math.round(u.vat)) : '—'}
+                    <span className={cn('block text-[11px]', p.vat_classified === false && 'italic')}>
+                      {p.vat_classified === false ? t('insights.margins.floor.vatNoRate', { pct: f.pct(rate, 0) }) : t('insights.margins.floor.vatAt', { pct: f.pct(rate, 0) })}
+                    </span>
+                  </td>
                   <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{u?.cost != null ? f.den(Math.round(u.cost)) : '—'}</td>
                   <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{u ? f.den(Math.round(u.courier)) : '—'}</td>
                   <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{u ? f.den(Math.round(u.commission)) : '—'}</td>
@@ -305,6 +314,8 @@ function Simulator({ products, data, target, f }: { products: ProfitProduct[]; d
   const [commPct, setCommPct] = useState(0);
   const [lead, setLead] = useState(0);
   const [deliver, setDeliver] = useState(data.meta.courier.deliver_mkd);
+  // the product's own VAT rate (Sigma) — an owner may try another one here
+  const [vatRate, setVatRate] = useState<number>(defaultVatRate(data.meta));
 
   // A new product resets the scenario to what that product really did.
   useEffect(() => {
@@ -314,6 +325,7 @@ function Simulator({ products, data, target, f }: { products: ProfitProduct[]; d
     setCost(u?.cost != null ? String(Math.round(u.cost)) : '');
     setReturnPct(Math.round((sel.return_rate ?? data.cohort.total.return_rate ?? 0) * 100));
     setCommPct(Math.round((sel.commission_share ?? 0) * 100));
+    setVatRate(productVatRate(sel, defaultVatRate(data.meta)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sel?.key]);
 
@@ -322,7 +334,7 @@ function Simulator({ products, data, target, f }: { products: ProfitProduct[]; d
     price, paidPackages: paid, bonusPackages: bonus,
     costPerPackage: cost.trim() === '' ? null : Math.max(0, Number(cost) || 0),
     deliverMkd: Math.max(0, deliver), returnMkd: data.meta.courier.return_mkd,
-    returnRate: returnPct / 100, vatRate: data.meta.vat.rate, commissionShare: commPct / 100, leadCostMkd: lead,
+    returnRate: returnPct / 100, vatRate, commissionShare: commPct / 100, leadCostMkd: lead,
   };
   const r = simulate(input);
   const need = simPriceFor(input, target);
@@ -367,6 +379,17 @@ function Simulator({ products, data, target, f }: { products: ProfitProduct[]; d
         {num(t('insights.margins.sim.delivery'), deliver, setDeliver, { step: 10, suffix: 'ден' })}
         {num(t('insights.margins.sim.commShare'), commPct, (v) => setCommPct(Math.min(100, v)), { suffix: '%' })}
         {num(t('insights.margins.sim.lead'), lead, setLead, { step: 10, suffix: 'ден' })}
+        <label className="space-y-1">
+          <span className="text-xs text-muted-foreground">{t('insights.margins.sim.vat')}</span>
+          <select value={String(vatRate)} onChange={(e) => setVatRate(Number(e.target.value))} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
+            {VAT_RATES.map((r) => <option key={r} value={String(r)}>{f.pct(r, 0)}</option>)}
+          </select>
+          <span className="block text-[11px] text-muted-foreground">
+            {sel.vat_classified === false
+              ? t('insights.margins.sim.vatNone', { pct: f.pct(productVatRate(sel, defaultVatRate(data.meta)), 0) })
+              : t('insights.margins.sim.vatFrom', { pct: f.pct(productVatRate(sel, defaultVatRate(data.meta)), 0) })}
+          </span>
+        </label>
       </div>
       {unit && (
         <p className="text-[11px] text-muted-foreground">
@@ -391,7 +414,7 @@ function Simulator({ products, data, target, f }: { products: ProfitProduct[]; d
           </div>
           <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
             <SimLine label={t('insights.margins.sim.price')} v={price} f={f} />
-            <SimLine label={t('insights.profit.step.vat', { pct: f.pct(data.meta.vat.rate, 0) })} v={-r.vat} f={f} />
+            <SimLine label={t('insights.profit.step.vat', { pct: f.pct(vatRate, 0) })} v={-r.vat} f={f} />
             <SimLine label={t('insights.profit.step.cogs_known')} v={-(r.cogs ?? 0)} f={f} />
             <SimLine label={t('insights.margins.sim.delivery')} v={-r.courier} f={f} />
             <SimLine label={t('insights.profit.step.commission')} v={-r.commission} f={f} />

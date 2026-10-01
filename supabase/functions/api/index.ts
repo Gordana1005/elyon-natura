@@ -62,6 +62,10 @@ import * as BL from "./brandLine.ts";
 // for /products, the machine-text filter and the product field whitelist (pure,
 // unit-tested in productsCatalog.test.ts).
 import * as PC from "./productsCatalog.ts";
+// VAT per product from Sigma (owner 01.10.2026, migration 20260944000900, docs/VAT.md):
+// the rates, the audited writer's body / result, the owners-only product columns and
+// the per-product VAT of the /management-insights blocks (pure, vatRates.test.ts).
+import * as VT from "./vatRates.ts";
 // The one "Смени" page (plan Фаза 8, migrations 20260943001000–1100): the login gate's decision,
 // cell validation / diffing, the runway summary and the response shapes (pure, shifts.test.ts).
 import * as SH from "./shifts.ts";
@@ -2177,13 +2181,12 @@ function orderCOGS(o: any, unitCost: (productId: any, productName: any) => numbe
 const BLENDED_DELIVER_COST = 3.5;  // fallback when the courier wasn't recorded
 const BLENDED_RETURN_COST = 6.0;
 
-// Macedonian standard VAT rate (18%; upstream Bulgaria uses 20%). All stored
-// prices are GROSS (VAT-inclusive), so the VAT owed on collected cash =
-// gross − gross / (1 + VAT_RATE).
-// TODO(mk): CONFIRM WITH THE ACCOUNTANT. Food supplements may fall under the
-// preferential 5%/10% band, which would make 18% wrong for this catalogue. This
-// single constant feeds every pure-profit and net-revenue figure in the system.
-const VAT_RATE = 0.18;
+// VAT: there is no single rate (owner decision 01.10.2026, docs/VAT.md). Every
+// product carries the rate Natura's books (Sigma) charge for it — products.vat_rate,
+// 5 % food supplements, 18 % cosmetics / devices — and every report taxes each LINE
+// at its product's rate (prices are GROSS: VAT = gross × r / (1 + r)). A line with
+// no product or no rate is taxed at VT.DEFAULT_VAT_RATE (5 %) and reported apart as
+// unclassified. The flat 18 % of 28.09 is withdrawn. See vatRates.ts.
 type CourierRate = { deliver: number; return_: number };
 type RateMap = Record<string, CourierRate>;
 const rateKey = (courier: string, service: string) => `${courier}_${service}`;
@@ -10083,9 +10086,11 @@ async function handleRequest(req: Request): Promise<Response> {
       if (error) return json({ error: sanitizeDbError(error) }, 400);
       // Suggested selling price = max(cost×3, current price, €15). Computed
       // server-side and exposed to everyone (it's the agent-facing default,
-      // never €0). The raw cost_price is sensitive → admins only.
+      // never €0). The raw cost_price is sensitive → admins only. The VAT
+      // columns (20260944000900) are the owners' margin view → owners only.
       const PRICE_MULTIPLIER = 3;
       const PRICE_FLOOR = 15;
+      const prVatOwner = await isBusinessOwner(user.id);
       const result = (data || []).map((p: any) => {
         const cost = Number(p.cost_price || 0);
         const price = Number(p.price || 0); // website retail = the agents' default
@@ -10096,7 +10101,7 @@ async function handleRequest(req: Request): Promise<Response> {
         // are never shown anywhere (owner 01.10) — blanked here for every caller.
         const out: any = { ...p, suggested_price, description: PC.humanDescription(p.description), category: PC.humanCategory(p.category) };
         if (!isAdmin) delete out.cost_price; // call agents/managers never see cost
-        return out;
+        return VT.applyVatVisibility(out, p, prVatOwner);
       });
       // `*` carries brand_line / kind (+ their _set_by / _set_at; 20260943001300 / 001400)
       // to every login that can read products — a line or a kind is not money.
@@ -10109,15 +10114,43 @@ async function handleRequest(req: Request): Promise<Response> {
     // flattened, cost only for admins (as GET /products). Filtering is done by
     // the page over these ~700 rows (instant) — a round trip per chip would be slower.
     if (req.method === "GET" && path === "products/catalogue") {
-      const { data, error } = await supabase
-        .from("products")
-        .select(PC.CATALOGUE_SELECT)
-        .order("name", { ascending: true });
+      const catQuery = (cols: string) => supabase.from("products").select(cols).order("name", { ascending: true });
+      let { data, error } = await catQuery(PC.CATALOGUE_SELECT);
+      // the VAT columns arrive with 20260944000900 — an api deployed first still serves the page
+      if (error && PC.isMissingVatColumn(error)) ({ data, error } = await catQuery(PC.CATALOGUE_SELECT_NO_VAT));
       if (error) return json({ error: sanitizeDbError(error) }, 400);
+      // VAT per product (20260944000900): rate, Sigma item and evidence — owners only.
+      const catVatOwner = await isBusinessOwner(user.id);
       return json({
         generated_at: new Date().toISOString(),
-        rows: (data || []).map((p: any) => PC.shapeCatalogueRow(p, { showCost: isAdmin })),
+        vat_visible: catVatOwner,
+        rows: (data || []).map((p: any) => PC.shapeCatalogueRow(p, { showCost: isAdmin, showVat: catVatOwner })),
       });
+    }
+
+    // POST /api/products/vat-rate {ids: uuid[], rate: 0 | 0.05 | 0.10 | 0.18 | null, note?}
+    // — set (null = back to unclassified) the VAT rate of up to 1.000 products
+    // (owner decision 01.10.2026: per product, from Sigma; docs/VAT.md). The SQL
+    // writer (products_set_vat_rate, the only writer — a trigger refuses any
+    // other) skips rows already at that rate, marks the rest vat_source = owner
+    // and writes ONE audit_log row (products.set_vat_rate) in the same
+    // transaction. OWNERS only (the rate moves every profit figure).
+    // Response: {rate, requested, updated, unchanged, missing[], changes[]}.
+    if (req.method === "POST" && path === "products/vat-rate") {
+      if (!(await isBusinessOwner(user.id))) return json({ error: isAdminOrManager ? "owners_only" : "Forbidden" }, 403);
+      if (!checkUserRateLimit(user.id, "products.vat-rate", 60)) {
+        return json({ error: "Rate limit exceeded — try again in a minute" }, 429);
+      }
+      let body: unknown;
+      try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
+      const parsed = VT.parseSetVatBody(body);
+      if (!parsed.ok) return json({ error: parsed.error }, 400);
+      const { data, error } = await adminClient.rpc("products_set_vat_rate", VT.setVatRpcArgs(parsed.args, user.id));
+      if (error) {
+        const e = VT.vatRpcError(error);
+        return json({ error: e ? e.error : sanitizeDbError(error) }, 400);
+      }
+      return json(VT.shapeSetVatResult(data));
     }
 
     // GET /api/products/kind-proposal — the kind suggestion per product (SQL
@@ -10239,6 +10272,7 @@ async function handleRequest(req: Request): Promise<Response> {
       // here instead of failing.
       BL.stripBrandLineFields(raw);
       PC.stripKindFields(raw);
+      VT.stripVatFields(raw);   // the VAT rate has its own audited route (POST /products/vat-rate)
       // Only the product form's fields, validated; cost_price is admin-only — managers
       // edit everything else (a manager's cost is dropped, as before).
       const patch = PC.parseProductPatch(raw, { canCost: isAdmin });
@@ -18988,8 +19022,9 @@ async function handleRequest(req: Request): Promise<Response> {
     // insights_profit): the P&L on TWO clocks — the period's sales and what
     // MEX collected on them (cohort), and the MEX money that landed in the
     // period (cash) — by source, per product, per AlterCPA webmaster, with
-    // the realized price per package and the cost-coverage rail. VAT =
-    // VAT_RATE, courier = courier_rates 'mex' (loadCourierRates), commission
+    // the realized price per package and the cost-coverage rail. VAT = per
+    // line at each product's Sigma rate (the SQL, 20260944000900; 5 % where a
+    // line has none, shown apart), courier = courier_rates 'mex' (loadCourierRates), commission
     // = today's per-package bonus on paid orders, agents only (unchanged).
     // Every figure is money → OWNERS ONLY (non-owner admin / manager →
     // 403 owners_only, as the old Pure Profit tab). The four scans run in
@@ -19058,7 +19093,7 @@ async function handleRequest(req: Request): Promise<Response> {
         },
         pfWin,
         {
-          vatRate: VAT_RATE,
+          defaultVatRate: VT.DEFAULT_VAT_RATE,
           ...IPF.mexRate(pfRates.rates, pfRates.fallback),
           agentNames: IPF.commissionAgentNames(pfProfiles.data ?? [], pfRoles.data ?? []),
         },
@@ -19471,7 +19506,12 @@ async function handleRequest(req: Request): Promise<Response> {
       // instead of nine serial waits. (`orders` above stays separate only
       // because it is by far the largest and starts first.)
       const [products, callLogs, invLogs, profiles, roleRowsRes] = await Promise.all([
-        paginate(() => adminClient.from("products").select("id,name,stock_quantity,low_stock_threshold,cost_price,price,is_active")),
+        // vat_rate arrives with 20260944000900: without it every name is at the default (unclassified)
+        paginate(() => adminClient.from("products").select("id,name,stock_quantity,low_stock_threshold,cost_price,price,is_active,vat_rate"))
+          .catch((e: any) => {
+            if (!PC.isMissingVatColumn(e)) throw e;
+            return paginate(() => adminClient.from("products").select("id,name,stock_quantity,low_stock_threshold,cost_price,price,is_active"));
+          }),
         // Both of these are rolled up by insights_calls_and_movement under the
         // SQL engine, so don't stream their rows as well.
         useSql ? Promise.resolve([] as any[]) : paginate(() => {
@@ -20054,8 +20094,19 @@ async function handleRequest(req: Request): Promise<Response> {
         }
       }
       deliveryCost = r2(deliveryCost); returnLoss = r2(returnLoss); cogsPaid = r2(cogsPaid);
-      // VAT owed on collected cash (prices are gross / VAT-inclusive).
-      const vatDue = r2(paidRevenue - paidRevenue / (1 + VAT_RATE));
+      // VAT owed on collected cash (prices are gross / VAT-inclusive), PER PRODUCT
+      // (owner 01.10.2026): each product's share of the cash at its Sigma rate
+      // (products.vat_rate, matched by name — these blocks key products by name);
+      // a name with no rate and the cash no line explains (orders without lines) at
+      // the default 5 %, reported as unclassified. Both engines feed paidProdMap,
+      // so both get the same VAT.
+      const vatRateOfName = VT.vatRateByName(products);
+      const rateOfName = (name: string) => vatRateOfName.get(name) ?? VT.DEFAULT_VAT_RATE;
+      const vatPaid = VT.vatOfNamedRevenue(
+        Object.values(paidProdMap).map((m: any) => ({ name: m.product, revenue: num(m.revenue) })),
+        vatRateOfName, paidRevenue,
+      );
+      const vatDue = r2(vatPaid.vat);
 
       // ── Channel P&L ────────────────────────────────────────────────────────
       // The Pure Profit waterfall split by where the lead came from, plus the
@@ -20118,9 +20169,11 @@ async function handleRequest(req: Request): Promise<Response> {
         if (agentNames.has(normAgent(r.owner_raw))) chBucket(r.channel).agent_commissions += r.bonus_sum;
       }
 
-      // Money in − money out, per channel.
+      // Money in − money out, per channel. The channel rows carry no product
+      // split, so a channel's VAT is its cash × the window's per-product VAT share
+      // (vatPaid.share — an allocation; the per-line VAT is exact at the total).
       const finishPL = (m: any) => {
-        const vat = m.cash_collected - m.cash_collected / (1 + VAT_RATE);
+        const vat = m.cash_collected * vatPaid.share;
         const beforeLead = m.cash_collected - vat - m.cogs - m.agent_commissions
           - m.delivery_cost - m.return_loss;
         const clear = beforeLead - m.lead_cost;
@@ -20237,18 +20290,23 @@ async function handleRequest(req: Request): Promise<Response> {
         cogs: r2(m.cogs),
         revenue: r2(m.revenue),
         profit: r2(m.revenue - m.cogs),
-        net_revenue: r2(m.revenue / (1 + VAT_RATE)),
-        net_profit: r2(m.revenue / (1 + VAT_RATE) - m.cogs),
+        // the product's own Sigma rate (default 5 % when none — vat_classified false)
+        vat_rate: rateOfName(m.product),
+        vat_classified: vatRateOfName.has(m.product),
+        vat: r2(m.revenue * VT.vatShare(rateOfName(m.product))),
+        net_revenue: r2(m.revenue / (1 + rateOfName(m.product))),
+        net_profit: r2(m.revenue / (1 + rateOfName(m.product)) - m.cogs),
         // Tie-break by name. Array.prototype.sort is stable, so equal package
         // counts used to resolve by insertion order — which came from an
         // unordered paginate() and was never deterministic run-to-run.
       })).sort((a: any, b: any) => b.packages - a.packages || String(a.product).localeCompare(String(b.product)));
 
       // ── Margin Lab: realized per-package price + the floor each product needs ──
-      // Floor solves  P − P/6 − cogs − deliver − commission = target  ⇒  P = 1.2·(target+cogs+deliver+m),
-      // picking the commission tier m (1/2/3 €) consistent with the resulting price.
-      const GROSS = 1 + VAT_RATE;
-      const floorPriceFor = (cogs: number, deliver: number, target: number): number => {
+      // Floor solves  P − P·r/(1+r) − cogs − deliver − commission = target  ⇒
+      // P = (1+r)·(target+cogs+deliver+m), r = THE PRODUCT'S VAT rate (Sigma, 5 % /
+      // 18 %), picking the commission tier m (1/2/3 €) consistent with the price.
+      const floorPriceFor = (cogs: number, deliver: number, target: number, rate: number): number => {
+        const GROSS = 1 + rate;
         for (const m of [1, 2, 3]) { const P = GROSS * (target + cogs + deliver + m); if (packageBonusRate(P) === m) return r2(P); }
         return r2(GROSS * (target + cogs + deliver + 3));
       };
@@ -20270,18 +20328,23 @@ async function handleRequest(req: Request): Promise<Response> {
         const cogsUnit = known ? costByName[m.product] : 0;
         const avgDeliver = pkgs > 0 ? m.deliverSum / pkgs : 0;
         const commNow = packageBonusRate(avgPrice);
-        const netNow = avgPrice - avgPrice / GROSS * VAT_RATE - cogsUnit - avgDeliver - commNow;
+        const rate = rateOfName(m.product);
+        const netNow = avgPrice - avgPrice * VT.vatShare(rate) - cogsUnit - avgDeliver - commNow;
+        const floor = floorPriceFor(cogsUnit, avgDeliver, marginTarget, rate);
         return {
           product: m.product, packages: pkgs, cost_known: known, cogs_unit: r2(cogsUnit),
+          vat_rate: rate, vat_classified: vatRateOfName.has(m.product),
           avg_realized_price: r2(avgPrice), avg_delivery_share: r2(avgDeliver),
           net_profit_per_pkg: r2(netNow), clears_target: netNow >= marginTarget,
-          floor_price: floorPriceFor(cogsUnit, avgDeliver, marginTarget),
-          uplift_pct: avgPrice > 0 ? Math.round((floorPriceFor(cogsUnit, avgDeliver, marginTarget) / avgPrice - 1) * 100) : null,
+          floor_price: floor,
+          uplift_pct: avgPrice > 0 ? Math.round((floor / avgPrice - 1) * 100) : null,
         };
       }).sort((a, b) => b.packages - a.packages || String(a.product).localeCompare(String(b.product)));
       const marginLab = {
         target_profit_per_package: marginTarget,
-        vat_rate: VAT_RATE,
+        // per product (by_product[].vat_rate); this is the rate of a product with none
+        vat_mode: "per_product_sigma",
+        vat_rate: VT.DEFAULT_VAT_RATE,
         blended_deliver_cost: courierFallback.deliver,        // simulator default delivery/order
         commission_tiers: [{ max: 25, bonus: 1 }, { max: 35, bonus: 2 }, { max: null, bonus: 3 }],
         realized: {
@@ -20377,8 +20440,11 @@ async function handleRequest(req: Request): Promise<Response> {
           // Money in: cash actually collected (paid orders).
           cash_collected: r2(paidRevenue),
           // Money out:
-          vat: vatDue,                                     // VAT included in collected cash (gross ÷ 6 at 20%)
-          vat_rate: VAT_RATE,
+          vat: vatDue,                                     // VAT in the collected cash, per product (Sigma rates)
+          vat_mode: "per_product_sigma",
+          vat_rate: VT.DEFAULT_VAT_RATE,                   // the rate of a name with no product rate
+          vat_by_rate: Object.fromEntries(Object.entries(vatPaid.by_rate).map(([k, v]) => [k, { revenue: r2(v.revenue), vat: r2(v.vat) }])),
+          vat_unclassified: { revenue: r2(vatPaid.unclassified.revenue), vat: r2(vatPaid.unclassified.vat) },
           cogs: cogsPaid,                                  // product cost of what sold
           agent_commissions: totalSpecialAgentCommissions, // first-confirmer bonus (agents only)
           delivery_cost: deliveryCost,                     // courier outbound on all shipped

@@ -1,0 +1,23 @@
+﻿id,name,sigma_code,sigma_name,system,vat_rate,vat_source,brand_line,evidence,is_active,kind,lines,lines_since_2025,price,sigma_vat_id,sku,slug,status
+2189a913-2b23-40e4-b5c8-91063c8c8b4c,2 COLLAGEN & COCONUT WATER 200gr + ELIXY Matcha Face Cream 50ml + ELIXY MIDNIGHT MATCHA MASK 50ml ФИЗИЧКИ,001113,Колаген Пептид -БЕЗ ВКУС  200 гр,crm,0.05,sigma:by-name+mixed,ad_astra,2025@5.00: 294; 2026@5.00: 118; mex@5.00: 14,True,bundle,,0,,2,SKU-000499,,
+a0a499a0-29b5-4e06-aea2-1cf85b5fde80,2 ПРОСТАТОЛ + 2 ДИАБЕТОЛ,000265,ПРОСТАТОЛ КОМПЛЕКС cps 30,crm,0.05,sigma:by-name,natura_therapy,2025@5.00: 513; 2026@5.00: 329; mex@5.00: 19,True,bundle,,0,,2,SKU-000480,,
+ee243b7e-b117-4951-b5e3-963127c8488b,Anti Chocking Device — уред против задушување,,,crm,0.18,rule:device-18,natura_therapy,,False,other,,10,,,SKU-000126,,
+20cce4d1-d191-4b32-92a9-616d8ca3d4f0,Arthriva,,,crm,0.05,rule:supplement-5,,,True,product,,0,,,SKU-000242,,
+d3e4dc26-5455-4f7e-b01d-a538d553daf6,Broncho Complex,000503,БРОНХО ПРОТЕКТ 250ml,crm,0.05,sigma:by-name,natura_therapy,2025@5.00: 392; 2026@5.00: 144; mex@5.00: 12,True,product,,0,,2,SKU-000034,,
+03ad93d6-5b28-4fbd-84a3-03629d3ab3d3,Calmifix,,,crm,0.05,rule:supplement-5,,,True,product,,2,,,SKU-000087,,
+6192e30a-2f1a-4e68-b830-aa2083a8fe80,Jade Roler,,,crm,0.18,rule:device-18,natura_therapy,,True,other,,0,,,SKU-000006,,
+18a840d3-7629-4b8f-9275-f5e481b4a136,Nutri Soup — зеленчук и хлорофил,001468,НУТРИ СУПА РАСТИТЕЛЕН МИКС 500 гр,crm,0.05,sigma:by-name,ad_astra,2026@5.00: 75; mex@5.00: 4,True,product,,0,,2,SKU-000200,,
+666ed719-5b43-4175-b4fa-6403fffce804,Opti Care,,,crm,0.05,rule:supplement-5,natura_therapy,,True,product,,46,,,SKU-000090,,
+ce21e674-233a-43cf-a197-cbfff88ce280,Red Yeast Rice 30 cps,000413,ЦРВЕН ОРИЗ 30 cps.,crm,0.05,sigma:by-name,natura_therapy,2025@5.00: 20; 2026@5.00: 1; mex@5.00: 8,True,product,,1,,2,SKU-000152,,
+310309b6-b363-478e-bc1d-8154637ce8c8,Глукатол 30 cps,001214,ГЛУКАТОЛ 180/1 cps,crm,0.05,sigma:by-name,natura_therapy,2025@5.00: 41; 2026@5.00: 15; mex@5.00: 5,False,product,,68,,2,700100,,
+1162,100% WHEY Protein 2 кг — суруткин протеин за мускули и опоравување,001318,100% WHEY ВАНИЛА 2000 гр,t2,0.05,sigma:by-name,,2025@5.00: 68; 2026@5.00: 99; mex@5.00: 4,,,9,,3990,2,,100-whey-protein,True
+1200,"AMINO ENERGY — поддршка за енергија, издржливост и опоравување",001173,АМИНО ЕНЕРЏИ БУСТ 500 мл,t2,0.05,sigma:by-name,,2025@5.00: 53; 2026@5.00: 35; mex@5.00: 7,,,21,,60,2,,amino-energy,True
+1220,Jade Roller,,,t2,0.18,rule:device-18,,,,,7,,920,,,jade-roller,False
+1235,Siberian Ginseng Extract — ментална и физичка издржливост,,,t2,0.05,rule:supplement-5,,,,,13,,500,,,siberian-ginseng-extract,False
+1237,Autoimmune Support Formula (30cps) — имунска рамнотежа,,,t2,0.05,rule:supplement-5,,,,,19,,495,,,autoimmune-support,False
+1238,Red Yeast Rice (30cps) — регулација на холестерол,000413,ЦРВЕН ОРИЗ 30 cps.,t2,0.05,sigma:by-name,,2025@5.00: 20; 2026@5.00: 1; mex@5.00: 8,,,64,,99,2,,red-yeast-rice,False
+1241,"Green Tea Extract — екстракт од зелен чај, 60 капсули",001074,ЗЕЛЕН ЧАЈ ЕКСТРАКТ 60/1 cps,t2,0.05,sigma:by-name,,2025@5.00: 61; 2026@5.00: 40; mex@5.00: 11,,,157,,525,2,,green-tea-extract,True
+1251,Protein Ice Cream — протеински сладолед ванила,001250,ПРОТЕИНСКИ СЛАДОЛЕД ВАНИЛА 200 гр,t2,0.05,sigma:by-name+mixed,,2025@5.00: 35; 2026@5.00: 68; mex@5.00: 3,,,2,,350,2,,protein-ice-cream,True
+1252,Aloe Vera Gel 99% — гел за кожа,,,t2,0.18,rule:cosmetic-18,,,,,21,,390,,,aloe-vera-gel,True
+1253,Olive Leaf Extract — имунитет и антиоксиданси,,,t2,0.05,rule:supplement-5,,,,,34,,1550,,,olive-leaf-extract,False
+1351,100% WHEY Protein 500 г — суруткин протеин за мускули и опоравување,001088,100% WHEY ВАНИЛА 500 гр,t2,0.05,sigma:by-name,,2025@5.00: 256; 2026@5.00: 122; mex@5.00: 12,,,18,,990,2,,whey-protein-500g,True

@@ -31,11 +31,17 @@ function plLines(clock: string, rows: PLRow[]): Record<string, unknown>[] {
     for (const r of rows) o[SOURCE_NAME[r.key] ?? r.key] = get(r) ?? '';
     return o;
   };
+  // VAT per product from Sigma (01.10.2026): the line, then its part per rate, then what had no rate
+  const rates = [...new Set(rows.flatMap((r) => (r.vat_split ?? []).map((p) => p.rate)))].sort((a, b) => a - b);
+  const vatAt = (r: PLRow, rate: number) => -(r.vat_split?.find((p) => p.rate === rate)?.vat_mkd ?? 0);
   return [
     line('Sales', (r) => r.sales, 'count'),
     line('Revenue', (r) => r.revenue_mkd, 'MKD'),
     line('of which card', (r) => r.card_mkd, 'MKD'),
-    line('VAT (included in price)', (r) => -r.vat_mkd, 'MKD'),
+    line('VAT per product, Sigma rates (included in price)', (r) => -r.vat_mkd, 'MKD'),
+    ...rates.map((rate) => line(`  VAT at ${Math.round(rate * 100)}%`, (r) => vatAt(r, rate), 'MKD')),
+    line('  VAT on unclassified value (no Sigma rate, at 5%)', (r) => (r.vat_unclassified ? -r.vat_unclassified.vat_mkd : null), 'MKD'),
+    line('Unclassified value (no Sigma rate)', (r) => r.vat_unclassified?.revenue_mkd ?? null, 'MKD'),
     line('Product cost (known)', (r) => -r.cogs_known_mkd, 'MKD'),
     line('Product cost (estimated, uncosted packages)', (r) => (r.cogs_est_mkd == null ? null : -r.cogs_est_mkd), 'MKD'),
     line('Courier (MEX, delivered parcels)', (r) => -r.courier_mkd, 'MKD'),
@@ -81,7 +87,7 @@ export default function PureProfitExportDialog({ data }: { data: ProfitResponse 
       const rows = [...data.products, ...(data.products_others ? [data.products_others] : [])];
       out.push({
         name: 'Products',
-        widths: [40, 12, 10, 8, 14, 13, 14, 14, 14, 14, 9, 10],
+        widths: [40, 12, 10, 8, 14, 13, 14, 14, 10, 12, 12, 16, 14, 9, 10],
         rows: rows.map((p) => ({
           'Product': p.key === '__mex_only__' ? 'MEX parcels without an order (contents unknown)' : p.key === '__others__' ? 'Others' : (p.name ?? p.key),
           'Kind': p.kind,
@@ -91,7 +97,11 @@ export default function PureProfitExportDialog({ data }: { data: ProfitResponse 
           'Cost / package (MKD)': p.unit_cost_mkd ?? '',
           'Product cost (MKD)': p.cost_known ? p.cogs_mkd : '',
           'Estimated cost (MKD)': p.cost_known ? '' : (p.cogs_est_mkd ?? ''),
-          'VAT+courier+commission (MKD)': p.vat_mkd + p.courier_mkd + p.commission_mkd,
+          // per product from Sigma (01.10.2026); "no" = no rate on file, taxed at the default
+          'VAT rate %': p.vat_rate == null ? '' : Math.round(p.vat_rate * 100),
+          'VAT rate from Sigma': p.vat_classified === undefined ? '' : p.vat_classified ? 'yes' : 'no',
+          'VAT (MKD)': p.vat_mkd,
+          'Courier+commission (MKD)': p.courier_mkd + p.commission_mkd,
           'Net (MKD)': p.net_mkd,
           'Margin %': pct(p.margin),
           'Returned packages': p.returned_packages,

@@ -4,6 +4,7 @@ import {
   gatedBonusEur, mexRate, MKD_PER_EUR, normAgent, plRow, productRows, profitPrevWindow, PROFIT_PREV_MAX_DAYS,
   PROFIT_PRODUCTS_MAX, PROFIT_SOURCES,
   coalesceRanges, loadProfitClocks, mergeProfitRpcs, PROFIT_CACHE_MIN_DAYS, profitPieces, refreshMonths, webmasterNames,
+  DEFAULT_VAT_RATE, vatOf, vatPerLine, vatUnclassifiedOf, buildQuality,
 } from "./insightsProfit.ts";
 import type { AggRow, CommRow, ProductRpcRow, ProfitCacheRow, ProfitRpc, ProfitSettings } from "./insightsProfit.ts";
 import type { InsightsWindow } from "./insightsCommon.ts";
@@ -13,8 +14,16 @@ const agg = (g: string, dim: string, key: string, x: Partial<AggRow>): AggRow =>
   g, dim, key, n: 0, rev: 0, card: 0, pw: 0, rc: 0, ru: 0, rn: 0, cm: 0, pc: 0, pu: 0, fr: 0, lb: 0, ...x,
 });
 
+// VAT per line (20260944000900): v05 / v18 = the value at 5 % / 18 %, vt = its VAT,
+// vc = the VAT of the costed part (rc), vu = the value with no rate (taxed at 5 %)
+const S5 = 0.05 / 1.05, S18 = 0.18 / 1.18;
+const vat = (x: { v05?: number; v18?: number; rc?: number; vu?: number }) => ({
+  v00: 0, v05: x.v05 ?? 0, v10: 0, v18: x.v18 ?? 0,
+  vt: (x.v05 ?? 0) * S5 + (x.v18 ?? 0) * S18, vc: (x.rc ?? 0) * S5, vu: x.vu ?? 0,
+});
+
 const SETTINGS: ProfitSettings = {
-  vatRate: 0.18,
+  defaultVatRate: 0.05,
   deliverEur: 2.439,   // courier_rates 'mex' = 150 ден
   returnEur: 0,
   rateSource: "courier_rates",
@@ -22,27 +31,30 @@ const SETTINGS: ProfitSettings = {
 };
 
 // A small cohort: AlterCPA fully costed, teleshop uncosted, one web sale.
+// Adenofrin (5 %, costed) for AlterCPA and ElyonCRM; Zinc / points / MEX-only with no rate
+// on file (5 %, unclassified); the web sold a cosmetic at 18 % (Collagen Face Serum).
 const COHORT: ProfitRpc = {
   clock: "cohort",
   granularity: "day",
+  vat_mode: "per_line",
   agg: [
-    agg("collected", "s", "altercpa", { n: 10, rev: 30000, pw: 10, rc: 30000, cm: 6000, pc: 30, lb: 30 }),
-    agg("collected", "s", "elyon_crm", { n: 4, rev: 10000, pw: 4, rc: 8000, ru: 2000, cm: 1600, pc: 8, pu: 2, fr: 1, lb: 10 }),
-    agg("collected", "s", "web", { n: 2, rev: 3000, card: 1000, pw: 2, ru: 3000, pu: 3 }),
-    agg("collected", "s", "teleshop_other", { n: 5, rev: 10000, pw: 5, ru: 9900, rn: 100, pu: 12, fr: 2 }),
-    agg("returned", "s", "altercpa", { n: 3, rev: 9000, pw: 3 }),
-    agg("returned", "s", "teleshop_other", { n: 1, rev: 2000, pw: 1 }),
-    agg("open", "s", "altercpa", { n: 2, rev: 6000, pw: 2 }),
-    agg("unproven", "s", "elyon_crm", { n: 1, rev: 2500, pw: 1 }),
+    agg("collected", "s", "altercpa", { n: 10, rev: 30000, pw: 10, rc: 30000, cm: 6000, pc: 30, lb: 30, ...vat({ v05: 30000, rc: 30000 }) }),
+    agg("collected", "s", "elyon_crm", { n: 4, rev: 10000, pw: 4, rc: 8000, ru: 2000, cm: 1600, pc: 8, pu: 2, fr: 1, lb: 10, ...vat({ v05: 10000, rc: 8000, vu: 2000 }) }),
+    agg("collected", "s", "web", { n: 2, rev: 3000, card: 1000, pw: 2, ru: 3000, pu: 3, ...vat({ v18: 3000 }) }),
+    agg("collected", "s", "teleshop_other", { n: 5, rev: 10000, pw: 5, ru: 9900, rn: 100, pu: 12, fr: 2, ...vat({ v05: 10000, vu: 10000 }) }),
+    agg("returned", "s", "altercpa", { n: 3, rev: 9000, pw: 3, ...vat({ v05: 9000 }) }),
+    agg("returned", "s", "teleshop_other", { n: 1, rev: 2000, pw: 1, ...vat({ v05: 2000, vu: 2000 }) }),
+    agg("open", "s", "altercpa", { n: 2, rev: 6000, pw: 2, ...vat({}) }),
+    agg("unproven", "s", "elyon_crm", { n: 1, rev: 2500, pw: 1, ...vat({}) }),
     // days (collected + returned)
-    agg("collected", "d", "2026-09-22", { n: 12, rev: 33000, pw: 12, rc: 25000, ru: 7900, rn: 100, cm: 5000, pc: 25, pu: 8, lb: 25 }),
-    agg("collected", "d", "2026-09-24", { n: 9, rev: 20000, pw: 9, rc: 13000, ru: 7000, cm: 2600, pc: 13, pu: 9, fr: 3, lb: 15 }),
-    agg("returned", "d", "2026-09-24", { n: 4, rev: 11000, pw: 4 }),
+    agg("collected", "d", "2026-09-22", { n: 12, rev: 33000, pw: 12, rc: 25000, ru: 7900, rn: 100, cm: 5000, pc: 25, pu: 8, lb: 25, ...vat({ v05: 33000, rc: 25000, vu: 8000 }) }),
+    agg("collected", "d", "2026-09-24", { n: 9, rev: 20000, pw: 9, rc: 13000, ru: 7000, cm: 2600, pc: 13, pu: 9, fr: 3, lb: 15, ...vat({ v05: 17000, v18: 3000, rc: 13000, vu: 4000 }) }),
+    agg("returned", "d", "2026-09-24", { n: 4, rev: 11000, pw: 4, ...vat({ v05: 11000, vu: 2000 }) }),
     // AlterCPA webmasters (Σ collected = the AlterCPA row)
-    agg("collected", "w", "3221", { n: 7, rev: 21000, pw: 7, rc: 21000, cm: 4200, pc: 21, lb: 21 }),
-    agg("collected", "w", "__none__", { n: 3, rev: 9000, pw: 3, rc: 9000, cm: 1800, pc: 9, lb: 9 }),
-    agg("returned", "w", "3221", { n: 3, rev: 9000, pw: 3 }),
-    agg("open", "w", "3221", { n: 2, rev: 6000, pw: 2 }),
+    agg("collected", "w", "3221", { n: 7, rev: 21000, pw: 7, rc: 21000, cm: 4200, pc: 21, lb: 21, ...vat({ v05: 21000, rc: 21000 }) }),
+    agg("collected", "w", "__none__", { n: 3, rev: 9000, pw: 3, rc: 9000, cm: 1800, pc: 9, lb: 9, ...vat({ v05: 9000, rc: 9000 }) }),
+    agg("returned", "w", "3221", { n: 3, rev: 9000, pw: 3, ...vat({ v05: 9000 }) }),
+    agg("open", "w", "3221", { n: 2, rev: 6000, pw: 2, ...vat({}) }),
   ],
   comm: [
     // AlterCPA: 30 € ungated, of which 20 € owned by an agent ("Ана Петрова М." folds to her)
@@ -66,14 +78,14 @@ const COHORT: ProfitRpc = {
     { s: "teleshop_other", b: "paid", n: 5, v: 10000, c: 10000, no: 2, nw: 0, nm: 3 },
   ],
   products: [
-    { s: "altercpa", g: "collected", k: "p:a", name: "Adenofrin", kind: "product", reviewed: false, pkg: true, cost_eur: 2.93, n: 10, qty: 30, pkgs: 30, fr: 0, rev: 30000, cm: 5404.95, sh: 10, lb: 30 },
-    { s: "elyon_crm", g: "collected", k: "p:a", name: "Adenofrin", kind: "product", reviewed: false, pkg: true, cost_eur: 2.93, n: 3, qty: 8, pkgs: 8, fr: 1, rev: 8000, cm: 1441.56, sh: 3, lb: 8 },
-    { s: "elyon_crm", g: "collected", k: "n:zinc", name: "Zinc", kind: "product", reviewed: false, pkg: true, cost_eur: null, n: 1, qty: 2, pkgs: 2, fr: 0, rev: 2000, cm: 0, sh: 1, lb: 2 },
-    { s: "teleshop_other", g: "collected", k: "n:zinc", name: "Zinc", kind: "product", reviewed: false, pkg: true, cost_eur: null, n: 2, qty: 12, pkgs: 12, fr: 2, rev: 5900, cm: 0, sh: 2, lb: 0 },
-    { s: "teleshop_other", g: "collected", k: "n:поен-150", name: "ПОЕН-150", kind: "loyalty_point", reviewed: false, pkg: false, cost_eur: null, n: 2, qty: 2, pkgs: 0, fr: 0, rev: 100, cm: 0, sh: 0, lb: 0 },
-    { s: "teleshop_other", g: "collected", k: "__mex_only__", name: null, kind: "unknown", reviewed: false, pkg: false, cost_eur: null, n: 3, qty: 0, pkgs: 0, fr: 0, rev: 4000, cm: 0, sh: 3, lb: 0 },
-    { s: "web", g: "collected", k: "n:collagen", name: "Collagen", kind: "product", reviewed: false, pkg: true, cost_eur: null, n: 2, qty: 3, pkgs: 3, fr: 0, rev: 3000, cm: 0, sh: 2, lb: 0 },
-    { s: "altercpa", g: "returned", k: "p:a", name: "Adenofrin", kind: "product", reviewed: false, pkg: true, cost_eur: 2.93, n: 3, qty: 9, pkgs: 9, fr: 0, rev: 9000, cm: 0, sh: 3, lb: 0 },
+    { s: "altercpa", g: "collected", k: "p:a", name: "Adenofrin", kind: "product", reviewed: false, pkg: true, cost_eur: 2.93, n: 10, qty: 30, pkgs: 30, fr: 0, rev: 30000, cm: 5404.95, sh: 10, lb: 30, vt: 30000 * S5, vr: 0.05, vd: false },
+    { s: "elyon_crm", g: "collected", k: "p:a", name: "Adenofrin", kind: "product", reviewed: false, pkg: true, cost_eur: 2.93, n: 3, qty: 8, pkgs: 8, fr: 1, rev: 8000, cm: 1441.56, sh: 3, lb: 8, vt: 8000 * S5, vr: 0.05, vd: false },
+    { s: "elyon_crm", g: "collected", k: "n:zinc", name: "Zinc", kind: "product", reviewed: false, pkg: true, cost_eur: null, n: 1, qty: 2, pkgs: 2, fr: 0, rev: 2000, cm: 0, sh: 1, lb: 2, vt: 2000 * S5, vr: 0.05, vd: true },
+    { s: "teleshop_other", g: "collected", k: "n:zinc", name: "Zinc", kind: "product", reviewed: false, pkg: true, cost_eur: null, n: 2, qty: 12, pkgs: 12, fr: 2, rev: 5900, cm: 0, sh: 2, lb: 0, vt: 5900 * S5, vr: 0.05, vd: true },
+    { s: "teleshop_other", g: "collected", k: "n:поен-150", name: "ПОЕН-150", kind: "loyalty_point", reviewed: false, pkg: false, cost_eur: null, n: 2, qty: 2, pkgs: 0, fr: 0, rev: 100, cm: 0, sh: 0, lb: 0, vt: 100 * S5, vr: 0.05, vd: true },
+    { s: "teleshop_other", g: "collected", k: "__mex_only__", name: null, kind: "unknown", reviewed: false, pkg: false, cost_eur: null, n: 3, qty: 0, pkgs: 0, fr: 0, rev: 4000, cm: 0, sh: 3, lb: 0, vt: 4000 * S5, vr: 0.05, vd: true },
+    { s: "web", g: "collected", k: "p:c", name: "Collagen Face Serum", kind: "product", reviewed: false, pkg: true, cost_eur: null, n: 2, qty: 3, pkgs: 3, fr: 0, rev: 3000, cm: 0, sh: 2, lb: 0, vt: 3000 * S18, vr: 0.18, vd: false },
+    { s: "altercpa", g: "returned", k: "p:a", name: "Adenofrin", kind: "product", reviewed: false, pkg: true, cost_eur: 2.93, n: 3, qty: 9, pkgs: 9, fr: 0, rev: 9000, cm: 0, sh: 3, lb: 0, vt: 9000 * S5, vr: 0.05, vd: false },
   ],
   hist: [
     { s: "altercpa", u: 1000, q: 30, v: 30000 },
@@ -88,11 +100,12 @@ const COHORT: ProfitRpc = {
 const CASH: ProfitRpc = {
   clock: "cash",
   granularity: "day",
+  vat_mode: "per_line",
   agg: [
-    agg("collected", "s", "altercpa", { n: 12, rev: 36000, pw: 12, rc: 36000, cm: 7200, pc: 36, lb: 36 }),
-    agg("collected", "s", "web", { n: 3, rev: 4000, card: 1000, pw: 3, ru: 4000, pu: 4 }),
-    agg("collected", "d", "2026-09-22", { n: 15, rev: 40000, pw: 15, rc: 36000, ru: 4000, cm: 7200, pc: 36, pu: 4, lb: 36 }),
-    agg("collected", "w", "3221", { n: 12, rev: 36000, pw: 12, rc: 36000, cm: 7200, pc: 36, lb: 36 }),
+    agg("collected", "s", "altercpa", { n: 12, rev: 36000, pw: 12, rc: 36000, cm: 7200, pc: 36, lb: 36, ...vat({ v05: 36000, rc: 36000 }) }),
+    agg("collected", "s", "web", { n: 3, rev: 4000, card: 1000, pw: 3, ru: 4000, pu: 4, ...vat({ v05: 1000, v18: 3000, vu: 1000 }) }),
+    agg("collected", "d", "2026-09-22", { n: 15, rev: 40000, pw: 15, rc: 36000, ru: 4000, cm: 7200, pc: 36, pu: 4, lb: 36, ...vat({ v05: 37000, v18: 3000, rc: 36000, vu: 1000 }) }),
+    agg("collected", "w", "3221", { n: 12, rev: 36000, pw: 12, rc: 36000, cm: 7200, pc: 36, lb: 36, ...vat({ v05: 36000, rc: 36000 }) }),
   ],
   comm: [{ dim: "s", key: "altercpa", o: "Марко", b: 36, n: 12 }],
   wm_names: { "3221": "Fomikch" },
@@ -129,11 +142,19 @@ describe("today's commission gate (twins of /management-insights)", () => {
 });
 
 describe("the P&L row", () => {
-  it("revenue − VAT − COGS (known + estimated) − courier − returns − commission − lead = net", () => {
-    const m = { n: 10, rev: 30000, card: 0, pw: 10, rc: 20000, ru: 10000, rn: 0, cm: 4000, pc: 20, pu: 10, fr: 0, lb: 30 };
-    const r = plRow({ key: "x", m, commissionEur: 20, returnedParcels: 3, returnedSales: 3, returnedValue: 9000, costRatio: 0.2 }, SETTINGS);
-    const vat = 30000 * 0.18 / 1.18;
+  it("revenue − VAT (per line) − COGS (known + estimated) − courier − returns − commission − lead = net", () => {
+    // 24.000 of supplements at 5 % (20.000 costed), 6.000 of a cosmetic at 18 %, 1.000 with no rate
+    const m = { n: 10, rev: 30000, card: 0, pw: 10, rc: 20000, ru: 10000, rn: 0, cm: 4000, pc: 20, pu: 10, fr: 0, lb: 30,
+      v00: 0, v05: 24000, v10: 0, v18: 6000, vt: 24000 * S5 + 6000 * S18, vc: 20000 * S5, vu: 1000 };
+    const r = plRow({ key: "x", m, perLine: true, commissionEur: 20, returnedParcels: 3, returnedSales: 3, returnedValue: 9000, costRatio: 0.2 }, SETTINGS);
+    const vat = 24000 * S5 + 6000 * S18;
     expect(r.vat_mkd).toBe(Math.round(vat));
+    expect(r.vat_costed_mkd).toBe(Math.round(20000 * S5));
+    expect(r.vat_split).toEqual([
+      { rate: 0.05, revenue_mkd: 24000, vat_mkd: Math.round(24000 * S5) },
+      { rate: 0.18, revenue_mkd: 6000, vat_mkd: Math.round(6000 * S18) },
+    ]);
+    expect(r.vat_unclassified).toEqual({ revenue_mkd: 1000, vat_mkd: Math.round(1000 * S5) });
     expect(r.courier_mkd).toBe(10 * 150);
     expect(r.returns_mkd).toBe(0);
     expect(r.commission_mkd).toBe(Math.round(20 * MKD_PER_EUR));
@@ -149,13 +170,25 @@ describe("the P&L row", () => {
     expect(r.profit_per_sale_mkd).toBe(Math.round(net / 10));
     // the costed packages alone: their revenue, their cost, the rest by revenue share
     const sigma = 20000 / 30000;
-    const costed = 20000 - 20000 * 0.18 / 1.18 - 4000 - sigma * (1500 + 20 * 61.5);
+    const costed = 20000 - 20000 * S5 - 4000 - sigma * (1500 + 20 * 61.5);
     expect(r.costed.net_mkd).toBe(Math.round(costed));
   });
 
+  it("an older insights_profit() body (no VAT per line): every line at the default rate, all of it unclassified", () => {
+    const m = { n: 2, rev: 2100, card: 0, pw: 2, rc: 1050, ru: 1050, rn: 0, cm: 100, pc: 1, pu: 1, fr: 0, lb: 2,
+      v00: 0, v05: 0, v10: 0, v18: 0, vt: 0, vc: 0, vu: 0 };
+    const r = plRow({ key: "x", m, perLine: false, commissionEur: 0, returnedParcels: 0, returnedSales: 0, returnedValue: 0, costRatio: null }, SETTINGS);
+    expect(r.vat_mkd).toBe(100);                                  // 2.100 × 5/105
+    expect(r.vat_costed_mkd).toBe(50);
+    expect(r.vat_split).toEqual([{ rate: 0.05, revenue_mkd: 2100, vat_mkd: 100 }]);
+    expect(r.vat_unclassified).toEqual({ revenue_mkd: 2100, vat_mkd: 100 });
+    expect(vatOf({ ...m, rev: 0 }, false, 0.05).split).toEqual([]);
+  });
+
   it("with nothing costed the estimate is null (never a made-up cost)", () => {
-    const m = { n: 1, rev: 1000, card: 0, pw: 1, rc: 0, ru: 1000, rn: 0, cm: 0, pc: 0, pu: 2, fr: 0, lb: 0 };
-    const r = plRow({ key: "x", m, commissionEur: 0, returnedParcels: 0, returnedSales: 0, returnedValue: 0, costRatio: null }, SETTINGS);
+    const m = { n: 1, rev: 1000, card: 0, pw: 1, rc: 0, ru: 1000, rn: 0, cm: 0, pc: 0, pu: 2, fr: 0, lb: 0,
+      v00: 0, v05: 1000, v10: 0, v18: 0, vt: 1000 * S5, vc: 0, vu: 0 };
+    const r = plRow({ key: "x", m, perLine: true, commissionEur: 0, returnedParcels: 0, returnedSales: 0, returnedValue: 0, costRatio: null }, SETTINGS);
     expect(r.cogs_est_mkd).toBeNull();
     expect(r.net_mkd).toBe(r.net_upper_mkd);
     expect(r.coverage_packages).toBe(0);
@@ -386,7 +419,8 @@ describe("the response", () => {
   it("meta says what every figure rests on", () => {
     expect(r.meta).toMatchObject({
       from: "2026-09-22", to: "2026-09-28", money: true, granularity: "day", prev_from: "2026-09-15", prev_skipped: false,
-      vat: { rate: 0.18, confirmed: true }, courier: { deliver_mkd: 150, return_mkd: 0, source: "courier_rates" },
+      vat: { mode: "per_product_sigma", default_rate: 0.05, rate: 0.05, confirmed: true, source: "sigma" },
+      courier: { deliver_mkd: 150, return_mkd: 0, source: "courier_rates" },
       lead_cost: { configured: false },
     });
   });
@@ -400,7 +434,8 @@ describe("the response", () => {
     expect(Object.keys(r.realized)).toEqual(["all", ...PROFIT_SOURCES]);
     const kinds = r.quality.map((q: { kind: string }) => q.kind);
     expect(kinds).toEqual(expect.arrayContaining(["uncosted_packages", "unproven_paid", "lead_cost_missing", "return_fee_unconfirmed"]));
-    expect(kinds).not.toContain("vat_unconfirmed"); // owner confirmed 18 % on 28.09
+    expect(kinds).toContain("vat_unclassified");       // per product from Sigma since 01.10
+    expect(kinds).not.toContain("vat_flat_default");
     const unc = r.quality.find((q: { kind: string }) => q.kind === "uncosted_packages");
     expect(unc.count).toBe(17);
     expect(unc.top[0].key).toBe("n:zinc");
@@ -415,6 +450,84 @@ describe("the response", () => {
       }
     };
     walk(r, "r");
+  });
+});
+
+describe("VAT per product from Sigma (owner 01.10.2026, migration 20260944000900)", () => {
+  const c = buildClock(COHORT, null, SETTINGS);
+  const { rows } = productRows(COHORT, SETTINGS, costRatioOf(COHORT.agg));
+
+  it("the VAT line is Σ per line at each product's rate — not revenue × 18/118", () => {
+    const expected = 50000 * S5 + 3000 * S18;   // 50.000 ден of supplements + 3.000 of a cosmetic
+    expect(c.total.vat_mkd).toBe(Math.round(expected));
+    expect(c.total.vat_mkd).not.toBe(Math.round(53000 * 0.18 / 1.18));
+    expect(c.total.vat_split).toEqual([
+      { rate: 0.05, revenue_mkd: 50000, vat_mkd: Math.round(50000 * S5) },
+      { rate: 0.18, revenue_mkd: 3000, vat_mkd: Math.round(3000 * S18) },
+    ]);
+    // the web column carries the cosmetic at 18 %
+    expect(c.by_source.find((r) => r.key === "web")!.vat_mkd).toBe(Math.round(3000 * S18));
+    // Σ products = the VAT line
+    expect(Math.abs(rows.reduce((t, p) => t + p.vat_mkd, 0) - c.total.vat_mkd)).toBeLessThanOrEqual(rows.length);
+  });
+
+  it("each product carries its rate; what has no rate is unclassified at 5 %, never silent", () => {
+    const aden = rows.find((p) => p.key === "p:a")!;
+    expect(aden).toMatchObject({ vat_rate: 0.05, vat_classified: true, vat_mkd: Math.round(38000 * S5) });
+    expect(rows.find((p) => p.key === "p:c")).toMatchObject({ vat_rate: 0.18, vat_classified: true, vat_mkd: Math.round(3000 * S18) });
+    for (const k of ["n:zinc", "__mex_only__", "n:поен-150"]) {
+      expect(rows.find((p) => p.key === k)).toMatchObject({ vat_rate: DEFAULT_VAT_RATE, vat_classified: false });
+    }
+    expect(c.total.vat_unclassified).toEqual({ revenue_mkd: 12000, vat_mkd: Math.round(12000 * S5) });
+    expect(vatUnclassifiedOf(COHORT)).toEqual({
+      revenue_mkd: 12000, vat_mkd: Math.round(12000 * S5),
+      mex_only_mkd: 4000, no_lines_mkd: 0, unmatched_mkd: 8000, no_rate_mkd: 0, products: 3,
+    });
+  });
+
+  it("the meta says how VAT was computed, by rate and what was unclassified", () => {
+    const r = buildProfitResponse({ cohort: COHORT, cash: CASH }, WEEK, SETTINGS, new Date("2026-09-28T08:00:00Z")) as Record<string, any>;
+    expect(r.meta.vat.by_rate.cohort).toEqual({
+      "0.05": { revenue_mkd: 50000, vat_mkd: Math.round(50000 * S5) },
+      "0.18": { revenue_mkd: 3000, vat_mkd: Math.round(3000 * S18) },
+    });
+    expect(r.meta.vat.by_rate.cash["0.18"]).toEqual({ revenue_mkd: 3000, vat_mkd: Math.round(3000 * S18) });
+    expect(r.meta.vat.unclassified.cohort.mex_only_mkd).toBe(4000);
+    expect(r.meta.vat.unclassified.cash).toEqual({ revenue_mkd: 1000, vat_mkd: Math.round(1000 * S5) });
+    expect(r.meta.vat.effective_rate.cohort).toBeCloseTo(r.cohort.total.vat_mkd / (53000 - r.cohort.total.vat_mkd), 10);
+    const q = r.quality.find((x: { kind: string }) => x.kind === "vat_unclassified");
+    expect(q).toMatchObject({ count: 3, value_mkd: 12000 });
+    expect(q.top[0].key).toBe("n:zinc");
+  });
+
+  it("an older body (no vat_mode) answers at the flat default, labelled, never 18 %", () => {
+    const old = (r: ProfitRpc): ProfitRpc => {
+      const { vat_mode: _drop, ...rest } = r;
+      return { ...rest, agg: r.agg!.map(({ vt: _a, vc: _b, vu: _c, v00: _d, v05: _e, v10: _f, v18: _g, ...a }) => a) };
+    };
+    expect(vatPerLine(old(COHORT))).toBe(false);
+    const r = buildProfitResponse({ cohort: old(COHORT), cash: old(CASH) }, WEEK, SETTINGS, new Date("2026-09-28T08:00:00Z")) as Record<string, any>;
+    expect(r.meta.vat.mode).toBe("flat_default");
+    expect(r.cohort.total.vat_mkd).toBe(Math.round(53000 * S5));
+    expect(r.cohort.total.vat_unclassified.revenue_mkd).toBe(53000);
+    expect(r.quality.map((x: { kind: string }) => x.kind)).toContain("vat_flat_default");
+    expect(r.meta.vat.unclassified.cohort).toBeNull();
+  });
+
+  it("a merge is per line only when every piece is", () => {
+    expect(mergeProfitRpcs([COHORT, COHORT], "cohort", "day").vat_mode).toBe("per_line");
+    const { vat_mode: _x, ...older } = COHORT;
+    expect(mergeProfitRpcs([COHORT, older], "cohort", "day").vat_mode).toBeUndefined();
+    const m = mergeProfitRpcs([COHORT, COHORT], "cohort", "day");
+    const alter = m.agg!.find((a) => a.g === "collected" && a.dim === "s" && a.key === "altercpa")!;
+    expect(alter.vt).toBeCloseTo(2 * 30000 * S5, 9);
+    expect(m.products!.find((p) => p.k === "p:c" && p.g === "collected")).toMatchObject({ vr: 0.18, vd: false });
+  });
+
+  it("the quality rail lists the unclassified products (biggest first)", () => {
+    const q = buildQuality(COHORT, c, rows, SETTINGS).find((x) => x.kind === "vat_unclassified")!;
+    expect(q.top!.map((p) => p.key)).toEqual(["n:zinc", "__mex_only__", "n:поен-150"]);
+    expect(q.share).toBeCloseTo(12000 / 53000, 10);
   });
 });
 
@@ -457,7 +570,9 @@ describe("the monthly cache: pieces", () => {
  *  split of a window must add up to the whole. */
 function dayPayload(clock: "cohort" | "cash", day: string, month: string): ProfitRpc {
   const d = Number(day.slice(8, 10));
-  const m = { n: 1, rev: 1000 + d, card: 0, pw: 1, rc: 600, ru: 400 + d, rn: 0, cm: 120.5, pc: 2, pu: 1, fr: 0, lb: 2 };
+  const m = { n: 1, rev: 1000 + d, card: 0, pw: 1, rc: 600, ru: 400 + d, rn: 0, cm: 120.5, pc: 2, pu: 1, fr: 0, lb: 2,
+    // VAT in binary-exact amounts (the SQL rounds to 9 decimals; float noise is not the point here)
+    v00: 0, v05: 1000, v10: 0, v18: d, vt: 48 + d / 4, vc: 28.5, vu: d % 5 === 0 ? 400 : 0 };
   const aggRows: AggRow[] = [
     { g: "collected", dim: "s", key: "altercpa", ...m },
     { g: "collected", dim: "d", key: month, ...m },
@@ -465,14 +580,14 @@ function dayPayload(clock: "cohort" | "cash", day: string, month: string): Profi
     { g: "returned", dim: "s", key: "altercpa", ...m, n: 0, rev: 0, pw: d % 3 === 0 ? 1 : 0 },
   ];
   const base: ProfitRpc = {
-    clock, granularity: "month", agg: aggRows, wm_names: { "3221": "Fomikch" },
+    clock, granularity: "month", vat_mode: "per_line", agg: aggRows, wm_names: { "3221": "Fomikch" },
     comm: [{ dim: "s", key: "altercpa", o: d % 2 ? "Ана Петрова" : null, b: 2, n: 1 }, { dim: "d", key: month, o: "Ана Петрова", b: 2, n: 1 }],
   };
   if (clock === "cohort") {
     base.strip = [{ s: "altercpa", b: "paid", n: 1, v: 1000 + d, c: 1000 + d, no: 1, nw: 0, nm: 0 }];
     base.products = [
-      { s: "altercpa", g: "collected", k: "p:a", name: d % 2 ? "Adenofrin" : "ADENOFRIN", kind: "product", reviewed: false, pkg: true, cost_eur: 2.93, n: 1, qty: 2, pkgs: 2, fr: 0, rev: 600, cm: 120.5, sh: 0.25 + d / 1000, lb: 2 },
-      { s: "altercpa", g: "collected", k: "n:x", name: "X", kind: "product", reviewed: false, pkg: true, cost_eur: null, n: 1, qty: 1, pkgs: 1, fr: 0, rev: 400 + d, cm: 0, sh: 0.75 - d / 1000, lb: 0 },
+      { s: "altercpa", g: "collected", k: "p:a", name: d % 2 ? "Adenofrin" : "ADENOFRIN", kind: "product", reviewed: false, pkg: true, cost_eur: 2.93, n: 1, qty: 2, pkgs: 2, fr: 0, rev: 600, cm: 120.5, sh: 0.25 + d / 1000, lb: 2, vt: 28.5, vr: 0.05, vd: false },
+      { s: "altercpa", g: "collected", k: "n:x", name: "X", kind: "product", reviewed: false, pkg: true, cost_eur: null, n: 1, qty: 1, pkgs: 1, fr: 0, rev: 400 + d, cm: 0, sh: 0.75 - d / 1000, lb: 0, vt: 19.5 + d / 4, vr: 0.18, vd: d % 5 === 0 },
     ];
     base.hist = [{ s: "altercpa", u: 300, q: 2, v: 600 }];
     base.no_items = { n: 0, v: 0 };

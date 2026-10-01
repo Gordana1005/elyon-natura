@@ -1347,6 +1347,37 @@
       "partialKind": "the kind was not saved: {{error}}",
       "partialLine": "the line was not saved: {{error}}",
       "nothingChanged": "Nothing to save"
+    },
+    "colVat": "VAT",
+    "vat": {
+      "all": "All",
+      "none": "Unclassified",
+      "setFor": "VAT for {{name}}",
+      "setForN": "VAT for {{n}} products",
+      "setVat": "Set VAT",
+      "hint5": "food supplements, food",
+      "hint18": "cosmetics, gels, creams, oils, devices",
+      "hint10": "reduced rate",
+      "hint0": "exempt",
+      "clear": "Unclassified (clear)",
+      "source": "Source",
+      "src": {
+        "crosswalk": "Sigma — linked item ({{conf}})",
+        "manual": "Sigma — link corrected by hand",
+        "byName": "Sigma — by the product name",
+        "byNameMixed": "Sigma — by name; a bundle with items of both rates keeps its main product's rate",
+        "rule": "No Sigma item — by product type ({{rule}})",
+        "owner": "Set by an owner"
+      },
+      "sigmaItem": "Sigma item {{code}} · {{name}}",
+      "evidence": "Sales invoices 2025–2026 (Sigma)",
+      "evidenceYear": "{{year}} at {{pct}}: {{n}} lines",
+      "evidenceMex": "МЕКС ПОШТА invoices at {{pct}}: {{n}} lines",
+      "setAt": "Set {{date}}",
+      "savedTitle": "VAT saved",
+      "saved": "{{rate}}: {{updated}} changed, {{unchanged}} already set",
+      "note": "Every profit report uses it; a change is written to the audit log.",
+      "unclassifiedHint": "No rate — reports tax it at 5% and show it apart."
     }
   },
   "userRole": {
@@ -5606,10 +5637,10 @@
         "returns": "Returns ({{fee}} per parcel)",
         "commission": "Agent commission",
         "lead": "Lead cost",
-        "net": "Net profit"
+        "net": "Net profit",
+        "vatPerProduct": "VAT per product (Sigma)"
       },
       "chip": {
-        "vatPending": "rate awaits the accountant",
         "leadMissing": "not configured",
         "commissionRule": "current rule: per package, paid orders, agents only",
         "returnFeePending": "0 on the rate card — to confirm",
@@ -5634,7 +5665,9 @@
         "packages": "Packages",
         "packagesVal": "{{n}} · free {{free}} · {{per}}/sale",
         "coverage": "Cost coverage",
-        "note": "The columns add up to the total. Each source includes the MEX parcels with no order of its own series (their contents are unknown, so their cost is estimated)."
+        "note": "The columns add up to the total. Each source includes the MEX parcels with no order of its own series (their contents are unknown, so their cost is estimated).",
+        "vatAt": "of which at {{pct}}",
+        "vatUnclassified": "of which unclassified (at {{pct}})"
       },
       "aff": {
         "title": "Affiliate – Lead in by webmaster",
@@ -5682,7 +5715,7 @@
         "perPackage": "Per package",
         "unitCost": "Cost / package",
         "cogs": "Product cost",
-        "otherCosts": "VAT + courier + commission",
+        "otherCosts": "Courier + commission",
         "returns": "Returned",
         "noCost": "no cost price",
         "byName": "by name",
@@ -5703,7 +5736,10 @@
         "note": "≈ = estimated (no cost price). Net profit and margin use the same costs as the profit by source.",
         "showAll": "Show all {{n}}",
         "showTop": "Show the top {{n}}",
-        "setCosts": "Enter cost prices in Products →"
+        "setCosts": "Enter cost prices in Products →",
+        "vat": "VAT",
+        "vatNoRate": "no Sigma rate — at {{pct}}",
+        "vatMixed": "mixed rates"
       },
       "quality": {
         "title": "What the profit cannot vouch for yet",
@@ -5715,9 +5751,10 @@
           "unproven_paid": "Paid without MEX proof",
           "non_product_lines": "Lines read as non-products by their name",
           "orders_without_lines": "Orders without product lines",
-          "vat_unconfirmed": "VAT rate not confirmed",
           "lead_cost_missing": "Lead cost not configured",
-          "return_fee_unconfirmed": "MEX return fee not confirmed"
+          "return_fee_unconfirmed": "MEX return fee not confirmed",
+          "vat_unclassified": "Sales without a Sigma VAT rate",
+          "vat_flat_default": "Per-product VAT is not active yet"
         },
         "hint": {
           "uncosted_packages": "Their product cost is estimated. Enter the cost price in Products to make the profit exact.",
@@ -5725,9 +5762,10 @@
           "unproven_paid": "The CRM says paid, but no delivered MEX parcel proves it — left out of the profit.",
           "non_product_lines": "Loyalty points, delivery charges, notes and flyers are not counted as packages. A reviewed product alias overrides this.",
           "orders_without_lines": "Their value is carried by the order's own product.",
-          "vat_unconfirmed": "18% on every sale until the accountant confirms whether supplements fall under the 5% or 10% rate.",
           "lead_cost_missing": "Affiliate – Lead in profit is before what the leads cost: no price per lead is entered yet.",
-          "return_fee_unconfirmed": "The MEX rate card charges 0 for a return. Confirm whether MEX bills the delivery fee on returned parcels."
+          "return_fee_unconfirmed": "The MEX rate card charges 0 for a return. Confirm whether MEX bills the delivery fee on returned parcels.",
+          "vat_unclassified": "Taxed at 5% (the supplements' rate): MEX parcels with unknown contents, lines without a product, products with no rate yet. Set the rate in Products.",
+          "vat_flat_default": "The database does not return per-product rates yet, so every sale is taxed at 5%."
         }
       },
       "export": {
@@ -5743,6 +5781,13 @@
         "none": "The {{of}} closed months are computed live (not cached yet).",
         "refresh": "Refresh",
         "refreshing": "Refreshing…"
+      },
+      "vat": {
+        "part": "{{pct}}: {{vat}}",
+        "flat": "all at {{pct}} — per-product rates not loaded yet",
+        "unclassified": "unclassified {{value}} at {{pct}}",
+        "note": "VAT per product from Sigma: supplements {{low}}, cosmetics and devices {{high}}. {{value}} has no rate on file (MEX parcels without an order, lines without a product, products not classified yet) and is taxed at {{low}}.",
+        "noteAll": "VAT per product from Sigma: supplements {{low}}, cosmetics and devices {{high}}."
       }
     },
     "margins": {
@@ -5772,7 +5817,7 @@
       },
       "floor": {
         "title": "Floor price per product",
-        "help": "Floor = {{gross}} × (target {{target}} + cost + courier share + commission share), VAT included in the price.",
+        "help": "Floor = (1 + the product's VAT) × (target {{target}} + cost + courier share + commission share); VAT per product from Sigma, included in the price.",
         "realized": "Sells for / pkg",
         "vat": "VAT / pkg",
         "courier": "Courier / pkg",
@@ -5781,7 +5826,9 @@
         "floor": "Floor",
         "uplift": "vs now",
         "status": "Status",
-        "note": "A product without a cost price has no floor: enter its cost price."
+        "note": "A product without a cost price has no floor: enter its cost price.",
+        "vatAt": "at {{pct}}",
+        "vatNoRate": "no rate — {{pct}}"
       },
       "status": {
         "clears": "clears the target",
@@ -5809,7 +5856,10 @@
         "netExpected": "Expected net per order (with {{pct}}% returns)",
         "netPerPkg": "Expected net per package",
         "targetIs": "target {{v}}",
-        "needPrice": "Price needed: {{price}} ({{per}} per package)"
+        "needPrice": "Price needed: {{price}} ({{per}} per package)",
+        "vat": "Product VAT",
+        "vatFrom": "Sigma: {{pct}}",
+        "vatNone": "no rate on file: {{pct}}"
       }
     }
   },

@@ -1347,6 +1347,37 @@
       "partialKind": "lloji nuk u ruajt: {{error}}",
       "partialLine": "linja nuk u ruajt: {{error}}",
       "nothingChanged": "Nuk ka ndryshime për t’u ruajtur"
+    },
+    "colVat": "TVSH",
+    "vat": {
+      "all": "Të gjitha",
+      "none": "E paklasifikuar",
+      "setFor": "TVSH për {{name}}",
+      "setForN": "TVSH për {{n}} produkte",
+      "setVat": "Vendos TVSH",
+      "hint5": "suplemente ushqimore, ushqim",
+      "hint18": "kozmetikë, xhele, kremra, vajra, pajisje",
+      "hint10": "normë e reduktuar",
+      "hint0": "e përjashtuar",
+      "clear": "E paklasifikuar (pastro)",
+      "source": "Burimi",
+      "src": {
+        "crosswalk": "Sigma — artikull i lidhur ({{conf}})",
+        "manual": "Sigma — lidhja u korrigjua me dorë",
+        "byName": "Sigma — sipas emrit të produktit",
+        "byNameMixed": "Sigma — sipas emrit; një paketë me artikuj të dy normave merr normën e produktit kryesor",
+        "rule": "Pa artikull në Sigma — sipas llojit të produktit ({{rule}})",
+        "owner": "Vendosur nga një pronar"
+      },
+      "sigmaItem": "Artikulli në Sigma {{code}} · {{name}}",
+      "evidence": "Faturat e shitjes 2025–2026 (Sigma)",
+      "evidenceYear": "{{year}} me {{pct}}: {{n}} rreshta",
+      "evidenceMex": "Faturat e МЕКС ПОШТА me {{pct}}: {{n}} rreshta",
+      "setAt": "Vendosur {{date}}",
+      "savedTitle": "TVSH u ruajt",
+      "saved": "{{rate}}: {{updated}} u ndryshuan, {{unchanged}} ishin tashmë kështu",
+      "note": "E përdor çdo raport fitimi; ndryshimi shënohet në regjistrin e auditimit.",
+      "unclassifiedHint": "Pa normë — raportet e llogaritin me 5% dhe e tregojnë veçmas."
     }
   },
   "userRole": {
@@ -5606,10 +5637,10 @@
         "returns": "Kthimet ({{fee}} për dërgesë)",
         "commission": "Komisioni i agjentëve",
         "lead": "Kosto e lead-eve",
-        "net": "Fitimi neto"
+        "net": "Fitimi neto",
+        "vatPerProduct": "TVSH sipas produktit (Sigma)"
       },
       "chip": {
-        "vatPending": "norma pret konfirmimin e kontabilistit",
         "leadMissing": "nuk është vendosur",
         "commissionRule": "rregulli aktual: për paketë, porosi të paguara, vetëm agjentë",
         "returnFeePending": "0 në tarifat — për konfirmim",
@@ -5634,7 +5665,9 @@
         "packages": "Paketa",
         "packagesVal": "{{n}} · falas {{free}} · {{per}}/shitje",
         "coverage": "Mbulimi me çmim blerjeje",
-        "note": "Kolonat mblidhen në totalin. Çdo burim përfshin dërgesat MEX pa porosi të serisë së vet (përmbajtja e tyre nuk dihet, prandaj kosto e tyre vlerësohet)."
+        "note": "Kolonat mblidhen në totalin. Çdo burim përfshin dërgesat MEX pa porosi të serisë së vet (përmbajtja e tyre nuk dihet, prandaj kosto e tyre vlerësohet).",
+        "vatAt": "prej saj me {{pct}}",
+        "vatUnclassified": "prej saj e paklasifikuar (me {{pct}})"
       },
       "aff": {
         "title": "Affiliate – Lead in sipas uebmasterit",
@@ -5682,7 +5715,7 @@
         "perPackage": "Për paketë",
         "unitCost": "Kosto / paketë",
         "cogs": "Kosto e produktit",
-        "otherCosts": "TVSH + korrier + komision",
+        "otherCosts": "Korrier + komision",
         "returns": "Të kthyera",
         "noCost": "pa çmim blerjeje",
         "byName": "sipas emrit",
@@ -5703,7 +5736,10 @@
         "note": "≈ = e vlerësuar (pa çmim blerjeje). Fitimi neto dhe marzha përdorin të njëjtat kosto si fitimi sipas burimit.",
         "showAll": "Shfaq të gjitha {{n}}",
         "showTop": "Shfaq {{n}} e para",
-        "setCosts": "Vendosni çmimet e blerjes te Produktet →"
+        "setCosts": "Vendosni çmimet e blerjes te Produktet →",
+        "vat": "TVSH",
+        "vatNoRate": "pa normë nga Sigma — me {{pct}}",
+        "vatMixed": "norma të ndryshme"
       },
       "quality": {
         "title": "Çfarë fitimi ende nuk mund ta garantojë",
@@ -5715,9 +5751,10 @@
           "unproven_paid": "E paguar pa provë nga MEX",
           "non_product_lines": "Rreshta të njohur si jo-produkte sipas emrit",
           "orders_without_lines": "Porosi pa rreshta produktesh",
-          "vat_unconfirmed": "Norma e TVSH-së nuk është konfirmuar",
           "lead_cost_missing": "Kosto e lead-eve nuk është vendosur",
-          "return_fee_unconfirmed": "Tarifa e kthimit të MEX nuk është konfirmuar"
+          "return_fee_unconfirmed": "Tarifa e kthimit të MEX nuk është konfirmuar",
+          "vat_unclassified": "Shitje pa normë TVSH nga Sigma",
+          "vat_flat_default": "TVSH sipas produktit ende nuk është aktive"
         },
         "hint": {
           "uncosted_packages": "Kosto e tyre vlerësohet. Vendosni çmimin e blerjes te Produktet që fitimi të jetë i saktë.",
@@ -5725,9 +5762,10 @@
           "unproven_paid": "CRM thotë e paguar, por asnjë dërgesë MEX e dorëzuar nuk e provon — jashtë fitimit.",
           "non_product_lines": "Pikët e besnikërisë, tarifat e dërgesës, shënimet dhe fletushkat nuk numërohen si paketa. Një alias produkti i shqyrtuar e ndryshon këtë.",
           "orders_without_lines": "Vlera e tyre bartet nga produkti i vetë porosisë.",
-          "vat_unconfirmed": "18% për çdo shitje derisa kontabilisti të konfirmojë nëse suplementet hyjnë në normën 5% ose 10%.",
           "lead_cost_missing": "Fitimi i Affiliate – Lead in është para asaj që kushtojnë lead-et: ende nuk ka çmim për lead.",
-          "return_fee_unconfirmed": "Tarifat e MEX japin 0 për një kthim. Konfirmoni nëse MEX e faturon dërgesën për dërgesat e kthyera."
+          "return_fee_unconfirmed": "Tarifat e MEX japin 0 për një kthim. Konfirmoni nëse MEX e faturon dërgesën për dërgesat e kthyera.",
+          "vat_unclassified": "Llogariten me 5% (norma e suplementeve): dërgesa MEX me përmbajtje të panjohur, rreshta pa produkt, produkte pa normë. Vendosni normën te Produktet.",
+          "vat_flat_default": "Baza e të dhënave ende nuk kthen norma sipas produktit, prandaj çdo shitje llogaritet me 5%."
         }
       },
       "export": {
@@ -5743,6 +5781,13 @@
         "none": "Muajt e mbyllur ({{of}}) llogariten live (ende pa memorie).",
         "refresh": "Rifresko",
         "refreshing": "Po rifreskohet…"
+      },
+      "vat": {
+        "part": "{{pct}}: {{vat}}",
+        "flat": "gjithçka me {{pct}} — normat sipas produktit ende nuk janë ngarkuar",
+        "unclassified": "e paklasifikuar {{value}} me {{pct}}",
+        "note": "TVSH sipas produktit nga Sigma: suplementet {{low}}, kozmetika dhe pajisjet {{high}}. {{value}} nuk ka normë (dërgesa MEX pa porosi, rreshta pa produkt, produkte ende të paklasifikuara) dhe llogaritet me {{low}}.",
+        "noteAll": "TVSH sipas produktit nga Sigma: suplementet {{low}}, kozmetika dhe pajisjet {{high}}."
       }
     },
     "margins": {
@@ -5772,7 +5817,7 @@
       },
       "floor": {
         "title": "Çmimi minimal sipas produktit",
-        "help": "Minimumi = {{gross}} × (objektivi {{target}} + kosto + pjesa e korrierit + pjesa e komisionit), me TVSH në çmim.",
+        "help": "Minimumi = (1 + TVSH e produktit) × (objektivi {{target}} + kosto + pjesa e korrierit + pjesa e komisionit); TVSH sipas produktit nga Sigma, e përfshirë në çmim.",
         "realized": "Shitet për / pak.",
         "vat": "TVSH / pak.",
         "courier": "Korrier / pak.",
@@ -5781,7 +5826,9 @@
         "floor": "Minimumi",
         "uplift": "kundrejt tani",
         "status": "Statusi",
-        "note": "Produkti pa çmim blerjeje nuk ka minimum: vendosni çmimin e blerjes."
+        "note": "Produkti pa çmim blerjeje nuk ka minimum: vendosni çmimin e blerjes.",
+        "vatAt": "me {{pct}}",
+        "vatNoRate": "pa normë — {{pct}}"
       },
       "status": {
         "clears": "e arrin objektivin",
@@ -5809,7 +5856,10 @@
         "netExpected": "Neto e pritur për porosi (me {{pct}}% kthime)",
         "netPerPkg": "Neto e pritur për paketë",
         "targetIs": "objektivi {{v}}",
-        "needPrice": "Çmimi i nevojshëm: {{price}} ({{per}} për paketë)"
+        "needPrice": "Çmimi i nevojshëm: {{price}} ({{per}} për paketë)",
+        "vat": "TVSH e produktit",
+        "vatFrom": "Sigma: {{pct}}",
+        "vatNone": "pa normë: {{pct}}"
       }
     }
   },

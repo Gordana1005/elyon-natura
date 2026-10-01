@@ -11,6 +11,8 @@ import { kindOf, type CatalogueRow, type ProductKind } from '@/lib/products/kind
 import { useMinWidth } from '@/lib/products/useMinWidth';
 import { LineChip } from './LineChip';
 import { KindChip } from './KindChip';
+import { VatChip } from './VatChip';
+import type { VatRate } from '@/lib/products/vat';
 
 /** A row of GET /api/products/catalogue. */
 export type ProductRow = CatalogueRow;
@@ -20,6 +22,7 @@ export interface RowHandlers {
   onToggleSelect: (id: string) => void;
   onSetLine: (p: ProductRow, line: BrandLine | null) => void;
   onSetKind: (p: ProductRow, kind: ProductKind | null) => void;
+  onSetVat: (p: ProductRow, rate: VatRate | null) => void;
   onEdit: (p: ProductRow) => void;
   onToggleActive: (p: ProductRow) => void;
   onLogs: (p: ProductRow) => void;
@@ -32,6 +35,8 @@ export interface RowFlags {
   canEdit: boolean;
   /** Set lines and kinds, select rows: admins + owners. */
   canSetLine: boolean;
+  /** The VAT column (owners: the api sends the VAT columns to owners only, who also set it). */
+  showVat: boolean;
 }
 
 export interface ProductsListProps extends RowFlags {
@@ -56,8 +61,8 @@ function StatusBadge({ active }: { active: boolean }) {
 /**
  * The catalogue page (Производи 2.0): a table from xl (sticky header and first
  * column, 13 px), one card per product below it (two columns from md). Only ONE
- * of the two is mounted. Rows show the name, SKU, kind, line, sale price in
- * денари and the status — never a machine description.
+ * of the two is mounted. Rows show the name, SKU, kind, line, the VAT rate (owners
+ * only, from Sigma), sale price in денари and the status — never a machine description.
  */
 export function ProductsList(props: ProductsListProps) {
   const wide = useMinWidth(1280);
@@ -85,6 +90,7 @@ function ProductsTable(p: ProductsListProps) {
             <th scope="col" className={cn(th, 'sticky left-0 z-30 bg-card', !p.canSetLine && 'pl-3')}>{t('ordersPage.colProduct')}</th>
             <th scope="col" className={th}>{t('products.colKind')}</th>
             <th scope="col" className={th}>{t('products.colLine')}</th>
+            {p.showVat && <th scope="col" className={th}>{t('products.colVat')}</th>}
             {p.showCost && <th scope="col" className={cn(th, 'text-right')}>{t('products.colCostPrice')}</th>}
             <th scope="col" className={cn(th, 'text-right')}>{t('products.colSellingPrice')}</th>
             <th scope="col" className={th}>{t('ordersPage.colStatus')}</th>
@@ -94,7 +100,7 @@ function ProductsTable(p: ProductsListProps) {
         <tbody>
           {p.rows.map((r) => (
             <TableRow key={r.id} r={r} selected={p.selected.has(r.id)} busy={p.busyIds.has(r.id)}
-              showCost={p.showCost} canEdit={p.canEdit} canSetLine={p.canSetLine} h={p.handlers} />
+              showCost={p.showCost} canEdit={p.canEdit} canSetLine={p.canSetLine} showVat={p.showVat} h={p.handlers} />
           ))}
         </tbody>
       </table>
@@ -104,7 +110,7 @@ function ProductsTable(p: ProductsListProps) {
 
 interface RowProps extends RowFlags { r: ProductRow; selected: boolean; busy: boolean; h: RowHandlers }
 
-const TableRow = memo(function TableRow({ r, selected, busy, showCost, canEdit, canSetLine, h }: RowProps) {
+const TableRow = memo(function TableRow({ r, selected, busy, showCost, canEdit, canSetLine, showVat, h }: RowProps) {
   const { t } = useTranslation();
   return (
     <tr data-product-row className={cn('border-t hover:bg-muted/30', selected && 'bg-muted/40')}>
@@ -131,6 +137,11 @@ const TableRow = memo(function TableRow({ r, selected, busy, showCost, canEdit, 
       <td className="px-2 py-1.5">
         <LineChip line={lineOf(r)} name={r.name} editable={canSetLine} busy={busy} onPick={(l) => h.onSetLine(r, l)} />
       </td>
+      {showVat && (
+        <td className="px-2 py-1.5">
+          <VatChip p={r} editable={showVat} busy={busy} onPick={(v) => h.onSetVat(r, v)} />
+        </td>
+      )}
       {showCost && <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums text-muted-foreground">{formatMoney(r.cost_price || 0)}</td>}
       <td className="whitespace-nowrap px-2 py-1.5 text-right font-semibold tabular-nums text-primary">{formatMoney(r.price)}</td>
       <td className="px-2 py-1.5"><StatusBadge active={r.is_active} /></td>
@@ -145,13 +156,13 @@ function ProductCards(p: ProductsListProps) {
     <ul className="grid min-w-0 gap-3 md:grid-cols-2" aria-label={t('nav.products')}>
       {p.rows.map((r) => (
         <ProductCard key={r.id} r={r} selected={p.selected.has(r.id)} busy={p.busyIds.has(r.id)}
-          showCost={p.showCost} canEdit={p.canEdit} canSetLine={p.canSetLine} h={p.handlers} />
+          showCost={p.showCost} canEdit={p.canEdit} canSetLine={p.canSetLine} showVat={p.showVat} h={p.handlers} />
       ))}
     </ul>
   );
 }
 
-const ProductCard = memo(function ProductCard({ r, selected, busy, showCost, canEdit, canSetLine, h }: RowProps) {
+const ProductCard = memo(function ProductCard({ r, selected, busy, showCost, canEdit, canSetLine, showVat, h }: RowProps) {
   const { t } = useTranslation();
   const fact = 'text-[11px] font-medium uppercase tracking-wide text-muted-foreground';
   return (
@@ -173,6 +184,7 @@ const ProductCard = memo(function ProductCard({ r, selected, busy, showCost, can
       <div className="flex min-w-0 flex-wrap items-center gap-2">
         <KindChip kind={kindOf(r)} name={r.name} editable={canSetLine} busy={busy} onPick={(k) => h.onSetKind(r, k)} size="md" />
         <LineChip line={lineOf(r)} name={r.name} editable={canSetLine} busy={busy} onPick={(l) => h.onSetLine(r, l)} size="md" />
+        {showVat && <VatChip p={r} editable={showVat} busy={busy} onPick={(v) => h.onSetVat(r, v)} size="md" />}
       </div>
       <dl className="grid grid-cols-2 gap-2 border-t pt-2">
         <div className="min-w-0">

@@ -27,13 +27,26 @@ export interface Step {
   pending?: boolean;
 }
 
+// ── VAT (per product from Sigma, owner 01.10.2026 — docs/VAT.md) ─────────────
+
+/** The rate of a line with no product rate (meta.vat.default_rate; an older api: meta.vat.rate). */
+export const defaultVatRate = (meta: ProfitResponse['meta']): number => meta.vat.default_rate ?? meta.vat.rate;
+
+/** true = the VAT line is Σ per line at each product's Sigma rate. */
+export const vatPerProduct = (meta: ProfitResponse['meta']): boolean => meta.vat.mode === 'per_product_sigma';
+
+/** A product's rate for the floor price / simulator: its own, else the default. */
+export const productVatRate = (p: Pick<ProfitProduct, 'vat_rate'>, defaultRate: number): number =>
+  p.vat_rate == null ? defaultRate : p.vat_rate;
+
 /**
  * The waterfall of one P&L row. `estimated`: every package, uncosted ones at
  * the view's cost share (the headline). `costed`: the costed packages alone —
- * their revenue and known cost; courier, returns and commission allocated by
- * their share of the revenue.
+ * their revenue, their own VAT (per product) and known cost; courier, returns
+ * and commission allocated by their share of the revenue. `defaultRate` is used
+ * only when an older api sends no costed VAT.
  */
-export function waterfall(row: PLRow, basis: Basis, vatRate: number): Step[] {
+export function waterfall(row: PLRow, basis: Basis, defaultRate: number): Step[] {
   let revenue = row.revenue_mkd;
   let vat = row.vat_mkd;
   let courier = row.courier_mkd;
@@ -43,7 +56,7 @@ export function waterfall(row: PLRow, basis: Basis, vatRate: number): Step[] {
   if (basis === 'costed') {
     const sigma = row.revenue_mkd > 0 ? row.revenue_costed_mkd / row.revenue_mkd : 0;
     revenue = row.revenue_costed_mkd;
-    vat = Math.round(revenue * vatRate / (1 + vatRate));
+    vat = row.vat_costed_mkd ?? Math.round(revenue * defaultRate / (1 + defaultRate));
     courier = Math.round(courier * sigma);
     returns = Math.round(returns * sigma);
     commission = Math.round(commission * sigma);
@@ -155,9 +168,11 @@ export function floorStatus(u: UnitEconomics | null, targetMkd: number): FloorSt
 /**
  * The price per package that nets `target` денари: P − P·r/(1+r) − cost −
  * courier − commission(P) = target, i.e. P = (1+r)(target + cost + courier +
- * commission). Commission is today's tier of the resulting price (1/2/3 € per
- * package) times the share of this product's packages that earn one (γ, from
- * the P&L: most Телешоп / Affiliate – Lead in sellers are not agents). null without a cost.
+ * commission), r = THE PRODUCT'S VAT rate (Sigma: 5 % supplements, 18 %
+ * cosmetics / devices — productVatRate). Commission is today's tier of the
+ * resulting price (1/2/3 € per package) times the share of this product's
+ * packages that earn one (γ, from the P&L: most Телешоп / Affiliate – Lead in
+ * sellers are not agents). null without a cost.
  */
 export function floorPrice(cost: number | null, courier: number, target: number, vatRate: number, gamma: number): number | null {
   if (cost == null) return null;
@@ -177,7 +192,7 @@ export interface SimInput {
   deliverMkd: number;     // courier per delivered parcel (rate card)
   returnMkd: number;      // courier per returned parcel (rate card)
   returnRate: number;     // 0..1 — expected share of such orders that come back
-  vatRate: number;
+  vatRate: number;        // the product's Sigma rate (productVatRate), not a flat one
   commissionShare: number; // 0..1 of packages that earn today's bonus
   leadCostMkd: number;    // per order (0 until rates exist)
 }

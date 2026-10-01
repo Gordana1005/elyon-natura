@@ -6,7 +6,7 @@ import { AppLayout } from '@/layouts/AppLayout';
 import { apiErrorText } from '@/i18n/apiErrors';
 import { formatDate } from '@/i18n/dates';
 import {
-  apiGetInventoryLogs, apiGetProductCatalogue, apiGetSuppliers, apiSetBrandLine, apiSetProductKind, apiUpdateProduct,
+  apiGetInventoryLogs, apiGetProductCatalogue, apiGetSuppliers, apiSetBrandLine, apiSetProductKind, apiSetProductVatRate, apiUpdateProduct,
 } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/contexts/PermissionsContext';
@@ -26,6 +26,7 @@ import {
   DEFAULT_KIND_FILTER, PAGE_SIZE, applyKindChanges, byName, facetCounts, filterCatalogue, indexRows, isKindFilter,
   isStatusFilter, type KindFilter, type ProductKind, type SetKindResult, type StatusFilter,
 } from '@/lib/products/kinds';
+import { applyVatChanges, isVatFilter, ratePct, type SetVatResult, type VatFilter, type VatRate } from '@/lib/products/vat';
 import { ProductsList, type ProductRow, type RowHandlers } from '@/components/products/ProductsList';
 import { BulkBar, ProductFilters } from '@/components/products/ProductFilters';
 import { BrandLineProposal } from '@/components/products/BrandLineProposal';
@@ -57,6 +58,11 @@ type ProposalOf = 'kind' | 'line';
  *     rows → "Постави вид" / "Постави линија".
  *   Предлог (?view=proposal&of=kind|line, admins + owners) — the kind
  *     proposal and the brand-line proposal, accept one / accept all sure.
+ *   ДДВ (owners only, 01.10.2026) — each product's VAT rate from Sigma (5 % /
+ *     18 %; Некласифицирано = none yet), its source and invoice evidence on the
+ *     chip, set through the audited POST /api/products/vat-rate; a ДДВ chip row
+ *     (?vat=) and "Постави ДДВ" for a selection. The api sends the VAT columns to
+ *     owners only (vat_visible).
  *
  * Speed (the owner: "кочи"): one lean request (GET /api/products/catalogue),
  * filtering over prepared search keys in memory, the search deferred, ONE
@@ -95,6 +101,10 @@ export default function ProductsPage() {
     }, { replace: true }), [setParams]);
 
   const [products, setProducts] = useState<ProductRow[]>([]);
+  // the api sends the VAT columns to owners only and says so (vat_visible)
+  const [vatVisible, setVatVisible] = useState(false);
+  const vatParam = params.get('vat');
+  const vat: VatFilter = vatVisible && isVatFilter(vatParam) ? vatParam : 'all';
   const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading');
   const [loadError, setLoadError] = useState('');
   const [suppliers, setSuppliers] = useState<{ id: string; name: string }[]>([]);
@@ -112,7 +122,7 @@ export default function ProductsPage() {
   const fetchProducts = useCallback((first = false) => {
     if (first) setPhase('loading');
     apiGetProductCatalogue()
-      .then((data) => { setProducts([...(data?.rows ?? [])].sort(byName)); setPhase('ready'); })
+      .then((data) => { setProducts([...(data?.rows ?? [])].sort(byName)); setVatVisible(data?.vat_visible === true); setPhase('ready'); })
       .catch((err: unknown) => {
         if (first) { setLoadError(apiErrorText(err)); setPhase('error'); }
         else toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' });
@@ -126,13 +136,13 @@ export default function ProductsPage() {
 
   // Search keys are prepared once per catalogue, not per keystroke.
   const indexed = useMemo(() => indexRows(products), [products]);
-  const filters = useMemo(() => ({ kind, line, status, query: deferredQuery }), [kind, line, status, deferredQuery]);
+  const filters = useMemo(() => ({ kind, line, status, vat, query: deferredQuery }), [kind, line, status, vat, deferredQuery]);
   const rows = useMemo(() => filterCatalogue(indexed, filters), [indexed, filters]);
   const facets = useMemo(() => facetCounts(indexed, filters), [indexed, filters]);
   const page = useMemo(() => rows.slice(0, limit), [rows, limit]);
 
   // A new filter starts on the first page again.
-  useEffect(() => { setLimit(PAGE_SIZE); }, [kind, line, status, deferredQuery]);
+  useEffect(() => { setLimit(PAGE_SIZE); }, [kind, line, status, vat, deferredQuery]);
 
   // A selection only ever holds shown rows: a filter change drops the rest.
   useEffect(() => {
@@ -149,6 +159,8 @@ export default function ProductsPage() {
 
   const applyLine = useCallback((res: SetBrandLineResult) => setProducts((ps) => applyLineChanges(ps, res)), []);
   const applyKind = useCallback((res: SetKindResult) => setProducts((ps) => applyKindChanges(ps, res)), []);
+  const applyVat = useCallback((res: SetVatResult) => setProducts((ps) => applyVatChanges(ps, res)), []);
+  const vatLabel = (r: VatRate | null) => (r === null ? t('products.vat.none') : ratePct(r));
 
   const handlersRef = useRef<RowHandlers>(null as unknown as RowHandlers);
   handlersRef.current = {
@@ -173,6 +185,16 @@ export default function ProductsPage() {
         toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' });
       } finally { markBusy([p.id], false); }
     },
+    onSetVat: async (p, r) => {
+      markBusy([p.id], true);
+      try {
+        const res = await apiSetProductVatRate([p.id], r);
+        applyVat(res);
+        toast({ title: t('products.vat.savedTitle'), description: t('products.vat.saved', { rate: vatLabel(r), updated: f.int(res.updated), unchanged: f.int(res.unchanged) }) });
+      } catch (err: unknown) {
+        toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' });
+      } finally { markBusy([p.id], false); }
+    },
     onEdit: (p) => setForm({ open: true, product: p }),
     onToggleActive: async (p) => {
       try {
@@ -193,6 +215,7 @@ export default function ProductsPage() {
     onToggleSelect: (id) => handlersRef.current.onToggleSelect(id),
     onSetLine: (p, l) => handlersRef.current.onSetLine(p, l),
     onSetKind: (p, k) => handlersRef.current.onSetKind(p, k),
+    onSetVat: (p, r) => handlersRef.current.onSetVat(p, r),
     onEdit: (p) => handlersRef.current.onEdit(p),
     onToggleActive: (p) => handlersRef.current.onToggleActive(p),
     onLogs: (p) => handlersRef.current.onLogs(p),
@@ -200,7 +223,7 @@ export default function ProductsPage() {
 
   const selectShown = useCallback((on: boolean) => setSelected(on ? new Set(rows.map((r) => r.id)) : new Set()), [rows]);
 
-  const bulk = async (write: (ids: string[]) => Promise<SetBrandLineResult | SetKindResult>, apply: (r: never) => void, done: (updated: number, unchanged: number) => void) => {
+  const bulk = async (write: (ids: string[]) => Promise<SetBrandLineResult | SetKindResult | SetVatResult>, apply: (r: never) => void, done: (updated: number, unchanged: number) => void) => {
     const ids = [...selected];
     if (!ids.length) return;
     setBulkBusy(true);
@@ -225,6 +248,9 @@ export default function ProductsPage() {
     toast({ title: t('products.line.savedTitle'), description: t('products.line.saved', { line: l ? LINE_NAMES[l] : t('products.line.none'), updated: f.int(updated), unchanged: f.int(unchanged) }) }));
   const setKindBulk = (k: ProductKind | null) => bulk((ids) => apiSetProductKind(ids, k), applyKind as (r: never) => void, (updated, unchanged) =>
     toast({ title: t('products.kind.savedTitle'), description: t('products.kind.saved', { kind: kindLabel(k), updated: f.int(updated), unchanged: f.int(unchanged) }) }));
+
+  const setVatBulk = (r: VatRate | null) => bulk((ids) => apiSetProductVatRate(ids, r), applyVat as (x: never) => void, (updated, unchanged) =>
+    toast({ title: t('products.vat.savedTitle'), description: t('products.vat.saved', { rate: vatLabel(r), updated: f.int(updated), unchanged: f.int(unchanged) }) }));
 
   const tabs: { key: View; label: string }[] = [
     { key: 'list', label: t('products.tabs.list') },
@@ -287,6 +313,7 @@ export default function ProductsPage() {
               kind={kind} onKind={(k) => setParam('kind', k === DEFAULT_KIND_FILTER ? null : k)}
               line={line} onLine={(l) => setParam('line', l === 'all' ? null : l)}
               status={status} onStatus={(s) => setParam('status', s === 'active' ? null : s)}
+              showVat={vatVisible} vat={vat} onVat={(v) => setParam('vat', v === 'all' ? null : v)}
               facets={facets} shown={rows.length} total={products.length}
               canSelect={canSetLine} onSelectShown={() => selectShown(true)} f={f}
             />
@@ -297,7 +324,7 @@ export default function ProductsPage() {
             ) : (
               <div className="min-w-0 space-y-3" aria-busy={query !== deferredQuery}>
                 <ProductsList
-                  rows={page} showCost={showCost} canEdit={canEdit} canSetLine={canSetLine}
+                  rows={page} showCost={showCost} canEdit={canEdit} canSetLine={canSetLine} showVat={vatVisible}
                   selected={selected} onSelectShown={selectShown} busyIds={busyIds} handlers={handlers}
                 />
                 {rows.length > page.length && (
@@ -313,6 +340,7 @@ export default function ProductsPage() {
                 )}
                 {canSetLine && (
                   <BulkBar count={selected.size} busy={bulkBusy} onSetLine={setLineBulk} onSetKind={setKindBulk}
+                    onSetVat={vatVisible ? setVatBulk : undefined}
                     onClear={() => setSelected(new Set())} f={f} />
                 )}
               </div>

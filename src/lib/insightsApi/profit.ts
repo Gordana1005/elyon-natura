@@ -9,9 +9,11 @@
  *            collected on them; the strip ties to /insights/cohort
  *   cash   — the MEX money delivered in the period (any sale day) + card
  * Every money key is whole денари (`*_mkd`): render with formatDenari, never
- * convert again. VAT is the api's VAT_RATE (18 %, pending the accountant),
- * courier the courier_rates 'mex' row (150 ден), lead cost a wired-but-zero
- * slot, commission today's per-package rule (unchanged).
+ * convert again. VAT is PER PRODUCT from Sigma (owner 01.10.2026, docs/VAT.md):
+ * each line at its product's rate (5 % supplements, 18 % cosmetics / devices),
+ * a line with no rate at 5 % and shown apart (meta.vat); courier the
+ * courier_rates 'mex' row (150 ден), lead cost a wired-but-zero slot,
+ * commission today's per-package rule (unchanged).
  */
 import { apiFetch } from '@/lib/api';
 import type { CohortBucket, CohortOutside } from '@/components/insights/shared/cohortTypes';
@@ -20,12 +22,22 @@ import type { CohortBucket, CohortOutside } from '@/components/insights/shared/c
 export const PROFIT_SOURCES = ['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web'] as const;
 export type ProfitSourceKey = (typeof PROFIT_SOURCES)[number];
 
+/** One rate's part of the VAT line: the gross value taxed at it and its VAT. */
+export interface VatPart { rate: number; revenue_mkd: number; vat_mkd: number }
+
 export interface PLRow {
   key: string;
   sales: number;
   revenue_mkd: number;
   card_mkd: number;
+  /** Σ per line at each product's Sigma rate. */
   vat_mkd: number;
+  /** The VAT of the costed packages alone (absent from an api older than 01.10.2026). */
+  vat_costed_mkd?: number;
+  /** The VAT line by rate; Σ = vat_mkd up to rounding. */
+  vat_split?: VatPart[];
+  /** The value with no rate on file, taxed at the default rate. */
+  vat_unclassified?: { revenue_mkd: number; vat_mkd: number };
   cogs_known_mkd: number;
   /** null: nothing in the view is costed, so nothing can be estimated. */
   cogs_est_mkd: number | null;
@@ -96,6 +108,10 @@ export interface ProfitProduct {
   cogs_mkd: number;
   cogs_est_mkd: number | null;
   vat_mkd: number;
+  /** The rate used (the product's, else the default); null = "others" of mixed rates. */
+  vat_rate?: number | null;
+  /** false = no Sigma rate on file — taxed at the default, listed as unclassified. */
+  vat_classified?: boolean;
   courier_mkd: number;
   commission_mkd: number;
   commission_share: number | null;
@@ -118,7 +134,32 @@ export interface ProfitDistribution {
 
 export type ProfitQualityKind =
   | 'uncosted_packages' | 'mex_only_contents' | 'unproven_paid' | 'non_product_lines'
-  | 'orders_without_lines' | 'vat_unconfirmed' | 'lead_cost_missing' | 'return_fee_unconfirmed';
+  | 'orders_without_lines' | 'vat_unclassified' | 'vat_flat_default' | 'lead_cost_missing' | 'return_fee_unconfirmed';
+
+/** What had no rate (taxed at the default), cohort clock, by kind. */
+export interface VatUnclassified {
+  revenue_mkd: number;
+  vat_mkd: number;
+  mex_only_mkd: number;
+  no_lines_mkd: number;
+  unmatched_mkd: number;
+  no_rate_mkd: number;
+  products: number;
+}
+
+/** meta.vat (01.10.2026). An api older than that sends only {rate, confirmed}. */
+export interface ProfitVatMeta {
+  /** per_product_sigma = Σ per line at each product's Sigma rate; flat_default = everything at default_rate. */
+  mode?: 'per_product_sigma' | 'flat_default';
+  default_rate?: number;
+  /** = default_rate (kept for older clients). */
+  rate: number;
+  confirmed: boolean;
+  source?: 'sigma';
+  by_rate?: { cohort: Record<string, { revenue_mkd: number; vat_mkd: number }>; cash: Record<string, { revenue_mkd: number; vat_mkd: number }> };
+  effective_rate?: { cohort: number | null; cash: number | null };
+  unclassified?: { cohort: VatUnclassified | null; cash: { revenue_mkd: number; vat_mkd: number } };
+}
 
 export interface ProfitQuality {
   kind: ProfitQualityKind;
@@ -145,7 +186,7 @@ export interface ProfitResponse {
     generated_at: string;
     money: true;
     granularity: 'day' | 'month';
-    vat: { rate: number; confirmed: boolean };
+    vat: ProfitVatMeta;
     courier: { deliver_mkd: number; return_mkd: number; source: 'courier_rates' | 'fallback' };
     lead_cost: { configured: boolean };
     commission: { rule: string; agents: number };

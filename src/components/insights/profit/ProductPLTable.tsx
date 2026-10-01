@@ -13,7 +13,8 @@ const TOP = 20;
 
 /**
  * The product P&L (cohort clock, collected sales, all six departments, folded by
- * product key): packages (of which free), revenue, cost per package, net and
+ * product key): packages (of which free), revenue, cost per package, VAT (the
+ * product's Sigma rate under the amount; no rate on file = 5 %, said so), net and
  * margin on the same cost basis as the P&L, returns. A product without a
  * catalogue cost reads "no cost" — its net carries the labelled estimate,
  * never a clean margin. Loyalty points, delivery charges and notes are shown
@@ -67,7 +68,7 @@ export function ProductPLTable({ rows, others, total, f }: {
       </div>
 
       <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
-        <table className="w-full min-w-[900px] text-sm">
+        <table className="w-full min-w-[980px] text-sm">
           <thead>
             <tr className="border-b text-[11px] uppercase tracking-wide text-muted-foreground">
               <th scope="col" className="px-3 py-2 text-left font-medium">{t('insights.profit.prod.product')}</th>
@@ -76,6 +77,7 @@ export function ProductPLTable({ rows, others, total, f }: {
               <th scope="col" className="px-3 py-2 text-right font-medium">{t('insights.profit.prod.perPackage')}</th>
               <th scope="col" className="px-3 py-2 text-right font-medium">{t('insights.profit.prod.unitCost')}</th>
               <th scope="col" className="px-3 py-2 text-right font-medium">{t('insights.profit.prod.cogs')}</th>
+              <th scope="col" className="px-3 py-2 text-right font-medium">{t('insights.profit.prod.vat')}</th>
               <th scope="col" className="px-3 py-2 text-right font-medium">{t('insights.profit.prod.otherCosts')}</th>
               <th scope="col" className="px-3 py-2 text-right font-medium">{t('insights.profit.table.net')}</th>
               <th scope="col" className="px-3 py-2 text-right font-medium">{t('insights.profit.table.margin')}</th>
@@ -84,7 +86,7 @@ export function ProductPLTable({ rows, others, total, f }: {
           </thead>
           <tbody>
             {visible.length === 0 ? (
-              <tr><td colSpan={10} className="px-3 py-6 text-center text-muted-foreground">{t('insights.profit.prod.none')}</td></tr>
+              <tr><td colSpan={11} className="px-3 py-6 text-center text-muted-foreground">{t('insights.profit.prod.none')}</td></tr>
             ) : visible.map((p) => <Row key={p.key} p={p} name={name(p)} f={f} />)}
             {others && (all || !q) && (all || shown.length <= TOP) && <Row p={others} name={name(others)} f={f} muted />}
           </tbody>
@@ -107,7 +109,12 @@ export function ProductPLTable({ rows, others, total, f }: {
 
 function Row({ p, name, f, muted }: { p: ProfitProduct; name: string; f: InsightsFormat; muted?: boolean }) {
   const { t } = f;
-  const other = p.vat_mkd + p.courier_mkd + p.commission_mkd;
+  const other = p.courier_mkd + p.commission_mkd;
+  // VAT per product from Sigma (01.10.2026): the rate under the amount; no rate on file = the default, said so
+  const vatRateLabel = p.vat_rate === undefined ? null
+    : p.vat_rate === null ? t('insights.profit.prod.vatMixed')
+      : p.vat_classified === false ? t('insights.profit.prod.vatNoRate', { pct: f.pct(p.vat_rate, 0) })
+        : f.pct(p.vat_rate, 0);
   const nonProduct = !p.package && p.kind !== 'unknown';
   return (
     <tr className={cn('border-b last:border-0 align-top', muted && 'bg-muted/30 text-muted-foreground')}>
@@ -139,6 +146,12 @@ function Row({ p, name, f, muted }: { p: ProfitProduct; name: string; f: Insight
         {p.cost_known ? f.den(p.cogs_mkd) : p.cogs_est_mkd != null
           ? <span className="italic text-muted-foreground" title={t('insights.profit.prod.estTip')}>≈ {f.den(p.cogs_est_mkd)}</span>
           : '—'}
+      </td>
+      <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+        {f.den(p.vat_mkd)}
+        {vatRateLabel && (
+          <span className={cn('block text-[11px]', p.vat_classified === false && 'italic')} title={vatRateLabel}>{vatRateLabel}</span>
+        )}
       </td>
       <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{f.den(other)}</td>
       <td className={cn('px-3 py-2 text-right font-semibold tabular-nums', p.net_mkd < 0 && STATUS_TEXT.critical, !p.cost_known && p.package && 'font-normal italic')}>

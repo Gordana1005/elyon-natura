@@ -1,0 +1,707 @@
+﻿id,name,kind,brand_line,is_active,sku,lines_since_2025,vat_rate,vat_source,sigma_code,sigma_name,sigma_vat_id,evidence
+763d7435-0bc7-4ef9-b4a3-f543186b0874,1 DR.SLIM POWDER+2 DR.SLIM CAPS,bundle,natura_therapy,True,700085,4,0.05,sigma:crosswalk-HIGH,001225,ДР.СЛИМ 90 цпс,2,2025@5.00: 88; 2026@0.00: 1; 2026@5.00: 77; mex@0.00: 1; mex@5.00: 10
+b65a9329-0f45-402f-a9bf-b7357c1ab3db,1 АРТРОФЛЕКС КАПСУЛИ+ 1 АРТРОФЛЕКС ГЕЛ,bundle,,False,SKU-000363,0,0.05,sigma:crosswalk-HIGH,001187,АРТРОФЛЕКС 180 таблети,2,2025@5.00: 32; 2026@5.00: 2; mex@5.00: 3
+590500e2-9587-45a2-a88f-e89d9369c3fb,1 ГЛУКАТОЛ + 1 БИЛБЕРИ 90+1 ЦИНК 30,bundle,natura_therapy,False,SKU-000299,0,0.05,sigma:crosswalk-MEDIUM,001260,Глукатол 1+Билбери 60/1- 1+ Цинк 30/1-1,2,2025@5.00: 3
+6c8ae9d1-016e-4ec0-8253-8a841e5ef269,1 ГЛУТАМИН + 2 КРЕАТИН,bundle,ad_astra,True,700036,1,0.05,sigma:crosswalk-HIGH,001203,СЕТ 2 -КРЕАТИН +1 Л-ГЛУТАМИН,2,2025@5.00: 8
+1b228021-35f8-40ed-b0f7-bb6198afd8ba,1+1 WHEY ПРОТЕИН ОД ЧОКОЛАДО 500гр + ZINC 120/1 tab,bundle,ad_astra,True,SKU-000521,0,0.05,sigma:crosswalk-HIGH,001670,ZINC 120/1 tab,2,2026@5.00: 66
+7b831313-344f-4dcf-8a34-b4ec644015bc,100 % whey протеин ванила 1.2кг,product,ad_astra,False,SKU-000197,28,0.05,sigma:crosswalk-HIGH,001062,100% WHEY ВАНИЛА  1.2 КГ,2,2025@5.00: 103; 2026@5.00: 9; mex@5.00: 8
+ce455c6d-0e66-4b2e-8740-c44ec802ab14,100 % whey протеин ванила 500gr,product,ad_astra,True,001088,150,0.05,sigma:crosswalk-VERIFIED,001088,100% WHEY ВАНИЛА 500 гр,2,2025@5.00: 256; 2026@5.00: 122; mex@5.00: 12
+44b609b1-d433-4fb5-9f3a-055f3604d71f,100 % whey протеин од чоколадо 500гр 1+1 + КРЕАТИН ВО ПРАВ 200ГР,bundle,ad_astra,False,SKU-000509,0,0.05,sigma:crosswalk-HIGH,001087,100% WHEY ЧОКОЛАДО 500 гр,2,2025@5.00: 287; 2026@5.00: 142; mex@5.00: 8
+2da1de15-e62d-45cb-a795-741065b76161,100 % whey протеин чоколадо 1.2кг,product,ad_astra,False,001061,37,0.05,sigma:crosswalk-VERIFIED,001061,100% WHEY ЧОКОЛАДО 1.2 КГ,2,2025@5.00: 101; 2026@5.00: 8; mex@5.00: 8
+5957bc0d-825e-41fc-9087-02b03b5fab07,100 % whey протеин чоколадо 500gr,product,ad_astra,True,001087,177,0.05,sigma:crosswalk-VERIFIED,001087,100% WHEY ЧОКОЛАДО 500 гр,2,2025@5.00: 287; 2026@5.00: 142; mex@5.00: 8
+2ef6d4b0-095f-4771-9cf6-88969ae7410d,100% WHEY Protein (1+1) + подарок Tribulus Terrestris — со вкус на чоколадо и ванила,bundle,ad_astra,False,SKU-000348,0,0.05,sigma:crosswalk-MEDIUM,000998,100% WHEY PROTEIN-VANILA 1.5 kg,2,2026@5.00: 1; mex@5.00: 1
+a246fb90-bc7c-43da-b1b7-7cd67c81661c,100% WHEY Protein (1500g) + COLLAGEN PEPTIDES + гратис BCAA,bundle,ad_astra,False,SKU-000367,0,0.05,sigma:by-name,001088,100% WHEY ВАНИЛА 500 гр,2,2025@5.00: 256; 2026@5.00: 122; mex@5.00: 12
+373d6789-92b9-4e8a-8bf9-8ec2e6c9e174,100% WHEY Protein (2+1) + подарок — со вкус на ванила,bundle,ad_astra,False,SKU-000271,0,0.05,sigma:crosswalk-MEDIUM,000898,100% WHEY PROTEIN-VANILA 1kg,2,2026@5.00: 1
+cd19c64c-519f-434f-b8e4-deaa66c04d47,100% WHEY Protein (2+1) + подарок — со вкус на чоколадо,bundle,ad_astra,False,SKU-000259,0,0.05,sigma:crosswalk-MEDIUM,000877,100% WHEY PROTEIN-COKOLADO 1kg,2,2025@5.00: 1; 2026@5.00: 1; mex@5.00: 1
+a680711c-bacc-4899-9781-894762aa6871,100% WHEY Protein + BCAA + C 1000,bundle,ad_astra,False,SKU-000325,0,0.05,sigma:crosswalk-MEDIUM,001625,100 %WHEY без вкус 400 гр,2,no 2025–2026 sales invoice
+6ceb9d34-c904-492f-91aa-d9e11b98e60a,100% WHEY Protein + BCAA + L-Carnitine,bundle,ad_astra,False,SKU-000359,0,0.05,sigma:crosswalk-MEDIUM,000923,Л-КАРНИТИН  60 cps,2,2025@5.00: 125; 2026@5.00: 59; mex@5.00: 13
+ab019b02-cf70-44a1-bf1e-79708ce4fc24,100% WHEY Protein + BCAA + Tribulus Teresstris,bundle,ad_astra,False,SKU-000356,0,0.05,sigma:crosswalk-MEDIUM,000312,ТРИБУЛУС ТЕРЕСТРИС 30cps,2,2025@5.00: 34; 2026@5.00: 19; mex@5.00: 13
+13a117b6-77c0-4cd5-8288-1217cae6519c,100% WHEY Protein + Creatine + C 1000,bundle,ad_astra,False,SKU-000319,0,0.05,sigma:crosswalk-MEDIUM,001625,100 %WHEY без вкус 400 гр,2,no 2025–2026 sales invoice
+f56cf65b-f069-4a4f-b302-d40bd93f3664,100% WHEY Protein + Creatine + L-Carnitine,bundle,ad_astra,False,SKU-000343,0,0.05,sigma:crosswalk-MEDIUM,000953,КРЕАТИН во прав  200 гр.,2,2025@5.00: 404; 2026@5.00: 741; mex@5.00: 14
+055c042f-1e6b-489f-a321-18cbc6dd34ec,100% WHEY Protein + Creatine + Tribulus Teresstris,bundle,ad_astra,False,SKU-000337,0,0.05,sigma:crosswalk-MEDIUM,000312,ТРИБУЛУС ТЕРЕСТРИС 30cps,2,2025@5.00: 34; 2026@5.00: 19; mex@5.00: 13
+46af0e21-1941-41cf-9728-b24c0615081f,100% WHEY Protein + L- Glutamin + L- Carnitine,bundle,ad_astra,False,SKU-000389,0,0.05,sigma:crosswalk-MEDIUM,000923,Л-КАРНИТИН  60 cps,2,2025@5.00: 125; 2026@5.00: 59; mex@5.00: 13
+88fa8b43-c938-4365-8ccd-7e09ec1e4de7,100% WHEY Protein + L-Glutamine + Tribulus Teresstris,bundle,ad_astra,False,SKU-000449,0,0.05,sigma:crosswalk-MEDIUM,000312,ТРИБУЛУС ТЕРЕСТРИС 30cps,2,2025@5.00: 34; 2026@5.00: 19; mex@5.00: 13
+86d5d8a7-0cf7-4b1e-ae61-fd7acf0db415,"100% WHEY Protein, (1000g) + Tribulus Terrestis (60cps) — со вкус на ванила",bundle,ad_astra,False,SKU-000461,0,0.05,sigma:crosswalk-HIGH,000898,100% WHEY PROTEIN-VANILA 1kg,2,2026@5.00: 1
+be9d3157-f13d-4dc9-a172-c002be268ffe,"100% WHEY Protein, (1000g) + Tribulus Terrestis (60cps) — со вкус на чоколадо",bundle,ad_astra,False,SKU-000398,0,0.05,sigma:crosswalk-HIGH,000877,100% WHEY PROTEIN-COKOLADO 1kg,2,2025@5.00: 1; 2026@5.00: 1; mex@5.00: 1
+1b6b6ecc-764a-47cd-8b07-ed3119d5b53f,"100% WHEY Protein, (1200g) + CREATINE MONOHYDRATE + BCAA + L-GLUTAMIN + подарок Shaker",bundle,ad_astra,False,SKU-000386,0,0.05,sigma:by-name,001088,100% WHEY ВАНИЛА 500 гр,2,2025@5.00: 256; 2026@5.00: 122; mex@5.00: 12
+58a3e544-6db2-41d9-92d3-212944c86fb1,"100% WHEY Protein, (1200g) + CREATINE MONOHYDRATE + BCAA + LIQUID VITAMIN C + TRIBULUS TERRESTRIS + подарок Shaker",bundle,ad_astra,False,SKU-000347,0,0.05,sigma:by-name,001088,100% WHEY ВАНИЛА 500 гр,2,2025@5.00: 256; 2026@5.00: 122; mex@5.00: 12
+d822a096-b16f-44fd-b2f1-519022713c7a,"100% WHEY Protein, (1500g) + CREATINE MONOHYDRATE + BCAA + LIQUID VITAMIN C + TRIBULUS TERRESTRIS + подарок Shaker",bundle,ad_astra,False,SKU-000466,0,0.05,sigma:by-name,001088,100% WHEY ВАНИЛА 500 гр,2,2025@5.00: 256; 2026@5.00: 122; mex@5.00: 12
+bf6e391d-a9b3-4aef-9c74-e7446ae19578,"100% WHEY Protein, 1500g + BCAA + CREATINE MONOHYDRATE + Tribulus Terrestris гратис",bundle,ad_astra,False,SKU-000282,0,0.05,sigma:by-name,001088,100% WHEY ВАНИЛА 500 гр,2,2025@5.00: 256; 2026@5.00: 122; mex@5.00: 12
+014f1d2c-bd9e-402b-bc92-5b6047fcb3d3,100% WHEY ВАНИЛА 2.0 КГ,product,ad_astra,True,001318,38,0.05,sigma:crosswalk-VERIFIED,001318,100% WHEY ВАНИЛА 2000 гр,2,2025@5.00: 68; 2026@5.00: 99; mex@5.00: 4
+58058e98-07b8-40d7-af89-cd47d79e0804,100% WHEY ВАНИЛА 2.0 КГ + ПРОТЕИНСКИ СЛАДОЛЕД ВАНИЛА 200 гр,bundle,ad_astra,False,SKU-000441,0,0.05,sigma:crosswalk-HIGH,001318,100% WHEY ВАНИЛА 2000 гр,2,2025@5.00: 68; 2026@5.00: 99; mex@5.00: 4
+5d17c4d6-dd1f-41f1-8707-2d4cd4b85d9b,100% whey протеин 1 кг,product,ad_astra,False,SKU-000160,11,0.05,sigma:crosswalk-HIGH,000898,100% WHEY PROTEIN-VANILA 1kg,2,2026@5.00: 1
+cfba782a-d2d0-4d2b-bddb-daa120d4c49e,100% whey протеин 400 г,product,ad_astra,True,SKU-000100,4,0.05,sigma:crosswalk-HIGH,001625,100 %WHEY без вкус 400 гр,2,no 2025–2026 sales invoice
+f775838c-a4fc-4eb2-b83e-9728a2f4cbd5,100% WHEY ЧОКОЛАДО 2 kg + КРЕАТИН ВО ПРАВ 200ГР,bundle,ad_astra,False,SKU-000442,0,0.05,sigma:crosswalk-HIGH,001319,100% WHEY ЧОКОЛАДО 2000 гр,2,2025@5.00: 72; 2026@5.00: 154; mex@5.00: 3
+7e9b67ba-329f-4583-9b35-fac2cca41823,100% WHEY ЧОКОЛАДО 2.0 КГ,product,ad_astra,True,SKU-000163,83,0.05,sigma:crosswalk-HIGH,001319,100% WHEY ЧОКОЛАДО 2000 гр,2,2025@5.00: 72; 2026@5.00: 154; mex@5.00: 3
+25362981-2bb5-44b2-8df1-07b5f51d686b,2 COLLAGEN & COCONUT WATER 200gr + ELIXY Matcha Face Cream 50ml + ELIXY MIDNIGHT MATCHA MASK 50ml,bundle,ad_astra,False,SKU-000342,0,0.05,sigma:by-name+mixed,001113,Колаген Пептид -БЕЗ ВКУС  200 гр,2,2025@5.00: 294; 2026@5.00: 118; mex@5.00: 14
+2189a913-2b23-40e4-b5c8-91063c8c8b4c,2 COLLAGEN & COCONUT WATER 200gr + ELIXY Matcha Face Cream 50ml + ELIXY MIDNIGHT MATCHA MASK 50ml ФИЗИЧКИ,bundle,ad_astra,True,SKU-000499,0,0.05,sigma:by-name+mixed,001113,Колаген Пептид -БЕЗ ВКУС  200 гр,2,2025@5.00: 294; 2026@5.00: 118; mex@5.00: 14
+d61c745a-0181-4a06-af06-6a521d6da868,2 FIBER FORMULA + LAXATIVE FORMULA,bundle,natura_therapy,False,SKU-000422,0,0.05,sigma:crosswalk-HIGH,001339,СЕТ ЛАКСАТИВ,2,2026@5.00: 4
+0dd5f742-e048-4297-bb18-5d354388ea47,2 КРЕАТИН + 1 БЦАА,bundle,ad_astra,False,SKU-000425,0,0.05,sigma:crosswalk-HIGH,000953,КРЕАТИН во прав  200 гр.,2,2025@5.00: 404; 2026@5.00: 741; mex@5.00: 14
+7204b8b9-1a9e-4afb-b25e-ddf4bfa14559,2 ЛИВЕР ДЕТОКС + 1 ХОЛЕСТОЛ,bundle,natura_therapy,False,SKU-000331,0,0.05,sigma:crosswalk-HIGH,001158,ЛИВЕР ДЕТОКС  90/1 cps 1+1 гратис,2,2025@5.00: 2; 2026@5.00: 2
+a0a499a0-29b5-4e06-aea2-1cf85b5fde80,2 ПРОСТАТОЛ + 2 ДИАБЕТОЛ,bundle,natura_therapy,True,SKU-000480,0,0.05,sigma:by-name,000265,ПРОСТАТОЛ КОМПЛЕКС cps 30,2,2025@5.00: 513; 2026@5.00: 329; mex@5.00: 19
+2c5a4d59-eda2-42e6-921e-97010a10180d,2 СНАИЛ + 2 КУРКУМАКТИВ,bundle,natura_therapy,False,SKU-000358,0,0.05,sigma:crosswalk-MEDIUM,000637,КУРКУМАКТИВ 500ml,2,2025@5.00: 246; 2026@5.00: 264; mex@5.00: 18
+f10a2c9e-e3e6-4f31-bc7d-0b191cdff2d5,2 СНАИЛ + 2 КУРКУМАКТИВ + VITAMIN D3 120/1,bundle,natura_therapy,True,SKU-000494,0,0.05,sigma:crosswalk-HIGH,001661,VITAMIN D3 120/1 tab,2,2026@5.00: 73
+2840a614-20a4-4dcd-8df4-d9e8051e06db,2 СНАИЛ + 2 КУРКУМАКТИВ + ZINC 120/1,bundle,natura_therapy,True,SKU-000495,0,0.05,sigma:crosswalk-HIGH,001670,ZINC 120/1 tab,2,2026@5.00: 66
+89e9c66a-3038-4cc5-8bf1-b75fd884b613,2 СНАИЛ + 2 ПРОСТАТОЛ + VITAMIN D3 120/1 tab,bundle,natura_therapy,True,SKU-000479,0,0.05,sigma:crosswalk-HIGH,001661,VITAMIN D3 120/1 tab,2,2026@5.00: 73
+1d64e89b-f187-4f91-b433-97022ecf6b8f,2+1 АЛОЕ ВЕРА ГЕЛ-РЕСВЕРА.1Л,bundle,,True,SKU-000488,0,0.05,sigma:crosswalk-HIGH,000090,АЛОЕ ВЕРА ГЕЛ-РЕСВЕРА.1Л-сет 2+1,2,2025@5.00: 7
+cdad0a01-9451-4a2f-ac55-fb2eab0e251e,2+1 БРАИН АКТИВ + VITAMIN D3 120/1 tab,bundle,natura_therapy,True,SKU-000490,0,0.05,sigma:crosswalk-HIGH,001661,VITAMIN D3 120/1 tab,2,2026@5.00: 73
+f3303545-5dca-4c1f-a64e-a0bb1eb79384,2+1 БРАИН АКТИВ + ZINC 120/1 tab,bundle,natura_therapy,True,SKU-000438,0,0.05,sigma:crosswalk-HIGH,001670,ZINC 120/1 tab,2,2026@5.00: 66
+9e714626-70b3-480b-a64c-eb1ab121c5d0,2+1 КУРКУМАКТИВ 500мл + MAGNESIUM GEL 50ml,bundle,,True,SKU-000545,0,0.05,sigma:crosswalk-HIGH,000650,КУРКУМАКТИВ 500ml-сет2+1,2,2025@5.00: 125; 2026@5.00: 71
+4bc428ee-bfc1-4ffa-a8f6-83b449a1a495,2+1 ПРОСТАТОЛ + ЦИНК 30cps,bundle,natura_therapy,True,SKU-000500,0,0.05,sigma:crosswalk-HIGH,000940,ЦИНК 30 tbl,2,2025@5.00: 221; 2026@0.00: 2; 2026@5.00: 440; mex@0.00: 2; mex@5.00: 15
+53177ffb-5852-4066-98b8-1174b49ba816,2+1 СНАИЛ КОМПЛЕКС + VITAMIN D3 120/1 tab,bundle,natura_therapy,True,SKU-000491,0,0.05,sigma:crosswalk-HIGH,001661,VITAMIN D3 120/1 tab,2,2026@5.00: 73
+95b5842c-8991-4419-8ddd-21162a6984d9,2+2 Gastro Protect & Aloe + подарок Glucosamin Sulfat,bundle,natura_therapy,False,SKU-000306,0,0.05,sigma:crosswalk-HIGH,000595,Гастро протект+Гастро Алое 2+2,2,2025@5.00: 85; 2026@5.00: 20
+61774769-8c1f-44d8-804c-ab2a41a1c526,2+2 БРОНХО ПРОТЕКТ 500ml + VITAMIN D3 120/1,bundle,natura_therapy,True,SKU-000492,0,0.05,sigma:crosswalk-HIGH,000552,БРОНХО ПРОТЕКТ 500ml (сет 2+2),2,no 2025–2026 sales invoice
+d4abf6fb-ffff-4613-a9b9-bdc538704d83,2+2 БРОНХО ПРОТЕКТ 500ml + ZINC 120/1,bundle,natura_therapy,True,SKU-000493,0,0.05,sigma:crosswalk-HIGH,000552,БРОНХО ПРОТЕКТ 500ml (сет 2+2),2,no 2025–2026 sales invoice
+b0549de4-093f-4e08-840b-ede72939d5f9,2+2 ДИАБЕТОЛ + ZINC 120/1,bundle,natura_therapy,True,SKU-000432,0,0.05,sigma:crosswalk-HIGH,000600,ДИАБЕТОЛ сет 2+2,2,no 2025–2026 sales invoice
+7a343717-8efe-4225-a407-7e4e562f6d67,2+2 ПРОСТАТОЛ + VITAMIN D3 120/1,bundle,natura_therapy,True,SKU-000478,0,0.05,sigma:crosswalk-HIGH,001661,VITAMIN D3 120/1 tab,2,2026@5.00: 73
+3ac70fb9-62da-42d2-997b-ea92e989efe5,2+2 СНАИЛ + MELATONIN 1mg 120/1 tab,bundle,natura_therapy,True,SKU-000489,0,0.05,sigma:crosswalk-HIGH,001662,MELATONIN 1mg 120/1 tab,2,2026@5.00: 48
+be0c8b86-9734-4dbc-b2c4-14fdc01f83e7,2+2 СНАИЛ + ZINC 120/1 tab,bundle,natura_therapy,True,SKU-000444,0,0.05,sigma:crosswalk-HIGH,001670,ZINC 120/1 tab,2,2026@5.00: 66
+51f1258b-be25-4556-9c78-2511d32e0b7e,2+2 СНАИЛ КОМПЛЕКС + VITAMIN D3 120/1 tab,bundle,natura_therapy,True,SKU-000366,0,0.05,sigma:crosswalk-HIGH,000611,СНАИЛ КОМПЛЕКС сет 2+2,2,no 2025–2026 sales invoice
+935a14dc-1510-49ba-8107-78843343360c,2x 100% WHEY Protein 1500g + BCAA + CREATINE MONOHYDRATE + гратис L-GLUTAMINE + 2x Tribulus Terrestris + Zinc + Vitamin D3,bundle,ad_astra,False,SKU-000296,0,0.05,sigma:by-name,001088,100% WHEY ВАНИЛА 500 гр,2,2025@5.00: 256; 2026@5.00: 122; mex@5.00: 12
+4ecbf110-f189-458c-b236-6eff403c1ccf,2x Brain Protect + Bilberry Extract,bundle,natura_therapy,False,SKU-000402,0,0.05,sigma:crosswalk-HIGH,000742,БРАИН ПРОТЕКТ 30+30cps,2,2025@5.00: 99; 2026@5.00: 25; mex@5.00: 2
+8ba706ee-3589-461e-abe1-34e5465cab1a,2x CREATINE MONOHYDRATE + BCAA + подарок BCAA + Tribulus Terrestris,bundle,ad_astra,False,SKU-000298,0,0.05,sigma:crosswalk-MEDIUM,000312,ТРИБУЛУС ТЕРЕСТРИС 30cps,2,2025@5.00: 34; 2026@5.00: 19; mex@5.00: 13
+8e560fb4-4fc0-4592-a6f5-801b6b4f8947,2x Diabetol Forte + Green Tea extract,bundle,natura_therapy,False,SKU-000455,0,0.05,sigma:crosswalk-HIGH,000741,ДИАБЕТОЛ ФОРТЕ 30+30cps,2,2025@5.00: 176; 2026@5.00: 44; mex@5.00: 1
+19ecfaec-7cbf-4390-acbb-029ec8ff2c0e,2x Diet Shake + Slim Complex,bundle,ad_astra,False,SKU-000332,0,0.05,sigma:crosswalk-HIGH,000615,СЛИМ КОМПЛЕКС 30cps,2,2025@5.00: 121; 2026@5.00: 103; mex@5.00: 7
+7672efa8-4fef-49bd-a848-e03010ea15f3,2X Diet Shake+Shaker+Slim Complex&Fiber,bundle,ad_astra,False,SKU-000277,0,0.05,sigma:crosswalk-MEDIUM,000619,Слим комплекс+ Слим фибер 1+1 гратис,2,2025@5.00: 6
+5deb3d2c-fe2f-4e96-bf21-3d7669f591fb,2x ELIXY Hyaluronic Acid&Aloe vera Face serum + 2x Hyaluronic&Aloe vera Face cream + 2 подарокa по избор,bundle,natura_therapy,False,SKU-000395,0,0.18,sigma:by-name,005005,ELIXY Серум со 20%снаил екстракт,1,2025@18.00: 116; 2026@18.00: 33; mex@18.00: 11
+41c7a0bd-7b61-4319-a015-0a2831adb2a0,2x ELIXY Hyaluronic Acid&Aloe vera Face serum + ELIXY Hyaluronic&Aloe vera Face cream + подарок по избор,bundle,natura_therapy,False,SKU-000524,0,0.18,sigma:by-name,005005,ELIXY Серум со 20%снаил екстракт,1,2025@18.00: 116; 2026@18.00: 33; mex@18.00: 11
+e5f16536-aeff-476d-9841-9244a9827a1f,2x ELIXY Snail Repair Serum + Snail Repair Dnevna Krema + Snail Repair Nokna Krema + 2 подарокa по избор,bundle,natura_therapy,False,SKU-000448,0,0.18,sigma:by-name+mixed,005007,ELIXY-Дневенкрем снаил 50ml,1,2025@18.00: 118; 2026@18.00: 67; mex@18.00: 12
+cf5c31d3-36dd-4e13-9819-1de34706966c,2x Hepatol Forte + Green Tea Extract,bundle,natura_therapy,False,SKU-000531,0,0.05,sigma:crosswalk-HIGH,000882,ХЕПАТОЛ ФОРТЕ 30+30 cps,2,2025@5.00: 64; 2026@5.00: 8; mex@5.00: 1
+48f3334a-d36b-4257-815f-15a7cf76fb9d,2x Prostatol Complex + Saw Palmetto,bundle,natura_therapy,False,SKU-000307,0,0.05,sigma:crosswalk-HIGH,000740,ПРОСТАТОЛ КОМПЛЕКС  30+30cps,2,no 2025–2026 sales invoice
+8ca92e9e-5c6f-409c-816f-9506a420a87a,2x Slim Complex + 2x Slim Fiber,bundle,natura_therapy,False,SKU-000261,0,0.05,sigma:crosswalk-HIGH,000619,Слим комплекс+ Слим фибер 1+1 гратис,2,2025@5.00: 6
+3e09c75d-a42f-41f2-bc1c-e0f0ef4e8d33,2x Snail Complex + Glucosamine Sulfat,bundle,natura_therapy,False,SKU-000334,0,0.05,sigma:crosswalk-HIGH,001006,Снаил комплекс 30+30 cps+Глукоз.Сулфат,2,2025@5.00: 364; 2026@5.00: 99
+8d7a5b1e-9674-48bc-9760-83c9f3ecb198,2x Turmeric Curcumin + Neuro Active,bundle,natura_therapy,False,SKU-000283,0,0.05,sigma:crosswalk-HIGH,001298,ТУРМЕРИК 425мл  1+1 НЕУРО АКТИВ,2,2025@5.00: 2; 2026@5.00: 2
+af003807-be7e-4355-9c9d-b82b4cbbce8f,2x Turmeric Curcumin + Neuro Active + подарок Tiger Balm,bundle,natura_therapy,False,SKU-000278,0,0.05,sigma:crosswalk-MEDIUM,001298,ТУРМЕРИК 425мл  1+1 НЕУРО АКТИВ,2,2025@5.00: 2; 2026@5.00: 2
+18cee8e2-21de-4cc1-a9ea-e910c18f0a2f,2x Turmeric Curcumin + Neuro Active + подарок Анти Инфламаторен гел,bundle,natura_therapy,False,SKU-000289,0,0.05,sigma:crosswalk-MEDIUM,001298,ТУРМЕРИК 425мл  1+1 НЕУРО АКТИВ,2,2025@5.00: 2; 2026@5.00: 2
+0b38974a-ca7d-4892-b17c-e83a2bb5ce5c,2x URO PROTECT + 2x D-MANNOSE,bundle,natura_therapy,False,SKU-000314,0,0.05,sigma:crosswalk-HIGH,001303,СЕТ Д-маноза 60/1+УРО протект 60/1,2,2025@5.00: 24
+a30118d5-bb05-4596-b8f3-03967d34689b,2x URO PROTECT + D-MANNOSE,bundle,natura_therapy,False,SKU-000353,0,0.05,sigma:crosswalk-HIGH,001303,СЕТ Д-маноза 60/1+УРО протект 60/1,2,2025@5.00: 24
+1c03bb9e-3a80-4d16-8906-0063f8338c84,2X WHEY + ПОДАРОК Vitamin D3 (90 tbl.) + Creatine + Tribulus,bundle,ad_astra,False,SKU-000412,0,0.05,sigma:crosswalk-HIGH,001152,ВИТАМИН Д3 90 tbl,2,2025@5.00: 153; 2026@5.00: 128; mex@5.00: 10
+cf67bd5d-9a67-44f0-b64b-1ce7d9f6b69c,3 CALM антистрес+АШВАГАНДА+ВИТАМИН Б6 30tbl,bundle,natura_therapy,False,SKU-000249,0,0.05,sigma:crosswalk-HIGH,000944,ВИТАМИН Б6  30tbl,2,2025@5.00: 147; 2026@0.00: 2; 2026@5.00: 339; mex@0.00: 2; mex@5.00: 15
+d725515a-feea-4fdf-bddf-4e7403bb37a5,3 DIABETOL FORTE + ZINC (30tbl),bundle,natura_therapy,False,SKU-000419,0,0.05,sigma:crosswalk-HIGH,000461,ДИАБЕТОЛ ФОРТЕ 30cps (сет 2+1),2,2025@5.00: 93; 2026@5.00: 54
+e801e327-a544-4b98-b9d3-a8cff600fecb,3 MAGNESIUM CITRAT + MAGNESIUM GEL 50ml,bundle,,False,SKU-000502,0,0.18,sigma:crosswalk-HIGH,001641,MAGNESIUM GEL 50 ml,1,2026@18.00: 86; mex@18.00: 2
+c6d0758c-c6de-43ac-8530-74db6cba0ecc,3 MAGNESIUM CITRAT + ZINC 120/1 tab,bundle,natura_therapy,True,SKU-000498,3,0.05,sigma:crosswalk-HIGH,001670,ZINC 120/1 tab,2,2026@5.00: 66
+67cc6d0e-4f69-4b4c-aad3-fb6845b7ce84,3 MAGNESIUM CITRAT + ВИТАМИН Д3 120tbl,bundle,natura_therapy,True,SKU-000497,0,0.05,sigma:crosswalk-HIGH,001661,VITAMIN D3 120/1 tab,2,2026@5.00: 73
+022ca17e-00af-48f2-91a2-d7cdca0c483b,3 MAGNESIUM CITRAT + МЕЛАТОНИН 120tbl,bundle,natura_therapy,True,SKU-000440,0,0.05,sigma:crosswalk-HIGH,001662,MELATONIN 1mg 120/1 tab,2,2026@5.00: 48
+74686b55-b6c3-4237-855a-af957a86ff65,3 MAGNESIUM+B6 FORMEL + ZINC 120/1 tab,bundle,natura_therapy,True,SKU-000496,0,0.05,sigma:crosswalk-HIGH,001670,ZINC 120/1 tab,2,2026@5.00: 66
+1edb0cfd-6b7c-4b8c-bee5-9b71623e39a7,3 MAGNESIUM+B6 FORMEL + ВИТАМИН Д3 120tbl,bundle,natura_therapy,True,SKU-000439,0,0.05,sigma:crosswalk-HIGH,001661,VITAMIN D3 120/1 tab,2,2026@5.00: 73
+dcff0b93-8633-4140-b269-a2572f9bc13f,3 MAGNESIUM+ZINC+B COMPLEX + MAGNESIUM GEL 50ml,bundle,,False,SKU-000501,0,0.05,sigma:crosswalk-HIGH,001575,MAGNESIUM +ZINC+B complex 120/1tab,2,2026@5.00: 159; mex@5.00: 5
+3acbd739-2ee6-4d63-92b0-e8cb47a83d73,3 PARA DETOX + ALOE VERA GEL 0.5L,bundle,natura_therapy,False,SKU-000410,0,0.05,sigma:crosswalk-HIGH,001084,ПАРА ДЕТОКС 30cps (2+1),2,2025@5.00: 18; 2026@5.00: 2
+2cc5d431-6210-4037-af6f-354d40e44d0b,3x Brain Protect (90cps),bundle,natura_therapy,False,SKU-000400,0,0.05,sigma:crosswalk-HIGH,000528,БРОНХО ПРОТЕКТ 500ml (сет 2+1),2,2025@5.00: 261; 2026@5.00: 108
+6fbe74e1-5c04-46b7-8030-47677fba2962,3x Diet Shake + Slim Complex,bundle,ad_astra,False,SKU-000279,0,0.05,sigma:crosswalk-HIGH,001007,СЕТ ДИЕТ ШЕЈК 2+ 1 СЛИМ КОМПЛЕКС,2,no 2025–2026 sales invoice
+bb76464a-3047-456e-bfca-63cce27c1038,5 in 1 Beauty Care Massager,other,natura_therapy,False,SKU-000098,0,0.18,rule:device-18,,,,
+2d8b0b05-9107-4dbf-a688-13b229b2b27c,A4 - antioxidant matrix,product,,True,SKU-000030,0,0.05,sigma:crosswalk-HIGH,001183,A4 60 cps,2,no 2025–2026 sales invoice
+1d1e8a3c-d730-41cf-86bc-e565dbee142e,Acai Berry Extract,product,natura_therapy,False,SKU-000162,0,0.05,sigma:crosswalk-HIGH,000315,АКАИ БЕРИ ЕКСТРАКТ 30 cps,2,2025@5.00: 1; mex@5.00: 1
+d65b038a-3779-4bed-9e61-2d4916259e9e,Adenofrin,product,bio_natural,True,SKU-000076,5062,0.05,sigma:crosswalk-HIGH,001584,ADENOFRIN 20/1 cps,2,2026@0.00: 3; 2026@5.00: 9; mex@0.00: 2; mex@5.00: 3
+87337325-528f-4007-96b2-fcc1262a55e3,ADENOFRIN 20/1 cps,product,bio_natural,True,001584,210,0.05,sigma:crosswalk-VERIFIED,001584,ADENOFRIN 20/1 cps,2,2026@0.00: 3; 2026@5.00: 9; mex@0.00: 2; mex@5.00: 3
+a8aeaa5d-03cc-446c-880f-1e115968547a,Allergo Protect (сируп),product,natura_therapy,True,SKU-000198,263,0.05,sigma:crosswalk-MEDIUM,000562,АЛЕРГО ПРОТЕКТ 500мл.,2,2025@5.00: 65; 2026@5.00: 35; mex@5.00: 10
+22299b37-eedb-4a91-b4d1-73938fc73e46,Aloe Vera ( 1+1 ),bundle,natura_therapy,False,SKU-000504,0,0.05,sigma:crosswalk-HIGH,000474,АЛОЕ ВЕРА ГЕЛ СО АРОНИЈА 1Л(сет 1+1),2,no 2025–2026 sales invoice
+a5ce461e-69cb-409e-8295-4badfb20a70f,Aloe Vera 500ml,product,natura_therapy,True,SKU-000031,11,0.05,sigma:crosswalk-HIGH,000165,"АЛОЕ ВЕРА ГЕЛ СО АРОНИЈА 0,5Л",2,2025@5.00: 135; 2026@5.00: 81; mex@5.00: 17
+e48274ab-7855-43c5-9e05-b73836711363,ALOE VERA GEL 99% (1+1),bundle,natura_therapy,False,SKU-000361,0,0.18,rule:cosmetic-18,,,,
+cf42ec22-935b-4f25-a7f4-bd58ae7b7ebe,Aloe Vera со Aronija (2+1) +Д3+Цинк,bundle,natura_therapy,False,SKU-000463,0,0.05,sigma:crosswalk-MEDIUM,000994,"АЛОЕ АРОНИЈА со ВИТ Ц ,Д3 И ЦИНК 500мл",2,2025@5.00: 165; 2026@5.00: 280; mex@5.00: 15
+cf38ad20-8608-4a81-b852-d9b5c7d3e0cc,Alpha Male,product,bio_natural,True,001315,4857,0.05,sigma:crosswalk-VERIFIED,001315,ALPHA MALE BIONATURAL 30/1,2,2025@5.00: 1; 2026@0.00: 2; 2026@5.00: 11; mex@0.00: 2; mex@5.00: 4
+b724ffd0-5332-4238-ab2f-74ab6ef27297,ALPHA MALE 2 + 1 TRIBULUS 60CPS,bundle,natura_therapy,False,700022,14,0.05,sigma:crosswalk-HIGH,001247,Сет АЛФА МАЛЕ 2+1 ТРИБУЛУС 60/1,2,2025@5.00: 22; 2026@5.00: 2
+74c4b953-4e9f-495e-a51f-1bf25f2e3de2,ALPHA MALE 60 cps,product,natura_therapy,True,001055,1090,0.05,sigma:crosswalk-VERIFIED,001055,ALPHA  MALE 60 cps,2,2025@5.00: 162; 2026@5.00: 144; mex@5.00: 14
+1d927bd9-eac7-43c5-9a95-ab7d4b1f1369,Andrographis Paniculata Extract,product,natura_therapy,False,SKU-000112,0,0.05,sigma:crosswalk-HIGH,000488,АНДРОГРАФИС ЕКСТРАКТ 30cps,2,2025@5.00: 1; mex@5.00: 1
+ee243b7e-b117-4951-b5e3-963127c8488b,Anti Chocking Device — уред против задушување,other,natura_therapy,False,SKU-000126,10,0.18,rule:device-18,,,,
+47f75868-497e-4262-afd5-d10d88155ba3,ANTI CHOKING DIVICE MASK 1+1,bundle,,False,SKU-000345,0,0.18,sigma:crosswalk-HIGH,001439,ANTI CHOKING DIVICE MASK,1,2026@18.00: 39
+20cce4d1-d191-4b32-92a9-616d8ca3d4f0,Arthriva,product,,True,SKU-000242,0,0.05,rule:supplement-5,,,,
+24131855-afee-4caf-9075-d051a24c2782,Arthro Blue,product,natura_therapy,True,SKU-000085,9,0.18,sigma:crosswalk-HIGH,000949,АРТРО БЛУ ГЕЛ 200 МЛ,1,2025@18.00: 82; 2026@0.00: 2; 2026@18.00: 29; mex@0.00: 2; mex@18.00: 16
+8627fe6d-2bad-4f47-9fd2-55ec293425bf,ARTHRO FLEX сет за зглобови + подарок стегач,bundle,natura_therapy,False,SKU-000321,0,0.18,sigma:crosswalk-HIGH,001239,АРТРО ФЛЕКС 100мл,1,2025@18.00: 53; 2026@18.00: 5; mex@18.00: 7
+ab09eec7-638e-44a7-ab83-1b820df4c9cb,ArthroFix,product,bio_natural,True,001313,6676,0.05,sigma:crosswalk-VERIFIED,001313,ARTHRO FIX BIONATURAL 30/1,2,2025@5.00: 2; 2026@0.00: 3; 2026@5.00: 12; mex@0.00: 2; mex@5.00: 5
+5d6cafe1-0540-495c-9146-6eaed49dec38,Ashwagandha — гумени бонбони (30),product,natura_therapy,True,SKU-000195,0,0.05,sigma:crosswalk-HIGH,001134,Гумени бонбони Ашваганда 30/1,2,2025@5.00: 10; 2026@5.00: 154; mex@5.00: 4
+5b9a2f41-4cad-4249-af96-cc68e35fa365,AURA ADHESIVE Прозирен лепак за Вештачки трепки,product,natura_therapy,False,SKU-000199,0,0.18,rule:cosmetic-18,,,,
+034ab0c8-eb0f-4e1c-be6c-772fd5ddbbd5,AURA ADHESIVE Црн лепак за Вештачки трепки,product,natura_therapy,False,SKU-000133,0,0.18,rule:cosmetic-18,,,,
+44b4eaad-24dd-43d2-867c-4f1ff9c44932,AURA BASE База за сенка Prime Me,product,natura_therapy,False,SKU-000140,0,0.05,sigma:crosswalk-MEDIUM,001670,ZINC 120/1 tab,2,2026@5.00: 66
+d932aa74-2f3c-4fdf-aa46-610864d16f2f,AURA BASE База за шминка PRIME ME,product,natura_therapy,False,SKU-000222,0,0.18,sigma:crosswalk-HIGH,002125,БАЗА ЗА ШМИНКА PRIME ME!,1,no 2025–2026 sales invoice
+44a39b36-a984-4f10-8ded-64a30c36dfc6,AURA BROW FIX GEL Гел за фиксирање на веѓи,product,natura_therapy,False,SKU-000206,0,0.18,sigma:crosswalk-MEDIUM,002219,ГЕЛ ЗА ФИКС.НА ВЕГИ BROW,1,no 2025–2026 sales invoice
+e8ac1aba-9027-4a6d-a7f8-f8156f86809c,AURA BROWMATIC BRUNETTE Молив за прецизно исцртување на веѓи,product,natura_therapy,False,SKU-000138,0,0.18,rule:cosmetic-18,,,,
+ae56d5fe-3ac3-407b-98d3-8aaa16d8ce26,AURA BROWMATIC DARK BRUNETTE Молив за прецизно исцртување на веѓи,product,natura_therapy,False,SKU-000201,0,0.18,rule:cosmetic-18,,,,
+1e476ceb-9edb-4b59-a325-ab7d5d96e8cd,AURA EYELINER 73 – црн Молив за очи,product,natura_therapy,False,SKU-000175,0,0.18,rule:cosmetic-18,,,,
+30b787a2-cad2-4d4f-a951-5948de6eb452,AURA FOUNDATION TAKE CARE OF ME 801 Течна пудра,product,natura_therapy,False,SKU-000136,0,0.18,rule:cosmetic-18,,,,
+8f08b33e-40f7-48ce-a52c-d1d15db38c48,AURA Like a PRO! NAIL&CUTICLE OIL,product,natura_therapy,False,SKU-000203,0,0.18,rule:cosmetic-18,,,,
+c6fd33aa-b25f-476a-9a20-6665e38fa0f9,"AURA LIQUID EYELINER ""WING IT UP Sensitive Eyes"" Туш за очи",product,natura_therapy,False,SKU-000218,0,0.18,rule:cosmetic-18,,,,
+fe03758d-94fa-44cf-bd04-2f2f693ba13b,"AURA LIQUID EYELINER ""WING IT UP"" Туш за очи",product,natura_therapy,False,SKU-000211,0,0.18,rule:cosmetic-18,,,,
+794516ae-a9dd-41a6-94eb-c6c0d3e0cb8e,AURA MAKE UP FIXER FIX – ME Фиксатор за шминка,product,natura_therapy,False,SKU-000121,0,0.18,rule:cosmetic-18,,,,
+c4cfd3f0-9e87-40b6-8f6f-aaaa3fd3e8c7,AURA PENCIL SHARPENER DUO Козметичка острилка,other,natura_therapy,False,SKU-000166,0,0.18,rule:cosmetic-18,,,,
+b2569b53-1a2d-4e33-936b-4eb0c719f7a8,AURA VELVET HIDROGEN 90 ML 6%,product,natura_therapy,False,SKU-000213,0,0.18,rule:cosmetic-18,,,,
+622e1b33-c225-46b9-bd34-76fa8ca1e2cd,AURA Апликатори за сенка за очи,other,natura_therapy,False,SKU-000179,0,0.05,sigma:crosswalk-MEDIUM,001529,ZINC  365 tbl,2,2026@5.00: 73; mex@5.00: 5
+e3b77e1b-29d9-4fdc-a65a-2aa857381e73,AURA Маскара за веѓи DARK BROWN,product,natura_therapy,False,SKU-000108,0,0.18,rule:cosmetic-18,,,,
+5ec99f98-fe89-4000-9bd8-49d0da60f7b6,AURAFALSE EYELASHES 01 Вештачки трепки-Naturaly Great,product,natura_therapy,False,SKU-000228,0,0.18,rule:cosmetic-18,,,,
+bc5b87ea-0def-47e9-bffc-e37a56cb245f,Autoimmune Support Formula 30 cps,product,natura_therapy,False,SKU-000114,0,0.05,rule:supplement-5,,,,
+21cf5a21-fb6b-41e2-8eb9-8aa648195505,B6 180/1 tab BIONATURAL,product,bio_natural,True,001524,34,0.05,sigma:crosswalk-VERIFIED,001524,B6 180/1 tab BIONATURAL,2,2026@0.00: 1; 2026@5.00: 7; mex@0.00: 1; mex@5.00: 2
+c45c905a-6c09-4ffe-8a21-49cfe7c5298c,BABE ESSENTIALS SOOTHING MICELLAR GEL 245ml,product,natura_therapy,False,SKU-000217,0,0.18,rule:cosmetic-18,,,,
+ef144b8f-e4bb-4645-8b6e-febf9eef3953,BABE HEALTHYAGING+ EYES AND LIPS TENSOR MULTI CORRECTOR 15ml,bundle,natura_therapy,False,SKU-000196,0,0.18,rule:cosmetic-18,,,,
+1b8e586f-168c-4447-b826-5c180e09cdcd,BABE Крема за репарација на усни,product,natura_therapy,False,SKU-000099,0,0.18,rule:cosmetic-18,,,,
+15eed2fb-1f78-4654-8c80-4e9ae89b3fde,BABE Протеогликан Ф+Ф ампули 2*2ml,product,natura_therapy,False,SKU-000180,0,0.18,rule:cosmetic-18,,,,
+5ba7d601-06b0-451d-9be4-d3956d413db5,Balsam Bubble Gum — маска за усни,product,natura_therapy,False,SKU-000156,0,0.18,rule:cosmetic-18,,,,
+7d97a94b-f331-47fa-bfd6-aa8cf83e1dd2,Balsam Honey — маска за усни,product,natura_therapy,False,SKU-000143,0,0.18,rule:cosmetic-18,,,,
+fe0dcdc0-b45e-40f8-a159-58ee2dda3d7d,BCAA + CREATINE MONOHYDRATE + L-GLUTAMINE гратис,bundle,ad_astra,False,SKU-000265,0,0.05,sigma:crosswalk-MEDIUM,000957,БЦАА  во прав 200 гр.,2,2025@5.00: 155; 2026@5.00: 152; mex@5.00: 14
+d9cc33fa-712e-4b81-ae31-2f750050ca35,BCAA powder 200 gr.,product,ad_astra,True,SKU-000032,0,0.05,sigma:crosswalk-HIGH,000957,БЦАА  во прав 200 гр.,2,2025@5.00: 155; 2026@5.00: 152; mex@5.00: 14
+9b8b64ef-8f56-4153-9d6a-265be1bf1fc7,BCAA+Creatine+L-Glutamine,bundle,ad_astra,False,SKU-000426,0,0.05,sigma:crosswalk-HIGH,000953,КРЕАТИН во прав  200 гр.,2,2025@5.00: 404; 2026@5.00: 741; mex@5.00: 14
+92c7f18d-20dd-4c5a-8767-682b6cff480e,BCAA+Creatine+L-Glutamine+Protein Ice Cream,bundle,ad_astra,False,SKU-000378,0,0.05,sigma:by-name+mixed,000957,БЦАА  во прав 200 гр.,2,2025@5.00: 155; 2026@5.00: 152; mex@5.00: 14
+d672e4a2-2cf5-4089-9747-66d0452b1678,Bio:Vegane SOS флуид против акни 5мл,product,natura_therapy,False,SKU-000093,0,0.18,sigma:crosswalk-HIGH,002030,SOS флуид против акни,1,no 2025–2026 sales invoice
+dd391aef-f536-4140-869a-935a83b337e3,BIO:VÉGANE БИО АСАИ 24ч. хидратантана крема за лице – 50мл (за комбинирана кожа),product,natura_therapy,False,SKU-000105,0,0.18,rule:cosmetic-18,,,,
+737c41d4-9acd-4145-99e1-dafe1a6180b4,BIO:VÉGANE БИО АСАИ гел за миење лице – 150мл (за комбинирана кожа),product,natura_therapy,False,SKU-000215,0,0.18,rule:cosmetic-18,,,,
+c0797a03-be0f-49f2-bcee-17abcefe0bd0,BIO:VEGANЕ балсам за усни со органско масло од коноп,product,natura_therapy,False,SKU-000181,0,0.18,rule:cosmetic-18,,,,
+228a7094-983b-4854-9f71-fef80760bcb7,Bitter Melon Extract,product,natura_therapy,False,SKU-000109,0,0.05,sigma:crosswalk-HIGH,000309,БИТЕР МЕЛОН ЕКСТРАКТ 30 cps,2,2025@5.00: 7; mex@5.00: 4
+8d7bd319-d858-4e42-9c7a-2c0545f73081,Bone Protect,product,natura_therapy,False,SKU-000202,0,0.05,sigma:crosswalk-HIGH,000987,БОНЕ ПРОТЕКТ 30 cps,2,2025@5.00: 12; 2026@5.00: 1; mex@5.00: 7
+bac77d4a-c001-481a-b36e-d359b9d0ddb4,Brain active (30cps),product,natura_therapy,True,SKU-000033,2,0.05,sigma:crosswalk-HIGH,000636,БРАИН АКТИВ 30cps,2,2025@5.00: 183; 2026@5.00: 139; mex@5.00: 19
+255f9368-e736-4e04-ab72-0299ba645b24,Brain Protect (2+1) Gratis,bundle,natura_therapy,False,SKU-000250,0,0.05,sigma:crosswalk-HIGH,000649,БРАИН ПРОТЕКТ 30cps-сет2+1,2,2025@5.00: 65; 2026@5.00: 46
+0de0bb0d-c9ff-45e5-aa35-494caf302cfc,Brain Protect (2+2) + подарок,bundle,natura_therapy,False,SKU-000415,0,0.05,sigma:crosswalk-MEDIUM,000503,БРОНХО ПРОТЕКТ 250ml,2,2025@5.00: 392; 2026@5.00: 144; mex@5.00: 12
+2ef640bd-7722-4abf-a60f-1daae8e5bcdd,Brain Protect 30+30 Gratis,bundle,natura_therapy,False,SKU-000287,0,0.05,sigma:crosswalk-HIGH,000742,БРАИН ПРОТЕКТ 30+30cps,2,2025@5.00: 99; 2026@5.00: 25; mex@5.00: 2
+e0a4c01f-f06b-4f49-98b3-f0de309f7992,BrainFix,product,bio_natural,True,001316,460,0.05,sigma:crosswalk-VERIFIED,001316,BRAIN FIX BIONATURAL 30/1,2,2026@5.00: 5; mex@5.00: 3
+d3e4dc26-5455-4f7e-b01d-a538d553daf6,Broncho Complex,product,natura_therapy,True,SKU-000034,0,0.05,sigma:by-name,000503,БРОНХО ПРОТЕКТ 250ml,2,2025@5.00: 392; 2026@5.00: 144; mex@5.00: 12
+3d2a3fb0-e0db-471f-911c-887705bc5cd8,Broncho Protect (2+1) + цинк,bundle,natura_therapy,False,SKU-000267,0,0.05,sigma:crosswalk-HIGH,000528,БРОНХО ПРОТЕКТ 500ml (сет 2+1),2,2025@5.00: 261; 2026@5.00: 108
+e1dde82e-8b5e-4a4c-82af-984d789e04b3,Broncho Protect (500ml) + Aloe Vera со Aronija (1l) + Sambucus Nigra + Vitamin D3 (90cps) + C1000 (60cps),bundle,natura_therapy,False,SKU-000349,0,0.05,sigma:by-name,000503,БРОНХО ПРОТЕКТ 250ml,2,2025@5.00: 392; 2026@5.00: 144; mex@5.00: 12
+b633d588-a950-40ee-971a-e20c7da869be,C 1000,product,natura_therapy,True,SKU-000035,1,0.05,sigma:crosswalk-HIGH,001054,ВИТАМИН Ц-1000  60 cps,2,2025@5.00: 185; 2026@5.00: 155; mex@5.00: 15
+ac669597-6a08-4aa8-9fe5-f8e1da520852,CALM,product,natura_therapy,True,SKU-000036,0,0.05,sigma:crosswalk-HIGH,001019,CALM антистрес формула 30/1,2,2025@5.00: 111; 2026@5.00: 114; mex@5.00: 13
+a0ac8f5a-e48f-4b7e-b2cd-65ac0c1a1db8,CALM антистрес формула 30 1,product,natura_therapy,True,001019,1230,0.05,sigma:crosswalk-VERIFIED,001019,CALM антистрес формула 30/1,2,2025@5.00: 111; 2026@5.00: 114; mex@5.00: 13
+03ad93d6-5b28-4fbd-84a3-03629d3ab3d3,Calmifix,product,,True,SKU-000087,2,0.05,rule:supplement-5,,,,
+17e1f647-8091-4434-9fac-94ffc21c00d7,Cardiofix,product,bio_natural,True,001291,4413,0.05,sigma:crosswalk-VERIFIED,001291,CARDIOFIX BIONATURAL 30 cps,2,2025@5.00: 1; 2026@0.00: 2; 2026@5.00: 12; mex@0.00: 2; mex@5.00: 4
+846585d0-ab2a-4ec5-a3d3-1734d40a0752,CHIA THERAPY - с вкус на диня,product,ad_astra,True,SKU-000037,1,0.18,sigma:crosswalk-HIGH,000583,ЧИА ТЕРАПИЈА со вит.Ц Диња 500ml,1,2025@18.00: 140; 2026@18.00: 100; mex@18.00: 11
+6bb98d83-297a-455f-b61b-dedd449eb982,CHIA THERAPY - с вкус на ябълка,product,ad_astra,True,SKU-000038,0,0.18,sigma:crosswalk-HIGH,000652,ЧИА ТЕРАПИЈА со вит.Ц Jаболко 500ml,1,2025@18.00: 185; 2026@18.00: 148; mex@18.00: 12
+1740f1c2-c42c-4ffc-814b-50f6b3208f05,Cholestol Complex (2+1) + Omega 3,bundle,natura_therapy,False,SKU-000387,0,0.05,sigma:crosswalk-HIGH,000760,ХОЛЕСТОЛ КОМПЛЕКС СЕТ (2+1),2,2025@5.00: 65; 2026@5.00: 30
+8e5e23e9-e74b-4e58-9a04-629414109c40,Cholestol Complex (2+1) + Omega 3 kapki,bundle,natura_therapy,False,SKU-000335,0,0.05,sigma:crosswalk-HIGH,000760,ХОЛЕСТОЛ КОМПЛЕКС СЕТ (2+1),2,2025@5.00: 65; 2026@5.00: 30
+d6095095-29fd-42a0-9b9a-e112235baeb8,Collagen Cocconut,product,ad_astra,True,SKU-000089,75,0.05,sigma:crosswalk-HIGH,001671,COLLAGEN & COCONUT WATER 200gr,2,2026@5.00: 28
+c91b6a18-a12c-48ec-bae5-eeb629294f1f,COLLAGEN PEPTIDES (1+1) + I'am Collagen серум,bundle,ad_astra,False,SKU-000384,0,0.05,sigma:crosswalk-MEDIUM,001113,Колаген Пептид -БЕЗ ВКУС  200 гр,2,2025@5.00: 294; 2026@5.00: 118; mex@5.00: 14
+51d6586d-42ad-41ef-bde2-710e1f6c4e28,COLLAGEN PEPTIDES (1+1) + Shaker + I'am Collagen серум — со вкус на ванила и малина,bundle,ad_astra,False,SKU-000262,0,0.05,sigma:crosswalk-MEDIUM,000119,КОЛАГЕН ПЕПТИДЕС  ВАНИЛА  200 ГР 1+1,2,2025@5.00: 212; 2026@5.00: 48
+7c817483-e770-4cf5-bdd4-1fd83d5ceeee,Collagen Peptides (малина) + Collagen Face Serum,bundle,ad_astra,False,SKU-000456,0,0.18,sigma:crosswalk-MEDIUM,001246,COLLAGEN FACE SERUM 30 ml KS,1,2025@18.00: 3; mex@18.00: 2
+0241a855-0ec5-45ce-af34-de01d20e8c4b,COLLAGEN PEPTIDES + HYALURON 5,bundle,ad_astra,False,SKU-000373,0,0.05,sigma:crosswalk-HIGH,001113,Колаген Пептид -БЕЗ ВКУС  200 гр,2,2025@5.00: 294; 2026@5.00: 118; mex@5.00: 14
+375aece7-e3f2-4587-ac22-1c1d90954d8f,Collagen Peptides Bionatural,product,bio_natural,True,SKU-000243,0,0.05,sigma:crosswalk-HIGH,001113,Колаген Пептид -БЕЗ ВКУС  200 гр,2,2025@5.00: 294; 2026@5.00: 118; mex@5.00: 14
+427cfd06-9661-4235-a563-33d15f19ed6d,COSMETICS SPONGE 2/1 PUFFY - тупфери за лице,other,natura_therapy,False,SKU-000224,0,0.18,rule:cosmetic-18,,,,
+7bcae7de-f6a2-47aa-b6ad-3a3bc423b8e6,CREATINE powder 200 gr.,product,ad_astra,True,SKU-000039,0,0.05,sigma:crosswalk-HIGH,000953,КРЕАТИН во прав  200 гр.,2,2025@5.00: 404; 2026@5.00: 741; mex@5.00: 14
+1c0fc095-0cb2-44d6-84d0-1f63b5da5b58,Curcumactiv (2+2) (4x 500ml ) + Витамин Б6 120тбл,bundle,natura_therapy,False,SKU-000503,0,0.05,sigma:crosswalk-HIGH,001660,VITAMIN B6 120/1 tab,2,2026@5.00: 61
+8e24764d-f01f-4104-9d83-73135a0aaf25,Curcumactiv (500ml),product,natura_therapy,True,SKU-000040,7550,0.05,sigma:crosswalk-HIGH,000637,КУРКУМАКТИВ 500ml,2,2025@5.00: 246; 2026@5.00: 264; mex@5.00: 18
+a5791c69-cb0a-4fef-9691-30c926804c6e,CYSTI CARE 30/1 cps,product,,False,SKU-000293,0,0.05,sigma:crosswalk-HIGH,001493,CYSTI CARE 30/1 cps,2,no 2025–2026 sales invoice
+7ed95220-fd77-492d-b292-c6145b82e65e,D3 180/1 tab BIONATURAL,product,bio_natural,True,001525,55,0.05,sigma:crosswalk-VERIFIED,001525,D3 180/1 tab BIONATURAL,2,2026@0.00: 2; 2026@5.00: 9; mex@0.00: 2; mex@5.00: 2
+c6281a6d-8493-4b12-b670-1fc7f0b201f2,Derma Roller,other,natura_therapy,False,SKU-000130,0,0.18,rule:device-18,,,,
+fd3c0b83-a19a-4f03-8096-c591fa8b287b,Diabetol Forte (2+2) + Цинк 120тбл,bundle,natura_therapy,True,SKU-000443,0,0.05,sigma:crosswalk-HIGH,001670,ZINC 120/1 tab,2,2026@5.00: 66
+f5e7af71-357a-4186-86fd-d7568fcb9b8d,Diet Shake,product,ad_astra,True,SKU-000079,1308,0.05,sigma:crosswalk-HIGH,000893,ДИЕТ ШЕЈК Јагода 500g,2,2025@5.00: 225; 2026@5.00: 198; mex@5.00: 13
+777b1709-5b03-433a-a426-f3c5e0cebded,Diet Shake (1+1) ( со вкус на ванила ) + Slim Complex,bundle,ad_astra,False,SKU-000333,0,0.05,sigma:crosswalk-HIGH,000615,СЛИМ КОМПЛЕКС 30cps,2,2025@5.00: 121; 2026@5.00: 103; mex@5.00: 7
+5012b119-5f01-4bc5-8a85-98f1aeab1413,Diet Shake (1+1) ( со вкус на чоколадо ) + Slim Complex,bundle,ad_astra,True,SKU-000313,0,0.05,sigma:crosswalk-HIGH,000615,СЛИМ КОМПЛЕКС 30cps,2,2025@5.00: 121; 2026@5.00: 103; mex@5.00: 7
+8d63179a-3f49-44b3-868c-687c6e576aed,Diet shake chocolate 500g,product,ad_astra,True,SKU-000041,0,0.05,sigma:crosswalk-HIGH,000891,ДИЕТ ШЕЈК чоколадо 500 g,2,2025@5.00: 225; 2026@5.00: 166; mex@5.00: 11
+40f401f0-b00d-4d09-a2f9-e119a2ab645a,Diet shake strawberry  500g,product,ad_astra,True,SKU-000042,1,0.05,sigma:crosswalk-HIGH,000893,ДИЕТ ШЕЈК Јагода 500g,2,2025@5.00: 225; 2026@5.00: 198; mex@5.00: 13
+18f6fe44-1682-4494-a3e6-57312a8f9eac,Diet shake vanilla  500g,product,ad_astra,True,SKU-000043,1,0.05,sigma:crosswalk-HIGH,000889,ДИЕТ ШЕЈК Ванила 500g,2,2025@5.00: 215; 2026@5.00: 149; mex@5.00: 11
+8ea7ff11-d2a4-44ca-ba6c-e73a38d446ff,Diet Shake со вкус на ванила +Shaker+Slim Complex,bundle,ad_astra,False,SKU-000388,0,0.05,sigma:crosswalk-MEDIUM,000889,ДИЕТ ШЕЈК Ванила 500g,2,2025@5.00: 215; 2026@5.00: 149; mex@5.00: 11
+a07f7c8c-d2cd-4593-b929-bd30ed6cd3fe,Diet Shake со вкус на ванила +Slim Complex,bundle,ad_astra,False,SKU-000320,0,0.05,sigma:crosswalk-HIGH,000889,ДИЕТ ШЕЈК Ванила 500g,2,2025@5.00: 215; 2026@5.00: 149; mex@5.00: 11
+503773a2-d294-459f-8ac1-f5be7480a39b,Diet Shake со вкус на јагода + Shaker+Slim Complex,bundle,ad_astra,False,SKU-000340,0,0.05,sigma:crosswalk-MEDIUM,000893,ДИЕТ ШЕЈК Јагода 500g,2,2025@5.00: 225; 2026@5.00: 198; mex@5.00: 13
+649240a9-f4c3-47a5-8961-34b8b211ff54,Diet Shake со вкус на јагода +Slim Complex,bundle,ad_astra,False,SKU-000292,0,0.05,sigma:crosswalk-HIGH,000893,ДИЕТ ШЕЈК Јагода 500g,2,2025@5.00: 225; 2026@5.00: 198; mex@5.00: 13
+91a155f6-b4b5-447d-a0fa-cb281df6cf50,Diet Shake со вкус на чоколадо +Shaker+Slim Complex,bundle,ad_astra,False,SKU-000375,0,0.05,sigma:crosswalk-MEDIUM,000891,ДИЕТ ШЕЈК чоколадо 500 g,2,2025@5.00: 225; 2026@5.00: 166; mex@5.00: 11
+428039c1-1ec6-412b-9ec2-8ad230e3d09b,Diet Shake со вкус на чоколадо +Slim Complex,bundle,ad_astra,False,SKU-000286,0,0.05,sigma:crosswalk-HIGH,000891,ДИЕТ ШЕЈК чоколадо 500 g,2,2025@5.00: 225; 2026@5.00: 166; mex@5.00: 11
+8ed67773-3fdf-4ceb-8c02-09f204da7562,Diet Shots 500 ml,product,natura_therapy,False,SKU-000092,0,0.05,sigma:crosswalk-HIGH,000397,ДИЕТ ШОТС 500 мл,2,no 2025–2026 sales invoice
+8ddb22d8-ee9c-4e1d-bb28-eadf0c804cfb,"Dr Scheller 7-дневна терапија против брчки Арган & Aмарант, 7 ампули x 1мл",product,natura_therapy,False,SKU-000161,0,0.18,rule:cosmetic-18,,,,
+f1968b8f-aa4a-43f3-a0e8-c2d9a815a8c1,DR. SCHELLER Арган и Амарант ноќна крема за лице против брчки – 50мл,product,natura_therapy,False,SKU-000227,0,0.18,rule:cosmetic-18,,,,
+bcc99e78-9b8d-4697-9008-6cfa4500c579,DR. SLIM Powder + DR. SLIM Caps,bundle,natura_therapy,False,SKU-000310,0,0.05,sigma:crosswalk-HIGH,001026,ДР. СЛИМ 210 гр.,2,2025@5.00: 29; 2026@5.00: 3; mex@5.00: 3
+c4ab9c1f-66a5-4451-bb00-e1d1c38b1dd3,DR. SLIM Powder + DR. SLIM Caps + подарок Nutri Shake,bundle,natura_therapy,False,SKU-000302,0,0.05,sigma:crosswalk-HIGH,001026,ДР. СЛИМ 210 гр.,2,2025@5.00: 29; 2026@5.00: 3; mex@5.00: 3
+0eee4f2f-f28a-4340-b930-28a8137c21e7,DR. SLIM WEIGHT LOSS PACK,bundle,natura_therapy,False,SKU-000324,0,0.05,sigma:crosswalk-HIGH,001026,ДР. СЛИМ 210 гр.,2,2025@5.00: 29; 2026@5.00: 3; mex@5.00: 3
+5c0736b5-b4b6-4d2f-9bba-61d376a6c7eb,Dr.Scheller “Специjалист” гел против акни 5мл,product,natura_therapy,False,SKU-000142,0,0.18,rule:cosmetic-18,,,,
+df7d4aa5-4179-420b-b5ec-05328bc00184,Dr.Scheller 100% масло од арган 30мл,product,natura_therapy,False,SKU-000226,0,0.18,sigma:crosswalk-MEDIUM,002014,100% масло од арган,1,no 2025–2026 sales invoice
+cc1d65e9-9ff7-4fe0-9096-2d2c77105cad,DR.SCHELLER Интензивен серум против брчки со Aрган и Амарант – 30мл,product,natura_therapy,False,SKU-000153,0,0.18,rule:cosmetic-18,,,,
+720df4c8-5208-49e1-96d0-2e58c7137578,DR.SCHELLER Интензивна ноќна крема со магарешки трн и чиа за сува кожа – 49мл,product,natura_therapy,False,SKU-000128,0,0.18,rule:cosmetic-18,,,,
+5ec751f6-0b4d-44b6-affa-29904763b945,DR.SCHELLER Ноќен серум против брчки AHA со Арган & Амарант – 15мл,product,natura_therapy,False,SKU-000151,0,0.18,rule:cosmetic-18,,,,
+41dcd909-4d23-47d5-869b-3d8c266b72a8,DR.SLIM 90cps,product,natura_therapy,True,001225,1274,0.05,sigma:crosswalk-VERIFIED,001225,ДР.СЛИМ 90 цпс,2,2025@5.00: 88; 2026@0.00: 1; 2026@5.00: 77; mex@0.00: 1; mex@5.00: 10
+13f0cd48-90b9-4caa-a6e2-ea779fd4d0d0,EISEN+B9+B12-250/1 TAB,product,,False,SKU-000351,0,0.05,sigma:crosswalk-HIGH,001600,EISEN+B9+B12 250/1 tab,2,no 2025–2026 sales invoice
+afc591b4-8eb6-447d-b63a-a68e44d88f9f,Elderberil Imun сируп,product,natura_therapy,False,SKU-000169,26,0.05,sigma:crosswalk-MEDIUM,000234,ЕЛДЕРБЕРИЛ Имун сируп 250 мл.,2,2025@5.00: 12; mex@5.00: 7
+9bbc3c65-a610-49a3-86ff-b559ff7e6550,ELIXY -крем за лице HYDRATING 100 мл,product,,False,005040,18,0.18,sigma:crosswalk-VERIFIED,005040,ELIXY -крем за лице HYDRATING 100 мл,1,2025@18.00: 19; 2026@18.00: 2; mex@18.00: 2
+e20aeb02-14d1-40f1-9447-b18d45f2743b,ELIXY -хидратантен серум 30 мл,product,,False,SKU-000559,0,0.18,sigma:crosswalk-HIGH,005041,ELIXY -хидратантен серум 30 мл,1,2025@18.00: 4; 2026@18.00: 7; mex@18.00: 1
+34e43121-df01-4e65-940a-2dc66efb0d24,ELIXY COMBO PAKET,bundle,natura_therapy,False,SKU-000308,0,0.18,rule:cosmetic-18,,,,
+4f30d74c-c348-4a0e-a97c-c1fca809f973,ELIXY DNEVNA & HYALURONIC +35  50 ml,product,,True,SKU-000002,355,0.18,sigma:crosswalk-HIGH,005031,ELIXY DNEVNA & HYALURONIC +35  50 ml,1,2025@18.00: 38; 2026@0.00: 1; 2026@18.00: 40; mex@0.00: 1; mex@18.00: 10
+14b42fc6-0d81-48fe-9a0e-b575d00ed04f,ELIXY DNEVNA & HYALURONIC +45  50 ml,product,bio_natural,True,SKU-000003,1356,0.18,sigma:crosswalk-HIGH,005032,ELIXY DNEVNA & HYALURONIC +45  50 ml,1,2025@18.00: 44; 2026@0.00: 2; 2026@18.00: 54; mex@0.00: 2; mex@18.00: 12
+340622dc-77e0-446e-88c4-33a5be732c8a,ELIXY DNEVNA & HYALURONIC +55  50 ml,product,bio_natural,True,SKU-000004,667,0.18,sigma:crosswalk-HIGH,005033,ELIXY DNEVNA & HYALURONIC +55  50 ml,1,2025@18.00: 38; 2026@0.00: 2; 2026@18.00: 51; mex@0.00: 2; mex@18.00: 8
+8d3f3962-0d5c-4085-9fc8-0fc39c53164b,ELIXY Dnevna Krema+Jojoba Oil,bundle,natura_therapy,False,SKU-000465,0,0.18,sigma:by-name,005007,ELIXY-Дневенкрем снаил 50ml,1,2025@18.00: 118; 2026@18.00: 67; mex@18.00: 12
+585c93a4-3a4e-4f1f-9458-06e8bcc73704,ELIXY Dnevna Krema+Olive Oil,bundle,natura_therapy,False,SKU-000475,0,0.18,sigma:by-name,005007,ELIXY-Дневенкрем снаил 50ml,1,2025@18.00: 118; 2026@18.00: 67; mex@18.00: 12
+af9afdf2-6f75-402e-a2dd-798b5634bb25,ELIXY Honey — крема со мед и шеа путер,product,natura_therapy,False,SKU-000107,0,0.18,rule:cosmetic-18,,,,
+69611da2-7280-4d5c-889f-0766e41f7a8c,ELIXY Hyaluronic Acid&Aloe vera Face serum+Olive Oil+Jade Roller,bundle,natura_therapy,False,SKU-000392,0,0.18,sigma:by-name,005005,ELIXY Серум со 20%снаил екстракт,1,2025@18.00: 116; 2026@18.00: 33; mex@18.00: 11
+c8b2e889-6da4-4770-a02e-90a2cadfd87f,ELIXY Hyaluronic Acid&Aloe vera+Jojoba Oil,bundle,natura_therapy,False,SKU-000487,0,0.18,rule:cosmetic-18,,,,
+06b8868d-be31-4adb-a582-b40594574195,ELIXY Hyaluronic Acid&Aloe vera+Marula oil,bundle,natura_therapy,False,SKU-000554,0,0.18,rule:cosmetic-18,,,,
+afd65f61-bcf3-448c-a035-07296c1992f5,ELIXY Hyaluronic Acid&Aloe vera+Olive Oil,bundle,natura_therapy,False,SKU-000528,0,0.18,rule:cosmetic-18,,,,
+5ce5150e-4f75-475f-be43-2fe12cf43283,ELIXY Hyaluronic Acid&Aloe vera+Rosehip Oil,bundle,natura_therapy,False,SKU-000555,0,0.18,rule:cosmetic-18,,,,
+00c8958e-f431-4842-ab6c-04f69f9d1adb,ELIXY Hyaluronic&Aloe Vera 35+,,natura_therapy,True,005031,103,0.18,sigma:crosswalk-VERIFIED,005031,ELIXY DNEVNA & HYALURONIC +35  50 ml,1,2025@18.00: 38; 2026@0.00: 1; 2026@18.00: 40; mex@0.00: 1; mex@18.00: 10
+62690050-795a-467d-8057-916b16bee383,ELIXY Hyaluronic&Aloe Vera 45+,,natura_therapy,True,005032,335,0.18,sigma:crosswalk-VERIFIED,005032,ELIXY DNEVNA & HYALURONIC +45  50 ml,1,2025@18.00: 44; 2026@0.00: 2; 2026@18.00: 54; mex@0.00: 2; mex@18.00: 12
+13664a4a-d042-4664-b265-8eb09c1b1879,ELIXY Hyaluronic&Aloe Vera 55+,,natura_therapy,True,SKU-000159,469,0.18,sigma:crosswalk-MEDIUM,005037,ELIXY-hyaluronic acid-collagen&aloe vera,1,2025@18.00: 5; 2026@18.00: 40; mex@18.00: 8
+540d532d-fdda-4d35-9fac-cd7bded5a639,ELIXY Immortelle — регенеративна крема,product,natura_therapy,False,SKU-000145,0,0.18,sigma:crosswalk-HIGH,001566,ИМОРТЕЛЛЕ КРЕМ 50 мл,1,2026@18.00: 20; mex@18.00: 1
+c9c1485c-19b5-4b9d-850a-7d5d734292c3,ELIXY Matcha Face Cream 50ml,product,,False,SKU-000546,0,0.18,sigma:crosswalk-HIGH,005048,ELIXY  Matcha Face cream 50 ml,1,2026@18.00: 26
+3825524b-5421-460a-9853-73523d61c2b6,ELIXY Nokna Krema+Jojoba Oil,bundle,natura_therapy,False,SKU-000525,0,0.18,sigma:by-name,005006,ELIXY-Ноќен крем снаил 50ml,1,2025@18.00: 79; 2026@18.00: 44; mex@18.00: 8
+eb9a2bd0-0b2b-4b06-a679-5b1040122370,ELIXY Nokna Krema+Olive Oil,bundle,natura_therapy,False,SKU-000542,0,0.18,sigma:by-name,005006,ELIXY-Ноќен крем снаил 50ml,1,2025@18.00: 79; 2026@18.00: 44; mex@18.00: 8
+6ce8f434-1566-4739-a8d6-cde599d10a6d,ELIXY Snail Repair 1+2 ПОДАРОК,bundle,natura_therapy,False,SKU-000285,0,0.18,rule:cosmetic-18+mixed,,,,
+0537652b-43c7-4f15-8d9a-bd07e5322bf2,ELIXY Snail Repair Dnevna Krema + Snail Repair Nokna Krema + Snail Repair Krema za okolu oci + подарок по избор,bundle,natura_therapy,False,SKU-000417,0,0.18,sigma:by-name+mixed,005007,ELIXY-Дневенкрем снаил 50ml,1,2025@18.00: 118; 2026@18.00: 67; mex@18.00: 12
+7861752e-9269-46a7-81f5-a195b033ae23,ELIXY Snail Repair Dnevna Krema 50ml+Avocado Oil+Jade Roller,bundle,natura_therapy,False,SKU-000352,0,0.18,sigma:by-name+mixed,005007,ELIXY-Дневенкрем снаил 50ml,1,2025@18.00: 118; 2026@18.00: 67; mex@18.00: 12
+76508de6-e3dc-419c-96ab-734a7cf1bfe9,ELIXY Snail Repair Duo (Serum + Cream) + D3 подарок,bundle,natura_therapy,False,SKU-000437,0,0.18,sigma:by-name+mixed,005005,ELIXY Серум со 20%снаил екстракт,1,2025@18.00: 116; 2026@18.00: 33; mex@18.00: 11
+f9b50d61-846b-47e4-9e3b-fea57ac37213,ELIXY Snail Repair Serum + Snail Repair Dnevna Krema + Snail Repair Nokna Krema + подарок по избор,bundle,natura_therapy,False,SKU-000467,0,0.18,sigma:by-name+mixed,005007,ELIXY-Дневенкрем снаил 50ml,1,2025@18.00: 118; 2026@18.00: 67; mex@18.00: 12
+199b608e-be28-4248-a0d7-1fc24e3ecb36,ELIXY Snail Repair Serum + Snail Repair Nokna Krema + Hyaluronic Acid&Aloe vera Face serum + Hyaluronic&Aloe vera Face cream + 2 подарокa по избор,bundle,natura_therapy,False,SKU-000506,0,0.18,sigma:by-name+mixed,005006,ELIXY-Ноќен крем снаил 50ml,1,2025@18.00: 79; 2026@18.00: 44; mex@18.00: 8
+827654fc-ad10-4dc5-8b64-7e4b5e98a802,ELIXY Snail Repair Serum+Rosehip Oil+Jade Roller,bundle,natura_therapy,False,SKU-000511,0,0.18,sigma:by-name+mixed,005005,ELIXY Серум со 20%снаил екстракт,1,2025@18.00: 116; 2026@18.00: 33; mex@18.00: 11
+1e783606-31c8-4ead-8460-c83fa83956bc,ELIXY Snail Repair серум + Snail Repair дневна крема + подарок Snail Repair ноќна крема,bundle,natura_therapy,False,SKU-000275,0,0.18,sigma:by-name+mixed,005007,ELIXY-Дневенкрем снаил 50ml,1,2025@18.00: 118; 2026@18.00: 67; mex@18.00: 12
+d1f24e14-b0d4-42c1-b184-830f3099a79a,ELIXY Snail Serum+Marula Oil,bundle,natura_therapy,False,SKU-000452,0,0.18,sigma:by-name+mixed,005005,ELIXY Серум со 20%снаил екстракт,1,2025@18.00: 116; 2026@18.00: 33; mex@18.00: 11
+47ecce49-6c65-45f7-ac05-1e47bfadd3a0,ELIXY Snail Serum+Olive Oil,bundle,natura_therapy,False,SKU-000390,0,0.18,sigma:by-name+mixed,005005,ELIXY Серум со 20%снаил екстракт,1,2025@18.00: 116; 2026@18.00: 33; mex@18.00: 11
+bdaa45bd-6456-436d-9b5f-13ea6148a66e,ELIXY Snail Serum+Rosehip Oil,bundle,natura_therapy,False,SKU-000454,0,0.18,sigma:by-name+mixed,005005,ELIXY Серум со 20%снаил екстракт,1,2025@18.00: 116; 2026@18.00: 33; mex@18.00: 11
+7629a69c-a479-44a6-abd5-d932fad00a1c,ELIXY Snail Serum+Јојоba Oil,bundle,natura_therapy,False,SKU-000472,0,0.18,sigma:crosswalk-HIGH,005013,ELIXY-Серум снаил+јојоба,1,no 2025–2026 sales invoice
+e6d9efcf-ddd4-4d01-8ad9-00cbed9e173c,ELIXY Vitamin C Serum+Avocado Oil,bundle,natura_therapy,False,SKU-000474,0,0.18,sigma:crosswalk-HIGH,005019,ELIXY Серум со витамин Ц,1,2025@18.00: 69; 2026@18.00: 21; mex@18.00: 7
+0a80a830-ddb3-48f6-b573-46aeeb1c5296,ELIXY Vitamin C Serum+Jojoba Oil,bundle,natura_therapy,False,SKU-000486,0,0.18,sigma:crosswalk-HIGH,005019,ELIXY Серум со витамин Ц,1,2025@18.00: 69; 2026@18.00: 21; mex@18.00: 7
+776479c6-d2d2-4131-bf66-c4266dcf7e55,ELIXY Vitamin C Serum+Olive Oil,bundle,natura_therapy,False,SKU-000391,0,0.18,sigma:crosswalk-HIGH,005019,ELIXY Серум со витамин Ц,1,2025@18.00: 69; 2026@18.00: 21; mex@18.00: 7
+1f6cb0f6-7a2b-4994-9b73-87d07d66b8f4,ELIXY Vitamin C Serum+Olive Oil+Jade Roller,bundle,natura_therapy,False,SKU-000407,0,0.18,sigma:by-name,005005,ELIXY Серум со 20%снаил екстракт,1,2025@18.00: 116; 2026@18.00: 33; mex@18.00: 11
+810126c7-24df-40f4-b35c-dfdfe11e396a,ELIXY Vitamin C Serum+Rosehip Oil,bundle,natura_therapy,False,SKU-000411,0,0.18,sigma:crosswalk-HIGH,005019,ELIXY Серум со витамин Ц,1,2025@18.00: 69; 2026@18.00: 21; mex@18.00: 7
+7705d06d-fccf-4fb2-80ed-0185de104d69,ELIXY Алое Крема SPF 20 50мл,product,natura_therapy,False,005047,136,0.18,sigma:crosswalk-VERIFIED,005047,ELIXY Алое Крема SPF 20 50 мл,1,2025@18.00: 41; 2026@18.00: 17; mex@18.00: 4
+0d3e23a1-d9ce-4f7b-bbd2-e0e3cb21fc47,Elixy капсули за коса 60/1,product,natura_therapy,True,005046,126,0.05,sigma:crosswalk-VERIFIED,005046,ELIXY КАПСУЛИ ЗА КОСА 60 cps,2,2025@5.00: 53; 2026@5.00: 43; mex@5.00: 6
+373f6352-5f2f-4226-8050-6a18c5b8e09c,ELIXY Масло од авокадо 30 ml,,natura_therapy,True,005010,135,0.18,sigma:crosswalk-VERIFIED,005010,ELIXY Масло од авокадо 30 ml,1,2025@18.00: 36; 2026@18.00: 11; mex@18.00: 7
+f2d8ab1e-9ee2-42e4-8736-cae2c1a305e1,ELIXY Масло од јојоба 30 ml,,natura_therapy,False,SKU-000135,220,0.18,sigma:crosswalk-HIGH,005011,ELIXY Масло од јојоба 30 ml,1,2025@18.00: 35; 2026@18.00: 20; mex@18.00: 7
+287fb838-e897-4e3f-a249-15b0bf9ca693,ELIXY Масло од марула 30 ml,product,natura_therapy,False,005017,48,0.18,sigma:crosswalk-VERIFIED,005017,ELIXY Масло од марула 30 ml,1,2025@18.00: 13; 2026@18.00: 9; mex@18.00: 3
+0ee4ff8a-b12e-44c5-84ca-7b26bb0373f2,ELIXY Масло од маслинка,product,natura_therapy,False,SKU-000178,0,0.18,sigma:crosswalk-HIGH,005009,ELIXY Масло од маслинка 30 ml,1,2025@18.00: 18; 2026@18.00: 8; mex@18.00: 6
+027d0145-c4b6-44cc-a400-ccae58f38873,ELIXY Масло од шипка (rosehip),product,natura_therapy,True,SKU-000225,3,0.18,sigma:crosswalk-HIGH,005018,ELIXY Масло од шипка 30 ml,1,2025@18.00: 23; 2026@18.00: 16; mex@18.00: 6
+d9aa8e45-1c04-4fee-b031-433759006fe1,ELIXY Серум со 20%снаил екстракт,product,natura_therapy,True,005005,1280,0.18,sigma:crosswalk-VERIFIED,005005,ELIXY Серум со 20%снаил екстракт,1,2025@18.00: 116; 2026@18.00: 33; mex@18.00: 11
+30add053-f69a-4903-954d-50645540bdaa,ELIXY Серум со витамин Ц,product,natura_therapy,True,005019,138,0.18,sigma:crosswalk-VERIFIED,005019,ELIXY Серум со витамин Ц,1,2025@18.00: 69; 2026@18.00: 21; mex@18.00: 7
+c955d1bf-325b-44c7-bb7d-29ed4d5ea38d,ELIXY Хијалурон и Алое серум 30ml,product,natura_therapy,True,005012,797,0.18,sigma:crosswalk-VERIFIED,005012,ELIXY Хијалурон и Алое серум 30ml,1,2025@18.00: 128; 2026@18.00: 30; mex@18.00: 13
+00fe862e-e13e-489f-a14e-470aaae3ce88,ELIXY Хијалурон+авокадо масло,bundle,,False,SKU-000460,0,0.18,sigma:crosswalk-HIGH,005014,ELIXY Хијалурон+авокадо масло,1,no 2025–2026 sales invoice
+3ab2c622-0c32-4413-85da-6ebfffbdef71,ELIXY ШАМПОН (1+1) + КАПСУЛИ ПРОТИВ ОПАЃАЊЕ НА КОСА,bundle,natura_therapy,False,SKU-000272,0,0.18,sigma:crosswalk-MEDIUM,002056,ШАМП.ПРОТИВ ОПАЃАЊЕ 250мл,1,no 2025–2026 sales invoice
+f8973223-d7d6-4c5a-8086-a675e9f51c46,ELIXY ШАМПОН + КАПСУЛИ ПРОТИВ ОПАЃАЊЕ НА КОСА,bundle,natura_therapy,False,SKU-000273,0,0.18,sigma:crosswalk-MEDIUM,002056,ШАМП.ПРОТИВ ОПАЃАЊЕ 250мл,1,no 2025–2026 sales invoice
+bcc3c57d-7526-4e15-ab2f-8f9850a03a03,ELIXY-hyaluronic acid-collagen&aloe vera,product,natura_therapy,True,005037,705,0.18,sigma:crosswalk-VERIFIED,005037,ELIXY-hyaluronic acid-collagen&aloe vera,1,2025@18.00: 5; 2026@18.00: 40; mex@18.00: 8
+69b7dd41-8c84-43c9-b795-e8f2adbf27f6,ELIXY-анти-инфламаторен гел 200 мл,product,natura_therapy,False,005042,210,0.18,sigma:crosswalk-VERIFIED,005042,ELIXY-анти-инфламаторен гел  200 мл,1,2025@18.00: 35; 2026@18.00: 11; mex@18.00: 4
+1e01b8be-e04d-460a-adb1-8adf96a348ef,ELIXY-Дневенкрем снаил 50ml,product,natura_therapy,True,005007,1292,0.18,sigma:crosswalk-VERIFIED,005007,ELIXY-Дневенкрем снаил 50ml,1,2025@18.00: 118; 2026@18.00: 67; mex@18.00: 12
+3231056c-16ea-453f-92ee-82431a92d770,ELIXY-Ноќен крем снаил 50ml,product,natura_therapy,True,005006,537,0.18,sigma:crosswalk-VERIFIED,005006,ELIXY-Ноќен крем снаил 50ml,1,2025@18.00: 79; 2026@18.00: 44; mex@18.00: 8
+fe262460-3161-4b43-b948-d386d14a34d8,ELIXY-Околуочен крем 30ml,product,natura_therapy,True,005008,187,0.18,sigma:crosswalk-VERIFIED,005008,ELIXY-Околуочен крем 30ml,1,2025@18.00: 63; 2026@18.00: 23; mex@18.00: 10
+4b305ae3-3f12-4742-8ebd-dbf52d30b6c6,ELIXY-Серум снаил+јојоба,bundle,,False,SKU-000357,0,0.18,sigma:crosswalk-HIGH,005013,ELIXY-Серум снаил+јојоба,1,no 2025–2026 sales invoice
+b3f71472-0600-43a9-9b24-338de4b1ff68,ELIXY-ТЕРМО ГЕЛ 200ml+КРИО ГЕЛ 200ml,bundle,natura_therapy,True,005030,104,0.18,sigma:crosswalk-VERIFIED,005030,ELIXY-ТЕРМО ГЕЛ 200ml+КРИО ГЕЛ 200ml,1,2025@18.00: 64; 2026@18.00: 13; mex@18.00: 5
+146a38e1-6d48-4b85-8263-02d3840d534b,ELIXY-Шампон Алое вера 500 мл.,product,natura_therapy,True,005043,157,0.18,sigma:crosswalk-VERIFIED,005043,ELIXY-Шампон Алое вера 500 мл.,1,2025@18.00: 88; 2026@18.00: 47; mex@18.00: 6
+7d7dc5e9-a7b5-46b3-8df2-a250f7c0abd7,Enduro Max 30 капсули,product,,True,SKU-000049,0,0.05,sigma:crosswalk-HIGH,001288,ENDURO MAX 30 cps,2,no 2025–2026 sales invoice
+35a1cda5-23ac-49af-8c74-5e104f87954c,Femme 7,product,natura_therapy,True,001201,19,0.05,sigma:crosswalk-HIGH,001200,ФЕММЕ 7 60 cps,2,2025@5.00: 157; 2026@0.00: 1; 2026@5.00: 108; mex@0.00: 1; mex@5.00: 16
+3d8238e0-9f39-40e9-b05f-1baf235ecae1,FIBER FORMULA + 1+1 LAXATIVE FORMULA +подарок Aloe Vera 500ml,bundle,natura_therapy,False,SKU-000427,0,0.05,sigma:crosswalk-MEDIUM,001339,СЕТ ЛАКСАТИВ,2,2026@5.00: 4
+2376da90-8211-4115-919e-b64a33692918,FIBER FORMULA + 1+1 LAXATIVE FORMULA +подарок Aloe Vera 500ml + Д3 (90),bundle,natura_therapy,False,SKU-000429,0,0.05,sigma:by-name,001293,NATURAL LAXATIVE 100% 90/1 cps,2,2025@5.00: 52; 2026@5.00: 21; mex@5.00: 5
+4c8d833f-7db5-4809-966c-98abdbaa00e2,FIBER FORMULA + LAXATIVE FORMULA + подарок LAXATIVE FORMULA,bundle,natura_therapy,False,SKU-000328,0,0.05,sigma:crosswalk-HIGH,001339,СЕТ ЛАКСАТИВ,2,2026@5.00: 4
+b20942e6-f82e-40f7-9e71-7e4b304362c7,FIT&LEAN - Weight loss Combo,bundle,natura_therapy,False,SKU-000268,0,0.05,sigma:crosswalk-HIGH,001407,FIT&LEAN - Weight loss Combo,2,2025@5.00: 20; 2026@5.00: 1
+8c651716-0a4f-4a11-a781-9bdbd27035cc,Forever Lina mini,product,natura_therapy,False,SKU-000229,0,0.05,rule:supplement-5,,,,
+f9efaf2a-84ba-49f6-9de0-b9d859f8665e,Gastro Aloe,product,natura_therapy,True,000565,3544,0.05,sigma:crosswalk-VERIFIED,000565,ГАСТРО АЛОЕ 500ml,2,2025@5.00: 375; 2026@5.00: 160; mex@5.00: 18
+c57ec1bd-6a4c-48e0-8744-637b9f68d6fa,GASTRO COMFORT 30/1 cps,product,natura_therapy,False,001515,76,0.05,sigma:crosswalk-VERIFIED,001515,GASTRO COMFORT 30/1 cps,2,no 2025–2026 sales invoice
+820f88a4-a607-42fd-a175-4fd9ed5e7cc4,Gastro Protect,product,natura_therapy,True,SKU-000088,0,0.05,sigma:crosswalk-MEDIUM,000568,ГАСТРО ПРОТЕКТ 500ml,2,2025@5.00: 388; 2026@5.00: 152; mex@5.00: 18
+30f153d5-93b6-4fca-80ec-a871c81a0182,Gastro Protect & Gastro Aloe,product,natura_therapy,False,SKU-000257,0,0.05,sigma:crosswalk-HIGH,000565,ГАСТРО АЛОЕ 500ml,2,2025@5.00: 375; 2026@5.00: 160; mex@5.00: 18
+75fdf3e1-095f-44be-9bf4-371d7e31606f,Gastro Protect + Gastro Aloe (1+1),bundle,natura_therapy,False,SKU-000397,0,0.05,sigma:crosswalk-HIGH,000858,Гастро алое+гастро протект  сет 1+1,2,2025@5.00: 35; 2026@5.00: 17
+54a6f9eb-1050-458f-98d5-df4a23a3c93c,GLUCATOL (180cps) + Billbery extract (90cps) + Zinc (30cps),bundle,natura_therapy,False,SKU-000330,0,0.05,sigma:crosswalk-HIGH,001214,ГЛУКАТОЛ 180/1 cps,2,2025@5.00: 41; 2026@5.00: 15; mex@5.00: 5
+e0060d4e-946a-4ee9-9ba3-08ca5b49080a,GlucoCare,product,bio_natural,True,SKU-000238,161,0.05,sigma:crosswalk-HIGH,001690,Dr Becker GlucoCare 20/1 cps,2,no 2025–2026 sales invoice
+e25e349c-377e-45fb-9307-991573ac05ae,GlucoFix,product,bio_natural,True,001314,5642,0.05,sigma:crosswalk-VERIFIED,001314,GLUCO FIX BIONATURAL30/1,2,2025@5.00: 1; 2026@0.00: 3; 2026@5.00: 11; mex@0.00: 2; mex@5.00: 4
+cf71eecc-5289-4e4b-bfa0-93d19ad204e7,Hemoro Forte,product,natura_therapy,True,001058,2030,0.05,sigma:crosswalk-VERIFIED,001058,ХЕМОРО ФОРТЕ 30 cps,2,2025@5.00: 127; 2026@5.00: 69; mex@5.00: 15
+1b5a1965-17b1-4c6c-a841-b21ba8d3e747,Hemoro Forte (2+1) + Hemoro Forte Gel,bundle,natura_therapy,False,SKU-000263,0,0.05,sigma:crosswalk-HIGH,005036,Хеморо форте (2+1)+ Хеморо гел,2,2025@18.00: 1; 2025@5.00: 55; 2026@5.00: 28
+e13d7a0a-bbda-43be-84bd-d7379f121f31,Hemoro Forte (2+2 + Hemoro Forte Gel ) + подарок,bundle,natura_therapy,False,SKU-000394,0,0.05,sigma:crosswalk-HIGH,001058,ХЕМОРО ФОРТЕ 30 cps,2,2025@5.00: 127; 2026@5.00: 69; mex@5.00: 15
+1395475b-b4a4-41cf-92ba-118d3d9af794,Hemorofix,product,bio_natural,True,001540,1861,0.05,sigma:crosswalk-VERIFIED,001540,HEMOROFIX BIONATURAL 30/1,2,2026@0.00: 1; 2026@5.00: 8; mex@0.00: 1; mex@5.00: 3
+a05eabed-4e65-4fe8-b3f4-62300fcbbb3a,Hepatol,product,natura_therapy,True,000328,837,0.05,sigma:crosswalk-VERIFIED,000328,ХЕПАТОЛ ФОРТЕ 30 cps,2,2025@5.00: 57; 2026@5.00: 45; mex@5.00: 12
+fc5f7a6d-2741-4f60-9f03-efb81023e260,HEPATOL FORTE 2+1 + EKSTRAKT OD ZELEN CAJ,bundle,natura_therapy,False,SKU-000446,0,0.05,sigma:crosswalk-HIGH,000398,ХЕПАТОЛ ФОРТЕ 30cps-сет 2+1,2,2025@5.00: 49; 2026@5.00: 23
+4c08d0a6-f345-4539-835c-f9978ee8c862,HULK - Bulking Combo,bundle,natura_therapy,False,SKU-000266,0,0.05,sigma:crosswalk-HIGH,001405,HULK - Bulking Combo,2,2025@5.00: 23
+10a7caaf-0fdc-4814-b9eb-fa0e7d09ff83,Hyaluron 5,product,natura_therapy,True,005033,4,0.05,sigma:crosswalk-MEDIUM,001078,ХИАЛУРОН 5  90 гр (1+1),2,2025@5.00: 2
+90fd6a97-7fdb-4113-9d23-1763eabb00e5,Hyaluronic Acid & Aloe vera Face serum + Olive Oil + Derma Roller ПОДАРОК,bundle,natura_therapy,False,SKU-000309,0,0.18,rule:cosmetic-18,,,,
+638a0de0-c2b9-453a-ae1c-bf4621873e2f,I'AM AHA серум за лице,product,natura_therapy,False,SKU-000146,0,0.18,sigma:crosswalk-MEDIUM,002789,Серум за лице,1,no 2025–2026 sales invoice
+7fd4a9e2-9bc5-4806-aa8b-71b3fbec72d8,I'AM Anti-Acne серум за лице,product,natura_therapy,False,SKU-000141,0,0.18,rule:cosmetic-18,,,,
+5ea1f80d-bb46-4efa-9e25-f94f2ee25c34,I'AM Beta Glucan серум за лице,product,natura_therapy,False,SKU-000191,0,0.18,rule:cosmetic-18,,,,
+f6e635de-b1d0-4d07-9ddc-9a6c21d0d5cb,I'AM Beta Glucan+Vit B3+Anti Acne+Jade Roller,bundle,natura_therapy,False,SKU-000464,0,0.18,rule:cosmetic-18,,,,
+bf3d2d79-07ed-4141-98a7-f0ebb85d406d,I'AM Collagen+Aha Acids+Anti Acne+Jade Roller,bundle,natura_therapy,False,SKU-000510,0,0.18,sigma:by-name+mixed,005023,ELIXY-Колаген серум 30 мл,1,2025@18.00: 71; 2026@18.00: 38; mex@18.00: 12
+9bdf8924-35a0-40d5-a270-aa7783d756ae,I'AM Collagen+Aha Acids+Beta Glucan+Jade Roller,bundle,natura_therapy,False,SKU-000535,0,0.18,sigma:by-name+mixed,005023,ELIXY-Колаген серум 30 мл,1,2025@18.00: 71; 2026@18.00: 38; mex@18.00: 12
+752ae710-df1b-4cb4-8b4f-279d634c88ff,I'AM Collagen+Vit B3+Beta Glucan+Јаde Roller,bundle,natura_therapy,False,SKU-000436,0,0.18,sigma:by-name+mixed,005023,ELIXY-Колаген серум 30 мл,1,2025@18.00: 71; 2026@18.00: 38; mex@18.00: 12
+a8676822-10c4-4c90-96c9-0dc56b4c03c2,I'AM Vitamin B3 серум за лице,product,natura_therapy,False,SKU-000185,0,0.18,sigma:crosswalk-MEDIUM,002358,Витамин Б3 серум 30мл,1,no 2025–2026 sales invoice
+9f63c2a4-93d3-41a2-9e0b-683b2fafe8c2,"IMMUNO BOOST - с вкус на къпина, лимон и лайм",product,ad_astra,True,SKU-000054,0,0.05,sigma:crosswalk-HIGH,000796,Имуно буст Капина/Лимон/Лимета 500ml,2,2025@5.00: 128; 2026@5.00: 151; mex@5.00: 8
+0b987872-fdca-4f7d-87d6-1dd703060ecd,IMMUNO BOOST - с вкус на портокал и ананас,product,ad_astra,True,SKU-000055,0,0.05,sigma:crosswalk-MEDIUM,000797,Имуно буст ПОРТОКАЛ-АНАНАС 500ml,2,2025@5.00: 155; 2026@5.00: 174; mex@5.00: 11
+6192e30a-2f1a-4e68-b830-aa2083a8fe80,Jade Roler,other,natura_therapy,True,SKU-000006,0,0.18,rule:device-18,,,,
+0f6b402d-b313-4733-b52f-616b81e1bb3d,L-GLUTAMINE powder 200 gr.,product,ad_astra,True,SKU-000056,26,0.05,sigma:crosswalk-HIGH,000955,Л-ГЛУТАМИН во прав 200 гр.,2,2025@5.00: 134; 2026@5.00: 147; mex@5.00: 11
+4c15f7f7-7eaf-4112-8e47-53d3e2468ad3,Liverfix,product,bio_natural,True,SKU-000086,8,0.05,sigma:crosswalk-HIGH,001537,LIVERFIX BIONATURAL 30/1 cps,2,2026@0.00: 1; 2026@5.00: 5; mex@5.00: 1
+daf9023e-c5fd-4900-9160-6f430a6ac979,LIVERFIX 30/1 BIONATURAL,product,bio_natural,True,001537,4,0.05,sigma:crosswalk-VERIFIED,001537,LIVERFIX BIONATURAL 30/1 cps,2,2026@0.00: 1; 2026@5.00: 5; mex@5.00: 1
+ab0619ab-4e13-49c7-8ed0-b97bbb4ef0ab,MAGNESIUM BISGLYCINATE 120/1,product,natura_therapy,True,001659,611,0.05,sigma:crosswalk-VERIFIED,001659,MAGNESIUM BISGLYCINATE 120/1 tab,2,2026@5.00: 105; mex@5.00: 2
+a93a0b66-1aca-408d-a3c3-57b6a3316ab4,MAGNESIUM CITRAT 325mg,product,natura_therapy,True,001571,14199,0.05,sigma:crosswalk-VERIFIED,001571,MAGNESIUM CITRAT 325mg 150/1 tab,2,2026@0.00: 1; 2026@5.00: 455; mex@5.00: 6
+cfeea178-f0bc-4c4c-a989-032112ffaf5a,MAGNESIUM GEL 50ml,product,natura_therapy,True,001641,2958,0.18,sigma:crosswalk-VERIFIED,001641,MAGNESIUM GEL 50 ml,1,2026@18.00: 86; mex@18.00: 2
+578b42d3-c182-48fc-a43f-e0e66749f61f,MAGNESIUM+ B6 150/1 tab,product,natura_therapy,True,001573,370,0.05,sigma:crosswalk-VERIFIED,001573,MAGNESIUM+ B6 150/1 tab,2,2026@5.00: 121; mex@5.00: 2
+56299955-d23a-4d07-acfb-d6002945a0db,MAGNESIUM+ZINK+B complex 120/1 TAB,product,natura_therapy,True,001575,1913,0.05,sigma:crosswalk-VERIFIED,001575,MAGNESIUM +ZINC+B complex 120/1tab,2,2026@5.00: 159; mex@5.00: 5
+bef73330-598a-4696-bad2-7e067d00d68a,Mass Gainer,product,ad_astra,True,SKU-000210,14,0.05,sigma:crosswalk-HIGH,001601,MASS GAINER 3 kg,2,2026@5.00: 22
+402c7159-20dc-480c-931b-0a9def19216a,Matcha Collagen + Vitamin C Serum,bundle,ad_astra,False,SKU-000421,0,0.18,sigma:crosswalk-MEDIUM,002343,Витамин Ц серум 30мл,1,no 2025–2026 sales invoice
+4cb93130-876c-4a79-975e-15930be401d4,Max Brain (какао напиток),product,ad_astra,False,SKU-000187,0,0.05,sigma:crosswalk-HIGH,000974,МАКС БРЕИН 200 гр,2,2025@5.00: 55; 2026@5.00: 3; mex@5.00: 11
+43df7852-a7f3-46f3-807c-bbce7260bc39,Melatonin — гумени бонбони (30),product,natura_therapy,False,SKU-000116,13,0.05,sigma:crosswalk-HIGH,001132,Гумени бонбони Мелатонин 30/1,2,2025@5.00: 26; 2026@5.00: 127; mex@5.00: 6
+ffbb183b-a44c-412a-bebb-512ad0bd5e6b,MenCare,product,bio_natural,True,SKU-000239,10,0.05,sigma:crosswalk-HIGH,001693,Dr Becker MenCare 20/1 cps,2,no 2025–2026 sales invoice
+59689803-b84b-4869-b8b5-5a65d6572057,Menopause Complex 30 cps,product,natura_therapy,False,SKU-000124,0,0.05,sigma:crosswalk-HIGH,000542,МЕНОПАУЗА КОМПЛЕКС 30cps,2,no 2025–2026 sales invoice
+a9709e38-ede8-4d80-b1fe-1daf1fb148b9,Mushroom Complex 500 ml,product,natura_therapy,False,SKU-000097,0,0.05,sigma:crosswalk-HIGH,000263,"МАШРОМ КОМПЛЕКС  0,5 Л",2,no 2025–2026 sales invoice
+9f6001cd-5521-4eb4-b234-28460afdfa15,Natural Fiber 100% 210gr,product,natura_therapy,True,001277,1219,0.05,sigma:crosswalk-VERIFIED,001277,NATURAL FIBER 100% 210 gr,2,2025@5.00: 52; 2026@5.00: 20; mex@5.00: 5
+94c86a2d-0258-4687-8ca4-bd591f6e287a,Natural Laxative 100% 90/1 cps,product,natura_therapy,True,001293,1239,0.05,sigma:crosswalk-VERIFIED,001293,NATURAL LAXATIVE 100% 90/1 cps,2,2025@5.00: 52; 2026@5.00: 21; mex@5.00: 5
+c92edc8f-bf67-4afd-9462-570d30dd56c5,Natural Testosterone Booster,product,natura_therapy,False,SKU-000125,0,0.05,rule:supplement-5,,,,
+b8ff0ccb-ba70-48c3-b9a6-2dad9f6f34e1,NeuroCare,product,,True,SKU-000241,1,0.05,sigma:crosswalk-HIGH,001692,Dr Becker NeuroCare 20/1 cps,2,no 2025–2026 sales invoice
+7755d5c0-66ee-4ec6-93ae-fe7b8a47f4c6,Neurofix,product,bio_natural,True,SKU-000073,5544,0.05,sigma:crosswalk-HIGH,001539,NEUROFIX BIONATURAL 30/1,2,2026@0.00: 2; 2026@5.00: 10; mex@0.00: 2; mex@5.00: 3
+6021ef0b-ca7e-47b3-a01a-a16e4414b8e2,Neurofix 1+1,bundle,bio_natural,True,SKU-000244,0,0.05,sigma:crosswalk-HIGH,001539,NEUROFIX BIONATURAL 30/1,2,2026@0.00: 2; 2026@5.00: 10; mex@0.00: 2; mex@5.00: 3
+8f5732dc-cf65-4cae-b1d2-1d4ae96fd479,NEUROFIX BIONATURAL 30/1,product,bio_natural,True,001539,410,0.05,sigma:crosswalk-VERIFIED,001539,NEUROFIX BIONATURAL 30/1,2,2026@0.00: 2; 2026@5.00: 10; mex@0.00: 2; mex@5.00: 3
+ddbb225d-3186-41c7-a079-61e8912de726,Nicotine Protect 60 cps,product,natura_therapy,False,SKU-000189,0,0.05,sigma:crosswalk-HIGH,000173,НИКОТИН ПРОТЕКТ 60 cps,2,no 2025–2026 sales invoice
+262dcdc5-b018-4b82-8f08-985b882010a2,Night Burn,product,ad_astra,True,SKU-000123,0,0.05,sigma:crosswalk-HIGH,001684,NIGHT BURN 200 gr,2,2026@5.00: 9
+4cff97e4-4e40-4efe-a729-da4e56ddc056,NMN (Nicotinamide Mononucleotide) 60 cps,product,natura_therapy,True,SKU-000104,19,0.05,sigma:crosswalk-HIGH,001445,NMN 60/1 cps,2,2026@5.00: 40; mex@5.00: 1
+aaa9c76d-bbe0-47e1-828a-9c281476b9a0,"Nutri Shake ( 2 веган, 2 whey) +2x Slim Complex",bundle,ad_astra,False,SKU-000288,0,0.05,sigma:crosswalk-HIGH,000615,СЛИМ КОМПЛЕКС 30cps,2,2025@5.00: 121; 2026@5.00: 103; mex@5.00: 7
+ba7cca60-665f-46dc-a674-e63cf1bee5f9,"Nutri Shake ( 3 веган, 1 whey) + Slim Complex",bundle,ad_astra,False,SKU-000281,0,0.05,sigma:crosswalk-HIGH,000615,СЛИМ КОМПЛЕКС 30cps,2,2025@5.00: 121; 2026@5.00: 103; mex@5.00: 7
+56d9d9aa-e7dc-468d-8518-6729145cf42b,"Nutri Shake ( 3 веган, 2 whey) + 3x Slim Complex",bundle,ad_astra,False,SKU-000315,0,0.05,sigma:crosswalk-HIGH,000092,СЛИМ КОМПЛЕКС (сет2+1),2,no 2025–2026 sales invoice
+cd011bec-8928-42ac-b4ce-7278ada0fe3c,Nutri Shake (2+1 веган),bundle,ad_astra,False,SKU-000255,0,0.05,sigma:crosswalk-HIGH,001305,СЕТ НУТРИ ШЕЈК ВАНИЛА 2+1,2,2025@5.00: 6; 2026@5.00: 3
+bc762089-2db5-4513-afd1-452dc50c4f61,NUTRI SHAKE- strawberry 500 g,product,ad_astra,True,SKU-000008,0,0.05,sigma:crosswalk-HIGH,001229,НУТРИ ШЕЈК-со вкус на јагода 500 гр.,2,2025@5.00: 212; 2026@5.00: 172; mex@5.00: 13
+bcd0186d-c0ae-43c9-bcef-ee35bc6d7edd,NUTRI SHAKE-chocolate 500 g,product,ad_astra,True,SKU-000009,1,0.05,sigma:crosswalk-HIGH,001228,НУТРИ ШЕЈК-со вкус на чоколадо 500 гр.,2,2025@5.00: 208; 2026@5.00: 213; mex@5.00: 14
+09083a2d-be56-49b7-8163-95e604743dbd,Nutri Soup — домат,product,ad_astra,True,SKU-000168,6,0.05,sigma:crosswalk-HIGH,001467,НУТРИ СУПА ДОМАТ 500 гр,2,2026@5.00: 63; mex@5.00: 3
+18a840d3-7629-4b8f-9275-f5e481b4a136,Nutri Soup — зеленчук и хлорофил,product,ad_astra,True,SKU-000200,0,0.05,sigma:by-name,001468,НУТРИ СУПА РАСТИТЕЛЕН МИКС 500 гр,2,2026@5.00: 75; mex@5.00: 4
+cab4d37c-c2c6-4d6b-9802-87ca9c34052f,Nutri Soup (зеленчук и хлорофил) + Nutri Shake (јагода) + маталка,bundle,ad_astra,False,SKU-000372,0,0.05,sigma:by-name,001468,НУТРИ СУПА РАСТИТЕЛЕН МИКС 500 гр,2,2026@5.00: 75; mex@5.00: 4
+17f4e318-d6af-42c5-9746-f9606fbf59b9,Olive Leaf Extract,product,natura_therapy,False,SKU-000193,0,0.05,rule:supplement-5,,,,
+666ed719-5b43-4175-b4fa-6403fffce804,Opti Care,product,natura_therapy,True,SKU-000090,46,0.05,rule:supplement-5,,,,
+c7ae112b-8cea-4701-9f19-c2e1efb8a173,OSTEOfix,product,,True,SKU-000057,0,0.05,sigma:crosswalk-MEDIUM,001150,ОСТЕО ФИКС 180 tab,2,2025@5.00: 54; 2026@5.00: 10; mex@5.00: 4
+b78d1fb1-936c-420f-8940-a13e0b82348b,OXI JET POWER 1+1,bundle,,False,SKU-000260,0,0.18,sigma:crosswalk-HIGH,001436,OXI JET POWER 1+1,1,no 2025–2026 sales invoice
+1fbfc3a0-413a-4c59-b802-9c3b16009adc,Oxy Jet Power,product,natura_therapy,False,SKU-000183,0,0.18,sigma:crosswalk-HIGH,001438,OXI JET POWER 8 L,1,2025@18.00: 25; 2026@18.00: 42; mex@18.00: 1
+33c1d3a7-7711-416d-99e0-218be326ef05,PARA DETOX (2+2) + Hepatol Forte,bundle,natura_therapy,False,SKU-000338,0,0.05,sigma:crosswalk-HIGH,000447,ХЕПАТОЛ ФОРТЕ 30 cps (сет 2+2),2,no 2025–2026 sales invoice
+d14984b1-5fc5-41bc-80a4-95ba6e453b18,ParaDetox,product,natura_therapy,True,SKU-000078,2064,0.05,sigma:crosswalk-HIGH,001071,ПАРА ДЕТОКС 30 cps,2,2025@5.00: 58; 2026@5.00: 31; mex@5.00: 13
+92ffb0db-e8c0-433e-bc54-707c1281f380,Parafix,product,bio_natural,True,001536,4598,0.05,sigma:crosswalk-VERIFIED,001536,PARAFIX BIONATURAL 30/1cps,2,2026@0.00: 3; 2026@5.00: 10; mex@0.00: 2; mex@5.00: 3
+16e09162-ff58-4939-8327-bedabee0b3b1,PMS Complex,product,natura_therapy,False,SKU-000149,0,0.05,sigma:crosswalk-HIGH,000310,ПМС КОМПЛЕКС 30cps,2,no 2025–2026 sales invoice
+8abe2b25-248a-415e-8380-197a40d490ec,Pre Workout + Creatine Powder + Tribulus Terrestris(60cps),bundle,ad_astra,True,SKU-000304,0,0.05,sigma:crosswalk-HIGH,001076,ТРИБУЛУС ТЕРЕСТРИС 60/1 cps,2,2025@5.00: 113; 2026@5.00: 70; mex@5.00: 11
+6f03b6b6-afab-4bcb-a6e0-769d5ae02056,Pre-Workout прав 200 г,product,ad_astra,True,SKU-000216,30,0.05,sigma:crosswalk-HIGH,001331,PRE WORKOUT POWDER 200 gr,2,2025@5.00: 33; 2026@5.00: 47; mex@5.00: 2
+a16293b8-9113-4729-9b65-520f2026cba0,PRIME FOCUS THE IMPOSSIBLE PRIMER,product,natura_therapy,False,SKU-000115,0,0.18,rule:cosmetic-18,,,,
+e007acd2-7081-43fa-87d0-004f7f8528a3,Prosta Flow 30 капсули,product,,True,SKU-000010,0,0.05,sigma:crosswalk-HIGH,001286,PROSTA FLOW 30 cps,2,no 2025–2026 sales invoice
+4e835863-ddd5-4767-b189-4591d662fd5a,ProstaCare,product,bio_natural,True,SKU-000240,44,0.05,sigma:crosswalk-HIGH,001691,Dr Becker ProstaCare 20/1 cps,2,no 2025–2026 sales invoice
+8ae08430-37c3-438a-b3cc-0d713bbfbc6a,ProstaFix,product,bio_natural,True,001317,6844,0.05,sigma:crosswalk-VERIFIED,001317,PROSTA FIX BIONATURAL 30 cps,2,2025@5.00: 2; 2026@0.00: 2; 2026@5.00: 12; mex@0.00: 2; mex@5.00: 6
+2ab2e771-2b7f-47d9-86b7-f4a2c459002d,Prostafix 1+1,bundle,bio_natural,True,SKU-000245,0,0.05,sigma:crosswalk-HIGH,001317,PROSTA FIX BIONATURAL 30 cps,2,2025@5.00: 2; 2026@0.00: 2; 2026@5.00: 12; mex@0.00: 2; mex@5.00: 6
+5b174cc4-4d40-4f31-ab83-d3dff486015c,Prostatol Complex (2+2) + Цинк 120тбл,bundle,natura_therapy,True,SKU-000354,0,0.05,sigma:crosswalk-HIGH,001670,ZINC 120/1 tab,2,2026@5.00: 66
+672c4097-671f-46f4-ae95-d8d59f261249,PROSTATOL COMPLEX 2+1 + EPIMEDIUM COMPLEX,bundle,natura_therapy,False,SKU-000300,0,0.05,sigma:crosswalk-HIGH,000324,ПРОСТАТОЛ КОМПЛЕКС cps 30-сет2+1,2,2025@5.00: 295; 2026@5.00: 137
+2bc7aded-35d9-49ed-8972-b71a3548b6d3,PU гумена подлога за јога (виолетова),other,natura_therapy,False,SKU-000127,0,0.18,rule:device-18,,,,
+53c2eeed-e036-497c-b75b-1dc145a0d566,Pulmo Complex,product,natura_therapy,False,SKU-000212,0,0.05,sigma:crosswalk-HIGH,000209,ПУЛМО КОМПЛЕКС cps 30,2,2025@5.00: 15; mex@5.00: 8
+73b42da4-2eb6-4af8-ba56-446b740177d4,Quercetin,product,natura_therapy,False,SKU-000171,0,0.05,sigma:crosswalk-HIGH,000575,КВЕРЦЕТИН 30cps,2,2025@5.00: 5; mex@5.00: 4
+680772d4-9e51-4a5f-ae72-491a0193e9e9,R&R Melem,product,natura_therapy,True,SKU-000082,564,0.18,sigma:crosswalk-MEDIUM,001635,МЕЛЕМ R&R 30 мл,1,2026@18.00: 7; mex@18.00: 3
+ce21e674-233a-43cf-a197-cbfff88ce280,Red Yeast Rice 30 cps,product,natura_therapy,True,SKU-000152,1,0.05,sigma:by-name,000413,ЦРВЕН ОРИЗ 30 cps.,2,2025@5.00: 20; 2026@5.00: 1; mex@5.00: 8
+29522a67-b9e6-4766-bad5-08afacc1f240,Reishi,,natura_therapy,True,SKU-000058,167,0.05,sigma:crosswalk-HIGH,000121,РЕИШИ КАПСУЛИ cps 30,2,2025@5.00: 15; 2026@5.00: 10; mex@5.00: 7
+a396b256-bac2-454e-83b8-5d764059662b,Reishi премиум кафе,product,natura_therapy,False,SKU-000177,0,0.05,sigma:crosswalk-HIGH,000054,"Инстант кафе Реиши 2,5 гр",2,no 2025–2026 sales invoice
+b451d55c-44dd-44ec-9d47-6c64a7d9c5c9,RESVERATROL COMPLEX 2+1 + RED YEAST,bundle,natura_therapy,False,SKU-000393,0,0.05,sigma:crosswalk-MEDIUM,000300,РЕСВЕРАТРОЛ КОМПЛЕКС 30 cps,2,2025@5.00: 34; 2026@5.00: 22; mex@5.00: 12
+78ffd052-4c06-4685-a09b-d92e4e1f41b5,Royal Jelly 30 cps,product,natura_therapy,False,SKU-000144,0,0.05,rule:supplement-5,,,,
+1a1016fd-6c55-45d8-82dd-eb4b78a79a08,SAW Palmetto,product,natura_therapy,True,SKU-000059,3,0.05,sigma:crosswalk-HIGH,000271,САУ ПАЛМЕТТО (Saw Palmetto) 30 cps,2,2025@5.00: 105; 2026@0.00: 1; 2026@5.00: 68; mex@0.00: 1; mex@5.00: 17
+03e124ca-ba70-4cb9-8ff3-8a105b6297a7,Shilajit & Maca Energy Boost Pack + подарок витамин Д3 и цинк,bundle,natura_therapy,False,SKU-000362,0,0.05,sigma:by-name,001333,SHILAJIT 60 cps,2,2025@5.00: 36; 2026@5.00: 39; mex@5.00: 6
+07f086f7-39d8-40e3-a55b-f45d0e0f713c,SHILAJIT 60/1 cps,product,natura_therapy,True,001333,79,0.05,sigma:crosswalk-VERIFIED,001333,SHILAJIT 60 cps,2,2025@5.00: 36; 2026@5.00: 39; mex@5.00: 6
+93bd72c4-db7b-4070-bd91-6e4fed785db9,Siberian Ginseng Extract,product,natura_therapy,False,SKU-000158,0,0.05,rule:supplement-5,,,,
+4a8748bc-f7eb-4815-bf96-24365c379580,SLIM Complex,product,natura_therapy,True,SKU-000011,161,0.05,sigma:crosswalk-HIGH,000615,СЛИМ КОМПЛЕКС 30cps,2,2025@5.00: 121; 2026@5.00: 103; mex@5.00: 7
+1215c81a-36a2-4f70-b0b5-f318991cc70d,Slim complex + 2X Slim Fiber Set,bundle,natura_therapy,False,SKU-000258,0,0.05,sigma:crosswalk-HIGH,000619,Слим комплекс+ Слим фибер 1+1 гратис,2,2025@5.00: 6
+90f36677-e8ad-4b5a-984a-cc150d95ab4d,SLIM Fiber,product,natura_therapy,True,000616,479,0.05,sigma:crosswalk-VERIFIED,000616,СЛИМ ФИБЕР 30cps,2,2025@5.00: 92; 2026@5.00: 79; mex@5.00: 9
+bdc79d87-8e42-430d-8925-c3b010ca257f,Slim Fit,product,bio_natural,True,001312,5882,0.05,sigma:crosswalk-VERIFIED,001312,SLIM FIT BIONATURAL 30/1,2,2025@5.00: 1; 2026@0.00: 2; 2026@5.00: 11; mex@0.00: 2; mex@5.00: 4
+3894faab-8496-4d2a-8ed5-6bf683554881,Slimrush 30 капсули,product,,True,SKU-000013,0,0.05,sigma:crosswalk-HIGH,001287,SLIM RUSH 30 cps,2,no 2025–2026 sales invoice
+7ec6ce03-0c4a-46bf-98ca-c716dfe9df15,Snail Complex,product,natura_therapy,True,SKU-000060,4650,0.05,sigma:crosswalk-HIGH,000042,СНАИЛ КОМПЛЕКС cps 30,2,2025@5.00: 529; 2026@5.00: 253; mex@5.00: 18
+0b580055-8b76-4a0f-8149-acf6024f0c94,Snail Repair Dnevna Krema + Avocado Oil + Derma Roller ПОДАРОК,bundle,natura_therapy,False,SKU-000404,0,0.18,sigma:by-name+mixed,005007,ELIXY-Дневенкрем снаил 50ml,1,2025@18.00: 118; 2026@18.00: 67; mex@18.00: 12
+a69aad11-fbc9-4d96-a4d9-1256b05bd007,Snail Repair Dnevna Krema + Avocado Oil + Ice Roller ПОДАРОК,bundle,natura_therapy,False,SKU-000369,0,0.18,sigma:by-name+mixed,005007,ELIXY-Дневенкрем снаил 50ml,1,2025@18.00: 118; 2026@18.00: 67; mex@18.00: 12
+96b8ec07-c52b-48c7-9bb9-500b09b64497,Snail Repair Face Cream + Avocado Oil + Ice Roller ПОДАРОК,bundle,natura_therapy,False,SKU-000428,0,0.18,sigma:by-name+mixed,005007,ELIXY-Дневенкрем снаил 50ml,1,2025@18.00: 118; 2026@18.00: 67; mex@18.00: 12
+3966fa17-925e-43f4-b6dd-1361bc665e14,Snail Repair Face Cream + Marula Oil + Facial Roller & Massager ПОДАРОК,bundle,natura_therapy,False,SKU-000512,0,0.18,sigma:by-name+mixed,005007,ELIXY-Дневенкрем снаил 50ml,1,2025@18.00: 118; 2026@18.00: 67; mex@18.00: 12
+e22d849e-c5a7-4229-86a2-7d5f288175ae,Snail Repair Face Cream + Marula Oil + Jade Roller & Massager ПОДАРОК,bundle,natura_therapy,False,SKU-000450,0,0.18,sigma:by-name+mixed,005007,ELIXY-Дневенкрем снаил 50ml,1,2025@18.00: 118; 2026@18.00: 67; mex@18.00: 12
+98a5c137-4946-49ac-8eb5-7bddc1125d61,Snail Repair Face Serum + Rosehip Oil + 3D Body Massager ПОДАРОК,bundle,natura_therapy,False,SKU-000322,0,0.18,sigma:by-name+mixed,005005,ELIXY Серум со 20%снаил екстракт,1,2025@18.00: 116; 2026@18.00: 33; mex@18.00: 11
+e6c987a6-e637-4335-9ac7-53f978924d45,Snail Repair Nokna Krema+ Marula Oil + Jade Roller & Massager ПОДАРОК,bundle,natura_therapy,False,SKU-000418,0,0.18,sigma:by-name+mixed,005006,ELIXY-Ноќен крем снаил 50ml,1,2025@18.00: 79; 2026@18.00: 44; mex@18.00: 8
+d3930a77-916b-45a4-ae3d-f47739a6989d,Snail Repair Serum + Rosehip Oil + Derma Roller ПОДАРОК,bundle,natura_therapy,False,SKU-000339,0,0.18,sigma:by-name+mixed,005005,ELIXY Серум со 20%снаил екстракт,1,2025@18.00: 116; 2026@18.00: 33; mex@18.00: 11
+d7ccc4c8-70a4-4393-9b5c-435a87976bfa,Snail Repair Serum + Rosehip Oil + Jade Roller ПОДАРОК,bundle,natura_therapy,False,SKU-000329,0,0.18,sigma:by-name+mixed,005005,ELIXY Серум со 20%снаил екстракт,1,2025@18.00: 116; 2026@18.00: 33; mex@18.00: 11
+a9393b5e-2973-4ec2-ab76-98dc0953894f,Snail Repair Serum + Snail Repair Dnevna Krema + Snail Repair Nokna Krema + Snail Repair Krema za okolu oci + 2 подарокa по избор,bundle,natura_therapy,False,SKU-000508,0,0.18,sigma:by-name+mixed,005007,ELIXY-Дневенкрем снаил 50ml,1,2025@18.00: 118; 2026@18.00: 67; mex@18.00: 12
+afc2ea05-3e11-49b8-842c-cd53d4dd52b7,TERMINATOR - Shredded Combo,bundle,natura_therapy,False,SKU-000253,0,0.05,sigma:crosswalk-HIGH,001406,TERMINATOR - Shredded Combo,2,2025@5.00: 33; 2026@5.00: 7; mex@5.00: 1
+7846f678-c6f2-4c3c-bb39-e19856a36f2f,TONGAKT ALI 60/1,product,ad_astra,True,001335,39,0.05,sigma:crosswalk-VERIFIED,001335,TONGAKT ALI 60 cps,2,2025@5.00: 26; 2026@5.00: 23; mex@5.00: 4
+e63ee90d-7151-4902-b94e-7e4a49281040,Tongkat Ali & Ashwagandha Performance + подарок витамин Д3 и цинк,bundle,ad_astra,False,SKU-000396,0,0.05,sigma:by-name,001335,TONGAKT ALI 60 cps,2,2025@5.00: 26; 2026@5.00: 23; mex@5.00: 4
+f569db4a-3b64-4bcb-b962-461c39af14f6,TPE YOGA MAT - BLUE,other,natura_therapy,False,SKU-000507,0,0.18,sigma:crosswalk-HIGH,000439,ТПE ЈОГА МАТ (мрежа),1,no 2025–2026 sales invoice
+30141f7d-f252-4934-a063-57c5004f42d1,Tribulus,product,natura_therapy,True,001076,115,0.05,sigma:crosswalk-VERIFIED,001076,ТРИБУЛУС ТЕРЕСТРИС 60/1 cps,2,2025@5.00: 113; 2026@5.00: 70; mex@5.00: 11
+7a2c40a2-a2ce-49ea-b2ff-57368b6fc4f5,TURMERIC BOOST - Куркума буст - 500мл.,,ad_astra,True,SKU-000014,21,0.05,sigma:crosswalk-HIGH,001217,ТУРМЕРИК БООСТ 500 мл,2,2025@18.00: 6; 2025@5.00: 81; 2026@5.00: 118; mex@5.00: 9
+2ac41ea2-95d4-4106-a3b5-70eebb43cb01,Turmeric Curcumin + Neuro Active,bundle,natura_therapy,False,SKU-000370,0,0.05,sigma:crosswalk-HIGH,000166,НЕУРО АКТИВ 60 cps,2,2025@5.00: 195; 2026@5.00: 168; mex@5.00: 13
+910e0f3d-8f9e-424b-b28c-d36a1cbf2793,"Ultimate SlimBox, 6 in 1",bundle,natura_therapy,False,SKU-000303,0,0.18,rule:device-18,,,,
+910d146f-97b6-406f-8269-d26be529b13b,"Ultimate SlimBox, 6 in 1 + Shaker",bundle,natura_therapy,False,SKU-000254,0,0.18,rule:device-18,,,,
+cd15ebd0-c54e-4828-9024-e5664302e75e,Ultra C Complex - Imuno Boost,product,ad_astra,False,SKU-000541,0,0.05,rule:supplement-5,,,,
+a09d70c8-ca38-49d0-965a-3175978e33b3,Uro Protect,product,natura_therapy,True,SKU-000062,5429,0.05,sigma:crosswalk-HIGH,000594,УРО ПРОТЕКТ 30 cps,2,2025@5.00: 78; 2026@5.00: 73; mex@5.00: 15
+d7a1af2f-8228-4836-8dde-655883c3610c,URO PROTECT & D-MANNOSE (1+1) GRATIS,bundle,natura_therapy,False,SKU-000364,0,0.05,sigma:crosswalk-HIGH,001303,СЕТ Д-маноза 60/1+УРО протект 60/1,2,2025@5.00: 24
+c3dc6fdf-5648-4802-95f1-5d9ad5c04d8e,URO PROTECT & D-MANNOSE (2+2) GRATIS,bundle,natura_therapy,False,SKU-000447,0,0.05,sigma:crosswalk-HIGH,000677,УРО ПРОТЕКТ + Д-МАНОЗА (СЕТ 2+2),2,2025@5.00: 50
+09ad6c68-ef01-441e-85a8-aa0eba26f889,URO Protect + D-Mannose,bundle,natura_therapy,False,SKU-000368,0,0.05,sigma:crosswalk-HIGH,001303,СЕТ Д-маноза 60/1+УРО протект 60/1,2,2025@5.00: 24
+fae40061-d8ad-4025-9de0-3dea17daff71,Urofix,product,bio_natural,True,001538,5532,0.05,sigma:crosswalk-VERIFIED,001538,UROFIX BIONATURAL 30/1,2,2026@0.00: 3; 2026@5.00: 10; mex@0.00: 2; mex@5.00: 3
+3a754b34-11cd-4fba-8913-6acb3b6ccf76,Veno Gel,,natura_therapy,True,000502,1099,0.18,sigma:crosswalk-VERIFIED,000502,ВЕНОГЕЛ гел 100ml,1,2025@18.00: 73; 2026@18.00: 27; mex@18.00: 14
+080f3cca-96d6-4030-b4a9-989561ecf4a0,Vitamin B6,product,natura_therapy,True,000944,2089,0.05,sigma:crosswalk-VERIFIED,000944,ВИТАМИН Б6  30tbl,2,2025@5.00: 147; 2026@0.00: 2; 2026@5.00: 339; mex@0.00: 2; mex@5.00: 15
+37d15cbb-40ac-4bcc-aab7-f3bce24d82dd,Vitamin C - Complex (1000 ml ) (2+1) GRATIS + Vit C KIDS,bundle,natura_therapy,False,SKU-000420,0,0.05,sigma:crosswalk-HIGH,000577,ВИТАМИН Ц 1Л СЕТ (2+1),2,no 2025–2026 sales invoice
+b62c03cc-e713-4f53-9eef-6a13c6b9dc76,Vitamin C complex,product,natura_therapy,True,SKU-000016,0,0.05,sigma:crosswalk-HIGH,004003,ОБЕН Витамин Ц Комплекс 500ml,2,no 2025–2026 sales invoice
+6f6d938b-3aec-46f4-952d-042e374309e8,Vitamin D3,product,natura_therapy,True,000942,4725,0.05,sigma:crosswalk-VERIFIED,000942,ВИТАМИН Д3 30 tbl,2,2025@5.00: 175; 2026@0.00: 2; 2026@5.00: 429; mex@0.00: 2; mex@5.00: 16
+3210b3ba-c1e3-49f5-a02d-fd58b3fadcb7,Vitamin D3 — гумени бонбони (30),product,natura_therapy,False,SKU-000157,9,0.05,sigma:crosswalk-HIGH,001133,Гумени бонбони Вит Д3  30/1,2,2026@5.00: 103; mex@5.00: 2
+c5baa58c-238c-442d-8ee6-66147c7709ec,VITAMIN D3 120/1 tab,product,natura_therapy,True,001661,2020,0.05,sigma:crosswalk-VERIFIED,001661,VITAMIN D3 120/1 tab,2,2026@5.00: 73
+2adfb3b1-3b1c-4405-b611-e0acf85d6b00,VITAMIN D3+K2+BOR 180/1 tab,product,natura_therapy,True,001630,884,0.05,sigma:crosswalk-VERIFIED,001630,VITAMIN D3+K2+BOR 180/1 tab,2,2026@5.00: 121; mex@5.00: 3
+b4b4629a-65e7-4729-b100-9efd4eb878d3,VITAMIN D3+K2+BOR 180/1 tab + ЦИНК-30 tbl,bundle,natura_therapy,True,SKU-000458,0,0.05,sigma:crosswalk-HIGH,001630,VITAMIN D3+K2+BOR 180/1 tab,2,2026@5.00: 121; mex@5.00: 3
+f0a77b56-99dd-44af-979c-fda3020f50e4,Wet n Wild 32 Pan Еyeshadow Palette,product,natura_therapy,False,SKU-000192,0,0.18,rule:cosmetic-18,,,,
+6a87c3c4-4153-42d9-898a-d2faa80a88b7,Wet N Wild Color Icon Brow Pencil E6231,product,natura_therapy,False,SKU-000207,0,0.18,rule:cosmetic-18,,,,
+be3bbd04-5308-4be9-bb75-dbccaeb27268,Wet N Wild CoverAll Concealer Palette,product,natura_therapy,False,SKU-000094,0,0.18,rule:cosmetic-18,,,,
+a84122aa-3f1e-495c-bcf7-0a16b07e4567,Wet N Wild Makeup Brush Foundation,other,natura_therapy,False,SKU-000132,0,0.18,rule:cosmetic-18,,,,
+4d95e078-06d5-45c5-9d9e-ee643a0d651a,Wet N Wild Mega Clear Mascara,product,natura_therapy,False,SKU-000118,0,0.18,rule:cosmetic-18,,,,
+63905403-4266-46a5-a75b-b4b5cfb15fce,Wet N Wild Mega Protein Mascara,product,natura_therapy,False,SKU-000164,0,0.18,rule:cosmetic-18,,,,
+3f2f28cf-8d66-4c52-91fa-65b00608072d,Wet n Wild Mega Protein маскара C137,product,natura_therapy,False,SKU-000219,0,0.18,rule:cosmetic-18,,,,
+1e754d30-7898-44ed-b729-198cc415907e,Wet n Wild Mega Volume маскара C138,product,natura_therapy,False,SKU-000103,0,0.18,rule:cosmetic-18,,,,
+ae2d96c0-9946-4db4-9d8a-c3502ff31c17,Wet N Wild MegaGlo Dual-Ended Contour Stick,product,natura_therapy,False,SKU-000221,0,0.18,rule:cosmetic-18,,,,
+60bb773c-c5ea-45a0-89a4-40a6e29adb06,Wet N Wild MegaGlo Highlighting Powder E321B,product,natura_therapy,False,SKU-000220,0,0.18,rule:cosmetic-18,,,,
+a76b06d1-755b-47d8-ae12-8e7d3b885670,Wet N Wild Ultimate Brow Kit E963,product,natura_therapy,False,SKU-000204,0,0.18,rule:cosmetic-18,,,,
+dbda0620-af9a-479e-bcf2-a0ca7b2b0ec6,WHEY (2000g) Chocolate + CREATINE + ПОДАРОК L-GLUTAMINE PACK,bundle,ad_astra,False,SKU-000453,0,0.05,sigma:crosswalk-MEDIUM,001048,Whey Чокол 1.5 +бцаа+креатин+л глутaми,2,no 2025–2026 sales invoice
+a02bf841-35cb-493e-a4f9-501eb79cf267,WHEY (2000g) Chocolate + CREATINE PACK,bundle,ad_astra,False,SKU-000276,0,0.05,sigma:crosswalk-MEDIUM,001319,100% WHEY ЧОКОЛАДО 2000 гр,2,2025@5.00: 72; 2026@5.00: 154; mex@5.00: 3
+a79858b2-4c26-40a8-b44e-4c5cf4661647,WHEY + CREATINE + ПОДАРОК L-GLUTAMINE PACK,bundle,ad_astra,False,SKU-000346,0,0.05,sigma:crosswalk-HIGH,000953,КРЕАТИН во прав  200 гр.,2,2025@5.00: 404; 2026@5.00: 741; mex@5.00: 14
+546733a1-5f79-4260-9f6c-d0052c7a41bc,WHEY + CREATINE PACK,bundle,ad_astra,False,SKU-000294,0,0.05,sigma:crosswalk-MEDIUM,000953,КРЕАТИН во прав  200 гр.,2,2025@5.00: 404; 2026@5.00: 741; mex@5.00: 14
+7b9798fb-9c05-422d-9203-4e96f8a02d74,Whey Protein 1.5 kg с вкус на ванилия,product,ad_astra,True,SKU-000018,0,0.05,sigma:crosswalk-HIGH,000998,100% WHEY PROTEIN-VANILA 1.5 kg,2,2026@5.00: 1; mex@5.00: 1
+07c2bff3-387a-46ec-b1aa-70dee96aa7c8,Whey Protein 1.5 kg с вкус на шоколад,product,ad_astra,True,SKU-000019,0,0.05,sigma:crosswalk-HIGH,000961,100% WHEY PROTEIN-COKOLADO 1.5 kg,2,no 2025–2026 sales invoice
+3c7bc799-b774-4708-9cef-6053d2dcec15,Whey2000g Chocolate+Tongkat Ali+ Creatine + L-Glutamine + D3 Gummies,bundle,ad_astra,False,SKU-000327,0,0.05,sigma:by-name,001318,100% WHEY ВАНИЛА 2000 гр,2,2025@5.00: 68; 2026@5.00: 99; mex@5.00: 4
+17d87936-4c4a-4a13-92b2-2f21ff3b3f42,Zinc + Chromium (пиколинат) 120 таб,product,natura_therapy,True,SKU-000113,1,0.05,sigma:crosswalk-HIGH,001670,ZINC 120/1 tab,2,2026@5.00: 66
+3ff3e198-94c7-4f05-8eb9-d723daeedaa3,ZINC 120/1 tab,product,natura_therapy,True,001670,624,0.05,sigma:crosswalk-VERIFIED,001670,ZINC 120/1 tab,2,2026@5.00: 66
+432bde3d-2ed5-4127-9747-3c6ea64f6e41,ZINC 120/1 tab ФИЗИЧКИ,product,natura_therapy,True,001654,2846,0.05,sigma:crosswalk-VERIFIED,001654,ZINC 120/1 tab fizicki,2,2026@5.00: 4; mex@5.00: 2
+5c445088-0d6e-4289-a9cc-13abeddfc287,Zinc 30 cps,product,natura_therapy,True,SKU-000020,0,0.05,sigma:crosswalk-HIGH,000940,ЦИНК 30 tbl,2,2025@5.00: 221; 2026@0.00: 2; 2026@5.00: 440; mex@0.00: 2; mex@5.00: 15
+a2b31d95-37b6-44f5-bb4f-7b34742503de,ZINK-180/1 TAB BIONATURAL,,bio_natural,True,001526,31,0.05,sigma:crosswalk-VERIFIED,001526,ZINC 180/1 tab BIONATURAL,2,2026@0.00: 2; 2026@5.00: 9; mex@0.00: 1; mex@5.00: 2
+180fad98-bbe4-477a-b2e0-a76d78f02d01,АКТИВ ПОСТУР,other,,False,SKU-000483,0,0.18,rule:device-18,,,,
+a6d0e53f-2e1d-4a8d-bf22-4753b755bf7c,АЛОЕ АРОНИЈА СО ВИТ Ц ЦИНК И Д3 500МЛ,product,natura_therapy,True,000994,426,0.05,sigma:crosswalk-VERIFIED,000994,"АЛОЕ АРОНИЈА со ВИТ Ц ,Д3 И ЦИНК 500мл",2,2025@5.00: 165; 2026@5.00: 280; mex@5.00: 15
+79035f81-394a-4b45-82cf-8d132a3038b1,АЛОЕ БОДИ ГЕЛ 100ml,product,natura_therapy,True,005015,1737,0.18,sigma:crosswalk-VERIFIED,005015,АЛОЕ БОДИ ГЕЛ 100ml,1,2025@18.00: 94; 2026@18.00: 13; mex@18.00: 11
+f34c3188-7588-4532-9f10-ab31f5abf20a,АЛОЕ ВЕРА ГЕЛ -АРОНИЈА 1Л-сет2+2,bundle,natura_therapy,False,SKU-000355,0,0.05,sigma:crosswalk-HIGH,000553,АЛОЕ ВЕРА ГЕЛ -АРОНИЈА 1Л-сет2+2,2,no 2025–2026 sales invoice
+d1f5c8d7-cf12-4198-a5dc-ce1cac5e5362,"АЛОЕ ВЕРА ГЕЛ СО АРОНИЈА 0,5Л",product,natura_therapy,True,000165,6409,0.05,sigma:crosswalk-VERIFIED,000165,"АЛОЕ ВЕРА ГЕЛ СО АРОНИЈА 0,5Л",2,2025@5.00: 135; 2026@5.00: 81; mex@5.00: 17
+b01ce730-f4a6-4f9b-9011-bda12fcfd37d,АЛОЕ ВЕРА ГЕЛ СО АРОНИЈА 1Л,product,natura_therapy,True,000109,14194,0.05,sigma:crosswalk-VERIFIED,000109,АЛОЕ ВЕРА ГЕЛ СО АРОНИЈА 1Л,2,2025@5.00: 725; 2026@5.00: 421; mex@5.00: 21
+0b55e97d-8d3b-49f3-8c34-0b95701a0184,АЛОЕ ВЕРА ГЕЛ СО КАЛИНКА 1Л,product,natura_therapy,False,SKU-000550,0,0.05,sigma:crosswalk-HIGH,000222,АЛОЕ ВЕРА ГЕЛ СО КАЛИНКА 1Л,2,no 2025–2026 sales invoice
+a5b3ccc3-5a72-471b-bbdd-4e16f47eb15e,АЛОЕ ВЕРА ГЕЛ СО ЛИМОН 1Л,product,natura_therapy,False,SKU-000431,0,0.05,sigma:crosswalk-HIGH,000267,АЛОЕ ВЕРА ГЕЛ СО ЛИМОН 1Л,2,no 2025–2026 sales invoice
+d37e7cb6-5e7b-4c22-820f-a04a3ed1acc8,АЛОЕ ВЕРА ГЕЛ СО РЕСВЕРАТРОЛ 1Л,product,natura_therapy,True,000074,248,0.05,sigma:crosswalk-VERIFIED,000074,АЛОЕ ВЕРА ГЕЛ СО РЕСВЕРАТРОЛ 1Л,2,2025@5.00: 56; 2026@5.00: 1; mex@5.00: 8
+d2be3ca6-3873-42a3-b07b-6ac2388c4541,АЛОЕ ВЕРА ГЕЛ-АРОНИЈА 1Л-сет2+1,bundle,natura_therapy,False,SKU-000341,0,0.05,sigma:crosswalk-HIGH,000110,АЛОЕ ВЕРА ГЕЛ- АРОНИЈА 1Л-сет2+1,2,2025@5.00: 411; 2026@18.00: 1; 2026@5.00: 177
+27114cf4-3689-4616-99ff-e30a814454d9,АЛОЕ ВЕРА-за надво.уптр.250ml.,product,natura_therapy,False,SKU-000401,0,0.18,sigma:crosswalk-HIGH,000391,АЛОЕ ВЕРА-за надво.уптр.250ml.,1,no 2025–2026 sales invoice
+605b5017-afed-4c3d-ac1a-9ff56e5cee7c,"АЛОЕ РОЈАЛ 0,5 Л",product,natura_therapy,False,000319,12,0.05,sigma:crosswalk-VERIFIED,000319,"АЛОЕ РОЈАЛ 0,5 Л",2,2025@5.00: 2; mex@5.00: 2
+75748f13-03c1-4627-8917-61a7b6f55fa8,"АЛОЕ РОЈАЛ 0,5 Л (сет 2+1)",bundle,,False,SKU-000548,0,0.05,sigma:crosswalk-HIGH,000323,"АЛОЕ РОЈАЛ 0,5 Л (сет 2+1)",2,no 2025–2026 sales invoice
+0cdf4107-538c-4f25-94ac-c7c9095aefdc,АЛОЕ РОЈАЛ 250 ml.,product,,False,SKU-000295,0,0.05,sigma:crosswalk-HIGH,000564,АЛОЕ РОЈАЛ 250 ml.,2,2025@5.00: 35; mex@5.00: 6
+e5b5adaa-88a3-4891-9e19-e3943dcf9e9d,АЛОЕ СОК со вкус на лимон 500 ml,product,,False,SKU-000568,0,0.18,sigma:crosswalk-HIGH,000492,АЛОЕ СОК со вкус на лимон 500 ml,1,no 2025–2026 sales invoice
+a91db622-5716-482a-b1dc-ece926cc7a53,АЛОЕ СОК со вкус на портокал 500 ml,product,,False,000425,1,0.18,sigma:crosswalk-VERIFIED,000425,АЛОЕ СОК со вкус на портокал 500 ml,1,no 2025–2026 sales invoice
+6e180f62-aa41-425a-b5b7-ed7443b81345,Амино Енерджи Бустер - 500 мл.,product,ad_astra,True,SKU-000021,0,0.05,sigma:crosswalk-HIGH,001173,АМИНО ЕНЕРЏИ БУСТ 500 мл,2,2025@5.00: 53; 2026@5.00: 35; mex@5.00: 7
+1029ce3e-7798-4615-bce5-1f787d7cfca6,АМИНО ЕНЕРЏИ БУСТ 500 мл,product,ad_astra,False,SKU-000562,0,0.05,sigma:crosswalk-HIGH,001173,АМИНО ЕНЕРЏИ БУСТ 500 мл,2,2025@5.00: 53; 2026@5.00: 35; mex@5.00: 7
+f95e138b-9176-4b24-a348-d667821a7766,АПАР.ПРОТИВ ИНСЕКТИ,other,,False,SKU-000513,0,0.18,sigma:crosswalk-HIGH,074764,АПАР.ПРОТИВ ИНСЕКТИ,1,no 2025–2026 sales invoice
+d4be8293-77b7-467f-b10f-6dddc7e2adfa,АПАРАТ ЗА ПРИТИСОК,other,,False,SKU-000377,0,0.18,sigma:crosswalk-HIGH,000432,АПАРАТИ-(за притисок),1,no 2025–2026 sales invoice
+f12c1064-6b77-486c-8eb0-11f1bc5b3014,АПАРАТ ЗА СЛУШАЊЕ,other,,False,SKU-000556,0,0.18,sigma:crosswalk-HIGH,000432,АПАРАТИ-(за притисок),1,no 2025–2026 sales invoice
+d5684d72-f24f-4a02-af02-49b5f5b44d9d,"АРТРО БЛУ ГЕЛ 200 МЛ,",product,natura_therapy,True,000949,920,0.18,sigma:crosswalk-VERIFIED,000949,АРТРО БЛУ ГЕЛ 200 МЛ,1,2025@18.00: 82; 2026@0.00: 2; 2026@18.00: 29; mex@0.00: 2; mex@18.00: 16
+ad3b4bee-9b32-489b-825c-e503b757b197,АРТРО ФЛЕКС 100 мл,product,natura_therapy,False,001239,572,0.18,sigma:crosswalk-VERIFIED,001239,АРТРО ФЛЕКС 100мл,1,2025@18.00: 53; 2026@18.00: 5; mex@18.00: 7
+94622941-aa09-4feb-8d21-67c79240e0c8,АРТРОФЛЕКС 180 таблети,product,,True,SKU-000247,0,0.05,sigma:crosswalk-HIGH,001187,АРТРОФЛЕКС 180 таблети,2,2025@5.00: 32; 2026@5.00: 2; mex@5.00: 3
+bef8a560-6d62-4378-9159-fa765cc8b9a2,АШВАГАНДА  ЕКСТРАКТ 60/1 cps,,ad_astra,True,000326,559,0.05,sigma:crosswalk-HIGH,001073,АШВАГАНДА  ЕКСТРАКТ 60/1 cps,2,2025@5.00: 253; 2026@5.00: 304; mex@5.00: 8
+7c28153d-01a4-4bab-b0dd-8b3864e32f85,АШВАГАНДА ЕКСТРАКТ 60/1 cps,product,ad_astra,True,001073,321,0.05,sigma:crosswalk-VERIFIED,001073,АШВАГАНДА  ЕКСТРАКТ 60/1 cps,2,2025@5.00: 253; 2026@5.00: 304; mex@5.00: 8
+effc5cf2-ebfb-45c4-95ff-dcfc9bc7e5df,БАСТУН,other,,False,SKU-000570,0,0.18,rule:device-18,,,,
+faea7453-4c63-4345-9d11-d6a181a75346,БИЛБЕРИ 90/1 таблети,,natura_therapy,True,001232,796,0.05,sigma:crosswalk-VERIFIED,001232,БИЛБЕРИ 90/1 таблети,2,2025@5.00: 30; 2026@5.00: 27; mex@5.00: 8
+9a459687-5384-40c1-aad3-2e3290dbb332,БИЛБЕРИ НАТУРА 30cps,,natura_therapy,True,000523,791,0.05,sigma:crosswalk-VERIFIED,000523,БИЛБЕРИ НАТУРА 30cps,2,2025@5.00: 27; 2026@0.00: 1; 2026@5.00: 26; mex@0.00: 1; mex@5.00: 9
+6481cf64-0285-4715-9b9c-9bb47e81f65c,БИОАКТИВ.ШАМП.-ЧИЧАК 150мл,product,,False,SKU-000566,0,0.18,sigma:crosswalk-HIGH,002051,БИОАКТИВ.ШАМП.-ЧИЧАК 150мл,1,no 2025–2026 sales invoice
+eaa75b4e-92ff-4f37-8001-c828db96a8a1,БЈУТИ КОЛАГЕН 500мл,product,natura_therapy,True,000585,334,0.05,sigma:crosswalk-VERIFIED,000585,БЈУТИ КОЛАГЕН 500мл,2,2025@5.00: 256; 2026@5.00: 105; mex@5.00: 13
+e32ab114-9776-4fc7-9840-6e3ee236aebb,БОКАЛ-ФИЛТРИРАЊЕ,other,,False,SKU-000305,0,0.18,sigma:crosswalk-HIGH,074674,БОКАЛ-ФИЛТРИРАЊЕ,1,no 2025–2026 sales invoice
+79b72c76-20ee-46df-83e6-5b88e1b88c5e,БОНЕ ПРОТЕКТ 30 cps (сет 2+1),bundle,,False,SKU-000336,0,0.05,sigma:crosswalk-HIGH,000997,БОНЕ ПРОТЕКТ 30 cps (сет 2+1),2,no 2025–2026 sales invoice
+dd849486-79b6-4901-922b-f8cb593dad39,БРАИН 1+1,bundle,natura_therapy,False,600071,4,0.05,sigma:crosswalk-HIGH,000742,БРАИН ПРОТЕКТ 30+30cps,2,2025@5.00: 99; 2026@5.00: 25; mex@5.00: 2
+4d720da7-d826-4771-915d-0c7aaa8ed194,БРАИН АКТИВ 30cps,product,natura_therapy,True,000636,5972,0.05,sigma:crosswalk-VERIFIED,000636,БРАИН АКТИВ 30cps,2,2025@5.00: 183; 2026@5.00: 139; mex@5.00: 19
+557863aa-a95c-4cfc-90c1-9632362bc41e,БРОНЗЕР ALL Y.908 Bronze Bay,product,,False,SKU-000481,0,0.18,sigma:crosswalk-HIGH,002242,БРОНЗЕР ALL Y.908 Bronze Bay,1,no 2025–2026 sales invoice
+ecb31fdc-6224-44bd-857b-648b78a0694c,БРОНХО ПРОТЕКТ 250ml,product,natura_therapy,True,000503,1331,0.05,sigma:crosswalk-VERIFIED,000503,БРОНХО ПРОТЕКТ 250ml,2,2025@5.00: 392; 2026@5.00: 144; mex@5.00: 12
+c5d5659f-8997-41c5-aa68-cf98032c4215,БРОНХО ПРОТЕКТ 500ml,product,natura_therapy,True,000489,5664,0.05,sigma:crosswalk-VERIFIED,000489,БРОНХО ПРОТЕКТ 500ml,2,2025@5.00: 404; 2026@5.00: 164; mex@5.00: 17
+e07de6c2-a56f-473f-b97d-498d4c5ae8a3,БРОНХО ПРОТЕКТ 500ml (сет 2+1),bundle,natura_therapy,False,SKU-000264,0,0.05,sigma:crosswalk-HIGH,000528,БРОНХО ПРОТЕКТ 500ml (сет 2+1),2,2025@5.00: 261; 2026@5.00: 108
+19bc2c2c-e944-46f9-bcf8-a5ac29998de5,БРОНХО ПРОТЕКТ 500ml (сет 2+2),bundle,natura_therapy,False,SKU-000284,0,0.05,sigma:crosswalk-HIGH,000552,БРОНХО ПРОТЕКТ 500ml (сет 2+2),2,no 2025–2026 sales invoice
+2b4391b5-88d4-409e-bfc2-2fca5e1df747,БРОНХО ПРОТЕКТ ФОРТЕ 500 мл,product,natura_therapy,True,001462,311,0.05,sigma:crosswalk-VERIFIED,001462,БРОНХО ПРОТЕКТ ФОРТЕ 500 мл,2,2026@5.00: 66; mex@5.00: 3
+a168b5e5-9f2e-414d-9289-025b17ca2ee2,БЦАА ВО ПРАВ 200 ГР,product,ad_astra,False,000957,187,0.05,sigma:crosswalk-VERIFIED,000957,БЦАА  во прав 200 гр.,2,2025@5.00: 155; 2026@5.00: 152; mex@5.00: 14
+946efd4e-908b-4cce-ade6-195e330f1fea,ВЕНО ГАРД 30/1,product,natura_therapy,True,001311,363,0.05,sigma:crosswalk-VERIFIED,001311,ВЕНО ГАРД 30 cps,2,2025@5.00: 8; 2026@5.00: 26; mex@5.00: 7
+0ab135cd-76c7-4f36-af48-79be5cb1eabe,ВЕНОГАРД + ВЕНОГЕЛ,bundle,natura_therapy,True,SKU-000482,0,0.18,sigma:crosswalk-HIGH,002374,Веногел 250мл,1,no 2025–2026 sales invoice
+e1e8601c-92f6-4b98-81ac-1fcf7dfb9e34,ВЕРТИКАЛНА ПРАВОСМУКАЛКА,other,,False,SKU-000520,0,0.18,rule:device-18,,,,
+d91cad1c-5041-43d2-b0b7-3a5901570c02,"Вит.Ц за возрасни 0,5ml.",,natura_therapy,True,000448,1847,0.05,sigma:crosswalk-VERIFIED,000448,"Вит.Ц за возрасни 0,5ml.",2,2025@5.00: 101; 2026@0.00: 1; 2026@5.00: 39; mex@0.00: 1; mex@5.00: 13
+539d21d1-aae0-46ef-8963-dda59ac6d150,Вит.Ц за возрасни 1л.,product,natura_therapy,True,000033,21,0.05,sigma:crosswalk-VERIFIED,000033,ВИТАМИН Ц ЗА ВОЗРАСНИ 1Л,2,no 2025–2026 sales invoice
+a8040b9e-f07a-4058-906d-b689f45e8067,Вит.Ц за возрасни 250 мл.,product,natura_therapy,True,000604,3359,0.05,sigma:crosswalk-VERIFIED,000604,Витамин Ц за ВОЗРАСНИ    250 мл.,2,2025@5.00: 134; 2026@5.00: 93; mex@5.00: 14
+96432842-2aa1-4b95-a2ed-49e00f6ab6d6,ВИТАМИН B6 60tbl,product,natura_therapy,True,000603,139,0.05,sigma:crosswalk-VERIFIED,000603,ВИТАМИН Б6 60tbl,2,2025@5.00: 3; 2026@5.00: 2; mex@5.00: 3
+931cb587-1f07-4687-a337-0ac9c788c700,ВИТАМИН Б6 365/1 таб,,natura_therapy,True,001660,653,0.05,sigma:crosswalk-HIGH,001528,ВИТАМИН Б6 365/1 таб,2,2026@5.00: 53; mex@5.00: 1
+6455af36-3aa4-444b-bb67-f0e302e4e60a,ВИТАМИН Д3 180 tbl,product,natura_therapy,True,001110,3426,0.05,sigma:crosswalk-VERIFIED,001110,ВИТАМИН Д3 180 tbl,2,2025@5.00: 37; 2026@5.00: 3; mex@5.00: 5
+fb450a97-8fde-4591-99d5-83b3caa7ce93,ВИТАМИН Д3 365/1 таб,product,natura_therapy,True,001527,405,0.05,sigma:crosswalk-VERIFIED,001527,ВИТАМИН Д3 365/1 таб,2,2026@5.00: 84; mex@5.00: 2
+985b7f2a-08fa-4ec5-abf6-00d3f723664e,ВИТАМИН Д3 60 tbl,,natura_therapy,True,000601,170,0.05,sigma:crosswalk-VERIFIED,000601,ВИТАМИН Д3 60 tbl,2,2025@5.00: 2
+e513e786-5292-4c11-916c-8306e8a83ddb,ВИТАМИН Д3 90 tbl,product,natura_therapy,True,001152,10433,0.05,sigma:crosswalk-VERIFIED,001152,ВИТАМИН Д3 90 tbl,2,2025@5.00: 153; 2026@5.00: 128; mex@5.00: 10
+b66acbb5-287c-4dff-98a0-69c9c3c374e7,ВИТАМИН Ц 500МГ/60 ТАБ,product,,True,001128,159,0.05,sigma:crosswalk-VERIFIED,001128,ВИТАМИН Ц 500 мг 60/1 таблети,2,2025@5.00: 58; 2026@5.00: 165; mex@5.00: 9
+a79c814f-55f6-427a-af83-fec127e7b450,Витамин Ц за деца со Д3 250 мл.,product,natura_therapy,False,000597,882,0.05,sigma:crosswalk-VERIFIED,000597,Витамин Ц за деца со Д3 250 мл.,2,2025@5.00: 49; 2026@5.00: 12; mex@5.00: 11
+7797579a-49c9-4515-b3da-6b0c28cce2da,Витамин Ц со вит. Д3 за ДЕЦА 500 мл.,product,natura_therapy,True,SKU-000382,0,0.05,sigma:crosswalk-HIGH,000518,Витамин Ц со витамин Д3 за ДЕЦА 500 мл.,2,2026@5.00: 2; mex@5.00: 1
+d9e5d5fd-f80f-4eca-bbe5-a07168caba5d,ВИТАМИН Ц-1000 60 cps,,natura_therapy,True,001054,1025,0.05,sigma:crosswalk-VERIFIED,001054,ВИТАМИН Ц-1000  60 cps,2,2025@5.00: 185; 2026@5.00: 155; mex@5.00: 15
+2cdadfb6-d556-4dcb-8a4c-0f4f39bb1021,Гавез гел 250мл,product,,False,SKU-000560,0,0.18,sigma:crosswalk-HIGH,002368,Гавез гел 250мл,1,no 2025–2026 sales invoice
+fb4bb034-2581-44f3-a762-272c76829bca,Гастро Комплекс 250 ml,product,natura_therapy,False,SKU-000137,15,0.05,sigma:crosswalk-HIGH,000021,ГАСТРО КОМПЛЕКС 250  мл.,2,no 2025–2026 sales invoice
+ee6b9219-3136-414c-9146-9dbe92b7cb59,ГАСТРО КОМПЛЕКС 250 мл. сет (2+1),bundle,,False,SKU-000424,0,0.05,sigma:crosswalk-HIGH,000030,ГАСТРО КОМПЛЕКС 250 мл. сет (2+1),2,no 2025–2026 sales invoice
+4820aa2c-fea5-4f6e-9395-b8bd4fc50a7a,ГАСТРО ПРОТЕКТ 250 ml,,natura_therapy,False,000536,346,0.05,sigma:crosswalk-VERIFIED,000536,ГАСТРО ПРОТЕКТ 250 ml,2,2025@5.00: 16; 2026@5.00: 2; mex@5.00: 3
+79a798bc-0da2-41e4-a38f-c09fe4d838d4,ГАСТРО ПРОТЕКТ 500ml,product,natura_therapy,True,000568,2803,0.05,sigma:crosswalk-VERIFIED,000568,ГАСТРО ПРОТЕКТ 500ml,2,2025@5.00: 388; 2026@5.00: 152; mex@5.00: 18
+4a64e9a9-c5f0-4556-9937-744efc7cd217,Гастро протект+Гастро Алое 2+2,bundle,natura_therapy,True,SKU-000248,0,0.05,sigma:crosswalk-HIGH,000595,Гастро протект+Гастро Алое 2+2,2,2025@5.00: 85; 2026@5.00: 20
+72db3682-3497-4395-83a8-9593ddacefdd,ГЛУКАТОЛ 180/1 cps,product,natura_therapy,True,001214,235,0.05,sigma:crosswalk-VERIFIED,001214,ГЛУКАТОЛ 180/1 cps,2,2025@5.00: 41; 2026@5.00: 15; mex@5.00: 5
+310309b6-b363-478e-bc1d-8154637ce8c8,Глукатол 30 cps,product,natura_therapy,False,700100,68,0.05,sigma:by-name,001214,ГЛУКАТОЛ 180/1 cps,2,2025@5.00: 41; 2026@5.00: 15; mex@5.00: 5
+b226b5c4-329b-4366-841a-8024a0de4c8b,ГЛУКОЗАМИН СУЛФАТ 30 cps,product,natura_therapy,True,000273,6614,0.05,sigma:crosswalk-VERIFIED,000273,ГЛУКОЗАМИН СУЛФАТ 30 cps,2,2025@5.00: 202; 2026@5.00: 97; mex@5.00: 16
+2a5f7d3b-747d-4acf-b36d-f498cdf1be6e,ГЛУКОМЕТАР,other,,False,SKU-000549,0,0.18,rule:device-18,,,,
+cc68b664-9703-422a-9e56-78db5bfda7ca,Д-МАНОЗА 30cps,product,natura_therapy,True,000593,588,0.05,sigma:crosswalk-VERIFIED,000593,Д-МАНОЗА 30cps,2,2025@5.00: 46; 2026@0.00: 1; 2026@5.00: 61; mex@0.00: 1; mex@5.00: 12
+b61cf590-a58a-4383-addd-6adf14717179,ДАСКА ЗА ПЕГЛАЊЕ,other,,False,SKU-000376,0,0.18,sigma:crosswalk-HIGH,076466,ДАСКА ЗА ПЕГЛАЊЕ,1,no 2025–2026 sales invoice
+c346c07c-55c4-480b-9556-17509d64ec6d,ДИАБЕТОЛ сет 2+2,bundle,natura_therapy,False,SKU-000280,0,0.05,sigma:crosswalk-HIGH,000600,ДИАБЕТОЛ сет 2+2,2,no 2025–2026 sales invoice
+bc755924-17bd-4b5d-b761-956403be4446,Диабетол Форте,product,natura_therapy,True,SKU-000063,3548,0.05,sigma:crosswalk-HIGH,000412,ДИАБЕТОЛ ФОРТЕ 30cps,2,2025@5.00: 180; 2026@5.00: 114; mex@5.00: 18
+40edd278-412d-4cc7-9d91-f528b3d354ae,ДИАБЕТОЛ ФОРТЕ 2+1 ГРАТИС + БИЛБЕРИ ЕКСТРАКТ,bundle,natura_therapy,False,SKU-000435,0,0.05,sigma:crosswalk-HIGH,000461,ДИАБЕТОЛ ФОРТЕ 30cps (сет 2+1),2,2025@5.00: 93; 2026@5.00: 54
+f960872c-8a5c-4ae5-a4aa-496fc2b43f3e,ДИАБЕТОЛ ФОРТЕ 30cps,product,natura_therapy,False,000412,4074,0.05,sigma:crosswalk-VERIFIED,000412,ДИАБЕТОЛ ФОРТЕ 30cps,2,2025@5.00: 180; 2026@5.00: 114; mex@5.00: 18
+e658f10e-8be7-4a60-8369-0a6667524ca1,ДИАБЕТОЛ ФОРТЕ 30cps сет 2+1,bundle,natura_therapy,False,SKU-000371,0,0.05,sigma:crosswalk-HIGH,000461,ДИАБЕТОЛ ФОРТЕ 30cps (сет 2+1),2,2025@5.00: 93; 2026@5.00: 54
+04fe60cd-5e81-41f1-a4ae-e3b2a9f94cad,ДИЕТ ШЕЈК Ванила 500g,product,ad_astra,True,000889,470,0.05,sigma:crosswalk-VERIFIED,000889,ДИЕТ ШЕЈК Ванила 500g,2,2025@5.00: 215; 2026@5.00: 149; mex@5.00: 11
+0962a7cc-d547-46c8-92a0-38adc0f8c4cd,ДИЕТ ШЕЈК Јагода 500g,product,ad_astra,True,000893,448,0.05,sigma:crosswalk-VERIFIED,000893,ДИЕТ ШЕЈК Јагода 500g,2,2025@5.00: 225; 2026@5.00: 198; mex@5.00: 13
+66ed167b-ebf3-4147-8ad0-8d94002b96f4,ДИЕТ ШЕЈК Чоколадо 500g,product,ad_astra,True,000891,380,0.05,sigma:crosswalk-VERIFIED,000891,ДИЕТ ШЕЈК чоколадо 500 g,2,2025@5.00: 225; 2026@5.00: 166; mex@5.00: 11
+5cf81fcc-07cd-43ee-862a-6521f713f677,ДНЕВНА И НОЌНА КРЕМА 50 мл,product,,False,SKU-000533,0,0.18,sigma:crosswalk-HIGH,002040,ДНЕВНА И НОЌНА КРЕМА 50 мл,1,no 2025–2026 sales invoice
+cc128e1d-22b8-4333-902c-80dc784fe3ba,Дневна крема против брчки,product,,False,SKU-000551,0,0.18,sigma:crosswalk-HIGH,002006,Дневна крема против брчки,1,no 2025–2026 sales invoice
+13bd48e7-145c-4e3a-8f95-a60f1eccd350,Дневна крема против брчки-35,product,,False,SKU-000540,0,0.18,sigma:crosswalk-HIGH,002006,Дневна крема против брчки,1,no 2025–2026 sales invoice
+cee5888c-f3e8-4694-baaf-ef6f585a7306,Дневна крема против брчки-45,product,,False,SKU-000457,0,0.18,sigma:crosswalk-HIGH,002006,Дневна крема против брчки,1,no 2025–2026 sales invoice
+91a913a5-fd5e-4b10-86b8-8f45df7c3dc3,Дневна крема против брчки-55,product,,False,SKU-000385,0,0.18,sigma:crosswalk-HIGH,002006,Дневна крема против брчки,1,no 2025–2026 sales invoice
+8b1d6f5e-4404-48ff-b42c-fc5376c0cd0a,ДР.СЛИМ 210гр.,product,natura_therapy,True,001026,256,0.05,sigma:crosswalk-VERIFIED,001026,ДР. СЛИМ 210 гр.,2,2025@5.00: 29; 2026@5.00: 3; mex@5.00: 3
+fe3d1bf9-67ba-40ab-ab7e-7e341bd3d6ed,ДР.СЛИМ РАСТИТЕЛЕН 210 гр,product,natura_therapy,True,001230,343,0.05,sigma:crosswalk-VERIFIED,001230,ДР.СЛИМ РАСТИТЕЛЕН 210 гр,2,2025@5.00: 58; 2026@0.00: 1; 2026@5.00: 58; mex@0.00: 1; mex@5.00: 11
+766bf69e-8ae6-4ba0-90cd-c28f0dba98a4,ЕКСТРАКТ ОД ЦРНО ГОЏИ cps 30,,natura_therapy,False,000301,26,0.05,sigma:crosswalk-VERIFIED,000301,ЦРНО ГОЏИ cps 30,2,2025@5.00: 8; 2026@5.00: 1; mex@5.00: 4
+b0f2fb7c-8b4b-491b-8d31-f33f516e1b6a,ЕЛ.БОКАЛ ЗА ВОДА,other,,False,SKU-000514,0,0.18,rule:device-18,,,,
+9bda3706-1108-4f2b-8734-f4eb18a56f5e,Електрично ќебе (120х150cm),other,,False,SKU-000311,0,0.18,sigma:crosswalk-HIGH,000018,Електрично ќебе (120х150cm),1,no 2025–2026 sales invoice
+85048dcd-9dc9-4c32-b601-cfdcef9f2d4c,Еликси Колаген серум 30 мл,,natura_therapy,True,005023,147,0.18,sigma:crosswalk-VERIFIED,005023,ELIXY-Колаген серум 30 мл,1,2025@18.00: 71; 2026@18.00: 38; mex@18.00: 12
+e06a89ca-dd08-4eda-80e1-7f42b4d19945,ЕЛКТРИЧЕН БОКАЛ,other,,False,SKU-000379,0,0.18,sigma:crosswalk-HIGH,073377,ЕЛКТРИЧЕН БОКАЛ,1,no 2025–2026 sales invoice
+faa45e27-43c2-4f74-9315-b74bece42e1c,ЕПИМЕДИУМ КОМПЛЕКС 30 cps.,,natura_therapy,True,000325,350,0.05,sigma:crosswalk-VERIFIED,000325,ЕПИМЕДИУМ КОМПЛЕКС 30 cps.,2,2025@5.00: 43; 2026@5.00: 19; mex@5.00: 16
+84cb7e1c-b313-485d-b657-bdb4e8d3ecf6,ЗЕЛЕН ЧАЈ ЕКСТРАКТ 30 cps,,natura_therapy,True,000306,510,0.05,sigma:crosswalk-VERIFIED,000306,ЗЕЛЕН ЧАЈ ЕКСТРАКТ 30 cps,2,2025@5.00: 13; 2026@5.00: 8; mex@5.00: 8
+9f22d4af-5efb-4a08-84c7-8db624ee3adc,ЗЕЛЕН ЧАЈ ЕКСТРАКТ 60/1 cps,product,natura_therapy,True,001074,2467,0.05,sigma:crosswalk-VERIFIED,001074,ЗЕЛЕН ЧАЈ ЕКСТРАКТ 60/1 cps,2,2025@5.00: 61; 2026@5.00: 40; mex@5.00: 11
+b3efc2d8-5e6d-46a2-b6d3-d95e0545b21f,ИЗО МАКС ЈАГОДА 250 гр,product,ad_astra,True,001033,1098,0.05,sigma:crosswalk-VERIFIED,001033,ИЗО МАКС ЈАГОДА 250 гр,2,2025@5.00: 101; 2026@5.00: 28; mex@5.00: 8
+66170d45-0689-40f5-965f-ea963ec5550a,Имуно Буст-Капина 500 мл.,product,ad_astra,True,000796,2621,0.05,sigma:crosswalk-VERIFIED,000796,Имуно буст Капина/Лимон/Лимета 500ml,2,2025@5.00: 128; 2026@5.00: 151; mex@5.00: 8
+b78bc6f1-3989-4945-a38a-85843d77f4c2,Имуно Буст-Портокал/Ананас 500 мл.,product,ad_astra,True,000797,1403,0.05,sigma:crosswalk-VERIFIED,000797,Имуно буст ПОРТОКАЛ-АНАНАС 500ml,2,2025@5.00: 155; 2026@5.00: 174; mex@5.00: 11
+c262d23d-ab3c-4eac-82dd-3400e50b1b9e,ИМУНО КИДС 500 мл.-сет2+1,bundle,,False,SKU-000539,0,0.05,sigma:crosswalk-HIGH,000566,ИМУНО КИДС 500 мл.-сет2+1,2,no 2025–2026 sales invoice
+b238e186-2f4d-413a-a721-ff5a127c514d,ИМУНО КИДС 500мл,product,,False,SKU-000360,0,0.05,sigma:crosswalk-HIGH,000423,ИМУНО КИДС 500мл,2,no 2025–2026 sales invoice
+2a39c3cd-73a1-4f4b-9eef-4307e3b73d8d,КИДС МУЛТИВИТАМИНС 120 tbl,product,natura_therapy,False,001155,10,0.05,sigma:crosswalk-VERIFIED,001155,КИДС МУЛТИВИТАМИНС  120 tbl,2,2025@5.00: 32; 2026@5.00: 5; mex@5.00: 5
+71bece5b-129f-45d9-ad54-6dade62ce574,КИДС МУЛТИВИТАМИНС 60 tbl,product,,False,001111,764,0.05,sigma:crosswalk-VERIFIED,001111,КИДС МУЛТИВИТАМИНС  60 tbl,2,2025@5.00: 33; 2026@5.00: 1; mex@5.00: 6
+a94536dc-c34e-4b4b-818b-e6927c6433b8,Колаген Пептид -БЕЗ ВКУС 200 гр,product,ad_astra,True,001113,3933,0.05,sigma:crosswalk-VERIFIED,001113,Колаген Пептид -БЕЗ ВКУС  200 гр,2,2025@5.00: 294; 2026@5.00: 118; mex@5.00: 14
+f4e2c96b-571d-4620-bbf5-097fed5fe026,Колаген Пептид -ЧОКОЛАДО 200 гр,product,ad_astra,True,001112,1380,0.05,sigma:crosswalk-VERIFIED,001112,Колаген Пептид -ЧОКОЛАДО 200 гр,2,2025@5.00: 180; 2026@5.00: 61; mex@5.00: 12
+6836933e-8fff-4ddd-b4f9-b43b10b67d33,Колаген Пептид со ВАНИЛА 200 гр,product,ad_astra,True,000982,7816,0.05,sigma:crosswalk-VERIFIED,000982,Колаген Пептид со ВАНИЛА 200 гр,2,2025@5.00: 499; 2026@5.00: 319; mex@5.00: 17
+de3d548e-4665-49ea-bce9-49a8634bc60e,Колаген Пептид со МАЛИНА 200 гр,product,ad_astra,True,001023,7631,0.05,sigma:crosswalk-VERIFIED,001023,Колаген Пептид со МАЛИНА 200 гр,2,2025@5.00: 487; 2026@5.00: 312; mex@5.00: 17
+c801c3cc-c3e5-4fec-aeb8-733c546d33c7,КРЕАТИН ВО ПРАВ 200ГР,product,ad_astra,False,000953,853,0.05,sigma:crosswalk-VERIFIED,000953,КРЕАТИН во прав  200 гр.,2,2025@5.00: 404; 2026@5.00: 741; mex@5.00: 14
+c6c3e56a-7eae-4643-81e8-9fda4c29053a,КРЕАТИН ВО ПРАВ 200ГР + ВИТАМИН Д3 30tbl,bundle,ad_astra,False,SKU-000557,0,0.05,sigma:crosswalk-HIGH,000942,ВИТАМИН Д3 30 tbl,2,2025@5.00: 175; 2026@0.00: 2; 2026@5.00: 429; mex@0.00: 2; mex@5.00: 16
+205f121b-5838-49c8-a33c-aa6993aa35b9,Крем.за околу очи со смил 15мл,product,,False,SKU-000516,0,0.18,sigma:crosswalk-HIGH,002330,Крем.за околу очи со смил 15мл,1,no 2025–2026 sales invoice
+647102ff-f838-4648-b4a4-e13a8808aa0b,КУЈИНСКА ВАГА,other,,False,SKU-000317,0,0.18,sigma:crosswalk-HIGH,050420,КУЈИНСКА ВАГА,1,no 2025–2026 sales invoice
+4945d3e6-0e47-48a8-960e-1bd296a75eb4,Курк.актив 2 парч.+1 парч.250 мл.,bundle,,False,SKU-000318,0,0.05,rule:supplement-5,,,,
+20dc61f2-8ab4-4fe0-b196-7e51d71c5d83,КУРКУМА АКТИВ,product,natura_therapy,True,000637,6981,0.05,sigma:crosswalk-VERIFIED,000637,КУРКУМАКТИВ 500ml,2,2025@5.00: 246; 2026@5.00: 264; mex@5.00: 18
+042fd198-eeb6-4d05-922b-8089403a0f51,КУРКУМАКТИВ 250ml,product,natura_therapy,True,000592,910,0.05,sigma:crosswalk-VERIFIED,000592,КУРКУМАКТИВ  250ml,2,2025@5.00: 80; 2026@5.00: 38; mex@5.00: 11
+1702df10-a9aa-43ff-b92a-007090c9c325,КУРКУМИН ЕКСТРАКТ cps 30,,natura_therapy,True,000126,523,0.05,sigma:crosswalk-VERIFIED,000126,КУРКУМИН ЕКСТРАКТ cps 30,2,2025@5.00: 38; 2026@5.00: 2; mex@5.00: 9
+9522a565-edb3-4804-b3b8-cb40b5331723,"КУРКУМИН ЛИКВИД 0,5 (сет 2+1)",bundle,,False,SKU-000423,0,0.05,sigma:crosswalk-HIGH,000195,"КУРКУМИН ЛИКВИД 0,5 (сет 2+1)",2,no 2025–2026 sales invoice
+4364ddc3-c6a4-48de-ace8-ea623d71f5da,"КУРКУМИН ЛИКВИД 0,5 Л.",,natura_therapy,False,000194,3,0.05,sigma:crosswalk-VERIFIED,000194,"КУРКУМИН ЛИКВИД 0,5  Л",2,no 2025–2026 sales invoice
+b8dec697-532d-4951-a2d7-959829990304,Л КАРНИТИН 2+1,bundle,ad_astra,False,SKU-000485,0,0.05,sigma:crosswalk-HIGH,000923,Л-КАРНИТИН  60 cps,2,2025@5.00: 125; 2026@5.00: 59; mex@5.00: 13
+d5877b39-e763-449f-9d9e-3ee0a7f7a7fc,Л-КАРНИТИН 60 cps,product,ad_astra,True,000923,99,0.05,sigma:crosswalk-VERIFIED,000923,Л-КАРНИТИН  60 cps,2,2025@5.00: 125; 2026@5.00: 59; mex@5.00: 13
+5b481426-d810-4d76-b8de-ea8af1efbbca,ЛИВЕР ДЕТОКС 90/1 cps,product,natura_therapy,True,001156,2624,0.05,sigma:crosswalk-VERIFIED,001156,ЛИВЕР ДЕТОКС  90/1 cps,2,2025@5.00: 121; 2026@5.00: 56; mex@5.00: 13
+a7932e0b-f596-4410-aa66-1aa48d5e55b6,Магнезиум гел 250мл,,natura_therapy,True,002366,25,0.18,sigma:crosswalk-VERIFIED,002366,Магнезиум гел 250мл,1,no 2025–2026 sales invoice
+7de94a98-1abc-45e5-94aa-48f397178a4e,МАГНЕСИУМ 325 МГ 60/1,,natura_therapy,True,001129,2734,0.05,sigma:crosswalk-VERIFIED,001129,МАГНЕСИУМ 325 мг 60/1 таблети,2,2025@5.00: 131; 2026@0.00: 2; 2026@5.00: 406; mex@0.00: 2; mex@5.00: 6
+d8b0fbcb-fd01-4205-94de-c800425c182b,МАГНУМ КЛИМА УРЕД,other,,False,SKU-000246,0,0.18,sigma:crosswalk-HIGH,600084,МАГНУМ КЛИМА УРЕД,1,2025@18.00: 31
+b070ca90-697f-459f-ad93-defbbdd9b0d5,МАИЦИ,other,,False,SKU-000553,0,0.05,sigma:crosswalk-MEDIUM,000308,МАКА ЕКСТРАКТ 30 cps,2,2025@5.00: 37; 2026@5.00: 9; mex@5.00: 5
+a84853ee-0171-4e60-98ee-61ea36adecde,МАИЦИ XL,other,,False,SKU-000552,0,0.05,sigma:crosswalk-MEDIUM,000308,МАКА ЕКСТРАКТ 30 cps,2,2025@5.00: 37; 2026@5.00: 9; mex@5.00: 5
+02c76e4c-6df1-415a-9610-d7ca8845d6f5,МАКА ЕКСТРАКТ 60/1 cps,product,ad_astra,True,001075,56,0.05,sigma:crosswalk-VERIFIED,001075,МАКА ЕКСТРАКТ 60/1 cps,2,2025@5.00: 93; 2026@5.00: 99; mex@5.00: 8
+0122bc7f-78dd-4914-8a45-c468aca54337,МАЛ ГРИЛ ТОСТЕР,other,,False,SKU-000290,0,0.18,sigma:crosswalk-HIGH,072290,МАЛ ГРИЛ ТОСТЕР,1,no 2025–2026 sales invoice
+3e5e29b3-1921-4dbc-8ad6-4f312a560e60,МАТАЛКА ЗА НЕС,other,natura_therapy,True,001461,1420,0.18,sigma:crosswalk-VERIFIED,001461,МАШИНКА ЗА НЕС,1,2026@18.00: 1
+40bc32d1-6b42-4f12-95b9-a078ad855953,МАЧА с КОЛАГЕН 175 гр,product,ad_astra,True,SKU-000026,0,0.05,sigma:crosswalk-HIGH,001427,МАЧА со КОЛАГЕН 175 гр,2,2025@5.00: 33; 2026@5.00: 188; mex@5.00: 3
+9c08eb88-fc01-4050-9983-fb4df76c8c2f,Мача со колаген 175гр,product,ad_astra,False,001427,1572,0.05,sigma:crosswalk-VERIFIED,001427,МАЧА со КОЛАГЕН 175 гр,2,2025@5.00: 33; 2026@5.00: 188; mex@5.00: 3
+1017ab0f-8a54-470f-bb6a-45e8392f5fb7,МАШ.ЗА БРИЧЕЊЕ,other,,False,SKU-000406,0,0.18,sigma:crosswalk-HIGH,033239,МАШ.ЗА БРИЧЕЊЕ,1,no 2025–2026 sales invoice
+93c6fe08-e81b-4a01-bd46-cdff87100dde,МАШ.ЗА МЕЛЕЊЕ КАФЕ,other,,False,SKU-000405,0,0.18,sigma:crosswalk-HIGH,048307,МАШ.ЗА МЕЛЕЊЕ КАФЕ,1,no 2025–2026 sales invoice
+e5a11614-77f7-4373-bf93-6e81eef9dccc,МЕГА МУЛТИВИТАМИН 250 мл.,,natura_therapy,True,000543,78,0.05,sigma:crosswalk-VERIFIED,000543,МЕГА МУЛТИВИТАМИН 250 мл.,2,2025@5.00: 82; 2026@5.00: 26; mex@5.00: 10
+20aa7e33-be8c-495b-a925-d34addf7e105,МЕЛАТОНИН 365/1 таб,,natura_therapy,True,001530,236,0.05,sigma:crosswalk-VERIFIED,001530,МЕЛАТОНИН 365/1 таб,2,2026@5.00: 57; mex@5.00: 6
+bfcfb81c-fb11-4216-9211-e6f4a7dc754a,МЕЛЕМ R&R 30МЛ,product,natura_therapy,True,001635,15,0.18,sigma:crosswalk-VERIFIED,001635,МЕЛЕМ R&R 30 мл,1,2026@18.00: 7; mex@18.00: 3
+e56c2be6-717c-4b27-8b7c-16b0d2a2a0c2,МИКСЕР,other,,False,SKU-000403,0,0.18,sigma:crosswalk-HIGH,072599,РАЧЕН МИКСЕР,1,no 2025–2026 sales invoice
+1004aa34-25d3-411c-ba58-cc69c5a44222,МИКСЕР РОТИРАЧКИ,other,,False,SKU-000471,0,0.18,sigma:crosswalk-HIGH,075536,МИКСЕР РОТИРАЧКИ,1,no 2025–2026 sales invoice
+a34489cb-6682-4e19-9a7f-fa03a9368ab0,МОБ.ТЕЛЕФОН,other,,False,SKU-000526,0,0.18,rule:device-18,,,,
+f454ae1b-e84f-4de7-b5d2-1846dde9884a,МОБИЛЕН ТЕЛЕФОН,other,,False,SKU-000517,0,0.18,sigma:crosswalk-HIGH,076756,МОБИЛЕН ТЕЛЕФОН,1,no 2025–2026 sales invoice
+7708d2bc-50ea-4487-8116-6dfeee3661bc,МУЛТИХИДРАТАНТНА КРЕМА 50мл,product,,False,SKU-000558,0,0.18,sigma:crosswalk-HIGH,002041,МУЛТИХИДРАТАНТНА КРЕМА 50мл,1,no 2025–2026 sales invoice
+324b60bd-05f2-4446-9a77-d47b52f49e97,НЕВРО АКТИВ - 60капсули,product,natura_therapy,True,SKU-000065,0,0.05,sigma:crosswalk-HIGH,000166,НЕУРО АКТИВ 60 cps,2,2025@5.00: 195; 2026@5.00: 168; mex@5.00: 13
+a4e10c30-f199-4f6b-8bf7-6cb946df2734,НЕУРО АКТИВ 60 cps,,natura_therapy,True,000166,6320,0.05,sigma:crosswalk-VERIFIED,000166,НЕУРО АКТИВ 60 cps,2,2025@5.00: 195; 2026@5.00: 168; mex@5.00: 13
+bf9e7307-fa6a-4bd0-a9c3-c6da9982d057,НОВОГОДИШЕН ПОДАРОК - Active Men Pack,bundle,natura_therapy,False,SKU-000518,0,0.05,rule:supplement-5,,,,
+d73f3812-dad1-4ff8-a32b-505809fd05ff,НОВОГОДИШЕН ПОДАРОК - Face Care Pack,bundle,natura_therapy,False,SKU-000530,0,0.18,rule:cosmetic-18,,,,
+2ebe6342-79e8-4a51-8387-7731c9d0fd3a,НОВОГОДИШЕН ПОДАРОК - Men Health Pack,bundle,natura_therapy,False,SKU-000469,0,0.05,rule:supplement-5,,,,
+d4d99132-315e-48fe-b448-ef2f45c497d3,НОВОГОДИШЕН ПОДАРОК - Strong Men Pack,bundle,natura_therapy,False,SKU-000527,0,0.05,rule:supplement-5,,,,
+29287e07-6367-43e5-a254-cde8d080346f,НОВОГОДИШЕН ПОДАРОК - Women Care Pack,bundle,natura_therapy,False,SKU-000519,0,0.05,rule:supplement-5,,,,
+29f1e3d4-aadf-4139-ad45-52bf642f7a2d,НОВОГОДИШЕН ПОДАРОК - Women Fit Line Pack,bundle,natura_therapy,False,SKU-000374,0,0.05,rule:supplement-5,,,,
+09d0794f-43f9-4fc9-b853-ef3d07168b4c,Ноќна крема против брч.за зрела кожа,product,,False,SKU-000537,0,0.18,sigma:crosswalk-HIGH,002008,Ноќна крема против брчки за зрела кожа,1,no 2025–2026 sales invoice
+f34ede78-3084-429a-9e4b-bc9285eddddc,Ноќна крема против брчки-55,product,,False,SKU-000534,0,0.18,rule:cosmetic-18,,,,
+ca763591-7fd6-407c-a8d9-0d5ece3e7263,Ноќна крема со смил 50мл,product,,False,SKU-000536,0,0.18,sigma:crosswalk-HIGH,002327,Ноќна крема со смил 50мл,1,no 2025–2026 sales invoice
+2895bf92-40e1-412c-9a61-faf67f11a059,"Нони екстракт 0,5 л",product,natura_therapy,True,SKU-000119,87,0.05,sigma:crosswalk-HIGH,000198,"НОНИ ЕКСТРАКТ 0,5 Л",2,2025@5.00: 15; 2026@5.00: 12; mex@5.00: 6
+fe3b68cf-26df-4883-8cc8-4c0750b79da0,"НОНИ ЕКСТРАКТ 0,5Л (сет 2+1)",bundle,,False,SKU-000505,0,0.05,sigma:crosswalk-HIGH,000199,"НОНИ ЕКСТРАКТ 0,5Л (сет 2+1)",2,no 2025–2026 sales invoice
+3c18bf6b-ac05-43f0-a237-fd728ceca789,НУТРИ СУПА РАСТИТЕЛЕН МИКС 500 гр,product,ad_astra,False,SKU-000291,11,0.05,sigma:crosswalk-HIGH,001468,НУТРИ СУПА РАСТИТЕЛЕН МИКС 500 гр,2,2026@5.00: 75; mex@5.00: 4
+08e5b05d-a361-4774-90ba-73f8177e418f,НУТРИ ШЕЈК-со вкус на ванила 500 гр.,product,ad_astra,True,001227,455,0.05,sigma:crosswalk-VERIFIED,001227,НУТРИ ШЕЈК-со вкус на ванила 500 гр.,2,2025@5.00: 214; 2026@5.00: 210; mex@5.00: 15
+e10ab6fc-eda4-47a8-9ddf-7a0536c603c4,НУТРИ ШЕЈК-со вкус на јагода 500 гр.,product,ad_astra,True,001229,528,0.05,sigma:crosswalk-VERIFIED,001229,НУТРИ ШЕЈК-со вкус на јагода 500 гр.,2,2025@5.00: 212; 2026@5.00: 172; mex@5.00: 13
+a787c8b1-205a-4b2c-84c2-db3076dc3f54,НУТРИ ШЕЈК-со вкус на чоколадо 500гр.,product,ad_astra,True,001228,471,0.05,sigma:crosswalk-VERIFIED,001228,НУТРИ ШЕЈК-со вкус на чоколадо 500 гр.,2,2025@5.00: 208; 2026@5.00: 213; mex@5.00: 14
+17bce4dc-5e81-4979-b826-b6cd1274bcb0,ОКСИМЕТАР,other,,False,SKU-000532,0,0.18,rule:device-18,,,,
+8ea4c15a-df6d-48b0-b1ef-92d5234c1388,ОЛИВАЛ GUA SHA КАМЕН ЗА МАСАЖА НА ЛИЦЕ ОД РОЗЕВ КВАРЦ,other,natura_therapy,False,SKU-000117,0,0.18,rule:cosmetic-18,,,,
+628251f2-157f-41c5-9df3-ac43017da1d2,ОЛИВАЛ GUA SHA КАМЕН ОД ВИОЛЕТОВ АМЕТИСТ,other,natura_therapy,False,SKU-000155,0,0.18,rule:cosmetic-18,,,,
+f53e82a0-63d7-423c-bd76-68d6cc772f12,ОЛИВАЛ PROFESSIONAL КРЕМА ЗА ЛИЦЕ СПФ50,product,natura_therapy,False,SKU-000139,0,0.18,rule:cosmetic-18,,,,
+344a7b7a-9c41-4e75-9d69-ea818f527e3e,ОЛИВАЛ SUNHAIR ЗАШТИТЕН СПРЕЈ ЗА КОСА,product,natura_therapy,False,SKU-000174,0,0.18,rule:cosmetic-18,,,,
+cd718786-aa16-4eba-ab00-a896dbab4840,ОЛИВАЛ SUNKIDS ДЕТСКА КРЕМА ЗА ЛИЦЕ СПФ50,product,natura_therapy,False,SKU-000208,0,0.18,rule:cosmetic-18,,,,
+5575fef9-e4cc-4913-83c2-3bca47f61cb6,ОЛИВАЛ SUPER MRKVA СУВО МАСЛО ЗА ЗАБРЗАНО ПОТЕМНУВАЊЕ,product,natura_therapy,False,SKU-000172,0,0.18,rule:cosmetic-18,,,,
+b9dc18d8-e10c-4487-8af8-641586862c5f,ОЛИВАЛ АЛОЕ ВЕРА ГЕЛ,product,natura_therapy,False,SKU-000120,0,0.18,sigma:crosswalk-HIGH,002371,Алое Вера гел 250мл,1,no 2025–2026 sales invoice
+009284ac-bb09-4740-8dfc-99ed67afa9c9,ОЛИВАЛ АМИНО ГЕЛ ЗА ВТОР ЧЕКОР ВО ЧИСТЕЊЕ НА ЛИЦЕ,product,natura_therapy,False,SKU-000106,0,0.18,rule:cosmetic-18+mixed,,,,
+cadfbb1f-b3a8-4b91-a31b-08831338464b,ОЛИВАЛ ВЕНОГЕЛ,product,natura_therapy,False,SKU-000102,0,0.18,sigma:crosswalk-HIGH,002374,Веногел 250мл,1,no 2025–2026 sales invoice
+b4a09123-a63a-4289-a5d1-cfb4d48a85bc,ОЛИВАЛ ВИТАМИН Б3 ФЛУИД ЗА ОКОЛУ ОЧИ,product,natura_therapy,False,SKU-000154,0,0.18,sigma:crosswalk-MEDIUM,002360,Витамин Б3 флуид-очи 15мл,1,no 2025–2026 sales invoice
+5cf5c9cf-d038-4d94-bded-f19c56147de2,ОЛИВАЛ ВИТАМИН РА СЕРУМ,product,natura_therapy,False,SKU-000150,0,0.18,rule:cosmetic-18,,,,
+ef083553-1010-4d97-b7e5-e8e3517f14e8,ОЛИВАЛ ВИТАМИН Ц СЕРУМ,product,natura_therapy,False,SKU-000165,0,0.18,sigma:crosswalk-HIGH,002343,Витамин Ц серум 30мл,1,no 2025–2026 sales invoice
+8c8aae63-75d8-45b8-9642-177b964c6e4d,ОЛИВАЛ ЕКСТРА ХИДРАТАНТНА КРЕМА СО МАСЛО ОД СМИЛ,product,natura_therapy,False,SKU-000194,0,0.18,rule:cosmetic-18,,,,
+2dcaeaa8-d04b-42a5-b622-60105e8a7d59,ОЛИВАЛ ЗЛАТНО МАСЛО ОД СМИЛ,product,natura_therapy,False,SKU-000184,0,0.18,sigma:crosswalk-HIGH,002339,Златно масло од смил 15мл,1,no 2025–2026 sales invoice
+2949c82c-7f4c-4313-a3be-507d82bd7c08,ОЛИВАЛ КОКОС-РИЦИНУС МАСЛО ЗА КОСА,product,natura_therapy,False,SKU-000134,0,0.18,rule:cosmetic-18+mixed,,,,
+469da6c2-9649-46ec-8813-db18d16beed9,ОЛИВАЛ КОНЦЕНТРАТ ЗА РАЦЕ И НОКТИ СО ЛАВАНДА,product,natura_therapy,False,SKU-000182,0,0.18,rule:cosmetic-18,,,,
+09638ac1-a351-475f-9ddc-f74d6754eed3,ОЛИВАЛ КУРКУМА ГЕЛ,product,natura_therapy,False,SKU-000173,0,0.18,sigma:crosswalk-HIGH,002810,Куркума гел,1,no 2025–2026 sales invoice
+d562b05f-8bf4-4dc2-b038-26c1ef2cd471,ОЛИВАЛ ЛЕСНА КРЕМА ПРОТИВ БРЧКИ СО ЗЕЛЕНО КАФЕ ЗА ДНЕВНА УПОТРЕБА,product,natura_therapy,False,SKU-000186,0,0.18,rule:cosmetic-18,,,,
+c9d60f70-d6d5-4666-8c06-f788f5690379,ОЛИВАЛ МАГНЕЗИУМ ГЕЛ,product,natura_therapy,False,SKU-000214,0,0.18,sigma:crosswalk-HIGH,001641,MAGNESIUM GEL 50 ml,1,2026@18.00: 86; mex@18.00: 2
+efc6db90-4fcd-42c3-8e71-e593d0d590fd,ОЛИВАЛ МАГНЕЗИУМ МАСЛО,product,natura_therapy,False,SKU-000176,0,0.18,rule:cosmetic-18,,,,
+db7970f9-8f37-4b63-8079-6ed2ff0c6423,ОЛИВАЛ МАСАЖЕР ЗА ЛИЦЕ (РОЛЕР) ОД ЗЕЛЕН ЖАД,other,natura_therapy,False,SKU-000110,0,0.18,rule:cosmetic-18,,,,
+631e029a-a1c8-4d27-a750-132891d4b837,ОЛИВАЛ МАСЛО ОД ЧИЧЕК ЗА КОСА,product,natura_therapy,False,SKU-000170,0,0.18,rule:cosmetic-18,,,,
+5bece61e-b74c-4bbc-a139-726981ecde5f,ОЛИВАЛ МАТИРАЧКИ ФЛУИД СО МАСЛО ОД СМИЛ,product,natura_therapy,False,SKU-000131,0,0.18,sigma:crosswalk-MEDIUM,002329,Матирачки флуид со смил 50мл,1,no 2025–2026 sales invoice
+bbb88f26-ae68-4fd1-81d1-9303ddecc598,ОЛИВАЛ МИКРОЕМУЛЗИЈА ЗА ПРВ ЧЕКОР ВО ЧИСТЕЊЕ НА ЛИЦЕ,product,natura_therapy,False,SKU-000190,0,0.18,rule:cosmetic-18,,,,
+56ee587f-2465-45c0-ae00-8543107fa977,ОЛИВАЛ ОСВЕЖИТЕЛЕН ТОНИК СО МАСЛО ОД СМИЛ,product,natura_therapy,False,SKU-000223,0,0.18,rule:cosmetic-18,,,,
+a359c086-1564-48be-937f-0c785b8a42f6,ОЛИВАЛ ПЕПТИДНА КРЕМА П,product,natura_therapy,False,SKU-000209,0,0.18,rule:cosmetic-18,,,,
+7caca41d-ec19-4e4d-9869-61e53470a7fd,ОЛИВАЛ ПИЛИНГ ТОНИК AHA PHA,product,natura_therapy,False,SKU-000091,0,0.18,rule:cosmetic-18,,,,
+e2f8329f-c971-46d9-afd4-6691bd14181b,ОЛИВАЛ ПРИРОДЕН ШАМПОН ОД РУЗМАРИН И ЛИМОН,product,natura_therapy,False,SKU-000167,0,0.18,rule:cosmetic-18,,,,
+8e3a653d-a73b-4dd6-b63e-5703c6b9db8b,ОЛИВАЛ ПРИРОДЕН ШАМПОН СЕНЗИТИВ,product,natura_therapy,False,SKU-000205,0,0.18,rule:cosmetic-18,,,,
+c4beaf4b-ee52-497f-9902-fa2177605e11,ОЛИВАЛ РЕ-ГЕЛ,product,natura_therapy,False,SKU-000148,0,0.18,rule:cosmetic-18,,,,
+a1829ebc-ba7c-4a14-861f-f2b1976b05e5,ОЛИВАЛ РЕГЕНЕРАТИВНА КРЕМА СО МАСЛО ОД СМИЛ,product,natura_therapy,False,SKU-000129,0,0.18,rule:cosmetic-18,,,,
+13ff2f0a-2f67-48d1-a87c-b5154d1431ab,"ОЛИВАЛ РИЦИНУСОВО МАСЛО ЗА КОСА, ТРЕПКИ И ВЕЃИ",product,natura_therapy,False,SKU-000122,0,0.18,rule:cosmetic-18,,,,
+d1a01a3e-6137-4cb5-bde7-d6e8c52e4ddd,ОЛИВАЛ ХИДРО ТОНИК,product,natura_therapy,False,SKU-000101,0,0.18,rule:cosmetic-18,,,,
+daf37bb0-dbda-44da-a8fd-e1d14632710c,ОЛИВАЛ ХРАНЛИВ ПИЛИНГ СО МАСЛО ОД СМИЛ,product,natura_therapy,False,SKU-000095,0,0.18,rule:cosmetic-18,,,,
+4fb7ee97-8552-4e28-8870-afb351eef6c3,ОЛИВАЛ ХРАНЛИВА КРЕМА ПРОТИВ БРЧКИ СО ЗЕЛЕНО КАФЕ,product,natura_therapy,False,SKU-000111,0,0.18,rule:cosmetic-18,,,,
+85ad3161-5032-4d7e-ad91-357a7934ce64,ОЛИВАЛ ХРАНЛИВА МАСКА СО МАСЛО ОД СМИЛ,product,natura_therapy,False,SKU-000147,0,0.18,rule:cosmetic-18,,,,
+bdb3eacf-4c30-4b7a-a90d-0740f3311c7b,ОЛИВАЛ ШАМПОН ОД ЧИЧЕК,product,natura_therapy,False,SKU-000188,0,0.18,sigma:crosswalk-HIGH,002815,Шампон Чичак 250 мл,1,no 2025–2026 sales invoice
+292d5e5e-1cb0-49d7-a724-9e2d07983bbe,ОМЕГА 3 КАПКИ 30ml,product,natura_therapy,False,000752,39,0.05,sigma:crosswalk-VERIFIED,000752,ОМЕГА 3 КАПКИ 30ml,2,2025@5.00: 8; mex@5.00: 4
+2d950e9d-6acd-45fe-ad6f-9f56ef99acfc,ОСТЕО ФИКС 180 cps,product,natura_therapy,False,001150,480,0.05,sigma:crosswalk-VERIFIED,001150,ОСТЕО ФИКС 180 tab,2,2025@5.00: 54; 2026@5.00: 10; mex@5.00: 4
+96dece7d-5ead-4734-b167-1d632691dad3,Пакет-Термо + Крио Гел,bundle,,False,SKU-000350,0,0.18,sigma:crosswalk-HIGH,005027,ТЕРМО ГЕЛ 290ml+КРИО ГЕЛ 290ml,1,2025@18.00: 2; 2026@18.00: 2
+e255dad4-846d-4920-9b84-424e6496b010,ПАРА ДЕТОКС 30 cps,product,natura_therapy,True,001071,638,0.05,sigma:crosswalk-VERIFIED,001071,ПАРА ДЕТОКС 30 cps,2,2025@5.00: 58; 2026@5.00: 31; mex@5.00: 13
+4dff694e-1686-4f27-b09b-4d944e6de2b1,ПЕГЛА НА ПАРЕА,other,,False,SKU-000399,0,0.18,sigma:crosswalk-HIGH,034939,ПЕГЛА НА ПАРЕА,1,no 2025–2026 sales invoice
+0c6b656d-6b35-44e0-8ab4-5c5d98074f37,Пептид без ВКУС 1+1,bundle,,False,SKU-000515,0,0.05,sigma:crosswalk-HIGH,001204,СЕТ КОЛАГЕН ПЕПТИД МАЛИНА 1+1,2,2025@5.00: 265; 2026@5.00: 58
+cf9ba0c0-2f4e-456e-9766-380967b9fbe9,ПЛИНСКО РЕШО,other,,False,SKU-000470,0,0.18,sigma:crosswalk-HIGH,067353,ПЛИНСКО РЕШО,1,no 2025–2026 sales invoice
+7ef0056c-c771-4ec4-9e7d-f54cb3e502ff,ПМС КОМПЛЕКС 30cps-сет2+1,bundle,,False,SKU-000538,0,0.05,sigma:crosswalk-HIGH,000334,ПМС КОМПЛЕКС 30cps-сет2+1,2,no 2025–2026 sales invoice
+b5775be5-c1a3-47cc-89c6-56e824ec78c1,ПРАВОСМУКАЛКА,other,,False,SKU-000567,0,0.18,sigma:crosswalk-HIGH,075551,Стапчеста правосмикалка 2во1,1,no 2025–2026 sales invoice
+98cf43a6-cba1-448a-adcc-e214a1cdf466,ПРОПОЛИС КАПКИ 5% - 50 ml,product,,False,SKU-000312,0,0.05,sigma:crosswalk-HIGH,000537,ПРОПОЛИС КАПКИ 5% - 50 ml,2,2025@5.00: 2; mex@5.00: 1
+2c793617-610a-4c87-b915-50cb2babcd9e,Простатол Комплекс,product,natura_therapy,True,SKU-000066,7308,0.05,sigma:crosswalk-HIGH,000265,ПРОСТАТОЛ КОМПЛЕКС cps 30,2,2025@5.00: 513; 2026@5.00: 329; mex@5.00: 19
+0a67af01-ba33-42fc-949e-9fc5e60960e2,ПРОСТАТОЛ КОМПЛЕКС cps 30,product,natura_therapy,True,000265,15492,0.05,sigma:crosswalk-VERIFIED,000265,ПРОСТАТОЛ КОМПЛЕКС cps 30,2,2025@5.00: 513; 2026@5.00: 329; mex@5.00: 19
+c7a1c65e-28f5-44a5-84d7-b5edb348584c,ПРОСТАТОЛ КОМПЛЕКС сет 2+2,bundle,natura_therapy,False,SKU-000274,0,0.05,sigma:crosswalk-HIGH,000612,ПРОСТАТОЛ КОМПЛЕКС сет 2+2,2,no 2025–2026 sales invoice
+32b09c49-4741-4664-967f-4a9ae34ad2be,Протеин.шејк во прав јагода 500 гр,product,,False,SKU-000459,0,0.05,sigma:crosswalk-HIGH,002447,Протеин.шејк во прав јагода 500 гр,2,no 2025–2026 sales invoice
+9377a511-1a9e-4199-bc04-965133bd5dea,Протеин.шејк во прав какао 500 гр,product,,False,SKU-000433,0,0.05,sigma:crosswalk-HIGH,002448,Протеин.шејк во прав какао 500 гр,2,no 2025–2026 sales invoice
+47eeab25-3b9e-4a74-b75c-eb73aec390ae,Протеин.шејк во прав/вани.и цимет 500 гр,product,,False,SKU-000430,0,0.05,sigma:crosswalk-HIGH,002446,Протеин.шејк во прав/вани.и цимет 500 гр,2,no 2025–2026 sales invoice
+f34b4478-c07a-4830-b7cb-34e74bcd773e,Протеински сладолед ванила 200 гр,product,ad_astra,True,SKU-000096,49,0.05,sigma:crosswalk-HIGH,001250,ПРОТЕИНСКИ СЛАДОЛЕД ВАНИЛА 200 гр,2,2025@5.00: 35; 2026@5.00: 68; mex@5.00: 3
+0f6e5240-0e90-4b56-a18f-86e2b49b9969,Р и Р Мелем 100 мл.,product,natura_therapy,True,005034,161,0.18,sigma:crosswalk-VERIFIED,005034,МЕЛЕМ R&R 100 ml,1,2025@18.00: 40; 2026@18.00: 15; mex@18.00: 15
+ae65b514-a623-4352-855a-3baea5e2fa7e,РАЧЕН БЛЕНДЕР,other,,False,SKU-000323,0,0.18,rule:device-18,,,,
+d5449c46-93ca-44e2-94d8-927465c97b91,РАЧЕН БЛЕНДЕР 4 ВО 1,other,,False,SKU-000468,0,0.18,rule:device-18,,,,
+b9600d6c-73dc-435c-9e96-b5d24ffd0539,РАЧЕН МИКСЕР,other,,False,SKU-000522,0,0.18,sigma:crosswalk-HIGH,072599,РАЧЕН МИКСЕР,1,no 2025–2026 sales invoice
+ee2ef09d-dd2d-473e-90c8-23153f6ae078,РАЧЕН МИКСЕР СО РОТИРАЧКИ САД,other,,False,SKU-000416,0,0.18,sigma:crosswalk-MEDIUM,072599,РАЧЕН МИКСЕР,1,no 2025–2026 sales invoice
+6a1b278a-fec5-41b0-8a64-86fc74430055,РЕСВЕРАТРОЛ КОМПЛЕКС 30 cps,product,natura_therapy,True,000300,612,0.05,sigma:crosswalk-VERIFIED,000300,РЕСВЕРАТРОЛ КОМПЛЕКС 30 cps,2,2025@5.00: 34; 2026@5.00: 22; mex@5.00: 12
+a35cb6a4-83eb-4366-8b13-92b596191be0,САМБУКУС сирoп 250 мл,product,natura_therapy,True,SKU-000028,5,0.05,sigma:crosswalk-HIGH,001159,САМБУКУС сируп 250 мл,2,2025@5.00: 102; 2026@5.00: 56; mex@5.00: 15
+318077bc-32bc-4e9b-aee6-33ddcfe71380,САМБУКУС сируп 250 мл,product,natura_therapy,True,001159,2167,0.05,sigma:crosswalk-VERIFIED,001159,САМБУКУС сируп 250 мл,2,2025@5.00: 102; 2026@5.00: 56; mex@5.00: 15
+2edc76db-48fb-4820-8da9-04ce52cf66db,САУ ПАЛМЕТТО (Saw Palmetto) 30 cps,,natura_therapy,True,000271,4597,0.05,sigma:crosswalk-VERIFIED,000271,САУ ПАЛМЕТТО (Saw Palmetto) 30 cps,2,2025@5.00: 105; 2026@0.00: 1; 2026@5.00: 68; mex@0.00: 1; mex@5.00: 17
+5341c90e-2cbb-418d-a6e8-ed22667b92ee,СЕТ ЗА СЛАБЕЕЊЕ,bundle,,False,SKU-000476,0,0.18,sigma:crosswalk-MEDIUM,002388,4D ГОЛД СЕРУМ ЗА СЛАБЕЕЊЕ 250 мл,1,no 2025–2026 sales invoice
+0d8459a2-7a74-4997-a6d4-4abf773172c9,СЛЕЕП МЕЛАТОНИН 30 tbl,,natura_therapy,True,000941,226,0.05,sigma:crosswalk-VERIFIED,000941,СЛЕЕП Мелатонин 30 tbl,2,2025@5.00: 198; 2026@0.00: 2; 2026@5.00: 529; mex@0.00: 2; mex@5.00: 7
+fc3566f6-f4dd-48bc-a6eb-274d431acd25,СЛИМ BOX-СЕТ,bundle,,False,SKU-000251,0,0.18,sigma:crosswalk-HIGH,000906,СЛИМ БОКС ПАКЕТ,1,2025@18.00: 3
+45fbadb2-aaf3-4f50-9ecb-31cf52055006,СЛИМ КОМПЛЕКС 30cps,product,natura_therapy,True,000615,1015,0.05,sigma:crosswalk-VERIFIED,000615,СЛИМ КОМПЛЕКС 30cps,2,2025@5.00: 121; 2026@5.00: 103; mex@5.00: 7
+938de0ca-28a1-4c99-9ade-3ecf59c559e6,СЛИМ ФИБЕР 30 cps 1+1,bundle,natura_therapy,True,000618,31,0.05,sigma:crosswalk-VERIFIED,000618,СЛИМ ФИБЕР  30 cps 1+1,2,no 2025–2026 sales invoice
+15736aff-ff11-422d-8c2b-a617d0a94151,СНАИЛ КОМПЛЕКС 30 сет 2+1,bundle,natura_therapy,False,SKU-000252,0,0.05,sigma:crosswalk-HIGH,000113,СНАИЛ КОМПЛЕКС 30/1 сет (2+1),2,2025@5.00: 242; 2026@5.00: 107
+7ecd116e-b183-48f7-bb85-b01a793db9d5,СНАИЛ КОМПЛЕКС cps 30,product,natura_therapy,True,000042,15096,0.05,sigma:crosswalk-VERIFIED,000042,СНАИЛ КОМПЛЕКС cps 30,2,2025@5.00: 529; 2026@5.00: 253; mex@5.00: 18
+648bf301-da17-449a-9c1f-ee2415e054c6,СНАИЛ КОМПЛЕКС сет 2+2,bundle,natura_therapy,False,SKU-000269,0,0.05,sigma:crosswalk-HIGH,000611,СНАИЛ КОМПЛЕКС сет 2+2,2,no 2025–2026 sales invoice
+0567ebad-600e-4c3b-9c05-10ecdeb3e8cb,СНАИЛ КРЕМА 100ml антиревматска туба,product,natura_therapy,True,000040,9747,0.18,sigma:crosswalk-VERIFIED,000040,СНАИЛ КРЕМА 100ml антиревматска туба,1,2025@18.00: 233; 2026@18.00: 61; mex@18.00: 15
+4452378b-a942-4f36-a438-96cee731bb62,СНАИЛ РЕПАИР КРЕМА ЗА ЛИЦЕ 50ml,product,,False,SKU-000383,0,0.18,sigma:crosswalk-HIGH,000022,СНАИЛ РЕПАИР КРЕМА ЗА ЛИЦЕ 50ml,1,no 2025–2026 sales invoice
+cdcb1f92-99cd-4137-bb5e-d961e1728d3c,СОКОВНИК,other,,False,SKU-000547,0,0.18,sigma:crosswalk-HIGH,071179,СОКОВНИК,1,no 2025–2026 sales invoice
+d47ccca9-f0bc-4550-97ed-49ea890f78ce,СПИРУЛИНА 100 tbl,product,natura_therapy,False,SKU-000256,0,0.05,sigma:crosswalk-HIGH,000524,СПИРУЛИНА 100 tbl,2,2025@5.00: 4; mex@5.00: 3
+ce4ff9e0-eb7d-4176-8b20-4b9e9b1783ce,СПИРУЛИНА 150+150 tbl,bundle,natura_therapy,False,SKU-000301,0,0.05,sigma:crosswalk-HIGH,000561,СПИРУЛИНА 150+150 tbl,2,no 2025–2026 sales invoice
+252a1dfe-836e-4eb2-a8f5-89ef060dca17,Спирулина во прав 100 гр,product,,False,SKU-000434,0,0.05,sigma:crosswalk-HIGH,000973,Спирулина во прав 100 гр,2,2025@5.00: 1; mex@5.00: 1
+b73c9483-4766-4a28-908b-04a906affe3a,СПИРУЛИНА КАПСУЛИ cps 30,product,,False,SKU-000365,0,0.05,sigma:crosswalk-HIGH,000329,СПИРУЛИНА КАПСУЛИ cps 30,2,no 2025–2026 sales invoice
+f5ee28d2-b839-4cb2-888e-d37d6f664756,СПИРУЛИНА КАПСУЛИ cps 60- (600мг),product,natura_therapy,False,000305,2,0.05,sigma:crosswalk-VERIFIED,000305,СПИРУЛИНА КАПСУЛИ cps 60- (600мг),2,no 2025–2026 sales invoice
+582dfc99-c936-4084-a02c-ad56b08fefbc,СТАПЧЕСТ БЛЕНДЕР,other,,False,SKU-000451,0,0.18,sigma:crosswalk-HIGH,073507,СТАПЧЕСТ БЛЕНДЕР,1,no 2025–2026 sales invoice
+c7cbb799-4f93-476e-b21f-d5c1ea8ce180,Стапчест Блендер+сецко 3 во1,other,,False,SKU-000344,0,0.18,sigma:crosswalk-HIGH,073494,Стапчест Блендер+сецко 3 во1,1,no 2025–2026 sales invoice
+0e1f99f4-590f-4578-be1b-2c2b972f382a,СТАПЧЕСТ БЛЕНДЕТ+СЕЦКО,other,,False,SKU-000414,0,0.18,rule:device-18,,,,
+f4dd57ca-06c1-4641-ad3c-7723f5646415,Стапчеста правосмикалка 2во1,other,,False,SKU-000408,0,0.18,sigma:crosswalk-HIGH,075551,Стапчеста правосмикалка 2во1,1,no 2025–2026 sales invoice
+d89d0473-8317-4214-b276-0d8ab9b49802,СТЕГАЧ,other,natura_therapy,False,8003,2622,0.18,sigma:crosswalk-HIGH,000431,СТЕГАЧИ,1,no 2025–2026 sales invoice
+c968e99f-9a8b-45c6-b65e-1ea66b250afc,ТАБЛЕТ,other,,False,SKU-000544,0,0.18,rule:device-18,,,,
+ae4b09f0-ee8a-4f89-b93c-427c5d68c668,ТАБЛЕТ-СТ95,other,,False,SKU-000563,0,0.05,sigma:crosswalk-HIGH,051668,ТАБЛЕТ-СТ95,2,no 2025–2026 sales invoice
+8d550b53-7f73-4644-8aef-bc6e9f30d8aa,ТАВА,other,,False,SKU-000561,0,0.18,sigma:crosswalk-HIGH,074317,ТАВА 28цм,1,no 2025–2026 sales invoice
+924d3963-ad86-42e3-af01-4f60e93ab1c2,ТАВА ЗА ПАЛАЧИНКИ,other,,False,SKU-000565,0,0.18,rule:device-18,,,,
+30a5ed85-1bff-4830-9cb0-dab77b0c337f,ТЕЛЕВИЗОР,other,,False,SKU-000477,0,0.18,sigma:crosswalk-HIGH,054390,ТЕЛЕВИЗОР,1,no 2025–2026 sales invoice
+fd939174-e55c-4d3e-8d3a-1bf764a3329b,ТЕЛЕСНА ВАГА,other,,False,SKU-000326,0,0.18,sigma:crosswalk-HIGH,071523,ТЕЛЕСНА ВАГА,1,no 2025–2026 sales invoice
+5d87780a-9a0d-495f-b3d1-3b9dabb30e81,ТЕРМО ГЕЛ 300m+КРИО ГЕЛ 300+ХЕЛАНКИ,bundle,,False,SKU-000413,0,0.18,sigma:crosswalk-MEDIUM,005027,ТЕРМО ГЕЛ 290ml+КРИО ГЕЛ 290ml,1,2025@18.00: 2; 2026@18.00: 2
+b304a32c-4fe9-414c-8114-1f42ddee893a,ТЕРМО СЕРУМ ЗА СЛАБЕЕЊЕ 250 мл,product,,False,SKU-000523,0,0.18,sigma:crosswalk-HIGH,002390,СЛИМ ТЕРМО СЕРУМ ЗА СЛАБЕЕЊЕ 250 мл,1,no 2025–2026 sales invoice
+2da4e74f-5336-4c69-a95a-fda03bc3a8ba,ТЕРМОМЕТАР,other,,False,SKU-000543,0,0.18,sigma:by-name,005030,ELIXY-ТЕРМО ГЕЛ 200ml+КРИО ГЕЛ 200ml,1,2025@18.00: 64; 2026@18.00: 13; mex@18.00: 5
+cc561012-c751-4d67-84ec-40c076b49388,ТЕЧЕН КОЛАГЕН 250 мл.,,natura_therapy,True,000605,144,0.05,sigma:crosswalk-VERIFIED,000605,ТЕЧЕН КОЛАГЕН 250 мл.,2,2025@5.00: 40; 2026@5.00: 6; mex@5.00: 9
+9ae2a1a7-a645-4404-afe6-1bd6de88ecef,ТЕЧЕН ХЛОРОФИЛ 500ml,product,natura_therapy,True,000456,355,0.05,sigma:crosswalk-VERIFIED,000456,ХЛОРОФИЛ ТЕЧЕН 500ml,2,2025@5.00: 11; 2026@5.00: 14; mex@5.00: 8
+6b2e1c91-d2f2-4028-a068-b31cc61141e0,ТИГРОВА МАСТ 30ml,product,natura_therapy,True,000541,2807,0.18,sigma:crosswalk-VERIFIED,000541,ТИГРОВА МАСТ 30ml,1,2025@18.00: 107; 2026@18.00: 4; mex@18.00: 12
+39a017e6-ef0c-45ca-83de-b5131aabd670,ТИТАНИУМ ТАВА 25 см,other,,False,SKU-000564,0,0.18,sigma:crosswalk-HIGH,074295,Титаниум тава 25 см,1,no 2025–2026 sales invoice
+901ee0bf-0823-445d-bc72-7513129af760,ТОСТЕР,other,,False,SKU-000409,0,0.18,sigma:crosswalk-HIGH,048965,ТОСТЕР ЗА ЛЕПЧИЊА,1,no 2025–2026 sales invoice
+2360a134-1183-4ec5-8baa-0b65e83cb87c,ТОСТЕР ЗА ЛЕПЧИЊА,other,,False,SKU-000473,0,0.18,sigma:crosswalk-HIGH,048965,ТОСТЕР ЗА ЛЕПЧИЊА,1,no 2025–2026 sales invoice
+604ab890-8d89-4027-9956-946e87f1aea7,ТРИБУЛУС ТЕРЕСТРИС 30cps,,natura_therapy,True,000312,397,0.05,sigma:crosswalk-VERIFIED,000312,ТРИБУЛУС ТЕРЕСТРИС 30cps,2,2025@5.00: 34; 2026@5.00: 19; mex@5.00: 13
+5abfa4da-9983-4a8d-a694-c19142b40b6c,Турмерик 2 + 1 НЕУРОАКТИВ,bundle,,True,SKU-000484,0,0.05,sigma:crosswalk-HIGH,001185,Сет Турмерик 2+1 Неуроактив,2,2025@5.00: 63
+ebc8abe6-cef3-4455-bea9-0a78f31f96e4,Турмерик 2 + 1 НЕУРОАКТИВ + ТИГРОВА,bundle,,False,SKU-000445,0,0.05,sigma:crosswalk-HIGH,001185,Сет Турмерик 2+1 Неуроактив,2,2025@5.00: 63
+8ff7d97c-8ac0-4b2b-a1c5-6a4b57cb0c8a,ТУРМЕРИК КУРКУМИН 425МЛ,product,natura_therapy,True,001072,7004,0.05,sigma:crosswalk-VERIFIED,001072,ТУРМЕРИК КУРКУМИН 425 мл,2,2025@5.00: 305; 2026@5.00: 103; mex@5.00: 16
+456139ed-0151-479b-9680-00b090075db0,УРО ПРОТЕКТ 30 cps,product,natura_therapy,True,000594,1363,0.05,sigma:crosswalk-VERIFIED,000594,УРО ПРОТЕКТ 30 cps,2,2025@5.00: 78; 2026@5.00: 73; mex@5.00: 15
+1cbd1e9d-31db-4332-b398-4ed37ba3e394,Ф-50 КРЕМА ЗА СОНЧАЊЕ ЛИЦЕ 50 мл.,product,,False,002391,41,0.18,sigma:crosswalk-VERIFIED,002391,Ф-50 КРЕМА ЗА СОНЧАЊЕ ЛИЦЕ 50 мл.,1,no 2025–2026 sales invoice
+c3ce5bde-6967-4564-8c58-4a085305aad7,ФЕММЕ 7 60 cps,product,natura_therapy,True,001200,387,0.05,sigma:crosswalk-VERIFIED,001200,ФЕММЕ 7 60 cps,2,2025@5.00: 157; 2026@0.00: 1; 2026@5.00: 108; mex@0.00: 1; mex@5.00: 16
+63c76b2c-d32b-421c-b1d0-c5a2897e9021,ФЕН,other,,False,SKU-000381,0,0.18,sigma:crosswalk-HIGH,074368,ФЕН ЗА КОСА,1,no 2025–2026 sales invoice
+1e9db2de-9b7b-4312-a28e-de0b169be316,ФЕН ЗА КОСА,other,,False,SKU-000297,0,0.18,sigma:crosswalk-HIGH,074368,ФЕН ЗА КОСА,1,no 2025–2026 sales invoice
+5ce7ab08-0eaa-41fc-9be8-171b6cf415b7,ФИГАРО,other,,False,SKU-000380,0,0.18,sigma:crosswalk-HIGH,075903,ФИГАРО,1,no 2025–2026 sales invoice
+e45cd87d-2074-4b01-83a2-e96a3c013386,ФИГАРО за коса,other,,False,SKU-000569,0,0.18,sigma:crosswalk-HIGH,075903,ФИГАРО,1,no 2025–2026 sales invoice
+7b5e8083-bf95-498c-8385-9f5c15902220,ХЕЛАНКИ ХЛ,other,natura_therapy,False,ХЕЛАНКИ,59,0.18,sigma:crosswalk-VERIFIED,ХЕЛАНКИ,ХЕЛАНКИ,1,no 2025–2026 sales invoice
+472912aa-5d0b-4d65-a303-ec3bf7fead59,ХЕМОРО ГЕЛ 100МЛ,product,natura_therapy,True,005035,1720,0.18,sigma:crosswalk-VERIFIED,005035,ХЕМОРО ГЕЛ 100 мл,1,2025@18.00: 98; 2026@18.00: 64; mex@18.00: 12
+9c30effd-c80b-477e-bc31-57f0a6967f0a,Хеморо форте (2+1)+Крем Хеморо,bundle,natura_therapy,False,SKU-000270,0,0.05,sigma:crosswalk-HIGH,001058,ХЕМОРО ФОРТЕ 30 cps,2,2025@5.00: 127; 2026@5.00: 69; mex@5.00: 15
+70979ad8-507a-4c4d-94d6-061a8dba00f5,ХЕПАТОЛ ФОРТЕ 30cps-set 2+1,bundle,natura_therapy,False,SKU-000462,0,0.05,sigma:crosswalk-HIGH,000398,ХЕПАТОЛ ФОРТЕ 30cps-сет 2+1,2,2025@5.00: 49; 2026@5.00: 23
+b056281f-2005-4254-8692-f51f8eeb28fa,ХИАЛУРОН 5 90 гр,,natura_therapy,False,001223,651,0.05,sigma:crosswalk-MEDIUM,001078,ХИАЛУРОН 5  90 гр (1+1),2,2025@5.00: 2
+50482997-a856-4ba6-ab14-073bbd6c377b,ХОЛЕСТОЛ КОМПЛЕКС 30 cps,product,natura_therapy,True,SKU-000067,618,0.05,sigma:crosswalk-HIGH,000757,ХОЛЕСТОЛ КОМПЛЕКС 30 cps,2,2025@5.00: 41; 2026@5.00: 28; mex@5.00: 12
+f2bf2121-882e-4703-9a3b-a9b7cc4b67a7,ХОЛЕСТОЛ КОМПЛЕКС СЕТ (2+1),bundle,natura_therapy,False,SKU-000316,0,0.05,sigma:crosswalk-HIGH,000760,ХОЛЕСТОЛ КОМПЛЕКС СЕТ (2+1),2,2025@5.00: 65; 2026@5.00: 30
+5059ba58-628c-4779-ac0a-275c51474cfd,ЦЕРВИКАЛЕН МАСАЖЕР,other,,False,SKU-000529,0,0.18,rule:device-18,,,,
+54ee17b2-b88e-4f6d-bcdf-778560d9a4ad,ЦИНК 365/1 таб,product,natura_therapy,True,001529,324,0.05,sigma:crosswalk-VERIFIED,001529,ZINC  365 tbl,2,2026@5.00: 73; mex@5.00: 5
+08d8378d-7fb9-4470-8c20-5cdf7d2f29d9,ЦИНК 60tbl,,natura_therapy,True,000602,107,0.05,sigma:crosswalk-VERIFIED,000602,ЦИНК 60tbl,2,no 2025–2026 sales invoice
+910d1192-30c0-40eb-a83f-a5432160fbac,ЦИНК-30 tbl,product,natura_therapy,True,000940,8774,0.05,sigma:crosswalk-VERIFIED,000940,ЦИНК 30 tbl,2,2025@5.00: 221; 2026@0.00: 2; 2026@5.00: 440; mex@0.00: 2; mex@5.00: 15
+8065e5a7-ba7d-41f6-bca3-dfd8ee65db81,ЦИТРУС ЕКСТРАКТ 30cps,product,natura_therapy,False,000313,0,0.05,sigma:crosswalk-VERIFIED,000313,ЦИТРУС ЕКСТРАКТ 30cps,2,2025@5.00: 6; mex@5.00: 3
+6b399f77-3d74-4ff3-a2d8-d4ead6479ec5,ЧИА ТЕРАПИЈА со вит.Ц Jаболко 500ml,product,ad_astra,True,000652,1681,0.18,sigma:crosswalk-VERIFIED,000652,ЧИА ТЕРАПИЈА со вит.Ц Jаболко 500ml,1,2025@18.00: 185; 2026@18.00: 148; mex@18.00: 12
+0ba6c1aa-7400-4dea-9ac9-07196b01c492,ЧИА ТЕРАПИЈА со вит.Ц Диња 500ml,product,ad_astra,True,000583,534,0.18,sigma:crosswalk-VERIFIED,000583,ЧИА ТЕРАПИЈА со вит.Ц Диња 500ml,1,2025@18.00: 140; 2026@18.00: 100; mex@18.00: 11
+6b3736b5-53e5-47b1-bbd6-1f2a657d10dd,ЧИА ТЕРАПИЈА со вит.Ц Лубени. 500ml,,ad_astra,True,000584,426,0.18,sigma:crosswalk-VERIFIED,000584,ЧИА ТЕРАПИЈА со вит.Ц Лубеница 500ml,1,2025@18.00: 154; 2026@18.00: 141; mex@18.00: 12
+52fc3fd3-67f7-4443-a4b4-9993de796315,ШЕЈКЕР,other,natura_therapy,False,000890,344,0.18,sigma:crosswalk-HIGH,080001,ШЕЈКЕР,1,2025@18.00: 1

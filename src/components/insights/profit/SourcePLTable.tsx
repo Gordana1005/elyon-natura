@@ -5,6 +5,7 @@ import { fmtNum } from '../overview/model';
 import { sourceColorVar } from '../overview/palette';
 import type { InsightsFormat } from '../shared/useInsightsFormat';
 import { STATUS_TEXT } from '../shared/cohortPalette';
+import { defaultVatRate, vatPerProduct } from './profitModel';
 
 type Line = {
   key: string;
@@ -12,6 +13,8 @@ type Line = {
   value: (r: PLRow) => string;
   strong?: boolean;
   cost?: boolean;
+  /** A breakdown of the line above (VAT by rate): indented, smaller. */
+  sub?: boolean;
   section?: string;
   tone?: (r: PLRow) => string | undefined;
 };
@@ -36,10 +39,25 @@ export function SourcePLTable({ clockRows, total, meta, clockLabel, f }: {
   const cols = [...clockRows, total];
   const neg = (v: number | null | undefined) => (v == null ? '—' : v === 0 ? f.den(0) : `−${f.den(v)}`);
   const lossTone = (r: PLRow) => (r.net_mkd < 0 ? STATUS_TEXT.critical : undefined);
+  const dRate = defaultVatRate(meta);
+  const perProduct = vatPerProduct(meta);
+  // VAT per product (01.10.2026): the line, then its part at each rate the period has, then what had no rate
+  const vatRates = perProduct ? (total.vat_split ?? []).map((p) => p.rate) : [];
+  const vatPart = (r: PLRow, rate: number) => r.vat_split?.find((p) => p.rate === rate)?.vat_mkd ?? 0;
+  const vatLines: Line[] = perProduct ? [
+    ...vatRates.map((rate): Line => ({
+      key: `vat_${rate}`, label: t('insights.profit.table.vatAt', { pct: f.pct(rate, 0) }), value: (r) => neg(vatPart(r, rate)), cost: true, sub: true,
+    })),
+    ...((total.vat_unclassified?.revenue_mkd ?? 0) > 0 ? [{
+      key: 'vat_unclassified', label: t('insights.profit.table.vatUnclassified', { pct: f.pct(dRate, 0) }),
+      value: (r: PLRow) => neg(r.vat_unclassified?.vat_mkd ?? 0), cost: true, sub: true,
+    }] : []),
+  ] : [];
   const lines: Line[] = [
     { key: 'sales', label: t('insights.profit.table.sales'), value: (r) => f.int(r.sales) },
     { key: 'revenue', label: t('insights.profit.table.revenue'), value: (r) => f.den(r.revenue_mkd), strong: true },
-    { key: 'vat', label: t('insights.profit.step.vat', { pct: f.pct(meta.vat.rate, 0) }), value: (r) => neg(r.vat_mkd), cost: true },
+    { key: 'vat', label: perProduct ? t('insights.profit.step.vatPerProduct') : t('insights.profit.step.vat', { pct: f.pct(dRate, 0) }), value: (r) => neg(r.vat_mkd), cost: true },
+    ...vatLines,
     { key: 'cogs_known', label: t('insights.profit.step.cogs_known'), value: (r) => neg(r.cogs_known_mkd), cost: true },
     { key: 'cogs_est', label: t('insights.profit.step.cogs_est'), value: (r) => neg(r.cogs_est_mkd), cost: true },
     { key: 'courier', label: t('insights.profit.step.courier', { fee: f.den(meta.courier.deliver_mkd) }), value: (r) => neg(r.courier_mkd), cost: true },
@@ -88,11 +106,11 @@ export function SourcePLTable({ clockRows, total, meta, clockLabel, f }: {
                   </tr>
                 )}
                 <tr className={cn('border-b last:border-0', l.key === 'net' && 'border-t-2')}>
-                  <th scope="row" className={cn('sticky left-0 z-10 bg-card px-3 py-1.5 text-left text-xs font-normal sm:text-sm', l.strong && 'font-semibold', l.cost && 'pl-5 text-muted-foreground')}>
+                  <th scope="row" className={cn('sticky left-0 z-10 bg-card px-3 py-1.5 text-left text-xs font-normal sm:text-sm', l.strong && 'font-semibold', l.cost && 'pl-5 text-muted-foreground', l.sub && 'py-1 pl-8 text-[11px] sm:text-xs')}>
                     {l.label}
                   </th>
                   {cols.map((c) => (
-                    <td key={c.key} className={cn('px-3 py-1.5 text-right tabular-nums', l.strong && 'font-semibold', l.cost && 'text-muted-foreground', c.key === 'total' && 'bg-muted/40', l.tone?.(c))}>
+                    <td key={c.key} className={cn('px-3 py-1.5 text-right tabular-nums', l.strong && 'font-semibold', l.cost && 'text-muted-foreground', l.sub && 'py-1 text-[11px] sm:text-xs', c.key === 'total' && 'bg-muted/40', l.tone?.(c))}>
                       {l.value(c)}
                     </td>
                   ))}

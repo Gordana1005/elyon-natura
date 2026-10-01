@@ -23,6 +23,8 @@
 // Dependency-free on purpose (no Deno globals, no URL imports): vitest runs it in Node.
 // ============================================================================
 
+import { productVatOf, type VatRate } from "./vatRates.ts";
+
 export const PRODUCT_KINDS = ["product", "bundle", "gift", "other"] as const;
 export type ProductKind = typeof PRODUCT_KINDS[number];
 export const isProductKind = (v: unknown): v is ProductKind =>
@@ -376,16 +378,30 @@ export interface CatalogueRow {
   brand_line: string | null;
   kind: ProductKind | null;
   created_at: string | null;
+  /** VAT per product from Sigma (20260944000900) — present only for an owner (showVat). */
+  vat_rate?: VatRate | null;
+  vat_source?: string | null;
+  vat_sigma_code?: string | null;
+  vat_sigma_name?: string | null;
+  vat_evidence?: string | null;
+  vat_set_at?: string | null;
 }
 
-export const CATALOGUE_SELECT =
+/** The catalogue's columns before 20260944000900 (the api falls back to it if the VAT columns are not there yet). */
+export const CATALOGUE_SELECT_NO_VAT =
   "id, name, sku, barcode, price, cost_price, stock_quantity, low_stock_threshold, days_of_supply_per_unit, is_active, category, description, supplier_id, brand_line, kind, created_at, suppliers:supplier_id(name)";
+export const CATALOGUE_SELECT =
+  "id, name, sku, barcode, price, cost_price, stock_quantity, low_stock_threshold, days_of_supply_per_unit, is_active, category, description, supplier_id, brand_line, kind, created_at, vat_rate, vat_source, vat_sigma_code, vat_sigma_name, vat_evidence, vat_set_at, suppliers:supplier_id(name)";
+
+/** A PostgREST error about a missing VAT column (the migration is not applied yet). */
+export const isMissingVatColumn = (err: { message?: string; code?: string } | null | undefined): boolean =>
+  !!err && (err.code === "42703" || /column .*vat_/i.test(String(err.message ?? ""))) && /vat_/i.test(String(err.message ?? ""));
 
 /** Suggested selling price (the agents' default): the price when set, else max(cost × 3, €15). Same rule as GET /products. */
 export const suggestedPrice = (priceEur: number, costEur: number): number =>
   priceEur > 0 ? priceEur : Math.max((costEur || 0) * 3, 15);
 
-export function shapeCatalogueRow(p: Record<string, unknown>, opts: { showCost: boolean }): CatalogueRow {
+export function shapeCatalogueRow(p: Record<string, unknown>, opts: { showCost: boolean; showVat?: boolean }): CatalogueRow {
   const price = num(p.price);
   const cost = num(p.cost_price);
   const sup = isObj(p.suppliers) ? p.suppliers : null;
@@ -409,6 +425,7 @@ export function shapeCatalogueRow(p: Record<string, unknown>, opts: { showCost: 
     created_at: str(p.created_at),
   };
   if (opts.showCost) row.cost_price = cost;
+  if (opts.showVat) Object.assign(row, productVatOf(p));
   return row;
 }
 

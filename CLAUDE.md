@@ -88,8 +88,14 @@ target **explicitly** and verify it before running:
 - **Timezone:** `Europe/Skopje` (CET/CEST) — not Europe/Sofia (EET, one hour ahead).
 - **Phone:** country code **+389** — not +359. Last-8 matching is unchanged.
 - **Language:** default UI is Macedonian (`mk`); en/sq/bg also shipped.
-- **VAT: 18% — CONFIRMED by the owner on 28.09.2026** (supplements are not on the 5%/10% band).
-  `VAT_RATE` (0.18) feeds every profit report; `VAT_CONFIRMED` in `insightsProfit.ts` is true.
+- **VAT is PER PRODUCT, from Sigma (owner, 01.10.2026 — replaces the flat 18 % of 28.09; `docs/VAT.md`).**
+  Every product carries the rate Natura's books charge for it — `products.vat_rate`: food supplements **5 %**,
+  cosmetics / gels / creams / oils / devices / chia drinks **18 %** (Sigma `Item.VatId`; the 2026 invoices agree).
+  Every report taxes each LINE at its product's rate (`insights_profit()` `vt`, migration `20260944000900`); a
+  line with no rate (MEX-only parcel, no product, a new product = NULL) is taxed at 5 % and shown apart as
+  "unclassified" — never silent. The rate is written only by the audited `products_set_vat_rate()` (owners,
+  `POST /api/products/vat-rate`, the ДДВ chip on /products) and is shown to owners only. There is no `VAT_RATE`
+  and no `VAT_CONFIRMED` any more — never reintroduce a flat rate.
 - **Login email domain:** `elyon-mk.local` (placeholder — see TODO).
 - **Couriers/cities:** MEX Poshta is the carrier. The /orders "MEX Import CSV" emits MEX's own
   8-column portal template (contract: `src/lib/mexImportCsv.ts` — Latin, integer denari, no
@@ -295,7 +301,7 @@ before non-trivial work on money, phones, warehouse, stock, webhooks, or fulfilm
 - `elyon-security` — RLS, HMAC, permissions, audit and secrets; Settings writes only through audited api routes (01.10), the guard-trigger writer pattern. Never write an `authenticated`-wide read policy.
 - `elyon-affiliates` — The CPA/partner system and the hard wall that keeps external logins out of staff surfaces.
 - `elyon-altercpa-bridge` — The AlterCPA lead mirror: ledger-first, callable geos, offer mapping, and why foreign leads must never reach `orders`. Read before touching `altercpa_*` or multi-country intake.
-- `elyon-logistics-costs` — Courier rate card, return round-trip loss, and Pure Profit actuals.
+- `elyon-logistics-costs` — Courier rate card, return round-trip loss, Pure Profit actuals, and VAT per product from Sigma (taxed per line; `docs/VAT.md`).
 - `elyon-presence-and-leaderboard` — Shifts as the login gate (runway, roll-forward, the Смени page), presence minutes + the 30-min idle alert, sales people / identities / teams = business lines + lanes (Settings → Teams → Предлог), the write-once `orders.sold_*` stamps (who is credited with a sale, the stamping cron), the TV leaderboard v2 (`leaderboard_day_v2`, one row per agent split by department, `?team=team:lane`).
 - `elyon-web-shop-bridge` — The read-only naturatherapy.mk mirror (`web_orders`, web-sync every 15 min, `crm_export` on the shop side). Web orders are NOT CRM orders; the live shop gets no changes.
 - `elyon-customer360-and-integrations` — Customer 360 (`customer_timeline`, last-8 matching, money stripped for non-owners) and Settings → Integrations health (freshness thresholds kept in step with the Overview, the 7-day rule's owner switch).

@@ -1,0 +1,38 @@
+{
+ "crm": {
+  "by_source_rate": {
+   "rule:cosmetic-18 @ 0.18": 81,
+   "rule:cosmetic-18+mixed @ 0.18": 3,
+   "rule:device-18 @ 0.18": 20,
+   "rule:supplement-5 @ 0.05": 16,
+   "sigma:by-name @ 0.05": 17,
+   "sigma:by-name @ 0.18": 9,
+   "sigma:by-name+mixed @ 0.05": 3,
+   "sigma:by-name+mixed @ 0.18": 24,
+   "sigma:crosswalk @ 0.05": 395,
+   "sigma:crosswalk @ 0.18": 138
+  },
+  "products_with_sales_by_rate": {
+   "0.05": 190,
+   "0.18": 47
+  }
+ },
+ "t2": {
+  "by_source_rate": {
+   "rule:cosmetic-18 @ 0.18": 9,
+   "rule:device-18 @ 0.18": 19,
+   "rule:supplement-5 @ 0.05": 4,
+   "sigma:by-name @ 0.05": 5,
+   "sigma:by-name+mixed @ 0.05": 1,
+   "sigma:crosswalk @ 0.05": 114,
+   "sigma:crosswalk @ 0.18": 24,
+   "sigma:manual @ 0.05": 8,
+   "sigma:manual @ 0.18": 3
+  },
+  "products_with_sales_by_rate": {
+   "0.05": 98,
+   "0.18": 9
+  }
+ },
+ "review_rows": 22
+}

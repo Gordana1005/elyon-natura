@@ -186,11 +186,11 @@ the total.
   conversion = sale decisions / worked); time on the CRM (`agent_presence_days`); sales with no
   seller, by reason (Σ people + no seller = the cohort total); one person in depth.
 - **Чиста добивка / Маржи.** Two clocks — **cohort** (the sales made in the period and what MEX
-  collected on them) and **cash** (MEX money delivered in the period). Revenue − VAT (18%,
-  confirmed 28.09) − COGS (known `cost_price`; uncosted estimated and labelled) − courier (150 ден
+  collected on them) and **cash** (MEX money delivered in the period). Revenue − VAT (per product from
+  Sigma since 01.10.2026: each line at its product's rate, 5 % supplements / 18 % cosmetics; docs/VAT.md) − COGS (known `cost_price`; uncosted estimated and labelled) − courier (150 ден
   per delivered parcel) − returns (0 per return, to confirm) − lead cost (a wired-but-zero slot) −
   commission (today's rule, a labelled cost line; payout math deferred). Windows over 62 days read
-  closed months from `insights_profit_monthly` (**cache version 4** since `20260942001000`; nightly
+  closed months from `insights_profit_monthly` (**cache version 5** since `20260944000900`; nightly
   `insights-profit-monthly` at 03:40 Skopje; the owners' refresh button =
   `POST /api/insights/profit/refresh`). Details: `.grok/skills/elyon-logistics-costs`.
 - **Прогнозни списоци.** The list sales of EVERY department (since `20260942001800`): Σ lists +

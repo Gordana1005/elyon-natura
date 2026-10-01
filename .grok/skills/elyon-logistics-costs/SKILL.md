@@ -1,9 +1,9 @@
 ---
 name: elyon-logistics-costs
-description: Use for any shipping/return/courier cost, the Pure Profit (Чиста добивка) P&L, the Margins (Маржи) tab, the courier rate card, VAT, product cost (COGS) coverage, or how delivery & return losses are charged. Covers the MEX rate card (150 ден per delivered parcel, 0 on return), the two P&L clocks (cohort vs cash), the cost-share estimate for uncosted packages, and today's commission line. Read before touching GET /api/insights/profit, insights_profit(), courier_rates, loadCourierRates or anything that totals what we pay to ship.
+description: Use for any shipping/return/courier cost, the Pure Profit (Чиста добивка) P&L, the Margins (Маржи) tab, the courier rate card, VAT (per product from Sigma since 01.10.2026 — products.vat_rate, taxed per line), product cost (COGS) coverage, or how delivery & return losses are charged. Covers the MEX rate card (150 ден per delivered parcel, 0 on return), the per-product VAT (5 % supplements / 18 % cosmetics, unclassified at 5 % shown apart), the two P&L clocks (cohort vs cash), the cost-share estimate for uncosted packages, and today's commission line. Read before touching GET /api/insights/profit, insights_profit(), courier_rates, loadCourierRates or anything that totals what we pay to ship.
 ---
 
-# Elyon Logistics Costs & Pure Profit — Macedonian rules (29.09.2026)
+# Elyon Logistics Costs & Pure Profit — Macedonian rules (29.09.2026; VAT per product 01.10.2026)
 
 **Macedonia ships with MEX Poshta only.** The Speedy / Econt table further down
 is the inherited Bulgarian calibration — history, never a Macedonian cost.
@@ -43,8 +43,10 @@ The cohort strip ties to `insights_cohort` bucket by bucket; cash ties to its
 
 ```
 + revenue        (above; денари, parcel COD / price × 61,5 / shop total)
-− VAT            revenue × r / (1 + r)   — r = index.ts VAT_RATE (0,18 — CONFIRMED by the owner 28.09;
-                 insightsProfit.ts VAT_CONFIRMED = true)
+− VAT            PER LINE (owner 01.10.2026, docs/VAT.md — the flat 18 % of 28.09 is withdrawn):
+                 Σ line value × r / (1 + r), r = the line's product rate from Sigma
+                 (products.vat_rate: 5 % supplements, 18 % cosmetics / devices); a line with
+                 no product or no rate at 5 % (DEFAULT_VAT_RATE) and reported as unclassified
 − COGS known     Σ packages × products.cost_price (> 0 only) × 61,5
 − COGS estimated uncosted revenue × (known COGS ÷ costed revenue) of the same view — LABELLED
 − courier        delivered parcels × 150 ден
@@ -82,9 +84,34 @@ The cohort strip ties to `insights_cohort` bucket by bucket; cash ties to its
   uncosted at 0. **Never invent a cost** and never let an uncosted product
   read "above target".
 - **Margins (Маржи)** reads the same payload: per-package economics per product
-  (VAT, known cost, courier share, commission share) and the floor price
-  `P = (1+r)(target + cost + courier + tier(P) × 61,5 × γ)`, γ = the share of the
-  product's packages today's rule actually pays commission on. No cost → no floor.
+  (its own VAT, known cost, courier share, commission share) and the floor price
+  `P = (1+r)(target + cost + courier + tier(P) × 61,5 × γ)`, r = **the product's** Sigma
+  rate (`productVatRate`), γ = the share of the product's packages today's rule actually
+  pays commission on. No cost → no floor. The simulator starts at the product's rate.
+
+## VAT per product (owner decision 01.10.2026 — `docs/VAT.md`)
+
+- **There is no flat rate.** `products.vat_rate` (0 / 0.05 / 0.10 / 0.18; NULL = unclassified)
+  from the Sigma ERP (`Item.VatId`: 2 = 5 % food supplements, 1 = 18 % cosmetics / gels /
+  creams / oils / devices / chia drinks), backfilled for all 706 products by
+  `20260944000900_product_vat_rate.sql` from `docs/vat/crm_products_vat.json` (the table holds
+  the CORRECT rate even where Sigma is wrong; `vat_source` / `vat_evidence` keep every row
+  traceable). Written only by `products_set_vat_rate()` (guard trigger, audited, owners via
+  `POST /api/products/vat-rate`).
+- **`insights_profit()` taxes each LINE** (`rv` × r/(1+r)): agg measures `vt` (VAT), `vc` (VAT of
+  the costed part — the waterfall's costed basis), `vu` (value with no rate, at 5 %),
+  `v00`/`v05`/`v10`/`v18` (value by rate); products `vt`/`vr`/`vd`; `vat_mode: 'per_line'`.
+  `insightsProfit.ts` uses them (`vatOf`); an older body answers `flat_default` (5 % on all,
+  labelled). P&L rows carry `vat_split`, `vat_unclassified`, `vat_costed_mkd`; `meta.vat` =
+  `{mode, default_rate, by_rate, effective_rate, unclassified}`; the quality rail item
+  `vat_unclassified`.
+- **Cache version 5** since `20260944000900` (nothing cached with the flat 18 % is merged); the
+  cache signature includes every `vat_rate`, so an owner's change invalidates the months.
+- **September 2026 (cohort):** VAT 2.393.066 ден at the flat 18/118 → **764.811** per product
+  (−1.628.255; effective 5,13 % of net revenue). Proof: `node scripts/vat/compare-vat.mjs`.
+- The legacy `/management-insights` blocks: VAT per product NAME (`vatRates.ts`
+  `vatRateByName` / `vatOfNamedRevenue`); channel rows get the window's VAT share of their cash.
+- Red flag: any `× 0.18 / 1.18`, `VAT_RATE`, `VAT_CONFIRMED` or other flat rate on a sale.
 
 ## The monthly cache for long windows (migration 20260942000200)
 
@@ -101,8 +128,9 @@ The cohort strip ties to `insights_cohort` bucket by bucket; cash ties to its
   once, snapped to 0,0001; product name / kind = byte-order minimum (COLLATE "C").
 - Freshness: a row is used only while `version` = `insights_profit_cache_version()`
   (bump it when the P&L logic changes) and `sig` = `insights_profit_cache_sig()`
-  (catalogue names / cost prices, every alias row, test phones — entering a cost
-  price or applying an alias invalidates every month). **Version is 4** since
+  (catalogue names / cost prices / VAT rates, every alias row, test phones — entering
+  a cost price, changing a VAT rate or applying an alias invalidates every month).
+  **Version is 5** since `20260944000900` (per-product VAT); it was 4 since
   `20260942001000` (six departments: a month cached with five sources had no
   `teleshop_out` block); the cache was refreshed by hand at v4 on 29.09, and the
   last 6 months again after the collabBox history backfill. The cache
@@ -146,6 +174,7 @@ rate card and the bonus tiers, converted once at the FROZEN 61,5 peg.
 - Mixing the two clocks in one number, or a figure without its clock caption.
 - Changing the commission formula or its gate here (deferred by the owner).
 - Hardcoding a courier rate in code instead of reading `courier_rates`.
+- A flat VAT rate on a sale (`× 0.18 / 1.18`, a `VAT_RATE` constant) — VAT is per product (`docs/VAT.md`).
 
 ---
 

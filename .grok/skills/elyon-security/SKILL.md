@@ -227,8 +227,10 @@ revoking a TV token and recomputing the engine confirm.
 through PostgREST but one column family must be audited, the pattern is a SECURITY DEFINER writer
 that opens a transaction-local gate + a BEFORE trigger that refuses every other write:
 `products_set_kind()` / `tg_products_kind_guard` and `products_set_brand_line()` /
-`tg_products_brand_line_guard` (`20260943001400` / `001300`; `elyon-products-catalogue`). A
-maintenance script must go through the writer too. Use the same pattern for the next such column.
+`tg_products_brand_line_guard` (`20260943001400` / `001300`; `elyon-products-catalogue`), and since 01.10
+`products_set_vat_rate()` / `tg_products_vat_guard` (`20260944000900`, owners only via `POST /api/products/vat-rate`;
+the VAT columns reach owners only — `docs/VAT.md`). A maintenance script must go through the writer too. Use the
+same pattern for the next such column.
 
 **Other guards of 30.09–01.10:**
 - Warehouse: `PATCH /api/warehouse/incoming-orders/:id` refuses `status` (400

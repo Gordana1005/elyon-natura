@@ -1,5 +1,6 @@
 import { normalizeForSearch } from '@/lib/transliterate';
 import { lineOf, type BrandLine, type LineFilter, LINE_FILTERS } from './brandLines';
+import { matchesVat, vatFilterOf, VAT_FILTERS, type VatFilter, type VatRate } from './vat';
 
 /**
  * Производи 2.0 (owner 01.10.2026): every product has a KIND, and /products
@@ -79,6 +80,13 @@ export interface CatalogueRow {
   brand_line: BrandLine | null;
   kind: ProductKind | null;
   created_at: string | null;
+  /** VAT per product from Sigma (20260944000900) — present only for an owner. */
+  vat_rate?: VatRate | null;
+  vat_source?: string | null;
+  vat_sigma_code?: string | null;
+  vat_sigma_name?: string | null;
+  vat_evidence?: string | null;
+  vat_set_at?: string | null;
 }
 
 export interface CatalogueFilters {
@@ -86,6 +94,8 @@ export interface CatalogueFilters {
   line: LineFilter;
   status: StatusFilter;
   query: string;
+  /** Owners only (the VAT columns reach only them); absent = all. */
+  vat?: VatFilter;
 }
 
 /** The search key of a row: name, SKU, barcode, category — Cyrillic ⇄ Latin, any case. Built once per row. */
@@ -121,7 +131,8 @@ export function filterCatalogue<T extends CatalogueRow>(items: readonly Indexed<
   const words = queryWords(f.query);
   const out: T[] = [];
   for (const { row, key } of items) {
-    if (matchesKind(row, f.kind) && matchesLineFilter(row, f.line) && matchesStatus(row, f.status) && matchesWords(key, words)) out.push(row);
+    if (matchesKind(row, f.kind) && matchesLineFilter(row, f.line) && matchesStatus(row, f.status)
+      && matchesVat(row, f.vat) && matchesWords(key, words)) out.push(row);
   }
   return out;
 }
@@ -130,6 +141,7 @@ export interface Facets {
   kind: Record<KindFilter, number>;
   line: Record<LineFilter, number>;
   status: Record<StatusFilter, number>;
+  vat: Record<VatFilter, number>;
 }
 
 /**
@@ -141,17 +153,20 @@ export function facetCounts(items: readonly Indexed<CatalogueRow>[], f: Catalogu
   const kind = Object.fromEntries(KIND_FILTERS.map((k) => [k, 0])) as Record<KindFilter, number>;
   const line = Object.fromEntries(LINE_FILTERS.map((k) => [k, 0])) as Record<LineFilter, number>;
   const status = Object.fromEntries(STATUS_FILTERS.map((k) => [k, 0])) as Record<StatusFilter, number>;
+  const vat = Object.fromEntries(VAT_FILTERS.map((k) => [k, 0])) as Record<VatFilter, number>;
   const words = queryWords(f.query);
   for (const { row, key } of items) {
     if (!matchesWords(key, words)) continue;
     const okKind = matchesKind(row, f.kind);
     const okLine = matchesLineFilter(row, f.line);
     const okStatus = matchesStatus(row, f.status);
-    if (okLine && okStatus) { kind.all++; kind[kindOf(row) ?? 'none']++; }
-    if (okKind && okStatus) { line.all++; line[lineOf(row) ?? 'none']++; }
-    if (okKind && okLine) { status.all++; status[row.is_active ? 'active' : 'inactive']++; }
+    const okVat = matchesVat(row, f.vat);
+    if (okLine && okStatus && okVat) { kind.all++; kind[kindOf(row) ?? 'none']++; }
+    if (okKind && okStatus && okVat) { line.all++; line[lineOf(row) ?? 'none']++; }
+    if (okKind && okLine && okVat) { status.all++; status[row.is_active ? 'active' : 'inactive']++; }
+    if (okKind && okLine && okStatus) { vat.all++; vat[vatFilterOf(row)]++; }
   }
-  return { kind, line, status };
+  return { kind, line, status, vat };
 }
 
 /** Name order the way a Macedonian reads it (Cyrillic and Latin, numbers by value). */

@@ -1,6 +1,6 @@
 ---
 name: elyon-products-catalogue
-description: The product catalogue of the Macedonian Elyon CRM after "Производи 2.0" (30.09–01.10.2026) — every product's KIND (product / bundle / gift / other, products.kind, product_kind_by_name + product_kind_proposal, the TS twin in productsCatalog.ts) and BRAND LINE (natura_therapy / bio_natural / ad_astra / dr_becker, products.brand_line, product_brand_line_proposal, mex_profile_for_line — the line decides the MEX profile when the CRM itself ships), the owner's web-catalogue rule (naturatherapy.mk = Natura Therapy or Ad Astra, never Bio Natural), the two audited writers behind guard triggers (products_set_kind / products_set_brand_line), the machine-text cleanup and its backup table, the /products page (opens on active products of kind "product", chips, Предлог), and the scripts apply-brand-lines / map-web-catalogue / apply-product-kinds / clear-product-machine-text. Read before touching products.kind or brand_line, the /products page, the catalogue scripts, or the MEX account choice of a CRM push.
+description: The product catalogue of the Macedonian Elyon CRM after "Производи 2.0" (30.09–01.10.2026) — every product's KIND (product / bundle / gift / other, products.kind, product_kind_by_name + product_kind_proposal, the TS twin in productsCatalog.ts) and BRAND LINE (natura_therapy / bio_natural / ad_astra / dr_becker, products.brand_line, product_brand_line_proposal, mex_profile_for_line — the line decides the MEX profile when the CRM itself ships), the owner's web-catalogue rule (naturatherapy.mk = Natura Therapy or Ad Astra, never Bio Natural), the two audited writers behind guard triggers (products_set_kind / products_set_brand_line) and the VAT rate per product (products.vat_rate from Sigma, products_set_vat_rate, owners only — docs/VAT.md), the machine-text cleanup and its backup table, the /products page (opens on active products of kind "product", chips, Предлог), and the scripts apply-brand-lines / map-web-catalogue / apply-product-kinds / clear-product-machine-text. Read before touching products.kind or brand_line, the /products page, the catalogue scripts, or the MEX account choice of a CRM push.
 ---
 
 # Products catalogue — kinds and brand lines (MACEDONIA)
@@ -137,10 +137,25 @@ rows whose description STARTS WITH the machine text are touched — a human note
 Each writes only through the audited functions, only rows still undecided at write time (an owner's
 choice is never overwritten), and touches no order, money or stock.
 
+## 7. VAT rate per product (owner 01.10.2026 — `docs/VAT.md`, migration `20260944000900`)
+
+- `products.vat_rate` (0 / 0.05 / 0.10 / 0.18; NULL = **Некласифицирано**), `vat_source` (sigma:crosswalk-… /
+  sigma:manual / sigma:by-name[+mixed] / rule:… / owner), `vat_sigma_code` / `vat_sigma_name`, `vat_evidence`
+  (the Sigma invoice lines), `vat_set_by` / `vat_set_at`. Backfilled for the 706 products of 01.10 from
+  `docs/vat/crm_products_vat.json` (`scripts/vat/gen-vat-backfill.mjs`); a new product stays NULL until an owner
+  sets it (reports tax it at 5 % and show it apart).
+- The third audited writer: `products_set_vat_rate(ids, rate, actor, note)` behind `tg_products_vat_guard`;
+  `POST /api/products/vat-rate` — **owners only** (it moves every profit figure). `GET /products` and
+  `/products/catalogue` send the VAT columns to owners only (`vat_visible`); `PATCH /products/:id` drops them.
+- /products (owners): a ДДВ column / card chip (`VatChip`: the rate, its source, the Sigma item and the invoice
+  evidence; pick 5 % / 18 % / 10 % / 0 % / Некласифицирано), a ДДВ filter row (`?vat=r5|r18|none`), "Постави ДДВ"
+  for a selection. Pure half: `src/lib/products/vat.ts` (+ `vat.test.ts`); server: `supabase/functions/api/vatRates.ts`.
+
 ## Never
 
-- Write `kind` / `brand_line` (or their `_set_*` columns) with a plain UPDATE or PATCH — use the two
-  functions; never disable the guard triggers.
+- Write `kind` / `brand_line` / `vat_*` (or their `_set_*` columns) with a plain UPDATE or PATCH — use the
+  three functions; never disable the guard triggers.
+- Guess a VAT rate into a new product, or show the VAT columns to a non-owner.
 - Decide a sale's department from a product line, or a product line from a single BIO NATURAL parcel.
 - Tag a web-catalogue product Bio Natural.
 - Change the classifier in one twin only (SQL `product_kind_by_name` / TS `productsCatalog.ts`).

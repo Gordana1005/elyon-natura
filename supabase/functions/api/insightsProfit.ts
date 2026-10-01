@@ -12,8 +12,13 @@
 //   revenue     cohort: what MEX collected on the period's sales (paid +
 //               paid by ruling / legacy import); cash: MEX COD delivered in
 //               the period + the card money of card-paid web orders
-//   − VAT       revenue × r / (1 + r) — prices are gross; r = index.ts
-//               VAT_RATE (18 %, pending the accountant's confirmation)
+//   − VAT       PER LINE (owner, 01.10.2026; migration 20260944000900):
+//               Σ line value × r / (1 + r) — prices are gross; r = the
+//               line's product rate from Sigma (products.vat_rate: 5 % food
+//               supplements, 18 % cosmetics / devices). A line with no
+//               product or no rate is taxed at DEFAULT_VAT_RATE (5 %) and
+//               shown apart as "unclassified". Replaces the flat 18 % of
+//               28.09 (docs/VAT.md)
 //   − COGS      known: catalogue cost_price × packages (never invented);
 //               estimated: the uncosted revenue × the cost share of the
 //               costed packages of the same view — LABELLED, never silent
@@ -35,9 +40,17 @@
 
 import type { InsightsWindow } from "./insightsCommon.ts";
 import { addDaysYmd, skopjeDayEndIso, skopjeMidnightIso, skopjeTodayYmd } from "./overview.ts";
+import { DEFAULT_VAT_RATE, VAT_RATES, vatShare } from "./vatRates.ts";
 
-/** Owner confirmed the 18 % standard VAT rate for supplements on 28.09.2026. */
-export const VAT_CONFIRMED = true;
+/** VAT is per product from Sigma (owner decision 01.10.2026, docs/VAT.md; it
+ *  replaces the flat 18 % of 28.09). A line whose product has no rate yet — a
+ *  MEX-only parcel, a sale without lines, an unmatched name, a new product — is
+ *  taxed at DEFAULT_VAT_RATE, the rate of the core range (food supplements), and
+ *  reported apart (vatRates.ts). */
+export { DEFAULT_VAT_RATE, VAT_RATES, vatShare };
+/** per_product_sigma = the body computes VAT per line (20260944000900);
+ *  flat_default = an older body answered: every line at the default rate. */
+export type VatMode = "per_product_sigma" | "flat_default";
 
 /** The FROZEN peg (src/lib/currency.ts MKD_PER_EUR) — only to express a EUR
  *  amount (cost price, bonus, rate card) in денари, never to re-price. */
@@ -66,12 +79,20 @@ export interface AggRow {
   n: number; rev: number; card: number; pw: number;
   rc: number; ru: number; rn: number; cm: number;
   pc: number; pu: number; fr: number; lb: number;
+  /** VAT per line (20260944000900): vt = Σ line value × r/(1+r); vc = the same
+   *  over the costed packages; vu = the value of lines with no rate (taxed at the
+   *  default, inside v05); v00 / v05 / v10 / v18 = the value by rate. Absent on
+   *  an older body. */
+  vt?: number; vc?: number; vu?: number; v00?: number; v05?: number; v10?: number; v18?: number;
 }
 export interface CommRow { dim: "s" | "d" | "w" | string; key: string; o: string | null; b: number; n: number }
 export interface ProductRpcRow {
   s: string; g: string; k: string; name: string | null; kind: string | null; reviewed: boolean | null;
   pkg: boolean | null; cost_eur: number | null; n: number; qty?: number; pkgs: number; fr: number;
   rev: number; cm: number; sh: number; lb: number;
+  /** The product's VAT (Σ per line), its rate, and whether that rate is the
+   *  default (no product / no rate). Absent on an older body. */
+  vt?: number; vr?: number | null; vd?: boolean | null;
 }
 export interface HistRow { s: string; u: number; q: number; v: number }
 /** One (source, bucket) cell of insights_profit's cohort strip. `nb` = collabBox bookings awaiting
@@ -80,6 +101,8 @@ export interface StripRow { s: string; b: string; n: number; v: number; c: numbe
 export interface ProfitRpc {
   clock?: "cohort" | "cash";
   granularity?: "day" | "month";
+  /** "per_line" = VAT is computed per line (20260944000900); absent = an older body. */
+  vat_mode?: "per_line";
   agg?: AggRow[];
   comm?: CommRow[];
   wm_names?: Record<string, string> | null;
@@ -124,8 +147,9 @@ export function commissionAgentNames(
 // ── settings the api hands in ───────────────────────────────────────────────
 
 export interface ProfitSettings {
-  /** index.ts VAT_RATE (0.18) — pending the accountant's confirmation. */
-  vatRate: number;
+  /** The rate of a line with no product rate (DEFAULT_VAT_RATE, 5 %) — and of
+   *  every line when an older insights_profit() body answers (flat_default). */
+  defaultVatRate: number;
   /** courier_rates 'mex' (EUR): deliver per parcel, return per returned parcel. */
   deliverEur: number;
   returnEur: number;
@@ -155,9 +179,20 @@ const share = (a: number, b: number): number | null => (b > 0 ? a / b : null);
 interface Measures {
   n: number; rev: number; card: number; pw: number; rc: number; ru: number; rn: number; cm: number;
   pc: number; pu: number; fr: number; lb: number;
+  vt: number; vc: number; vu: number; v00: number; v05: number; v10: number; v18: number;
 }
-const ZERO: Measures = { n: 0, rev: 0, card: 0, pw: 0, rc: 0, ru: 0, rn: 0, cm: 0, pc: 0, pu: 0, fr: 0, lb: 0 };
+const ZERO: Measures = {
+  n: 0, rev: 0, card: 0, pw: 0, rc: 0, ru: 0, rn: 0, cm: 0, pc: 0, pu: 0, fr: 0, lb: 0,
+  vt: 0, vc: 0, vu: 0, v00: 0, v05: 0, v10: 0, v18: 0,
+};
 const MKEYS = Object.keys(ZERO) as (keyof Measures)[];
+
+/** Did this payload come from a body that computes VAT per line? (an empty
+ *  window of a new body says so too — the marker, not the rows, decides) */
+export const vatPerLine = (rpc: Pick<ProfitRpc, "vat_mode"> | null | undefined): boolean => rpc?.vat_mode === "per_line";
+
+/** The value by rate of a measure, as {rate, value} (zero rates dropped). */
+const RATE_KEYS: [number, keyof Measures][] = [[0, "v00"], [0.05, "v05"], [0.1, "v10"], [0.18, "v18"]];
 
 function addM(a: Measures, b: Partial<Measures> | AggRow): Measures {
   const o = { ...a };
@@ -182,12 +217,22 @@ export function gatedBonusEur(comm: CommRow[] | undefined, dim: string, key: str
   return b;
 }
 
+/** One rate's part of the VAT line: the gross value taxed at it and its VAT. */
+export interface VatPart { rate: number; revenue_mkd: number; vat_mkd: number }
+
 export interface PLRow {
   key: string;
   sales: number;
   revenue_mkd: number;
   card_mkd: number;
+  /** Σ per line, each line at its product's Sigma rate (flat default on an older body). */
   vat_mkd: number;
+  /** The VAT of the costed packages alone (the waterfall's "costed" basis). */
+  vat_costed_mkd: number;
+  /** The VAT line by rate (5 % / 18 % …), Σ = vat_mkd up to rounding. */
+  vat_split: VatPart[];
+  /** The value whose rate is unknown (no product, no rate yet), taxed at the default — shown apart. */
+  vat_unclassified: { revenue_mkd: number; vat_mkd: number };
   cogs_known_mkd: number;
   /** null when nothing in the view has a cost to estimate from. */
   cogs_est_mkd: number | null;
@@ -226,6 +271,8 @@ export interface PLRow {
 interface PLInputs {
   key: string;
   m: Measures;
+  /** The measures carry VAT per line (vatPerLine of the payload); false = an older body. */
+  perLine: boolean;
   commissionEur: number;
   returnedParcels: number;
   /** null = not known on this clock (a webmaster's returns by MEX return day). */
@@ -234,10 +281,35 @@ interface PLInputs {
   costRatio: number | null;
 }
 
+/**
+ * The VAT of a measure: per line when the body computes it (Σ value × r/(1+r),
+ * r = the line's product rate), else every value at the default rate — and
+ * then all of it is "unclassified", which is what it is.
+ */
+export function vatOf(m: Measures, perLine: boolean, defaultRate: number): {
+  vat: number; costed: number; split: VatPart[]; unclassified: { revenue: number; vat: number };
+} {
+  if (!perLine) {
+    return {
+      vat: m.rev * vatShare(defaultRate),
+      costed: m.rc * vatShare(defaultRate),
+      split: m.rev !== 0 ? [{ rate: defaultRate, revenue_mkd: r0(m.rev), vat_mkd: r0(m.rev * vatShare(defaultRate)) }] : [],
+      unclassified: { revenue: m.rev, vat: m.rev * vatShare(defaultRate) },
+    };
+  }
+  const split: VatPart[] = [];
+  for (const [rate, k] of RATE_KEYS) {
+    if (m[k] !== 0) split.push({ rate, revenue_mkd: r0(m[k]), vat_mkd: r0(m[k] * vatShare(rate)) });
+  }
+  // an unclassified line is taxed at the default the SQL uses (5 %)
+  return { vat: m.vt, costed: m.vc, split, unclassified: { revenue: m.vu, vat: m.vu * vatShare(DEFAULT_VAT_RATE) } };
+}
+
 export function plRow(x: PLInputs, s: ProfitSettings): PLRow {
   const { m } = x;
   const rev = m.rev;
-  const vat = rev * s.vatRate / (1 + s.vatRate);
+  const v = vatOf(m, x.perLine, s.defaultVatRate);
+  const vat = v.vat;
   const deliverMkd = r0(s.deliverEur * MKD_PER_EUR);
   const returnMkd = r0(s.returnEur * MKD_PER_EUR);
   const courier = m.pw * deliverMkd;
@@ -248,7 +320,7 @@ export function plRow(x: PLInputs, s: ProfitSettings): PLRow {
   const net = rev - vat - m.cm - (cogsEst ?? 0) - courier - returns - commission - lead;
   const netUpper = net + (cogsEst ?? 0);
   const sigma = rev > 0 ? m.rc / rev : 0;
-  const costedNet = m.rc - m.rc * s.vatRate / (1 + s.vatRate) - m.cm - sigma * (courier + returns + commission + lead);
+  const costedNet = m.rc - v.costed - m.cm - sigma * (courier + returns + commission + lead);
   const decided = m.n + (x.returnedSales ?? 0);
   return {
     key: x.key,
@@ -256,6 +328,9 @@ export function plRow(x: PLInputs, s: ProfitSettings): PLRow {
     revenue_mkd: r0(rev),
     card_mkd: r0(m.card),
     vat_mkd: r0(vat),
+    vat_costed_mkd: r0(v.costed),
+    vat_split: v.split,
+    vat_unclassified: { revenue_mkd: r0(v.unclassified.revenue), vat_mkd: r0(v.unclassified.vat) },
     cogs_known_mkd: r0(m.cm),
     cogs_est_mkd: cogsEst == null ? null : r0(cogsEst),
     courier_mkd: r0(courier),
@@ -315,7 +390,14 @@ export interface ProductRow {
   unit_cost_mkd: number | null;
   cogs_mkd: number;
   cogs_est_mkd: number | null;
+  /** The product's VAT, Σ per line at its Sigma rate. */
   vat_mkd: number;
+  /** The rate used: the product's own, else the default (vat_classified false); null = a
+   *  folded "others" row of mixed rates. */
+  vat_rate: number | null;
+  /** false = no product or no rate on file (MEX-only, no lines, an unmatched name, a new
+   *  product): taxed at the default rate and listed as unclassified. */
+  vat_classified: boolean;
   courier_mkd: number;
   commission_mkd: number;
   /** Commissionable share of this product's packages (today's gate), 0..1. */
@@ -345,35 +427,43 @@ export function productRows(
   }
   const deliverMkd = r0(s.deliverEur * MKD_PER_EUR);
   const returnMkd = r0(s.returnEur * MKD_PER_EUR);
+  const perLine = vatPerLine(rpc);
   type Acc = {
     key: string; name: string | null; kind: string; reviewed: boolean; pkg: boolean; sources: Set<string>;
     cost_eur: number | null; n: number; pkgs: number; fr: number; rev: number; cm: number; sh: number;
     lbUngated: number; commEur: number; rPkgs: number; rRev: number; rSh: number;
+    vt: number; vr: number | null; vd: boolean;
   };
   const by = new Map<string, Acc>();
   for (const p of rpc.products ?? []) {
     const a = by.get(p.k) ?? {
       key: p.k, name: p.name ?? null, kind: p.kind ?? "product", reviewed: !!p.reviewed, pkg: !!p.pkg,
       sources: new Set<string>(), cost_eur: null, n: 0, pkgs: 0, fr: 0, rev: 0, cm: 0, sh: 0,
-      lbUngated: 0, commEur: 0, rPkgs: 0, rRev: 0, rSh: 0,
+      lbUngated: 0, commEur: 0, rPkgs: 0, rRev: 0, rSh: 0, vt: 0, vr: null, vd: false,
     };
     if (p.name && (!a.name || p.name < a.name)) a.name = p.name;
     if (p.kind && p.kind < a.kind) a.kind = p.kind;
     if (p.cost_eur != null && num(p.cost_eur) > 0) a.cost_eur = Math.max(a.cost_eur ?? 0, num(p.cost_eur));
     a.pkg = a.pkg || !!p.pkg;
     a.reviewed = a.reviewed || !!p.reviewed;
+    // one product key = one catalogue product = one rate (collected or returned rows alike)
+    if (p.vr != null) a.vr = Math.max(a.vr ?? 0, num(p.vr));
+    a.vd = a.vd || !!p.vd;
     if (p.g === "collected") {
       a.sources.add(p.s);
       a.n += num(p.n); a.pkgs += num(p.pkgs); a.fr += num(p.fr); a.rev += num(p.rev); a.cm += num(p.cm);
       a.sh += num(p.sh); a.lbUngated += num(p.lb); a.commEur += num(p.lb) * (ratio[p.s] ?? 0);
+      a.vt += num(p.vt);
     } else if (p.g === "returned") {
       a.rPkgs += num(p.pkgs); a.rRev += num(p.rev); a.rSh += num(p.sh);
     }
     by.set(p.k, a);
   }
+  const vatOfAcc = (a: Acc) => (perLine ? a.vt : a.rev * vatShare(s.defaultVatRate));
   const toRow = (a: Acc): ProductRow => {
     const known = a.cost_eur != null && a.pkg;
-    const vat = a.rev * s.vatRate / (1 + s.vatRate);
+    const vat = vatOfAcc(a);
+    const classified = perLine && !a.vd && a.vr != null;
     const courier = a.sh * deliverMkd + a.rSh * returnMkd;
     const commission = a.commEur * MKD_PER_EUR;
     const uncostedRev = a.pkg && !known ? a.rev : a.kind === "unknown" ? a.rev : 0;
@@ -395,6 +485,8 @@ export function productRows(
       cogs_mkd: r0(a.cm),
       cogs_est_mkd: est == null ? null : r0(est),
       vat_mkd: r0(vat),
+      vat_rate: classified ? a.vr : s.defaultVatRate,
+      vat_classified: classified,
       courier_mkd: r0(courier),
       commission_mkd: r0(commission),
       commission_share: a.lbUngated > 0 ? a.commEur / a.lbUngated : null,
@@ -416,20 +508,27 @@ export function productRows(
     const o: Acc = {
       key: "__others__", name: null, kind: "product", reviewed: false, pkg: true, sources: new Set(), cost_eur: null,
       n: 0, pkgs: 0, fr: 0, rev: 0, cm: 0, sh: 0, lbUngated: 0, commEur: 0, rPkgs: 0, rRev: 0, rSh: 0,
+      vt: 0, vr: null, vd: false,
     };
+    const rates = new Set<number | null>();
     for (const a of tail) {
       for (const x of a.sources) o.sources.add(x);
       o.n += a.n; o.pkgs += a.pkgs; o.fr += a.fr; o.rev += a.rev; o.cm += a.cm; o.sh += a.sh;
       o.lbUngated += a.lbUngated; o.commEur += a.commEur; o.rPkgs += a.rPkgs; o.rRev += a.rRev; o.rSh += a.rSh;
+      o.vt += a.vt; o.vd = o.vd || a.vd || a.vr == null;
+      rates.add(a.vd ? null : a.vr);
     }
     others = toRow(o);
+    // several products: one rate only when they all share it
+    others.vat_rate = rates.size === 1 && !rates.has(null) ? [...rates][0] : null;
+    others.vat_classified = perLine && !o.vd;
     // the tail's known costs are already in cogs_mkd; only its uncosted part is estimated
     const uncosted = tail.filter((a) => !(a.cost_eur != null && a.pkg) && (a.pkg || a.kind === "unknown"))
       .reduce((t, a) => t + a.rev, 0);
     const est = uncosted > 0 && costRatio != null ? uncosted * costRatio : null;
     others.cost_known = false;
     others.cogs_est_mkd = est == null ? null : r0(est);
-    const vat = o.rev * s.vatRate / (1 + s.vatRate);
+    const vat = vatOfAcc(o);
     const net = o.rev - vat - o.cm - (est ?? 0) - (o.sh * deliverMkd + o.rSh * returnMkd) - o.commEur * MKD_PER_EUR;
     others.net_mkd = r0(net);
     others.margin = share(net, o.rev);
@@ -556,7 +655,7 @@ export function buildClock(rpc: ProfitRpc, prev: ProfitRpc | null, s: ProfitSett
     const m = k === null ? measure(agg, "collected", dim) : measure(agg, "collected", dim, k);
     const ret = retOf(dim, k);
     return plRow({
-      key, m,
+      key, m, perLine: vatPerLine(rpc),
       commissionEur: gatedBonusEur(rpc.comm, dim, k, s.agentNames),
       returnedParcels: ret.parcels,
       returnedSales: ret.sales,
@@ -616,7 +715,7 @@ export function buildClockTotalsOnly(rpc: ProfitRpc, s: ProfitSettings): PLRow {
   const ret = cohort ? measure(agg, "returned", "s") : null;
   const retParcels = cohort ? ret!.pw : returnedParcelsCash(rpc, null);
   return plRow({
-    key: "total", m,
+    key: "total", m, perLine: vatPerLine(rpc),
     commissionEur: gatedBonusEur(rpc.comm, "s", null, s.agentNames),
     returnedParcels: retParcels,
     returnedSales: cohort ? ret!.n : retParcels,
@@ -664,7 +763,48 @@ export function buildStrip(rows: StripRow[] | undefined): ProfitStrip {
 
 export type ProfitQualityKind =
   | "uncosted_packages" | "mex_only_contents" | "unproven_paid" | "non_product_lines"
-  | "orders_without_lines" | "vat_unconfirmed" | "lead_cost_missing" | "return_fee_unconfirmed";
+  | "orders_without_lines" | "vat_unclassified" | "vat_flat_default" | "lead_cost_missing" | "return_fee_unconfirmed";
+
+/** Where the unclassified VAT value of one clock's collected sales comes from (cohort:
+ *  per product key). Taxed at the default rate, never silently: MEX-only parcels (contents
+ *  unknown), sales without lines, names that match no catalogue product, catalogue
+ *  products with no rate yet. */
+export interface VatUnclassified {
+  revenue_mkd: number;
+  vat_mkd: number;
+  mex_only_mkd: number;
+  no_lines_mkd: number;
+  unmatched_mkd: number;
+  no_rate_mkd: number;
+  /** product keys behind it (MEX-only and sales without lines count as one each) */
+  products: number;
+}
+
+export function vatUnclassifiedOf(rpc: ProfitRpc): VatUnclassified | null {
+  if (!vatPerLine(rpc)) return null;
+  const by = new Map<string, number>();
+  for (const p of rpc.products ?? []) {
+    if (p.g !== "collected" || !p.vd) continue;
+    by.set(p.k, (by.get(p.k) ?? 0) + num(p.rev));
+  }
+  let mex = 0, none = 0, unmatched = 0, noRate = 0;
+  for (const [k, v] of by) {
+    if (k === "__mex_only__") mex += v;
+    else if (k === "__unknown__") none += v;
+    else if (k.startsWith("p:")) noRate += v;
+    else unmatched += v;
+  }
+  const total = mex + none + unmatched + noRate;
+  return {
+    revenue_mkd: r0(total),
+    vat_mkd: r0(total * vatShare(DEFAULT_VAT_RATE)),
+    mex_only_mkd: r0(mex),
+    no_lines_mkd: r0(none),
+    unmatched_mkd: r0(unmatched),
+    no_rate_mkd: r0(noRate),
+    products: [...by.values()].filter((v) => v !== 0).length,
+  };
+}
 
 export interface ProfitQuality {
   kind: ProfitQualityKind;
@@ -711,8 +851,21 @@ export function buildQuality(
     kind: "orders_without_lines", severity: "warning",
     count: num(cohortRpc.no_items?.n), value_mkd: r0(num(cohortRpc.no_items?.v)),
   });
-  // VAT 18 % confirmed by the owner on 28.09.2026 — no longer a pending item.
-  if (!VAT_CONFIRMED) out.push({ kind: "vat_unconfirmed", severity: "info", count: 1 });
+  // VAT per product from Sigma (01.10.2026): what had no rate is taxed at the default and listed here
+  if (vatPerLine(cohortRpc)) {
+    const unclassified = products.filter((p) => !p.vat_classified && p.revenue_mkd !== 0);
+    out.push({
+      kind: "vat_unclassified", severity: "info",
+      count: unclassified.length,
+      value_mkd: t.vat_unclassified.revenue_mkd,
+      share: t.revenue_mkd > 0 ? t.vat_unclassified.revenue_mkd / t.revenue_mkd : null,
+      top: [...unclassified].sort((a, b) => b.revenue_mkd - a.revenue_mkd).slice(0, 10)
+        .map((p) => ({ key: p.key, name: p.name, packages: p.packages, revenue_mkd: p.revenue_mkd })),
+    });
+  } else {
+    // an older insights_profit() answered: every line at the default rate — say so
+    out.push({ kind: "vat_flat_default", severity: "warning", count: 1 });
+  }
   out.push({ kind: "lead_cost_missing", severity: "info", count: cohortClock.by_source.find((r) => r.key === "altercpa")?.sales ?? 0 });
   if (s.returnEur === 0) out.push({ kind: "return_fee_unconfirmed", severity: "info", count: r0(t.parcels_returned) });
   return out;
@@ -731,6 +884,42 @@ export interface ProfitRpcs {
   cash: ProfitRpc;
   prevCohort?: ProfitRpc | null;
   prevCash?: ProfitRpc | null;
+}
+
+export interface VatMeta {
+  /** per_product_sigma = Σ per line at each product's Sigma rate; flat_default = an
+   *  older insights_profit() answered and every line is at default_rate. */
+  mode: VatMode;
+  default_rate: number;
+  /** = default_rate — kept for a client older than 01.10.2026 that labels the VAT line with it. */
+  rate: number;
+  /** Kept for that older client (it showed "pending" when false); the decision is the owner's, 01.10.2026. */
+  confirmed: true;
+  source: "sigma";
+  decided: "2026-10-01";
+  /** The collected sales' VAT by rate, per clock — {"0.05": {revenue_mkd, vat_mkd}, "0.18": …}. */
+  by_rate: { cohort: Record<string, Omit<VatPart, "rate">>; cash: Record<string, Omit<VatPart, "rate">> };
+  /** VAT ÷ revenue net of VAT, per clock (5 % if everything were a supplement); null without revenue. */
+  effective_rate: { cohort: number | null; cash: number | null };
+  /** What had no rate (taxed at default_rate): the cohort's by kind; the cash clock's total only. */
+  unclassified: { cohort: VatUnclassified | null; cash: { revenue_mkd: number; vat_mkd: number } };
+}
+
+function vatMeta(cohortRpc: ProfitRpc, cashRpc: ProfitRpc, cohort: ProfitClock, cash: ProfitClock, s: ProfitSettings): VatMeta {
+  const byRate = (row: PLRow) => Object.fromEntries(row.vat_split.map((p) => [String(p.rate), { revenue_mkd: p.revenue_mkd, vat_mkd: p.vat_mkd }]));
+  const eff = (row: PLRow) => (row.revenue_mkd - row.vat_mkd > 0 ? row.vat_mkd / (row.revenue_mkd - row.vat_mkd) : null);
+  const perLine = vatPerLine(cohortRpc) && vatPerLine(cashRpc);
+  return {
+    mode: perLine ? "per_product_sigma" : "flat_default",
+    default_rate: s.defaultVatRate,
+    rate: s.defaultVatRate,
+    confirmed: true,
+    source: "sigma",
+    decided: "2026-10-01",
+    by_rate: { cohort: byRate(cohort.total), cash: byRate(cash.total) },
+    effective_rate: { cohort: eff(cohort.total), cash: eff(cash.total) },
+    unclassified: { cohort: vatUnclassifiedOf(cohortRpc), cash: cash.total.vat_unclassified },
+  };
 }
 
 /**
@@ -767,7 +956,7 @@ export function buildProfitResponse(
       generated_at: now.toISOString(),
       money: true,
       granularity: gran,
-      vat: { rate: s.vatRate, confirmed: VAT_CONFIRMED },
+      vat: vatMeta(r.cohort, r.cash, cohort, cash, s),
       courier: {
         deliver_mkd: r0(s.deliverEur * MKD_PER_EUR),
         return_mkd: r0(s.returnEur * MKD_PER_EUR),
@@ -863,8 +1052,9 @@ function sumInto(a: object, b: object, keys: readonly string[]) {
   for (const k of keys) x[k] = num(x[k]) + num(y[k]);
 }
 
-const AGG_KEYS = ["n", "rev", "card", "pw", "rc", "ru", "rn", "cm", "pc", "pu", "fr", "lb"] as const;
-const PROD_KEYS = ["n", "qty", "pkgs", "fr", "rev", "cm", "sh", "lb"] as const;
+const AGG_KEYS = ["n", "rev", "card", "pw", "rc", "ru", "rn", "cm", "pc", "pu", "fr", "lb",
+  "vt", "vc", "vu", "v00", "v05", "v10", "v18"] as const;
+const PROD_KEYS = ["n", "qty", "pkgs", "fr", "rev", "cm", "sh", "lb", "vt"] as const;
 
 /**
  * Pieces of one clock (cached months + live ranges) → one payload, exactly as
@@ -914,6 +1104,8 @@ export function mergeProfitRpcs(pieces: ProfitRpc[], clock: "cohort" | "cash", g
       cur.reviewed = !!cur.reviewed || !!r.reviewed;
       cur.pkg = !!cur.pkg || !!r.pkg;
       if (r.cost_eur != null && (cur.cost_eur == null || num(r.cost_eur) > num(cur.cost_eur))) cur.cost_eur = num(r.cost_eur);
+      if (r.vr != null && (cur.vr == null || num(r.vr) > num(cur.vr))) cur.vr = num(r.vr);
+      if (r.vd != null || cur.vd != null) cur.vd = !!cur.vd || !!r.vd;
     }
     for (const h of p.hist ?? []) {
       const k = `${h.s}|${h.u}`;
@@ -929,6 +1121,9 @@ export function mergeProfitRpcs(pieces: ProfitRpc[], clock: "cohort" | "cash", g
     Object.assign(wm, p.wm_names ?? {});
   }
   const out: ProfitRpc = { clock, granularity, agg: [...agg.values()], comm: [...comm.values()], wm_names: wm };
+  // VAT per line only when EVERY piece computed it (the cache version keeps them alike;
+  // a mix would read an older piece's missing VAT as 0)
+  if (pieces.length > 0 && pieces.every((p) => vatPerLine(p))) out.vat_mode = "per_line";
   if (clock === "cohort") {
     out.strip = [...strip.values()];
     out.products = [...products.values()];

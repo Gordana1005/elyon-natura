@@ -12,6 +12,10 @@ import {
 import type { InsightsFormat } from '@/components/insights/shared/useInsightsFormat';
 import { LineOptions } from './LineChip';
 import { KindOptions } from './KindChip';
+import { VatOptions } from './VatChip';
+import { ratePct, shownVatFilters, type VatFilter, type VatRate } from '@/lib/products/vat';
+
+const VAT_FILTER_RATE: Record<Exclude<VatFilter, 'all' | 'none'>, number> = { r5: 0.05, r18: 0.18, r10: 0.1, r0: 0 };
 
 // The chips of the Insights filter bars (users/UserFilters): a single choice is
 // a filled chip. 36 px tall on phones and tablets (touch), 32 px from lg.
@@ -52,9 +56,10 @@ function ChipGroup<K extends string>({ id, label, keys, value, onPick, counts, l
  *   Прикажи  Производи (the default) · Пакети и промоции · Подароци · Друго · Неодредено · Сите
  *   Линија   Сите · Natura Therapy · Bio Natural · Ad Astra · Dr.Becker · Неодредено
  *   Статус   Сите · Активни · Исклучени
+ *   ДДВ      Сите · 5% · 18% · Некласифицирано (owners only — the VAT columns reach only them)
  * Each chip counts what a click on it would show (the other filters applied).
  */
-export function ProductFilters({ query, onQuery, kind, onKind, line, onLine, status, onStatus, facets, shown, total, canSelect, onSelectShown, f }: {
+export function ProductFilters({ query, onQuery, kind, onKind, line, onLine, status, onStatus, showVat = false, vat = 'all', onVat, facets, shown, total, canSelect, onSelectShown, f }: {
   query: string;
   onQuery: (q: string) => void;
   kind: KindFilter;
@@ -63,6 +68,9 @@ export function ProductFilters({ query, onQuery, kind, onKind, line, onLine, sta
   onLine: (l: LineFilter) => void;
   status: StatusFilter;
   onStatus: (s: StatusFilter) => void;
+  showVat?: boolean;
+  vat?: VatFilter;
+  onVat?: (v: VatFilter) => void;
   facets: Facets;
   shown: number;
   total: number;
@@ -73,7 +81,7 @@ export function ProductFilters({ query, onQuery, kind, onKind, line, onLine, sta
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const isMobile = useIsMobile();
-  const filtering = kind !== DEFAULT_KIND_FILTER || line !== 'all' || status !== 'all' || query.trim() !== '';
+  const filtering = kind !== DEFAULT_KIND_FILTER || line !== 'all' || status !== 'all' || vat !== 'all' || query.trim() !== '';
 
   return (
     <div role="search" aria-label={t('products.searchPlaceholder')} className="space-y-2.5 rounded-xl border bg-card/80 p-3 shadow-sm">
@@ -116,7 +124,7 @@ export function ProductFilters({ query, onQuery, kind, onKind, line, onLine, sta
             </button>
           )}
           {filtering && (
-            <button type="button" onClick={() => { onQuery(''); onKind(DEFAULT_KIND_FILTER); onLine('all'); onStatus('all'); }}
+            <button type="button" onClick={() => { onQuery(''); onKind(DEFAULT_KIND_FILTER); onLine('all'); onStatus('all'); onVat?.('all'); }}
               className="inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:h-8">
               <X className="h-3.5 w-3.5" aria-hidden />{t('products.clearFilters')}
             </button>
@@ -129,6 +137,10 @@ export function ProductFilters({ query, onQuery, kind, onKind, line, onLine, sta
         counts={facets.line} labelOf={(k) => (k === 'all' ? t('products.line.all') : k === 'none' ? t('products.line.none') : LINE_NAMES[k])} f={f} />
       <ChipGroup id="products-status-filter" label={t('products.status.label')} keys={STATUS_FILTERS} value={status} onPick={onStatus}
         counts={facets.status} labelOf={(k) => t(`products.status.${k}`)} f={f} />
+      {showVat && onVat && facets.vat && (
+        <ChipGroup id="products-vat-filter" label={t('products.colVat')} keys={shownVatFilters(facets.vat, vat)} value={vat} onPick={onVat}
+          counts={facets.vat} labelOf={(k) => (k === 'all' ? t('products.vat.all') : k === 'none' ? t('products.vat.none') : ratePct(VAT_FILTER_RATE[k]))} f={f} />
+      )}
     </div>
   );
 }
@@ -137,16 +149,18 @@ export function ProductFilters({ query, onQuery, kind, onKind, line, onLine, sta
  * The selection bar: "Избрани: N" · "Постави вид" · "Постави линија" · clear.
  * Sticky at the bottom of the list so it stays in reach while scrolling.
  */
-export function BulkBar({ count, busy, onSetLine, onSetKind, onClear, f }: {
+export function BulkBar({ count, busy, onSetLine, onSetKind, onSetVat, onClear, f }: {
   count: number;
   busy: boolean;
   onSetLine: (line: BrandLine | null) => void;
   onSetKind: (kind: ProductKind | null) => void;
+  /** Owners only (POST /products/vat-rate); absent = no VAT button. */
+  onSetVat?: (rate: VatRate | null) => void;
   onClear: () => void;
   f: InsightsFormat;
 }) {
   const { t } = useTranslation();
-  const [open, setOpen] = useState<'line' | 'kind' | null>(null);
+  const [open, setOpen] = useState<'line' | 'kind' | 'vat' | null>(null);
   if (count === 0) return null;
   const head = 'px-1 pb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground';
   return (
@@ -176,6 +190,18 @@ export function BulkBar({ count, busy, onSetLine, onSetKind, onClear, f }: {
           <LineOptions current={undefined} onPick={(l) => { setOpen(null); onSetLine(l); }} />
         </PopoverContent>
       </Popover>
+      {onSetVat && (
+        <Popover open={open === 'vat'} onOpenChange={(o) => setOpen(o ? 'vat' : null)}>
+          <PopoverTrigger asChild>
+            <Button size="sm" variant="outline" className="h-9" disabled={busy}>{t('products.vat.setVat')}</Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-72 max-w-[calc(100vw-2rem)] p-2">
+            <p className={head}>{t('products.vat.setForN', { n: f.int(count) })}</p>
+            <VatOptions current={undefined} onPick={(r) => { setOpen(null); onSetVat(r); }} />
+            <p className="px-1 pt-1.5 text-[11px] leading-snug text-muted-foreground">{t('products.vat.note')}</p>
+          </PopoverContent>
+        </Popover>
+      )}
       <Button variant="ghost" size="sm" className="ml-auto h-9" onClick={onClear} disabled={busy}>
         <X className="mr-1.5 h-4 w-4" aria-hidden />{t('products.bulk.clearSelection')}
       </Button>

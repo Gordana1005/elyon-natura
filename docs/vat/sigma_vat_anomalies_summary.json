@@ -1,0 +1,33 @@
+{
+ "generated": "2026-10-01",
+ "source": "Sigma export 29–30.09.2026 (Item.csv, WorkDocInLine.csv, Client.csv), read-only",
+ "A_items_wrong_category": 9,
+ "A_by_issue": {
+  "Козметика (за надворешна употреба) на 5 % (козметиката е 18 %)": 2,
+  "Уред / наградa на 5 % (стандардно 18 %)": 2,
+  "Мешан комплет (додаток + козметика) со една стапка (5 %) — козметичкиот дел е 18 %, додатокот 5 %": 4,
+  "Готов производ со 0 % ДДВ, продаван во земјата": 1
+ },
+ "A_drinks_rates": [
+  "18 %",
+  "5 %"
+ ],
+ "B_invoice_lines_rate_differs": 72,
+ "B_items": 40,
+ "B_vat_difference_mkd": 816.14,
+ "B_on_mex_invoices": 50,
+ "C_families_mixed_rates": 0,
+ "D_lines_without_vat_code": 25,
+ "E_mex_invoices_2026": 13,
+ "E_mex_price_tiers": [
+  100.0,
+  195.0,
+  295.0,
+  346.5,
+  400.0,
+  495.0,
+  500.0,
+  995.0,
+  1000.0
+ ]
+}

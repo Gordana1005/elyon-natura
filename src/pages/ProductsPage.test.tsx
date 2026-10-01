@@ -24,6 +24,7 @@ const getLineProposal = vi.fn();
 const setLine = vi.fn();
 const updateProduct = vi.fn();
 const createProduct = vi.fn();
+const setVat = vi.fn();
 vi.mock('@/lib/api', async (orig) => ({
   ...(await orig<typeof import('@/lib/api')>()),
   apiGetProductCatalogue: (...a: unknown[]) => getCatalogue(...a),
@@ -34,6 +35,7 @@ vi.mock('@/lib/api', async (orig) => ({
   apiSetBrandLine: (...a: unknown[]) => setLine(...a),
   apiUpdateProduct: (...a: unknown[]) => updateProduct(...a),
   apiCreateProduct: (...a: unknown[]) => createProduct(...a),
+  apiSetProductVatRate: (...a: unknown[]) => setVat(...a),
   apiGetInventoryLogs: async () => [],
 }));
 
@@ -101,8 +103,8 @@ const lineAnswer = (ids: string[], line: string | null) => ({ line, mex_profile:
 
 let location = '';
 function LocationProbe() { location = useLocation().search; return null; }
-function renderAt(url = '/products?status=all', rows: unknown[] = ROWS) {
-  getCatalogue.mockResolvedValue({ generated_at: null, rows: structuredClone(rows) });
+function renderAt(url = '/products?status=all', rows: unknown[] = ROWS, vatVisible = false) {
+  getCatalogue.mockResolvedValue({ generated_at: null, vat_visible: vatVisible, rows: structuredClone(rows) });
   getKindProposal.mockResolvedValue(structuredClone(KIND_PROPOSAL));
   getLineProposal.mockResolvedValue(structuredClone(LINE_PROPOSAL));
   setKind.mockImplementation(async (ids: string[], kind: string | null) => kindAnswer(ids, kind));
@@ -317,5 +319,52 @@ describe('Производи 2.0 — Предлог', { timeout: 30_000 }, () =>
     await waitFor(() => expect(new URLSearchParams(location).get('of')).toBe('line'));
     fireEvent.click(within(screen.getByRole('table', { name: t('products.proposal.title') })).getByRole('button', { name: t('products.proposal.acceptFor', { line: 'Bio Natural', name: 'Arthriva' }) }));
     await waitFor(() => expect(setLine).toHaveBeenCalledWith([uid(6)], 'bio_natural'));
+  });
+});
+
+// VAT per product from Sigma (owner 01.10.2026, docs/VAT.md): owners see each product's rate,
+// its source and the invoice evidence, filter by it and set it (audited api); nobody else sees it.
+describe('ДДВ по производ (Сигма)', { timeout: 30_000 }, () => {
+  const VAT_ROWS = [
+    P(1, 'Neurofix', 'product', { vat_rate: 0.05, vat_source: 'sigma:crosswalk-VERIFIED', vat_sigma_code: '001317', vat_sigma_name: 'PROSTA FIX BIONATURAL 30 cps', vat_evidence: '2025@5.00: 88; mex@5.00: 10', vat_set_at: '2026-10-01T20:00:00Z' }),
+    P(2, 'СНАИЛ КРЕМА 100ml', 'product', { vat_rate: 0.18, vat_source: 'sigma:crosswalk-HIGH', vat_sigma_code: '005040', vat_sigma_name: 'СНАИЛ КРЕМА', vat_evidence: '2026@18.00: 40' }),
+    P(3, 'Нов производ', 'product', { vat_rate: null, vat_source: null }),
+  ];
+  const vatChipOf = (name: string) => within(rowOf(name)).getByRole('button', { name: t('products.vat.setFor', { name }) });
+
+  it('an owner: a ДДВ column with the rate, its Sigma source and evidence; the rate set through the audited api', async () => {
+    setVat.mockImplementation(async (ids: string[], rate: number | null) => ({ rate, requested: ids.length, updated: ids.length, unchanged: 0, missing: [], changes: ids.map((id) => ({ id, name: id, from: null, to: rate, from_source: null })) }));
+    renderAt('/products?status=all', VAT_ROWS, true);
+    await loaded();
+    expect(within(table()).getByRole('columnheader', { name: t('products.colVat') })).toBeTruthy();
+    expect(vatChipOf('Neurofix').textContent).toContain('5%');
+    expect(vatChipOf('СНАИЛ КРЕМА 100ml').textContent).toContain('18%');
+    expect(vatChipOf('Нов производ').textContent).toContain(t('products.vat.none'));
+    fireEvent.click(vatChipOf('Neurofix'));
+    const pop = await screen.findByRole('dialog');
+    expect(within(pop).getByText(t('products.vat.sigmaItem', { code: '001317', name: 'PROSTA FIX BIONATURAL 30 cps' }))).toBeTruthy();
+    expect(within(pop).getByText(t('products.vat.evidenceMex', { pct: '5%', n: 10 }))).toBeTruthy();
+    fireEvent.click(within(pop).getByRole('button', { name: /^18%/ }));
+    await waitFor(() => expect(setVat).toHaveBeenCalledWith([idOf('Neurofix')], 0.18));
+    await waitFor(() => expect(vatChipOf('Neurofix').textContent).toContain('18%'));
+  });
+
+  it('an owner: the ДДВ chips filter (?vat=) and find the unclassified products', async () => {
+    renderAt('/products?status=all', VAT_ROWS, true);
+    await loaded();
+    fireEvent.click(chipIn('products.colVat', t('products.vat.none')));
+    await waitFor(() => expect(within(table()).getAllByRole('rowheader')).toHaveLength(1));
+    expect(within(table()).getByRole('rowheader', { name: /Нов производ/ })).toBeTruthy();
+    await waitFor(() => expect(new URLSearchParams(location).get('vat')).toBe('none'));
+    fireEvent.click(chipIn('products.colVat', '18%'));
+    await waitFor(() => expect(within(table()).getByRole('rowheader', { name: /СНАИЛ КРЕМА/ })).toBeTruthy());
+  });
+
+  it('not an owner (the api sends no VAT columns): no ДДВ column, no chip, no filter', async () => {
+    renderAt('/products?status=all', VAT_ROWS.map(({ vat_rate: _r, vat_source: _s, vat_sigma_code: _c, vat_sigma_name: _n, vat_evidence: _e, ...r }) => r), false);
+    await loaded();
+    expect(within(table()).queryByRole('columnheader', { name: t('products.colVat') })).toBeNull();
+    expect(screen.queryAllByTestId('vat-chip')).toHaveLength(0);
+    expect(within(screen.getByRole('search')).queryByRole('group', { name: t('products.colVat') })).toBeNull();
   });
 });

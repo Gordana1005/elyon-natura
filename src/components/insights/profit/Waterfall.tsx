@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import type { PLRow, ProfitResponse } from '@/lib/insightsApi/profit';
 import type { InsightsFormat } from '../shared/useInsightsFormat';
 import { PP_FILL, PP_HATCH } from './profitPalette';
-import { waterfall, type Basis, type Step } from './profitModel';
+import { defaultVatRate, vatPerProduct, waterfall, type Basis, type Step } from './profitModel';
 
 /**
  * Revenue → every cost → net profit, as a waterfall that reads top to bottom
@@ -12,6 +12,8 @@ import { waterfall, type Basis, type Step } from './profitModel';
  * Costs are the gray; an ESTIMATE (uncosted packages, allocations) is hatched;
  * a slot with no data yet (lead cost) says so. Two bases: every package with
  * the uncosted ones estimated (the headline) · the costed packages alone.
+ * VAT is per product from Sigma (01.10.2026): the line says so and shows its
+ * 5 % / 18 % parts; what had no rate is named under the steps.
  */
 export function Waterfall({ row, meta, clockLabel, f }: {
   row: PLRow;
@@ -22,17 +24,20 @@ export function Waterfall({ row, meta, clockLabel, f }: {
   const { t } = f;
   const titleId = useId();
   const [basis, setBasis] = useState<Basis>('estimated');
-  const steps = waterfall(row, basis, meta.vat.rate);
+  const dRate = defaultVatRate(meta);
+  const perProduct = vatPerProduct(meta);
+  const steps = waterfall(row, basis, dRate);
   const top = Math.max(1, ...steps.map((s) => Math.max(s.from, s.to)));
   const bottom = Math.min(0, ...steps.map((s) => Math.min(s.from, s.to)));
   const span = top - bottom;
   const pos = (v: number) => ((v - bottom) / span) * 100;
   const revenue = steps[0].value;
   const net = steps[steps.length - 1].value;
+  const unclassified = row.vat_unclassified?.revenue_mkd ?? 0;
 
   const label = (s: Step): string => {
     switch (s.key) {
-      case 'vat': return t('insights.profit.step.vat', { pct: f.pct(meta.vat.rate, 0) });
+      case 'vat': return perProduct ? t('insights.profit.step.vatPerProduct') : t('insights.profit.step.vat', { pct: f.pct(dRate, 0) });
       case 'courier': return t('insights.profit.step.courier', { fee: f.den(meta.courier.deliver_mkd) });
       case 'returns': return t('insights.profit.step.returns', { fee: f.den(meta.courier.return_mkd) });
       default: return t(`insights.profit.step.${s.key}`);
@@ -40,7 +45,7 @@ export function Waterfall({ row, meta, clockLabel, f }: {
   };
   const chip = (s: Step) => {
     if (basis === 'costed' && (s.key === 'courier' || s.key === 'returns' || s.key === 'commission')) return t('insights.profit.chip.allocated');
-    if (s.key === 'vat' && !meta.vat.confirmed) return t('insights.profit.chip.vatPending');
+    if (s.key === 'vat' && !perProduct) return t('insights.profit.vat.flat', { pct: f.pct(dRate, 0) });
     if (s.key === 'lead' && !meta.lead_cost.configured) return t('insights.profit.chip.leadMissing');
     if (s.key === 'commission') return t('insights.profit.chip.commissionRule');
     if (s.key === 'returns' && meta.courier.return_mkd === 0) return t('insights.profit.chip.returnFeePending');
@@ -80,9 +85,18 @@ export function Waterfall({ row, meta, clockLabel, f }: {
                 <span className="block truncate" title={label(s)}>{label(s)}</span>
                 {c && (
                   <span className={cn('mt-0.5 inline-flex items-center gap-1 rounded-full px-1.5 py-px text-[10px] font-medium',
-                    s.pending || (s.key === 'vat' && !meta.vat.confirmed) || s.key === 'returns'
+                    s.pending || (s.key === 'vat' && !perProduct) || s.key === 'returns'
                       ? 'bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-200' : 'bg-muted text-muted-foreground')}>
-                    {(s.pending || s.key === 'vat') && <BadgeAlert className="h-3 w-3" aria-hidden />}{c}
+                    {(s.pending || (s.key === 'vat' && !perProduct)) && <BadgeAlert className="h-3 w-3" aria-hidden />}{c}
+                  </span>
+                )}
+                {s.key === 'vat' && perProduct && basis === 'estimated' && (row.vat_split?.length ?? 0) > 0 && (
+                  <span className="mt-0.5 flex flex-wrap gap-x-2 text-[10px] font-normal text-muted-foreground">
+                    {row.vat_split!.map((p) => (
+                      <span key={p.rate} className="whitespace-nowrap tabular-nums">
+                        {t('insights.profit.vat.part', { pct: f.pct(p.rate, 0), vat: f.den(p.vat_mkd) })}
+                      </span>
+                    ))}
                   </span>
                 )}
               </span>
@@ -110,6 +124,13 @@ export function Waterfall({ row, meta, clockLabel, f }: {
           ? t('insights.profit.waterfall.upperNote', { upper: f.den(row.net_upper_mkd), margin: f.pct(net / Math.max(1, revenue)) })
           : t('insights.profit.waterfall.costedNote', { rev: f.den(row.revenue_costed_mkd), margin: f.pct(row.costed.margin) })}
       </p>
+      {perProduct && (
+        <p className="text-[11px] leading-snug text-muted-foreground" data-testid="profit-vat-note">
+          {unclassified > 0
+            ? t('insights.profit.vat.note', { low: f.pct(0.05, 0), high: f.pct(0.18, 0), value: f.den(unclassified) })
+            : t('insights.profit.vat.noteAll', { low: f.pct(0.05, 0), high: f.pct(0.18, 0) })}
+        </p>
+      )}
     </section>
   );
 }
