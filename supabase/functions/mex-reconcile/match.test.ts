@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DAY, codOk, dedupeShipments, hasSaleValue, isNegativeCod, isRealSale, isRegisterOnlyRun,
   isSyntheticProductName, mexDate, mkE164, parseCod, pickCandidate,
-  rememberedLinkMethod, resolveHolder, shipGate, targetFor,
+  rememberedLinkMethod, resolveHolder, shipGate, targetFor, atMexGate, AT_MEX_STATUS,
 } from "./match.ts";
 import type { OrderRow } from "./match.ts";
 import { isSyntheticProductName as uiIsSynthetic } from "../../../src/lib/utils";
@@ -262,10 +262,13 @@ describe("shipGate — rule C (MEX outranks AlterCPA)", () => {
 });
 
 describe("small helpers", () => {
-  it("targetFor maps MEX statuses, string or number", () => {
+  it("targetFor maps MEX statuses, string or number (owner 30.09: 8 = за пакување)", () => {
     expect(targetFor(2)).toBe("paid");
     expect(targetFor("7")).toBe("returned");
-    for (const id of [8, 4, 10, 9, 1, 3]) expect(targetFor(id)).toBe("shipped");
+    expect(targetFor(8)).toBe("at_mex");
+    expect(targetFor("8")).toBe("at_mex");
+    for (const id of [4, 10, 9, 1, 3, "4", 13]) expect(targetFor(id)).toBe("shipped");
+    expect(AT_MEX_STATUS).toBe(8);
   });
   it("hasSaleValue is false for every 0 ден row", () => {
     expect(hasSaleValue(ghost())).toBe(false);
@@ -462,6 +465,30 @@ describe("pickCandidate — the upsell revive (owner rule 2026-09-28)", () => {
   it("leaves the open-order fallback as it was on a 9110 parcel", () => {
     const open = order({ status: "confirmed", price: 30 });
     expect(pickCandidate([open], UPSELL_COD, SHIP_CREATED, LEADS)).toEqual({ order: open, method: "phone_single" });
+  });
+});
+
+describe("atMexGate — MEX 8 is за пакување, never shipped (owner 30.09.2026)", () => {
+  it("a confirmed or already-shipped order keeps its status (only mex_sent_at is stamped)", () => {
+    expect(atMexGate(order({ status: "confirmed" }), "tracking")).toBe("stamp");
+    expect(atMexGate(order({ status: "shipped" }), "phone_cod")).toBe("stamp");
+  });
+  it("an open order waits for the pickup (no sold stamp 'now' for the old agent)", () => {
+    for (const status of ["pending", "take", "call_again"]) expect(atMexGate(order({ status }), "phone_single")).toBe("wait_pickup");
+  });
+  it("a cancel rule C would revive also waits for the pickup; anything else is a no-op", () => {
+    expect(atMexGate(order({ status: "cancelled" }), "tracking")).toBe("wait_pickup");
+    expect(atMexGate(order({ status: "trashed" }), "phone_cod")).toBe("wait_pickup");
+    expect(atMexGate(npCancel(), "upsell_revive")).toBe("wait_pickup");
+    expect(atMexGate(order({ status: "cancelled" }), "phone_single")).toBeNull();
+    expect(atMexGate(ghost(), "tracking")).toBeNull();
+  });
+  it("never touches a settled order", () => {
+    for (const status of ["paid", "returned", "delivered", "duplicated"]) expect(atMexGate(order({ status }), "tracking")).toBeNull();
+  });
+  it("the full mapping: 8 → at_mex · 4/10/9/1/3 → shipped · 2 → paid · 7 → returned", () => {
+    const map = Object.fromEntries([8, 4, 10, 9, 1, 3, 2, 7].map((id) => [id, targetFor(id)]));
+    expect(map).toEqual({ 8: "at_mex", 4: "shipped", 10: "shipped", 9: "shipped", 1: "shipped", 3: "shipped", 2: "paid", 7: "returned" });
   });
 });
 

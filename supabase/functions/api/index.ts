@@ -72,6 +72,12 @@ import * as SA from "./settingsAccess.ts";
 // filters, the last-8 phone search and the batched "who is viewing" read —
 // parsed, validated and turned into builder calls (pure, ordersList.test.ts).
 import * as OL from "./ordersList.ts";
+// /warehouse (plan Фаза 9, owner 30.09.2026): the queue (public.warehouse_queue) and
+// "Испрати до MEX" — the add_shipment.php push with its claim / existence check /
+// ledger (public.mex_push_attempts), switched OFF by app_settings.mex_push (pure,
+// unit-tested in mexPush.test.ts / warehouseQueue.test.ts).
+import * as MP from "./mexPush.ts";
+import * as WQ from "./warehouseQueue.ts";
 
 // ============================================================
 // INPUT VALIDATION SCHEMAS
@@ -14468,6 +14474,155 @@ async function handleRequest(req: Request): Promise<Response> {
       return json({ success: true, changed: (data as any)?.changed ?? 0, days: datesToCreate.length });
     }
 
+    // ── /warehouse — the queue and "Испрати до MEX" (plan Фаза 9, owner 30.09.2026) ──
+    //   GET   /api/warehouse/queue?tab=send|pack|pack_stale&departments=&order=oldest|newest&limit=&offset=
+    //   POST  /api/warehouse/mex-push {order_ids, account_overrides?: {id: {account, reason, double_ok?}}, dry_run}
+    //   GET   /api/warehouse/mex-push/settings        the switch (anyone who sees the warehouse)
+    //   PATCH /api/warehouse/mex-push/settings        admin only, audited
+    // Warehouse, admin and manager roles. Money (order value, COD) for business owners only.
+    // The push refuses unless app_settings.mex_push.enabled AND the account's switch is on —
+    // a dry run is always allowed and returns the exact add_shipment.php bodies. MEX keys:
+    // MEX_API_KEY = BIO NATURAL, MEX_API_KEY_2 = NATURA (as mex-reconcile reads them).
+    if (segments[0] === "warehouse" && (path === "warehouse/queue" || path === "warehouse/mex-push" || path === "warehouse/mex-push/settings")) {
+      const canWarehouse = isAdmin || isManager || isWarehouse;
+      if (!canWarehouse) return json({ error: "Forbidden" }, 403);
+      const readPushSettings = async (): Promise<unknown> => {
+        const { data } = await adminClient.from("app_settings").select("value").eq("key", "mex_push").maybeSingle();
+        return data?.value ?? null;
+      };
+      const mexKeys = { bio_natural: !!Deno.env.get("MEX_API_KEY"), natura: !!Deno.env.get("MEX_API_KEY_2") };
+
+      if (req.method === "GET" && path === "warehouse/queue") {
+        const parsed = WQ.parseQueueParams(url.searchParams);
+        if (!parsed.ok) return json({ error: parsed.error }, 400);
+        const p = parsed.params;
+        const [rpc, settingsValue, owner] = await Promise.all([
+          adminClient.rpc("warehouse_queue", {
+            p_tab: p.tab, p_departments: p.departments, p_order: p.order, p_limit: p.limit, p_offset: p.offset,
+          }),
+          readPushSettings(),
+          isBusinessOwner(user.id),
+        ]);
+        if (rpc.error) {
+          console.error("warehouse_queue failed:", rpc.error.message);
+          return json({ error: "Warehouse queue unavailable" }, 500);
+        }
+        return json(WQ.buildQueueResponse(rpc.data as Record<string, unknown>, {
+          isOwner: owner, settingsValue, keys: mexKeys, canPush: canWarehouse, canToggle: isAdmin,
+        }));
+      }
+
+      if (path === "warehouse/mex-push/settings") {
+        if (req.method === "GET") {
+          return json({ settings: MP.readMexPushSettings(await readPushSettings()), keys: mexKeys, auto_send_scheduled: false, can_toggle: isAdmin });
+        }
+        if (req.method === "PATCH") {
+          if (!isAdmin) return json({ error: "Forbidden" }, 403);
+          let body: unknown;
+          try { body = await req.json(); } catch { return json({ error: "invalid_body" }, 400); }
+          const cur = MP.readMexPushSettings(await readPushSettings());
+          const next = MP.applySettingsPatch(cur, body);
+          if (!next.ok) return json({ error: next.error }, 400);
+          const { error } = await adminClient.from("app_settings").upsert(
+            { key: "mex_push", value: next.settings, updated_by: user.id, updated_at: new Date().toISOString() },
+            { onConflict: "key" },
+          );
+          if (error) {
+            console.error("mex_push settings write failed:", error.message);
+            return json({ error: "Could not save the setting" }, 500);
+          }
+          await audit(adminClient, user.id, user.email, "mex.push_settings", {
+            target_type: "app_settings", target_id: "mex_push", payload: { before: cur, after: next.settings },
+          });
+          return json({ settings: next.settings, keys: mexKeys, auto_send_scheduled: false, can_toggle: true });
+        }
+        return json({ error: "Method not allowed" }, 405);
+      }
+
+      if (req.method === "POST" && path === "warehouse/mex-push") {
+        let body: unknown;
+        try { body = await req.json(); } catch { return json({ error: "invalid_body" }, 400); }
+        const settings = MP.readMexPushSettings(await readPushSettings());
+        const parsed = MP.parsePushBody(body, settings.max_per_send);
+        if (!parsed.ok) return json({ error: parsed.error }, 400);
+        const pr = parsed.req;
+        if (!pr.dry_run && !settings.enabled) {
+          return json({ error: "Sending to MEX is switched off. Use the MEX CSV on /orders.", code: "mex_push_disabled" }, 409);
+        }
+        const owner = await isBusinessOwner(user.id);
+        const client = MP.createMexClient({
+          keys: { bio_natural: Deno.env.get("MEX_API_KEY") || undefined, natura: Deno.env.get("MEX_API_KEY_2") || undefined },
+          fetch: (u, init) => fetch(u, init as RequestInit),
+        });
+        const deps: MP.PushDeps = {
+          settings,
+          client,
+          facts: async (ids) => {
+            const { data, error } = await adminClient.rpc("warehouse_order_facts", { p_ids: ids });
+            if (error) throw new Error(`warehouse_order_facts: ${error.message}`);
+            return (data ?? []) as MP.PushOrder[];
+          },
+          claim: async (id) => {
+            const { data, error } = await adminClient.rpc("mex_push_claim", {
+              p_order: id, p_actor: user.id, p_stale_minutes: MP.MEX_CLAIM_STALE_MINUTES,
+            });
+            if (error) { console.error("mex_push_claim:", error.message); return { claimed: false, reason: "claim_failed" }; }
+            return data as MP.ClaimReply;
+          },
+          record: async (a) => {
+            const { data, error } = await adminClient.rpc("mex_push_record", {
+              p_order: a.order_id, p_claimed_at: a.claimed_at, p_account: a.account, p_status: a.status,
+              p_tracking: a.tracking_id, p_request: a.request ?? null, p_response: a.response ?? null,
+              p_request_hash: a.request_hash, p_error: a.error, p_actor: user.id,
+              p_parcel: a.parcel, p_release: a.release,
+            });
+            if (error) {
+              console.error(`mex_push_record ${a.order_id} (${a.status}${a.tracking_id ? " " + a.tracking_id : ""}):`, error.message);
+              return { status: "error", error: `record_failed: ${error.message}` };
+            }
+            return data as MP.RecordReply;
+          },
+          registerLookup: async (ref, phone) => {
+            const digits = ref.replace(/\D/g, "");
+            const p8 = String(phone || "").replace(/\D/g, "").slice(-8);
+            const terms = [`tracking_id.eq.${ref}`, `sender_reference.eq.${ref}`];
+            if (digits && digits !== ref) terms.push(`tracking_id.eq.${digits}`, `sender_reference.eq.${digits}`);
+            const { data, error } = await adminClient.from("mex_parcels")
+              .select("tracking_id, account, status_id, phone8, sender_reference").or(terms.join(",")).limit(10);
+            if (error) throw new Error(`mex_parcels lookup: ${error.message}`);
+            const rows = (data || []) as Array<{ tracking_id: string; account: MP.MexAccount; status_id: number | null; phone8: string | null; sender_reference: string | null }>;
+            const exact = rows.find((r) => r.tracking_id === ref || r.sender_reference === ref);
+            if (exact) return { tracking_id: exact.tracking_id, account: exact.account, status_id: exact.status_id, match: "ref" };
+            const csv = rows.find((r) => p8.length === 8 && r.phone8 === p8);
+            return csv ? { tracking_id: csv.tracking_id, account: csv.account, status_id: csv.status_id, match: "csv_code" } : null;
+          },
+          now: () => new Date(),
+        };
+        let out: Awaited<ReturnType<typeof MP.runMexPush>>;
+        try {
+          out = await MP.runMexPush(pr, deps);
+        } catch (e) {
+          console.error("mex push failed:", (e as Error).message);
+          return json({ error: "The MEX push failed before it finished — check the order list before trying again." }, 500);
+        }
+        if (!pr.dry_run) {
+          await audit(adminClient, user.id, user.email, "mex.push", {
+            target_type: "orders", target_id: pr.order_ids.length === 1 ? pr.order_ids[0] : null,
+            payload: MP.pushAuditPayload(pr, out),
+          });
+        }
+        return json({
+          dry_run: pr.dry_run,
+          results: owner ? out.results : out.results.map(MP.stripPushMoney),
+          stopped: out.stopped,
+          settings: { enabled: settings.enabled, accounts: settings.accounts },
+          keys: mexKeys,
+          money: owner,
+        });
+      }
+      return json({ error: "Method not allowed" }, 405);
+    }
+
     // GET /api/warehouse/incoming-orders (confirmed orders + confirmed prediction leads)
     if (req.method === "GET" && path === "warehouse/incoming-orders") {
       if (!canViewModule("warehouse_incoming")) return json({ error: "Forbidden" }, 403);
@@ -15547,13 +15702,16 @@ async function handleRequest(req: Request): Promise<Response> {
     if (req.method === "GET" && path === "stock-movements") {
       const productId = url.searchParams.get("product_id");
       const movementType = url.searchParams.get("movement_type");
-      const limit = parseInt(url.searchParams.get("limit") || "100");
+      // limit ≤ 500 · offset for /warehouse → Движења "вчитај повеќе" (Фаза 9) — no silent cap.
+      const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") || "100") || 100, 1), 500);
+      const offset = Math.max(parseInt(url.searchParams.get("offset") || "0") || 0, 0);
 
       let query = adminClient
         .from("inventory_logs")
         .select("*, products:product_id(name, sku)")
         .order("created_at", { ascending: false })
-        .limit(limit);
+        .order("id", { ascending: false })
+        .range(offset, offset + limit - 1);
 
       if (productId) query = query.eq("product_id", productId);
       if (movementType) query = query.eq("movement_type", movementType);

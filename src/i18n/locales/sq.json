@@ -7399,6 +7399,244 @@
       "13": "E refuzuar"
     }
   },
+  "warehousePage": {
+    "loadFailed": "Magazina nuk u ngarkua.",
+    "retry": "Provo përsëri",
+    "kpi": {
+      "send": "Dërgo në MEX",
+      "sendSub": "{{noAddress}} pa adresë · {{noZone}} pa zonë MEX",
+      "pack": "Për paketim",
+      "packSub": "te MEX, presin korrierin · edhe {{stale}} më të vjetra se {{days}} ditë",
+      "waiting": "Presin > 3 ditë",
+      "waitingSub": "{{send}} për dërgim · {{pack}} për paketim",
+      "products": "Produkte aktive",
+      "productsSub": "{{low}} me stok të ulët"
+    },
+    "tabs": {
+      "send": "Dërgo në MEX",
+      "pack": "Për paketim",
+      "stock": "Stoku",
+      "movements": "Lëvizjet"
+    },
+    "filters": {
+      "departments": "Departamentet",
+      "allDepartments": "Të gjitha",
+      "order": "Renditja",
+      "oldest": "Më të vjetrat së pari",
+      "newest": "Më të rejat së pari"
+    },
+    "pager": {
+      "range": "{{from}}–{{to}} nga {{total}}",
+      "prev": "Mbrapa",
+      "next": "Para"
+    },
+    "send": {
+      "desc": "Porosi të konfirmuara pa pako MEX. Zgjidhi dhe dërgoji — pakoja krijohet në profilin BIO NATURAL ose NATURA.",
+      "switchOff": "Dërgimi në MEX është i fikur. Tani për tani pakot krijohen me “MEX Import CSV” te Porositë (ose përmes collabBox).",
+      "button": "Dërgo në MEX ({{count}})",
+      "buttonDisabled": "Dërgo në MEX",
+      "selectPage": "Zgjidh të gjitha në këtë faqe",
+      "selectRow": "Zgjidh {{id}}",
+      "clear": "Pastro zgjedhjen",
+      "selected_one": "{{count}} porosi e zgjedhur",
+      "selected_other": "{{count}} porosi të zgjedhura",
+      "max": "Më së shumti {{max}} porosi në një dërgim.",
+      "empty": "Nuk ka porosi të konfirmuara pa pako.",
+      "emptyFiltered": "Nuk ka porosi për departamentet e zgjedhura.",
+      "noAddressNote": "{{count}} porosi të konfirmuara nuk kanë adresë në CRM — operatorët e shkruajnë në collabBox. Pa adresë porosia nuk mund të dërgohet nga këtu.",
+      "col": {
+        "order": "Porosia",
+        "customer": "Klienti",
+        "city": "Qyteti / zona MEX",
+        "products": "Produktet",
+        "value": "Vlera",
+        "department": "Departamenti",
+        "profile": "Profili",
+        "checks": "Kontrolli"
+      },
+      "noZone": "pa zonë",
+      "sold": "shitur {{date}}",
+      "seller": "shitësi: {{name}}",
+      "shipAfter": "dërgo pas {{date}}"
+    },
+    "profile": {
+      "label": "Profili: {{account}}",
+      "pick": "Profili: zgjidh",
+      "basis": {
+        "product_line": "sipas produkteve",
+        "department": "sipas departamentit",
+        "none": "pa propozim"
+      },
+      "reason": {
+        "mixed_basket": "shportë e përzier (Bio Natural + Natura)",
+        "line_missing": "produktet nuk kanë linjë — propozim sipas departamentit",
+        "line_partial": "disa produkte nuk kanë linjë",
+        "department_disagrees": "departamenti tregon {{account}}",
+        "team_disagrees": "ekipi i shitësit tregon {{account}}",
+        "no_department_profile": "departamenti nuk vendos profil",
+        "web_order": "porosi web — nuk dërgohet nga CRM"
+      },
+      "needsPick": "zgjedhje manuale"
+    },
+    "check": {
+      "ok": "Gati",
+      "missing": "Mungon: {{list}}"
+    },
+    "code": {
+      "name": "emri dhe mbiemri",
+      "phone": "telefoni",
+      "postal_code": "kodi postar",
+      "product": "produkti",
+      "price": "çmimi",
+      "address": "adresa",
+      "house_number": "numri i shtëpisë",
+      "office": "zyra",
+      "mex_city": "zona MEX",
+      "not_confirmed": "nuk është konfirmuar",
+      "has_parcel": "ka tashmë pako",
+      "already_sent": "është dërguar tashmë",
+      "web_order": "porosi web",
+      "test_phone": "telefon testimi",
+      "ship_later": "dërgo më vonë",
+      "no_reference": "pa numër porosie",
+      "needs_pick": "duhet zgjedhur profili",
+      "bad_override": "zgjedhja e profilit nuk ka arsye",
+      "double_parcel_risk": "pako e mundshme e dyfishtë",
+      "account_disabled": "profili është i fikur",
+      "account_not_configured": "nuk ka çelës API për profilin",
+      "csv_parcel_exists": "MEX e ka tashmë nga importi CSV — lidhet vetë",
+      "existence_check_failed": "MEX nuk iu përgjigj kontrollit",
+      "mex_key_rejected": "MEX e refuzoi çelësin API",
+      "mex_refused": "MEX e refuzoi pakon",
+      "unknown_outcome": "nuk dihet nëse MEX e krijoi",
+      "created_not_saved": "u krijua te MEX, por nuk u ruajt në CRM",
+      "claimed_recently": "dikush tjetër po e dërgon tani",
+      "claim_failed": "nuk mund të rezervohej",
+      "not_found": "nuk ekziston",
+      "time_budget": "nuk arriti në këtë dërgim",
+      "not_configured": "MEX e refuzoi çelësin API",
+      "link_conflict": "pakoja i përket një porosie tjetër",
+      "record_failed": "nuk u regjistrua në CRM",
+      "exists_in_register": "MEX e ka tashmë — do të lidhet"
+    },
+    "warn": {
+      "double": "Pako e mundshme e dyfishtë",
+      "unlinkedParcel": "Pako MEX e palidhur në të njëjtin telefon: {{tracking}} ({{account}})",
+      "collabboxDoc": "Dokument collabBox në të njëjtin telefon: {{doc}} ({{date}})",
+      "otherParcel": "Pako tjetër në të njëjtin telefon: {{tracking}} ({{order}})",
+      "sentUnconfirmed": "Dërgimi i mëparshëm nuk u konfirmua ({{date}}) — CRM kontrollon së pari te MEX",
+      "lastAttemptFailed": "Përpjekja e fundit dështoi: {{error}}"
+    },
+    "npr": {
+      "left_one": "Rregulli 10 ditë: edhe {{count}} ditë",
+      "left_other": "Rregulli 10 ditë: edhe {{count}} ditë",
+      "today": "Rregulli 10 ditë: anulohet sonte",
+      "hint": "Një porosi AlterCPA pa pako MEX 10 ditë pas miratimit anulohet automatikisht në 21:10."
+    },
+    "dialog": {
+      "title": "Dërgo në MEX",
+      "checking": "Po kontrolloj porositë…",
+      "checkFailed": "Kontrolli dështoi.",
+      "summary": "{{ready}} gati · {{blocked}} nuk mund të dërgohen",
+      "ready": "Gati",
+      "blocked": "Nuk mundet",
+      "fields": {
+        "name": "Emri",
+        "address": "Adresa",
+        "zone": "Zona MEX",
+        "phone": "Telefoni",
+        "cod": "Pagesa në dorëzim",
+        "opis": "Shënim"
+      },
+      "account": "Profili",
+      "reason": "Arsyeja e zgjedhjes",
+      "reasonPh": "p.sh. produkt Natura Therapy",
+      "doubleOk": "Kontrollova portalin MEX — nuk ka pako tjetër",
+      "noCancel": "MEX nuk ka anulim. Një pako e krijuar mund të anulohet vetëm në portalin MEX.",
+      "confirm_one": "E kuptoj — krijo {{count}} pako",
+      "confirm_other": "E kuptoj — krijo {{count}} pako",
+      "send_one": "Dërgo {{count}}",
+      "send_other": "Dërgo {{count}}",
+      "sending": "Po dërgohet… {{done}}/{{total}}",
+      "recheck": "Kontrollo përsëri",
+      "close": "Mbyll",
+      "cancel": "Anulo",
+      "done": "{{sent}} të krijuara · {{linked}} të lidhura · {{failed}} të dështuara",
+      "result": {
+        "sent": "U krijua: {{tracking}}",
+        "exists_linked": "Ekzistonte tashmë te MEX — u lidh: {{tracking}}",
+        "skipped": "Nuk u dërgua: {{reason}}",
+        "error": "Gabim: {{reason}}",
+        "unknown_outcome": "Nuk dihet nëse MEX e krijoi — mos e dërgo përsëri, kontrollo portalin MEX",
+        "not_claimed": "U anashkalua: {{reason}}",
+        "deferred": "Nuk arriti — dërgoje përsëri"
+      }
+    },
+    "pack": {
+      "desc": "Pako në statusin MEX 8 “Shipment created” — të krijuara, presin korrierin. Etiketat dhe fleta e paketimit merren nga portali MEX.",
+      "showStale_one": "Më të vjetra se {{days}} ditë ({{count}})",
+      "showStale_other": "Më të vjetra se {{days}} ditë ({{count}})",
+      "showFresh": "{{days}} ditët e fundit",
+      "staleNote": "Pako që korrieri nuk i ka marrë më shumë se {{days}} ditë — kontrolloji në portalin MEX.",
+      "day_one": "{{date}} · {{count}} pako",
+      "day_other": "{{date}} · {{count}} pako",
+      "age_one": "para {{count}} dite",
+      "age_other": "para {{count}} ditësh",
+      "ageToday": "sot",
+      "mexOnly": "vetëm te MEX",
+      "pushed": "dërguar nga CRM",
+      "empty": "Nuk ka pako që presin korrierin.",
+      "col": {
+        "tracking": "Pakoja MEX",
+        "order": "Porosia",
+        "receiver": "Marrësi",
+        "products": "Produktet",
+        "cod": "Pagesa në dorëzim",
+        "department": "Departamenti",
+        "age": "Pret"
+      }
+    },
+    "stock": {
+      "showInactive": "Shfaq joaktivët ({{count}})",
+      "threshold": "Pragu",
+      "thresholdLabel": "Pragu i stokut të ulët — {{name}}",
+      "thresholdHint": "Paralajmërim kur stoku bie nën prag.",
+      "thresholdSaved": "Pragu u ruajt",
+      "thresholdFailed": "Pragu nuk u ruajt",
+      "stock": "Stoku",
+      "empty": "Nuk ka produkte."
+    },
+    "movements": {
+      "loadMore": "Ngarko më shumë",
+      "shown_one": "{{count}} lëvizje e shfaqur",
+      "shown_other": "{{count}} lëvizje të shfaqura",
+      "note": {
+        "placeholder": "Stok i përkohshëm {{n}} (deri në numërimin e pronarit)",
+        "bulkSet": "Stoku u vendos në {{n}} pako ({{date}})",
+        "bulkShipped": "Dërguar në grup — {{product}}",
+        "orderShipped": "Porosia {{id}} u dërgua (magazina)",
+        "orderShippedProduct": "Porosia {{id}} u dërgua (magazina) — {{product}}"
+      }
+    },
+    "settings": {
+      "title": "Dërgimi në MEX",
+      "desc": "Aktivizon “Dërgo në MEX” për magazinën. Sa është i fikur, pakot krijohen me MEX CSV.",
+      "global": "Dërgimi në MEX",
+      "account": "Profili {{account}}",
+      "on": "Ndezur",
+      "off": "Fikur",
+      "noKey": "pa çelës API",
+      "autoSend": "Dërgimi automatik në 11:00: i ndërtuar, jo i planifikuar.",
+      "max": "Më së shumti {{n}} porosi në një dërgim.",
+      "confirmOnTitle": "Ta ndez?",
+      "confirmOn": "Çdo “Dërgo” do të krijojë një pako të vërtetë te MEX, dhe MEX nuk ka anulim. Ndryshimi regjistrohet.",
+      "confirmOffTitle": "Ta fik?",
+      "confirmOff": "Magazina nuk do të mund të dërgojë më në MEX; MEX CSV mbetet.",
+      "confirm": "Konfirmo",
+      "saved": "U ruajt",
+      "saveFailed": "Nuk u ruajt"
+    }
+  },
   "stockCount": {
     "tab": "Inventarizimi",
     "title": "Inventarizimi (numërim fizik)",

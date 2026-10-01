@@ -7399,6 +7399,244 @@
       "13": "Rejected"
     }
   },
+  "warehousePage": {
+    "loadFailed": "The warehouse did not load.",
+    "retry": "Try again",
+    "kpi": {
+      "send": "Send to MEX",
+      "sendSub": "{{noAddress}} without an address · {{noZone}} without a MEX zone",
+      "pack": "To pack",
+      "packSub": "at MEX, waiting for the courier · {{stale}} more older than {{days}} days",
+      "waiting": "Waiting > 3 days",
+      "waitingSub": "{{send}} to send · {{pack}} to pack",
+      "products": "Active products",
+      "productsSub": "{{low}} low on stock"
+    },
+    "tabs": {
+      "send": "Send to MEX",
+      "pack": "To pack",
+      "stock": "Stock",
+      "movements": "Movements"
+    },
+    "filters": {
+      "departments": "Departments",
+      "allDepartments": "All",
+      "order": "Order",
+      "oldest": "Oldest first",
+      "newest": "Newest first"
+    },
+    "pager": {
+      "range": "{{from}}–{{to}} of {{total}}",
+      "prev": "Previous",
+      "next": "Next"
+    },
+    "send": {
+      "desc": "Confirmed orders with no MEX parcel. Select them and send them — the parcel is created in the BIO NATURAL or the NATURA profile.",
+      "switchOff": "Sending to MEX is switched off. For now parcels are created with the “MEX Import CSV” on Orders (or through collabBox).",
+      "button": "Send to MEX ({{count}})",
+      "buttonDisabled": "Send to MEX",
+      "selectPage": "Select everything on this page",
+      "selectRow": "Select {{id}}",
+      "clear": "Clear selection",
+      "selected_one": "{{count}} order selected",
+      "selected_other": "{{count}} orders selected",
+      "max": "At most {{max}} orders per send.",
+      "empty": "No confirmed orders without a parcel.",
+      "emptyFiltered": "No orders for the selected departments.",
+      "noAddressNote": "{{count}} confirmed orders have no address in the CRM — the operators enter it in collabBox. Without an address an order cannot be sent from here.",
+      "col": {
+        "order": "Order",
+        "customer": "Customer",
+        "city": "City / MEX zone",
+        "products": "Products",
+        "value": "Value",
+        "department": "Department",
+        "profile": "Profile",
+        "checks": "Checks"
+      },
+      "noZone": "no zone",
+      "sold": "sold {{date}}",
+      "seller": "seller: {{name}}",
+      "shipAfter": "ship after {{date}}"
+    },
+    "profile": {
+      "label": "Profile: {{account}}",
+      "pick": "Profile: choose",
+      "basis": {
+        "product_line": "by the products",
+        "department": "by the department",
+        "none": "no suggestion"
+      },
+      "reason": {
+        "mixed_basket": "mixed basket (Bio Natural + Natura)",
+        "line_missing": "the products have no line — suggested by the department",
+        "line_partial": "some products have no line",
+        "department_disagrees": "the department points to {{account}}",
+        "team_disagrees": "the seller's team points to {{account}}",
+        "no_department_profile": "the department decides no profile",
+        "web_order": "web order — never sent from the CRM"
+      },
+      "needsPick": "manual choice"
+    },
+    "check": {
+      "ok": "Ready",
+      "missing": "Missing: {{list}}"
+    },
+    "code": {
+      "name": "full name",
+      "phone": "phone",
+      "postal_code": "postal code",
+      "product": "product",
+      "price": "price",
+      "address": "address",
+      "house_number": "house number",
+      "office": "office",
+      "mex_city": "MEX zone",
+      "not_confirmed": "not confirmed",
+      "has_parcel": "already has a parcel",
+      "already_sent": "already sent",
+      "web_order": "web order",
+      "test_phone": "test phone",
+      "ship_later": "ship later",
+      "no_reference": "no order number",
+      "needs_pick": "a profile must be chosen",
+      "bad_override": "the profile choice has no reason",
+      "double_parcel_risk": "possible double parcel",
+      "account_disabled": "the profile is switched off",
+      "account_not_configured": "no API key for the profile",
+      "csv_parcel_exists": "MEX already has it from a CSV import — it links by itself",
+      "existence_check_failed": "MEX did not answer the check",
+      "mex_key_rejected": "MEX rejected the API key",
+      "mex_refused": "MEX refused the parcel",
+      "unknown_outcome": "unknown whether MEX created it",
+      "created_not_saved": "created at MEX but not saved in the CRM",
+      "claimed_recently": "someone else is sending it right now",
+      "claim_failed": "could not be reserved",
+      "not_found": "does not exist",
+      "time_budget": "did not fit in this send",
+      "not_configured": "MEX rejected the API key",
+      "link_conflict": "the parcel belongs to another order",
+      "record_failed": "not recorded in the CRM",
+      "exists_in_register": "MEX already has it — it will be linked"
+    },
+    "warn": {
+      "double": "Possible double parcel",
+      "unlinkedParcel": "Unlinked MEX parcel on the same phone: {{tracking}} ({{account}})",
+      "collabboxDoc": "collabBox document on the same phone: {{doc}} ({{date}})",
+      "otherParcel": "Another parcel on the same phone: {{tracking}} ({{order}})",
+      "sentUnconfirmed": "The previous send was not confirmed ({{date}}) — the CRM checks MEX first",
+      "lastAttemptFailed": "The last attempt failed: {{error}}"
+    },
+    "npr": {
+      "left_one": "10-day rule: {{count}} day left",
+      "left_other": "10-day rule: {{count}} days left",
+      "today": "10-day rule: cancelled tonight",
+      "hint": "An AlterCPA order with no MEX parcel 10 days after its approval is cancelled automatically at 21:10."
+    },
+    "dialog": {
+      "title": "Send to MEX",
+      "checking": "Checking the orders…",
+      "checkFailed": "The check failed.",
+      "summary": "{{ready}} ready · {{blocked}} cannot be sent",
+      "ready": "Ready",
+      "blocked": "Cannot",
+      "fields": {
+        "name": "Name",
+        "address": "Address",
+        "zone": "MEX zone",
+        "phone": "Phone",
+        "cod": "COD",
+        "opis": "Note"
+      },
+      "account": "Profile",
+      "reason": "Reason for the choice",
+      "reasonPh": "e.g. a Natura Therapy product",
+      "doubleOk": "I checked the MEX portal — there is no other parcel",
+      "noCancel": "MEX has no cancellation. A created parcel can only be cancelled in the MEX portal.",
+      "confirm_one": "I understand — create {{count}} parcel",
+      "confirm_other": "I understand — create {{count}} parcels",
+      "send_one": "Send {{count}}",
+      "send_other": "Send {{count}}",
+      "sending": "Sending… {{done}}/{{total}}",
+      "recheck": "Check again",
+      "close": "Close",
+      "cancel": "Cancel",
+      "done": "{{sent}} created · {{linked}} linked · {{failed}} failed",
+      "result": {
+        "sent": "Created: {{tracking}}",
+        "exists_linked": "Already existed at MEX — linked: {{tracking}}",
+        "skipped": "Not sent: {{reason}}",
+        "error": "Error: {{reason}}",
+        "unknown_outcome": "Unknown whether MEX created it — do not send again, check the MEX portal",
+        "not_claimed": "Skipped: {{reason}}",
+        "deferred": "Did not fit — send it again"
+      }
+    },
+    "pack": {
+      "desc": "Parcels at MEX status 8 “Shipment created” — created, waiting for the courier. Labels and the packing slip come from the MEX portal.",
+      "showStale_one": "Older than {{days}} days ({{count}})",
+      "showStale_other": "Older than {{days}} days ({{count}})",
+      "showFresh": "Last {{days}} days",
+      "staleNote": "Parcels the courier has not picked up for more than {{days}} days — check them in the MEX portal.",
+      "day_one": "{{date}} · {{count}} parcel",
+      "day_other": "{{date}} · {{count}} parcels",
+      "age_one": "{{count}} day ago",
+      "age_other": "{{count}} days ago",
+      "ageToday": "today",
+      "mexOnly": "MEX only",
+      "pushed": "sent from the CRM",
+      "empty": "No parcels waiting for the courier.",
+      "col": {
+        "tracking": "MEX parcel",
+        "order": "Order",
+        "receiver": "Receiver",
+        "products": "Products",
+        "cod": "COD",
+        "department": "Department",
+        "age": "Waiting"
+      }
+    },
+    "stock": {
+      "showInactive": "Show inactive ({{count}})",
+      "threshold": "Threshold",
+      "thresholdLabel": "Low-stock threshold — {{name}}",
+      "thresholdHint": "A warning when the stock falls below the threshold.",
+      "thresholdSaved": "Threshold saved",
+      "thresholdFailed": "Threshold not saved",
+      "stock": "Stock",
+      "empty": "No products."
+    },
+    "movements": {
+      "loadMore": "Load more",
+      "shown_one": "{{count}} movement shown",
+      "shown_other": "{{count}} movements shown",
+      "note": {
+        "placeholder": "Temporary stock {{n}} (until the owner's count)",
+        "bulkSet": "Stock set to {{n}} packages ({{date}})",
+        "bulkShipped": "Bulk shipped — {{product}}",
+        "orderShipped": "Order {{id}} shipped (warehouse)",
+        "orderShippedProduct": "Order {{id}} shipped (warehouse) — {{product}}"
+      }
+    },
+    "settings": {
+      "title": "Sending to MEX",
+      "desc": "Turns on “Send to MEX” for the warehouse. While it is off, parcels are created with the MEX CSV.",
+      "global": "Sending to MEX",
+      "account": "Profile {{account}}",
+      "on": "On",
+      "off": "Off",
+      "noKey": "no API key",
+      "autoSend": "Automatic send at 11:00: built, not scheduled.",
+      "max": "At most {{n}} orders per send.",
+      "confirmOnTitle": "Turn it on?",
+      "confirmOn": "Every “Send” will create a real parcel at MEX, and MEX has no cancellation. The change is logged.",
+      "confirmOffTitle": "Turn it off?",
+      "confirmOff": "The warehouse will no longer be able to send to MEX; the MEX CSV stays.",
+      "confirm": "Confirm",
+      "saved": "Saved",
+      "saveFailed": "Not saved"
+    }
+  },
   "stockCount": {
     "tab": "Stock count",
     "title": "Stock count (physical count)",
