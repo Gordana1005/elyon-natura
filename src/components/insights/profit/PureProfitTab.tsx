@@ -19,6 +19,7 @@ import { SourcePLTable } from './SourcePLTable';
 import { Waterfall } from './Waterfall';
 import PureProfitExportDialog from './PureProfitExportDialog';
 import { CacheNote } from './CacheNote';
+import { CostSourceNote } from './CostSourceNote';
 import { PROFIT_COLOR_VARS } from './profitPalette';
 import { stripRows } from './profitModel';
 import { useProfitQuery } from './useProfitQuery';
@@ -28,7 +29,9 @@ import { useProfitQuery } from './useProfitQuery';
  * for the page's one period: the P&L on two clocks — the SALES made in the
  * period and what MEX collected on them (cohort, the default), and the MONEY
  * that landed in the period (cash) — revenue → VAT → product cost (known +
- * labelled estimate) → MEX courier → returns → today's commission → lead cost
+ * labelled estimate; Sigma CalcBuyPrice through the recipes since 01.10.2026,
+ * the source line says which) → the gifts packed in the parcels (Phase B) → MEX
+ * courier → returns → today's commission → lead cost
  * (not configured) → net, by department, per Affiliate – Lead in webmaster, per product, per
  * day, with the cost-coverage rail. The previous render stays while a new
  * period loads.
@@ -89,6 +92,7 @@ export default function PureProfitTab() {
             </div>
             <ClockSwitch value={clockKey} onChange={setClockKey} cohort={data.cohort} cash={data.cash} f={f} />
             <CacheNote meta={data.meta} f={f} />
+            <CostSourceNote meta={data.meta} clock={clockKey} f={f} />
           </div>
 
           <ProfitHero clock={clock} meta={data.meta} prevLabel={prevLabel} f={f} />

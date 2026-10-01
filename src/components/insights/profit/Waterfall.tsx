@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import type { PLRow, ProfitResponse } from '@/lib/insightsApi/profit';
 import type { InsightsFormat } from '../shared/useInsightsFormat';
 import { PP_FILL, PP_HATCH } from './profitPalette';
-import { defaultVatRate, vatPerProduct, waterfall, type Basis, type Step } from './profitModel';
+import { costSource, defaultVatRate, vatPerProduct, waterfall, type Basis, type Step } from './profitModel';
 
 /**
  * Revenue → every cost → net profit, as a waterfall that reads top to bottom
@@ -34,12 +34,14 @@ export function Waterfall({ row, meta, clockLabel, f }: {
   const revenue = steps[0].value;
   const net = steps[steps.length - 1].value;
   const unclassified = row.vat_unclassified?.revenue_mkd ?? 0;
+  const sigma = costSource(meta) === 'sigma';
 
   const label = (s: Step): string => {
     switch (s.key) {
       case 'vat': return perProduct ? t('insights.profit.step.vatPerProduct') : t('insights.profit.step.vat', { pct: f.pct(dRate, 0) });
       case 'courier': return t('insights.profit.step.courier', { fee: f.den(meta.courier.deliver_mkd) });
       case 'returns': return t('insights.profit.step.returns', { fee: f.den(meta.courier.return_mkd) });
+      case 'cogs_extra': return t('profitCost.step.extra');
       default: return t(`insights.profit.step.${s.key}`);
     }
   };
@@ -48,6 +50,8 @@ export function Waterfall({ row, meta, clockLabel, f }: {
     if (s.key === 'vat' && !perProduct) return t('insights.profit.vat.flat', { pct: f.pct(dRate, 0) });
     if (s.key === 'lead' && !meta.lead_cost.configured) return t('insights.profit.chip.leadMissing');
     if (s.key === 'commission') return t('insights.profit.chip.commissionRule');
+    // the product cost's source (owner 01.10.2026): Sigma CalcBuyPrice, or the old catalogue prices — said so
+    if (s.key === 'cogs_known') return sigma ? t('profitCost.chip.sigma') : t('profitCost.chip.legacy');
     if (s.key === 'returns' && meta.courier.return_mkd === 0) return t('insights.profit.chip.returnFeePending');
     if (s.key === 'cogs_est') return t('insights.profit.chip.estimate', { share: f.pct(row.revenue_mkd > 0 ? (row.cogs_est_mkd ?? 0) / Math.max(1, row.revenue_uncosted_mkd) : null) });
     return null;
@@ -85,7 +89,7 @@ export function Waterfall({ row, meta, clockLabel, f }: {
                 <span className="block truncate" title={label(s)}>{label(s)}</span>
                 {c && (
                   <span className={cn('mt-0.5 inline-flex items-center gap-1 rounded-full px-1.5 py-px text-[10px] font-medium',
-                    s.pending || (s.key === 'vat' && !perProduct) || s.key === 'returns'
+                    s.pending || (s.key === 'vat' && !perProduct) || s.key === 'returns' || (s.key === 'cogs_known' && !sigma)
                       ? 'bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-200' : 'bg-muted text-muted-foreground')}>
                     {(s.pending || (s.key === 'vat' && !perProduct)) && <BadgeAlert className="h-3 w-3" aria-hidden />}{c}
                   </span>

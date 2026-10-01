@@ -29,7 +29,10 @@
  *       total on every line, VAT = Σ per line at each product's Sigma rate (the RPC's
  *       vt — 20260944000900; an older body: revenue × 5/105) and = its 5 % / 18 % parts,
  *       courier = parcels × the MEX rate, Σ product commission = the commission line,
- *       net = revenue − costs
+ *       net = revenue − costs (the extra packed goods of Phase B included — 20260945000800)
+ *   P7  Sigma purchase costs (20260945000800): the payload says its cost mode; Σ products'
+ *       extra packed goods = the P&L's (cx); the extra is only on collected sales and the
+ *       MEX-only revenue it costs (xr) sits inside the costed revenue (rc)
  *   H   the headline numbers of both clocks
  *
  * Safety: pinned to Macedonia (the guard, runSql and assertReadOnly of
@@ -43,7 +46,7 @@ import { runSql } from './verify-insights-ties.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 // the newest migration that emits insights_profit() (its query text is what runs)
-const MIGRATIONS = ['20260944000900_product_vat_rate.sql', '20260942000200_insights_profit_monthly.sql', '20260941000300_insights_profit.sql']
+const MIGRATIONS = ['20260945000800_profit_sigma_costs.sql', '20260944000900_product_vat_rate.sql', '20260942000200_insights_profit_monthly.sql', '20260941000300_insights_profit.sql']
   .map((m) => join(ROOT, 'supabase', 'migrations', m));
 const MIGRATION = MIGRATIONS.find((p) => { try { readFileSync(p); return true; } catch { return false; } });
 const EXIT = { OK: 0, FAIL: 1, ERROR: 2 };
@@ -83,8 +86,10 @@ export function migrationQueries(text) {
 }
 
 function bind(q, { fromIso, toEndIso, gran, detail }) {
+  // $5 / $6 (20260945000800): the cost mode and Phase B — the migration's text runs on the legacy costs
   return q.replaceAll('$1', `${lit(fromIso)}::timestamptz`).replaceAll('$2', `${lit(toEndIso)}::timestamptz`)
-    .replaceAll('$3', `${lit(gran)}::text`).replaceAll('$4', detail ? 'true' : 'false');
+    .replaceAll('$3', `${lit(gran)}::text`).replaceAll('$4', detail ? 'true' : 'false')
+    .replaceAll('$5', `'legacy'::text`).replaceAll('$6', 'false');
 }
 
 async function profitRpc(sql, live, queries, w, clock, gran) {
@@ -233,7 +238,7 @@ export async function verify({ from, to, sql, now = new Date() }) {
       if (!near(sum(parts, 'vat_mkd'), t.vat_mkd, 1 + parts.length)) fails.push(`${clock} VAT parts ${sum(parts, 'vat_mkd')} ≠ ${t.vat_mkd}`);
       if (!near(sum(parts, 'revenue_mkd'), t.revenue_mkd, 1 + parts.length)) fails.push(`${clock} VAT parts' revenue ${sum(parts, 'revenue_mkd')} ≠ ${t.revenue_mkd}`);
       if (!near(t.courier_mkd, t.parcels_delivered * deliver, 1)) fails.push(`${clock} courier ${t.courier_mkd} ≠ ${t.parcels_delivered} × ${deliver}`);
-      const costs = t.vat_mkd + t.cogs_known_mkd + (t.cogs_est_mkd ?? 0) + t.courier_mkd + t.returns_mkd + t.commission_mkd + t.lead_cost_mkd;
+      const costs = t.vat_mkd + t.cogs_known_mkd + (t.cogs_est_mkd ?? 0) + (t.cogs_extra_mkd ?? 0) + t.courier_mkd + t.returns_mkd + t.commission_mkd + t.lead_cost_mkd;
       if (!near(t.revenue_mkd - costs, t.net_mkd, 4)) fails.push(`${clock} net ${t.net_mkd} ≠ revenue − costs ${t.revenue_mkd - costs}`);
     }
     const prodComm = sum(resp.products, 'commission_mkd') + n(resp.products_others?.commission_mkd);
@@ -241,6 +246,36 @@ export async function verify({ from, to, sql, now = new Date() }) {
     const prodRev = sum(resp.products, 'revenue_mkd') + n(resp.products_others?.revenue_mkd);
     if (!near(prodRev, resp.cohort.total.revenue_mkd, 2 + resp.products.length * 0.5)) fails.push(`Σ product revenue ${prodRev} ≠ ${resp.cohort.total.revenue_mkd}`);
     check('P6', "the api's P&L adds up (sources, VAT, courier, net, products)", fails);
+  }
+
+  // P7 — Sigma purchase costs + Phase B (20260945000800)
+  {
+    const fails = [];
+    const info = [];
+    for (const [clock, r] of [['cohort', cohort], ['cash', cash]]) {
+      info.push(`${clock}: cost ${r.cost_mode ?? 'legacy (older body)'}${r.extra_goods ? ' + extra packed goods' : ''}`);
+      const S = (r.agg ?? []).filter((x) => x.dim === 's');
+      const off = S.filter((x) => x.g !== 'collected' && (n(x.cx) !== 0 || n(x.xr) !== 0));
+      if (off.length) fails.push(`${clock}: extra goods on ${off.map((x) => `${x.g}/${x.key}`).join(', ')} — only collected parcels carry a cost`);
+      for (const x of S.filter((y) => y.g === 'collected')) {
+        if (n(x.xr) > n(x.rc) + 1) fails.push(`${clock} ${x.key}: MEX-only revenue now costed ${x.xr} > costed revenue ${x.rc}`);
+        if (n(x.cxn) > 0.000001) fails.push(`${clock} ${x.key}: the negative part ${x.cxn} is positive`);
+      }
+      if (!r.extra_goods && S.some((x) => n(x.cx) !== 0)) fails.push(`${clock}: extra goods without Phase B`);
+    }
+    const P = (cohort.products ?? []).filter((p) => p.g === 'collected');
+    const S = (cohort.agg ?? []).filter((x) => x.dim === 's' && x.g === 'collected');
+    if (P.some((p) => p.cx !== undefined) && !near(sum(P, 'cx'), sum(S, 'cx'), 1 + P.length * 0.01)) {
+      fails.push(`Σ products extra ${sum(P, 'cx')} ≠ ${sum(S, 'cx')}`);
+    }
+    const prodExtra = sum(resp.products, 'cogs_extra_mkd') + n(resp.products_others?.cogs_extra_mkd);
+    if (!near(prodExtra, n(resp.cohort.total.cogs_extra_mkd), 2 + resp.products.length * 0.5)) {
+      fails.push(`Σ product extra ${prodExtra} ≠ ${resp.cohort.total.cogs_extra_mkd}`);
+    }
+    const mode = (r) => (r.cost_mode === 'sigma' ? 'sigma' : r.cost_mode === 'mixed' ? 'mixed' : 'legacy');
+    const want = mode(cohort) === mode(cash) ? mode(cohort) : 'mixed';
+    if (resp.meta.cost && resp.meta.cost.source !== want) fails.push(`meta.cost.source ${resp.meta.cost.source} ≠ ${want}`);
+    check('P7', 'Sigma purchase costs: the cost mode, the extra packed goods (collected only, Σ products = P&L)', fails, info);
   }
 
   return { w, live, resp, results };

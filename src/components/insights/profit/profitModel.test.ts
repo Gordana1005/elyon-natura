@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { PLRow, ProfitProduct } from '@/lib/insightsApi/profit';
 import type { ProfitResponse } from '@/lib/insightsApi/profit';
 import {
-  defaultVatRate, floorPrice, floorStatus, packageBonusRate, productUnit, productVatRate, simPriceFor, simulate, sortProducts,
+  costSource, defaultVatRate, extraGoods, floorPrice, floorStatus, packageBonusRate, productUnit, productVatRate, simPriceFor, simulate, sortProducts,
   stripRows, totalCosts, vatPerProduct, waterfall,
 } from './profitModel';
 
@@ -144,5 +144,31 @@ describe('the strip as CohortBar rows', () => {
     const rows = stripRows({ total: t, buckets: [], outside: [], by_source: [{ key: 'web', total: t, buckets: [], outside: [] }] });
     expect(rows[0]).toMatchObject({ key: 'web', total: t, splits: [] });
     expect(rows[0].leads_in.came_in).toBe(0);
+  });
+});
+
+describe('Sigma purchase costs (owner 01.10.2026)', () => {
+  it('the extra packed goods are a step of both bases, after the product cost', () => {
+    const r = row({ cogs_extra_mkd: 300, net_mkd: 19017, costed: { revenue_mkd: 20000, net_mkd: 12118, margin: 12118 / 20000 } });
+    const s = waterfall(r, 'estimated', 0.05);
+    expect(s.map((x) => x.key)).toEqual(['revenue', 'vat', 'cogs_known', 'cogs_est', 'cogs_extra', 'courier', 'returns', 'commission', 'lead', 'net']);
+    expect(s.find((x) => x.key === 'cogs_extra')).toMatchObject({ value: -300 });
+    expect(s.find((x) => x.key === 'cogs_extra')!.estimate).toBeFalsy();
+    expect(waterfall(r, 'costed', 0.05).some((x) => x.key === 'cogs_extra')).toBe(true);
+    expect(totalCosts(r)).toBe(totalCosts(row()) + 300);
+    // Phase B off / an older api: no step, nothing added
+    expect(waterfall(row(), 'estimated', 0.05).some((x) => x.key === 'cogs_extra')).toBe(false);
+    expect(extraGoods(row())).toBe(0);
+  });
+
+  it("a package's cost carries its share of the packed gifts", () => {
+    const u = productUnit(prod({ cogs_extra_mkd: 200 }))!;
+    expect(u.cost).toBe((3600 + 200) / 20);
+  });
+
+  it('the cost source: Sigma when the api says so, else the legacy catalogue', () => {
+    const meta = { vat: { rate: 0.05, confirmed: true } } as unknown as ProfitResponse['meta'];
+    expect(costSource(meta)).toBe('legacy');
+    expect(costSource({ ...meta, cost: { source: 'sigma' } } as unknown as ProfitResponse['meta'])).toBe('sigma');
   });
 });
