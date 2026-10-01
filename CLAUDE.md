@@ -199,7 +199,18 @@ target **explicitly** and verify it before running:
   `app_settings.no_parcel_rule.days = 10` — was 7 until 28.09).** An AlterCPA approval with no MEX
   parcel 10 days later is cancelled nightly at 21:10 Skopje (reason code stays `no_parcel_7d`); a
   parcel that appears later sends it back to shipped and MEX takes over (rule C, and the 9110
-  upsell revive). Same-phone unlinked parcel → `needs_linking`, never cancelled.
+  upsell revive). Same-phone unlinked parcel → `needs_linking`, never cancelled. **Two exemptions (owner,
+  01.10, `20260944000960`):** `in_collab` (a collabBox sales document for the customer since the sale, not a
+  storno / another order's) and `postponed` (a note postpones the DELIVERY — the regex is documented in the
+  migration; "ќе се јави" never counts; ≤ `postpone_days` 45) are never cancelled either.
+- **Phone + date links — owner law, 01.10.2026 (`20260944000950`):** the truth is MEX (+ collabBox), NEVER
+  AlterCPA (a commercial artifact — the ~30 % confirmation guarantee); nothing is ever pushed to AlterCPA. An
+  orphan 9110/9103 parcel is linked to the ONE order on its last-8 phone created −10 d … +1 d that holds no
+  parcel and fits no other orphan parcel — amount ignored (up-sells); > 72 h apart the collabBox document must
+  carry the product BY NAME. One definition: `link_lead_parcels_plan()`; cron `link-lead-parcels` 21:02 Skopje
+  (switch `app_settings.link_lead_parcels`, seeded `report`); backfill `scripts/repair-link-lead-parcels.mjs`;
+  every run undone by `scripts/rollback-repair.mjs --run <id>`; proof `node scripts/verify-parcel-link-rules.mjs`.
+  Old September `credit_pending` LEADS documents: `scripts/collabbox-recredit.mjs`. See `docs/ALTERCPA-BRIDGE.md`.
 - **Денари everywhere (owner, 28.09):** every staff-facing amount — screens, charts, exports,
   notifications — is shown in денари. The only EUR on screen is the foreign affiliate payout above.
 - **COD ≠ CRM price → MEX is right** (owner): the CRM price follows the parcel COD, except when COD =

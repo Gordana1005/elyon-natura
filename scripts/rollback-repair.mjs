@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 /**
  * Roll back one applied data-repair run (repair-mex-ghost-links / repair-altercpa-catchup-paid /
- * repair-cod-price). A repair-test-phones run is undone by its own
+ * repair-cod-price / link-lead-parcels — the backfill AND every nightly cron apply of
+ * public.link_lead_parcels(), whose ledger rows are written in the same snapshot shape, migration
+ * 20260944000950). A collabbox-recredit run is undone by `scripts/collabbox-recredit.mjs --rollback <run>`.
+ * A repair-test-phones run is undone by its own
  * `node scripts/repair-test-phones.mjs --restore <run>` (the orders are gone — they are
  * re-inserted from the snapshot, not updated back).
  *
@@ -176,6 +179,11 @@ async function main() {
   }
   if (key === `restore-${TEST_PHONES_KEY}`) {
     die(`run ${args.run} restored deleted orders; to delete them again, dry-run repair-test-phones.mjs anew and apply that run.`);
+  }
+  if (key === 'collabbox-recredit' || key === 'rollback-collabbox-recredit') {
+    // Its ledger snapshots sold_* + the collabBox document row, not SNAP_COLUMNS — it has its own rollback.
+    die(`run ${args.run} is a collabBox credit re-run:\n  node scripts/collabbox-recredit.mjs --rollback ${args.run}          (preview)\n` +
+      `  node scripts/collabbox-recredit.mjs --rollback ${args.run} --apply`);
   }
   if (key === 'open-order-zones' || key === 'rollback-open-order-zones') {
     // Its ledger snapshots the zone columns, not SNAP_COLUMNS — it has its own rollback.

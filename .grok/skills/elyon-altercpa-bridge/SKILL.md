@@ -217,6 +217,25 @@ series 9110 parcel with a COD > 0, inside the ship window, on a phone whose only
 AlterCPA `no_parcel_7d` cancel. Rules: `supabase/functions/mex-reconcile/match.ts`
 (`pickCandidate`, `shipGate`). The no-parcel ledger (`no_parcel_rule_items`) is never rewritten
 by a reopen: its `cancelled` row stays the true record of that night.
+**Two exemptions (owner, 01.10.2026, `20260944000960`)** — still 10 days, still AlterCPA + affiliate:
+`in_collab` (a collabBox SALES document for the customer — phone8 or the komitent card — dated ≥ the sale
+− 1 day, not a storno / reversed / vanished / zero-value row, and not another order's document) and
+`postponed` (a person's order note, `delivery_instructions` or the operator's AlterCPA comment
+`altercpa_leads.payload->>'comment'` postpones the DELIVERY — regex documented in the migration: a delivery
+word next to a later DAY, or после плата/пензија · следниот месец · одлож* when the text has no call-back;
+"ќе се јави" / "да го бараме подоцна" never count; spared only while the sale is ≤ `postpone_days` (45) old).
+Precedence needs_linking > in_collab > postponed > cancel; `no_parcel_rule_items.exempt_ref` says why.
+Measured 01.10.2026: 0 of today's 17 cancels and 0 of the 555 past cancels qualify (6 past cancels had a
+collabBox document, but each already was another order's — the sale lives there).
+
+**Phone + date links (owner law, 01.10.2026, `20260944000950`).** MEX (+ collabBox) is the truth, never
+AlterCPA (its statuses are a commercial artifact — the ~30 % confirmation guarantee); nothing is pushed to
+AlterCPA. An orphan 9110/9103 parcel is linked to the ONE order on its last-8 phone created −10 d … +1 d
+that holds no parcel and fits no other orphan parcel, amount ignored; > 72 h apart the collabBox document
+must carry the product by name. `link_lead_parcels_plan()` is the single definition (cron
+`link-lead-parcels` 21:02 Skopje, switch `app_settings.link_lead_parcels`, backfill
+`scripts/repair-link-lead-parcels.mjs`, undo `scripts/rollback-repair.mjs --run <id>`). Details:
+`docs/ALTERCPA-BRIDGE.md` "Phone + date links". Re-ships stay with `repair-link-elyon-parcels.mjs`.
 
 **Only the lead's own parcel reopens it (29.09, `mayReviveWith`).** A cancelled or trashed
 AlterCPA lead fits a fresh parcel on its phone only when the parcel is series **9110** ("Нарачка

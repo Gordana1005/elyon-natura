@@ -130,7 +130,14 @@ as `confirmed` without a parcel — no longer possible since 29.09.
 **D. 10111 LEADS (credit):** holder = the order the register links the parcel to, else the single
 order naming the tracking id. Amount ≤ 0 → `replacement`. No holder → `credit_pending`
 (`no_parcel_yet` / `parcel_not_linked_yet`). Else `collabbox_credit_order()` → `credited`, or
-`recorded` with the credit verdict.
+`recorded` with the credit verdict. `collabbox_retry_open()` re-tries pending rows only 14 days back:
+an older `credit_pending` whose parcel gets a holder later (e.g. the phone + date link backfill,
+`scripts/repair-link-lead-parcels.mjs`, owner 01.10.2026) is re-run through the SAME writer by
+`node scripts/collabbox-recredit.mjs [--from 2026-09-01] [--to …]` — dry run through
+`collabbox_apply_documents(…, p_dry = true)` in a READ ONLY transaction (the read-only role may not execute
+the writer), apply under a `manual` `collabbox_sync_runs` row (one run at a time), before/after of the
+holder's `sold_*` and the document in `data_repair_rows` (key `collabbox-recredit`), undo
+`--rollback <run>`. It never changes `collabbox_apply_one` / `collabbox_credit_order`.
 
 **E. Order documents (10036 · 10050 · 10106 · 10114)**, first stop wins:
 

@@ -171,7 +171,15 @@ The stub of 20260939000200 was replaced by `20260942000900` (the collabBox sync 
   writes only the ledger (`no_parcel_rule_runs` / `_items`, owners-only RLS); apply mode cancels
   (`cancellation_reason = 'no_parcel_7d'`, history as `System (no-parcel-7d)`, a note,
   `elyon.bulk_repair` on). An order with an unlinked parcel on the same phone is `needs_linking`
-  and never cancelled. The ledger IS the audit trail (no human actor for `audit_log`).
+  and never cancelled; since `20260944000960` (owner, 01.10.2026) neither is one `in_collab` (a collabBox
+  sales document for the customer since the sale) or `postponed` (a note postpones the delivery,
+  ≤ `settings.postpone_days`, default 45) — runs carry `in_collab` / `postponed`, items `exempt_ref`, the
+  dry run answers both counts (the card does not show them yet; the CSV's Action column does).
+  The ledger IS the audit trail (no human actor for `audit_log`).
+- **The phone + date link cron runs first** (`link-lead-parcels`, 21:02 Skopje, `20260944000950`): an
+  orphan 9110/9103 parcel linked to its order (owner law 01.10.2026) leaves the no-parcel population
+  before 21:10. Its switch `app_settings.link_lead_parcels` is guarded like `no_parcel_rule`; until a UI
+  exists it is flipped with `node scripts/repair-link-lead-parcels.mjs --switch apply|report|off` (audited).
 - **Card status:** `n/a` (no/inactive job) · `failing` (last cron run failed) · `stale` (nothing
   ran since the slot that should have, 20 min grace) · `ok`; last run, next run, 7-day strip
   with `to_cancel` / `cancelled`.
@@ -184,7 +192,8 @@ The stub of 20260939000200 was replaced by `20260942000900` (the collabBox sync 
   → `noParcelReportCsv` (English headers, `Price MKD` via `eurToDen`, Skopje times, UTF-8 BOM).
 - **The guard:** `app_settings` is writable by any admin/manager session through PostgREST
   (policy "Admins can manage app_settings", 20260714000000). `trg_app_settings_guard_owner_keys`
-  (20260939000200:1494) refuses INSERT/UPDATE/DELETE of key `no_parcel_rule` for `anon` /
+  (20260939000200:1494; keys no_parcel_rule, stock_mex_movements, stock_counted_at, mex_push, and
+  link_lead_parcels since 20260944000950) refuses INSERT/UPDATE/DELETE of key `no_parcel_rule` for `anon` /
   `authenticated` (42501); the service role (the api, after its owner check) and the migration
   role still can. A new owner-only key must be added to that trigger.
 

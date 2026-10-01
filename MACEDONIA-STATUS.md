@@ -21,6 +21,13 @@ operation. It shares **nothing at runtime** with Bulgaria (own repo / own Supaba
 > `20260943001700`.** Where to continue and what waits for the owner: `docs/handoff/2026-09-29/CONTINUE-HERE.md`
 > (§ DONE 30.09–01.10, § NEXT).
 
+- **Phone + date parcel links + no-parcel exemptions (owner, 01.10 evening; branch `parcel-link-rules`, BUILT, NOT
+  APPLIED):** `20260944000950` (`link_lead_parcels_plan()` = the rules, `link_lead_parcels()` = the apply into the
+  repair ledger, cron `link-lead-parcels` 21:02 Skopje, switch `app_settings.link_lead_parcels` seeded `report`) and
+  `20260944000960` (`apply_no_parcel_rule` spares `in_collab` / `postponed`). Dry runs 01.10: **98 links /
+  323.820 ден, 46 manual** (run `54f47d5e`, = the owner's own count); exemptions save 0 today and 0 of the 555
+  past cancels; 251 September `credit_pending` LEADS documents, 79 get a holder from the backfill (re-credit run
+  `3c6e3946`). Apply order: `docs/ALTERCPA-BRIDGE.md` "Phone + date links" and the commit message.
 - **Phase 0 — urgent** (`47620bd`, `…0100` / `…0200`):
   - **Shifts are the login gate** (the owner kept it): `shifts_roll_forward` / `shifts_runway` /
     `shifts_runway_alert` (cron `shifts-runway-alert`, 17:05 Skopje). The September roster ended 30.09 — from

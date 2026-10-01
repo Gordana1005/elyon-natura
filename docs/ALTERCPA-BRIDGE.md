@@ -256,6 +256,47 @@ Run log: `mex_sync_runs` (per-rule counters in `skipped`: `rule_c`, `fallback_si
 the upsell revive (a portal CSV has no MEX account); the CSV-export path remains only for
 ADDRESS backfill (the API withholds `receiver_address`).
 
+**Phone + date links — owner law, Mile, 01.10.2026 (`20260944000950`).** The truth is MEX (+
+collabBox), **never AlterCPA**: AlterCPA statuses are a commercial artifact (affiliates are paid on a
+~30 % confirmation guarantee, so agents sometimes cancel real sales in AlterCPA or pre-confirm
+non-sales). **Nothing is ever pushed to AlterCPA** by this rule (no `/orders/:id/altercpa-push`,
+`app_settings.altercpa_push_enabled` untouched). An orphan BIO NATURAL parcel whose COD fits no price
+(agents up-sell: the lead offer is 1 box, the parcel 3–6) is linked to its order by **phone + date,
+ignoring the amount** — `public.link_lead_parcels_plan(days)` is the one definition:
+
+1. parcel: series 9110 / 9103 (or BIO NATURAL with no series), COD > 0, created in the last 75 days,
+   `mex_parcels.order_id IS NULL`, no order names it, a valid phone8 not in `report_excluded_phone8s()`;
+2. order: the same last 8 digits (the `idx_orders_phone_last8` expression), created from parcel −10 days
+   to +1 day, holding no parcel, price > 0, a real product, not a disposition, not `duplicated`;
+   pending / call_again / confirmed / paid / shipped / returned / cancelled / trashed;
+3. unique both ways (one order for the parcel, and that order fits no other orphan parcel) — else the
+   manual list;
+4. a parcel more than **72 h** after the order must carry the order's product **by name** (the order's
+   product name / order_items vs the goods lines of the collabBox document whose number is the tracking id,
+   folded: Cyrillic → Latin via `mk_geo_norm`, letters only, generic words like bionatural/tab/cps/forte/
+   complex/gel ignored); no document = product unknown → manual. ≤ 72 h links whatever the product (agents
+   switch e.g. ProstaFix → Adenofrin on the same call);
+5. a customer who ordered 2–3 weeks earlier and orders again is never linked to the old order (rules 2 + 3).
+
+The order then follows MEX: 2 → paid (basis mex), 7 → returned, **8 (за пакување) → no status change**
+(mex-reconcile moves it on at the pickup: `shipGate` 'open', or rule C for an AlterCPA cancel), else →
+shipped — so mex-reconcile afterwards finds every linked order already at its target. Prices follow the COD
+only through `scripts/repair-cod-price.mjs` (run after a backfill). Nightly: cron `link-lead-parcels` at
+**21:02 Skopje** (after the 20:52 MEX pass, before the 21:10 no-parcel rule), owner switch
+`app_settings.link_lead_parcels {mode report|apply|off, days 75}` (seeded `report`). One-off backfill:
+`scripts/repair-link-lead-parcels.mjs` (dry run → `--apply --run <id>`); every run, cron or backfill, is in
+`data_repair_runs` (key `link-lead-parcels`) and is undone by `scripts/rollback-repair.mjs --run <id>`.
+Re-ships (the order already holds its first, dead parcel) stay with `scripts/repair-link-elyon-parcels.mjs`
+(COD-based) — run it after the backfill. Proof: `node scripts/verify-parcel-link-rules.mjs` (L1–L9).
+The 01.10.2026 dry run: 397 orphan parcels → 98 links (323.820 ден; 80 cancelled — all AlterCPA-panel
+cancels, none a `no_parcel_7d` — 14 confirmed, 3 trashed, 1 paid) + 46 manual.
+
+**AlterCPA sync vs a link.** `altercpa-sync` never moves an order that is `shipped`/`delivered` (at the
+courier) or terminal, and `status_mirror = until_touched` guards an order with `confirmed_at`; a link that
+leaves a confirmed order at MEX 8 with `confirmed_at` NULL is the one case a later AlterCPA cancel could
+still cancel (mex-reconcile's rule C revives it at the pickup). Smallest guard, proposed and NOT built: the
+status kind skips a cancel / trash for an order that holds a MEX parcel (`mex_tracking_id IS NOT NULL`).
+
 `altercpa-sync-status` (added 2026-08-11, `20260918000000`) fires around the clock but
 `invoke_altercpa_status_sync()` gates on `hour(Europe/Skopje) BETWEEN 7 AND 20` — i.e. it works
 07:00–20:55 local, DST-proof, and pre-gates on any active account having
