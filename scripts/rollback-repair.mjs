@@ -3,7 +3,9 @@
  * Roll back one applied data-repair run (repair-mex-ghost-links / repair-altercpa-catchup-paid /
  * repair-cod-price / link-lead-parcels — the backfill AND every nightly cron apply of
  * public.link_lead_parcels(), whose ledger rows are written in the same snapshot shape, migration
- * 20260944000950). A collabbox-recredit run is undone by `scripts/collabbox-recredit.mjs --rollback <run>`.
+ * 20260944000950). A collabbox-recredit run is undone by `scripts/collabbox-recredit.mjs --rollback <run>`;
+ * a folder-decides / leads-parcel-orders run MADE orders and is undone by its own script's `--rollback <run>`
+ * (scripts/repair-folder-decides.mjs, scripts/repair-leads-parcel-orders.mjs) — refused here.
  * A repair-test-phones run is undone by its own
  * `node scripts/repair-test-phones.mjs --restore <run>` (the orders are gone — they are
  * re-inserted from the snapshot, not updated back).
@@ -179,6 +181,13 @@ async function main() {
   }
   if (key === `restore-${TEST_PHONES_KEY}`) {
     die(`run ${args.run} restored deleted orders; to delete them again, dry-run repair-test-phones.mjs anew and apply that run.`);
+  }
+  if (key === 'folder-decides' || key === 'leads-parcel-orders') {
+    // These runs MADE orders (the collabBox writer's, or the LEADS-document orders): restoring SNAP_COLUMNS alone would
+    // leave the made order holding the parcel and put the tracking id on two orders — each has its own undo.
+    const script = key === 'folder-decides' ? 'repair-folder-decides.mjs' : 'repair-leads-parcel-orders.mjs';
+    die(`run ${args.run} made orders — undo it with its own rollback:\n  node scripts/${script} --rollback ${args.run}          (preview)\n` +
+      `  node scripts/${script} --rollback ${args.run} --apply`);
   }
   if (key === 'collabbox-recredit' || key === 'rollback-collabbox-recredit') {
     // Its ledger snapshots sold_* + the collabBox document row, not SNAP_COLUMNS — it has its own rollback.
