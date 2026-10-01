@@ -414,7 +414,32 @@ export const ORDERS_DRILL_KEYS: (keyof OrdersDrillParams)[] = [
   'sold_from', 'sold_to', 'cash_from', 'cash_to', 'proof', 'paid_basis', 'attention', 'team_key',
   'cpa_webmaster', 'cpa_stream', 'prediction_list', 'product', 'city', 'cohort_bucket', 'cohort_source',
 ];
-export const apiGetOrders = (params?: { status?: string; search?: string; agent_id?: string; source?: string; cpa_webmaster?: string; cpa_offer?: string; cpa_stream?: string; ready_only?: boolean; lead_only?: boolean; from?: string; to?: string; price_min?: number; price_max?: number; page?: number; limit?: number; drill?: OrdersDrillParams }) => {
+/** GET /orders parameters. The list's own (Phase 11 A, api ordersList.ts):
+ *  view = the status chip (orders | leads | cancelled | trashed | all);
+ *  day_from / day_to = Skopje days, each row by its own status's clock;
+ *  dept = csv of the six departments; seller = sales_people.id; mex = csv of
+ *  at_mex | courier | delivered | returned | rejected | no_parcel;
+ *  source = csv of altercpa | import | manual; agent_id = uuid | 'none'.
+ *  `from` / `to` are the legacy UTC-instant window (kept for older callers). */
+export interface OrdersQueryParams {
+  status?: string; search?: string; agent_id?: string; source?: string;
+  cpa_webmaster?: string; cpa_offer?: string; cpa_stream?: string;
+  ready_only?: boolean; lead_only?: boolean; from?: string; to?: string;
+  price_min?: number; price_max?: number; page?: number; limit?: number; drill?: OrdersDrillParams;
+  view?: string; day_from?: string; day_to?: string; dept?: string; seller?: string; mex?: string;
+}
+export const apiGetOrders = (params?: OrdersQueryParams) => apiFetch(`orders?${ordersQuery(params).toString()}`);
+/** One count per status chip for the same filters (all = the sum of the four). */
+export interface OrderViewCounts { orders: number | null; leads: number | null; cancelled: number | null; trashed: number | null; all: number | null }
+export const apiGetOrderViewCounts = (params?: OrdersQueryParams): Promise<{ counts: OrderViewCounts }> => {
+  const sp = ordersQuery(params);
+  for (const k of ['view', 'page', 'limit']) sp.delete(k);
+  return apiFetch(`orders/view-counts?${sp.toString()}`);
+};
+/** The /orders seller filter: every sales person, active first (admin / manager / warehouse). */
+export const apiGetOrderSellers = (): Promise<{ sellers: { id: string; name: string; active: boolean }[] }> =>
+  apiFetch('orders/sellers');
+function ordersQuery(params?: OrdersQueryParams): URLSearchParams {
   const sp = new URLSearchParams();
   // Drill-down first; the explicit toolbar filters below win on a clash
   // (cpa_webmaster / cpa_stream exist in both).
@@ -440,10 +465,14 @@ export const apiGetOrders = (params?: { status?: string; search?: string; agent_
   if (params?.to) sp.set('to', params.to);
   if (params?.price_min != null) sp.set('price_min', String(params.price_min));
   if (params?.price_max != null) sp.set('price_max', String(params.price_max));
+  for (const k of ['view', 'day_from', 'day_to', 'dept', 'seller', 'mex'] as const) {
+    const v = params?.[k];
+    if (v) sp.set(k, v);
+  }
   if (params?.page) sp.set('page', String(params.page));
   if (params?.limit) sp.set('limit', String(params.limit));
-  return apiFetch(`orders?${sp.toString()}`);
-};
+  return sp;
+}
 export const apiGetOrder = (id: string) => apiFetch(`orders/${id}`);
 
 // Counts behind the "Pendings" queue entry on /calls. Always the caller's own
@@ -1360,6 +1389,10 @@ export const apiReleaseActiveView = (customer_phone: string): Promise<{ ok: true
   apiFetch(`active-call-views/by-phone/${encodeURIComponent(customer_phone)}`, { method: 'DELETE' });
 export const apiLookupActiveView = (customer_phone: string): Promise<ActiveCallView | null> =>
   apiFetch(`active-call-views/lookup?phone=${encodeURIComponent(customer_phone)}`);
+/** "Who is viewing" for a whole list page in one read, keyed by the phone's last 8 digits. */
+export type ActiveViewsByPhone = Record<string, Pick<ActiveCallView, 'agent_id' | 'agent_name' | 'opened_at' | 'expires_at'>>;
+export const apiGetActiveViews = (phones: string[]): Promise<{ views: ActiveViewsByPhone }> =>
+  apiFetch(`active-views?phones=${encodeURIComponent(phones.join(','))}`);
 
 export const apiGetActiveCallViews = (): Promise<ActiveCallView[]> =>
   apiFetch('active-call-views');

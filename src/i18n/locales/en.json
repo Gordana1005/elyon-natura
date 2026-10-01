@@ -1855,6 +1855,119 @@
     "saveInfoTitle": "Save customer info (birthday, address, notes) without creating an order",
     "loadExistingFailed": "Could not load the order — please try again"
   },
+  "ordersList": {
+    "view": {
+      "label": "Show",
+      "orders": "Orders",
+      "leads": "Open leads",
+      "cancelled": "Cancelled",
+      "trashed": "In trash",
+      "all": "All",
+      "ordersHint": "Confirmed, packed, shipped, paid and returned — cancels and trash never count as orders",
+      "leadsHint": "Pending, in progress, call again and duplicates",
+      "cancelledHint": "Cancelled — dated by the day they were cancelled",
+      "trashedHint": "In the trash — dated by the day they were trashed",
+      "allHint": "Every status — the sum of the four chips"
+    },
+    "period": {
+      "label": "Period",
+      "all": "All dates",
+      "hint": "Skopje days · each order by its own date: a sale by its sale day, a cancel by the cancel, a trash by the trash, a lead by its arrival"
+    },
+    "dept": {
+      "label": "Department",
+      "all": "All departments"
+    },
+    "mex": {
+      "label": "MEX",
+      "at_mex": "At MEX (label)",
+      "courier": "With the courier",
+      "delivered": "Delivered",
+      "returned": "Returned",
+      "rejected": "Rejected",
+      "no_parcel": "No parcel",
+      "noParcelShort": "no parcel",
+      "unknown": "MEX status {{id}}",
+      "title": "MEX parcel: {{status}}"
+    },
+    "source": {
+      "label": "Source"
+    },
+    "seller": {
+      "label": "Seller",
+      "all": "All sellers",
+      "search": "Search a seller…",
+      "empty": "No such seller",
+      "inactive": "inactive",
+      "chip": "Seller: {{name}}"
+    },
+    "agent": {
+      "label": "Assigned",
+      "all": "Everyone",
+      "none": "Unassigned",
+      "search": "Search an agent…",
+      "empty": "No such agent",
+      "chip": "Assigned: {{name}}"
+    },
+    "mine": "My orders",
+    "searchIn": "Search: {{what}}…",
+    "nothingFound": "Nothing found",
+    "filters": {
+      "open": "Filters",
+      "title": "Filters",
+      "apply": "Apply",
+      "reset": "Reset",
+      "clear": "Clear filters",
+      "active": "Active filters",
+      "remove": "Remove this filter"
+    },
+    "col": {
+      "order": "Order",
+      "customer": "Customer",
+      "products": "Products",
+      "value": "Value",
+      "department": "Department · seller",
+      "status": "Status",
+      "mex": "MEX",
+      "assigned": "Assigned"
+    },
+    "unassigned": "unassigned",
+    "noSeller": "no seller",
+    "openOrder": "Open order {{id}}",
+    "rowActions": "Actions for {{id}}",
+    "value": {
+      "cod": "The parcel’s COD at MEX",
+      "price": "The CRM price (no parcel yet)"
+    },
+    "details": "Details",
+    "hideDetails": "Hide details",
+    "delivery": {
+      "home": "MEX Poshta — to the door",
+      "profile": "MEX profile: {{name}}"
+    },
+    "csv": {
+      "to": "To",
+      "anyDate": "Any date",
+      "plus2": "+2 days",
+      "plus7": "+7 days",
+      "readyHint": "Orders postponed past this date are skipped — they appear on their scheduled ship day.",
+      "flipOn": "After the CSV downloads, every exported confirmed order moves to Shipped.",
+      "flipNoneSelected": "None of the selected orders is confirmed.",
+      "flipOnlyConfirmed": "Only when exporting confirmed orders.",
+      "selected": "Selected: {{count}}",
+      "export": "Export CSV"
+    },
+    "search": {
+      "label": "Search orders",
+      "placeholder": "Search: name, phone, order no., product, MEX no.",
+      "short": "Name, phone, order no.…",
+      "clear": "Clear search",
+      "phone": "Phone — matched by the last 8 digits, with or without +389"
+    },
+    "new": "New",
+    "range": "{{from}}–{{to}} of {{total}}",
+    "emptyHint": "Nothing matches these filters — try \"All\", a longer period or fewer filters."
+  },
   "ordersPage": {
     "orderLocked": "Order is locked",
     "lockedBy": "This order is currently being edited by {{name}}",

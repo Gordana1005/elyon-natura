@@ -1855,6 +1855,119 @@
     "saveInfoTitle": "Ruaj të dhënat e klientit (ditëlindja, adresa, shënimet) pa krijuar porosi",
     "loadExistingFailed": "Porosia nuk u ngarkua dot — provoni përsëri"
   },
+  "ordersList": {
+    "view": {
+      "label": "Shfaq",
+      "orders": "Porositë",
+      "leads": "Lead-e të hapura",
+      "cancelled": "Të anuluara",
+      "trashed": "Në kosh",
+      "all": "Të gjitha",
+      "ordersHint": "Të konfirmuara, të paketuara, të dërguara, të paguara dhe të kthyera — anulimet dhe koshi nuk janë kurrë porosi",
+      "leadsHint": "Në pritje, në përpunim, telefonatë e përsëritur dhe dublikata",
+      "cancelledHint": "Të anuluara — sipas ditës së anulimit",
+      "trashedHint": "Në kosh — sipas ditës kur u hodhën",
+      "allHint": "Çdo status — shuma e katër çipave"
+    },
+    "period": {
+      "label": "Periudha",
+      "all": "Të gjitha datat",
+      "hint": "Ditë sipas orës së Shkupit · çdo porosi sipas datës së vet: shitja sipas ditës së shitjes, anulimi sipas anulimit, koshi sipas hedhjes, lead-i sipas mbërritjes"
+    },
+    "dept": {
+      "label": "Departamenti",
+      "all": "Të gjitha departamentet"
+    },
+    "mex": {
+      "label": "MEX",
+      "at_mex": "Te MEX (etiketa)",
+      "courier": "Te korieri",
+      "delivered": "Të dorëzuara",
+      "returned": "Të kthyera",
+      "rejected": "Të refuzuara",
+      "no_parcel": "Pa pako",
+      "noParcelShort": "pa pako",
+      "unknown": "Statusi MEX {{id}}",
+      "title": "Pako MEX: {{status}}"
+    },
+    "source": {
+      "label": "Burimi"
+    },
+    "seller": {
+      "label": "Shitësi",
+      "all": "Të gjithë shitësit",
+      "search": "Kërko shitës…",
+      "empty": "Nuk ka shitës të tillë",
+      "inactive": "joaktiv",
+      "chip": "Shitësi: {{name}}"
+    },
+    "agent": {
+      "label": "Caktuar te",
+      "all": "Të gjithë",
+      "none": "Të pacaktuara",
+      "search": "Kërko agjent…",
+      "empty": "Nuk ka agjent të tillë",
+      "chip": "Caktuar te: {{name}}"
+    },
+    "mine": "Porositë e mia",
+    "searchIn": "Kërko: {{what}}…",
+    "nothingFound": "Nuk u gjet asgjë",
+    "filters": {
+      "open": "Filtrat",
+      "title": "Filtrat",
+      "apply": "Zbato",
+      "reset": "Rivendos",
+      "clear": "Pastro filtrat",
+      "active": "Filtrat aktivë",
+      "remove": "Hiq këtë filtër"
+    },
+    "col": {
+      "order": "Porosia",
+      "customer": "Klienti",
+      "products": "Produktet",
+      "value": "Vlera",
+      "department": "Departamenti · shitësi",
+      "status": "Statusi",
+      "mex": "MEX",
+      "assigned": "Caktuar te"
+    },
+    "unassigned": "e pacaktuar",
+    "noSeller": "pa shitës",
+    "openOrder": "Hap porosinë {{id}}",
+    "rowActions": "Veprime për {{id}}",
+    "value": {
+      "cod": "Pagesa në dorëzim e pakos te MEX",
+      "price": "Çmimi në CRM (ende pa pako)"
+    },
+    "details": "Detajet",
+    "hideDetails": "Fshih detajet",
+    "delivery": {
+      "home": "MEX Poshta — deri te dera",
+      "profile": "Profili MEX: {{name}}"
+    },
+    "csv": {
+      "to": "Deri",
+      "anyDate": "Çdo datë",
+      "plus2": "+2 ditë",
+      "plus7": "+7 ditë",
+      "readyHint": "Porositë e shtyra pas kësaj date anashkalohen — shfaqen në ditën e caktuar të dërgesës.",
+      "flipOn": "Pasi të shkarkohet CSV-ja, çdo porosi e konfirmuar e eksportuar kalon në E dërguar.",
+      "flipNoneSelected": "Asnjë nga porositë e zgjedhura nuk është e konfirmuar.",
+      "flipOnlyConfirmed": "Vetëm kur eksportohen porosi të konfirmuara.",
+      "selected": "Të zgjedhura: {{count}}",
+      "export": "Eksporto CSV"
+    },
+    "search": {
+      "label": "Kërko porosi",
+      "placeholder": "Kërko: emër, telefon, nr. porosie, produkt, nr. MEX",
+      "short": "Emër, telefon, porosi…",
+      "clear": "Pastro kërkimin",
+      "phone": "Telefon — kërkohet me 8 shifrat e fundit, me ose pa +389"
+    },
+    "new": "E re",
+    "range": "{{from}}–{{to}} nga {{total}}",
+    "emptyHint": "Asgjë nuk përputhet me këta filtra — provo \"Të gjitha\", një periudhë më të gjatë ose më pak filtra."
+  },
   "ordersPage": {
     "orderLocked": "Porosia është e kyçur",
     "lockedBy": "Kjo porosi po redaktohet aktualisht nga {{name}}",

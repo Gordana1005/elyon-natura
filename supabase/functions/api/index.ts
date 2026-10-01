@@ -68,6 +68,10 @@ import * as AR from "./addressRouting.ts";
 // through the api with an audit row, "last changed by" meta, the owners-list
 // removal guard and the courier rate card (pure, unit-tested in settingsAccess.test.ts).
 import * as SA from "./settingsAccess.ts";
+// /orders (Нарачки): the status chips, Skopje days, department / seller / MEX
+// filters, the last-8 phone search and the batched "who is viewing" read —
+// parsed, validated and turned into builder calls (pure, ordersList.test.ts).
+import * as OL from "./ordersList.ts";
 
 // ============================================================
 // INPUT VALIDATION SCHEMAS
@@ -5667,7 +5671,16 @@ async function handleRequest(req: Request): Promise<Response> {
     }
 
     // GET /api/orders
-    if (req.method === "GET" && path === "orders") {
+    // GET /api/orders/view-counts — the same filters, answered as one count per
+    // status chip (orders · leads · cancelled · trashed; all = their sum).
+    if (req.method === "GET" && (path === "orders" || path === "orders/view-counts")) {
+      const countsOnly = path === "orders/view-counts";
+      // The list's own filters (ordersList.ts, Phase 11 A): view, Skopje days,
+      // department, seller, MEX group, validated status / source / agent, and the
+      // last-8 phone search. Malformed → 400, never a silently wider list.
+      const olParsed = OL.parseOrdersListParams(url.searchParams);
+      if (!olParsed.ok) return json({ error: olParsed.error }, 400);
+      const ol = olParsed.value;
       const status = url.searchParams.get("status");
       const search = url.searchParams.get("search");
       const agentId = url.searchParams.get("agent_id");
@@ -5830,23 +5843,14 @@ async function handleRequest(req: Request): Promise<Response> {
         (cpaStream && cpaStream !== "all") ||
         ovSource.values.length || ovDetail.values.length || ovCohortSourceOr || ovOutcomeOr || ovPerson ||
         ovCreatedFrom || ovCreatedTo || ovSoldFrom || ovCashFrom || ovProof || ovPaidBasis ||
-        Object.values(ovText).some(Boolean) || ovTeam || ovAttention || ovCohort.values.length,
+        Object.values(ovText).some(Boolean) || ovTeam || ovAttention || ovCohort.values.length || OL.isNarrowed(ol),
       );
-      let query = client
-        .from("orders")
-        .select("*, order_items(id, product_id, product_name, quantity, price_per_unit, total_price)",
-                { count: isFiltered ? "exact" : "estimated" })
-        .order("created_at", { ascending: false })
-        .range((page - 1) * limit, page * limit - 1);
+      // The filter chain is RECORDED, then replayed onto the page query and (for
+      // /view-counts) onto one count per chip — the same filters, never a copy.
+      // status / agent_id / source / search are ordersList.ts's (OL.viewOps,
+      // OL.baseOps below).
+      let query: any = OL.filterRecorder();
 
-      if (status && status !== "all") {
-        // Supports a single status or a comma-separated list (multi-select filter).
-        const statuses = status.split(",").map((s) => s.trim()).filter(Boolean);
-        if (statuses.length > 1) query = query.in("status", statuses);
-        else if (statuses.length === 1) query = query.eq("status", statuses[0]);
-      }
-      if (agentId && agentId !== "all") query = query.eq("assigned_agent_id", agentId);
-      if (source && source !== "all") query = query.eq("source_type", source);
       if (cpaWebmaster && cpaWebmaster !== "all") query = query.eq("cpa_webmaster_id", cpaWebmaster);
       if (cpaOffer && cpaOffer !== "all") query = query.eq("cpa_offer_id", cpaOffer);
       // Code alone, not (code, wm): codes are unique per webmaster today, and a
@@ -5936,10 +5940,6 @@ async function handleRequest(req: Request): Promise<Response> {
         const n = Number(priceMax);
         if (Number.isFinite(n)) query = query.lte("price", n);
       }
-      if (search) {
-        const s = sanitizeSearch(search);
-        if (s) query = query.or(`display_id.ilike.%${s}%,customer_name.ilike.%${s}%,customer_phone.ilike.%${s}%,product_name.ilike.%${s}%`);
-      }
       if (readyOnly) {
         const nowIso = new Date().toISOString();
         query = query.or(`next_call_after.is.null,next_call_after.lte.${nowIso}`);
@@ -5949,7 +5949,27 @@ async function handleRequest(req: Request): Promise<Response> {
       // see them here too. `duplicated_from` is PERMANENT, so a filter here would
       // hide an agent's own settled duplicates from their tabs forever.
 
-      const { data: orders, count, error } = await query;
+      const listOps = [...(query as ReturnType<typeof OL.filterRecorder>).ops, ...OL.baseOps(ol)];
+      if (countsOnly) {
+        const res = await Promise.all(OL.COUNTED_VIEWS.map(async (v) => {
+          const cq = OL.applyOps(client.from("orders").select("id", { count: "exact", head: true }), [...listOps, ...OL.viewOps(ol, v)]);
+          const { count: n, error: cErr } = await cq;
+          if (cErr) console.error(`orders/view-counts ${v}:`, cErr.message);
+          return [v, cErr ? null : (n ?? 0)] as const;
+        }));
+        return json({ counts: OL.viewCounts(Object.fromEntries(res) as Record<OL.CountedView, number | null>) });
+      }
+      let pageQuery: any = OL.applyOps(
+        client.from("orders").select("*, order_items(id, product_id, product_name, quantity, price_per_unit, total_price)",
+          { count: isFiltered ? "exact" : "estimated" }),
+        [...listOps, ...OL.viewOps(ol, ol.view)],
+      );
+      for (const o of OL.orderSpec(ol, ol.view)) {
+        pageQuery = pageQuery.order(o.col, { ascending: o.ascending, ...(o.nullsFirst === undefined ? {} : { nullsFirst: o.nullsFirst }) });
+      }
+      pageQuery = pageQuery.range((page - 1) * limit, page * limit - 1);
+
+      const { data: orders, count, error } = await pageQuery;
       if (error) return json({ error: sanitizeDbError(error) }, 400);
 
       // Who last acted on each order (confirmed / cancelled / call_again / …).
@@ -5992,6 +6012,39 @@ async function handleRequest(req: Request): Promise<Response> {
       );
 
       return json({ orders: redactCustomerList(enrichedOrders, piiFlags), total: count, page, limit });
+    }
+
+    // GET /api/orders/sellers — the /orders seller filter: every sales person
+    // (sales_people — who is CREDITED with a sale, orders.sold_by_person_id),
+    // active first. Names only; staff who see the whole list (admin / manager /
+    // warehouse). The owners' Settings → Teams keeps the full records.
+    if (req.method === "GET" && path === "orders/sellers") {
+      if (!isAdminOrManager && !isWarehouse) return json({ error: "Forbidden" }, 403);
+      const { data, error } = await adminClient
+        .from("sales_people").select("id, display_name, is_active").order("display_name");
+      if (error) return json({ error: sanitizeDbError(error) }, 400);
+      const sellers = ((data || []) as any[])
+        .map((p) => ({ id: p.id as string, name: (p.display_name as string) || "—", active: p.is_active !== false }))
+        .sort((a, b) => Number(b.active) - Number(a.active) || a.name.localeCompare(b.name, "mk"));
+      return json({ sellers });
+    }
+
+    // GET /api/active-views?phones=a,b,c — "who is viewing" for a whole /orders
+    // page in ONE read (it was one request per row every 30 s, each running the
+    // cleanup write first). Matched by the last 8 digits; only live views
+    // (expires_at in the future), so nothing is written here — the expired rows
+    // are swept by the pg_cron job `active-call-views-cleanup` (20260943001620).
+    if (req.method === "GET" && path === "active-views") {
+      const last8s = OL.parsePhonesParam(url.searchParams.get("phones"));
+      if (!last8s.length) return json({ views: {} });
+      const now = new Date();
+      const { data, error } = await adminClient
+        .from("active_call_views")
+        .select("agent_id, agent_name, customer_phone, opened_at, expires_at")
+        .gt("expires_at", now.toISOString())
+        .limit(1000);
+      if (error) return json({ error: sanitizeDbError(error) }, 400);
+      return json({ views: OL.activeViewsByPhone((data || []) as OL.ActiveViewRow[], last8s, now) });
     }
 
     // GET /api/my-pendings-summary — counts for the "Pendings" queue entry on
@@ -7099,7 +7152,7 @@ async function handleRequest(req: Request): Promise<Response> {
     }
 
     // GET /api/orders/:id
-    const reservedOrderPaths = ["stats", "assigned", "unassigned-pending", "open-lead", "bulk-assign", "bulk-unassign", "bulk-status-update", "bulk-disposition", "bigarena-sync"];
+    const reservedOrderPaths = ["stats", "assigned", "unassigned-pending", "open-lead", "bulk-assign", "bulk-unassign", "bulk-status-update", "bulk-disposition", "bigarena-sync", "view-counts", "sellers"];
     if (req.method === "GET" && segments[0] === "orders" && segments.length === 2 && !reservedOrderPaths.includes(segments[1])) {
       const orderId = segments[1];
       let { data: order, error } = await supabase
@@ -12834,13 +12887,16 @@ async function handleRequest(req: Request): Promise<Response> {
     if (req.method === "GET" && path === "active-call-views/lookup") {
       const phoneRaw = (url.searchParams.get("phone") || "").trim();
       if (!phoneRaw) return json(null);
-      // Sweep first so we don't return stale data.
-      await adminClient.rpc("cleanup_expired_active_call_views");
+      // Live views only — no sweep (a write) on this read any more: the expired
+      // rows are cleaned by the pg_cron job `active-call-views-cleanup`
+      // (20260943001620), and this filter never returns one meanwhile.
       const { data, error } = await adminClient
         .from("active_call_views")
         .select("id, agent_id, agent_name, customer_phone, opened_at, expires_at")
         .eq("customer_phone", phoneRaw)
+        .gt("expires_at", new Date().toISOString())
         .order("opened_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
       if (error) return json({ error: sanitizeDbError(error) }, 400);
       return json(data);

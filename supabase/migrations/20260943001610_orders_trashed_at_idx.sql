@@ -1,0 +1,12 @@
+-- ============================================================================
+-- /orders (Phase 11 A) — index for the "Во корпа" chip and the "Сите" window.
+--
+-- The list dates a trashed order by trashed_at (ordersList.ts viewOps). Today
+-- the planner borrows idx_orders_trashed_phone (a full walk of 21k rows); this
+-- partial index answers the window directly. Rolled-back test 01.10.2026
+-- (scratchpad agents/orders/t1600_indexes.sql): trashed 2.6 → 0.6 ms, the
+-- all-status window 41.0 → 7.2 ms together with 001600.
+--
+-- ONE statement per file (CONCURRENTLY; see 20260943001600).
+-- ============================================================================
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_orders_trashed_at ON public.orders (trashed_at) WHERE status = 'trashed';
