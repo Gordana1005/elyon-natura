@@ -357,7 +357,7 @@ export const humanCategory = (v: unknown): string => (typeof v === "string" && !
 // ── GET /products/catalogue ──────────────────────────────────────────────────
 /**
  * One row of the lean catalogue: what the /products list, its filters and the product form need —
- * no audit columns, no photo, machine text blanked. `cost_price` only for a login that sees cost.
+ * no audit columns, no photo, machine text blanked. `cost_price` only for a business owner (showCost).
  */
 export interface CatalogueRow {
   id: string;
@@ -430,28 +430,46 @@ export function shapeCatalogueRow(p: Record<string, unknown>, opts: { showCost: 
 }
 
 // ── POST / PATCH /products: the editable fields ──────────────────────────────
-/** What a product form may write. Anything else in a PATCH body is dropped (line / kind have their own audited routes). */
+/**
+ * What a product form may write. Anything else in a PATCH body is dropped (line / kind / VAT have their
+ * own audited routes). Stock v2 (docs/STOCK-V2.md, owner 01.10.2026): `stock_quantity` is the stock
+ * ledger's mirror (products_stock_mirror_refresh) and `cost_price` the Sigma purchase-cost mirror
+ * (product_costs_rebuild) — both behind guard triggers, so neither is a form field any more.
+ */
 export const EDITABLE_FIELDS = [
-  "name", "description", "price", "cost_price", "sku", "barcode", "stock_quantity", "low_stock_threshold",
+  "name", "description", "price", "sku", "barcode", "low_stock_threshold",
   "days_of_supply_per_unit", "is_active", "category", "supplier_id", "photo_url",
 ] as const;
 export type EditableField = typeof EDITABLE_FIELDS[number];
 
+/** The columns a product form may no longer write (derived mirrors since Stock v2). */
+export const DERIVED_FIELDS = ["stock_quantity", "cost_price"] as const;
+
 const LIMITS = {
-  price: 10_000_000, cost_price: 10_000_000, stock_quantity: 1_000_000, low_stock_threshold: 100_000, days_of_supply_per_unit: 3650,
+  price: 10_000_000, low_stock_threshold: 100_000, days_of_supply_per_unit: 3650,
 };
 
 /**
- * A PATCH /products/:id body → the whitelisted, validated update (cost only for `canCost`).
+ * A product row as it goes back to a caller: `cost_price` (money — the Sigma purchase cost in EUR)
+ * only for a business owner (is_business_owner(), not a role). Returns a copy.
+ */
+export function withCostVisibility<T extends Record<string, unknown>>(row: T, owner: boolean): T {
+  const out = { ...(row ?? {}) } as Record<string, unknown>;
+  if (!owner) delete out.cost_price;
+  return out as T;
+}
+
+/**
+ * A PATCH /products/:id body → the whitelisted, validated update.
  * Returns {ok, update, dropped} or {ok: false, error}. An empty update is valid (nothing to do).
  */
-export function parseProductPatch(body: unknown, opts: { canCost: boolean }):
+export function parseProductPatch(body: unknown):
   Ok<{ update: Record<string, unknown>; dropped: string[] }> | Err {
   if (!isObj(body)) return { ok: false, error: "body must be an object" };
   const update: Record<string, unknown> = {};
   const dropped: string[] = [];
   for (const [k, v] of Object.entries(body)) {
-    if (!(EDITABLE_FIELDS as readonly string[]).includes(k) || (k === "cost_price" && !opts.canCost)) { dropped.push(k); continue; }
+    if (!(EDITABLE_FIELDS as readonly string[]).includes(k)) { dropped.push(k); continue; }
     switch (k as EditableField) {
       case "name": {
         const s = typeof v === "string" ? v.trim() : "";
@@ -492,20 +510,18 @@ export function parseProductPatch(body: unknown, opts: { canCost: boolean }):
         update.is_active = v;
         break;
       }
-      case "price":
-      case "cost_price": {
+      case "price": {
         const n = typeof v === "number" ? v : NaN;
-        const max = LIMITS[k as "price" | "cost_price"];
+        const max = LIMITS.price;
         if (!Number.isFinite(n) || n < 0 || n > max) return { ok: false, error: `${k} must be a number 0..${max}` };
         update[k] = n;
         break;
       }
-      case "stock_quantity":
       case "low_stock_threshold":
       case "days_of_supply_per_unit": {
         const n = typeof v === "number" ? v : NaN;
         const min = k === "days_of_supply_per_unit" ? 1 : 0;
-        const max = LIMITS[k as "stock_quantity" | "low_stock_threshold" | "days_of_supply_per_unit"];
+        const max = LIMITS[k as "low_stock_threshold" | "days_of_supply_per_unit"];
         if (!Number.isInteger(n) || n < min || n > max) return { ok: false, error: `${k} must be a whole number ${min}..${max}` };
         update[k] = n;
         break;

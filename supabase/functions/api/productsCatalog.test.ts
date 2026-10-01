@@ -5,6 +5,7 @@ import {
   KIND_RE_BUNDLE_WORD, KIND_RE_HIT_TRIM, KIND_RE_JOINER, KIND_RE_MULTI_PACK, KIND_RE_NUTRIENT_PLUS, KIND_RE_OBJECT, KIND_RE_PROMO,
   classifyKindByName, humanCategory, humanDescription, isMachineCategory, isMachineDescription, parseProductPatch,
   parseSetKindBody, proposeKind, shapeCatalogueRow, shapeKindProposal, shapeSetKindResult, stripKindFields,
+  EDITABLE_FIELDS, DERIVED_FIELDS, withCostVisibility,
 } from "./productsCatalog.ts";
 
 // Производи 2.0 (owner 01.10.2026). Product names below are real catalogue spellings; no customer data.
@@ -168,18 +169,29 @@ describe("GET /products/catalogue rows", () => {
 });
 
 describe("PATCH /products/:id whitelist", () => {
-  it("keeps the form's fields, drops the rest, guards cost", () => {
-    const r = parseProductPatch({ name: "  Zinc  ", price: 12.5, barcode: " 389 ", sku: "", stock_quantity: 3, kind: "gift", id: "x", cost_price: 1 }, { canCost: false });
-    expect(r).toEqual({ ok: true, update: { name: "Zinc", price: 12.5, barcode: "389", sku: null, stock_quantity: 3 }, dropped: ["kind", "id", "cost_price"] });
-    expect(parseProductPatch({ cost_price: 1 }, { canCost: true })).toMatchObject({ ok: true, update: { cost_price: 1 } });
+  it("keeps the form's fields, drops the rest — stock and cost are derived mirrors (Stock v2)", () => {
+    const r = parseProductPatch({ name: "  Zinc  ", price: 12.5, barcode: " 389 ", sku: "", stock_quantity: 3, kind: "gift", id: "x", cost_price: 1 });
+    expect(r).toEqual({ ok: true, update: { name: "Zinc", price: 12.5, barcode: "389", sku: null }, dropped: ["stock_quantity", "kind", "id", "cost_price"] });
+    expect(parseProductPatch({ cost_price: 1 })).toEqual({ ok: true, update: {}, dropped: ["cost_price"] });
+    expect(parseProductPatch({ stock_quantity: 1.5 })).toEqual({ ok: true, update: {}, dropped: ["stock_quantity"] });
+    for (const f of DERIVED_FIELDS) expect(EDITABLE_FIELDS as readonly string[]).not.toContain(f);
   });
   it("refuses bad values", () => {
-    expect(parseProductPatch({ name: "  " }, { canCost: true })).toMatchObject({ ok: false });
-    expect(parseProductPatch({ price: -1 }, { canCost: true })).toMatchObject({ ok: false });
-    expect(parseProductPatch({ stock_quantity: 1.5 }, { canCost: true })).toMatchObject({ ok: false });
-    expect(parseProductPatch({ days_of_supply_per_unit: 0 }, { canCost: true })).toMatchObject({ ok: false });
-    expect(parseProductPatch({ is_active: "yes" }, { canCost: true })).toMatchObject({ ok: false });
-    expect(parseProductPatch({ supplier_id: "nope" }, { canCost: true })).toMatchObject({ ok: false });
-    expect(parseProductPatch({ low_stock_threshold: 7 }, { canCost: false })).toEqual({ ok: true, update: { low_stock_threshold: 7 }, dropped: [] });
+    expect(parseProductPatch({ name: "  " })).toMatchObject({ ok: false });
+    expect(parseProductPatch({ price: -1 })).toMatchObject({ ok: false });
+    expect(parseProductPatch({ days_of_supply_per_unit: 0 })).toMatchObject({ ok: false });
+    expect(parseProductPatch({ low_stock_threshold: 1.5 })).toMatchObject({ ok: false });
+    expect(parseProductPatch({ is_active: "yes" })).toMatchObject({ ok: false });
+    expect(parseProductPatch({ supplier_id: "nope" })).toMatchObject({ ok: false });
+    expect(parseProductPatch({ low_stock_threshold: 7 })).toEqual({ ok: true, update: { low_stock_threshold: 7 }, dropped: [] });
+  });
+});
+
+describe("cost visibility on a returned product row", () => {
+  it("owners keep cost_price, everyone else loses it; the input is not mutated", () => {
+    const row = { id: "p1", name: "Zinc", cost_price: 2, price: 10 };
+    expect(withCostVisibility(row, true)).toEqual(row);
+    expect(withCostVisibility(row, false)).toEqual({ id: "p1", name: "Zinc", price: 10 });
+    expect(row).toHaveProperty("cost_price", 2);
   });
 });
