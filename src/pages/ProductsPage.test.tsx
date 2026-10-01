@@ -101,7 +101,7 @@ const lineAnswer = (ids: string[], line: string | null) => ({ line, mex_profile:
 
 let location = '';
 function LocationProbe() { location = useLocation().search; return null; }
-function renderAt(url = '/products', rows: unknown[] = ROWS) {
+function renderAt(url = '/products?status=all', rows: unknown[] = ROWS) {
   getCatalogue.mockResolvedValue({ generated_at: null, rows: structuredClone(rows) });
   getKindProposal.mockResolvedValue(structuredClone(KIND_PROPOSAL));
   getLineProposal.mockResolvedValue(structuredClone(LINE_PROPOSAL));
@@ -134,6 +134,15 @@ describe('Производи 2.0 — the list', { timeout: 30_000 }, () => {
     expect(screen.queryByText(/Креиран автоматски/)).toBeNull();
   });
 
+  it('a bare /products shows ACTIVE products only (owner 01.10.2026) — inactive ones one click away', async () => {
+    renderAt('/products?kind=all');
+    await loaded();
+    expect(shownNames()).not.toContain('ТЕЛЕСНА ВАГА');
+    expect(chipIn('products.status.label', t('products.status.active')).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(chipIn('products.status.label', t('products.status.all')));
+    await waitFor(() => expect(shownNames()).toContain('ТЕЛЕСНА ВАГА'));
+  });
+
   it('the kind chips filter (URL ?kind=) and combine with the line chips', async () => {
     renderAt();
     await loaded();
@@ -155,7 +164,7 @@ describe('Производи 2.0 — the list', { timeout: 30_000 }, () => {
   });
 
   it('search finds Cyrillic from Latin across kinds (with ?kind=all)', async () => {
-    renderAt('/products?kind=all');
+    renderAt('/products?kind=all&status=all');
     await loaded();
     fireEvent.change(within(screen.getByRole('search')).getByRole('searchbox'), { target: { value: 'snail' } });
     await waitFor(() => expect(shownNames()).toEqual(['СНАИЛ КОМПЛЕКС cps 30']));
@@ -191,7 +200,7 @@ describe('Производи 2.0 — the list', { timeout: 30_000 }, () => {
   });
 
   it('bulk: select → "Постави вид" → one call with every id', async () => {
-    renderAt('/products?kind=all');
+    renderAt('/products?kind=all&status=all');
     await loaded();
     fireEvent.click(within(rowOf('Arthriva')).getByRole('checkbox'));
     fireEvent.click(within(rowOf('ТЕЛЕСНА ВАГА')).getByRole('checkbox'));

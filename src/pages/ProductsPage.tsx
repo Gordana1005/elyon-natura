@@ -85,7 +85,8 @@ export default function ProductsPage() {
   const lineParam = params.get('line');
   const line: LineFilter = isLineFilter(lineParam) ? lineParam : 'all';
   const statusParam = params.get('status');
-  const status: StatusFilter = isStatusFilter(statusParam) ? statusParam : 'all';
+  // active products by default (owner 01.10.2026: the first view = the products we sell); Сите / Исклучени one click away
+  const status: StatusFilter = isStatusFilter(statusParam) ? statusParam : 'active';
   const setParam = useCallback((key: string, value: string | null) =>
     setParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -285,7 +286,7 @@ export default function ProductsPage() {
               query={query} onQuery={setQuery}
               kind={kind} onKind={(k) => setParam('kind', k === DEFAULT_KIND_FILTER ? null : k)}
               line={line} onLine={(l) => setParam('line', l === 'all' ? null : l)}
-              status={status} onStatus={(s) => setParam('status', s === 'all' ? null : s)}
+              status={status} onStatus={(s) => setParam('status', s === 'active' ? null : s)}
               facets={facets} shown={rows.length} total={products.length}
               canSelect={canSetLine} onSelectShown={() => selectShown(true)} f={f}
             />
