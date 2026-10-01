@@ -1,6 +1,6 @@
 ---
 name: elyon-i18n
-description: Use whenever adding, changing, or translating ANY user-facing text in Elyon CRM (labels, toasts, placeholders, table headers, page titles, statuses). The app is quadrilingual (English + Bulgarian + Albanian + Macedonian) with a per-user switcher in the top bar. New UI strings must NEVER be hardcoded — they go through i18next keys in src/i18n/locales/. Also read before touching dates, exports, or anything that LOOKS like display text but is actually data.
+description: Use whenever adding, changing, or translating ANY user-facing text in Elyon CRM (labels, toasts, placeholders, table headers, page titles, statuses). The app is quadrilingual (English + Bulgarian + Albanian + Macedonian) with a per-user switcher in the top bar. New UI strings must NEVER be hardcoded — they go through i18next keys in src/i18n/locales/. Includes the owner's binding Macedonian terminology (01.10.2026): prediction = "предикција" (never "прогноза"), a leads team / queue = "лидови" (never "на чекање"), "На чекање" only for the order status pending, and the team + lane labels. Also read before touching dates, exports, or anything that LOOKS like display text but is actually data.
 ---
 
 # Elyon i18n Skill — Quadrilingual UI Rules (EN + BG + SQ + MK)
@@ -13,8 +13,9 @@ Every user-facing string lives in `src/i18n/locales/en.json` + `bg.json` + `sq.j
 **Adding a 5th language is now a one-line change in three places**: the
 `LOCALES` map in `parity.test.ts`, the `TRANSLATED` map in `keys-used.test.ts`,
 and `SUPPORTED_LANGUAGES` in `src/i18n/index.ts`. Nothing else iterates a
-hardcoded language list — the switcher, Settings → Appearance and the Call
-Scripts editor tabs all read `SUPPORTED_LANGUAGES`. Keep it that way.
+hardcoded language list — the switcher, Settings → Лично (`/settings/personal`,
+was Settings → Appearance until 01.10) and the Call Scripts editor tabs all read
+`SUPPORTED_LANGUAGES`. Keep it that way.
 
 **Albanian (`sq`, Macedonia standard)** was added 2026-06-22 and is **LIVE**.
 **Macedonian (`mk`, literary Skopje standard)** was added 2026-07-22 and is
@@ -87,6 +88,33 @@ Orthography is a hard, machine-checkable rule: **Macedonian has no `ъ`, `щ`,
 `я`, `ю`, `ь`** (Bulgarian `щ` → Macedonian `шт`). `parity.test.ts` fails the
 build if any of those letters appear in `mk.json`. Also mind `Недела` = *Sunday*
 in Macedonian; *week* is `Седмица`.
+
+### The owner's terminology (30.09 / 01.10.2026) — binding for every mk string
+
+The owner's own vocabulary; "Прогнози" and a team called "На чекање" read wrong
+to him and his staff (the Assigner board's badges prompted it).
+
+- **Prediction = "предикција" / "предикциски"** — NEVER "прогноза", "прогнози",
+  "прогнозни". "Предикциски листи" (was Прогнозни списоци), "Мотор за
+  предикција", "Агент за предикција" (was Прогнозен агент).
+- **The team or queue that works pending leads = "лидови"** — never "на чекање",
+  never "пендинг / пендинзи". "Лидови" (was Пендинзи — the Assigner tab, the
+  /calls queue entry), "Агент за лидови" (was Агент на чекање).
+- **"На чекање" ONLY for the ORDER STATUS `pending`** (`status.pending` and its
+  finance / warehouse uses). A web order the shop has not confirmed = "Чека
+  потврда".
+- **Team + lane labels** (`teamLines.label.*`, `src/lib/teamLines.ts`): Телешоп
+  лидови · Телешоп предикција · Социјални мрежи · Affiliate лидови · Affiliate
+  предикција · Менаџмент (`tvBoard.team.management`). Lanes: `teamLines.lane.in`
+  / `.out` / `.social`.
+- en / sq / bg keep their own words ("Pending", "Prediction" are fine in English).
+- The sweep of 01.10 (`42318d3`, `82755b4`) was path-exact over 99 + the Calls
+  values of `mk.json`. Re-check after any mk change:
+  `grep -c рогноз src/i18n/locales/mk.json` → **0**, and no "на чекање" outside
+  the order status.
+- Keys stay stable — only values changed. Stored DATA (list names, product
+  names) is never renamed for wording: a prediction list is translated for
+  display only (`listLabel()`), because the engine resolves lists by exact name.
 
 ### Foreign literals — text that is DATA, not language
 

@@ -1,6 +1,6 @@
 ---
 name: elyon-assigner
-description: Use for anything related to the Assigner page (redesigned 30.09.2026 — live agent board of ALL profiles on top, lists by BUYER department, server-side distribution with count / split / order and a dry-run preview, Realtime refresh), bulk assignment of pending orders, call-agains and prediction list members, the Unassign tab (full detach + per-client unassign), unassign rules (pendings vs confirmed), cross-list baskets, the live agent status, and the logic that controls which agents see which leads. Critical for lead distribution and agent workload management.
+description: Use for anything related to the Assigner page (redesigned 30.09.2026 — live agent board of ALL profiles on top with each agent's team + lane badge, lists by BUYER department, server-side distribution with count / split / order and a dry-run preview, Realtime refresh), bulk assignment of leads (pending orders), call-agains and prediction list members, the agent's own call-agains on /calls (the /call-again page is gone since 01.10 — it redirects to /calls?queue=call-again, fed by GET /calls/call-again), the Unassign tab (full detach + per-client unassign), unassign rules (pendings vs confirmed), cross-list baskets, the live agent status, the hidden automatic lead-distribution engine, and the logic that controls which agents see which leads. Critical for lead distribution and agent workload management.
 ---
 
 # Elyon Assigner Skill
@@ -19,11 +19,15 @@ agents in a tall right rail outside the viewport, English list names, no "N at a
    departments) · agents online / all · decisions today.
 3. `AgentBoard` — **ALL active profiles** (owner: "all profiles"), compact 2–6 column grid, online / in call first,
    then load (`pendings + list_open`), then name; offline dimmed at the end. Each tile: presence, name, live counters
-   pendings · повторни повици · клиенти од списоци, the team badge in Macedonian (`tvBoard.team.<key>`), shift in the
-   tooltip, a slim "Одземи" side button. A click toggles the agent as a distribution TARGET; search Cyrillic ⇄ Latin;
+   лидови · повторни повици · клиенти од списоци, the **team + lane badge** in the owner's words (since 01.10,
+   `20260943000950`: `assigner_board()` returns `team_lane`, display only → `teamLabel(t, team_key, team_name,
+   team_lane)` → `teamLaneLabel` in `src/lib/teamLines.ts`: Телешоп лидови · Телешоп предикција · Социјални мрежи ·
+   Affiliate лидови · Affiliate предикција · Менаџмент — see `elyon-presence-and-leaderboard` §5; shown from `sm` up,
+   on a phone only in the tile's tooltip), shift in the tooltip, a slim "Одземи" side button. A click toggles the agent as a distribution TARGET; search Cyrillic ⇄ Latin;
    "Само онлајн"; "Избери ги сите онлајн". **Never add call_agains to pendings + list_open** — `pendings` already
    includes the agent's call-again lead orders and `list_open` the call-again members.
-4. Tabs **Списоци · Пендинзи · Повторни повици · Одземање**, each with one shared `DistributeBar`:
+4. Tabs **Списоци · Лидови · Повторни повици · Одземање** (the leads tab read "Пендинзи" until the owner's
+   terminology of 01.10 — a leads queue is "лидови", `elyon-i18n`), each with one shared `DistributeBar`:
    count 20 / 50 / 100 / 200 / Сите / друго · split **Вкупно (се дели)** or **По агент** (owner: "100 on ONE operator,
    or the same 100 over 3") · order Најнови / Најстари (+ Случајно for lists) · "вклучи и веќе доделени" · the chosen
    agents as chips · a **server dry-run preview** ("100 → 3 агенти: 34 · 33 · 33") · confirm (extra warning above 300;
@@ -72,6 +76,27 @@ totals, department coverage). Tests: `src/lib/assigner/*.test.ts`, `AgentBoard.t
 неодамна онлајн" block are gone (select-all-online + Сите does the same). The unassign contract, the lead rules and the
 engine sections below still hold.
 
+## Call-agains on /calls — one place for the agent (01.10.2026, `0711fb7`)
+
+Owner audit 30.09: the same call-agains lived in three places (/call-again, /calls, the Assigner). Now:
+
+- **The agent's own call-agains are a view of /calls**: `?queue=call-again` ("Повторни повици" in `QueueTabs`, the
+  list `CallAgainQueue`). **`/call-again` redirects there** (`src/components/calls/work/CallAgainRedirect.tsx`), and so
+  does the sidebar item. `CallAgainPage.tsx` was deleted.
+- Fed by **`GET /api/calls/call-again`** (`supabase/functions/api/callsOutcome.ts`, client `apiGetMyCallbacks` in
+  `src/lib/callsWorkApi.ts`): "Мои" — the caller's own lead orders in `call_again` + list members with an open callback,
+  one per phone (the order wins), due first (`due` / `soon` / later), the real last call, **no expiry on read** (the
+  `call-again-expiry` cron does it every 5 min), capped at 500, customer fields redacted per role. The same definition
+  as the Assigner's `assigner_call_agains()`.
+- A callback is SET from the /calls outcome bar ("Повторно" + time chips → `POST /calls/outcome`, which writes
+  `next_call_after`; with no time picked the 3,5 h retry gap applies). It must fall inside the 6-day call-again window
+  (`expire_call_again_window()`), because an explicit callback restarts that window. See `elyon-segments-and-prediction`.
+- **Managers still redistribute** in the Assigner's Повторни повици tab (`assigner_distribute`, kind call-agains) and
+  take work back in Одземање — unchanged.
+- **Open with the owner:** the 10.08 lead rule (#9 / #10 below — on a lead the customer waits for US: no cooldown, no
+  throttling, call-backs stay visible) against the new callback parking (a "Повторно" with a time on a lead). Nothing
+  hides a callback today (the queue sorts by due time); decide before adding any "ready only" filter.
+
 ## Core Concepts
 
 ### Two Main Sources of Work
@@ -108,7 +133,7 @@ listed only prediction lists, while pendings were fetched separately and silentl
 An agent working leads saw a *prediction list name* in the strip that wasn't what they were calling,
 and could not tell they had leads at all.
 
-Now the strip carries a **virtual "Pendings" entry, always first**, fed by `GET /my-pendings-summary`
+Now the strip carries a **virtual "Pendings" entry (mk "Лидови" since 01.10), always first**, fed by `GET /my-pendings-summary`
 (`ready` / `open` / `parked` / `talked_today`, Europe/Skopje). Key rules:
 
 - The entry is **synthetic** — leads are `orders` rows, not segment members, so there is no list row
@@ -176,6 +201,11 @@ whole pool to named agents / anyone seen in the last 10–20 minutes
 auto-assign action; it is a one-shot, not the continuous engine.
 
 ## The Lead Distribution Engine (2026-08-13) — automatic, continuous
+
+> **MK state 01.10.2026: STOPPED and hidden.** `lead_distribution_config.is_active = false` since 16.09
+> (the Assigner does the job), and `/lead-distribution` left the menu in the owner's page audit (30.09,
+> `1b2d535`) — the route and the code stay. The `lead-auto-distribute` cron still ticks every minute and
+> does nothing while `is_active` is false. Do not restart it without the owner.
 
 `/lead-distribution` is the **automatic** counterpart to `/assigner`. It only ever touches
 **inbound leads on `orders`** — never prediction members.
@@ -351,7 +381,11 @@ When making changes here, always think from the perspective of both the manager 
 
 ---
 
-*Last meaningful update: 2026-08-13 — the Lead Distribution Engine became real: strategy logic moved
+*01.10.2026: /call-again folded into /calls (`?queue=call-again`, `GET /calls/call-again`); the board badge shows
+team + lane (`team_lane`, teams = business lines); the leads tab is "Лидови"; /lead-distribution hidden, engine
+stopped since 16.09. 30.09.2026: the redesign at the top of this file.*
+
+*Earlier: 2026-08-13 — the Lead Distribution Engine became real: strategy logic moved
 out of the edge function into SQL (`20260921000000`), `is_active` became a genuine Start/Stop, an
 AFTER INSERT trigger plus a per-minute pg_cron sweeper made it continuous, opt-in per-product routing
 with guaranteed fall-through was added, and load counting was aligned to the one canonical lead

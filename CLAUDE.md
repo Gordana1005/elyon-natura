@@ -68,7 +68,9 @@ target **explicitly** and verify it before running:
   `npx supabase functions deploy <fn> --project-ref bmfxhgznttcnnlqloqzp` after the tripwire. If the CLI hangs
   (30.09: 20 min on `api`), kill it and add `--use-api` (server-side bundling, ~30 s).
 - **Read-only SQL** (verification): POST `https://api.supabase.com/v1/projects/bmfxhgznttcnnlqloqzp/database/query`
-  with `{query, read_only: true}`; checkers: `scripts/verify-attribution.mjs` (C1–C14).
+  with `{query, read_only: true}`; checkers: `scripts/verify-attribution.mjs` (C1–C14),
+  `verify-insights-ties`, `verify-assigner`, and since 01.10 `verify-shifts` (S1–S6), `verify-teams`
+  (T1–T5), `verify-address-routing` (R1–R7) — all read-only, pinned to MK.
 
 ## Per-market rules (Macedonia ≠ Bulgaria) — these OVERRIDE the copied BG docs/skills
 `.grok/skills/` and `docs/` were copied from Bulgaria and still describe BG specifics in places.
@@ -93,9 +95,24 @@ target **explicitly** and verify it before running:
   8-column portal template (contract: `src/lib/mexImportCsv.ts` — Latin, integer denari, no
   quoted fields); courier outcomes come from the automated `mex-reconcile` cron. The BigArena
   status-upload button was removed 2026-08-18. `bg_settlements` is dead (0 rows) — Macedonian
-  addresses live in `mk_settlements`/`mk_streets`/`mex_cities`.
+  addresses live in `mk_settlements`/`mk_streets`/`mex_cities`. **ONE MEX-zone resolver in SQL
+  (01.10, `20260943000500`–`0711`):** an order remembers the place the form PICKED
+  (`orders.settlement_id`, `mex_zone_basis`); `mex_zone_for_settlement` / `mex_zone_for_name` decide
+  the zone for the api AND `altercpa-sync` (the old LIMIT-1 name match sent 290/295 Skopje sales to
+  "Skopje - Centar"). The order form (Create / Confirm / Edit): a confirmed order needs a place from
+  the list, a district where the city is split (Скопје) and street + number (or quarter + building);
+  the postcode always follows the place, "За курирот" =
+  the MEX Opis, an internal note apart, no birthday / gift for new orders; the address is locked once
+  the order has a MEX parcel. `customer_profile_merge` only fills, never blanks. Check:
+  `node scripts/verify-address-routing.mjs`. MEX has no cancel — a wrong zone is a lost parcel.
 - **Telephony:** deferred (Phase 2). `VITE_USE_REAL_VOIP=false`; PBX/DID values are BG placeholders.
-  The VOIP minutes bundle is seeded at 0 — there is no MK carrier contract.
+  The VOIP minutes bundle is seeded at 0 — there is no MK carrier contract. Agents dial from their
+  own handsets: /calls shows a `tel:` link on a phone (the number + copy on desktop) and **the
+  outcome IS the call log** (01.10): the one-tap bar Не одговара (Undo) / Повторно / Откажа / Корпа /
+  Потврди (keys 1–5) → `POST /calls/outcome` = status + ONE `call_logs` row `source='handset'` +
+  obligation + list member. A cancel / trash with no open order is a disposition record carrying the
+  customer's last purchase (`last_sale_product`, server-side). The VOIP banner does not poll while
+  VOIP is off; /voip-health shows in the menu only when `useRealVoip`.
 - **Trash is STICKY here (engine v3.7-mk, 2026-08-06)** and differs from Bulgaria in two ways on
   purpose: (1) a **paid order after the trash releases** the customer — BG deletes them forever,
   we keep them, because 2.391 Macedonian customers had already paid us *after* being trashed;
@@ -133,7 +150,8 @@ target **explicitly** and verify it before running:
     `orders.dept_override` (set by `order_dept_override(…, mex_account, mex_tracking_id)`, re-decided when
     the parcel links) and the 4-argument `cohort_order_source(…, dept_override)` every report uses. A
     MEX-only BIO NATURAL parcel is always affiliate. The "crm_prediction team → Телешоп – Lead out" rule
-    (`…1800`) was WITHDRAWN the same morning — never reintroduce a team rule for departments. The
+    (`…1800`) was WITHDRAWN the same morning — never reintroduce a team rule for departments (teams
+    became business lines on 30.09 and still never place a sale — `verify-teams.mjs` T3). The
     Prediction-lists tab holds the list sales of every department. A MEX parcel with no order
     goes by series (9110 → Lead in · 9103 → Lead out · 9102 → Teleshop out · 9100 → Teleshop in ·
     9108/1300 → Social · NTMK/M… → Web).
@@ -196,11 +214,60 @@ target **explicitly** and verify it before running:
   Realtime broadcast `assigner`), lists split by the BUYER's department (`customer_departments` = the department of
   the customer's LAST PURCHASE, refreshed every 10 min), distribution chosen ON THE SERVER (`assigner_distribute`:
   count, split total/per agent, newest/oldest/random, dry-run preview). List names/descriptions are translated for
-  display only — NEVER rename a list. See `elyon-assigner`; check with `node scripts/verify-assigner.mjs`.
+  display only — NEVER rename a list. Each agent tile shows the team + lane badge (01.10). An agent's own
+  call-agains are a view of /calls: **`/call-again` redirects to `/calls?queue=call-again`** (`GET /calls/call-again`).
+  See `elyon-assigner`; check with `node scripts/verify-assigner.mjs`.
+- **Shifts are the LOGIN GATE (owner kept it, 30.09):** `GET /shifts/check-login` refuses every non-admin/manager
+  with no shift covering "now" today (Skopje) — codes `no_assignment` / `no_shift_today` / `zero_shift` /
+  `outside_hours`, and it writes the login log itself. A missing roster locks the whole floor out at 07:00 (the
+  September roster ended 30.09; October was rolled forward the same night, 33 agents). Keep the **runway** ≥ 5 days:
+  `shifts_runway(5)`, the cron `shifts-runway-alert` at 17:05 Skopje notifies admins + managers, and
+  `shifts_roll_forward` (Смени → "Пренеси го месецот": preview → owner sees the list → apply). One "Смени" page
+  (`/shifts`; `/my-shifts` redirects), one shift per person per day (`20260943001000`), login history survives a
+  deleted shift. Check: `node scripts/verify-shifts.mjs`. See `elyon-presence-and-leaderboard` §1b.
+- **Teams are BUSINESS LINES (owner, 30.09, whole history; `20260943000900`/`0950`):** **Телешоп** (ships via NATURA;
+  lanes in / out / social), **Affiliate** (ships via BIO NATURAL; lanes in / out), **Менаџмент** (shown, never
+  ranked). Labels: Телешоп лидови · Телешоп предикција · Социјални мрежи · Affiliate лидови · Affiliate предикција.
+  `sales_team_members.lane`; the old keys `crm_prediction` / `altercpa_leads` stay as legacy aliases (old TV links);
+  one filter function `sales_team_filter_matches` (`team:lane`). The owner confirms people in Settings → Teams →
+  **Предлог** (`sales_team_line_proposal` → `sales_team_lines_apply`; 82 re-keyed, 17 wait for him). A team groups
+  people — it **NEVER decides a department**.
+- **The PRODUCT LINE decides the MEX profile when the CRM itself ships (owner, 30.09):** `products.brand_line` —
+  Bio Natural / Dr.Becker → BIO NATURAL, Natura Therapy / Ad Astra → NATURA (`mex_profile_for_line()`); a mixed
+  basket needs a person's pick (the exact rule is still the owner's). **Everything on naturatherapy.mk is Natura
+  Therapy or Ad Astra** (the Ad Astra page is `/adastra-nutrition`); **Bio Natural never appears on the web.**
+  `products.kind` = product / bundle / gift / other; /products opens on active products of kind "product". Both
+  columns are written only by the audited `products_set_brand_line` / `products_set_kind` (guard triggers). See
+  `elyon-products-catalogue`.
+- **MEX 8 = ЗА ПАКУВАЊЕ, never shipped (owner, 30.09; live 01.10):** a parcel at MEX 8 "Shipment created" keeps the
+  order confirmed (+ `orders.mex_sent_at`); only 4 / 10 / 9 / 1 / 3 ship it, 2 = paid, 7 = returned — in
+  mex-reconcile, the collabBox writer (`…1210`) and the Overview's "Спакувано" (`…1220`). ~260 orders still `shipped`
+  at MEX 8 wait for the owner's OK before `scripts/repair-shipped-at-mex8.mjs` is applied. **/warehouse = Испрати до
+  MEX · За пакување · Залихи · Попис · Движења; no printing** (the MEX portal prints). **"Испрати до MEX" (the CRM's
+  own `add_shipment.php` push, `mexPush.ts`, ledger `mex_push_attempts`) is built and SWITCHED OFF** —
+  `app_settings.mex_push.enabled = false`; the 11:00 auto-send is built, not scheduled. Never switch either on
+  without the owner. See `elyon-warehouse-incoming`, `elyon-fulfilment-csv`.
+- **Settings writes go through the api, audited (01.10, `20260943001500`):** `/settings/:section`, grouped (Луѓе и
+  пристап · Правила · Систем · Напредно · Лично); modules / role permissions / privacy via `PUT /api/settings/*`
+  (admins); the browser write policies are dropped, and `app_settings` / `courier_rates` writes are admin-only. The
+  MEX courier rate is saveable (owners). See `elyon-security` §11.
+- **TODAY is the default period (owner, 01.10):** Insights (Табла included) and /orders open on today, with ← / →
+  stepping a day (a longer period by its own length; → stops at today) — one `stepRange` + `PeriodStepper`.
+  /orders opens on the "Нарачки" chip (Нарачки · Отворени лидови · Откажани · Во корпа · Сите), filters in the URL
+  (department, seller, MEX status), Skopje days, phone search by the last 8 digits.
+- **Terminology (owner, 30.09 / 01.10):** in Macedonian prediction = **"предикција" / "предикциски"** — never
+  "прогноза"; a leads team or queue = **"лидови"** — never "на чекање" / "пендинзи"; **"На чекање" is ONLY the order
+  status `pending`**. `grep -c рогноз src/i18n/locales/mk.json` must be 0. See `elyon-i18n`.
+- **Hidden pages (owner audit, 30.09):** out of the menu, routes kept (old links work): /missed-calls, /voip-health
+  (shown only when `useRealVoip`), /inbound-leads, /webhooks, /lead-distribution (engine stopped since 16.09),
+  /affiliates-admin. Redirected: /import-orders → /orders (`POST /orders/import` stays for scripts — the page never
+  made a real order and a blank status became PAID), /search-prediction → /, /predictions → /segments, /my-shifts →
+  /shifts, /call-again → /calls?queue=call-again. Dead page files deleted. Do not bring them back without the owner.
 - **UI law (owner, 29–30.09): every page in the Insights style and perfect on EVERY screen** — below md a table
   becomes cards, the page never scrolls sideways, no clipped or overlapping labels; on a phone the sidebar is a ☰
   drawer. Take Playwright screenshots at 360 / 390 / 768 / 1024 / 1280 / 1920 px (zero overflow) before a UI push.
-  The rest of the CRM is to be brought into this style page by page.
+  Rebuilt 30.09–01.10: the Assigner, /users, /orders, /calls, /warehouse, /settings, /shifts, /products and the order
+  form. The rest of the CRM follows page by page.
 - **Deferred by the owner — do not touch:** payouts / bonus / commission math; costs and lead cost
   (he sets them later); the stock count (owner, 29.09: "don't focus on stock now" — sellable products
   carry the placeholder 1.000 until his count arrives; keep stock working, add no detail).
@@ -215,25 +282,26 @@ before non-trivial work on money, phones, warehouse, stock, webhooks, or fulfilm
 
 - `elyon-currency` — ⚠️ inherited BG/Macedonia rules. The currency override above wins.
 - `elyon-phone-normalization` — Last-8-digits search + E.164 storage + pollution protection.
-- `elyon-fulfilment-csv` — The MEX Poshta portal-import CSV contract (rewritten 2026-08-18, current).
-- `elyon-warehouse-incoming` — The full daily warehouse workflow and stock safety.
+- `elyon-fulfilment-csv` — How an order becomes a MEX parcel: the portal-import CSV contract (rewritten 2026-08-18) and its twin, the "Испрати до MEX" `add_shipment.php` push (01.10 — claim, existence check, one-success ledger, double-parcel guard, account from the product line; switched OFF).
+- `elyon-warehouse-incoming` — /warehouse since 01.10: Испрати до MEX · За пакување · Залихи · Попис · Движења, the queue, MEX 8 = за пакување (and the not-applied ~260-order repair), no printing, the old routes' guards, stock safety.
 - `elyon-webhook-and-lead-ingestion` — Inbound pipeline, HMAC, per-product slugs.
 - `elyon-stock-and-bigarena` — Stock movements, import rules, and historical operator decisions.
 - `elyon-agent-commissions` — Per-package agent bonuses on every PAID order (only gate is paid; source irrelevant), tiered 1/2/3€ by unit price, no minimum, credited to the confirmer. Read before touching any payout/commission math.
 - `elyon-notifications` — The bell, the 6 notification types, the English-in-DB + `meta.i18n` translation contract, owner = confirmer, and the unpaid-delivery chase job.
-- `elyon-segments-and-prediction` — The name-construction engine (**v3.7-mk, sticky trash**), the exclusivity rule, holding pens (Current Cancels 14d, NEWCOMERS 21d, Trash List), carry-over, and the nightly recompute. Law for anything touching prediction lists.
-- `elyon-assigner` — Distribution + the Unassign tab, agent workload truth, and the live agent status tile.
+- `elyon-segments-and-prediction` — The name-construction engine (**v3.7-mk, sticky trash**), the exclusivity rule, holding pens (Current Cancels 14d, NEWCOMERS 21d, Trash List), carry-over, the nightly recompute, and the /calls outcome bar (`POST /calls/outcome` — the outcome IS the call log; the disposition's last product). Law for anything touching prediction lists.
+- `elyon-assigner` — Distribution + the Unassign tab, agent workload truth, the live board with team + lane badges, the agent's call-agains on /calls (`/call-again` redirects), and the stopped lead-distribution engine.
 - `elyon-voip-and-pbx` — The A1 trunk, Asterisk/FreePBX, the WebRTC softphone and recordings. BG-specific; MK telephony is deferred.
-- `elyon-i18n` — EN/BG/SQ/MK: every user-visible string goes through i18n in all four locales, no exceptions.
-- `elyon-security` — RLS, HMAC, permissions, audit and secrets. Never write an `authenticated`-wide read policy.
+- `elyon-i18n` — EN/BG/SQ/MK: every user-visible string goes through i18n in all four locales, no exceptions; the owner's terminology (предикција, лидови, "На чекање" only for pending).
+- `elyon-security` — RLS, HMAC, permissions, audit and secrets; Settings writes only through audited api routes (01.10), the guard-trigger writer pattern. Never write an `authenticated`-wide read policy.
 - `elyon-affiliates` — The CPA/partner system and the hard wall that keeps external logins out of staff surfaces.
 - `elyon-altercpa-bridge` — The AlterCPA lead mirror: ledger-first, callable geos, offer mapping, and why foreign leads must never reach `orders`. Read before touching `altercpa_*` or multi-country intake.
 - `elyon-logistics-costs` — Courier rate card, return round-trip loss, and Pure Profit actuals.
-- `elyon-presence-and-leaderboard` — Presence minutes + the 30-min idle alert, sales people / identities / teams, the write-once `orders.sold_*` stamps (who is credited with a sale, the stamping cron), the TV leaderboard v2 (`leaderboard_day_v2`, one row per agent split by department) and Settings → Teams.
+- `elyon-presence-and-leaderboard` — Shifts as the login gate (runway, roll-forward, the Смени page), presence minutes + the 30-min idle alert, sales people / identities / teams = business lines + lanes (Settings → Teams → Предлог), the write-once `orders.sold_*` stamps (who is credited with a sale, the stamping cron), the TV leaderboard v2 (`leaderboard_day_v2`, one row per agent split by department, `?team=team:lane`).
 - `elyon-web-shop-bridge` — The read-only naturatherapy.mk mirror (`web_orders`, web-sync every 15 min, `crm_export` on the shop side). Web orders are NOT CRM orders; the live shop gets no changes.
 - `elyon-customer360-and-integrations` — Customer 360 (`customer_timeline`, last-8 matching, money stripped for non-owners) and Settings → Integrations health (freshness thresholds kept in step with the Overview, the 7-day rule's owner switch).
-- `elyon-departments-and-sources` — The six departments (collabBox folder + MEX profile), `cohort_order_source`, the parcel split, `sale_source_reclass` and its rollbacks. Law for anything that says where a sale belongs.
+- `elyon-departments-and-sources` — The six departments (collabBox folder + MEX profile), `cohort_order_source`, the parcel split, `sale_source_reclass` and its rollbacks; a team never decides a department, the product line only picks the account of a CRM push. Law for anything that says where a sale belongs.
 - `elyon-collabbox-sync` — The live collabBox reader: folders/types and roles, the document ledger, orders only once the MEX parcel exists, seller credit, the 15-minute + nightly crons, one run at a time.
+- `elyon-products-catalogue` — Product kinds (product / bundle / gift / other) and brand lines (Natura Therapy / Bio Natural / Ad Astra / Dr.Becker → the MEX profile), the web-catalogue rule, the audited writers behind guard triggers, the machine-text cleanup, /products, and the catalogue scripts.
 
 New skills should be added to `.grok/skills/` whenever you find yourself re-explaining the same
 complicated rule or workflow. Use `/skillify` right after completing a complex piece of work;

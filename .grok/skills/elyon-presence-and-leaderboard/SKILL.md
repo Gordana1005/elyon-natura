@@ -1,6 +1,6 @@
 ---
 name: elyon-presence-and-leaderboard
-description: Who is working, for how long, and who made each sale in the Macedonian Elyon CRM. Covers presence (agent_presence_days, the once-a-minute activity beat, breaks, the 30-minute idle alert, the owners' "Who is working" sheet), the people model (sales_people / sales_person_identities / sales_teams / sales_team_members / v_sales_work), the write-once orders.sold_* stamps and every rule that decides who is credited (the live trigger, the stamping cron, the attribution re-point, the no-revive guard), the TV leaderboard v2 (leaderboard_day_v2 — one row per agent split over the six departments, api/leaderboardV2.ts, TvLeaderboardPage) and the legacy v1 board (leaderboard_day), the Операции per-agent figures, and Settings → Teams. Read before touching presence, the TV board, the people/teams tables, sold_* stamping, or anything that attributes a sale to a person.
+description: Who is working, when they may log in, for how long, and who made each sale in the Macedonian Elyon CRM. Covers shifts as the LOGIN GATE (GET /shifts/check-login, the refusal codes, the runway + its 17:05 alert, shifts_roll_forward, the one "Смени" page and its RPCs, one shift per person-day), presence (agent_presence_days, the once-a-minute activity beat, breaks, the 30-minute idle alert, the owners' "Who is working" sheet), the people model (sales_people / sales_person_identities / sales_teams / sales_team_members / v_sales_work) with TEAMS = BUSINESS LINES since 30.09 (Телешоп / Affiliate / Менаџмент, lanes in / out / social, legacy aliases, sales_team_filter_matches, the data-driven proposal and Settings → Teams → Предлог), the write-once orders.sold_* stamps and every rule that decides who is credited (the live trigger, the stamping cron, the attribution re-point, the no-revive guard), the TV leaderboard v2 (leaderboard_day_v2 — one row per agent split over the six departments, ?team=team:lane, api/leaderboardV2.ts, TvLeaderboardPage) and the legacy v1 board (leaderboard_day), the Операции per-agent figures, and Settings → Teams. Read before touching shifts or the login check, presence, the TV board, the people/teams tables, sold_* stamping, or anything that attributes a sale to a person.
 ---
 
 # Presence, sales people & the TV leaderboard — MACEDONIA
@@ -18,18 +18,28 @@ Three layers, built 27–29.09.2026:
 20260939000000/000200/000300 (the stamping cron: every 5 min + the 04:23 full sweep),
 20260942000400 / 000800 / 001100 (stamp rules), 20260942001200 (leaderboard v2, live 29.09 05:10,
 `145645c`), 20260942001800 → 001850 → 001860 (the board's department takes `orders.dept_override`:
-a CRM-made sale follows its MEX profile). The `api` was last deployed 29.09 11:37 (v83, `edfa901`).
+a CRM-made sale follows its MEX profile).
+
+**Live since 30.09–01.10:** 20260943000100 (shifts runway + roll-forward), 20260943001000 / 001100
+(shift integrity + the Смени RPCs, §1b), 20260943000900 / 000950 (teams = business lines, §2 and §5).
 
 ## Owner rules (law — do not re-litigate)
 
-- **The department decides where a sale counts; the team is a badge.** A sale's department is
+- **A shift is the LOGIN GATE** (owner kept it, 30.09): a non-admin/manager with no shift covering
+  "now" today (Skopje) cannot log in. A missing roster locks the whole floor out at 07:00 — keep
+  the runway ≥ 5 days (§1b).
+- **A team is a BUSINESS LINE** (owner 30.09, for the whole history): **Телешоп** (ships via NATURA;
+  lanes in / out / social), **Affiliate** (ships via BIO NATURAL; lanes in / out), **Менаџмент** (no
+  lane, never ranked). Teams group PEOPLE on the boards, Insights → Agents, the Assigner and Смени.
+- **The department decides where a sale counts; the team never does.** A sale's department is
   `cohort_order_source(sale_source, detail, mex_tracking_id, dept_override)`: the collabBox folder
   and the MEX profile — never the system it was made in, never the seller, never her team. A
   CRM-made sale follows its parcel's profile (owner 29.09 ~12:05, `20260942001860`: BIO NATURAL =
   Affiliate – Lead out, NATURA = by series), so the same agent's sales can land in two departments.
   A team rule (`20260942001800`: `crm_prediction` sellers → Телешоп – Lead out) lived two hours and
-  was withdrawn (`…1850`), like the AlterCPA-team override before it (20260942001100). See
-  `elyon-departments-and-sources` §3b.
+  was withdrawn (`…1850`), like the AlterCPA-team override before it (20260942001100). Making teams
+  business lines did NOT change this: `scripts/verify-teams.mjs` T3 proves no department function
+  reads a team. See `elyon-departments-and-sources` §3b.
 - **Leaderboard for everyone:** every member of every team valid that day is shown — online, idle,
   on break, offline, zero sales — plus anyone who sold, booked, decided, was online or logged in
   that day (the logins with no team show up with no badge).
@@ -124,16 +134,72 @@ One row per staff person for that Skopje day, from `agent_presence_days` + `shif
 (scheduled, shift not started) · `absent` (scheduled, never came). "Agents only / All staff"
 toggle uses the same agent test as the alert scope. Today refetches every 60 s.
 
-### Shift logins and breaks (older tables the presence layer reads)
+### Shift logins and breaks (the tables the presence layer reads)
 
-- `shift_login_logs` — agents: `POST /shifts/login-log` (the client sends `shift_date`),
-  `PATCH /shifts/logout-log`. Операции reads today's rows by the Skopje date since `6e8bd8f`
-  (it used the UTC date before).
+- `shift_login_logs` — written by `GET /shifts/check-login` itself since 01.10 (below); a second
+  check within 2 minutes is the same login. `PATCH /shifts/logout-log` now really records the
+  logout (until 01.10 `PATCH /shifts/:id` swallowed it — 0 of 487 logs had one). Операции reads
+  today's rows by the Skopje date since `6e8bd8f`. `shift_id` is `ON DELETE SET NULL` since
+  `20260943001000` — deleting a shift no longer deletes its login history.
 - `admin_login_logs` — admins/managers bypass shift gating and are logged server-side in
-  `GET /shifts/check-login` (`api/index.ts:13767`).
+  `GET /shifts/check-login`.
 - `shift_breaks` — the Calls-page Break button: `POST /shifts/break/start|end`,
   `GET /shifts/break/active`; one open break per user (`idx_shift_breaks_one_open_per_user`,
   20260520120000).
+
+## 1b. Shifts — the LOGIN GATE, and one "Смени" page (30.09–01.10.2026)
+
+- **The gate** — `GET /shifts/check-login` (called by `LoginPage`; a network error fails open):
+  admins / managers bypass (`{allowed:true, bypass:true}`, logged in `admin_login_logs`); anyone
+  else is let in only when ANY of today's Skopje shifts covers "now" (HH:MM, inclusive end;
+  00:00–00:00 = "no shift"). A refusal goes to `blocked_login_attempts` and answers a CODE the login
+  page translates: `no_assignment` · `no_shift_today` · `zero_shift` · `outside_hours`
+  (`supabase/functions/api/shifts.ts`). The September roster ended 30.09: from 03.10 nobody could
+  have logged in.
+- **Storage** stays one `shifts` row per (date, window, name) + one `shift_assignments` row per
+  person-day, because the gate, `shift_login_logs`, the Assigner's shift tooltip and `/presence/day`
+  read it that way. `20260943001000`: `shift_assignments.shift_date` (trigger-kept) + **UNIQUE
+  (user_id, shift_date)** after cleaning 700 double-booked person-days (the kept row widened to the
+  day's union — nobody's hours narrowed; removed / re-pointed rows in
+  `shift_assignments_removed_20261001`); CHECK end > start (or the 00:00–00:00 marker);
+  `shifts.template_id`.
+- **The runway** (`20260943000100`, service role): `shifts_roll_forward(src_from, src_to, dst_from,
+  dst_to, user_ids, apply, actor, name)` — each active agent's most frequent DAILY window + the
+  weekdays worked on ≥ half of their dates (< 7 source days → every day); fills only uncovered
+  person-days (since `…1000` it widens that day's row instead of adding a second), names the shift
+  after the month, `audit_log shifts.roll_forward`; `apply=false` is the preview.
+  `shifts_runway(5)` = who runs out within 5 days. **`shifts_runway_alert()`** — cron
+  `shifts-runway-alert` (`5 15,16 * * *` UTC, the function fires only at 17:xx Skopje → **17:05**):
+  notifies active admins + managers (type `shifts_runway`, `meta.i18n notif.shiftsRunway`, once per
+  recipient per day) when anyone who worked in the last 14 days has no shift ≥ 5 days ahead.
+  **October was rolled forward on 30.09** (owner approved the list): 33 agents, 1.005 person-days
+  (36 people / 1.010 person-days on 01.10 after edits). Not rolled (no September shift): Marija
+  Markovska, Zaklina Denik, the ТЕСТ account.
+- **The Смени RPCs** (`20260943001100`; service role, one advisory lock for every write; the api
+  checks admin/manager with the `shifts` module): `shifts_grid(from, to)` (people × days → cells,
+  grouped by team and lane), `shifts_set_cells(cells, actor)` (the atomic save, returns the changes
+  + the `undo` cells, one audit row), `shifts_copy_range(…, mode fill_empty|overwrite, apply)`,
+  `shift_update` (whitelisted PATCH /shifts/:id), `shift_template_update` (moves future rows by
+  `template_id` from the Skopje today), `shifts_statistics` (one SQL aggregate — the api used to
+  read 1.000 rows max), `shifts_login_activity` (Skopje times, codes on_time / late / early /
+  blocked + reason, paged).
+- **API** (`shifts.ts` + thin routes): `GET /shifts/grid`, `POST /shifts/cells`, `POST /shifts/copy`,
+  `POST /shifts/roll-month` (preview → `apply:true`), `GET /shifts/runway`, `GET /shifts/statistics`,
+  `GET /shifts/login-activity`, `GET /shifts/my?from&to` (the agent's own); `GET /shifts` and
+  `GET /shift-templates` only for roster managers (admin/manager + `shifts` module).
+- **The page** — `/shifts` (`src/pages/ShiftsPage.tsx`, client `src/lib/shiftsApi.ts`) for `shifts`
+  OR `my_shifts`; **`/my-shifts` redirects there**; one menu item. An agent sees their own shifts
+  (`GET /shifts/my`) with a red banner when there is no shift in the next 5 days. A manager gets the
+  runway banner (+ **Пренеси го месецот**: preview → confirm) and tabs `?tab=schedule|logins|stats`
+  — **Распоред** (agents × days with today's team; template brushes + a "Слободен" eraser, click /
+  drag paint, copy the previous week, week / month, staged save + undo; a day list + sheet on a
+  phone) · **Најави** · **Статистика**. `MyShiftsPage` / `ShiftsManagementPage` are deleted.
+- **Check:** `node scripts/verify-shifts.mjs [--month=YYYY-MM]` (read-only): S1 runway ≥ 5 days ·
+  S2 one shift per person-day · S3 window CHECK · S4 login history survives deletes · S5 the
+  month's roster present · S6 who is inside / outside their window now.
+- **Before each month end:** trust the alert or check `shifts_runway`; roll the month = preview →
+  show the owner the list → apply with an admin actor. A `check-login` change is never deployed
+  without a test login on production (01.10 it was tested with `pregled.agent`, then cleaned up).
 
 ## 2. People, identities, teams — 20260935000100_sales_people_teams.sql
 
@@ -141,8 +207,8 @@ toggle uses the same agent test as the alert scope. Today refetches every 60 s.
 |---|---|
 | `sales_people` (:64) | one row per HUMAN. `user_id` optional + UNIQUE (ON DELETE SET NULL), `is_active`, `is_manager`. 29.09: 47 with a CRM login + 63 placeholders (collabBox authors, former staff) |
 | `sales_person_identities` (:94) | handles naming a person: `altercpa_user` (their id, per `account_id`), `collabbox_author`, `order_name` (confirmed/assigned name exactly as written). One handle → at most one person |
-| `sales_teams` (:122) | `crm_prediction` (mode prediction) · `altercpa_leads` (mode pending) · `management` (mode NULL) — the modes matter to the v1 board only |
-| `sales_team_members` (:146) | person × team × `valid_from..valid_to` (inclusive, NULL = current); **at most one primary team per person per day** (EXCLUDE, btree_gist). A badge only: the membership trigger of 20260942001800 that re-decided departments is dropped (`…1860`) |
+| `sales_teams` (:122, + `kind` / `sort_order` since 20260943000900) | the BUSINESS LINES: `teleshop` "Телешоп" (kind `line`, sort 10, plays the old prediction board) · `affiliate` "Affiliate" (`line`, 20, the old pending board) · `management` (kind `management`, 90, mode NULL = shown, never ranked). The old keys `altercpa_leads` / `crm_prediction` are kind `legacy` (40 / 41) — kept as ALIASES so old rows and TV links work, never deleted. The modes matter to the v1 board only |
+| `sales_team_members` (:146, + `lane` since 20260943000900) | person × team × `valid_from..valid_to` (inclusive, NULL = current); **at most one primary team per person per day** (EXCLUDE, btree_gist). **`lane`** = `in` / `out` / `social` on a line (`social` only in teleshop), NULL on management; `role` stays member vs lead — it is NOT a lane. Never a department: the membership trigger of 20260942001800 that re-decided departments is dropped (`…1860`) |
 | `altercpa_leads.decision / decided_by_altercpa_user / decided_at` | derived on every ledger write by `trg_altercpa_leads_decision` (:328): approved (phase 3) · cancel_other (phase 4, reason > 0 not in 2,7,8,9,10,14 — the 08-11 rule, counts as a SALE) · cancelled · trashed |
 | `v_sales_work` (:550) | ONE row per human decision: CRM `order_history` transitions into confirmed/cancelled/trashed/call_again by a person (not `System (…)`, not `… — …`) + MK AlterCPA ledger decisions (test orders excluded), minus an AlterCPA record whose order already has a compatible human CRM decision at or before its `decided_at` + 15 min (the ledger row is that decision's mirror). `outcome` = sale/cancel/trash/callback; `actor_ext` = the raw key when no person matches |
 
@@ -290,23 +356,31 @@ orders." ONE board, one row per person, the day split over the six departments.
     numbers share a place), within the filter shown; managers (`is_manager` or an admin/manager
     role) listed last, never ranked. **No bonus** (payouts deferred by the owner).
   - Filters: `p_department` (one of the six keys: the people with anything in it — sale, cancel,
-    booking, decision — and that department's numbers), `p_team` (a team key, or `none` = no team
-    that day). `day_totals` is never filtered: per department credited + no seller + web shop +
+    booking, decision — and that department's numbers), `p_team` (a team key, `team:lane` e.g.
+    `teleshop:in`, a legacy alias, or `none` = no team that day — since `20260943000950` read in ONE
+    place, `sales_team_filter_matches(filter, team_key, lane)`: `altercpa_leads` = the old team's
+    rows + lane `in`, `crm_prediction` = the old team's rows + lane `out` on every line). Teams come
+    by `sort_order`, each with its lanes; rows carry `team_lane` / `team_kind`; a member of a
+    management team is shown, never ranked. `day_totals` is never filtered: per department credited + no seller + web shop +
     MEX-only parcels (which no person can hold) = the cohort; `no_department` and
     `checks.bookings_filter_drift` must be 0.
   - Money: every amount is a `*_mkd` key, whole денари. ~0,35 s for one day on live data.
 - **`GET /api/leaderboard?key=<token>&v=2[&day=YYYY-MM-DD][&department=<key>][&team=<key|none>]`**
   (`api/index.ts:2850`) — public, validated against `leaderboard_access_tokens` BEFORE the auth
   gate, per-IP rate limit → `supabase/functions/api/leaderboardV2.ts`: validates `department` (one
-  of the six keys) and `team` (`^[a-z0-9_]{1,40}$`; an unknown key → 400) before the RPC, normalises
+  of the six keys) and `team` (`parseTeamFilter` in `api/teamLines.ts` owns the grammar: a key,
+  `team:lane`, `none` or a legacy alias; anything else → 400) before the RPC, normalises
   the payload, and strips money by a WHITELIST of non-money keys for a caller without money access
   (a money field added to the RPC later is dropped by default). The TV token keeps the board's
   existing access rule: it receives the денари (`money: true`).
 - **`src/pages/TvLeaderboardPage.tsx`** + `src/components/tvboard/*` + `src/lib/leaderboardV2.ts`:
   rank, name, team badge, department chips "Aff. out 3 · 9.000 ден", dashed booking chips
-  "+5 резервирани", total, worked · conversion, time on CRM; filter bar; `?dept=` (or
-  `?department=`) / `?team=` pin a TV, an old `?mode=prediction|pending` URL opens its team
-  (`crm_prediction` / `altercpa_leads`); `?lang=` pins the language; a day switcher (◀ ▶) reviews
+  "+5 резервирани", total, worked · conversion, time on CRM; filter bar with each line's lanes;
+  `?dept=` (or `?department=`) / `?team=` (incl. `team:lane`) pin a TV, an old
+  `?mode=prediction|pending` URL opens its legacy alias (`LEGACY_MODE_TEAM`: `crm_prediction` /
+  `altercpa_leads`); Settings → ТВ табла builds one link per line and per lane in the owner's words
+  (Телешоп лидови / предикција …, `64222c1`; none for the legacy aliases or Менаџмент); `?lang=` pins
+  the language; a day switcher (◀ ▶) reviews
   previous days (the api's `&day=`). Today updates live via the Realtime broadcast
   `tv-leaderboard` with a 20 s polling fallback.
   `toBoardV2()` adapts a v1 response (an api without `?v=2`) so the wall never goes blank.
@@ -332,16 +406,55 @@ orders." ONE board, one row per person, the day split over the six departments.
   (`buildLeaderboardResponse()`, `api/leaderboard.ts:263`, with the edge function's OWN
   `packageBonusRate` / `tierBonus` injected). Kept so an old TV bundle keeps working;
   `verify-attribution` C4/C5 still tie these two boards to the sales ledger. Do not extend it.
-- **Settings → Leaderboard** (`LeaderboardTab.tsx`, admin/manager; routes
-  `leaderboard/admin|roster|rules|token`, `api/index.ts:4045-4095`): today's extras, bonus tiers
-  (prediction: `revenue_target`; pending: `confirmed_count`, `avg_order_value`), TV tokens. The
-  extras and bonus tiers feed v1 only; the TV tokens gate both.
+- **Settings → Leaderboard** (`LeaderboardTab.tsx`; routes `leaderboard/admin|roster|rules|token`):
+  today's extras and the bonus tiers (prediction: `revenue_target`; pending: `confirmed_count`,
+  `avg_order_value`) feed v1 only. Since the Settings rebuild (01.10) the tab is **kept but not
+  mounted** (bonus is deferred); the TV tokens moved to **Settings → ТВ табла** (`/settings/tv`:
+  links per company / department / line / lane, rotate and revoke confirm and are audited). The
+  tokens gate both boards.
 
-## 5. Settings → Teams (owners only)
+## 5. Settings → Teams (owners only) — `/settings/teams`
 
-`TeamsTab.tsx` → `/api/sales-people/*` (`api/index.ts:17102`, `isBusinessOwner()` only, one
-`audit_log` row per write) → SECURITY DEFINER functions in 20260939000200 (service_role only;
+`TeamsTab.tsx` → `/api/sales-people/*` (`isBusinessOwner()` only — every active admin is an owner;
+one `audit_log` row per write) → SECURITY DEFINER functions in 20260939000200 (service_role only;
 refusals come back as `{ok:false, error:<code>}`, HTTP status from `teamsAdmin.ts statusForCode`):
+
+**Teams = business lines (owner 30.09; `20260943000900` / `000950`, `bc4bad0`, for the whole history):**
+
+- **The lanes, in the owner's words** (`src/lib/teamLines.ts`, i18n `teamLines.label.*`): Телешоп
+  лидови (`teleshop:in` — the client phones in, e.g. Александра Чима books it) · Телешоп предикција
+  (`teleshop:out` — agents call existing clients) · Социјални мрежи (`teleshop:social`) · Affiliate
+  лидови (`affiliate:in` — AlterCPA pending leads) · Affiliate предикција (`affiliate:out` — calls to
+  existing clients when there are no leads) · Менаџмент (no lane). Never "прогноза" / "на чекање"
+  (`elyon-i18n`).
+- **`sales_team_line_proposal(p_days default 60)`** (read-only): per person the credited sales by
+  department → a proposed line + lane + confidence (`sure` / `likely` / `decide`). The Settings →
+  Teams **Предлог** panel (`TeamLinesProposal`) shows it with a team / lane picker per row; "accept
+  all" confirms first. API: `GET /api/sales-people/line-proposal?days=`,
+  `POST /api/sales-people/line-apply {rows}` (owners). Lanes are also set on create and on
+  `/:id/move`.
+- **`sales_team_lines_apply(p_rows, p_actor)`** re-keys memberships IN PLACE (`team_key` + `lane`),
+  so the whole history is relabelled; one `audit_log` row `sales_team.lines_apply` with every
+  membership's before / after (the rollback is re-keying them back from it).
+- **`scripts/apply-team-lines.mjs`** — dry run by default; `--apply --only-sure [--actor] [--days]`
+  sets only the sure rows; likely / decide rows are the owner's. **Applied 30.09 23:10 UTC: 82 people
+  re-keyed; 17 wait for the owner in Предлог.** Live 01.10: Affiliate in 21 · Телешоп in 5 / out 17 /
+  social 2 · Менаџмент 11 · still on the legacy `crm_prediction` key 9.
+- **The readers** (`…0950`, re-created from the live bodies with md5 drift guards, signatures and
+  numbers unchanged): `insights_people` (every `sales_teams` key is a team; the sellers outside a
+  team are `teleshop_unassigned` / `social_unassigned`; `team_kind`, `sort_order`, lanes),
+  `leaderboard_day_v2` (§4), `assigner_board` (`team_lane`, display only — `elyon-assigner`),
+  `insights_work` and `sales_teams_admin_overview` (kind / sort_order / lane). In the UI:
+  `LEGACY_MODE_TEAM` (`src/lib/leaderboardV2.ts`), `teamOrder` / `teamRank` (`insightsWork.ts`),
+  `TEAM_ORDER` (`insights/agents/model.ts`), the Overview's teams board.
+- **`scripts/verify-teams.mjs`** (read-only): T1 every active person has ONE primary membership on a
+  line WITH a lane, or on management without one (a legacy key = WARN for an inactive person) · T2
+  the legacy aliases resolve to exactly the rows they name · **T3 no department function
+  (`cohort_order_source`, `order_dept_override`, `classify_sale_source`, `collabbox_department`,
+  `cohort_parcel_*`, `tg_orders_dept_override`) reads a team** · T4 the teams table · T5 the
+  proposal's counts = a recount.
+
+The older owner tools below still hold:
 
 - `sales_teams_admin_overview()` · `sales_teams_unmapped(days)` — the queue: AlterCPA deciders
   with no identity, `AlterCPA #NNNN (unnamed)` placeholders, agent logins with no person, sales
@@ -357,9 +470,10 @@ refusals come back as `{ok:false, error:<code>}`, HTTP status from `teamsAdmin.t
   restamps, never touches `sold_at/via/ext`, never stamps an unstamped order (that is the
   script's / cron's job). Removing a handle never un-stamps. The 20260939000300 version keeps
   `orders.updated_at` with `elyon.keep_updated_at` (`session_replication_role` is refused on MK).
-- **Open with the owner (29.09):** teams for the Lead-in callers (Чима, Ристеска, Кипровска), 5
-  logins with no team, AlterCPA #4531, whether Milijana = "Милјана Тодоровска н.", whether the
-  manager accounts (Nina / Dragana) appear on the board — `docs/handoff/2026-09-29/PRASHANJA-ZA-MILE.md`.
+- **Open with the owner (01.10):** the 17 team / lane decisions in Предлог (the Lead-in callers
+  Чима, Кипровска, Марија Темелковска, Ангела Ристеска were proposed as Телешоп лидови), AlterCPA
+  #4531, whether Milijana = "Милјана Тодоровска н.", whether the manager accounts (Nina / Dragana)
+  appear on the board — `docs/handoff/2026-09-29/PRASHANJA-ZA-MILE.md`.
 
 ## Red flags
 
@@ -374,8 +488,15 @@ refusals come back as `{ok:false, error:<code>}`, HTTP status from `teamsAdmin.t
 - Counting a LEADS / LEADS-OUT booking into a total (it doubles the CRM / AlterCPA sale), or a
   board figure that re-derives the cohort instead of reading `insights_sale_rows`.
 - Changing `stamp_order_deciders` without the same change in `backfill-order-deciders.mjs`.
+- Reading a board's team filter anywhere but `sales_team_filter_matches`, deleting a legacy team key
+  (old TV links and history read it), or using `role` as a lane.
+- A month with no roster (the login gate locks everyone out), a second assignment on a person-day,
+  or a shift delete that takes login history with it.
 
 ## Checks
+
+`node scripts/verify-teams.mjs` (T1–T5, above) and `node scripts/verify-shifts.mjs` (S1–S6, §1b),
+both read-only.
 
 `node scripts/verify-leaderboard-v2.mjs [--from --to] [--filters-day] [--inline]` — v2, per Skopje
 day: L1 every person × department = a truth computed straight from orders + `v_sales_work` +

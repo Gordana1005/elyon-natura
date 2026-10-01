@@ -1,9 +1,9 @@
 ---
 name: elyon-fulfilment-csv
-description: Use whenever generating, modifying, or explaining the MEX Poshta import CSV (the "Fulfilment CSV" on /orders). Enforce the exact 8-column portal contract (Kod na pratka … Tezina), Latin transliteration, comma-delimited, NO BOM, NO quoted fields, status transition rules, ship_after_date filtering. This file is imported directly into the MEX Poshta client portal to create shipments. Extremely high operational impact.
+description: Use whenever generating, modifying, or explaining how a CRM order becomes a MEX Poshta parcel — the MEX Import CSV on /orders (the exact 8-column portal contract Kod na pratka … Tezina, Latin transliteration, comma-delimited, NO BOM, NO quoted fields, status transition rules, ship_after_date filtering) AND its twin since 01.10.2026, the "Испрати до MEX" push from /warehouse (add_shipment.php via supabase/functions/api/mexPush.ts, pinned field by field to the CSV; the mex_push_attempts ledger, the claim, the existence check, the double-parcel guard, the account from the product line, app_settings.mex_push OFF until the owner). MEX has no cancel endpoint. Extremely high operational impact.
 ---
 
-# Elyon Fulfilment CSV Skill — The MEX Poshta Import Contract
+# Elyon Fulfilment CSV Skill — The MEX Poshta Import Contract (+ the push)
 
 **Rewritten 2026-08-18.** The export on /orders is no longer a warehouse hand-off
 file (BigArena's Bulgarian 3PL era) and no longer the `add_shipment.php` API
@@ -68,8 +68,81 @@ A1234567,Alex Test,Varshavska 123,Skopje,076123456,150,maska za telefon,0.1
    with city "Skopje" already on the row. Catch-up:
    `node --env-file=.env scripts/backfill-order-mex-city.mjs`. Foreign cities
    (Sofia, Vienna, …) stay NULL on purpose.
-4. **Product list is NOT in the file.** Picking/packing lives on the Warehouse
-   page (its own export). `Opis` is delivery info, not contents.
+4. **Product list is NOT in the file.** `Opis` is delivery info, not contents —
+   the order form's **"За курирот"** field (`delivery_instructions`; the internal
+   note is a separate `order_notes` row and never reaches MEX). There is no packing
+   slip or label in the CRM at all: the warehouse prints from the MEX portal (owner,
+   30.09.2026).
+
+## The push — "Испрати до MEX" (built 01.10.2026, switched OFF)
+
+The same parcel, created by the CRM itself instead of a person uploading the CSV
+(owner 30.09: the naturatherapy.mk shop's flow; ported read-only from
+`D:\naturatherapy\storefront\src\lib\shipping\mex.ts` / `mex-send.ts`). Until the
+owner switches it on, the CSV above remains the way CRM sales reach MEX (besides
+agents re-booking them in collabBox 10114).
+
+- **Where:** /warehouse → Испрати до MEX (`elyon-warehouse-incoming`) →
+  `POST /api/warehouse/mex-push {order_ids, account_overrides?, dry_run}`;
+  `GET /api/warehouse/queue`; `GET` / `PATCH /api/warehouse/mex-push/settings`
+  (PATCH admin-only, audited `mex.push_settings`). Admin / manager / warehouse only.
+  Pure half `supabase/functions/api/mexPush.ts` (+ `mexPush.test.ts`), queue shaping
+  `warehouseQueue.ts` (money stripped for non-owners), SQL in migration
+  `20260943001200_mex_push.sql`.
+- **The body = the CSV row, field by field** (`buildMexPayload`; the test pins it
+  to `mexImportCsv.ts`): `tracking_id` = `sender_reference` = the order's
+  `display_id` (MEX files the parcel under OUR number) · `first_name` / `last_name`
+  (the CSV `Ime` split at the first space) · `receiver_phone` 0… · `receiver_address`
+  (the CSV `Adresa`; an office order "Подигање: #code name city") ·
+  `receiver_city_id` = `mex_city_id` (the CSV `Grad` as an id) · `cod` = a **STRING**
+  of whole denars (`codMkd` = `codFor`: price € × the frozen 61,5, rounded to 10) ·
+  `weight` 1 · `instructions` = `Opis` (≤ 10.000 characters). Every string is folded
+  to ASCII. Header `AuthKey` (BIO NATURAL `MEX_API_KEY`, NATURA `MEX_API_KEY_2`).
+- **Validation** = the CSV's gate (`fulfilmentValidation.ts`, same codes) + the
+  push's own: `not_confirmed`, `has_parcel`, `web_order` (a web order is NEVER sent
+  from the CRM), `test_phone`, `ship_later`, `no_reference`.
+- **Created at most once — MEX has no cancel:**
+  1. **Claim** (`mex_push_claim`): `UPDATE … SET mex_sent_at / mex_sent_by WHERE
+     mex_tracking_id IS NULL`. A definite refusal releases it (`mex_push_release`);
+     an unknown outcome (timeout) keeps it 15 minutes and the next attempt asks MEX first.
+  2. **Ask MEX first:** our own `mex_parcels` register, then `get_shipment_status.php`
+     by our order number, then `get_shipment_status_by_ref.php`, then the digits-only
+     CSV code. A parcel that exists is re-linked (`exists_linked`), never re-created.
+     If MEX cannot be asked, that is an error — never "no parcel".
+  3. **Create**, then `mex_push_record`: a provisional register row, the link through
+     `mex_link_parcel(…, 'push')` (sets `mex_tracking_id`, `mex_account`,
+     `mex_status_id`), an order note, audit `mex.push`.
+  - **Ledger `mex_push_attempts`** (RLS on, no policies): one row per attempt
+    (`ok` / `exists_linked` / `error` / `skipped`) with the exact request and reply;
+    the partial UNIQUE `mex_push_attempts_one_success` allows ONE success per order.
+  - **Double-parcel guard:** an unlinked parcel on the same last-8 phone within 14
+    days, or a collabBox order document on the same phone from the day before the
+    sale onward, **blocks** (override only with `double_ok` + a reason ≥ 3
+    characters); older documents, a parcel held by another order, an earlier
+    unconfirmed push and a failed last attempt are hints.
+- **The account** (`decideAccount`): from the basket's PRODUCT LINES
+  (`mex_profile_for_line`: Bio Natural / Dr.Becker → BIO NATURAL, Natura Therapy /
+  Ad Astra → NATURA — `elyon-products-catalogue`). No line → the department only
+  suggests (`line_missing`, a person confirms); a disagreeing department / team or a
+  **mixed basket** (`mixed_basket`) → no account until a person picks one with a
+  reason. **The mixed-basket rule is still the owner's decision.**
+- **The switch `app_settings.mex_push`** — OFF:
+  `{"enabled":false,"accounts":{"natura":false,"bio_natural":false},"auto_send_at":null,"max_per_send":50}`.
+  While off a real send answers `409 mex_push_disabled` and only a dry run works
+  (the button is disabled with an explanation); one account off → that order comes
+  back `skipped` / `account_disabled`. Hard cap 50 orders per send
+  (`MEX_PUSH_HARD_CAP`; more → 400 `too_many_orders`), a 100 s time budget (the rest
+  come back `deferred`). The UI asks for a dry run first and a "MEX нема откажување"
+  confirmation, then sends in chunks.
+- **No status change on send.** The order stays `confirmed` with `mex_sent_at` —
+  **MEX 8 = за пакување**; mex-reconcile makes it `shipped` only when the courier
+  takes the parcel (4 / 10 / 9 / 1 / 3), `paid` at 2, `returned` at 7.
+- **The 11:00 auto-send** (`mexAutoSendPlan()`) is BUILT and NOT scheduled: no
+  route, no cron; settings report `auto_send_scheduled: false` (owner: not everyone
+  works in the CRM yet).
+- **Open with the owner before switching it on:** the mixed-basket rule, and that
+  collabBox gets NO document when the CRM ships directly (a LEADS-OUT booking would
+  then be missing there). 01.10: 0 attempts in the ledger.
 
 ## What Happened to BigArena
 
@@ -88,10 +161,17 @@ feature and still live.
 - Never put the operator's free-text city in `Grad` — only `mex_city_name`.
 - Never include orders past the ready-by cutoff or ones that failed validation.
 - Never bypass the stock decrement when flipping to shipped on export.
+- Never let the push and the CSV drift apart (`mexPush.test.ts` pins them), never
+  create a parcel without the claim + the existence check, never send a web order,
+  and never switch `app_settings.mex_push` on or schedule the 11:00 auto-send
+  without the owner.
 
 ## Sacred Code Locations
 
 - Column contract + sanitizer: `src/lib/mexImportCsv.ts` (+ its test)
+- The push: `supabase/functions/api/mexPush.ts` (+ test), `warehouseQueue.ts`,
+  routes in `index.ts` (`warehouse/queue`, `warehouse/mex-push`), migration
+  `20260943001200_mex_push.sql`
 - Order selection, ready-by filter, flip: `src/pages/Orders.tsx` (`runFulfilmentExport`, the popover)
 - Validation gate: `src/lib/fulfilmentValidation.ts`
 - CSV mechanics: `src/lib/csv.ts` · Transliteration: `src/lib/transliterate.ts`

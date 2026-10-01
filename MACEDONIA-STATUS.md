@@ -14,7 +14,78 @@ operation. It shares **nothing at runtime** with Bulgaria (own repo / own Supaba
 
 ---
 
-## 🟢 Current state: 30.09.2026
+## 🟢 Current state: 01.10.2026
+
+> The plan "CRM-от по аудитот од 30.09" (`~/.claude/plans/revert-the-421-unproven-encapsulated-brook.md`, 12 phases,
+> from an 11-agent read-only audit) went LIVE overnight 30.09 → 01.10. **Supabase: 299 migrations, latest
+> `20260943001700`.** Where to continue and what waits for the owner: `docs/handoff/2026-09-29/CONTINUE-HERE.md`
+> (§ DONE 30.09–01.10, § NEXT).
+
+- **Phase 0 — urgent** (`47620bd`, `…0100` / `…0200`):
+  - **Shifts are the login gate** (the owner kept it): `shifts_roll_forward` / `shifts_runway` /
+    `shifts_runway_alert` (cron `shifts-runway-alert`, 17:05 Skopje). The September roster ended 30.09 — from
+    03.10 no agent could have logged in; **October rolled forward: 33 agents, 1.005 person-days.**
+  - **The product on /calls dispositions:** `POST /orders` fills a cancel / trash record from
+    `last_sale_product` (last-8) — the page had searched the agent's RLS-scoped orders (1.021 of 1.022 cancels
+    in a week said "No prior product on file").
+  - **Warehouse guards:** PATCH refuses `status`; DELETE admin-only and audited.
+- **Phase 1** (`bb9d015`): `scripts/repair-disposition-products.mjs` repaired **7.116** old records (run
+  `1c8ee475`; 54 with no earlier sale keep the placeholder).
+- **Phase 2 — cleanup** (`1b2d535`): hidden from the menu (routes kept) — missed-calls, voip-health (only when
+  `useRealVoip`), inbound-leads, webhooks, lead-distribution, affiliates-admin; redirected — /import-orders →
+  /orders (`POST /orders/import` kept for scripts), /search-prediction → /, /predictions → /segments; dead page
+  files deleted; the VOIP banner no longer polls (18.7k `voip/health` calls in 61 days). Ads admins land on
+  /products.
+- **Phase 3 — teams = business lines** (`bc4bad0`, `…0900` / `…0950`): `sales_teams.kind` / `sort_order`, teams
+  `teleshop` + `affiliate`, `sales_team_members.lane` (in / out / social), `sales_team_line_proposal` /
+  `sales_team_lines_apply`, `sales_team_filter_matches` (team:lane + legacy aliases); `apply-team-lines.mjs`,
+  `verify-teams.mjs`. **82 people re-keyed for the whole history; 17 wait for the owner** (Settings → Teams →
+  Предлог). Departments are NEVER decided by team. TV links per line and lane (`64222c1`).
+- **Phase 4 + Производи 2.0** (`d3e3358`, `f77c161`, `2d84a15`, `8a8508f`; `…1300` / `…1400` / `…1410`):
+  `products.brand_line` + `mex_profile_for_line()`, `products.kind`, the audited writers behind guard triggers;
+  scripts `apply-brand-lines`, `map-web-catalogue`, `apply-product-kinds`, `clear-product-machine-text` (493
+  products, backup `products_description_backup_20261001`). Owner rule: everything on naturatherapy.mk is Natura
+  Therapy or Ad Astra (`/adastra-nutrition`); Bio Natural never on the web. Live: lines Natura Therapy 438 · Ad
+  Astra 123 · Bio Natural 27 · undecided 118; kinds product 359 · bundle 244 · other 68 · undecided 35. /products
+  opens on active products of kind "product".
+- **Phases 5–7 — addresses and MEX zones** (`bdd6527`, `b6ec0ff`, `396b406`; `…0500`–`…0711`): `mk_settlements`
+  fixes (6 duplicate districts hidden, 21 cross-city zones, 9 Skopje districts, 3 postcodes, `requires_district`
+  = Скопје), `orders.settlement_id` + `mex_zone_basis`, ONE resolver `mex_zone_for_settlement` /
+  `mex_zone_for_name` (api + `altercpa-sync`), `customer_profile_merge` (fill-only). **The new Create / Confirm /
+  Edit order form:** city from the list, district required for Скопје, automatic postcode, "За курирот" = MEX
+  Opis, an internal note, no birthday / gift; the address locks once a parcel exists. `verify-address-routing.mjs`.
+  **`scripts/repair-open-order-zones.mjs` is NOT applied** (planned from 03.10 with the owner's OK; the rolled-back
+  run of 01.10: 731 open orders → same 270 · needs_pick 425 · district_fix 6 · cross_city_fix 17 · unmapped 13).
+- **Phase 8 — one "Смени" page** (`ca3dbed`, `…1000` / `…1100`): UNIQUE (user, `shift_date`) after cleaning 700
+  double-booked person-days, `shift_login_logs` survive a deleted shift (SET NULL), RPCs `shifts_grid` /
+  `set_cells` / `copy_range` / `shift_update` / `statistics` / `login_activity`; check-login writes the login log
+  itself and returns refusal codes; logouts now record; `/my-shifts` → `/shifts`; `verify-shifts.mjs`. Check-login
+  tested live with a test agent, then cleaned up.
+- **Phase 9 — Warehouse + "Испрати до MEX"** (`83b32a4`, `db69801`, `26d8328`; `…1200` / `…1210` / `…1220`):
+  `mex_push_attempts` ledger, `orders.mex_sent_at`, link method `push`, **`app_settings.mex_push` OFF** (0
+  attempts), `warehouse_queue` (send / pack). **MEX 8 = за пакување:** reconcile never ships at 8; the collabBox
+  writer makes an at-8 document a confirmed order with `mex_sent_at`; the Overview's "packed" = MEX 8. /warehouse
+  = Испрати до MEX · За пакување · Залихи · Попис · Движења, no printing (the MEX portal does it). The 11:00
+  auto-send is built, not scheduled. **`scripts/repair-shipped-at-mex8.mjs` (260 orders) is NOT applied** — it
+  waits for the owner's OK.
+- **Phase 10 — Поставки** (`5b6756e`, `…1500`): `/settings/:section`, grouped sections; modules / role
+  permissions / privacy via audited `PUT /api/settings/*`; the browser write policies dropped, `app_settings` /
+  `courier_rates` writes admin-only; the MEX courier rate saveable (owners).
+- **Phase 11A — /orders** (`11ad7b3`; `…1600` / `…1610` indexes, `…1620` cron `active-call-views-cleanup`):
+  opens on "Нарачки" for TODAY; chips Нарачки · Отворени лидови · Откажани · Во корпа · Сите; department, seller
+  and MEX filters in the URL; last-8 phone search; Skopje days; one `GET /active-views` read per page.
+- **Phase 11B — /calls** (`0711fb7`, `…1700`): `POST /calls/outcome` (status + ONE `call_logs` row
+  `source='handset'` + obligation + list member); the one-tap outcome bar Не одговара (Undo) / Повторно / Откажа /
+  Корпа / Потврди, keys 1–5; a `tel:` link on phones while VOIP is off; `/call-again` → `/calls?queue=call-again`;
+  `GET /calls/call-again`, `GET /calls/progress`.
+- **Today + arrows** (`c31d7c8`): Insights (Табла included) and /orders default to TODAY, ← / → step
+  (`stepRange`, `PeriodStepper`).
+- **Terminology** (`42318d3`, `82755b4`): prediction = "предикција" (never "прогноза"), a leads team / queue =
+  "лидови" (never "на чекање"); "На чекање" only for the order status pending. `mk.json` has 0 "прогноз…".
+- Docs + skills brought to 01.10: CLAUDE.md, 8 skills (assigner, warehouse, fulfilment, presence, departments,
+  segments, i18n, security) + the new `elyon-products-catalogue`.
+
+## 🟢 Earlier state: 30.09.2026
 
 - **30.09 — the approved Assigner / web / users plan is LIVE** (`1982b0e` backend + `9a2978b` UI; DB at
   **277 migrations**, latest `20260942001970`; `api` deployed 30.09 ~18:15 with `--use-api`):
