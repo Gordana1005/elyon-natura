@@ -9,7 +9,7 @@ import {
   Users, CalendarDays, FileText, History, ChevronLeft,
   ChevronRight, ChevronDown, Phone, PhoneCall, Warehouse, Settings,
   Webhook, UserPlus, TrendingUp, Activity, Layers, Lock, Clock, Gauge,
-  Handshake, Radio, X,
+  Handshake, Radio, X, NotebookPen,
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { SidebarCallIndicator } from '@/components/calls/SidebarCallIndicator';
@@ -61,6 +61,8 @@ const sections: NavSection[] = [
       // A queue inside /calls since plan Фаза 11 (/call-again redirects there).
       { titleKey: 'nav.callAgain', path: '/calls?queue=call-again', icon: Clock, moduleKey: 'calls' },
       { titleKey: 'nav.personalList', path: '/personal-list', icon: Lock, moduleKey: 'calls' },
+      // Личен дневник (plan Фаза 7): a tab of /personal-list; the query path lights only this item.
+      { titleKey: 'nav.personalNotes', path: '/personal-list?tab=notes', icon: NotebookPen, moduleKey: 'calls' },
     ],
   },
   {

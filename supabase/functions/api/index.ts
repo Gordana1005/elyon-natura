@@ -65,6 +65,10 @@ import * as PC from "./productsCatalog.ts";
 // The one "Смени" page (plan Фаза 8, migrations 20260943001000–1100): the login gate's decision,
 // cell validation / diffing, the runway summary and the response shapes (pure, shifts.test.ts).
 import * as SH from "./shifts.ts";
+// Личен дневник (plan Фаза 6, migration 20260944000400): who reads / writes, the body
+// parsers, search escaping, snippets, reorder, the versioned autosave and the shapes
+// behind personal-notes/* (pure, unit-tested in personalNotes.test.ts).
+import * as PN from "./personalNotes.ts";
 // Address routing (migrations 20260943000500/0600): the ONE MEX-zone resolver's
 // text rules, the order's zone columns, the address lock once MEX has the parcel,
 // the address/* response shapes (pure, unit-tested in addressRouting.test.ts).
@@ -14292,6 +14296,319 @@ async function handleRequest(req: Request): Promise<Response> {
         .eq("id", id);
       if (error) return json({ error: sanitizeDbError(error) }, 400);
       return json({ ok: true });
+    }
+
+    // ============================================================
+    // ЛИЧЕН ДНЕВНИК — personal notebooks and notes (plan Фаза 6, owner 01.10.2026).
+    // The operator writes; admins read everyone's, managers everyone's but an admin's
+    // (PN.canRead). Tables are deny-all (20260944000400) — this block is the only door.
+    // Any internal role (the affiliate wall above already stops partners). Writes are
+    // rate-limited (autosave included); reads of someone else's are audited
+    // (personal_notes.viewed_other); autosaves are not. Full route list: personalNotes.ts.
+    // ============================================================
+    if (segments[0] === "personal-notes") {
+      const pnFail = (code: PN.ErrorCode, extra: Record<string, unknown> = {}) => json(PN.errorBody(code, extra), PN.statusFor(code));
+      if (req.method !== "GET" && !checkUserRateLimit(user.id, PN.WRITE_RATE.endpoint, PN.WRITE_RATE.limit)) return pnFail("rate_limited");
+      const pnViewer: PN.Viewer = { id: user.id, isAdmin, isManager };
+      const NB_COLS = "id, owner_id, title, color, position, created_at, updated_at, deleted_at";
+      const NOTE_COLS = "id, notebook_id, owner_id, title, body, pinned, version, created_at, updated_at, deleted_at";
+      const pnJson = async (): Promise<unknown> => { try { return await req.json(); } catch { return null; } };
+      const pnOwnerIsAdmin = async (uid: string) => {
+        const { data } = await adminClient.from("user_roles").select("role").eq("user_id", uid).eq("role", "admin").limit(1);
+        return !!(data && data.length);
+      };
+      // Admins need no lookup, plain agents never read others; only a manager asks whether the owner is an admin.
+      const pnMayRead = async (ownerId: string): Promise<boolean> => {
+        if (ownerId === user.id || isAdmin) return true;
+        if (!isManager) return false;
+        return PN.canRead(pnViewer, { id: ownerId, isAdmin: await pnOwnerIsAdmin(ownerId) });
+      };
+      const pnSeen = (ownerId: string, what: Parameters<typeof PN.auditViewedOther>[2]) =>
+        ownerId === user.id ? Promise.resolve() : audit(adminClient, user.id, user.email, "personal_notes.viewed_other", {
+          target_type: what.note_id ? "personal_note" : what.notebook_id ? "personal_notebook" : "user",
+          target_id: what.note_id ?? what.notebook_id ?? ownerId,
+          payload: PN.auditViewedOther(user.id, ownerId, what),
+        });
+      const pnNotebook = async (id: string) =>
+        (await adminClient.from("personal_notebooks").select(NB_COLS).eq("id", id).maybeSingle()).data as any;
+      const pnLiveNotebooks = async (ownerId: string) =>
+        ((await adminClient.from("personal_notebooks").select("id, title, color, position").eq("owner_id", ownerId).is("deleted_at", null)).data || []) as any[];
+      const pnLiveNoteCount = async (notebookId: string) =>
+        (await adminClient.from("personal_notes").select("id", { count: "exact", head: true }).eq("notebook_id", notebookId).is("deleted_at", null)).count ?? 0;
+      const id2 = segments[2];
+
+      // GET personal-notes/notebooks?owner= — own by default.
+      if (req.method === "GET" && segments[1] === "notebooks" && segments.length === 2) {
+        const ownerId = url.searchParams.get("owner") || user.id;
+        if (!PN.isUuid(ownerId)) return pnFail("bad_id");
+        if (!(await pnMayRead(ownerId))) return pnFail("forbidden");
+        const { data, error } = await adminClient.rpc("personal_notebooks_overview", { p_owner: ownerId });
+        if (error) return json({ error: sanitizeDbError(error) }, 400);
+        let owner: { id: string; name: string | null; is_active: boolean } = { id: ownerId, name: null, is_active: true };
+        if (ownerId !== user.id) {
+          const { data: p } = await adminClient.from("profiles").select("full_name, email, is_active").eq("user_id", ownerId).maybeSingle();
+          owner = { id: ownerId, name: p?.full_name || p?.email || null, is_active: p?.is_active !== false };
+          await pnSeen(ownerId, { kind: "notebooks" });
+        }
+        return json({ owner, read_only: ownerId !== user.id, notebooks: ((data || []) as any[]).map(PN.shapeNotebook),
+          limits: { notebooks: PN.LIMITS.notebooksPerOwner, notes: PN.LIMITS.notesPerNotebook, body: PN.LIMITS.body } });
+      }
+
+      // POST personal-notes/notebooks {title, color?} — own, ≤ 50 live.
+      if (req.method === "POST" && segments[1] === "notebooks" && segments.length === 2) {
+        const parsed = PN.parseNotebookBody(await pnJson(), "create");
+        if (!parsed.ok) return pnFail(parsed.error);
+        const live = await pnLiveNotebooks(user.id);
+        if (live.length >= PN.LIMITS.notebooksPerOwner) return pnFail("notebook_limit");
+        const position = live.reduce((m, r) => Math.max(m, Number(r.position) + 1), 0);
+        const { data, error } = await adminClient.from("personal_notebooks")
+          .insert({ owner_id: user.id, title: parsed.value.title, color: parsed.value.color ?? null, position })
+          .select(NB_COLS).single();
+        if (error) return json({ error: sanitizeDbError(error) }, 400);
+        await audit(adminClient, user.id, user.email, "personal_notes.notebook_created", {
+          target_type: "personal_notebook", target_id: data.id, target_name: data.title, payload: PN.auditNotebookPayload(data),
+        });
+        return json({ notebook: PN.shapeNotebook({ ...data, note_count: 0 }) });
+      }
+
+      // PUT personal-notes/notebooks/order {ids} — own.
+      if (req.method === "PUT" && segments[1] === "notebooks" && id2 === "order" && segments.length === 3) {
+        const raw = await pnJson() as any;
+        const r = PN.reorder(raw?.ids, await pnLiveNotebooks(user.id));
+        if (!r.ok) return pnFail(r.error);
+        const res = await Promise.all(r.value.updates.map((u) =>
+          adminClient.from("personal_notebooks").update({ position: u.position }).eq("id", u.id).eq("owner_id", user.id)));
+        const bad = res.find((x: any) => x.error);
+        if (bad) return json({ error: sanitizeDbError(bad.error) }, 400);
+        return json({ ok: true, order: r.value.order });
+      }
+
+      // PATCH personal-notes/notebooks/:id {title?, color?} — own.
+      if (req.method === "PATCH" && segments[1] === "notebooks" && segments.length === 3 && PN.isUuid(id2)) {
+        const parsed = PN.parseNotebookBody(await pnJson(), "patch");
+        if (!parsed.ok) return pnFail(parsed.error);
+        const nb = await pnNotebook(id2);
+        if (!nb || nb.deleted_at) return pnFail("not_found");
+        if (!PN.canWrite(pnViewer, nb.owner_id)) return pnFail("forbidden");
+        const { data, error } = await adminClient.from("personal_notebooks").update(parsed.value)
+          .eq("id", id2).eq("owner_id", user.id).select(NB_COLS).single();
+        if (error) return json({ error: sanitizeDbError(error) }, 400);
+        if (parsed.value.title !== undefined && parsed.value.title !== nb.title) {
+          await audit(adminClient, user.id, user.email, "personal_notes.notebook_renamed", {
+            target_type: "personal_notebook", target_id: id2, target_name: data.title,
+            payload: PN.auditNotebookPayload(data, { from: nb.title }),
+          });
+        }
+        return json({ notebook: PN.shapeNotebook(data) });
+      }
+
+      // DELETE personal-notes/notebooks/:id — soft; its notes hide with it.
+      if (req.method === "DELETE" && segments[1] === "notebooks" && segments.length === 3 && PN.isUuid(id2)) {
+        const nb = await pnNotebook(id2);
+        if (!nb || nb.deleted_at) return pnFail("not_found");
+        if (!PN.canWrite(pnViewer, nb.owner_id)) return pnFail("forbidden");
+        const notes = await pnLiveNoteCount(id2);
+        const { error } = await adminClient.from("personal_notebooks").update({ deleted_at: new Date().toISOString() })
+          .eq("id", id2).eq("owner_id", user.id);
+        if (error) return json({ error: sanitizeDbError(error) }, 400);
+        await audit(adminClient, user.id, user.email, "personal_notes.notebook_deleted", {
+          target_type: "personal_notebook", target_id: id2, target_name: nb.title, payload: PN.auditNotebookPayload(nb, { notes }),
+        });
+        return json({ ok: true, restore_days: PN.LIMITS.restoreDays });
+      }
+
+      // POST personal-notes/notebooks/:id/restore — within 30 days, at the end of the list.
+      if (req.method === "POST" && segments[1] === "notebooks" && segments[3] === "restore" && segments.length === 4 && PN.isUuid(id2)) {
+        const nb = await pnNotebook(id2);
+        if (!nb || !nb.deleted_at) return pnFail("not_found");
+        if (!PN.canWrite(pnViewer, nb.owner_id)) return pnFail("forbidden");
+        if (!PN.isRestorable(nb.deleted_at, Date.now())) return pnFail("restore_expired");
+        const live = await pnLiveNotebooks(user.id);
+        if (live.length >= PN.LIMITS.notebooksPerOwner) return pnFail("notebook_limit");
+        const position = live.reduce((m, r) => Math.max(m, Number(r.position) + 1), 0);
+        const { data, error } = await adminClient.from("personal_notebooks").update({ deleted_at: null, position })
+          .eq("id", id2).eq("owner_id", user.id).select(NB_COLS).single();
+        if (error) return json({ error: sanitizeDbError(error) }, 400);
+        await audit(adminClient, user.id, user.email, "personal_notes.notebook_restored", {
+          target_type: "personal_notebook", target_id: id2, target_name: nb.title, payload: PN.auditNotebookPayload(nb),
+        });
+        return json({ notebook: PN.shapeNotebook(data) });
+      }
+
+      // GET personal-notes/notebooks/:id/notes?q= — the list with snippets (never the bodies).
+      if (req.method === "GET" && segments[1] === "notebooks" && segments[3] === "notes" && segments.length === 4 && PN.isUuid(id2)) {
+        const q = PN.parseQuery(url.searchParams.get("q"));
+        if (!q.ok) return pnFail(q.error);
+        const nb = await pnNotebook(id2);
+        if (!nb || nb.deleted_at) return pnFail("not_found");
+        if (!(await pnMayRead(nb.owner_id))) return pnFail("forbidden");
+        let qb = adminClient.from("personal_notes").select("id, notebook_id, title, body, pinned, updated_at, version")
+          .eq("notebook_id", id2).is("deleted_at", null);
+        if (q.value) qb = qb.or(PN.orIlike(["title", "body"], q.value));
+        const { data, error } = await qb.order("pinned", { ascending: false }).order("updated_at", { ascending: false })
+          .limit(PN.LIMITS.notesPerNotebook);
+        if (error) return json({ error: sanitizeDbError(error) }, 400);
+        await pnSeen(nb.owner_id, { kind: "notes", notebook_id: id2 });
+        return json({ notebook: PN.shapeNotebook(nb), read_only: nb.owner_id !== user.id, q: q.value,
+          notes: ((data || []) as any[]).map((r) => PN.shapeNoteListItem(r, q.value)) });
+      }
+
+      // POST personal-notes/notebooks/:id/notes {title?, body?, pinned?} — own, ≤ 500 live.
+      if (req.method === "POST" && segments[1] === "notebooks" && segments[3] === "notes" && segments.length === 4 && PN.isUuid(id2)) {
+        const parsed = PN.parseNoteBody(await pnJson());
+        if (!parsed.ok) return pnFail(parsed.error);
+        const nb = await pnNotebook(id2);
+        if (!nb) return pnFail("not_found");
+        if (!PN.canWrite(pnViewer, nb.owner_id)) return pnFail("forbidden");
+        if (nb.deleted_at) return pnFail("notebook_deleted");
+        if ((await pnLiveNoteCount(id2)) >= PN.LIMITS.notesPerNotebook) return pnFail("note_limit");
+        const { data, error } = await adminClient.from("personal_notes")
+          .insert({ notebook_id: id2, owner_id: user.id, ...parsed.value }).select(NOTE_COLS).single();
+        if (error) return json({ error: sanitizeDbError(error) }, 400);
+        return json({ note: PN.shapeNote(data) });
+      }
+
+      // GET personal-notes/notes/:id — the full note.
+      if (req.method === "GET" && segments[1] === "notes" && segments.length === 3 && PN.isUuid(id2)) {
+        const { data: note } = await adminClient.from("personal_notes").select(NOTE_COLS).eq("id", id2).maybeSingle();
+        if (!note || note.deleted_at) return pnFail("not_found");
+        if (!(await pnMayRead(note.owner_id))) return pnFail("forbidden");
+        const nb = await pnNotebook(note.notebook_id);
+        if (!nb || nb.deleted_at) return pnFail("not_found");
+        await pnSeen(note.owner_id, { kind: "note", notebook_id: note.notebook_id, note_id: id2 });
+        return json({ note: PN.shapeNote(note), notebook: { id: nb.id, title: nb.title, color: nb.color ?? null },
+          read_only: note.owner_id !== user.id });
+      }
+
+      // PATCH personal-notes/notes/:id {title?, body?, pinned?, notebook_id?, base_version} — the autosave
+      // target, own. Written only while the row is still at base_version (→ base + 1); else 409 + the current row.
+      if (req.method === "PATCH" && segments[1] === "notes" && segments.length === 3 && PN.isUuid(id2)) {
+        const parsed = PN.parseNotePatch(await pnJson());
+        if (!parsed.ok) return pnFail(parsed.error);
+        const { patch, base_version } = parsed.value;
+        const { data: note } = await adminClient.from("personal_notes").select("id, owner_id, notebook_id, deleted_at").eq("id", id2).maybeSingle();
+        if (!note || note.deleted_at) return pnFail("not_found");
+        if (!PN.canWrite(pnViewer, note.owner_id)) return pnFail("forbidden");
+        if (patch.notebook_id && patch.notebook_id !== note.notebook_id) {
+          const target = await pnNotebook(patch.notebook_id);
+          if (!target) return pnFail("not_found");
+          if (!PN.canWrite(pnViewer, target.owner_id)) return pnFail("forbidden");
+          if (target.deleted_at) return pnFail("notebook_deleted");
+          if ((await pnLiveNoteCount(target.id)) >= PN.LIMITS.notesPerNotebook) return pnFail("note_limit");
+        }
+        const { data: rows, error } = await adminClient.from("personal_notes").update(PN.versionedPatch(patch, base_version))
+          .eq("id", id2).eq("owner_id", user.id).eq("version", base_version).is("deleted_at", null)
+          .select("id, notebook_id, title, pinned, version, updated_at");
+        if (error) return json({ error: sanitizeDbError(error) }, 400);
+        if (!rows || rows.length === 0) {
+          const { data: cur } = await adminClient.from("personal_notes").select(NOTE_COLS).eq("id", id2).maybeSingle();
+          if (!cur || cur.deleted_at) return pnFail("not_found");
+          return pnFail("version_conflict", { current: PN.shapeNote(cur) });
+        }
+        return json({ saved: PN.shapeSaved(rows[0]) });
+      }
+
+      // DELETE personal-notes/notes/:id — soft.
+      if (req.method === "DELETE" && segments[1] === "notes" && segments.length === 3 && PN.isUuid(id2)) {
+        const { data: note } = await adminClient.from("personal_notes").select(NOTE_COLS).eq("id", id2).maybeSingle();
+        if (!note || note.deleted_at) return pnFail("not_found");
+        if (!PN.canWrite(pnViewer, note.owner_id)) return pnFail("forbidden");
+        const { error } = await adminClient.from("personal_notes").update({ deleted_at: new Date().toISOString() })
+          .eq("id", id2).eq("owner_id", user.id);
+        if (error) return json({ error: sanitizeDbError(error) }, 400);
+        await audit(adminClient, user.id, user.email, "personal_notes.note_deleted", {
+          target_type: "personal_note", target_id: id2, target_name: note.title || null, payload: PN.auditNotePayload(note),
+        });
+        return json({ ok: true, restore_days: PN.LIMITS.restoreDays });
+      }
+
+      // POST personal-notes/notes/:id/restore — within 30 days, into a live notebook.
+      if (req.method === "POST" && segments[1] === "notes" && segments[3] === "restore" && segments.length === 4 && PN.isUuid(id2)) {
+        const { data: note } = await adminClient.from("personal_notes").select(NOTE_COLS).eq("id", id2).maybeSingle();
+        if (!note || !note.deleted_at) return pnFail("not_found");
+        if (!PN.canWrite(pnViewer, note.owner_id)) return pnFail("forbidden");
+        if (!PN.isRestorable(note.deleted_at, Date.now())) return pnFail("restore_expired");
+        const nb = await pnNotebook(note.notebook_id);
+        if (!nb || nb.deleted_at) return pnFail("notebook_deleted");
+        if ((await pnLiveNoteCount(nb.id)) >= PN.LIMITS.notesPerNotebook) return pnFail("note_limit");
+        const { error } = await adminClient.from("personal_notes").update({ deleted_at: null }).eq("id", id2).eq("owner_id", user.id);
+        if (error) return json({ error: sanitizeDbError(error) }, 400);
+        await audit(adminClient, user.id, user.email, "personal_notes.note_restored", {
+          target_type: "personal_note", target_id: id2, target_name: note.title || null, payload: PN.auditNotePayload(note),
+        });
+        return json({ ok: true, notebook_id: nb.id });
+      }
+
+      // GET personal-notes/search?q=&owner= — title + body across the owner's live notebooks, ≤ 50.
+      if (req.method === "GET" && segments[1] === "search" && segments.length === 2) {
+        const q = PN.parseQuery(url.searchParams.get("q"));
+        if (!q.ok) return pnFail(q.error);
+        const ownerId = url.searchParams.get("owner") || user.id;
+        if (!PN.isUuid(ownerId)) return pnFail("bad_id");
+        if (!(await pnMayRead(ownerId))) return pnFail("forbidden");
+        if (!q.value) return json({ q: null, results: [], truncated: false });
+        const books = await pnLiveNotebooks(ownerId);
+        const byId = new Map(books.map((b) => [b.id, b]));
+        let rows: any[] = [];
+        if (books.length) {
+          const { data, error } = await adminClient.from("personal_notes")
+            .select("id, notebook_id, title, body, pinned, updated_at, version")
+            .eq("owner_id", ownerId).is("deleted_at", null).in("notebook_id", [...byId.keys()])
+            .or(PN.orIlike(["title", "body"], q.value))
+            .order("updated_at", { ascending: false }).limit(PN.LIMITS.searchResults);
+          if (error) return json({ error: sanitizeDbError(error) }, 400);
+          rows = data || [];
+        }
+        await pnSeen(ownerId, { kind: "search", q: q.value });
+        return json({
+          q: q.value, truncated: rows.length >= PN.LIMITS.searchResults,
+          results: rows.map((r) => ({ ...PN.shapeNoteListItem(r, q.value),
+            notebook_title: byId.get(r.notebook_id)?.title ?? "", notebook_color: byId.get(r.notebook_id)?.color ?? null })),
+        });
+      }
+
+      // GET personal-notes/deleted — my soft-deleted notebooks and notes (30 days). A note whose notebook
+      // is deleted is not listed apart: it comes back with the notebook.
+      if (req.method === "GET" && segments[1] === "deleted" && segments.length === 2) {
+        const now = Date.now();
+        const cutoff = PN.restoreCutoffIso(now);
+        const [nbRes, noteRes, allNb] = await Promise.all([
+          adminClient.from("personal_notebooks").select(NB_COLS).eq("owner_id", user.id).not("deleted_at", "is", null)
+            .gte("deleted_at", cutoff).order("deleted_at", { ascending: false }).limit(PN.LIMITS.deletedList),
+          adminClient.from("personal_notes").select("id, notebook_id, title, body, deleted_at").eq("owner_id", user.id)
+            .not("deleted_at", "is", null).gte("deleted_at", cutoff).order("deleted_at", { ascending: false }).limit(PN.LIMITS.deletedList),
+          adminClient.from("personal_notebooks").select("id, title, deleted_at").eq("owner_id", user.id),
+        ]);
+        const err = nbRes.error || noteRes.error || allNb.error;
+        if (err) return json({ error: sanitizeDbError(err) }, 400);
+        const books = new Map(((allNb.data || []) as any[]).map((b) => [b.id, b]));
+        return json({
+          restore_days: PN.LIMITS.restoreDays,
+          notebooks: ((nbRes.data || []) as any[]).map((b) => ({ ...PN.shapeNotebook(b), deleted_at: b.deleted_at, days_left: PN.daysLeft(b.deleted_at, now) })),
+          notes: ((noteRes.data || []) as any[])
+            .filter((n) => books.has(n.notebook_id) && !books.get(n.notebook_id).deleted_at)
+            .map((n) => ({ id: n.id, notebook_id: n.notebook_id, notebook_title: books.get(n.notebook_id)?.title ?? "",
+              title: n.title, snippet: PN.snippet(n.body, null), deleted_at: n.deleted_at, days_left: PN.daysLeft(n.deleted_at, now) })),
+        });
+      }
+
+      // GET personal-notes/authors — admins / managers: who keeps notebooks (a manager never sees admins).
+      if (req.method === "GET" && segments[1] === "authors" && segments.length === 2) {
+        if (!isAdminOrManager) return pnFail("forbidden");
+        const { data: agg, error } = await adminClient.rpc("personal_notes_authors");
+        if (error) return json({ error: sanitizeDbError(error) }, 400);
+        const ids = ((agg || []) as any[]).map((a) => a.owner_id).filter(Boolean);
+        if (!ids.length) return json({ authors: [] });
+        const [profRes, adminRes] = await Promise.all([
+          adminClient.from("profiles").select("user_id, full_name, email, is_active").in("user_id", ids),
+          adminClient.from("user_roles").select("user_id").eq("role", "admin").in("user_id", ids),
+        ]);
+        const profiles = new Map(((profRes.data || []) as any[]).map((p) => [p.user_id, p]));
+        const adminIds = new Set(((adminRes.data || []) as any[]).map((r) => r.user_id));
+        return json({ authors: PN.shapeAuthors(pnViewer, (agg || []) as any[], profiles, adminIds) });
+      }
+
+      return pnFail("not_found");
     }
 
     // ============================================================

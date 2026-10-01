@@ -107,6 +107,14 @@ to him and his staff (the Assigner board's badges prompted it).
   лидови · Телешоп предикција · Социјални мрежи · Affiliate лидови · Affiliate
   предикција · Менаџмент (`tvBoard.team.management`). Lanes: `teamLines.lane.in`
   / `.out` / `.social`.
+- **Личен дневник** (personal notes, 01.10.2026; namespace `personalNotes.*` right after
+  `personalListPage`, menu `nav.personalNotes`): always the full **"Личен дневник"**, a notebook =
+  **"тетратка"**, a note = **"белешка"** — **never a bare "дневник"**: in `mk.json` "дневник"
+  already means the audit log ("дневникот за ревизија", Settings / Products / Teams), so a bare
+  one reads as that. The admin/manager tab is "Дневници на оператори" (qualified, never bare).
+  Deleted notebooks / notes are **"Избришани"** — **never "Корпа"**, which is the ORDER trash
+  (`status.trashed`, the /calls outcome). The privacy line "Админите и менаџерите можат да ги
+  читаат вашите белешки." stays on the operator's own tab.
 - en / sq / bg keep their own words ("Pending", "Prediction" are fine in English).
 - The sweep of 01.10 (`42318d3`, `82755b4`) was path-exact over 99 + the Calls
   values of `mk.json`. Re-check after any mk change:

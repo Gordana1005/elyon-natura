@@ -245,6 +245,32 @@ maintenance script must go through the writer too. Use the same pattern for the 
 - `/settings` → Телефонија only while VOIP is on; hidden pages keep their routes and their api
   checks (CLAUDE.md "Hidden pages").
 
+### 12. Личен дневник — deny-all, the api is the only door (01.10.2026, `20260944000400`)
+
+`public.personal_notebooks` and `public.personal_notes` (an operator's notebooks and notes under
+/personal-list?tab=notes) are **deny-all**: RLS on, **no policy**, `REVOKE ALL … FROM PUBLIC, anon,
+authenticated`, `GRANT ALL … TO service_role`. The browser can neither read nor write them; every
+read and write goes through `personal-notes/*` in `supabase/functions/api/index.ts`, which applies
+the rules of `personalNotes.ts` (vitest):
+
+- **Who writes:** the operator only (`canWrite` = self) — an admin cannot edit someone's notes either.
+- **Who reads:** self, any admin, or a manager reading a **non-admin** (`canRead`; owner default:
+  a manager never reads an admin's). `GET personal-notes/authors` is admin/manager only and drops
+  admins for managers. Every read of someone else's (notebooks, a notebook's notes, a note, a
+  search) writes `audit_log` `personal_notes.viewed_other` (viewer, owner_id, notebook_id).
+- **Audit:** `personal_notes.notebook_created / notebook_renamed / notebook_deleted /
+  notebook_restored / note_deleted / note_restored` — payload ids, title, char count, **never the
+  body**. Autosaves are not audited. Writes are rate-limited (`personal_notes.write`, 120/min/user).
+- A note's `(notebook_id, owner_id)` is a composite FK to the notebook's `(id, owner_id)`, so a note
+  can never sit in another person's notebook. Autosave is versioned (`.eq('version', base)` →
+  `409 version_conflict` + the current row).
+- Soft delete; `personal_notes_purge()` (SECURITY DEFINER, executable by nobody) hard-deletes rows
+  deleted > 30 days ago, cron `personal-notes-purge` `40 1 * * *` (GMT). The read helpers
+  `personal_notebooks_overview(uuid)` / `personal_notes_authors()` are service_role only.
+- Check (read-only, MK): `node scripts/verify-personal-notes.mjs` (N1 no privilege for
+  anon/authenticated + RLS on + no policy, N2 note owner = notebook owner, N3 purge cron, N4 nothing
+  deleted > 31 days). Never add a browser policy to these tables — add an api route.
+
 ## Common Security Gotchas in This Project
 
 - Using `supabase` client instead of `adminClient` in the Edge Function when you need cross-user data.

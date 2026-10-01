@@ -1,9 +1,11 @@
 import { useState, useMemo } from 'react';
 import { EmptyState } from '@/components/EmptyState';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { formatDate, formatDistanceToNow } from '@/i18n/dates';
-import { Lock, AlertTriangle, ArrowRight, Phone, Loader2, Plus, Users, UserSearch } from 'lucide-react';
+import {
+  Lock, AlertTriangle, ArrowRight, Phone, Loader2, Plus, Users, UserSearch, NotebookPen, BookOpen, Eye,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { AppLayout } from '@/layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,53 +21,65 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { MobileCard, MobileCardHeader, MobileCardField, MobileCardActions } from '@/components/ui/mobile-card';
 import { cn } from '@/lib/utils';
+import { personalListTab, type PersonalListTab } from '@/lib/personalNotes/model';
+import { NotesWorkspace } from '@/components/personalNotes/NotesWorkspace';
+import { AgentNotesBrowser } from '@/components/personalNotes/AgentNotesBrowser';
 
 export default function PersonalListPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const isAdminOrManager = user?.isAdmin || user?.isManager;
-  const params = new URLSearchParams(window.location.search);
-  const initialTab = params.get('expiring') === '1' ? 'expiring' : 'mine';
+  const isAdminOrManager = !!(user?.isAdmin || user?.isManager);
+  // ?tab= (Фаза 7): mine · notes (Личен дневник) · expiring · agents · agent-notes; ?expiring=1 still works.
+  const [params, setParams] = useSearchParams();
+  const tab = personalListTab(params, isAdminOrManager);
+  // A tab switch starts clean: the notebook / note / owner of another tab do not follow.
+  const setTab = (v: string) => setParams(() => new URLSearchParams({ tab: v }), { replace: true });
+  const notesTab = tab === 'notes' || tab === 'agent-notes';
   const { data: appSettings } = useQuery({
     queryKey: ['app-settings'],
     queryFn: apiGetAppSettings,
     staleTime: 5 * 60_000,
   });
   const cap = appSettings?.personal_list_max_holds ?? 50;
+  const trigger = (key: PersonalListTab, Icon: typeof Users, label: string) => (
+    <TabsTrigger key={key} value={key} className="min-h-9 justify-start gap-1.5 whitespace-normal text-left sm:justify-center">
+      <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />{label}
+    </TabsTrigger>
+  );
   return (
-    <AppLayout title={t('nav.personalList')}>
-      <div className="mx-auto w-full max-w-6xl space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Lock className="h-6 w-6" /> {t('nav.personalList')}
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              {t('personalListPage.intro', { count: cap })}
-            </p>
-          </div>
+    <AppLayout title={notesTab ? t('nav.personalNotes') : t('nav.personalList')}>
+      <div className="mx-auto w-full min-w-0 max-w-6xl space-y-4">
+        <div className="min-w-0">
+          <h1 className="flex items-center gap-2 text-2xl font-bold">
+            {notesTab ? <NotebookPen className="h-6 w-6 shrink-0" aria-hidden /> : <Lock className="h-6 w-6 shrink-0" aria-hidden />}
+            <span className="min-w-0">{notesTab ? t('personalNotes.title') : t('nav.personalList')}</span>
+          </h1>
+          <p className="mt-1 flex items-start gap-1.5 text-sm text-muted-foreground">
+            {tab === 'notes' ? (
+              <><Eye className="mt-0.5 h-4 w-4 shrink-0" aria-hidden /><span>{t('personalNotes.privacy')}</span></>
+            ) : tab === 'agent-notes' ? (
+              <span>{t('personalNotes.authors.desc')}</span>
+            ) : (
+              <span>{t('personalListPage.intro', { count: cap })}</span>
+            )}
+          </p>
         </div>
 
-        <Tabs defaultValue={initialTab} className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="mine" className="gap-1.5">
-              <Users className="h-3.5 w-3.5" /> {t('personalListPage.myHolds')}
-            </TabsTrigger>
-            {isAdminOrManager && (
-              <TabsTrigger value="expiring" className="gap-1.5">
-                <AlertTriangle className="h-3.5 w-3.5" /> {t('personalListPage.expiringReview')}
-              </TabsTrigger>
-            )}
-            {isAdminOrManager && (
-              <TabsTrigger value="agents" className="gap-1.5">
-                <UserSearch className="h-3.5 w-3.5" /> {t('personalListPage.agentsLists')}
-              </TabsTrigger>
-            )}
+        <Tabs value={tab} onValueChange={setTab} className="space-y-4">
+          {/* Wraps instead of scrolling sideways on a phone (the WarehousePage pattern). */}
+          <TabsList className="grid h-auto grid-cols-2 gap-1 overflow-visible sm:flex sm:flex-wrap sm:justify-start">
+            {trigger('mine', Users, t('personalListPage.myHolds'))}
+            {trigger('notes', NotebookPen, t('personalNotes.tabs.notes'))}
+            {isAdminOrManager && trigger('expiring', AlertTriangle, t('personalListPage.expiringReview'))}
+            {isAdminOrManager && trigger('agents', UserSearch, t('personalListPage.agentsLists'))}
+            {isAdminOrManager && trigger('agent-notes', BookOpen, t('personalNotes.tabs.agentNotes'))}
           </TabsList>
 
           <TabsContent value="mine"><MyHoldsTab /></TabsContent>
+          <TabsContent value="notes"><NotesWorkspace ownerId={null} readOnly={false} /></TabsContent>
           {isAdminOrManager && <TabsContent value="expiring"><ExpiringTab /></TabsContent>}
           {isAdminOrManager && <TabsContent value="agents"><AgentsListsTab /></TabsContent>}
+          {isAdminOrManager && <TabsContent value="agent-notes"><AgentNotesBrowser /></TabsContent>}
         </Tabs>
       </div>
     </AppLayout>
