@@ -472,11 +472,11 @@ export function parseCountRequest(body: unknown, nowMs: number): Parsed<CountReq
   });
 }
 
-/** {reason} — 3 … 500 characters (void a count). */
+/** {reason} — 5 … 500 characters (the database requires 5) (void a count). */
 export function parseReasonBody(body: unknown): Parsed<string> {
   if (!isObj(body) || typeof body.reason !== "string") return fail("reason_required");
   const r = body.reason.trim();
-  if (r.length < 3) return fail("reason_required");
+  if ([...r].length < 5) return fail("reason_required");
   if (r.length > MAX_NOTE) return fail("reason_too_long");
   return ok(r);
 }

@@ -260,6 +260,7 @@ describe("body parsers", () => {
   it("void reason", () => {
     expect(parseReasonBody({ reason: "  wrong shelf  " })).toEqual({ ok: true, value: "wrong shelf" });
     expect(parseReasonBody({ reason: "no" })).toEqual({ ok: false, error: "reason_required" });
+    expect(parseReasonBody({ reason: "abcd" })).toEqual({ ok: false, error: "reason_required" });
     expect(parseReasonBody({})).toEqual({ ok: false, error: "reason_required" });
     expect(parseReasonBody({ reason: "x".repeat(501) })).toEqual({ ok: false, error: "reason_too_long" });
   });
