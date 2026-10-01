@@ -18,17 +18,11 @@ import { cleanNoteForDisplay } from '@/lib/notes';
 import { cn } from '@/lib/utils';
 import { formatOrderProducts } from '@/lib/monadonSubstitutes';
 import { STATUS_TONE, deliveryLabel, fullAddress, orderTotal, deriveCustomerSummary } from '@/lib/searchFormat';
+import { operatorOf, operatorTitle } from '@/lib/orderOperator';
 
 // Customer Info card — personal details from the most recent order plus lifetime
 // stats aggregated across the result set. `action` renders top-right (e.g. the
 // "Open in Calls & call" button in the topbar-search modal).
-const SOLD_STATUSES = new Set(['confirmed', 'shipped', 'delivered', 'paid', 'returned']);
-/** Who sold the order: the sold_* stamp (seller_name), else the confirmer on a real sale; nothing for a non-sale. */
-function sellerOf(order: { status?: string | null; seller_name?: string | null; confirmed_by_name?: string | null }): string | null {
-  if (order.seller_name) return order.seller_name;
-  return order.status && SOLD_STATUSES.has(order.status) ? (order.confirmed_by_name || null) : null;
-}
-
 export function CustomerSummaryCard({ orders, action }: { orders: any[]; action?: ReactNode }) {
   const { t } = useTranslation();
   const summary = useMemo(() => deriveCustomerSummary(orders), [orders]);
@@ -160,7 +154,7 @@ export function OrdersResultTable({ orders, orderHistory }: { orders: any[]; ord
                   <th className="text-left py-2 px-2 font-medium">{t('search.colNotes')}</th>
                   <th className="text-right py-2 px-2 font-medium">{t('search.colTotal')}</th>
                   <th className="text-left py-2 px-2 font-medium">{t('search.colStatus')}</th>
-                  <th className="text-left py-2 px-2 font-medium">{t('search.colSeller')}</th>
+                  <th className="text-left py-2 px-2 font-medium">{t('search.colOperator')}</th>
                   <th className="text-right py-2 px-3 font-medium">{t('search.colDate')}</th>
                 </tr>
               </thead>
@@ -237,11 +231,19 @@ export function OrdersResultTable({ orders, orderHistory }: { orders: any[]; ord
                             {order.status ? statusLabel(order.status) : '—'}
                           </Badge>
                         </td>
-                        {/* WHO SOLD IT (owner 01.10.2026) — the write-once sold_* stamp via order_departments; a cancel /
-                            trash / open lead was never sold, so it shows a dash, never "unassigned". */}
-                        <td className="py-2 px-2 max-w-[140px] truncate" title={sellerOf(order) || undefined}>
-                          {sellerOf(order) || <span className="text-muted-foreground/60">—</span>}
-                        </td>
+                        {/* THE OPERATOR (owner 01.10.2026) — who produced the order's current status: a sale's
+                            seller, the agent who cancelled / trashed it, the AlterCPA operator (order_operators). */}
+                        {(() => {
+                          const op = operatorOf(order);
+                          const how = operatorTitle(t, op, order.status ? statusLabel(order.status) : '');
+                          return (
+                            <td className="py-2 px-2 max-w-[140px] truncate" title={op.name ? [op.name, how].filter(Boolean).join(' — ') : undefined}>
+                              {op.name ? (
+                                <>{op.name}{op.auto && <span className="text-muted-foreground"> · {t('ordersList.operator.auto')}</span>}</>
+                              ) : <span className="text-muted-foreground/60">—</span>}
+                            </td>
+                          );
+                        })()}
                         <td className="py-2 px-3 text-right text-muted-foreground whitespace-nowrap">
                           {format(new Date(order.created_at), 'dd/MM/yy HH:mm')}
                         </td>

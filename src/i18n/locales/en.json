@@ -1695,7 +1695,7 @@
     "colTotal": "Total",
     "colStatus": "Status",
     "colAgent": "Agent",
-    "colSeller": "Seller",
+    "colOperator": "Operator",
     "colDate": "Date",
     "viewOnly": "View only",
     "notesTotal": "{{count}} notes total",
@@ -2023,12 +2023,23 @@
       "label": "Source"
     },
     "seller": {
-      "label": "Seller",
+      "label": "Seller (sales)",
       "all": "All sellers",
       "search": "Search a seller…",
       "empty": "No such seller",
       "inactive": "inactive",
       "chip": "Seller: {{name}}"
+    },
+    "operator": {
+      "chip": "Operator: {{name}}",
+      "auto": "automatic",
+      "autoTitle": "set by an automatic rule (no parcel in 10 days / a repair), not by an operator",
+      "basis": {
+        "sale": "Sale — the order's seller",
+        "history": "{{status}} — set in the CRM by this operator",
+        "assigned": "{{status}} — the operator the order is assigned to",
+        "altercpa": "{{status}} — operator in AlterCPA"
+      }
     },
     "agent": {
       "label": "Assigned",
@@ -2056,7 +2067,7 @@
       "products": "Products",
       "value": "Value",
       "department": "Department",
-      "seller": "Seller",
+      "operator": "Operator",
       "status": "Status",
       "mex": "MEX",
       "assigned": "Assigned"

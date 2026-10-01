@@ -9,6 +9,8 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { ActiveViewChip } from '@/components/ActiveViewBadge';
 import { sourceColorVar } from '@/components/insights/overview/palette';
 import { departmentLabel } from '@/lib/orderSource';
+import { OPERATOR_SALE_STATUSES, operatorOf, operatorTitle } from '@/lib/orderOperator';
+import { statusLabel } from '@/types';
 import type { ActiveViewsByPhone } from '@/lib/api';
 import { MEX_TONE_CLASS, mexBadge, orderValue, rowInstant, skopjeDayTime } from '@/lib/ordersList/rowModel';
 import type { ApiOrder } from './types';
@@ -40,7 +42,8 @@ const last8 = (p: string | null | undefined) => {
 
 /**
  * The orders: a table from md (columns join as the screen widens — products at
- * lg, department (+ seller) and MEX at xl, the seller's own column at 2xl — so it never
+ * lg, department (+ operator; under the customer before that) and MEX at xl, the operator's own
+ * column at 2xl — so it never
  * scrolls sideways) and compact cards below md. A row or card opens the order;
  * the checkbox and the ⋮ menu do not.
  */
@@ -57,7 +60,7 @@ export function OrdersList(p: OrdersListProps) {
 }
 
 /** How many columns the table shows at the current width (md 6 · lg +products ·
- *  xl +department · 2xl +MEX +assigned) — the details row must span exactly
+ *  xl +department · 2xl +MEX +operator) — the details row must span exactly
  *  these: a larger colSpan adds phantom columns that squeeze a fixed layout. */
 const COL_QUERIES = ['(min-width: 1024px)', '(min-width: 1280px)', '(min-width: 1536px)'] as const;
 function useVisibleCols(): number {
@@ -102,7 +105,7 @@ function OrdersTable(p: OrdersListProps) {
             <th scope="col" className={cn(th, 'hidden w-[156px] xl:table-cell')}>{t('ordersList.col.department')}</th>
             <th scope="col" className={cn(th, 'w-[140px]')}>{t('ordersList.col.status')}</th>
             <th scope="col" className={cn(th, 'hidden w-[176px] 2xl:table-cell')}>{t('ordersList.col.mex')}</th>
-            <th scope="col" className={cn(th, 'hidden w-[150px] 2xl:table-cell')}>{t('ordersList.col.seller')}</th>
+            <th scope="col" className={cn(th, 'hidden w-[150px] 2xl:table-cell')}>{t('ordersList.col.operator')}</th>
             <th scope="col" className="w-12 py-2 pr-2"><span className="sr-only">{t('common.actions')}</span></th>
           </tr>
         </thead>
@@ -125,6 +128,8 @@ function OrdersTable(p: OrdersListProps) {
                   <td className="min-w-0 px-2 py-2.5">
                     <CustomerCell o={o} p={p} />
                     <div className="mt-1 line-clamp-2 break-words text-xs text-muted-foreground lg:hidden">{product}</div>
+                    {/* md–lg: no department column yet, so the operator sits under the customer */}
+                    <div className="xl:hidden"><OperatorLine o={o} /></div>
                   </td>
                   <td className="hidden px-2 py-2.5 lg:table-cell">
                     <div className="line-clamp-3 break-words">{product}</div>
@@ -133,14 +138,14 @@ function OrdersTable(p: OrdersListProps) {
                   <td className="px-2 py-2.5 text-right"><ValueCell o={o} /></td>
                   <td className="hidden px-2 py-2.5 xl:table-cell">
                     <DeptLine o={o} />
-                    <div className="2xl:hidden"><SellerLine o={o} /></div>
+                    <div className="2xl:hidden"><OperatorLine o={o} /></div>
                   </td>
                   <td className="px-2 py-2.5">
                     <StatusBadge status={o.status} order={o} className="max-w-full whitespace-normal" />
                     <div className="mt-1 2xl:hidden"><MexBadge o={o} withTracking /></div>
                   </td>
                   <td className="hidden px-2 py-2.5 2xl:table-cell"><MexBadge o={o} withTracking /></td>
-                  <td className="hidden break-words px-2 py-2.5 text-xs 2xl:table-cell">{sellerOf(o) || <span className="text-muted-foreground">—</span>}</td>
+                  <td className="hidden break-words px-2 py-2.5 text-xs 2xl:table-cell"><OperatorCell o={o} /></td>
                   <td className="py-2 pr-2" onClick={(e) => e.stopPropagation()}><RowMenu o={o} actions={p.actions(o)} /></td>
                 </tr>
                 {open && (
@@ -196,7 +201,7 @@ function OrderCard({ o, ...p }: OrdersListProps & { o: ApiOrder }) {
             <span className="tabular-nums">{when.day.slice(0, 5)} {when.time}</span>
           </div>
           {product && product !== '—' && <div className="line-clamp-1 break-words text-xs">{product}</div>}
-          {sellerOf(o) && <div className="break-words text-xs text-muted-foreground">{t('ordersList.seller.chip', { name: sellerOf(o) })}</div>}
+          <OperatorLine o={o} card />
           <div className="flex min-w-0 flex-wrap items-center gap-1.5">
             <MexBadge o={o} withTracking inline />
             <ViewAndDup o={o} p={p} />
@@ -281,26 +286,41 @@ export function DeptLine({ o, compact }: { o: Pick<ApiOrder, 'department'>; comp
   );
 }
 
-const SOLD_STATUSES = new Set(['confirmed', 'shipped', 'delivered', 'paid', 'returned']);
-
 /**
- * WHO SOLD the order (owner 01.10.2026: "the column says which operator made the order", never who it
- * happens to be assigned to now): the write-once sold_* stamp (seller_name from order_departments),
- * else the confirmer on a real sale. A cancel / trash / open lead was never sold → null.
+ * The OPERATOR — who produced the order's current status (owner 01.10.2026: "the operator who did the
+ * status, whether it is a sale, a cancel, a trash…"): a sale's seller, the agent who cancelled / trashed /
+ * set it in the CRM, the assignee on pre-01.08 orders, the AlterCPA operator on a lead decided in their
+ * panel (order_operators, src/lib/orderOperator.ts). The hover says how it was decided; "автоматски"
+ * marks a status an automatic rule set (no parcel in 10 days, a repair).
  */
-export function sellerOf(o: Pick<ApiOrder, 'status' | 'seller_name' | 'confirmed_by_name'>): string | null {
-  if (o.seller_name) return o.seller_name;
-  return o.status && SOLD_STATUSES.has(o.status) ? (o.confirmed_by_name || null) : null;
+function useOperator(o: ApiOrder) {
+  const { t } = useTranslation();
+  const op = operatorOf(o);
+  return { t, op, title: operatorTitle(t, op, statusLabel(o.status)) };
 }
 
-function SellerLine({ o }: { o: ApiOrder }) {
-  const { t } = useTranslation();
-  const seller = sellerOf(o);
-  const sold = !!o.status && SOLD_STATUSES.has(o.status);
-  if (!seller && !sold) return null;
+/** The 2xl column: the name, and the automatic note under it. */
+function OperatorCell({ o }: { o: ApiOrder }) {
+  const { t, op, title } = useOperator(o);
+  if (!op.name) return <span className="text-muted-foreground">—</span>;
   return (
-    <div className="mt-0.5 break-words text-xs text-muted-foreground" title={t('ordersPage.confirmedByTitle')}>
-      {seller ? t('ordersList.seller.chip', { name: seller }) : t('ordersList.noSeller')}
+    <span className="block min-w-0" title={title}>
+      <span className="break-words">{op.name}</span>
+      {op.auto && <span className="block text-[11px] leading-tight text-muted-foreground">{t('ordersList.operator.auto')}</span>}
+    </span>
+  );
+}
+
+/** One muted line: "Оператор: Name" (+ "· автоматски") — under the department below 2xl, and on the
+ *  phone card. In the table a sale nobody is credited with says so; otherwise no name shows nothing. */
+function OperatorLine({ o, card }: { o: ApiOrder; card?: boolean }) {
+  const { t, op, title } = useOperator(o);
+  const sale = !!o.status && OPERATOR_SALE_STATUSES.has(o.status);
+  if (!op.name && (card || !sale)) return null;
+  return (
+    <div className={cn('break-words text-xs text-muted-foreground', !card && 'mt-0.5')} title={title}>
+      {op.name ? t('ordersList.operator.chip', { name: op.name }) : t('ordersList.noSeller')}
+      {op.auto && <span> · {t('ordersList.operator.auto')}</span>}
     </div>
   );
 }

@@ -63,6 +63,7 @@ const ORDERS = [
     customer_city: 'Скопје', customer_address: 'Партизанска 1', product_name: 'Prostafix', quantity: 2, price: 24.23,
     created_at: '2026-09-29T08:00:00Z', sold_at: '2026-09-29T08:05:00Z', confirmed_at: '2026-09-29T08:05:00Z',
     department: 'social', seller_name: 'Александра Чима', assigned_agent_name: 'Ивана Петровска', assigned_agent_id: 'x',
+    operator_name: 'Александра Чима', operator_basis: 'sale', operator_auto: false,
     mex_tracking_id: '002-9108-123456/2026', mex_status_id: 10, mex_cod_mkd: 1490, mex_account: 'natura', source_type: 'import',
     order_items: [], is_owned: true,
   },
@@ -126,7 +127,9 @@ describe('/orders — Нарачки by default', { timeout: 30_000 }, () => {
     expect(within(row).getAllByText('002-9108-123456/2026').length).toBeGreaterThan(0);
     expect(within(row).getAllByText(t('insights.common.source.social')).length).toBeGreaterThan(0);
     expect(within(row).getByText('1.490 ден')).toBeInTheDocument();
-    expect(within(row).getAllByText(t('ordersList.seller.chip', { name: 'Александра Чима' })).length).toBeGreaterThan(0);
+    // the Оператор of a sale is its seller — never the assignee (Ивана)
+    expect(within(row).getAllByText(t('ordersList.operator.chip', { name: 'Александра Чима' })).length).toBeGreaterThan(0);
+    expect(within(row).queryByText(t('ordersList.operator.chip', { name: 'Ивана Петровска' }))).toBeNull();
   });
 
   it('a row opens the order in one click', async () => {

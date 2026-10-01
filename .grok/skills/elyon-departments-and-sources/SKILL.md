@@ -370,6 +370,22 @@ collabBox order keeps its system confirmer `System (collabbox-sync)` and SHOWS i
   …) under it (`src/lib/orderSource.ts`). `seller_name` = the `sold_by_person_id` person's display
   name, else `sold_by_ext` (a collabBox author as collabBox writes it) — never a bare numeric
   AlterCPA operator id.
+- **`order_operators(p_ids uuid[])`** (`20260943002000`, owner 01.10.2026) →
+  `(id, operator_name, operator_basis, operator_auto)`: the **"Оператор"** column of /orders and of
+  the customer window (search) = who produced the order's CURRENT status, for every status. A sale
+  → the seller (as above, else the confirmer; basis `sale`). Anything else → (a) the latest PERSON
+  in `order_history` who moved the order into its current status (a transition before a same-status
+  edit; System actors never; basis `history`), (b) else the assignee (orders from before 01.08,
+  when order_history did not exist — what the column showed until 0740693; basis `assigned`),
+  (c) else the AlterCPA operator — `decided_by_altercpa_user`, or for their callback (status 3 →
+  our call_again) `payload.user` (basis `altercpa`), (d) else NULL ("—"). `operator_auto` = the
+  last transition into the status was an automatic rule (no-parcel, a repair; not the AlterCPA
+  mirror) → the list adds "автоматски". Names go through `sales_people.user_id` and the
+  `order_name` / `collabbox_author` / `altercpa_user` identities, so one human has one spelling.
+  The api calls it next to `order_departments` (`orderPeopleById`); the frontend reads it through
+  `src/lib/orderOperator.ts`. Display only — no writer, no status rule. The /orders **seller
+  filter stays a seller filter** (`sold_by_person_id`), labelled "Продавач (продажби)": filtering
+  by operator would need the history lookup per row, which PostgREST cannot express.
 - **`order_origin(p_id uuid)`** (`20260942001600`) → jsonb for the order window's **"Origin and
   proof"** panel (`src/components/OrderOriginPanel.tsx`): department, `sale_source` / detail,
   `collabbox_doc_type`, intake (`source_type`), seller + `sold_at` / `sold_via`, `paid_basis`, CRM

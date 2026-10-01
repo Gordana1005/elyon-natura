@@ -1695,7 +1695,7 @@
     "colTotal": "Totali",
     "colStatus": "Statusi",
     "colAgent": "Agjenti",
-    "colSeller": "Shitësi",
+    "colOperator": "Operatori",
     "colDate": "Data",
     "viewOnly": "Vetëm shikim",
     "notesTotal": "{{count}} shënime gjithsej",
@@ -2023,12 +2023,23 @@
       "label": "Burimi"
     },
     "seller": {
-      "label": "Shitësi",
+      "label": "Shitësi (shitjet)",
       "all": "Të gjithë shitësit",
       "search": "Kërko shitës…",
       "empty": "Nuk ka shitës të tillë",
       "inactive": "joaktiv",
       "chip": "Shitësi: {{name}}"
+    },
+    "operator": {
+      "chip": "Operatori: {{name}}",
+      "auto": "automatik",
+      "autoTitle": "vendosur nga një rregull automatik (pa pako 10 ditë / riparim), jo nga një operator",
+      "basis": {
+        "sale": "Shitje — shitësi i porosisë",
+        "history": "{{status}} — vendosur në CRM nga ky operator",
+        "assigned": "{{status}} — operatori të cilit i është caktuar porosia",
+        "altercpa": "{{status}} — operator në AlterCPA"
+      }
     },
     "agent": {
       "label": "Caktuar te",
@@ -2056,7 +2067,7 @@
       "products": "Produktet",
       "value": "Vlera",
       "department": "Departamenti",
-      "seller": "Shitësi",
+      "operator": "Operatori",
       "status": "Statusi",
       "mex": "MEX",
       "assigned": "Caktuar te"

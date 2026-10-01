@@ -20,6 +20,11 @@ export interface ApiOrder {
   /** GET /orders enrichment (order_departments, 20260942001500): who SOLD it and its department. */
   seller_name?: string | null;
   department?: string | null;
+  /** GET /orders enrichment (order_operators, 20260943002000): who produced the CURRENT status —
+   *  the "Оператор" column. basis = sale | history | assigned | altercpa; auto = an automatic rule set it. */
+  operator_name?: string | null;
+  operator_basis?: string | null;
+  operator_auto?: boolean | null;
   confirmed_by_agent_id?: string | null;
   confirmed_at?: string | null;
   sold_at?: string | null;

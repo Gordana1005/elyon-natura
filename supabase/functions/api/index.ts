@@ -2088,6 +2088,35 @@ function stripCpaAttributionList<T extends Record<string, any>>(arr: T[] | null 
   return (arr || []).map((o) => stripCpaAttribution(o, allowed)!);
 }
 
+// ── Department, seller and OPERATOR of a page of orders ──
+// department + seller_name: order_departments (20260942001500 — cohort_order_source and the sold_*
+// stamp). operator_*: order_operators (20260943002000, owner 01.10.2026) — who produced the order's
+// CURRENT status: the seller on a sale; otherwise the person in order_history who set it, else the
+// assignee (pre-01.08 orders), else the AlterCPA operator. Display only; either RPC failing leaves
+// its fields null and the list still answers.
+type OrderPeople = {
+  department: string | null; seller_name: string | null;
+  operator_name: string | null; operator_basis: string | null; operator_auto: boolean;
+};
+async function orderPeopleById(adminClient: any, ids: string[], label: string): Promise<Record<string, OrderPeople>> {
+  const out: Record<string, OrderPeople> = {};
+  if (!ids.length) return out;
+  const [deptRes, opRes] = await Promise.all([
+    adminClient.rpc("order_departments", { p_ids: ids }),
+    adminClient.rpc("order_operators", { p_ids: ids }),
+  ]);
+  if (deptRes.error) console.error(`order_departments (${label}):`, deptRes.error.message);
+  if (opRes.error) console.error(`order_operators (${label}):`, opRes.error.message);
+  const blank = (): OrderPeople => ({ department: null, seller_name: null, operator_name: null, operator_basis: null, operator_auto: false });
+  for (const d of (deptRes.data || []) as any[]) {
+    out[d.id] = { ...(out[d.id] ?? blank()), department: d.department ?? null, seller_name: d.seller_name ?? null };
+  }
+  for (const r of (opRes.data || []) as any[]) {
+    out[r.id] = { ...(out[r.id] ?? blank()), operator_name: r.operator_name ?? null, operator_basis: r.operator_basis ?? null, operator_auto: r.operator_auto === true };
+  }
+  return out;
+}
+
 // ── Cost of goods for one order ──
 // unitCost(productId, productName) lets each caller resolve cost by whichever key
 // it has (agent-performance keys by product_id, management-insights by name).
@@ -6371,16 +6400,12 @@ async function handleRequest(req: Request): Promise<Response> {
         }
       }
 
-      // Each order's DEPARTMENT (cohort_order_source — the six departments) and
+      // Each order's DEPARTMENT (cohort_order_source — the six departments),
       // SELLER (the write-once sold_* stamp: a collabBox order is "confirmed" by
-      // the sync, but sold by its document's author) — order_departments
-      // (20260942001500). Display only; if the RPC fails the list still answers.
-      const deptById: Record<string, { department: string | null; seller_name: string | null }> = {};
-      if (pageOrderIds.length) {
-        const { data: depts, error: deptErr } = await adminClient.rpc("order_departments", { p_ids: pageOrderIds });
-        if (deptErr) console.error("order_departments:", deptErr.message);
-        for (const d of (depts || []) as any[]) deptById[d.id] = { department: d.department ?? null, seller_name: d.seller_name ?? null };
-      }
+      // the sync, but sold by its document's author) and OPERATOR (who produced
+      // the current status — the "Оператор" column, owner 01.10.2026).
+      // Display only; if an RPC fails the list still answers.
+      const peopleById = await orderPeopleById(adminClient, pageOrderIds, "orders");
 
       // Add is_owned flag for agents
       const enrichedOrders = stripCpaAttributionList(
@@ -6388,8 +6413,11 @@ async function handleRequest(req: Request): Promise<Response> {
           ...o,
           is_owned: isAdminOrManager || o.assigned_agent_id === user.id,
           last_action_by: lastActionBy[o.id] || o.assigned_agent_name || null,
-          department: deptById[o.id]?.department ?? null,
-          seller_name: deptById[o.id]?.seller_name ?? null,
+          department: peopleById[o.id]?.department ?? null,
+          seller_name: peopleById[o.id]?.seller_name ?? null,
+          operator_name: peopleById[o.id]?.operator_name ?? null,
+          operator_basis: peopleById[o.id]?.operator_basis ?? null,
+          operator_auto: peopleById[o.id]?.operator_auto ?? false,
         })),
         isAdminOrManager,
       );
@@ -16205,21 +16233,18 @@ async function handleRequest(req: Request): Promise<Response> {
       // order they've been asked to settle, so there is no duplicated_from filter.
 
       const [ordersRes, leadsRes] = await Promise.all([orderQuery, leadQuery]);
-      // Each order's department and SELLER (who sold it — the write-once sold_* stamp), the
-      // same order_departments read as the /orders list (owner 01.10.2026: the customer window
-      // shows who sold each order, not who it happens to be assigned to now). Display only.
-      const searchDeptById: Record<string, { department: string | null; seller_name: string | null }> = {};
-      const searchIds = (ordersRes.data || []).map((o: any) => o.id);
-      if (searchIds.length) {
-        const { data: depts, error: deptErr } = await adminClient.rpc("order_departments", { p_ids: searchIds });
-        if (deptErr) console.error("order_departments (search):", deptErr.message);
-        for (const d of (depts || []) as any[]) searchDeptById[d.id] = { department: d.department ?? null, seller_name: d.seller_name ?? null };
-      }
+      // Each order's department, SELLER and OPERATOR (who produced its current status — a sale's
+      // seller, else who cancelled / trashed / set it), the same read as the /orders list
+      // (owner 01.10.2026). Display only.
+      const searchPeople = await orderPeopleById(adminClient, (ordersRes.data || []).map((o: any) => o.id), "search");
       const orders = (ordersRes.data || []).map((o: any) => ({
         ...o,
         is_owned: isAdminOrManager || o.assigned_agent_id === user.id,
-        department: searchDeptById[o.id]?.department ?? null,
-        seller_name: searchDeptById[o.id]?.seller_name ?? null,
+        department: searchPeople[o.id]?.department ?? null,
+        seller_name: searchPeople[o.id]?.seller_name ?? null,
+        operator_name: searchPeople[o.id]?.operator_name ?? null,
+        operator_basis: searchPeople[o.id]?.operator_basis ?? null,
+        operator_auto: searchPeople[o.id]?.operator_auto ?? false,
       }));
       const leads = (leadsRes.data || []).map((l: any) => ({
         ...l,
