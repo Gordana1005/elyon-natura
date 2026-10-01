@@ -355,6 +355,25 @@ for the owner (`exports/repairs/cross-channel-parcels-2026-09-29T03-04-29-167Z.c
 touched. Undo: `node scripts/rollback-repair.mjs --run a057bc52 [--apply]`. Orders in
 `agent_payout_items` are excluded (payouts deferred).
 
+**The rest of the class — "the collabBox folder decides", ALL cases (owner, Mile, 01.10.2026: "Yes, the
+collabBox folder decides").** Every AlterCPA order (`sale_source 'altercpa'`) that still holds a NATURA
+9102 / 9100 / 9108 / 1300 parcel — same-day ones and imported links included — gives the parcel to its
+collabBox document, which becomes its OWN Телешоп / Социјални order credited to the document's author.
+`scripts/repair-folder-decides.mjs` (key `folder-decides`; pure rules `scripts/lib/folder-decides.mjs`,
+tests `src/lib/folderOrders.test.ts`): per parcel ONE sub-transaction — the AlterCPA order goes back to
+what it was before the parcel made it a sale (its first history row INTO shipped / paid / returned names
+it: a cancel / trash is restored; never cancelled — an AlterCPA approval or an import straight as paid —
+→ cancelled by the SYSTEM, reason `other` + note, dated by the AlterCPA decision; never a person's cancel,
+so the written-note rule does not apply), the parcel unlinked, then the LIVE writer re-applies the document
+(`collabbox_apply_documents` → `collabbox_apply_one` branch E, unchanged) and must answer `created`, else the
+unit rolls back whole. Listed, never moved: payout orders, LEADS-document orders (`altercpa / collabbox_leads`
+holding a teleshop parcel — their own 9110 parcel is not in the register), a parcel the writer would not turn
+into an order (COD 0 → replacement), a label stuck at MEX 8 for > 14 days. Dry run **`b3c20364`**
+(01.10 ~22:56): 134 → **127 move** (292.350 ден: 87 Телешоп – Lead out, 36 Телешоп – Lead in, 4 Социјални;
+106 never cancelled, 21 restored cancels) + 7 listed; September −10 / +10. Undo:
+`node scripts/repair-folder-decides.mjs --rollback <run> [--apply]` (it deletes the made order — NOT
+rollback-repair.mjs, which refuses the key). Proof: `node scripts/verify-folder-orders.mjs` (A1, C1, L1).
+
 ## Where the department is shown (29.09)
 
 The three order surfaces below call THE department, `cohort_order_source(sale_source, detail,

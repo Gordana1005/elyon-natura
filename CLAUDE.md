@@ -207,10 +207,29 @@ target **explicitly** and verify it before running:
   AlterCPA (a commercial artifact — the ~30 % confirmation guarantee); nothing is ever pushed to AlterCPA. An
   orphan 9110/9103 parcel is linked to the ONE order on its last-8 phone created −10 d … +1 d that holds no
   parcel and fits no other orphan parcel — amount ignored (up-sells); > 72 h apart the collabBox document must
-  carry the product BY NAME. One definition: `link_lead_parcels_plan()`; cron `link-lead-parcels` 21:02 Skopje
+  carry the product BY NAME. **Rule 2b (`20260944000980`):** before the uniqueness check, a candidate cancelled /
+  trashed AS A DUPLICATE (`duplicate_order`, the bridge's "duplicate — …" trash note, the mirror's trashed reason 7 —
+  never free text) and an AlterCPA lead created after the parcel's collabBox booking (`collabbox_sale_at`; a date-only
+  import by Skopje day) are dropped. One definition: `link_lead_parcels_plan()`; cron `link-lead-parcels` 21:02 Skopje
   (switch `app_settings.link_lead_parcels`, seeded `report`); backfill `scripts/repair-link-lead-parcels.mjs`;
   every run undone by `scripts/rollback-repair.mjs --run <id>`; proof `node scripts/verify-parcel-link-rules.mjs`.
   Old September `credit_pending` LEADS documents: `scripts/collabbox-recredit.mjs`. See `docs/ALTERCPA-BRIDGE.md`.
+- **A LEADS document becomes an order when MEX delivered or returned its parcel (owner, 01.10.2026 —
+  `20260944000970`):** *"If there is delivery from MEX too or return, then of course we will import them, that way
+  we know that MEX really tried to deliver that order."* A 9110 parcel at MEX 2 / 7 that no order holds + its 10111
+  document (`credit_pending`) → ONE order in the writer's branch-E shape (`external_order_id` = the DocNumber →
+  Affiliate – Lead in, the parcel's own MEX-only department), seller credited by the LIVE writer re-applying the
+  document. Never a twin: the phone + date linker has no row for it, no living Affiliate sale on the phone
+  (−30 d … +1 d), the writer's twin rule does not fit. In transit = not yet. One definition
+  `leads_parcel_orders_plan()`; cron `leads-parcel-orders` 21:06 Skopje (switch `app_settings.leads_parcel_orders`,
+  seeded `report`); backfill `scripts/repair-leads-parcel-orders.mjs`; undo its own `--rollback <run>`.
+- **The collabBox folder decides — ALL cases (owner, 01.10.2026: "Yes, the collabBox folder decides"):** an
+  AlterCPA order holding a NATURA 9102 / 9100 / 9108 / 1300 parcel loses it to its collabBox document, which
+  becomes its own Телешоп / Социјални order credited to the author; the AlterCPA order goes back to its
+  pre-parcel cancel / trash, or — never cancelled — is cancelled by the system (reason `other` + note, never a
+  person's cancel). `scripts/repair-folder-decides.mjs` (one sub-transaction per parcel, the live writer must
+  answer `created`); undo its own `--rollback <run>`. Proof for both: `node scripts/verify-folder-orders.mjs`.
+  Inside Affiliate In / Out the first decider / confirmer keeps the leaderboard credit (unchanged).
 - **Денари everywhere (owner, 28.09):** every staff-facing amount — screens, charts, exports,
   notifications — is shown in денари. The only EUR on screen is the foreign affiliate payout above.
 - **COD ≠ CRM price → MEX is right** (owner): the CRM price follows the parcel COD, except when COD =

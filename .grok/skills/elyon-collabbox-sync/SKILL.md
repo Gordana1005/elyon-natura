@@ -103,7 +103,7 @@ run) 115 s, 45 s kept for the writer after the last fetch. A non-dry nightly/man
 | 10050 | Нарачка out | `order` | an order — once its MEX parcel exists (Телешоп – Lead out) |
 | 10106 | Нарачка Социјални Мрежи | `order` | an order — once its MEX parcel exists (Social) |
 | 10114 | LEADS-OUT Нарачка | `order_unless_held` | an order ONLY when no order holds / names its parcel (Affiliate – Lead out, whoever booked it — the team rule of `20260942001800` that briefly moved a `crm_prediction` author's LEADS-OUT was withdrawn by `…1850`); otherwise its author is credited on that order. Waits for the parcel like the others (a LEADS-OUT booked in collabBox often has a CRM twin that takes the parcel) |
-| 10111 | Нарачка LEADS | `credit` | **never an order** (the sale comes through AlterCPA): its author is credited as seller on the order holding its parcel |
+| 10111 | Нарачка LEADS | `credit` | **never an order in this writer** (the sale comes through AlterCPA): its author is credited as seller on the order holding its parcel. Exception OUTSIDE the writer (owner 01.10.2026, `20260944000970`, see D′): no order holds the parcel and MEX delivered / returned it → one order made from the document |
 | 10055 · 10107 · 10112 · 10099 · 10063 · 10058 and any unknown | С. Мрежи-Продавница · Продавници · WEB · … | `record` | ledger only (10107 shop orders are not at MEX; 10112 web documents are worth 0) |
 
 `collabbox.test.ts` reads the migration's CASE and fails when the TS twin differs — change both.
@@ -138,6 +138,25 @@ an older `credit_pending` whose parcel gets a holder later (e.g. the phone + dat
 the writer), apply under a `manual` `collabbox_sync_runs` row (one run at a time), before/after of the
 holder's `sold_*` and the document in `data_repair_rows` (key `collabbox-recredit`), undo
 `--rollback <run>`. It never changes `collabbox_apply_one` / `collabbox_credit_order`.
+
+**D′. A LEADS document whose parcel MEX DELIVERED or RETURNED and no order holds (owner, 01.10.2026 — "If
+there is delivery from MEX too or return, then of course we will import them, that way we know that MEX really
+tried to deliver that order")** becomes ONE order — made OUTSIDE the writer, which stays unchanged
+(migration `20260944000970`, `leads_parcel_orders_plan(days)` = the one definition; nightly cron
+`leads-parcel-orders` 21:06 Skopje, switch `app_settings.leads_parcel_orders` seeded `report`; backfill
+`scripts/repair-leads-parcel-orders.mjs`, key `leads-parcel-orders`, undo its own `--rollback <run>`). Rules:
+a 9110 parcel at MEX 2 / 7, COD > 0, last 75 days, no order holds / names it, not a test phone; its 10111
+document `credit_pending`, lines read, value > 0; NO twin — the phone + date linker has no row for it, no
+living Affiliate sale on the phone (−30 d … +1 d: a re-ship is `repair-link-elyon-parcels.mjs`'s), and the
+writer's `possible_twin_crm_sale` does not fit. The order is the writer's branch-E shape with
+`external_order_id` = the DocNumber and `collabbox_doc_type '10111'` (→ `altercpa / collabbox_leads`,
+Affiliate – Lead in — the same department its parcel had as MEX-only), status from MEX, `mex_link_parcel(…,
+'collabbox_import')`; then the document is re-applied through `collabbox_apply_documents` in the same
+transaction — branch C now finds the order by its DocNumber and `collabbox_credit_order` stamps the author
+(outcome `updated` / credit `stamped`). In transit / at the label: not imported — they qualify by themselves.
+9103 / 10114 stays this writer's (`order_unless_held` already makes those orders). Dry run `aa562ee1`
+(01.10 ~22:40): 213 parcels → **121 orders** (410.929 ден: 88 paid, 33 returned; September 80 / 278.299 ден) +
+92 listed (33 link-plan candidates, 34 a living Affiliate sale on the phone, 24 no document, 1 no phone).
 
 **E. Order documents (10036 · 10050 · 10106 · 10114)**, first stop wins:
 

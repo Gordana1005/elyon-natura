@@ -2,7 +2,9 @@
  * link-lead-parcels — the pure half of scripts/repair-link-lead-parcels.mjs, scripts/collabbox-recredit.mjs and
  * scripts/verify-parcel-link-rules.mjs (owner, Mile, 01.10.2026). No I/O here.
  *
- * THE RULES LIVE IN SQL, ONCE: public.link_lead_parcels_plan(days) (migration 20260944000950) and the two
+ * THE RULES LIVE IN SQL, ONCE: public.link_lead_parcels_plan(days) (migration 20260944000950, re-emitted by 0980 with
+ * rule 2b — duplicates and AlterCPA leads created after the collabBox booking dropped before the uniqueness check —
+ * so PLAN_MIGRATION names the file that holds THE plan body today) and the two
  * no-parcel exemptions inside public.apply_no_parcel_rule() (migration 20260944000960). Nothing here re-implements
  * them: before a migration is applied the scripts run the migration FILE's own SQL (the repo's "inline" mode —
  * cf. scripts/verify-leaderboard-v2.mjs inlineBoardSql), afterwards the live function. So the nightly cron and the
@@ -17,7 +19,10 @@ import { candidateHash, fmtSkopje, fmtMkd } from './repair-kit.mjs';
 
 export const KEY = 'link-lead-parcels';
 export const RECREDIT_KEY = 'collabbox-recredit';
-export const PLAN_MIGRATION = '20260944000950_link_lead_parcels.sql';
+/** The file holding THE plan body today (0980 re-emitted it; the apply / nightly / snapshot stay in LINK_MIGRATION). */
+export const PLAN_MIGRATION = '20260944000980_link_lead_parcels_exclusions.sql';
+/** link_lead_parcels() / _nightly() / _snapshot() / the owner switch — and the plan body before 0980. */
+export const LINK_MIGRATION = '20260944000950_link_lead_parcels.sql';
 export const EXEMPT_MIGRATION = '20260944000960_no_parcel_exemptions.sql';
 export const PLAN_SIG = 'public.link_lead_parcels_plan(integer)';
 export const DEFAULT_DAYS = 75;
