@@ -307,6 +307,15 @@ export function useDeptScope(): string[] | null {
   return useContext(PermissionsContext)?.deptScope ?? null;
 }
 
+/** The caller's access level + department scope for a label (the top bar); null outside the
+ *  provider — never throws. `loading` while the permissions load (the level is not known yet).
+ *  Display only. */
+export function useMyAccessLabelInput(): { loading: boolean; level: AccessLevel | null; deptScope: string[] | null } | null {
+  const ctx = useContext(PermissionsContext);
+  if (!ctx) return null;
+  return { loading: ctx.loading, level: ctx.accessLevel, deptScope: ctx.deptScope };
+}
+
 /** Which parts of /insights the current login may open (access levels, 20260947001600).
  *  - `business` — the MARGIN tabs (Pure Profit, Margin Lab; any profit tab): canSeeMargins
  *    only (super_admin / owner / finance). Administrators and dept_admins never.

@@ -2,6 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { BrandLine, BrandLineProposal, SetBrandLineResult } from '@/lib/products/brandLines';
 import type { CatalogueRow, KindProposal, ProductKind, SetKindResult } from '@/lib/products/kinds';
 import type { SetVatResult, VatRate } from '@/lib/products/vat';
+import type { AccessLevel } from '@/lib/access';
 
 const API_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api`;
 
@@ -1571,6 +1572,38 @@ export const apiSetRolePermission = (
   apiFetch('settings/role-permissions', { method: 'PUT', body: JSON.stringify({ role, module_key, ...patch }) });
 export const apiSetRolePrivacy = (role: string, flag: string, value: boolean): Promise<{ ok: true; unchanged?: boolean }> =>
   apiFetch('settings/privacy', { method: 'PUT', body: JSON.stringify({ role, flag, value }) });
+
+// ── Settings → Пристап и улоги (owner 03.10.2026; supabase/functions/api/accessAdmin.ts) ─────
+// GET: super_admin + owner (else 403 owners_only). PUT: super_admin only → access_set() (audited).
+// Error codes (settingsPage.err.*): super_admins_only · last_super_admin · dept_required ·
+// depts_not_allowed · partner_login · partner_only_for_affiliates · invalid_level ·
+// invalid_department · note_too_long · unknown_user · invalid_body.
+export interface AccessPersonRow {
+  user_id: string;
+  full_name: string | null;
+  email: string | null;
+  roles: string[];
+  level: AccessLevel;
+  /** false = no user_access row; the level is the role rule's (access_level()). */
+  explicit: boolean;
+  departments: string[];
+  note: string | null;
+  updated_at: string | null;
+  updated_by_name: string | null;
+  last_super_admin: boolean;
+}
+export interface AccessLevelsResponse {
+  can_edit: boolean;
+  levels: AccessLevel[];
+  departments: string[];
+  people: AccessPersonRow[];
+}
+export const apiGetAccessLevels = (): Promise<AccessLevelsResponse> => apiFetch('settings/access');
+/** note: omitted = keep, "" = clear. */
+export const apiSetAccessLevel = (
+  userId: string, body: { level: AccessLevel; departments: string[]; note?: string },
+): Promise<{ ok: true; result: unknown }> =>
+  apiFetch(`settings/access/${encodeURIComponent(userId)}`, { method: 'PUT', body: JSON.stringify(body) });
 
 // Product of the Day — operator-authored promo shown to agents on /calls.
 // Display-only: no order is ever stamped and no payout is ever affected.

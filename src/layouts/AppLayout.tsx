@@ -12,6 +12,7 @@ import { VoipIncidentBanner } from '@/components/VoipIncidentBanner';
 import { PresenceHeaderButton } from '@/components/presence/PresenceHeaderButton';
 import { usePresenceTracking } from '@/hooks/usePresence';
 import { friendlyRoleLabel } from '@/lib/roles';
+import { useMyAccessLabelInput } from '@/contexts/PermissionsContext';
 import { useNavigate } from 'react-router-dom';
 import {
   DropdownMenu,
@@ -38,6 +39,11 @@ export function AppLayout({ children, title, headerActions }: AppLayoutProps) {
   // Time on the CRM + the 30-minute idle alert. The tracker is module-level,
   // so this per-page layout remounting on navigation does not restart it.
   usePresenceTracking();
+  // The label under the name: the ACCESS LEVEL's name (Супер Админ · Сопственик · Финансиски ·
+  // Администратор · Администратор на оддел · Тим …), else the role label (owner 03.10.2026).
+  // Nothing while the level loads, so an admin never flashes the role label first.
+  const access = useMyAccessLabelInput();
+  const roleLine = access?.loading ? '' : friendlyRoleLabel(user?.roles, access);
 
   const handleLogout = async () => {
     await signOut();
@@ -100,8 +106,10 @@ export function AppLayout({ children, title, headerActions }: AppLayoutProps) {
                   {/* Hide full user info on small screens to avoid crowding next to the (narrow) sidebar */}
                   <div className="text-left hidden xl:block">
                     <span className="block text-sm font-medium text-card-foreground">{user?.full_name || t('common.user')}</span>
-                    <span className="block text-xs text-muted-foreground">
-                      {friendlyRoleLabel(user?.roles)}
+                    {/* may wrap to two lines (the bar is h-16): a department admin's "Администратор на оддел ·
+                        Тим Маџари" stays as narrow as the old role labels, so the page title keeps its room */}
+                    <span className="block max-w-[10rem] break-words text-xs leading-tight text-muted-foreground">
+                      {roleLine || ' '}
                     </span>
                   </div>
                 </button>

@@ -48,6 +48,10 @@ interface OpsData {
     to_pack_today: number;
     to_pack_booked_today?: number;
     collected_today: number;
+    /** What MEX collected today (наплатено), денари — ONLY for the margin levels super_admin /
+     *  owner / finance (owner 03.10.2026; an administrator gets sales_value_today_mkd but not
+     *  this). Absent → no tile. Not drawn here at all: MEX's collections live on Insights →
+     *  Наплата (MEX) (owner 02.10.2026). */
     collected_value_today_mkd?: number;
     returned_today: number;
     by_department: { key: string; count: number }[];

@@ -41,6 +41,17 @@ describe('Settings sections — who sees what', () => {
     expect(sectionAccess('courier', administrator)).toBe('hidden');
   });
 
+  it('Пристап и улоги: super_admin and owner only (the levels, 03.10.2026)', () => {
+    expect(ids({ ...admin, accessLevel: 'super_admin' })).toEqual([
+      'users', 'levels', 'teams', 'access', 'money', 'rules', 'integrations', 'tv', 'courier', 'partners', 'warehouse', 'engine', 'personal',
+    ]);
+    expect(sectionAccess('levels', { ...admin, accessLevel: 'owner' })).toBe('ok');
+    for (const lv of ['finance', 'administrator', 'dept_admin', 'team_lead', null, undefined]) {
+      expect(sectionAccess('levels', { ...admin, accessLevel: lv })).toBe('hidden');
+    }
+    expect(sectionFromLegacy('levels')).toBe('levels');
+  });
+
   it('groups come in the fixed order and empty groups are dropped', () => {
     expect(groupedSections(admin).map((g) => g.group)).toEqual(['people', 'rules', 'system', 'advanced', 'personal']);
     expect(groupedSections(manager).map((g) => g.group)).toEqual(['people', 'rules', 'personal']);

@@ -13,7 +13,7 @@ export type SettingsGroupId = 'people' | 'rules' | 'system' | 'advanced' | 'pers
 export const GROUP_ORDER: SettingsGroupId[] = ['people', 'rules', 'system', 'advanced', 'personal'];
 
 export type SettingsSectionId =
-  | 'users' | 'teams' | 'access' | 'money'
+  | 'users' | 'levels' | 'teams' | 'access' | 'money'
   | 'rules'
   | 'integrations' | 'tv' | 'courier' | 'partners' | 'warehouse' | 'telephony'
   | 'engine'
@@ -29,6 +29,9 @@ export interface SettingsViewer {
   /** can_see_margins(): margins, purchase costs, courier rates, bonus rules (super_admin / owner /
    *  finance). An administrator is an owner (revenue) but NOT a margin viewer. */
   canSeeMargins: boolean;
+  /** The person's access level (get_my_permissions().accessLevel, 20260947001600). Пристап и
+   *  улоги opens for super_admin and owner (the api: GET /settings/access). */
+  accessLevel?: string | null;
   /** canAccessModule('users') — the Корисници page itself. */
   canUsers: boolean;
   /** PBX_CONFIG.useRealVoip — telephony is deferred while it is off. */
@@ -51,6 +54,10 @@ export const SECTIONS: SettingsSectionDef[] = [
   // Луѓе и пристап
   { id: 'users', group: 'people', labelKey: 'settingsPage.section.users.label', descKey: 'settingsPage.section.users.desc',
     visible: (v) => v.isAdmin || (v.isManager && v.canUsers) },
+  // Пристап и улоги (owner 03.10.2026): every login's money LEVEL + departments. Super admins
+  // change them, the owner reads them (GET / PUT /settings/access).
+  { id: 'levels', group: 'people', labelKey: 'settingsPage.section.levels.label', descKey: 'settingsPage.section.levels.desc',
+    visible: (v) => v.accessLevel === 'super_admin' || v.accessLevel === 'owner' },
   { id: 'teams', group: 'people', labelKey: 'settingsPage.section.teams.label', descKey: 'settingsPage.section.teams.desc',
     visible: (v) => v.isOwner },
   { id: 'access', group: 'people', labelKey: 'settingsPage.section.access.label', descKey: 'settingsPage.section.access.desc',
@@ -117,7 +124,7 @@ const LEGACY: Record<string, SettingsSectionId> = {
   telephony: 'telephony', logistics: 'courier', courier: 'courier', leaderboard: 'tv', tv: 'tv',
   system: 'rules', rules: 'rules', predengine: 'engine', engine: 'engine',
   warehouse: 'warehouse', appearance: 'personal', personal: 'personal', money: 'money', access: 'access',
-  partners: 'partners',
+  partners: 'partners', levels: 'levels',
 };
 
 export function sectionFromLegacy(tab: string | null | undefined): SettingsSectionId | null {

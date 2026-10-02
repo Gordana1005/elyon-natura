@@ -135,10 +135,22 @@ import * as AGD from "./accessGuards.ts";
 // Access LEVELS (owner 02.10.2026, 20260947001600): margin strips for revenue-only viewers and
 // the department scoping of a dept_admin's insights / orders / Табла.
 import * as ALV from "./accessLevels.ts";
+// Settings → Пристап и улоги (owner 03.10.2026): the list of every staff login's level and the
+// validation / error codes of PUT /settings/access/:userId in front of access_set() (pure,
+// unit-tested in accessAdmin.test.ts).
+import * as AAD from "./accessAdmin.ts";
 
 // ============================================================
 // INPUT VALIDATION SCHEMAS
 // ============================================================
+
+// PUT /api/settings/access/:userId — the SHAPE (AAD.validateAccessPut checks the rules after it).
+// note: omitted = keep, null or "" = clear.
+const accessPutSchema = z.object({
+  level: z.string().trim().min(1).max(40),
+  departments: z.array(z.string().max(40)).max(20).optional().default([]),
+  note: z.string().max(AAD.NOTE_MAX * 2).nullable().optional(),
+}).strict();
 
 const createUserSchema = z.object({
   email: z.string().trim().email("Invalid email format").max(255),
@@ -14928,6 +14940,87 @@ async function handleRequest(req: Request): Promise<Response> {
       return json({ ok: true, role, flag, value });
     }
 
+    // ============================================================
+    // SETTINGS → ПРИСТАП И УЛОГИ (owner 03.10.2026). Each staff login's money LEVEL and
+    // departments (20260947001600_access_levels). Read: super_admin + owner. Write: super_admin
+    // only, through the SQL writer access_set() with p_actor = the signed-in user — it re-checks the
+    // super admin, refuses to leave the system without one and writes the audit row ('access.set').
+    // ============================================================
+
+    // GET /api/settings/access → { can_edit, levels, departments, people: AAD.AccessPerson[] }
+    if (req.method === "GET" && path === "settings/access") {
+      const [myLevel, myMargins] = await Promise.all([accessLevelOf(user.id), canSeeMargins(user.id)]);
+      if (!AAD.canReadAccess(myLevel, myMargins)) return json({ error: "owners_only" }, 403);
+      const [profRes, roleRes, accRes, deptRes, ownRes] = await Promise.all([
+        adminClient.from("profiles").select("user_id, full_name, email, is_active").eq("is_active", true),
+        adminClient.from("user_roles").select("user_id, role"),
+        adminClient.from("user_access").select("user_id, level, note, updated_at, updated_by"),
+        adminClient.from("user_departments").select("user_id, dept, valid_to").is("valid_to", null),
+        adminClient.from("business_owners").select("user_id"),
+      ]);
+      for (const r of [profRes, roleRes, accRes, deptRes]) {
+        if (r.error) return json({ error: sanitizeDbError(r.error) }, 400);
+      }
+      // business_owners only feeds the no-row rule; unreadable → nobody is an owner by the list.
+      if (ownRes.error) console.error("settings/access business_owners:", ownRes.error.message);
+      const profiles = (profRes.data || []) as any[];
+      const names: Record<string, string | null> = {};
+      for (const p of profiles) names[p.user_id] = p.full_name || p.email || null;
+      const missing = [...new Set(((accRes.data || []) as any[]).map((a) => a.updated_by).filter((id) => id && !(id in names)))];
+      if (missing.length) {
+        const { data: more } = await adminClient.from("profiles").select("user_id, full_name, email").in("user_id", missing);
+        for (const p of (more || []) as any[]) names[p.user_id] = p.full_name || p.email || null;
+      }
+      return json({
+        can_edit: AAD.canWriteAccess(myLevel, myMargins),
+        levels: AAD.STAFF_LEVELS,
+        departments: ALV.DEPT_KEYS,
+        people: AAD.shapeAccessPeople({
+          profiles,
+          roles: (roleRes.data || []) as any[],
+          access: (accRes.data || []) as any[],
+          departments: (deptRes.data || []) as any[],
+          owners: ownRes.error ? [] : ((ownRes.data || []) as any[]),
+          names,
+        }),
+      });
+    }
+
+    // PUT /api/settings/access/:userId { level, departments?, note? } — super_admin only.
+    if (req.method === "PUT" && segments[0] === "settings" && segments[1] === "access" && segments.length === 3) {
+      const [myLevel, myMargins] = await Promise.all([accessLevelOf(user.id), canSeeMargins(user.id)]);
+      if (!AAD.canWriteAccess(myLevel, myMargins)) return json({ error: "super_admins_only" }, 403);
+      const targetId = segments[2];
+      if (!UUID_RE.test(targetId)) return json({ error: "unknown_user" }, 404);
+      let raw: unknown;
+      try { raw = await req.json(); } catch { return json({ error: "invalid_body" }, 400); }
+      const shape = accessPutSchema.safeParse(raw);
+      if (!shape.success) return json({ error: "invalid_body" }, 400);
+      const [profRes, roleRes] = await Promise.all([
+        adminClient.from("profiles").select("user_id, full_name, is_active").eq("user_id", targetId).maybeSingle(),
+        adminClient.from("user_roles").select("role").eq("user_id", targetId),
+      ]);
+      if (profRes.error) return json({ error: sanitizeDbError(profRes.error) }, 400);
+      if (!profRes.data) return json({ error: "unknown_user" }, 404);
+      const v = AAD.validateAccessPut(shape.data, { roles: ((roleRes.data || []) as any[]).map((r) => String(r.role)) });
+      if (!v.ok) return json({ error: v.error }, v.error === "partner_login" ? 422 : 400);
+      const { data, error } = await adminClient.rpc("access_set", {
+        p_user: targetId,
+        p_level: v.value.level,
+        p_depts: v.value.departments,
+        // undefined → NULL = keep the note; "" clears it (access_set)
+        p_note: v.value.note === undefined ? null : v.value.note,
+        p_actor: user.id,
+      });
+      if (error) {
+        const mapped = AAD.accessSetErrorCode(error.message);
+        if (mapped) return json({ error: mapped.code }, mapped.status);
+        console.error("access_set failed:", error.message);
+        return json({ error: sanitizeDbError(error) }, 400);
+      }
+      return json({ ok: true, result: data });
+    }
+
     // GET /api/promo-of-the-day — the resolved promo for the CALLER, plus the
     // caller's OWN qualifying-order count for today. Display-only: nothing here
     // is written anywhere or fed into a payout. Returns {active:false} alone
@@ -21944,8 +22037,10 @@ async function handleRequest(req: Request): Promise<Response> {
       // synchronised, one calculation"): the sale cohort of the Skopje day (insights_cohort —
       // sale day, the six departments, MEX first), the MEX money that landed today, the MEX
       // returns today, and per person the day's credited sales and worked decisions
-      // (leaderboard_day_v2 — the TV board's numbers). Money keys only for business owners.
-      const opsOwner = await isBusinessOwner(user.id);
+      // (leaderboard_day_v2 — the TV board's numbers). Money keys only for business owners; what MEX
+      // COLLECTED today (наплатено, collected_value_today_mkd) only for the margin levels —
+      // super_admin / owner / finance (owner 03.10.2026): an administrator keeps the sales value.
+      const [opsOwner, opsMargins] = await Promise.all([isBusinessOwner(user.id), canSeeMargins(user.id)]);
       // A dept_admin (access levels, 02.10.2026): the company's counts as before, plus THEIR
       // departments' sales today with value (a second, scoped cohort — ALV.scopeOperationsKpi).
       const opsScope = opsOwner ? null : await deptScopeOf(user.id);
@@ -21981,10 +22076,8 @@ async function handleRequest(req: Request): Promise<Response> {
         returned_today: Number(opsReturnedRes.count ?? 0),
         by_department: ((opsCo.by_source || []) as any[]).map((x) => ({ key: x.key, count: Number(x.total?.count ?? 0) })),
       };
-      if (opsOwner) {
-        opsKpi.sales_value_today_mkd = Number(opsCo.total?.value_mkd ?? 0);
-        opsKpi.collected_value_today_mkd = Number(opsCo.cash_flow?.cod_mkd ?? 0);
-      }
+      if (opsOwner) opsKpi.sales_value_today_mkd = Number(opsCo.total?.value_mkd ?? 0);
+      if (opsMargins) opsKpi.collected_value_today_mkd = Number(opsCo.cash_flow?.cod_mkd ?? 0);
       const opsKpiOut = opsScope
         ? ALV.scopeOperationsKpi(opsKpi, opsScopedRes.error ? null : (opsScopedRes.data as Record<string, unknown> | null), opsScope)
         : opsKpi;

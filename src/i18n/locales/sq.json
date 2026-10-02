@@ -3514,7 +3514,6 @@
     "skippedSuffix": " · {{count}} u anashkaluan (pa agjent të fundit)"
   },
   "roles": {
-    "superadmin": "Superadmin",
     "callAgent": "Agjent thirrjesh",
     "manager": "Menaxher",
     "warehouse": "Depo",
@@ -3581,6 +3580,10 @@
         "label": "Përdoruesit",
         "desc": "Llogaritë, rolet dhe fjalëkalimet — në faqen Përdoruesit"
       },
+      "levels": {
+        "label": "Qasja dhe rolet",
+        "desc": "Niveli i secilit: çfarë sheh nga paratë dhe për cilat departamente"
+      },
       "teams": {
         "label": "Ekipet",
         "desc": "Kush punon në cilin ekip dhe shitësit e palidhur"
@@ -3591,7 +3594,7 @@
       },
       "money": {
         "label": "Kush i sheh paratë",
-        "desc": "Çdo administrator aktiv dhe lista e pronarëve"
+        "desc": "Lista e vjetër — vetëm për njerëzit pa nivel qasjeje"
       },
       "rules": {
         "label": "Rregullat",
@@ -3663,7 +3666,17 @@
       "unknown_role": "Ky rol nuk ka rresht privatësie.",
       "protected_module": "Ky modul është i mbrojtur — pa të askush nuk do të mund ta ndizte përsëri.",
       "dead_module": "Faqja e këtij moduli nuk ekziston më.",
-      "role_not_editable": "Ky rol nuk ndryshohet këtu."
+      "role_not_editable": "Ky rol nuk ndryshohet këtu.",
+      "super_admins_only": "Vetëm Super Admin i ndryshon nivelet e qasjes.",
+      "last_super_admin": "Ky është i vetmi Super Admin aktiv — shtoni fillimisht edhe një Super Admin.",
+      "dept_required": "Administratori i departamentit duhet të ketë të paktën një departament.",
+      "depts_not_allowed": "Departamentet vlejnë vetëm për Administratorin e departamentit dhe Udhëheqësin e ekipit.",
+      "partner_login": "Kjo hyrje është partner i jashtëm — mund të ketë vetëm nivelin Partner.",
+      "partner_only_for_affiliates": "Niveli Partner është vetëm për partnerët e jashtëm.",
+      "invalid_level": "Nivel i panjohur.",
+      "invalid_department": "Departament i panjohur.",
+      "note_too_long": "Shënimi është shumë i gjatë (deri në 500 shenja).",
+      "unknown_user": "Ky përdorues nuk ekziston."
     },
     "users": {
       "title": "Përdoruesit",
@@ -3702,27 +3715,67 @@
       "privacySaved": "{{role}} · {{flag}}: u ruajt",
       "auditNote": "Çdo ndryshim shënohet në regjistrin e auditimit: kush, kur dhe vlera para dhe pas."
     },
+    "levels": {
+      "title": "Qasja dhe rolet",
+      "desc": "Niveli i qasjes vendos çfarë sheh secili nga paratë; rolet (në faqen Përdoruesit) vendosin cilat faqe hap. Nivelet i ndryshon vetëm Super Admin dhe çdo ndryshim regjistrohet në ditar.",
+      "readOnly": "I shihni nivelet; i ndryshon vetëm Super Admin.",
+      "legendTitle": "Çfarë sheh secili nivel",
+      "search": "Kërko me emër ose email",
+      "filterAll": "Të gjithë",
+      "people_one": "{{count}} person",
+      "people_other": "{{count}} persona",
+      "colPerson": "Personi",
+      "colLevel": "Niveli",
+      "colDepts": "Departamentet",
+      "rolesLabel": "Rolet",
+      "byRule": "sipas rolit",
+      "byRuleTitle": "Nuk ka nivel të regjistruar — vlen rregulli sipas rolit (admin → Administrator, menaxher → Udhëheqës ekipi …).",
+      "companyWide": "e gjithë kompania",
+      "noMoney": "pa para",
+      "edit": "Ndrysho",
+      "editAria": "Ndrysho qasjen e {{name}}",
+      "editTitle": "Qasja — {{name}}",
+      "levelLabel": "Niveli i qasjes",
+      "deptsLabel": "Departamentet",
+      "deptsHelpDeptAdmin": "Sheh të ardhurat, arkëtimet dhe kthimet vetëm të departamenteve të zgjedhura — të paktën një.",
+      "deptsHelpTeamLead": "Udhëheqësi i ekipit nuk sheh para; departamentet vetëm shënojnë ekipin e tij.",
+      "deptsNotApplicable": "Departamentet vlejnë vetëm për Administratorin e departamentit dhe Udhëheqësin e ekipit.",
+      "groupWeb": "Ueb",
+      "noteLabel": "Shënim",
+      "notePlaceholder": "P.sh. punon me Draganën për marrëveshjet e partnerëve",
+      "selfWarning": "Po ndryshoni qasjen tuaj. Nëse nuk jeni më Super Admin, nuk do të mund ta ktheni vetë.",
+      "lastSuperAdmin": "{{name}} është i vetmi Super Admin aktiv — niveli nuk ndryshon derisa të shtohet edhe një.",
+      "lastSuperAdminBadge": "i vetmi Super Admin",
+      "savedToast": "U ruajt: {{name}} — {{level}}",
+      "unchanged": "Asgjë nuk ndryshoi.",
+      "updatedLine": "Ndryshuar {{when}} · {{who}}",
+      "updatedLineNoWho": "Ndryshuar {{when}}",
+      "loadFailed": "Nivelet nuk u ngarkuan",
+      "empty": "Askush nuk përputhet me kërkimin.",
+      "auditNote": "Çdo ndryshim është një rresht në ditar: kush, kur, nga çfarë në çfarë."
+    },
     "money": {
       "title": "Kush i sheh paratë",
-      "desc": "Shifrat e parave dhe skedat me para i shohin vetëm pronarët: çdo administrator aktiv automatikisht, plus njerëzit në listën e pronarëve. Menaxherët nuk i shohin paratë, përveç nëse janë në listë.",
-      "adminsTitle_one": "Administratorët — i shohin paratë automatikisht ({{count}})",
-      "adminsTitle_other": "Administratorët — i shohin paratë automatikisht ({{count}})",
-      "adminsDesc": "Çdo administrator aktiv i sheh të gjitha paratë. Kush pushon së qeni administrator, pushon edhe së pari paratë — përveç nëse është në listën më poshtë.",
+      "desc": "Që nga 02.10.2026 paratë i vendos niveli i qasjes (Cilësimet → Qasja dhe rolet): Super Admin, Pronari dhe Financa shohin gjithçka, Administratori — të ardhura pa marzhe, Administratori i departamentit — vetëm departamentet e veta. Roli admin dhe kjo listë vendosin vetëm për dikë që ende nuk ka nivel.",
+      "adminsTitle_one": "Administratorët ({{count}})",
+      "adminsTitle_other": "Administratorët ({{count}})",
+      "adminsDesc": "Një administrator pa nivel qasjeje i sheh të ardhurat si Administrator. Nëse ka nivel, vlen niveli — jo roli.",
       "listTitle": "Lista e pronarëve",
-      "listDesc": "Me listën paratë i sheh edhe dikush që nuk është administrator (p.sh. një menaxher). Lista dhe administratorët marrin edhe njoftimet për pronarët, p.sh. për 30 minuta pasivitet.",
+      "listDesc": "Dikush në listë pa nivel qasjeje llogaritet si Pronar. Nëse ka nivel, lista nuk ndryshon asgjë.",
       "addLabel": "Shtoni dikë që nuk është administrator",
       "addButton": "Shto në listë",
       "noCandidates": "Të gjithë aktivët që nuk janë administratorë janë tashmë në listë",
-      "listEmpty": "Askush — paratë i shohin vetëm administratorët.",
+      "listEmpty": "Askush në listë.",
       "alsoAdmin": "admin",
       "addedLine": "Shtuar më {{when}} nga {{who}}",
-      "addedToast": "{{name}} tani i sheh paratë",
+      "addedToast": "{{name}} është në listë",
       "removedToast": "{{name}} u hoq nga lista e pronarëve",
       "removeTitle": "Të hiqet {{name}} nga lista?",
-      "removeDesc": "{{name}} pushon menjëherë së pari paratë (nuk është administrator).",
-      "removeAdminDesc": "{{name}} është administrator dhe vazhdon t’i shohë paratë; hiqet vetëm rreshti në listë.",
-      "removeSelfDesc": "Pushoni menjëherë së pari paratë dhe vetëm një pronar mund t’ju shtojë përsëri.",
-      "managersNote": "Menaxherët nuk i shohin paratë, përveç nëse janë në këtë listë."
+      "removeDesc": "Nëse {{name}} nuk ka nivel qasjeje, pushon menjëherë së pari paratë. Nëse ka nivel, vlen niveli.",
+      "removeAdminDesc": "{{name}} është administrator; hiqet vetëm rreshti në listë — niveli i qasjes mbetet.",
+      "removeSelfDesc": "Nëse nuk keni nivel qasjeje, pushoni menjëherë së pari paratë.",
+      "managersNote": "Çfarë sheh secili e vendos niveli i qasjes — Cilësimet → Qasja dhe rolet.",
+      "levelsLink": "Hap Qasja dhe rolet"
     },
     "rules": {
       "title": "Rregullat",
@@ -9793,7 +9846,29 @@
       "title": "Paratë shfaqen vetëm për: {{team}}"
     },
     "companyWide": "E gjithë kompania · vetëm numra (pa shuma)",
-    "companyWideShort": "e gjithë kompania"
+    "companyWideShort": "e gjithë kompania",
+    "level": {
+      "super_admin": "Super Admin",
+      "owner": "Pronar",
+      "finance": "Financa",
+      "administrator": "Administrator",
+      "dept_admin": "Administrator departamenti",
+      "team_lead": "Udhëheqës ekipi",
+      "operator": "Operator",
+      "warehouse": "Depo",
+      "partner": "Partner"
+    },
+    "levelSees": {
+      "super_admin": "Gjithçka: të ardhurat, marzhet, çmimet e blerjes (Sigma), TVSH-ja, fitimi, bonuset, stoku me kosto, arkëtimet e MEX. Vetëm ai i ndryshon nivelet.",
+      "owner": "Gjithçka, njësoj si Super Admin — pa ndryshuar nivelet.",
+      "finance": "Gjithçka: të gjitha porositë dhe marzhet, si pronari.",
+      "administrator": "Të ardhurat dhe kthimet e gjithë kompanisë — pa marzhe, çmime blerjeje, fitim neto dhe arkëtime MEX.",
+      "dept_admin": "Të ardhurat, arkëtimet dhe kthimet vetëm të departamenteve të veta (Ekipi Centar ose Ekipi Madžari).",
+      "team_lead": "Pa paratë e kompanisë — vetëm numra. Faqet i vendosin rolet.",
+      "operator": "Pa paratë e kompanisë — vetëm shitjet e veta dhe numrat.",
+      "warehouse": "Pa paratë e kompanisë — depoja dhe dërgesat.",
+      "partner": "Partner i jashtëm affiliate — vetëm portali i partnerit."
+    }
   },
   "appError": {
     "title": "Diçka nuk u ngarkua",

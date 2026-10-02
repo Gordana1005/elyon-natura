@@ -1,18 +1,19 @@
-// Поставки → Кој гледа пари (owners only). Since 28.09 the money view is
-// is_business_owner() = every ACTIVE admin automatically, plus the people on the
-// owners list (public.business_owners, 20260939000500). So this page shows:
-//   1. the active admins — they see the money whatever the list says;
-//   2. the list — it adds people who are NOT admins (e.g. a manager), and the
-//      list plus the admins are the "owners" who get the owners' alerts (the
-//      30-minute idle alert, presence_alert_recipients('owners')).
-// Managers never see money unless they are on the list. Every route behind it
+// Поставки → Кој гледа пари (owners only). SINCE 02.10.2026 MONEY FOLLOWS THE ACCESS LEVEL
+// (20260947001600, Поставки → Пристап и улоги): super_admin / owner / finance everything,
+// administrator revenue without margins, dept_admin their departments. The two things below
+// decide only for a login with NO user_access row (access_level()'s no-row rule):
+//   1. the active admins — an admin with no level counts as administrator (revenue);
+//   2. the list — someone on it with no level counts as owner. The owners' alerts no longer
+//      read it (presence_alert_recipients('owners') = can_see_revenue, 20260947001710).
+// Every route behind it
 // (/business-owners) is owners-only on the server and audited
 // (business_owner.add / business_owner.remove); a name comes off the list
 // unless NOBODY would be left to see the money (settingsAccess.ownerRemovalBlocked).
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Banknote, Crown, Loader2, Trash2, UserPlus } from 'lucide-react';
+import { AlertTriangle, Banknote, Crown, Loader2, ShieldCheck, Trash2, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -47,7 +48,9 @@ export function OwnersTab() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const { user } = useAuth();
-  const { refresh: refreshPermissions } = usePermissions();
+  const { refresh: refreshPermissions, accessLevel } = usePermissions();
+  // Пристап и улоги opens for super_admin and owner (sections.ts)
+  const levelsLink = accessLevel === 'super_admin' || accessLevel === 'owner';
   const [pick, setPick] = useState('');
   const [adding, setAdding] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<BusinessOwner | null>(null);
@@ -128,7 +131,16 @@ export function OwnersTab() {
 
   return (
     <div className="space-y-4">
-      <SectionHeader icon={Banknote} title={t('settingsPage.money.title')} desc={t('settingsPage.money.desc')} />
+      <SectionHeader
+        icon={Banknote}
+        title={t('settingsPage.money.title')}
+        desc={t('settingsPage.money.desc')}
+        aside={levelsLink ? (
+          <Button asChild variant="outline" size="sm" className="h-9">
+            <Link to="/settings/levels"><ShieldCheck className="mr-1 h-4 w-4" aria-hidden /> {t('settingsPage.money.levelsLink')}</Link>
+          </Button>
+        ) : undefined}
+      />
 
       {/* 1. Active admins — automatic */}
       <SettingsCard

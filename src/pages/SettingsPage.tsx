@@ -30,6 +30,7 @@ import { TeamsTab } from '@/components/settings/TeamsTab';
 import { IntegrationsHealthTab } from '@/components/settings/IntegrationsHealthTab';
 import { OwnersTab } from '@/components/settings/OwnersTab';
 import { AccessSection } from '@/components/settings/AccessSection';
+import { LevelsSection } from '@/components/settings/LevelsSection';
 import { RulesSection } from '@/components/settings/RulesSection';
 import { TvSection } from '@/components/settings/TvSection';
 import { CourierSection } from '@/components/settings/CourierSection';
@@ -40,6 +41,7 @@ import { PartnersSection, PersonalSection, UsersLinkSection, WarehouseLinkSectio
 function SectionBody({ id, viewer }: { id: SettingsSectionId; viewer: SettingsViewer }) {
   switch (id) {
     case 'users': return <UsersLinkSection />;
+    case 'levels': return <LevelsSection />;
     case 'teams': return <TeamsTab />;
     case 'access': return <AccessSection />;
     case 'money': return <OwnersTab />;
@@ -58,7 +60,7 @@ function SectionBody({ id, viewer }: { id: SettingsSectionId; viewer: SettingsVi
 export default function SettingsPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const { canSeeBusiness, canSeeMargins, canAccessModule } = usePermissions();
+  const { canSeeBusiness, canSeeMargins, canAccessModule, accessLevel } = usePermissions();
   const { section } = useParams<{ section?: string }>();
   const [sp] = useSearchParams();
   const location = useLocation();
@@ -67,8 +69,8 @@ export default function SettingsPage() {
   const canUsers = canAccessModule('users');
 
   const viewer = useMemo<SettingsViewer>(() => ({
-    isAdmin, isManager, isOwner: canSeeBusiness, canSeeMargins: !!canSeeMargins, canUsers, voipOn: PBX_CONFIG.useRealVoip,
-  }), [isAdmin, isManager, canSeeBusiness, canSeeMargins, canUsers]);
+    isAdmin, isManager, isOwner: canSeeBusiness, canSeeMargins: !!canSeeMargins, accessLevel, canUsers, voipOn: PBX_CONFIG.useRealVoip,
+  }), [isAdmin, isManager, canSeeBusiness, canSeeMargins, accessLevel, canUsers]);
 
   if (!isAdmin && !isManager) {
     return (

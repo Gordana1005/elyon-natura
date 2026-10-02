@@ -161,7 +161,7 @@ export function GlobalSearch() {
               if (e.key === 'Escape') setOpen(false);
             }}
             placeholder={t('search.placeholder')}
-            className="h-9 w-72 rounded-lg border bg-background pl-9 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="h-9 w-60 2xl:w-72 rounded-lg border bg-background pl-9 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
           {loading && <Loader2 className="absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-muted-foreground" />}
         </>

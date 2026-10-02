@@ -9,7 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import {
   Activity, AlertTriangle, Banknote, CheckCircle2, ChevronRight, Eye, Handshake, KeyRound, ListChecks, Network,
-  Phone, Truck, TrendingUp, Tv, UserCog, Users, Warehouse, type LucideIcon,
+  Phone, ShieldCheck, Truck, TrendingUp, Tv, UserCog, Users, Warehouse, type LucideIcon,
 } from 'lucide-react';
 import { usePermissions } from '@/contexts/PermissionsContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -23,7 +23,7 @@ import { DEAD_MODULES } from './AccessSection';
 import { groupedSections, type SettingsSectionId, type SettingsViewer } from './sections';
 
 export const SECTION_ICONS: Record<SettingsSectionId, LucideIcon> = {
-  users: Users, teams: Network, access: KeyRound, money: Banknote, rules: ListChecks,
+  users: Users, levels: ShieldCheck, teams: Network, access: KeyRound, money: Banknote, rules: ListChecks,
   integrations: Activity, tv: Tv, courier: Truck, partners: Handshake, warehouse: Warehouse, telephony: Phone,
   engine: TrendingUp, personal: UserCog,
 };
