@@ -35,12 +35,14 @@ const api = vi.hoisted(() => ({
   orders: vi.fn(),
   counts: vi.fn(),
   views: vi.fn(),
+  bookings: vi.fn(),
 }));
 vi.mock('@/lib/api', async (orig) => ({
   ...(await orig<typeof import('@/lib/api')>()),
   apiGetOrders: (...a: unknown[]) => api.orders(...a),
   apiGetOrderViewCounts: (...a: unknown[]) => api.counts(...a),
   apiGetActiveViews: (...a: unknown[]) => api.views(...a),
+  apiGetOrderBookings: (...a: unknown[]) => api.bookings(...a),
   apiGetOrderSellers: async () => ({ sellers: [{ id: '11111111-1111-4111-8111-111111111111', name: 'Александра Чима', active: true }] }),
   apiGetAgents: async () => [{ user_id: '22222222-2222-4222-8222-222222222222', full_name: 'Ивана Петровска' }],
   apiGetProducts: async () => [],
@@ -75,13 +77,36 @@ const ORDERS = [
   },
 ];
 
+// collabBox bookings (owner 02.10.2026): sales booked in collabBox, no MEX parcel yet.
+const BOOKINGS = {
+  rows: [
+    {
+      doc_number: '002-9102-178224/2026', folder: 'Нарачка out', doc_type_id: '10050', department: 'teleshop_out',
+      booked_at: '2026-10-02T10:43:11Z', dispatch_day: '2026-10-05', customer_name: 'Павица Богданов', phone8: '70874112',
+      value_mkd: 2000, seller_person_id: '11111111-1111-4111-8111-111111111111', seller_name: 'Aida Kajevikj',
+    },
+    {
+      doc_number: '002-9100-176726/2026', folder: 'Нарачка in', doc_type_id: '10036', department: 'teleshop_other',
+      booked_at: '2026-10-02T09:58:04Z', dispatch_day: '2026-10-02', customer_name: 'Светлана Ивановска', phone8: '33413791',
+      value_mkd: 1500, seller_person_id: null, seller_name: null,
+    },
+  ],
+  total: 2,
+  by_department: { teleshop_out: 1, teleshop_other: 1 },
+  clamped: false,
+  window: { from: '2026-10-02', to: '2026-10-02' },
+  lookback_days: 29,
+};
+
 let location = '';
 function LocationProbe() {
   location = useLocation().search;
   return null;
 }
-function renderAt(url = '/orders') {
-  api.orders.mockResolvedValue({ orders: structuredClone(ORDERS), total: 2 });
+function renderAt(url = '/orders', opts: { orders?: unknown[]; bookings?: unknown } = {}) {
+  const orders = opts.orders ?? ORDERS;
+  api.orders.mockResolvedValue({ orders: structuredClone(orders), total: orders.length });
+  api.bookings.mockResolvedValue(structuredClone(opts.bookings ?? BOOKINGS));
   api.counts.mockResolvedValue({ counts: { orders: 1400, leads: 63, cancelled: 1021, trashed: 543, all: 3027 } });
   api.views.mockResolvedValue({ views: { 75111222: { agent_id: 'u-other', agent_name: 'Ана', opened_at: '2026-10-01T08:00:00Z', expires_at: '2026-10-01T08:02:00Z' } } });
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -234,5 +259,85 @@ describe('/orders — phones and small screens', { timeout: 30_000 }, () => {
     expect(text).not.toMatch(/\b(Status|Assignee|Details|Hide details|Export CSV|Any date|days|To:|Filters|Orders|Search)\b/);
     expect(text).not.toMatch(/Speedy|Econt|MONADLIST/);
     expect(text).not.toMatch(/прогноз/i);
+  });
+});
+
+describe('/orders — collabBox bookings and the 2-day entry rule (owner 02.10.2026)', { timeout: 30_000 }, () => {
+  it('shows the bookings beside the orders: a badge next to "Нарачки" and the section, for the same filters', async () => {
+    renderAt('/orders?dept=teleshop_out,teleshop_other');
+    await ready();
+    const today = skopjeToday();
+    await waitFor(() => expect(api.bookings).toHaveBeenCalled());
+    expect(api.bookings.mock.calls[0][0]).toEqual({ day_from: today, day_to: today, dept: 'teleshop_out,teleshop_other' });
+    // the chip's own count stays real orders only; the bookings sit beside it
+    await waitFor(() => expect(screen.getByTestId('view-count-orders').textContent).toBe('1.400'));
+    expect(await screen.findByTestId('bookings-chip')).toHaveTextContent(t('ordersList.bookings.chip', { count: 2 }));
+    const section = await screen.findByTestId('bookings-section');
+    const s = within(section);
+    expect(s.getByRole('heading', { name: t('ordersList.bookings.title') })).toBeInTheDocument();
+    expect(s.getByTestId('bookings-total')).toHaveTextContent('2');
+    expect(s.getAllByTestId('booking-row')).toHaveLength(2);
+    expect(s.getAllByTestId('booking-card')).toHaveLength(2);
+    expect(s.getAllByText('Павица Богданов').length).toBeGreaterThan(0);
+    expect(s.getAllByText('2.000 ден').length).toBeGreaterThan(0);
+    expect(s.getAllByText('Нарачка out').length).toBeGreaterThan(0);
+    expect(s.getAllByText('002-9102-178224/2026').length).toBeGreaterThan(0);
+    expect(s.getAllByText(t('ordersList.bookings.ships', { day: '05.10' })).length).toBeGreaterThan(0);
+    // read-only: a booking is not an order to open
+    fireEvent.click(s.getAllByTestId('booking-row')[0]);
+    expect(screen.queryByTestId('order-modal')).toBeNull();
+  });
+
+  it('0 orders for a filter but bookings → the empty state says why', async () => {
+    renderAt('/orders?dept=teleshop_out', { orders: [] });
+    expect(await screen.findByText(t('ordersList.bookings.empty', { count: 2 }), {}, { timeout: 10_000 })).toBeInTheDocument();
+    expect(await screen.findByTestId('bookings-section')).toBeInTheDocument();
+  });
+
+  it('a filter a booking cannot have (a MEX status) and the leads chip leave them out; none → nothing', async () => {
+    renderAt('/orders?mex=courier');
+    await ready();
+    expect(api.bookings).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('bookings-section')).toBeNull();
+    expect(screen.queryByTestId('bookings-chip')).toBeNull();
+    fireEvent.click(chip('all'));
+    await waitFor(() => expect(lastOrdersCall().view).toBe('all'));
+    expect(api.bookings).not.toHaveBeenCalled();
+  });
+
+  it('no bookings → no section and no badge', async () => {
+    renderAt('/orders', { bookings: { ...BOOKINGS, rows: [], total: 0, by_department: {} } });
+    await ready();
+    await waitFor(() => expect(api.bookings).toHaveBeenCalled());
+    expect(screen.queryByTestId('bookings-section')).toBeNull();
+    expect(screen.queryByTestId('bookings-chip')).toBeNull();
+  });
+
+  it('a CRM sale: green "Во collabBox", or amber "Не е во collabBox" (+ the cancel day in apply mode) and a provisional department', async () => {
+    const crm = (id: string, collab: unknown) => ({
+      ...ORDERS[0], id, display_id: id, status: 'confirmed', department: 'elyon_crm', sale_source: 'elyon_crm',
+      sale_source_detail: 'prediction_list', mex_tracking_id: null, mex_status_id: null, mex_cod_mkd: null, collab,
+    });
+    renderAt('/orders', {
+      orders: [
+        crm('ORD-1', { doc: '002-9103-178176/2026', sale_day: '2026-10-02', cancel_day: '2026-10-04', mode: 'report' }),
+        crm('ORD-2', { doc: null, sale_day: '2026-10-02', cancel_day: '2026-10-04', mode: 'report' }),
+        crm('ORD-3', { doc: null, sale_day: '2026-09-30', cancel_day: '2026-10-02', mode: 'apply' }),
+      ],
+    });
+    const rows = await ready();
+    const [r1, r2, r3] = rows.map((r) => within(r));
+    expect(r1.getAllByTestId('collab-in')[0]).toHaveAttribute('title', t('ordersList.collab.inTitle', { doc: '002-9103-178176/2026' }));
+    expect(r1.queryByTestId('dept-provisional')).toBeNull();
+    expect(r2.getAllByTestId('collab-missing')[0]).toHaveTextContent(t('ordersList.collab.missing'));
+    expect(r2.getAllByTestId('collab-missing')[0].textContent).not.toMatch(/21:20/);
+    expect(r2.getAllByTestId('dept-provisional')[0]).toHaveTextContent(t('ordersList.collab.provisional'));
+    // the table cell: the cancel time on its own line; the phone card: ' · ' inline
+    expect(r3.getAllByTestId('collab-missing')[0]).toHaveTextContent(`${t('ordersList.collab.missing')}${t('ordersList.collab.cancels', { day: '02.10', time: '21:20' })}`);
+    expect(within(screen.getAllByTestId('order-card')[2]).getByTestId('collab-missing')).toHaveTextContent(`${t('ordersList.collab.missing')} · ${t('ordersList.collab.cancels', { day: '02.10', time: '21:20' })}`);
+    // the phone cards carry the same badge
+    const cards = screen.getAllByTestId('order-card');
+    expect(within(cards[0]).getByTestId('collab-in')).toBeInTheDocument();
+    expect(within(cards[2]).getByTestId('collab-missing')).toBeInTheDocument();
   });
 });

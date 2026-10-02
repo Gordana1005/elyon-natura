@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Banknote, Check, ChevronDown, Package, Search, User, Users, Waypoints, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -38,11 +38,16 @@ const VIEW_DOT: Partial<Record<ListView, string>> = {
 };
 
 /** Нарачки · Отворени лидови · Откажани · Во корпа · Сите — each with its count. */
-export function OrderViewChips({ view, counts, onChange, className }: {
+export function OrderViewChips({ view, counts, onChange, className, bookings, onBookings }: {
   view: ListView;
   counts: OrderViewCounts | null | undefined;
   onChange: (v: ListView) => void;
   className?: string;
+  /** collabBox bookings waiting for a MEX parcel (owner 02.10.2026) — shown beside "Нарачки",
+   *  never inside its count: a booking is a sale, not an order yet. 0 / null = no badge. */
+  bookings?: number | null;
+  /** Jumps to the bookings section. */
+  onBookings?: () => void;
 }) {
   const { t } = useTranslation();
   return (
@@ -51,17 +56,26 @@ export function OrderViewChips({ view, counts, onChange, className }: {
         const on = v === view;
         const n = counts?.[v];
         return (
-          <button key={v} type="button" aria-pressed={on} onClick={() => onChange(v)}
-            title={t(`ordersList.view.${v}Hint`)}
-            className={cn(CHIP, on ? CHIP_ONE : CHIP_OFF)}>
-            {VIEW_DOT[v] && <span className={cn('h-2 w-2 shrink-0 rounded-full', VIEW_DOT[v])} aria-hidden />}
-            <span>{t(`ordersList.view.${v}`)}</span>
-            {n != null && (
-              <span className={cn('tabular-nums', on ? 'text-background/80' : 'text-muted-foreground')} data-testid={`view-count-${v}`}>
-                {fmtCount(n)}
-              </span>
+          <Fragment key={v}>
+            <button type="button" aria-pressed={on} onClick={() => onChange(v)}
+              title={t(`ordersList.view.${v}Hint`)}
+              className={cn(CHIP, on ? CHIP_ONE : CHIP_OFF)}>
+              {VIEW_DOT[v] && <span className={cn('h-2 w-2 shrink-0 rounded-full', VIEW_DOT[v])} aria-hidden />}
+              <span>{t(`ordersList.view.${v}`)}</span>
+              {n != null && (
+                <span className={cn('tabular-nums', on ? 'text-background/80' : 'text-muted-foreground')} data-testid={`view-count-${v}`}>
+                  {fmtCount(n)}
+                </span>
+              )}
+            </button>
+            {v === 'orders' && !!bookings && bookings > 0 && (
+              <button type="button" onClick={onBookings} data-testid="bookings-chip"
+                title={t('ordersList.bookings.chipTitle', { count: bookings })}
+                className="-ml-0.5 inline-flex min-h-9 items-center rounded-full border border-dashed border-amber-600/50 bg-amber-50 px-2.5 py-1 text-xs font-medium tabular-nums text-amber-900 transition-colors hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:bg-amber-500/15 dark:text-amber-300 dark:hover:bg-amber-500/25 lg:min-h-8">
+                {t('ordersList.bookings.chip', { count: bookings })}
+              </button>
             )}
-          </button>
+          </Fragment>
         );
       })}
     </div>

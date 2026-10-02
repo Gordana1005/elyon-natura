@@ -66,6 +66,20 @@ export interface ApiOrder {
   mex_last_update_at?: string | null;
   is_owned?: boolean;
   order_items?: ApiOrderItem[];
+  sale_source?: string | null;
+  sale_source_detail?: string | null;
+  /** The 2-day collabBox entry rule (owner 02.10.2026, crm_sale_collab_states): present only on a
+   *  confirmed CRM sale (prediction_list | direct) without a MEX parcel. */
+  collab?: OrderCollab | null;
+}
+
+/** GET /orders `collab`: the sale's collabBox document (null = not entered yet), its sale day, the day
+ *  the rule cancels it (at 21:20 Skopje, only when mode = apply) and the rule's mode. */
+export interface OrderCollab {
+  doc: string | null;
+  sale_day: string | null;
+  cancel_day: string | null;
+  mode: 'report' | 'apply';
 }
 
 /** order_items as GET /orders embeds them. */

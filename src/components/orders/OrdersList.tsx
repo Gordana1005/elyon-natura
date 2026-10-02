@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MoreVertical, Truck, type LucideIcon } from 'lucide-react';
+import { CircleAlert, CircleCheck, MoreVertical, Truck, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import { OPERATOR_SALE_STATUSES, operatorOf, operatorTitle } from '@/lib/orderOp
 import { statusLabel } from '@/types';
 import type { ActiveViewsByPhone } from '@/lib/api';
 import { MEX_TONE_CLASS, mexBadge, orderValue, rowInstant, skopjeDayTime } from '@/lib/ordersList/rowModel';
+import { COLLAB_RULE_TIME, collabBadge, isProvisionalDept } from '@/lib/ordersList/bookings';
 import type { ApiOrder } from './types';
 
 export interface RowAction { key: string; label: string; icon: LucideIcon; onClick: () => void; disabled?: boolean }
@@ -143,8 +144,9 @@ function OrdersTable(p: OrdersListProps) {
                   <td className="px-2 py-2.5">
                     <StatusBadge status={o.status} order={o} className="max-w-full whitespace-normal" />
                     <div className="mt-1 2xl:hidden"><MexBadge o={o} withTracking /></div>
+                    <div className="2xl:hidden"><CollabBadge o={o} block /></div>
                   </td>
-                  <td className="hidden px-2 py-2.5 2xl:table-cell"><MexBadge o={o} withTracking /></td>
+                  <td className="hidden px-2 py-2.5 2xl:table-cell"><MexBadge o={o} withTracking /><div><CollabBadge o={o} block /></div></td>
                   <td className="hidden break-words px-2 py-2.5 text-xs 2xl:table-cell"><OperatorCell o={o} /></td>
                   <td className="py-2 pr-2" onClick={(e) => e.stopPropagation()}><RowMenu o={o} actions={p.actions(o)} /></td>
                 </tr>
@@ -204,6 +206,7 @@ function OrderCard({ o, ...p }: OrdersListProps & { o: ApiOrder }) {
           <OperatorLine o={o} card />
           <div className="flex min-w-0 flex-wrap items-center gap-1.5">
             <MexBadge o={o} withTracking inline />
+            <CollabBadge o={o} />
             <ViewAndDup o={o} p={p} />
           </div>
       </div>
@@ -274,14 +277,71 @@ function ValueCell({ o, bare }: { o: ApiOrder; bare?: boolean }) {
   );
 }
 
-export function DeptLine({ o, compact }: { o: Pick<ApiOrder, 'department'>; compact?: boolean }) {
+export function DeptLine({ o, compact }: {
+  o: Pick<ApiOrder, 'department'> & Partial<Pick<ApiOrder, 'collab' | 'mex_tracking_id'>>;
+  compact?: boolean;
+}) {
   const { t } = useTranslation();
   const label = departmentLabel(t, o.department);
   if (!label) return null;
+  // A confirmed CRM sale not yet in collabBox and without a parcel: its department is provisional
+  // until the parcel's MEX profile decides it (owner 02.10.2026).
+  const provisional = isProvisionalDept(o);
   return (
     <span className={cn('inline-flex min-w-0 items-center gap-1.5 text-xs', compact ? 'rounded-full border px-2 py-0.5' : '')}>
       <span className="h-[3px] w-3 shrink-0 rounded-full" style={{ background: sourceColorVar(o.department!) }} aria-hidden />
-      <span className="min-w-0 break-words leading-tight">{label}</span>
+      <span className="min-w-0 break-words leading-tight">
+        {label}
+        {provisional && (
+          <span className="text-muted-foreground" title={t('ordersList.collab.provisionalTitle')} data-testid="dept-provisional">
+            {' '}{t('ordersList.collab.provisional')}
+          </span>
+        )}
+      </span>
+    </span>
+  );
+}
+
+/**
+ * The 2-day collabBox entry rule on a confirmed CRM sale without a parcel (owner 02.10.2026,
+ * crm_sale_collab_states): green "Во collabBox" (the hover names the document) or amber "Не е во
+ * collabBox" — with "· се откажува dd.MM 21:20" once the rule is in apply mode. Nothing on any other row.
+ */
+export function CollabBadge({ o, block }: { o: Pick<ApiOrder, 'collab'>; block?: boolean }) {
+  const { t } = useTranslation();
+  const b = collabBadge(o);
+  if (!b) return null;
+  const box = cn(
+    'inline-flex max-w-full items-start gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-medium leading-tight',
+    block && 'mt-1',
+  );
+  if (b.kind === 'in') {
+    return (
+      <span className={cn(box, 'border-emerald-600/30 bg-emerald-50 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300')}
+        title={t('ordersList.collab.inTitle', { doc: b.doc })} data-testid="collab-in">
+        {!block && <CircleCheck className="mt-px h-3 w-3 shrink-0" aria-hidden />}
+        <span className="min-w-0 break-words">{t('ordersList.collab.in')}</span>
+      </span>
+    );
+  }
+  const title = [
+    t('ordersList.collab.missingTitle', { days: b.days ?? 2 }),
+    b.cancelDay ? t('ordersList.collab.cancelsTitle', { day: b.cancelDay, time: COLLAB_RULE_TIME }) : '',
+  ].filter(Boolean).join(' ');
+  return (
+    <span className={cn(box, 'border-amber-600/30 bg-amber-50 text-amber-900 dark:bg-amber-500/15 dark:text-amber-300')}
+      title={title} data-testid="collab-missing">
+      {/* no icon in a (narrow) table cell — the tinted box is the signal; the card keeps it */}
+      {!block && <CircleAlert className="mt-px h-3 w-3 shrink-0" aria-hidden />}
+      <span className="min-w-0 break-words">
+        {t('ordersList.collab.missing')}
+        {/* a table cell is narrow: the cancel time gets its own line there; the card keeps " · " */}
+        {b.cancelDay && (
+          <span className={cn(block && 'block font-normal')}>
+            {block ? '' : ' · '}{t('ordersList.collab.cancels', { day: b.cancelDay, time: COLLAB_RULE_TIME })}
+          </span>
+        )}
+      </span>
     </span>
   );
 }

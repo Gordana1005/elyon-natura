@@ -89,6 +89,11 @@ import * as SA from "./settingsAccess.ts";
 // filters, the last-8 phone search and the batched "who is viewing" read —
 // parsed, validated and turned into builder calls (pure, ordersList.test.ts).
 import * as OL from "./ordersList.ts";
+// /orders beside the orders (owner 02.10.2026): the collabBox BOOKINGS (GET /orders/bookings —
+// insights_sale_rows' booking rows, windowed / enriched / filtered / scoped) and the 2-day collabBox
+// entry rule badge on each confirmed CRM sale (crm_sale_collab_states, 20260947000200) — pure,
+// unit-tested in ordersBookings.test.ts.
+import * as OB from "./ordersBookings.ts";
 // /warehouse (plan Фаза 9, owner 30.09.2026): the queue (public.warehouse_queue) and
 // "Испрати до MEX" — the add_shipment.php push with its claim / existence check /
 // ledger (public.mex_push_attempts), switched OFF by app_settings.mex_push (pure,
@@ -6632,6 +6637,21 @@ async function handleRequest(req: Request): Promise<Response> {
       // Display only; if an RPC fails the list still answers.
       const peopleById = await orderPeopleById(adminClient, pageOrderIds, "orders");
 
+      // The 2-day collabBox entry rule (owner 02.10.2026, 20260947000200): each confirmed CRM sale
+      // without a parcel gets `collab` = its collabBox document (or null), its sale day, the day the
+      // rule cancels it and the rule's mode — the /orders badge. ONE definition (crm_sale_collab_doc,
+      // the rule's own). Best-effort: a failed read leaves the field off and the list still answers.
+      const collabByOrder: Record<string, OB.OrderCollab> = {};
+      const collabIds = OB.collabCandidateIds((orders || []) as Record<string, unknown>[]);
+      if (collabIds.length) {
+        const parts = await Promise.all(OB.chunks(collabIds, OB.COLLAB_STATES_MAX_IDS).map(async (ids) => {
+          const { data, error: csErr } = await adminClient.rpc("crm_sale_collab_states", { p_ids: ids });
+          if (csErr) { console.error("crm_sale_collab_states (orders):", csErr.message); return {}; }
+          return OB.collabById(data as OB.CollabStateRow[]);
+        }));
+        for (const p of parts) Object.assign(collabByOrder, p);
+      }
+
       // Add is_owned flag for agents
       const enrichedOrders = stripCpaAttributionList(
         (orders || []).map((o: any) => ({
@@ -6643,6 +6663,7 @@ async function handleRequest(req: Request): Promise<Response> {
           operator_name: peopleById[o.id]?.operator_name ?? null,
           operator_basis: peopleById[o.id]?.operator_basis ?? null,
           operator_auto: peopleById[o.id]?.operator_auto ?? false,
+          ...(collabByOrder[o.id] ? { collab: collabByOrder[o.id] } : {}),
         })),
         isAdminOrManager,
       );
@@ -6663,6 +6684,64 @@ async function handleRequest(req: Request): Promise<Response> {
         .map((p) => ({ id: p.id as string, name: (p.display_name as string) || "—", active: p.is_active !== false }))
         .sort((a, b) => Number(b.active) - Number(a.active) || a.name.localeCompare(b.name, "mk"));
       return json({ sellers });
+    }
+
+    // GET /api/orders/bookings — the collabBox BOOKINGS for the /orders filters (owner 02.10.2026:
+    // "Треба да се гледат да"). A booking = a collabBox order document whose MEX parcel does not exist
+    // yet: a sale NOW (the Overview cohort and the TV board count it in its folder's department,
+    // credited to its author) that becomes an order only once MEX creates the parcel. ONE calculation:
+    // insights_sale_rows' kind = 'booking' rows, never re-derived; enriched from collabbox_documents
+    // (folder, customer, dispatch day) and sales_people (the author's name).
+    //   day_from / day_to  Skopje days (the list's) — cut to the last OB.BOOKINGS_LOOKBACK_DAYS, where a
+    //                      booking can exist (clamped: true says so)
+    //   dept / seller / search   the list's own (OL.parseOrdersListParams)
+    // Access mirrors GET /orders: admins / managers read every order (adminClient); everyone else reads
+    // only what RLS lets them ("Agents can view assigned orders": assigned_agent_id = auth.uid()). A
+    // booking has no assignee — its owner is its author, so a caller below manager sees only the
+    // bookings of their own sales person (sales_people.user_id = the caller). Customer name and phone
+    // get the same piiFlags masks as the list (redactCustomerList). Per-row value, no totals — like the
+    // list.
+    if (req.method === "GET" && path === "orders/bookings") {
+      const bp = OB.parseBookingsParams(url.searchParams);
+      if (!bp.ok) return json({ error: bp.error }, 400);
+      const p = bp.value;
+      let scopePersonIds: string[] | null = null;
+      if (!isAdminOrManager) {
+        const { data: me, error: meErr } = await adminClient.from("sales_people").select("id").eq("user_id", user.id);
+        if (meErr) return json({ error: sanitizeDbError(meErr) }, 400);
+        scopePersonIds = ((me || []) as any[]).map((r) => r.id as string);
+      }
+      const win = OB.bookingsWindow(p, ST.skopjeTodayYmd());
+      if (win.empty || (scopePersonIds && !scopePersonIds.length)) return json(OB.bookingsResponse([], win));
+
+      const { data: srData, error: srErr } = await adminClient.rpc("insights_sale_rows", OB.saleRowsArgs(win));
+      if (srErr) return json({ error: `insights_sale_rows: ${sanitizeDbError(srErr)}` }, 500);
+      const sale = OB.bookingSaleRows(srData as OB.SaleRow[]);
+
+      // The documents and the authors' names (display only — a failed read leaves those fields null).
+      const docs = new Map<string, OB.CollabDocRow>();
+      const names = new Map<string, string>();
+      const docNumbers = sale.map((s) => s.display_id!);
+      const personIds = [...new Set(sale.map((s) => s.person_id).filter((x): x is string => !!x))];
+      await Promise.all([
+        ...OB.chunks(docNumbers, 150).map(async (nums) => {
+          const { data, error } = await adminClient.from("collabbox_documents")
+            .select("doc_number, doc_type_id, doc_type_name, komitent_name, booked_at, doc_at, amount_mkd")
+            .in("doc_number", nums);
+          if (error) { console.error("orders/bookings collabbox_documents:", error.message); return; }
+          for (const d of (data || []) as OB.CollabDocRow[]) docs.set(d.doc_number, d);
+        }),
+        ...OB.chunks(personIds, 150).map(async (ids) => {
+          const { data, error } = await adminClient.from("sales_people").select("id, display_name").in("id", ids);
+          if (error) { console.error("orders/bookings sales_people:", error.message); return; }
+          for (const r of (data || []) as any[]) if (r.display_name) names.set(r.id, r.display_name);
+        }),
+      ]);
+
+      const rows = OB.filterBookings(OB.buildBookingRows(sale, docs, names), {
+        departments: p.departments, sellerId: p.sellerId, search: p.search, scopePersonIds,
+      });
+      return json(OB.bookingsResponse(OB.redactBookings(rows, piiFlags), win));
     }
 
     // GET /api/active-views?phones=a,b,c — "who is viewing" for a whole /orders
@@ -7797,7 +7876,7 @@ async function handleRequest(req: Request): Promise<Response> {
     }
 
     // GET /api/orders/:id
-    const reservedOrderPaths = ["stats", "assigned", "unassigned-pending", "open-lead", "bulk-assign", "bulk-unassign", "bulk-status-update", "bulk-disposition", "bigarena-sync", "view-counts", "sellers"];
+    const reservedOrderPaths = ["stats", "assigned", "unassigned-pending", "open-lead", "bulk-assign", "bulk-unassign", "bulk-status-update", "bulk-disposition", "bigarena-sync", "view-counts", "sellers", "bookings"];
     if (req.method === "GET" && segments[0] === "orders" && segments.length === 2 && !reservedOrderPaths.includes(segments[1])) {
       const orderId = segments[1];
       let { data: order, error } = await supabase

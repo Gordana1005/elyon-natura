@@ -441,6 +441,50 @@ export const apiGetOrderViewCounts = (params?: OrdersQueryParams): Promise<{ cou
 /** The /orders seller filter: every sales person, active first (admin / manager / warehouse). */
 export const apiGetOrderSellers = (): Promise<{ sellers: { id: string; name: string; active: boolean }[] }> =>
   apiFetch('orders/sellers');
+
+/** One collabBox BOOKING (owner 02.10.2026): an order document booked in collabBox whose MEX parcel
+ *  does not exist yet — a sale now (the Overview cohort and the TV board count it), an order once MEX
+ *  creates the parcel. GET /orders/bookings (api ordersBookings.ts). */
+export interface OrderBooking {
+  /** The collabBox DocNumber — the MEX tracking id its parcel will carry. */
+  doc_number: string;
+  /** The folder (document type name), e.g. "Нарачка out". */
+  folder: string | null;
+  doc_type_id: string | null;
+  /** One of the six departments (cohort keys). */
+  department: string | null;
+  /** The booking instant the cohort counts it at. */
+  booked_at: string | null;
+  /** collabBox's own date — the dispatch day (Skopje YYYY-MM-DD). */
+  dispatch_day: string | null;
+  customer_name: string | null;
+  /** Last 8 digits (masked like the list's phones for roles without the privacy flag). */
+  phone8: string | null;
+  /** денари */
+  value_mkd: number;
+  seller_person_id: string | null;
+  seller_name: string | null;
+}
+export interface OrderBookingsResponse {
+  rows: OrderBooking[];
+  total: number;
+  /** Count per department key (only the departments that have bookings). */
+  by_department: Record<string, number>;
+  /** The asked period started before the days a booking can exist and was cut. */
+  clamped: boolean;
+  window: { from: string; to: string } | null;
+  lookback_days: number;
+}
+/** The /orders filters that apply to a booking: the period, department, seller and search. */
+export interface OrderBookingsParams { day_from?: string; day_to?: string; dept?: string; seller?: string; search?: string }
+export const apiGetOrderBookings = (params: OrderBookingsParams): Promise<OrderBookingsResponse> => {
+  const sp = new URLSearchParams();
+  for (const k of ['day_from', 'day_to', 'dept', 'seller', 'search'] as const) {
+    const v = params[k];
+    if (v) sp.set(k, v);
+  }
+  return apiFetch(`orders/bookings?${sp.toString()}`);
+};
 function ordersQuery(params?: OrdersQueryParams): URLSearchParams {
   const sp = new URLSearchParams();
   // Drill-down first; the explicit toolbar filters below win on a clash
