@@ -1,0 +1,381 @@
+{
+  "now": {
+    "natura": {
+      "label": 290,
+      "courier": 443,
+      "label_cod_mkd": 606820,
+      "courier_cod_mkd": 870910
+    },
+    "bio_natural": {
+      "label": 108,
+      "courier": 452,
+      "label_cod_mkd": 291920,
+      "courier_cod_mkd": 1284530
+    }
+  },
+  "days": [
+    {
+      "d": "2026-09-16",
+      "natura": {
+        "cod_mkd": 321200,
+        "parcels": 174,
+        "returned": 21,
+        "returned_cod_mkd": 41030
+      },
+      "bio_natural": {
+        "cod_mkd": 382890,
+        "parcels": 143,
+        "returned": 43,
+        "returned_cod_mkd": 120910
+      }
+    },
+    {
+      "d": "2026-09-17",
+      "natura": {
+        "cod_mkd": 322450,
+        "parcels": 175,
+        "returned": 21,
+        "returned_cod_mkd": 44170
+      },
+      "bio_natural": {
+        "cod_mkd": 297620,
+        "parcels": 111,
+        "returned": 23,
+        "returned_cod_mkd": 59820
+      }
+    },
+    {
+      "d": "2026-09-18",
+      "natura": {
+        "cod_mkd": 355020,
+        "parcels": 184,
+        "returned": 22,
+        "returned_cod_mkd": 44650
+      },
+      "bio_natural": {
+        "cod_mkd": 302190,
+        "parcels": 107,
+        "returned": 45,
+        "returned_cod_mkd": 124040
+      }
+    },
+    {
+      "d": "2026-09-19",
+      "natura": {
+        "cod_mkd": 298290,
+        "parcels": 164,
+        "returned": 11,
+        "returned_cod_mkd": 23410
+      },
+      "bio_natural": {
+        "cod_mkd": 234190,
+        "parcels": 83,
+        "returned": 25,
+        "returned_cod_mkd": 65440
+      }
+    },
+    {
+      "d": "2026-09-20",
+      "natura": {
+        "cod_mkd": 0,
+        "parcels": 0,
+        "returned": 0,
+        "returned_cod_mkd": 0
+      },
+      "bio_natural": {
+        "cod_mkd": 0,
+        "parcels": 0,
+        "returned": 0,
+        "returned_cod_mkd": 0
+      }
+    },
+    {
+      "d": "2026-09-21",
+      "natura": {
+        "cod_mkd": 137130,
+        "parcels": 76,
+        "returned": 16,
+        "returned_cod_mkd": 30000
+      },
+      "bio_natural": {
+        "cod_mkd": 115370,
+        "parcels": 41,
+        "returned": 22,
+        "returned_cod_mkd": 64420
+      }
+    },
+    {
+      "d": "2026-09-22",
+      "natura": {
+        "cod_mkd": 282710,
+        "parcels": 157,
+        "returned": 21,
+        "returned_cod_mkd": 40240
+      },
+      "bio_natural": {
+        "cod_mkd": 300600,
+        "parcels": 103,
+        "returned": 16,
+        "returned_cod_mkd": 44010
+      }
+    },
+    {
+      "d": "2026-09-23",
+      "natura": {
+        "cod_mkd": 290570,
+        "parcels": 156,
+        "returned": 14,
+        "returned_cod_mkd": 23190
+      },
+      "bio_natural": {
+        "cod_mkd": 204080,
+        "parcels": 78,
+        "returned": 22,
+        "returned_cod_mkd": 59860
+      }
+    },
+    {
+      "d": "2026-09-24",
+      "natura": {
+        "cod_mkd": 285910,
+        "parcels": 151,
+        "returned": 27,
+        "returned_cod_mkd": 52840
+      },
+      "bio_natural": {
+        "cod_mkd": 187520,
+        "parcels": 69,
+        "returned": 23,
+        "returned_cod_mkd": 85170
+      }
+    },
+    {
+      "d": "2026-09-25",
+      "natura": {
+        "cod_mkd": 388380,
+        "parcels": 193,
+        "returned": 10,
+        "returned_cod_mkd": 18070
+      },
+      "bio_natural": {
+        "cod_mkd": 162800,
+        "parcels": 63,
+        "returned": 13,
+        "returned_cod_mkd": 38710
+      }
+    },
+    {
+      "d": "2026-09-26",
+      "natura": {
+        "cod_mkd": 292900,
+        "parcels": 149,
+        "returned": 0,
+        "returned_cod_mkd": 0
+      },
+      "bio_natural": {
+        "cod_mkd": 146620,
+        "parcels": 54,
+        "returned": 0,
+        "returned_cod_mkd": 0
+      }
+    },
+    {
+      "d": "2026-09-27",
+      "natura": {
+        "cod_mkd": 0,
+        "parcels": 0,
+        "returned": 0,
+        "returned_cod_mkd": 0
+      },
+      "bio_natural": {
+        "cod_mkd": 0,
+        "parcels": 0,
+        "returned": 0,
+        "returned_cod_mkd": 0
+      }
+    },
+    {
+      "d": "2026-09-28",
+      "natura": {
+        "cod_mkd": 98160,
+        "parcels": 56,
+        "returned": 32,
+        "returned_cod_mkd": 60120
+      },
+      "bio_natural": {
+        "cod_mkd": 73850,
+        "parcels": 24,
+        "returned": 41,
+        "returned_cod_mkd": 112970
+      }
+    },
+    {
+      "d": "2026-09-29",
+      "natura": {
+        "cod_mkd": 463190,
+        "parcels": 235,
+        "returned": 22,
+        "returned_cod_mkd": 43180
+      },
+      "bio_natural": {
+        "cod_mkd": 312890,
+        "parcels": 112,
+        "returned": 11,
+        "returned_cod_mkd": 29810
+      }
+    },
+    {
+      "d": "2026-09-30",
+      "natura": {
+        "cod_mkd": 297670,
+        "parcels": 150,
+        "returned": 10,
+        "returned_cod_mkd": 16870
+      },
+      "bio_natural": {
+        "cod_mkd": 287190,
+        "parcels": 98,
+        "returned": 26,
+        "returned_cod_mkd": 75450
+      }
+    },
+    {
+      "d": "2026-10-01",
+      "natura": {
+        "cod_mkd": 331000,
+        "parcels": 171,
+        "returned": 14,
+        "returned_cod_mkd": 33480
+      },
+      "bio_natural": {
+        "cod_mkd": 362570,
+        "parcels": 130,
+        "returned": 32,
+        "returned_cod_mkd": 87550
+      }
+    },
+    {
+      "d": "2026-10-02",
+      "natura": {
+        "cod_mkd": 323480,
+        "parcels": 165,
+        "returned": 16,
+        "returned_cod_mkd": 31030
+      },
+      "bio_natural": {
+        "cod_mkd": 412860,
+        "parcels": 140,
+        "returned": 32,
+        "returned_cod_mkd": 92760
+      }
+    }
+  ],
+  "meta": {
+    "today": "2026-10-02",
+    "accounts": [
+      "natura",
+      "bio_natural"
+    ],
+    "data_through": "2026-10-02T16:22:08Z",
+    "from": "2026-09-16",
+    "to": "2026-10-02",
+    "partial": true,
+    "days": 17,
+    "generated_at": "2026-10-02T16:30:00.000Z",
+    "money": true
+  },
+  "total": {
+    "natura": {
+      "cod_mkd": 4488070,
+      "parcels": 2353,
+      "returned": 255,
+      "returned_cod_mkd": 502280
+    },
+    "bio_natural": {
+      "cod_mkd": 3783240,
+      "parcels": 1355,
+      "returned": 374,
+      "returned_cod_mkd": 1060910
+    }
+  },
+  "halves": [
+    {
+      "to": "2026-10-15",
+      "from": "2026-10-01",
+      "natura": {
+        "cod_mkd": 654470,
+        "parcels": 336
+      },
+      "complete": false,
+      "bio_natural": {
+        "cod_mkd": 775430,
+        "parcels": 270
+      }
+    },
+    {
+      "to": "2026-09-30",
+      "from": "2026-09-16",
+      "natura": {
+        "cod_mkd": 3833600,
+        "parcels": 2017
+      },
+      "complete": true,
+      "bio_natural": {
+        "cod_mkd": 3007810,
+        "parcels": 1085
+      }
+    },
+    {
+      "to": "2026-09-15",
+      "from": "2026-09-01",
+      "natura": {
+        "cod_mkd": 3917180,
+        "parcels": 2027
+      },
+      "complete": true,
+      "bio_natural": {
+        "cod_mkd": 3588760,
+        "parcels": 1284
+      }
+    },
+    {
+      "to": "2026-08-31",
+      "from": "2026-08-16",
+      "natura": {
+        "cod_mkd": 3384940,
+        "parcels": 1755
+      },
+      "complete": true,
+      "bio_natural": {
+        "cod_mkd": 2646650,
+        "parcels": 964
+      }
+    },
+    {
+      "to": "2026-08-15",
+      "from": "2026-08-01",
+      "natura": {
+        "cod_mkd": 5830170,
+        "parcels": 3003
+      },
+      "complete": true,
+      "bio_natural": {
+        "cod_mkd": 3261680,
+        "parcels": 1135
+      }
+    },
+    {
+      "to": "2026-07-31",
+      "from": "2026-07-16",
+      "natura": {
+        "cod_mkd": 5464550,
+        "parcels": 3006
+      },
+      "complete": true,
+      "bio_natural": {
+        "cod_mkd": 2703290,
+        "parcels": 992
+      }
+    }
+  ]
+}

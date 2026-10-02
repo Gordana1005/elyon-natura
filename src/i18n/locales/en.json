@@ -6414,6 +6414,51 @@
         "vatFrom": "Sigma: {{pct}}",
         "vatNone": "no rate on file: {{pct}}"
       }
+    },
+    "tabMexCash": "MEX collections",
+    "mexCash": {
+      "intro": "This is the cash on delivery MEX collected from the buyers — on the day it delivered the parcel. It is not money in our account yet: MEX pays it out later, in lumps. MEX settles per half-month (1–15 and 16–end), for each account separately.",
+      "account": {
+        "natura": "NATURA",
+        "bio_natural": "BIO NATURAL",
+        "naturaHint": "Team Centar · social · web",
+        "bio_naturalHint": "Team Madžari In and Out"
+      },
+      "parcelsN_one": "{{n}} parcel",
+      "parcelsN_other": "{{n}} parcels",
+      "kpi": {
+        "collected": "Collected by MEX",
+        "delivered": "Parcels delivered (MEX)",
+        "deliveredSub": "delivered and collected by MEX",
+        "returned": "Parcels returned",
+        "returnedSub": "cash on delivery not collected: {{v}}",
+        "returnedSubNoMoney": "MEX sent them back to us"
+      },
+      "daily": {
+        "title": "Collected per day",
+        "titleMonth": "Collected per month"
+      },
+      "asOf": "MEX data as of {{time}}",
+      "col": {
+        "day": "Day",
+        "total": "Total",
+        "returned": "Returned",
+        "period": "Period"
+      },
+      "empty": "MEX delivered no parcels in this period.",
+      "halves": {
+        "title": "MEX settlement periods",
+        "sub": "The last 6 periods, whatever period is selected. The parcels on the MEX invoices are the parcels delivered here.",
+        "running": "running",
+        "payouts": "The dates and amounts of the MEX payouts are not in the system yet (the Sigma export has no bank statements) — they will be added once the bank statements arrive."
+      },
+      "now": {
+        "title": "At MEX now",
+        "courier": "With the courier — not collected yet",
+        "courierHint": "Picked up, in delivery, delivery attempted or a problem (MEX 1, 3, 4, 9, 10, 13).",
+        "label": "Packed, waiting for the courier",
+        "labelHint": "The parcel exists at MEX, the courier has not picked it up yet (MEX 8)."
+      }
     }
   },
   "agentsTab": {
@@ -8520,6 +8565,33 @@
     },
     "clock": {
       "placed": "Counted by the day the order was placed (Skopje time)"
+    },
+    "callCenter": {
+      "sellers": {
+        "title": "Who sold how much",
+        "sortLabel": "Sort by",
+        "sort": {
+          "value": "Value",
+          "sales": "Sales"
+        },
+        "salesN_one": "{{n}} sale",
+        "salesN_other": "{{n}} sales",
+        "empty": "No sales with a seller in the period.",
+        "footer_one": "{{n}} sales · {{people}} operator",
+        "footer_other": "{{n}} sales · {{people}} operators",
+        "noSeller": "no seller {{n}} (web, MEX only)",
+        "all": "All operators"
+      },
+      "products": {
+        "title": "Best-selling products",
+        "salesN_one": "in {{n}} sale",
+        "salesN_other": "in {{n}} sales",
+        "unitsShort": "packages",
+        "empty": "No products sold in the period.",
+        "footer_one": "{{units}} packages · {{products}} product",
+        "footer_other": "{{units}} packages · {{products}} products",
+        "all": "All products"
+      }
     }
   },
   "customer360": {

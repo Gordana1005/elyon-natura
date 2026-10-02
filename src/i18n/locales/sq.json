@@ -6414,6 +6414,51 @@
         "vatFrom": "Sigma: {{pct}}",
         "vatNone": "pa normë: {{pct}}"
       }
+    },
+    "tabMexCash": "Arkëtimi (MEX)",
+    "mexCash": {
+      "intro": "Kjo është pagesa në dorëzim që MEX e arkëtoi nga blerësit — në ditën kur e dorëzoi pakon. Nuk janë ende para në llogarinë tonë: MEX i paguan më vonë, të mbledhura. MEX llogarit për gjysmë muaji (1–15 dhe 16–fund), për secilën llogari veçmas.",
+      "account": {
+        "natura": "NATURA",
+        "bio_natural": "BIO NATURAL",
+        "naturaHint": "Ekipi Centar · rrjetet sociale · ueb",
+        "bio_naturalHint": "Ekipi Madžari In dhe Out"
+      },
+      "parcelsN_one": "{{n}} pako",
+      "parcelsN_other": "{{n}} pako",
+      "kpi": {
+        "collected": "Arkëtuar nga MEX",
+        "delivered": "Pako të dorëzuara (MEX)",
+        "deliveredSub": "të dorëzuara dhe të arkëtuara nga MEX",
+        "returned": "Pako të kthyera",
+        "returnedSub": "pagesë në dorëzim e paarkëtuar: {{v}}",
+        "returnedSubNoMoney": "MEX na i ktheu"
+      },
+      "daily": {
+        "title": "Arkëtuar për ditë",
+        "titleMonth": "Arkëtuar për muaj"
+      },
+      "asOf": "Të dhënat e MEX deri në {{time}}",
+      "col": {
+        "day": "Dita",
+        "total": "Gjithsej",
+        "returned": "Të kthyera",
+        "period": "Periudha"
+      },
+      "empty": "MEX nuk dorëzoi asnjë pako në këtë periudhë.",
+      "halves": {
+        "title": "Periudhat e llogaritjes së MEX",
+        "sub": "6 periudhat e fundit, pavarësisht periudhës së zgjedhur. Pakot në faturat e MEX janë pakot e dorëzuara këtu.",
+        "running": "në vazhdim",
+        "payouts": "Datat dhe shumat e pagesave të MEX nuk janë ende në sistem (eksporti i Sigma nuk ka ekstrakte bankare) — do të shtohen kur të vijnë ekstraktet nga banka."
+      },
+      "now": {
+        "title": "Te MEX tani",
+        "courier": "Te korrieri — ende e paarkëtuar",
+        "courierHint": "Të marra, në dorëzim, tentim dorëzimi ose problem (MEX 1, 3, 4, 9, 10, 13).",
+        "label": "E paketuar, pret korrierin",
+        "labelHint": "Pakoja ekziston te MEX, korrieri ende nuk e ka marrë (MEX 8)."
+      }
     }
   },
   "agentsTab": {
@@ -8520,6 +8565,33 @@
     },
     "clock": {
       "placed": "Numëruar sipas ditës kur është bërë porosia (ora e Shkupit)"
+    },
+    "callCenter": {
+      "sellers": {
+        "title": "Kush sa shiti",
+        "sortLabel": "Rendit sipas",
+        "sort": {
+          "value": "Vlera",
+          "sales": "Shitjet"
+        },
+        "salesN_one": "{{n}} shitje",
+        "salesN_other": "{{n}} shitje",
+        "empty": "Asnjë shitje me shitës në periudhë.",
+        "footer_one": "{{n}} shitje · {{people}} operator",
+        "footer_other": "{{n}} shitje · {{people}} operatorë",
+        "noSeller": "pa shitës {{n}} (ueb, vetëm në MEX)",
+        "all": "Të gjithë operatorët"
+      },
+      "products": {
+        "title": "Produktet më të shitura",
+        "salesN_one": "në {{n}} shitje",
+        "salesN_other": "në {{n}} shitje",
+        "unitsShort": "pako",
+        "empty": "Asnjë produkt i shitur në periudhë.",
+        "footer_one": "{{units}} pako · {{products}} produkt",
+        "footer_other": "{{units}} pako · {{products}} produkte",
+        "all": "Të gjitha produktet"
+      }
     }
   },
   "customer360": {

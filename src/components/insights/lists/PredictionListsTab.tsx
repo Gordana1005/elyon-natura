@@ -13,7 +13,6 @@ import { skopjeHm } from '@/lib/presence/state';
 import { OVERVIEW_COLOR_VARS } from '../overview/palette';
 import { dm } from '../overview/useOverviewFormat';
 import { CohortBar } from '../shared/CohortBar';
-import { CashFlowCard } from '../shared/CohortSecondary';
 import { useInsightsFormat } from '../shared/useInsightsFormat';
 import { useInsightsPeriod } from '../shared/useInsightsPeriod';
 import type { DrillKey } from '../shared/cohortModel';
@@ -192,20 +191,10 @@ export default function PredictionListsTab() {
                 <ListsKpis data={data} range={range} money={money} f={f} />
               </div>
 
+              {/* MEX's cash on the delivery-day clock is not drawn here (owner 02.10.2026):
+                  it read as money received that day — Insights → Наплата (MEX) has it. */}
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <ListsWorkCard total={data.total} f={f} />
-                {data.cash_flow && (
-                  <CashFlowCard
-                    cash={{
-                      parcels: data.cash_flow.parcels,
-                      cod_mkd: data.cash_flow.cod_mkd,
-                      from_this_period_mkd: data.cash_flow.from_this_period_mkd,
-                      from_earlier_mkd: data.cash_flow.from_earlier_mkd,
-                    }}
-                    money={money}
-                    f={f}
-                  />
-                )}
               </div>
 
               <ListsRanking rows={views} range={range} money={money} f={f} />

@@ -16,12 +16,25 @@ import { stripMoney } from './model';
 // same parts (never a worked count), leads and MEX cash sit apart, a
 // non-owner sees the same page counted — and a number links to /orders only
 // when the list holds exactly it.
-const h = vi.hoisted(() => ({ overview: vi.fn(), agents: vi.fn(), drillKeys: [] as string[] }));
+const h = vi.hoisted(() => ({ overview: vi.fn(), agents: vi.fn(), drillKeys: [] as string[], salesMoney: true }));
 vi.mock('@/integrations/supabase/client', () => ({ supabase: {} }));
 // The teams board reads the Agents tab's payload (GET /insights/agents).
 vi.mock('@/lib/insightsApi/agents', async (orig) => ({
   ...(await orig<typeof import('@/lib/insightsApi/agents')>()),
   apiGetInsightsAgents: (...a: unknown[]) => h.agents(...a),
+}));
+// The best-selling products read the Sales tab's detail (GET /insights/sales?part=detail).
+// A non-owner's payload has no money: the api strips the products' *_mkd like the rest.
+vi.mock('@/lib/insightsApi/sales', async (orig) => ({
+  ...(await orig<typeof import('@/lib/insightsApi/sales')>()),
+  apiGetInsightsSales: vi.fn(async () => {
+    const d = structuredClone((await import('../sales/__fixtures__/sales.detail.sample.json')).default) as Record<string, unknown>;
+    if (h.salesMoney) return d;
+    const strip = (v: unknown): unknown => (Array.isArray(v) ? v.map(strip) : v && typeof v === 'object'
+      ? Object.fromEntries(Object.entries(v).filter(([k]) => !/_mkd$/.test(k)).map(([k, x]) => [k, strip(x)])) : v);
+    const out = strip(d) as Record<string, unknown> & { meta: Record<string, unknown> };
+    return { ...out, meta: { ...out.meta, money: false } };
+  }),
 }));
 vi.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({ user: { id: 'u-test', isAdmin: true, isManager: false } }),
@@ -45,7 +58,10 @@ beforeAll(async () => {
 });
 
 // The sources' cards/table choice is remembered per viewer — every test starts on cards.
-beforeEach(() => { try { localStorage.removeItem('elyon.overview.sourcesView'); } catch { /* no storage */ } });
+beforeEach(() => {
+  h.salesMoney = true;
+  try { localStorage.removeItem('elyon.overview.sourcesView'); } catch { /* no storage */ }
+});
 
 const { default: OverviewTab } = await import('./OverviewTab');
 
@@ -133,8 +149,10 @@ describe('Overview on the sales cohort — owner', () => {
     expect(within(web).getByText(i18n.t('overview.cohort.sources.webNote'))).toBeInTheDocument();
     expect(within(web).queryAllByRole('link')).toHaveLength(0);
 
-    // MEX cash is a separate figure on its own clock.
-    expect(screen.getByText(formatDenari(3062765))).toBeInTheDocument();
+    // MEX cash on the delivery-day clock is not on this page (owner 02.10.2026): it read as
+    // money received that day — Insights → Наплата (MEX) has it, for its named viewers.
+    expect(screen.queryByText(formatDenari(3062765))).toBeNull();
+    expect(screen.queryByText(i18n.t('insights.common.cash.title'))).toBeNull();
     expect(container.textContent).toMatch(DENARS);
     // Teams (the Agents tab's) and the attention rail still render; the pre-cohort
     // drill-down pivot does not (it waits for a rebuild on the cohort).
@@ -200,6 +218,7 @@ describe('Overview on the sales cohort — owner', () => {
 
 describe('Overview on the sales cohort — admin/manager without money', () => {
   it('the same page counted: no denar anywhere, every count and lead outcome kept', async () => {
+    h.salesMoney = false;
     const { container } = renderWith(stripMoney(payload() as OverviewResponse) as WithCohort);
     expect(await screen.findByText(i18n.t('overview.cohort.title', { period: PERIOD }), {}, { timeout: 10_000 })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: i18n.t('overview.cohort.sources.titleNoMoney') })).toBeInTheDocument();

@@ -9,14 +9,16 @@ import { eurToDen, formatDenari, formatMoney } from '@/lib/currency';
 import sample from './__fixtures__/overview.sample.json';
 import cohortSample from '../shared/__fixtures__/cohort.sample.json';
 import peopleSample from '../agents/__fixtures__/people.sample.json';
+import salesDetailSample from '../sales/__fixtures__/sales.detail.sample.json';
 import { stripMoney } from './model';
 
 // The Overview after the 29.09.2026 clean-up, rendered from the contract fixtures:
 // no pre-cohort widget is drawn (KPI tiles, source rows, the drill-down pivot), a
-// missing cohort is an error with a retry, one Overview request per view, the
-// trend's sales line is the cohort's, the teams are the Agents tab's and the
-// attention rail speaks денари. The network is replaced by the fixtures.
-const h = vi.hoisted(() => ({ overview: vi.fn(), agents: vi.fn(), pivot: vi.fn() }));
+// missing cohort is an error with a retry, one Overview request per view, the call
+// centre first (02.10.2026: who sold how much, the best-selling products — no MEX
+// cash, no MEX-cash trend), the teams are the Agents tab's and the attention rail
+// speaks денари. The network is replaced by the fixtures.
+const h = vi.hoisted(() => ({ overview: vi.fn(), agents: vi.fn(), pivot: vi.fn(), sales: vi.fn() }));
 vi.mock('@/integrations/supabase/client', () => ({ supabase: {} }));
 vi.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({ user: { id: 'u-test', isAdmin: true, isManager: false } }),
@@ -31,6 +33,10 @@ vi.mock('@/lib/insightsApi/agents', async (orig) => ({
   ...(await orig<typeof import('@/lib/insightsApi/agents')>()),
   apiGetInsightsAgents: (...a: unknown[]) => h.agents(...a),
 }));
+vi.mock('@/lib/insightsApi/sales', async (orig) => ({
+  ...(await orig<typeof import('@/lib/insightsApi/sales')>()),
+  apiGetInsightsSales: (...a: unknown[]) => h.sales(...a),
+}));
 
 // jsdom has no layout engine; Recharts' ResponsiveContainer only needs the API.
 beforeAll(async () => {
@@ -41,6 +47,7 @@ beforeEach(() => {
   h.overview.mockReset();
   h.agents.mockReset();
   h.pivot.mockReset();
+  h.sales.mockReset();
   try { localStorage.removeItem('elyon.overview.sourcesView'); } catch { /* no storage */ }
 });
 
@@ -60,9 +67,18 @@ const people = (money = true): PeopleResponse => {
   return s;
 };
 
+const salesNoMoney = () => {
+  const strip = (v: unknown): unknown => (Array.isArray(v) ? v.map(strip) : v && typeof v === 'object'
+    ? Object.fromEntries(Object.entries(v).filter(([k]) => !/_mkd$/.test(k)).map(([k, x]) => [k, strip(x)])) : v);
+  const d = strip(structuredClone(salesDetailSample)) as typeof salesDetailSample;
+  return { ...d, meta: { ...d.meta, money: false } };
+};
+
 function renderWith(p: WithCohort, opts: { query?: string; agents?: PeopleResponse } = {}) {
   h.overview.mockResolvedValue(p);
   h.agents.mockResolvedValue(opts.agents ?? people());
+  // the api strips the products' money for a non-owner as it does the rest
+  h.sales.mockResolvedValue(opts.agents?.meta.money === false ? salesNoMoney() : structuredClone(salesDetailSample));
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
@@ -87,8 +103,8 @@ describe('Overview — no pre-cohort widget', () => {
     expect(screen.queryByText(formatMoney(94614.87))).toBeNull();
     expect(screen.queryByRole('heading', { name: i18n.t('overview.sources.title') })).toBeNull();
     expect(container.textContent).not.toMatch(/€|EUR\b/);
-    // the rest of the page still answers: freshness, the trend (MEX cash), teams, attention
-    expect(screen.getByRole('heading', { name: i18n.t('overview.trend.title') })).toBeInTheDocument();
+    // the rest of the page still answers: freshness, teams, attention
+    expect(await screen.findByRole('heading', { name: i18n.t('insights.agents.teams.title') })).toBeInTheDocument();
     expect(screen.getByText(i18n.t('overview.attention.kind.approved_no_parcel_7d', { days: 10 }))).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: i18n.t('common.retry') }));
     await vi.waitFor(() => expect(h.overview).toHaveBeenCalledTimes(2));
@@ -110,34 +126,53 @@ describe('Overview — no pre-cohort widget', () => {
   }, 30_000);
 });
 
-describe('Overview — the trend is the cohort\'s', () => {
-  it('each department: its sales by sale day (the cohort) beside MEX cash — never the orders created', async () => {
+describe('Overview — the call centre first (owner 02.10.2026)', () => {
+  it('no MEX cash and no MEX-cash trend: they live on Insights → Наплата (MEX)', async () => {
     renderWith(withCohort());
     await screen.findByText(cohortTitle(), {}, { timeout: 10_000 });
-    const trend = screen.getByRole('heading', { name: i18n.t('overview.trend.title') }).closest('section')!;
-    expect(within(trend).getByText(i18n.t('overview.trend.subtitleSales'), { exact: false })).toBeInTheDocument();
-    expect(within(trend).queryByText(i18n.t('overview.trend.placed'))).toBeNull();
-    fireEvent.click(within(trend).getByRole('button', { name: i18n.t('overview.trend.table') }));
-    const table = within(trend).getByRole('table');
-    // 22.09, Affiliate – Lead out: the cohort's sales that day (fixture spark by_source) and the MEX cash
-    const d22 = cohortSample.spark.find((p) => p.d === '2026-09-22')!;
-    const lo = (d22 as unknown as { by_source: { key: string; value_mkd: number }[] }).by_source.find((s) => s.key === 'elyon_crm')!;
-    const row = within(table).getByRole('rowheader', { name: '22.09.2026' }).closest('tr')!;
-    expect(within(row).getAllByText(formatDenari(lo.value_mkd)).length).toBeGreaterThan(0);
-    expect(within(row).getAllByText(formatDenari(111432)).length).toBeGreaterThan(0);   // MEX cash, unchanged
-    // the placed value of that day (2.615,62 € → 160.861 ден) is nowhere
-    expect(within(row).queryByText(formatDenari(eurToDen(2615.62)))).toBeNull();
+    expect(screen.queryByText(i18n.t('insights.common.cash.title'))).toBeNull();
+    expect(screen.queryByText(i18n.t('insights.common.cash.titleNoMoney'))).toBeNull();
+    expect(screen.queryByRole('heading', { name: i18n.t('overview.trend.title') })).toBeNull();
+    // the leads that came in stay — a call-centre figure
+    expect(screen.getByText(i18n.t('insights.common.leads.title'))).toBeInTheDocument();
   }, 30_000);
 
-  it('without the per-department spark (an older api) it draws the cash alone and points to Sales', async () => {
-    const p = withCohort() as WithCohort & { cohort: { spark: { by_source?: unknown }[] } };
-    for (const pt of p.cohort.spark) delete pt.by_source;
-    renderWith(p);
-    await screen.findByText(cohortTitle(), {}, { timeout: 10_000 });
-    const trend = screen.getByRole('heading', { name: i18n.t('overview.trend.title') }).closest('section')!;
-    expect(within(trend).getByText(i18n.t('overview.trend.subtitleCashOnly'), { exact: false })).toBeInTheDocument();
-    const link = within(trend).getByRole('link', { name: i18n.t('overview.trend.toSales') });
-    expect(new URLSearchParams(link.getAttribute('href')!.split('?')[1]).get('tab')).toBe('sales');
+  it('who sold how much: the Agents payload, the owner ranks by денари, each name opens the person', async () => {
+    renderWith(withCohort());
+    const card = (await screen.findByRole('heading', { name: i18n.t('overview.callCenter.sellers.title') }, { timeout: 10_000 })).closest('section')!;
+    const sellers = (peopleSample as unknown as PeopleResponse).people
+      .filter((p) => p.sales > 0)
+      .sort((a, b) => (b.value_mkd ?? 0) - (a.value_mkd ?? 0) || b.sales - a.sales || a.name.localeCompare(b.name));
+    const rows = await within(card).findAllByRole('listitem');
+    expect(rows.length).toBe(Math.min(10, sellers.length));
+    expect(within(rows[0]).getByText(sellers[0].name)).toBeInTheDocument();
+    expect(within(rows[0]).getByText(formatDenari(sellers[0].value_mkd ?? 0))).toBeInTheDocument();
+    const href = within(rows[0]).getByRole('link', { name: sellers[0].name }).getAttribute('href')!;
+    const sp = new URLSearchParams(href.split('?')[1]);
+    expect(sp.get('tab')).toBe('agents');
+    expect(sp.get('ag_person')).toBe(sellers[0].person_id);
+    // by sales instead
+    fireEvent.click(within(card).getByRole('button', { name: i18n.t('overview.callCenter.sellers.sort.sales') }));
+    const bySales = [...sellers].sort((a, b) => b.sales - a.sales || (b.value_mkd ?? 0) - (a.value_mkd ?? 0) || a.name.localeCompare(b.name));
+    expect(within(within(card).getAllByRole('listitem')[0]).getByText(bySales[0].name)).toBeInTheDocument();
+  }, 30_000);
+
+  it('the best-selling products: the Sales tab\'s detail, most packages first', async () => {
+    renderWith(withCohort());
+    const card = (await screen.findByRole('heading', { name: i18n.t('overview.callCenter.products.title') }, { timeout: 10_000 })).closest('section')!;
+    await vi.waitFor(() => expect(h.sales).toHaveBeenCalledWith({ from: '2026-09-22', to: '2026-09-28', part: 'detail' }, expect.anything()));
+    const top = [...salesDetailSample.products.rows].filter((r) => r.units > 0)
+      .sort((a, b) => b.units - a.units || b.sales - a.sales || (a.name ?? '').localeCompare(b.name ?? ''))[0];
+    const first = (await within(card).findAllByRole('listitem'))[0];
+    expect(within(first).getByText(top.name!)).toBeInTheDocument();
+  }, 30_000);
+
+  it('a manager: the sellers counted by sales, not one denar', async () => {
+    renderWith(stripMoney(withCohort() as OverviewResponse) as WithCohort, { agents: people(false) });
+    const card = (await screen.findByRole('heading', { name: i18n.t('overview.callCenter.sellers.title') }, { timeout: 10_000 })).closest('section')!;
+    await within(card).findAllByRole('listitem');
+    expect(within(card).queryByRole('button', { name: i18n.t('overview.callCenter.sellers.sort.value') })).toBeNull();
+    expect(card.textContent).not.toMatch(DENARS);
   }, 30_000);
 });
 

@@ -1885,6 +1885,7 @@ export type Database = {
         Returns: boolean
       }
       is_admin_or_manager: { Args: { _user_id: string }; Returns: boolean }
+      my_can_see_mex_cash: { Args: never; Returns: boolean }
       recompute_all_segments: { Args: never; Returns: number }
       recompute_customer_segments: {
         Args: { _phone: string }

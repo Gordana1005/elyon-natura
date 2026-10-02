@@ -43,6 +43,9 @@ import * as IPF from "./insightsProfit.ts";
 // the clock param, the money-strip whitelists and the response envelopes
 // (pure, unit-tested in insightsReturnsStock.test.ts).
 import * as IRS from "./insightsReturnsStock.ts";
+// Insights → Наплата (MEX) — MEX's collections per day / account / settlement period
+// (migration 20260947001300; pure, unit-tested in insightsMexCash.test.ts).
+import * as IMC from "./insightsMexCash.ts";
 // Stock — the physical count (попис) and MEX-driven stock movements (migration
 // 20260942000100): access, body parsing, and whether a CRM status change still
 // moves stock (pure, unit-tested in stockLedger.test.ts).
@@ -19978,6 +19981,33 @@ async function handleRequest(req: Request): Promise<Response> {
       if (rtRetry) ({ data: rtData, error: rtErr } = await adminClient.rpc("insights_returns", rtArgs(rtRetry)));
       if (rtErr) return json({ error: `insights_returns: ${sanitizeDbError(rtErr)}` }, 500);
       return json(IRS.buildReturnsResponse((rtData ?? {}) as Record<string, unknown>, rsWin, rsOwner, rsClock));
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // GET /api/insights/mex-cash?from&to
+    // Insights → Наплата (MEX) (owner 02.10.2026, migration 20260947001300
+    // insights_mex_cash): what MEX collected on the DELIVERY day per MEX account
+    // (NATURA / BIO NATURAL), the parcels returned, MEX's settlement periods
+    // (half-months 1–15 / 16–end — the periods its fee invoices bill), and what
+    // MEX holds right now. Never "money in the bank": no payout date is in any
+    // data the CRM holds.
+    //   "What we expect" is for a short NAMED list (owner 02.10.2026: Mile + Hedi —
+    //   app_settings.mex_cash.viewers, can_see_mex_cash(): on the list AND a
+    //   business owner) → the page with money · everyone else, other owners
+    //   and admins included → 403
+    // ══════════════════════════════════════════════════════════════
+    if (req.method === "GET" && path === "insights/mex-cash") {
+      const { data: mcViewer } = await adminClient.rpc("can_see_mex_cash", { p_uid: user.id });
+      const mcAccess = IMC.mexCashAccess(mcViewer === true, await isBusinessOwner(user.id));
+      if (mcAccess === "forbidden") return json({ error: "Forbidden" }, 403);
+      const mcOwner = mcAccess === "owner";
+      const mcWin = IC.insightsWindows(url.searchParams.get("from"), url.searchParams.get("to"), false);
+      if ("error" in mcWin) return json({ error: mcWin.error }, 400);
+      const { data: mcData, error: mcErr } = await adminClient.rpc("insights_mex_cash", {
+        p_from: mcWin.fromIso, p_to_end: mcWin.toEndIso, p_money: mcOwner,
+      });
+      if (mcErr) return json({ error: `insights_mex_cash: ${sanitizeDbError(mcErr)}` }, 500);
+      return json(IMC.buildMexCashResponse((mcData ?? {}) as Record<string, unknown>, mcWin, mcOwner));
     }
 
     // ══════════════════════════════════════════════════════════════

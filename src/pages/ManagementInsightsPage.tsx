@@ -1,5 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { AppLayout } from '@/layouts/AppLayout';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { BarChart3 } from 'lucide-react';
@@ -14,6 +17,7 @@ import PureProfitTab from '@/components/insights/profit/PureProfitTab';
 import PredictionListsTab from '@/components/insights/lists/PredictionListsTab';
 import StockTab from '@/components/insights/stock/StockTab';
 import ReturnsTab from '@/components/insights/returns/ReturnsTab';
+import MexCashTab from '@/components/insights/mexcash/MexCashTab';
 import CallActivityTab from '@/components/insights/calls/CallActivityTab';
 import { InsightsFilterBar } from '@/components/insights/shared/InsightsFilterBar';
 import { switchTabParams } from '@/components/insights/shared/period';
@@ -33,6 +37,11 @@ const TAB_DEFS = [
   // Sales brings its own data (GET /insights/sales) and money gate
   // (meta.money): owners see денари, admins/managers the same page counted.
   { value: 'sales', labelKey: 'insights.tabSales', need: 'overview' },
+  // Наплата (MEX) (owner 02.10.2026): what MEX collected per delivery day, account and
+  // settlement period — off the Overview, where it read as money received that day.
+  // A short NAMED list only (app_settings.mex_cash.viewers: Mile + Hedi), not every
+  // owner — can_see_mex_cash() on the server, GET /insights/mex-cash answers 403 to anyone else.
+  { value: 'mex-cash', labelKey: 'insights.tabMexCash', need: 'mexCash' },
   { value: 'agents', labelKey: 'insights.tabAgents', need: 'agents' },
   { value: 'payout', labelKey: 'insights.tabPayout', need: 'payout' },
   { value: 'pure-profit', labelKey: 'insights.tabPureProfit', need: 'business' },
@@ -51,19 +60,37 @@ const TAB_DEFS = [
 // useInsightsPeriod — shared by every tab through the URL, so a tab switch
 // keeps it). Payout still brings its own period controls (deferred), so the
 // shared bar is not shown there — it would not drive it.
-const PERIOD_TABS = new Set<string>(['overview', 'pure-profit', 'margin-lab', 'call-activity', 'prediction-lists', 'sales', 'agents', 'stock', 'returns']);
+const PERIOD_TABS = new Set<string>(['overview', 'pure-profit', 'margin-lab', 'call-activity', 'prediction-lists', 'sales', 'mex-cash', 'agents', 'stock', 'returns']);
 
 export default function ManagementInsightsPage() {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Per-area access — shared with the sidebar, see useInsightsAccess().
-  const access = useInsightsAccess();
+  const insightsAccess = useInsightsAccess();
+  // Наплата (MEX): the named viewers only (my_can_see_mex_cash(), migration 20260947001300).
+  const { user } = useAuth();
+  const mexCashQ = useQuery({
+    queryKey: ['my-can-see-mex-cash', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('my_can_see_mex_cash');
+      if (error) return false;
+      return data === true;
+    },
+    enabled: !!user?.id && insightsAccess.business,
+    staleTime: 10 * 60_000,
+    retry: 0,
+  });
+  const access = { ...insightsAccess, mexCash: insightsAccess.business && mexCashQ.data === true };
   const tabs = TAB_DEFS.filter(tab => access[tab.need]);
 
   // The default is always a tab this user can actually see.
   const requested = searchParams.get('tab');
-  const activeTab = tabs.some(tab => tab.value === requested) ? requested! : (tabs[0]?.value ?? 'overview');
+  // A link straight to Наплата (MEX) waits for the viewer check instead of opening (and
+  // fetching) the first tab meanwhile.
+  const mexCashPending = requested === 'mex-cash' && insightsAccess.business && mexCashQ.isPending;
+  const activeTab = mexCashPending ? 'mex-cash'
+    : tabs.some(tab => tab.value === requested) ? requested! : (tabs[0]?.value ?? 'overview');
 
   // No page-level aggregate: every tab fetches its own endpoint (the full
   // GET /management-insights report is no tab's data any more — the api keeps
@@ -100,6 +127,9 @@ export default function ManagementInsightsPage() {
           )}
           {access.overview && (
             <TabsContent value="sales" className="mt-4"><SalesTab /></TabsContent>
+          )}
+          {access.mexCash && (
+            <TabsContent value="mex-cash" className="mt-4"><MexCashTab /></TabsContent>
           )}
 
           {/* Pure Profit + Margins: owners only, GET /insights/profit (one shared query). */}

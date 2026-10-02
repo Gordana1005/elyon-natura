@@ -175,7 +175,7 @@ export interface ColumnSegView { key: string; value: number }
  * a tooltip per column (hover or keyboard focus), a legend with words and
  * totals, and the same numbers as a table one click away.
  */
-export function DayColumns({ columns, parts, granularity, f, label, height = 150 }: {
+export function DayColumns({ columns, parts, granularity, f, label, height = 150, fmt }: {
   columns: { d: string; total: number; segs: ColumnSegView[] }[];
   /** Legend order = stack order, bottom → top. `tone` is a class, `color` a CSS colour. */
   parts: { key: string; label: string; tone?: string; color?: string }[];
@@ -183,8 +183,11 @@ export function DayColumns({ columns, parts, granularity, f, label, height = 150
   f: InsightsFormat;
   label: string;
   height?: number;
+  /** How a value reads in the tooltip, the legend and the table (default: a count). */
+  fmt?: (v: number) => string;
 }) {
   const { t } = f;
+  const fmtV = fmt ?? f.int;
   const ref = useRef<HTMLDivElement>(null);
   const [tip, setTip] = useState<{ i: number; x: number } | null>(null);
   const max = Math.max(1, ...columns.map((c) => c.segs.reduce((a, s) => a + s.value, 0)));
@@ -206,7 +209,7 @@ export function DayColumns({ columns, parts, granularity, f, label, height = 150
           <span className="w-8 shrink-0 text-right text-[10px] tabular-nums text-muted-foreground">{f.compact(max)}</span>
           <div
             role="img"
-            aria-label={`${label}: ${parts.map((p, i) => `${p.label} ${f.int(totals[i])}`).join(' · ')}`}
+            aria-label={`${label}: ${parts.map((p, i) => `${p.label} ${fmtV(totals[i])}`).join(' · ')}`}
             className="flex min-w-0 flex-1 items-end gap-[2px] border-b border-border"
             style={{ height }}
           >
@@ -214,7 +217,7 @@ export function DayColumns({ columns, parts, granularity, f, label, height = 150
               <div
                 key={c.d}
                 tabIndex={0}
-                aria-label={`${dayLabel(c.d)}: ${c.segs.map((s) => `${partOf(s.key)?.label ?? s.key} ${f.int(s.value)}`).join(' · ')}`}
+                aria-label={`${dayLabel(c.d)}: ${c.segs.map((s) => `${partOf(s.key)?.label ?? s.key} ${fmtV(s.value)}`).join(' · ')}`}
                 onPointerEnter={(e) => show(i, e.currentTarget)}
                 onPointerLeave={() => setTip(null)}
                 onFocus={(e) => show(i, e.currentTarget)}
@@ -255,7 +258,7 @@ export function DayColumns({ columns, parts, granularity, f, label, height = 150
                 return (
                   <p key={p.key} className="flex items-center gap-1.5">
                     <span className={cn('h-2 w-2 rounded-full', p.tone)} style={p.color ? { background: p.color } : undefined} aria-hidden />
-                    {p.label} <b className="ml-auto pl-2">{f.int(v)}</b>
+                    {p.label} <b className="ml-auto pl-2">{fmtV(v)}</b>
                   </p>
                 );
               })}
@@ -268,7 +271,7 @@ export function DayColumns({ columns, parts, granularity, f, label, height = 150
           {parts.map((p, i) => (
             <li key={p.key} className="inline-flex items-center gap-1">
               <span className={cn('h-2.5 w-2.5 shrink-0 rounded-full', p.tone)} style={p.color ? { background: p.color } : undefined} aria-hidden />
-              {p.label} <b className="tabular-nums text-foreground">{f.int(totals[i])}</b>
+              {p.label} <b className="tabular-nums text-foreground">{fmtV(totals[i])}</b>
             </li>
           ))}
         </ul>
@@ -288,7 +291,7 @@ export function DayColumns({ columns, parts, granularity, f, label, height = 150
                 {columns.map((c) => (
                   <tr key={c.d} className="border-b last:border-0 text-foreground">
                     <th scope="row" className="px-1 py-0.5 text-left font-normal">{dayLabel(c.d)}</th>
-                    {parts.map((p) => <td key={p.key} className="px-1 py-0.5 text-right">{f.int(c.segs.find((s) => s.key === p.key)?.value ?? 0)}</td>)}
+                    {parts.map((p) => <td key={p.key} className="px-1 py-0.5 text-right">{fmtV(c.segs.find((s) => s.key === p.key)?.value ?? 0)}</td>)}
                   </tr>
                 ))}
               </tbody>

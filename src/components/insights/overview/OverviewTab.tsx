@@ -4,6 +4,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { AlertTriangle, FlaskConical } from 'lucide-react';
 import { apiGetInsightsOverview, type OverviewResponse } from '@/lib/api';
 import { apiGetInsightsAgents, type PeopleResponse } from '@/lib/insightsApi/agents';
+import { apiGetInsightsSales, type SalesDetail } from '@/lib/insightsApi/sales';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiErrorText } from '@/i18n/apiErrors';
 import { Button } from '@/components/ui/button';
@@ -12,22 +13,19 @@ import { EmptyState } from '@/components/EmptyState';
 import { cn } from '@/lib/utils';
 import { skopjeHm } from '@/lib/presence/state';
 import { OVERVIEW_COLOR_VARS, SOURCE_ORDER } from './palette';
-import {
-  cohortSalesSeries, parseOverviewParams, stripMoney, writeOverviewParams, type DayRange, type OverviewFilters,
-} from './model';
+import { parseOverviewParams, stripMoney, writeOverviewParams, type DayRange, type OverviewFilters } from './model';
 import { FilterBar } from './FilterBar';
 import { FreshnessStrip } from './FreshnessStrip';
-import { SourceTrends } from './SourceTrends';
 import { TeamsBoard } from './TeamsBoard';
+import { TopProductsCard, TopSellersCard } from './CallCenterTop';
 import { AttentionRail } from './AttentionRail';
 import { useInsightsPeriod } from '../shared/useInsightsPeriod';
 import { useInsightsFormat } from '../shared/useInsightsFormat';
 import { CohortBar } from '../shared/CohortBar';
-import { CashFlowCard, LeadsInCard } from '../shared/CohortSecondary';
+import { LeadsInCard } from '../shared/CohortSecondary';
 import { CohortSources } from './CohortSources';
 import { QualityRail } from '../shared/QualityRail';
 import { LoadError } from '../shared/LoadError';
-import { switchTabParams } from '../shared/period';
 import { cohortDrill, cohortView, stripCohortMoney } from '../shared/cohortModel';
 import type { Cohort, CohortQualityKind } from '../shared/cohortTypes';
 import { sortTeams } from '../agents/model';
@@ -51,14 +49,18 @@ const stripMoneyKeys = <T,>(v: T): T => {
 };
 
 /**
- * The connected Overview (Insights → Overview, and the admins' Табла): every
- * denar by department, team and person on THE sale cohort, MEX-proven cash
- * apart from claims. Owners get money (meta.money); admins/managers get the same
- * page counted, never an empty hole.
+ * The connected Overview (Insights → Overview, and the admins' Табла): the call
+ * centre on THE sale cohort (owner 02.10.2026) — the sales made in the period,
+ * who sold them, which products, the leads, then the teams and the departments.
+ * MEX's cash on the delivery-day clock is NOT here (it read as money received
+ * the same day, while MEX pays out in lumps): Insights → Наплата (MEX) has it.
+ * Owners get money (meta.money); admins/managers get the same page counted,
+ * never an empty hole.
  *
- * Data: GET /insights/overview (freshness, the MEX cash trend, the attention rail
- * — and `cohort`, the sales everything else counts) + GET /insights/agents for
- * the teams (the Agents tab's own query). The pre-cohort widgets are gone: the
+ * Data: GET /insights/overview (freshness, the attention rail — and `cohort`,
+ * the sales everything else counts) + GET /insights/agents for the sellers and
+ * the teams (the Agents tab's own query) + GET /insights/sales?part=detail for
+ * the products (the Sales tab's own query). The pre-cohort widgets are gone: the
  * KPI tiles and source rows (created day, CRM status, EUR) — a missing cohort is
  * an error with a retry now, never the old numbers — and the drill-down pivot
  * (DrillPivot.tsx: created day, CRM status, EUR, "no" calls counted as orders,
@@ -129,9 +131,27 @@ export default function OverviewTab() {
     retry: 0,
   });
 
-  // Which departments are in view. Empty filter = all of them (Менаџмент last); the order is fixed.
-  const selected = useMemo(
-    () => (filters.sources.length ? SOURCE_ORDER.filter((k) => filters.sources.includes(k)) : SOURCE_ORDER),
+  // The top products are the Sales tab's (GET /insights/sales?part=detail): the SAME
+  // query key as SalesTab, so the two share one cache entry and show the same numbers.
+  const loadSalesDetail = useCallback(async (r: DayRange, signal?: AbortSignal): Promise<SalesDetail> => {
+    if (import.meta.env.DEV && fixture) {
+      const m = await import('../sales/__fixtures__/sales.detail.sample.json');
+      const d = structuredClone(m.default) as unknown as SalesDetail;
+      return fixture === 'nomoney' ? stripMoneyKeys({ ...d, meta: { ...d.meta, money: false } }) : d;
+    }
+    return apiGetInsightsSales({ from: r.from, to: r.to, part: 'detail' }, signal);
+  }, [fixture]);
+  const productsQ = useQuery({
+    queryKey: ['insights-sales', user?.id, filters.range.from, filters.range.to, 'detail', fixture ? `ov-${fixture}` : null],
+    queryFn: ({ signal }) => loadSalesDetail(filters.range, signal),
+    staleTime: 5 * 60_000,
+    placeholderData: keepPreviousData,
+    retry: 0,
+  });
+
+  // Which departments are in view: null = every department (no chip on).
+  const sourcesInView = useMemo(
+    () => (filters.sources.length ? SOURCE_ORDER.filter((k) => filters.sources.includes(k)) : null),
     [filters.sources],
   );
 
@@ -148,12 +168,6 @@ export default function OverviewTab() {
       ? (cohort.spark ?? []).map((p) => ({ d: p.d, v: cohortMoney && p.value_mkd != null ? p.value_mkd : p.count }))
       : null),
     [cohort, cv, cohortMoney],
-  );
-  // The trend's sales line: the cohort's spark per department, in the trend's unit.
-  const trendGranularity = data?.trend?.granularity ?? 'day';
-  const trendSales = useMemo(
-    () => cohortSalesSeries(cohort?.spark, cohortMoney, { spark: cohort?.meta?.granularity, trend: trendGranularity }),
-    [cohort, cohortMoney, trendGranularity],
   );
   // A quality card opens a list only when /orders holds exactly its rows.
   const qualityHref = (kind: CohortQualityKind): string | null =>
@@ -216,9 +230,11 @@ export default function OverviewTab() {
           )}
           <FreshnessStrip feeds={data.freshness ?? []} attention={data.attention ?? []} asOf={skopjeHm(data.meta.generated_at) || null} f={f} />
           {cohort && cv ? (
-            // The cohort: this period's sales and where each one is now — the
-            // parts add up to the total. Leads and MEX cash are separate figures,
-            // each on its own clock.
+            // The call centre first (owner 02.10.2026): this period's sales and
+            // where each one is now — the parts add up to the total — then who
+            // sold them, what was sold and the leads that came in. MEX's cash
+            // (the delivery-day clock) is not on this page: it lives on its own
+            // tab, Insights → Наплата (MEX), next to MEX's payouts.
             <div className="space-y-4">
               <CohortBar
                 title={t('overview.cohort.title', { period: f.period(filters.range.from, filters.range.to) })}
@@ -230,12 +246,11 @@ export default function OverviewTab() {
                 note={cv.filtered ? t('insights.common.cohort.filtered') : null}
                 f={f}
               />
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <LeadsInCard leads={cv.leads_in} f={f} />
-                {!cv.filtered && <CashFlowCard cash={cohort.cash_flow} money={cohortMoney} f={f} />}
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,0.9fr)]">
+                <TopSellersCard q={agentsQ} teamKeys={filters.teams} sources={sourcesInView} f={f} />
+                <TopProductsCard q={productsQ} sources={sourcesInView} f={f} />
+                <LeadsInCard leads={cv.leads_in} f={f} className="lg:col-span-2 xl:col-span-1" />
               </div>
-              {/* Per source: cards on the same cohort (the table twin is one toggle away). */}
-              <CohortSources rows={cv.rows} total={cv.total} leadsTotal={cv.leads_in} money={cohortMoney} range={filters.range} f={f} />
             </div>
           ) : (
             // The cohort failed (the api answers `cohort: null`): say so and offer
@@ -243,11 +258,11 @@ export default function OverviewTab() {
             // stand in for it.
             <LoadError text={t('overview.cohort.loadFailed')} onRetry={() => { void q.refetch(); }} />
           )}
-          <SourceTrends
-            points={data.trend?.points ?? []} granularity={trendGranularity} sales={trendSales} sources={selected}
-            money={cohortMoney} salesHref={`/insights?${switchTabParams(sp, 'sales').toString()}`} f={f}
-          />
           <TeamsBoard q={agentsQ} teamKeys={filters.teams} range={filters.range} canTvLink={!!(user?.isAdmin || user?.isManager)} f={f} />
+          {/* Per department: cards on the same cohort (the table twin is one toggle away). */}
+          {cohort && cv && (
+            <CohortSources rows={cv.rows} total={cv.total} leadsTotal={cv.leads_in} money={cohortMoney} range={filters.range} f={f} />
+          )}
           {/* The drill-down table (DrillPivot.tsx) is not drawn: it counts orders by
               created day on CRM status in EUR, "no" calls as orders, and misses web and
               MEX-only sales. It waits for a rebuild on the cohort (insights_sale_rows). */}

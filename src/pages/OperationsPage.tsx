@@ -10,7 +10,7 @@ import { formatDenari } from '@/lib/currency';
 import { departmentLabel } from '@/lib/orderSource';
 import { EmptyState } from '@/components/EmptyState';
 import {
-  Activity, Users, ShoppingCart, Truck, RotateCcw, Banknote,
+  Activity, Users, ShoppingCart, RotateCcw,
   RefreshCw, Loader2, Circle, CheckCircle2, TrendingUp, Eye, Phone,
 } from 'lucide-react';
 import { formatSkopje } from '@/lib/skopjeTime';
@@ -115,10 +115,8 @@ export default function OperationsPage() {
       : []),
     { label: t('ops.toPackToday'), value: kpi?.to_pack_today || 0, icon: CheckCircle2, color: 'bg-amber-500/10 text-amber-600',
       ...(bookedToday > 0 ? { sub: t('ops.toPackBookedSub', { n: bookedToday, count: bookedToday }) } : {}) },
-    { label: t('ops.collectedToday'), value: kpi?.collected_today || 0, icon: Truck, color: 'bg-emerald-500/10 text-emerald-600' },
-    ...(kpi?.collected_value_today_mkd != null
-      ? [{ label: t('ops.collectedValueToday'), value: formatDenari(kpi.collected_value_today_mkd), icon: Banknote, color: 'bg-emerald-500/10 text-emerald-600' }]
-      : []),
+    // MEX's collections (the delivery-day clock) are not a call-centre figure and read as money
+    // received that day — they live on Insights → Наплата (MEX) with MEX's payouts (owner 02.10.2026).
     { label: t('ops.returnsToday'), value: kpi?.returned_today || 0, icon: RotateCcw, color: (kpi?.returned_today || 0) > 0 ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground' },
   ];
 
@@ -152,7 +150,7 @@ export default function OperationsPage() {
 
         {/* KPI Grid — the Overview's numbers for today */}
         <p className="text-xs text-muted-foreground -mb-3">{t('ops.kpiNote')}</p>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className={cn('grid grid-cols-2 gap-4', kpiCards.length >= 4 ? 'lg:grid-cols-4' : 'md:grid-cols-3')}>
           {kpiCards.map(card => (
             <Card key={card.label} className="border-none shadow-sm">
               <CardContent className="flex items-center gap-3 p-4">

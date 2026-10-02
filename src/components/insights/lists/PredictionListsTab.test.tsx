@@ -55,9 +55,11 @@ describe('Prediction lists — owner', { timeout: 30_000 }, () => {
     // Σ lists + list not recorded = the slice total, said in the table footer
     expect(screen.getByText(i18n.t('insights.lists.table.foot.tieOk'))).toBeInTheDocument();
     expect(screen.queryByText(i18n.t('insights.lists.table.foot.tieBad'))).toBeNull();
-    // MEX cash (cohort) and the cash-flow line
+    // MEX cash of the cohort (the paid part) stays; the delivery-day cash-flow card is gone —
+    // it lives on Insights → Наплата (MEX) for its named viewers (owner 02.10.2026)
     expect(screen.getAllByText(formatDenari(1249939)).length).toBeGreaterThan(0);
-    expect(screen.getByText(formatDenari(1255939))).toBeInTheDocument();
+    expect(screen.queryByText(formatDenari(1255939))).toBeNull();
+    expect(screen.queryByText(i18n.t('insights.common.cash.title'))).toBeNull();
   });
 
   it('list sales on NATURA parcels sit in other departments: the note shows each part of the header', async () => {
