@@ -20,7 +20,7 @@ import {
   ChevronDown, ChevronLeft, ChevronRight, ListCollapse, Truck, Trash2, Ban,
 } from 'lucide-react';
 import {
-  apiGetOrders, apiGetOrderViewCounts, apiGetOrderSellers, apiGetAgents, apiGetProducts, apiBulkStatusUpdate,
+  apiGetOrders, apiGetOrderViewCounts, apiGetOrderSellers, apiGetOrderBookings, apiGetAgents, apiGetProducts, apiBulkStatusUpdate,
   apiBulkDisposition, apiDuplicateOrder, apiPushOrderAltercpa, apiGetAppSettings, apiGetCpaAttributionDimensions,
   type AltercpaPushPreview, type CpaAttributionDimensions, type TrashReason, type CancellationReason,
 } from '@/lib/api';
@@ -65,6 +65,8 @@ import {
 import { fmtCount, skopjeDayTime } from '@/lib/ordersList/rowModel';
 import { OrderViewChips, OrdersFilterFields, ActiveFilterChips, type FilterSources } from '@/components/orders/OrdersFilters';
 import { OrdersList, MexBadge, DeptLine, type RowAction } from '@/components/orders/OrdersList';
+import { OrdersBookings, BOOKINGS_SECTION_ID } from '@/components/orders/OrdersBookings';
+import { bookingsApply, toBookingsParams } from '@/lib/ordersList/bookings';
 import { useActiveViews } from '@/components/orders/useActiveViews';
 import type { ApiOrder } from '@/components/orders/types';
 
@@ -419,7 +421,24 @@ export default function Orders() {
     queryFn: () => apiGetOrderViewCounts({ ...apiParams, drill: drill ?? undefined }),
     staleTime: 30_000,
   });
-  const refresh = () => { fetchOrders(); refetchCounts(); };
+
+  // The collabBox bookings (owner 02.10.2026): sales booked in collabBox whose MEX parcel does not
+  // exist yet — counted by the Overview and the TV board, orders only once MEX creates the parcel.
+  // Shown beside "Нарачки" / "Сите" for the same period / department / seller / search; a filter a
+  // booking cannot have (MEX status, source, assignee, price, CPA, a drill) hides them.
+  const showBookings = bookingsApply(state, view, { drill: !!drill, isAgent });
+  const bookingsParams = useMemo(() => toBookingsParams(apiParams), [apiParams]);
+  const { data: bookingsData, isError: bookingsError, refetch: refetchBookings } = useQuery({
+    queryKey: ['orders-bookings', JSON.stringify(bookingsParams)],
+    queryFn: () => apiGetOrderBookings(bookingsParams),
+    enabled: showBookings,
+    staleTime: 30_000,
+  });
+  const bookingsTotal = showBookings ? bookingsData?.total ?? 0 : 0;
+  const jumpToBookings = () =>
+    document.getElementById(BOOKINGS_SECTION_ID)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  const refresh = () => { fetchOrders(); refetchCounts(); if (showBookings) refetchBookings(); };
 
   // "Who is viewing" — one request for the whole page.
   const views = useActiveViews(useMemo(() => orders.map((o) => o.customer_phone), [orders]));
@@ -1248,7 +1267,8 @@ export default function Orders() {
           {searchIsPhone && <p className="text-[11px] text-muted-foreground">{t('ordersList.search.phone')}</p>}
 
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-            <OrderViewChips view={view} counts={counts} onChange={(v) => patch({ view: v })} />
+            <OrderViewChips view={view} counts={counts} onChange={(v) => patch({ view: v })}
+              bookings={bookingsTotal} onBookings={jumpToBookings} />
             <div className="flex items-center gap-3">
               <span className="text-xs tabular-nums text-muted-foreground" aria-live="polite" data-testid="orders-shown">
                 {t('ordersList.range', { from: fmtCount(firstRow), to: fmtCount(lastRow), total: fmtCount(total) })}
@@ -1329,7 +1349,9 @@ export default function Orders() {
           <EmptyState
             icon={<Package className="h-5 w-5" />}
             title={t('ordersPage.noOrdersFound')}
-            description={hasActiveFilters || view !== 'all' || period.days ? t('ordersList.emptyHint') : t('ordersPage.ordersAppearHere')}
+            description={bookingsTotal > 0
+              ? t('ordersList.bookings.empty', { count: bookingsTotal })
+              : hasActiveFilters || view !== 'all' || period.days ? t('ordersList.emptyHint') : t('ordersPage.ordersAppearHere')}
             size="sm"
             action={hasActiveFilters ? <Button variant="outline" size="sm" onClick={clearAllFilters}>{t('ordersPage.clearFilters')}</Button> : undefined}
           />
@@ -1361,6 +1383,9 @@ export default function Orders() {
               desktop={<SmartPagination page={page} totalPages={totalPages} onPageChange={(p) => patch({ page: p })} />} />
           </div>
         )}
+
+        {/* ── collabBox bookings: sales waiting for their MEX parcel ─────── */}
+        {showBookings && <OrdersBookings data={bookingsData} error={bookingsError} />}
       </div>
 
       {/* Filters — phone sheet: a draft of every filter; "Примени" writes it. */}

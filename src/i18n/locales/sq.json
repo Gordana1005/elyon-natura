@@ -2257,6 +2257,14 @@
       "title": "Ju janë caktuar lead-e të reja parashikimi",
       "body_one": "Lead-e të reja: {{count}} — hap „Lead-et e parashikimit“ për të filluar thirrjet.",
       "body_other": "Lead-e të reja: {{count}} — hap „Lead-et e parashikimit“ për të filluar thirrjet."
+    },
+    "notInCollab": {
+      "title": "Porosia u anulua — nuk është në collabBox",
+      "body": "Porosia {{order}} ({{customer}}) nuk u regjistrua në collabBox brenda {{days}} ditëve dhe u anulua."
+    },
+    "notInCollabWarning": {
+      "title": "Regjistroni porosinë në collabBox",
+      "body": "Porosia {{order}} ({{customer}}) ende nuk është në collabBox. Nëse nuk regjistrohet, nesër në {{hour}} anulohet."
     }
   },
   "bigArenaStock": {
@@ -2574,7 +2582,39 @@
     },
     "new": "E re",
     "range": "{{from}}–{{to}} nga {{total}}",
-    "emptyHint": "Asgjë nuk përputhet me këta filtra — provo \"Të gjitha\", një periudhë më të gjatë ose më pak filtra."
+    "emptyHint": "Asgjë nuk përputhet me këta filtra — provo \"Të gjitha\", një periudhë më të gjatë ose më pak filtra.",
+    "bookings": {
+      "title": "Regjistruar në collabBox — pret pako MEX",
+      "hint": "Shitje që operatorët i regjistruan në collabBox dhe për të cilat MEX ende nuk ka pako. Secila bëhet porosi kur MEX krijon pakon (zakonisht mëngjesin pasues) — atëherë numërohet një herë, si porosi.",
+      "chip": "+{{count}} në collabBox",
+      "chipTitle": "{{count}} shitje janë regjistruar në collabBox dhe presin pako MEX — ende nuk janë porosi",
+      "clamped": "Regjistrimet e collabBox shfaqen për më së shumti {{days}} ditët e fundit.",
+      "empty": "Nuk ka porosi për këta filtra, por {{count}} shitje janë regjistruar në collabBox dhe presin pako MEX — shih më poshtë.",
+      "showAll": "Shfaq të gjitha ({{count}})",
+      "showLess": "Shfaq më pak",
+      "loadError": "Regjistrimet e collabBox nuk u ngarkuan.",
+      "ships": "dërgohet {{day}}",
+      "shipsTitle": "Data në collabBox — dita e dërgimit",
+      "col": {
+        "booked": "Regjistruar",
+        "customer": "Blerësi",
+        "folder": "Dosja",
+        "department": "Departamenti",
+        "seller": "Shitësi",
+        "value": "Shuma",
+        "doc": "Dokumenti"
+      }
+    },
+    "collab": {
+      "in": "Në collabBox",
+      "inTitle": "Regjistruar në collabBox: {{doc}}",
+      "missing": "Jo në collabBox",
+      "missingTitle": "Shitja ende nuk është regjistruar në collabBox — pa këtë MEX nuk e dërgon. Duhet të regjistrohet brenda {{days}} ditëve.",
+      "cancels": "anulohet {{day}} {{time}}",
+      "cancelsTitle": "Nëse nuk regjistrohet në collabBox, sistemi e anulon më {{day}} në {{time}} dhe shitësi njoftohet.",
+      "provisional": "(përkohësisht)",
+      "provisionalTitle": "Departamenti është i përkohshëm — e vendos profili MEX i pakos pasi shitja të regjistrohet në collabBox."
+    }
   },
   "ordersPage": {
     "orderLocked": "Porosia është e kyçur",

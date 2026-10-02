@@ -2257,6 +2257,14 @@
       "title": "New prediction leads assigned to you",
       "body_one": "{{count}} new lead assigned to you — open Prediction Leads to start calling.",
       "body_other": "{{count}} new leads assigned to you — open Prediction Leads to start calling."
+    },
+    "notInCollab": {
+      "title": "Order cancelled — not in collabBox",
+      "body": "Order {{order}} ({{customer}}) was not entered in collabBox within {{days}} days and was cancelled."
+    },
+    "notInCollabWarning": {
+      "title": "Enter the order in collabBox",
+      "body": "Order {{order}} ({{customer}}) is not in collabBox yet. If it is still not entered, it is cancelled tomorrow at {{hour}}."
     }
   },
   "bigArenaStock": {
@@ -2574,7 +2582,39 @@
     },
     "new": "New",
     "range": "{{from}}–{{to}} of {{total}}",
-    "emptyHint": "Nothing matches these filters — try \"All\", a longer period or fewer filters."
+    "emptyHint": "Nothing matches these filters — try \"All\", a longer period or fewer filters.",
+    "bookings": {
+      "title": "Entered in collabBox — waiting for a MEX parcel",
+      "hint": "Sales the operators entered in collabBox that MEX has no parcel for yet. Each becomes an order once MEX creates the parcel (usually the next morning) — then it counts once, as an order.",
+      "chip": "+{{count}} in collabBox",
+      "chipTitle": "{{count}} sales are entered in collabBox and waiting for a MEX parcel — not orders yet",
+      "clamped": "collabBox entries are shown for the last {{days}} days at most.",
+      "empty": "No orders for these filters, but {{count}} sales are entered in collabBox and waiting for a MEX parcel — see below.",
+      "showAll": "Show all ({{count}})",
+      "showLess": "Show less",
+      "loadError": "The collabBox entries could not be loaded.",
+      "ships": "ships {{day}}",
+      "shipsTitle": "The collabBox date — the dispatch day",
+      "col": {
+        "booked": "Entered",
+        "customer": "Customer",
+        "folder": "Folder",
+        "department": "Department",
+        "seller": "Seller",
+        "value": "Amount",
+        "doc": "Document"
+      }
+    },
+    "collab": {
+      "in": "In collabBox",
+      "inTitle": "Entered in collabBox: {{doc}}",
+      "missing": "Not in collabBox",
+      "missingTitle": "The sale is not entered in collabBox yet — MEX does not ship it without that. It must be entered within {{days}} days.",
+      "cancels": "cancelled {{day}} {{time}}",
+      "cancelsTitle": "If it is not entered in collabBox, the system cancels it on {{day}} at {{time}} and the seller is notified.",
+      "provisional": "(provisional)",
+      "provisionalTitle": "The department is provisional — the MEX profile of the parcel decides it once the sale is entered in collabBox."
+    }
   },
   "ordersPage": {
     "orderLocked": "Order is locked",
