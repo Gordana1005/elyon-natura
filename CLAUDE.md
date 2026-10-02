@@ -238,6 +238,15 @@ target **explicitly** and verify it before running:
   counts today from `insights_cohort` (the Skopje day) + `leaderboard_day_v2`; the TV leaderboard is
   `leaderboard_day_v2` (one row per agent split by department, managers shown not ranked, no bonus).
   Never add a figure that counts orders another way — read the cohort.
+- **The Overview / Табла is the CALL CENTRE; MEX cash has its own tab (owner, 02.10.2026; `20260947001300`).**
+  Order: the sales made in the period → Кој колку продал → Најпродавани производи → leads → teams → departments.
+  "Прилив од MEX" (cash on the MEX delivery day) is NOT on the Overview, Prediction lists or Операции — it read
+  as money received that day, while MEX pays out later in lumps. It lives on **Insights → Наплата (MEX)**
+  (`insights_mex_cash`: per day × account, returns, MEX's half-month settlement periods 1–15 / 16–end — its fee
+  invoices bill exactly the delivered parcels — and what MEX holds now), visible ONLY to the named list
+  `app_settings.mex_cash.viewers` (Mile Stoev, Hedi; must also be an owner — `can_see_mex_cash()`), a guarded
+  owner key; per-person permissions come later. MEX payout dates are in no data we hold (no bank statements in
+  the Sigma export) — the bank export is awaited. The cohort's own parts (Наплатено / Кај курирот / …) stay.
 - **Every source refreshes at least every 15 minutes (owner, 29.09; `20260942001300`)**; MEX — both
   APIs, BIO NATURAL and NATURA — is the final proof of shipped / paid / returned. AlterCPA: new leads
   every 2 min, outcomes every 5 min 07:00–20:55. MEX: both accounts in one sweep every 15 min
