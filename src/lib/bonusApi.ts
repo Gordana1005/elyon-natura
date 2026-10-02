@@ -19,6 +19,7 @@ export interface BonusTarget {
 }
 
 export interface BonusTargets {
+  rules?: BonusRules | null;
   current: Record<BonusDepartment, BonusTarget | null>;
   upcoming: BonusTarget[];
   history: BonusTarget[];
@@ -92,3 +93,48 @@ export function bonusDepartmentsFor(bonus: BoardBonus | null | undefined, depart
 /** Progress 0–1 (capped) of a department toward its target. */
 export const bonusProgress = (d: Pick<BoardBonusDept, 'value_mkd' | 'target_mkd'>): number =>
   d.target_mkd > 0 ? Math.max(0, Math.min(1, d.value_mkd / d.target_mkd)) : 0;
+
+// ── the month and the return cut (20260947001200) ───────────────────────────
+
+export interface ReturnTier { min_pct: number; cut_pct: number }
+export interface BonusRules { settle_after_days: number; return_tiers: ReturnTier[] }
+
+export interface BonusMonthPerson {
+  person_id: string;
+  name: string | null;
+  days_bonus_eur: number;
+  delivered: number;
+  returned: number;
+  return_pct: number | null;
+  cut_pct: number;
+  final_eur: number;
+}
+export interface BonusMonth {
+  month: string;
+  settled: boolean;
+  settled_at?: string;
+  settle_on: string;
+  rules: BonusRules | null;
+  people: BonusMonthPerson[];
+  total_final_eur: number;
+  total_days_bonus_eur: number;
+}
+
+export const BONUS_MONTH_KEY = (month: string) => ['settings', 'bonus', 'month', month] as const;
+
+export const apiSetBonusRules = (body: BonusRules): Promise<{ ok: true; rules: BonusRules }> =>
+  apiFetch('settings/bonus/rules', { method: 'PUT', body: JSON.stringify(body) });
+
+export const apiGetBonusMonth = (month: string): Promise<BonusMonth> =>
+  apiFetch(`settings/bonus/month?month=${encodeURIComponent(month)}`);
+
+export const apiSettleBonusMonth = (month: string): Promise<{ ok: boolean; people?: number; skipped?: string }> =>
+  apiFetch('settings/bonus/settle', { method: 'POST', body: JSON.stringify({ month }) });
+
+/** The cut a return % falls into — the SQL's twin (bonus_month), for the editor's preview. */
+export function cutFor(returnPct: number | null, tiers: readonly ReturnTier[]): number {
+  if (returnPct == null) return 0;
+  let cut = 0;
+  for (const t of tiers) if (returnPct >= t.min_pct) cut = Math.max(cut, t.cut_pct);
+  return cut;
+}

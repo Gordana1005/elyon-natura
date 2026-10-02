@@ -1,6 +1,6 @@
 // The prediction (Out) bonus on the TV board (owner 02.10.2026): per department with a target — the day's value
-// toward the target, the three milestones (1/3, 2/3, 3/3) with the € each unlocks, the pool unlocked so far and what
-// MEX has already collected of it. Everyone sees the euros (owner's answer). Wall screen in vh, phone in rem.
+// toward the target, the three milestones (1/3, 2/3, 3/3) with the € each unlocks, the pool unlocked so far (the month's final
+// bonus is cut by each seller's return % — 20260947001200, Поставки → ТВ табла). Everyone sees the euros (owner's answer). Wall screen in vh, phone in rem.
 import { useTranslation } from 'react-i18next';
 import { Trophy } from 'lucide-react';
 import { formatDenari, formatEurExact } from '@/lib/currency';
@@ -29,9 +29,6 @@ export function TvBonusStrip({ bonus, department }: { bonus: BoardBonus | null |
                 <span className="text-lg font-bold text-amber-100 lg:text-[2.6vh]" data-testid="tv-bonus-pool">
                   {t('leaderboard2.bonus.pool', { eur: formatEurExact(d.pool_eur) })}
                 </span>
-                {d.paid_pool_eur > 0 && (
-                  <span className="ml-2 text-xs text-slate-400 lg:text-[1.35vh]">{t('leaderboard2.bonus.paid', { eur: formatEurExact(d.paid_pool_eur) })}</span>
-                )}
               </div>
             </div>
             {/* the bar: the day's value toward the target, a marker at each third */}
