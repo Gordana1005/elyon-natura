@@ -1534,10 +1534,12 @@ const corsHeaders = {
 // callers (e.g. webhook senders without an Origin header) bypass CORS
 // entirely and are gated by the HMAC signature instead.
 const ALLOWED_ORIGINS = [
-  // TODO(mk): add the real Macedonian production domain once one is registered.
-  // The former placeholders (elyon-mk.com / www.elyon-mk.com) were removed on
-  // 2026-08-04: we do not own that domain, so listing it meant whoever registers
-  // it gets a credentialed cross-origin channel to this API.
+  // The production domain (owner, 02.10.2026): naturall.mk — we own it; www.naturall.mk is
+  // listed too although Vercel redirects it to the apex. Never list a domain we do not own:
+  // whoever registers it gets a credentialed cross-origin channel to this API (the
+  // elyon-mk.com placeholders were removed for that on 2026-08-04).
+  "https://naturall.mk",
+  "https://www.naturall.mk",
   "https://elyon-natura.vercel.app",
   "https://elyon-macedonia.vercel.app", // legacy project alias, still resolves and is in use
   "http://localhost:8080",
@@ -1545,8 +1547,10 @@ const ALLOWED_ORIGINS = [
   "http://localhost:3000",
 ];
 
-// Vercel preview deploys: elyon-natura-<hash>-gordanas-projects-a53c0208.vercel.app
-const PREVIEW_ORIGIN = /^https:\/\/elyon-natura-[a-z0-9-]+-gordanas-projects-a53c0208\.vercel\.app$/;
+// Vercel preview deploys: elyon-natura-<hash>-<team>.vercel.app — the Pro team elyon-s-projects
+// since 02.10.2026; the former Hobby team's slug stays until the move is verified.
+const PREVIEW_ORIGIN =
+  /^https:\/\/elyon-natura-[a-z0-9-]+-(?:elyon-s-projects|gordanas-projects-a53c0208)\.vercel\.app$/;
 
 function pickAllowedOrigin(origin: string): string | null {
   if (!origin) return null;
