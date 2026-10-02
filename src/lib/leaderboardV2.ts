@@ -329,6 +329,14 @@ export const webConfirmed = (w: Pick<WebLive, 'orders' | 'awaiting'>): number =>
 export const conversionPct = (row: Pick<BoardRow, 'conversion'>): number | null =>
   row.conversion == null || !Number.isFinite(Number(row.conversion)) ? null : Math.round(Number(row.conversion) * 1000) / 10;
 
+/** The average sale in денари = the total value ÷ the number of sales (bookings included, the view's department
+ *  when one is chosen — the server already narrows both); null without a sale or without money (non-owners). */
+export const avgSaleMkd = (row: Pick<BoardRow, 'total_count' | 'total_value_mkd'>): number | null => {
+  const n = Number(row.total_count) || 0;
+  const v = row.total_value_mkd;
+  return n > 0 && v != null && Number.isFinite(Number(v)) ? Math.round(Number(v) / n) : null;
+};
+
 /** The old TV URLs carried ?mode=prediction|pending (one board per team): they open the v2
  *  board on that team's ALIAS — the teams became business lines on 30.09.2026 and the server
  *  (sales_team_filter_matches, 20260943000950) reads altercpa_leads as the old team + Affiliate

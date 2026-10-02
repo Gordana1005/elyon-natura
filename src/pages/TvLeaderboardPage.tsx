@@ -33,7 +33,7 @@ import {
 } from '@/lib/leaderboardV2';
 import { Confetti, StatCard } from '@/components/tvboard/TvBoardParts';
 import { TvBoardFilters } from '@/components/tvboard/TvBoardFilters';
-import { TV_GRID, filterTeamLabel } from '@/components/tvboard/tvBoardHelpers';
+import { tvGrid, filterTeamLabel } from '@/components/tvboard/tvBoardHelpers';
 import { splitTeamFilter } from '@/lib/teamLines';
 import { TvBoardRow } from '@/components/tvboard/TvBoardRow';
 import { TvBoardCard } from '@/components/tvboard/TvBoardCard';
@@ -327,13 +327,18 @@ export default function TvLeaderboardPage() {
       {!webView && (
       <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:mb-[1.6vh] lg:grid-cols-5 lg:gap-[1vw]">
         {presenceTile()}
-        <StatCard label={t('leaderboard2.kpiSales')} value={String(n('total_count'))}
-          sub={t('leaderboard2.kpiSalesSub', { orders: n('sales'), booked: n('booked') })} />
+        <StatCard label={t('leaderboard2.kpiSales')} value={String(n('total_count'))} />
         <StatCard label={t('leaderboard2.kpiValue')} value={money ? formatDenari(n('total_value_mkd')) : '—'}
           sub={n('cancelled_after_sale') > 0 ? t('leaderboard2.kpiCancelledSub', { n: n('cancelled_after_sale') }) : undefined} />
-        <StatCard label={t('tvBoard.colWorked')} value={noCrmWork ? '—' : String(worked)}
-          sub={noCrmWork ? t('leaderboard2.kpiWorkedNoCrm')
-            : convAll == null ? undefined : t('leaderboard2.kpiConvSub', { pct: convAll.toFixed(1) })} />
+        {/* the average sale (owner 02.10.2026) — the worked count only where money is hidden */}
+        {money ? (
+          <StatCard label={t('leaderboard2.colAvg')} testId="kpi-avg"
+            value={n('total_count') > 0 ? formatDenari(Math.round(n('total_value_mkd') / n('total_count'))) : '—'} />
+        ) : (
+          <StatCard label={t('tvBoard.colWorked')} value={noCrmWork ? '—' : String(worked)}
+            sub={noCrmWork ? t('leaderboard2.kpiWorkedNoCrm')
+              : convAll == null ? undefined : t('leaderboard2.kpiConvSub', { pct: convAll.toFixed(1) })} />
+        )}
         <StatCard label={t('leaderboard2.kpiNoSeller')} className="col-span-2 sm:col-span-1"
           value={money && n('no_seller') > 0 ? `${n('no_seller')} · ${formatDenari(n('no_seller_value_mkd'))}` : String(n('no_seller'))}
           sub={n('booked_no_person') > 0 ? t('leaderboard2.kpiNoSellerBooked', { n: n('booked_no_person') }) : t('leaderboard2.kpiNoSellerSub')} />
@@ -355,7 +360,7 @@ export default function TvLeaderboardPage() {
       {!loading && !error && !webView && rows.length > 0 && compact && (
         <div className="flex flex-col gap-2 pb-2">
           {people.map((r) => (
-            <TvBoardCard key={r.person_id} row={r} department={dept} money={money} isToday={isToday} now={now}
+            <TvBoardCard key={r.person_id} row={r} money={money} isToday={isToday} now={now}
               glow={!!r.user_id && isToday && celebrate?.agentId === r.user_id} />
           ))}
           {managers.length > 0 && (
@@ -364,7 +369,7 @@ export default function TvLeaderboardPage() {
                 {t('leaderboard2.managersHeading')}
               </div>
               {managers.map((r) => (
-                <TvBoardCard key={r.person_id} row={r} department={dept} money={money} isToday={isToday} now={now}
+                <TvBoardCard key={r.person_id} row={r} money={money} isToday={isToday} now={now}
                   glow={!!r.user_id && isToday && celebrate?.agentId === r.user_id} />
               ))}
             </>
@@ -375,17 +380,16 @@ export default function TvLeaderboardPage() {
       {/* Wall screen: the table */}
       {!loading && !error && !webView && rows.length > 0 && !compact && (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
-          <div className={`grid ${TV_GRID} shrink-0 items-center px-[1.6vw] py-[1.1vh] text-[1.4vh] font-semibold uppercase tracking-[0.1em] text-slate-400`}>
+          <div data-testid="tv-head" className={`grid ${tvGrid(money)} shrink-0 items-center px-[1.6vw] py-[1.1vh] text-[1.4vh] font-semibold uppercase tracking-[0.1em] text-slate-400`}>
             <div>#</div>
             <div>{t('tvBoard.colAgent')}</div>
-            <div>{t('leaderboard2.colDepartments')}</div>
-            <div className="text-right">{t('leaderboard2.colTotal')}</div>
-            <div className="text-center">{t('tvBoard.colWorked')}</div>
-            <div>{t('tvBoard.colTime')}</div>
+            <div className="text-right">{t('leaderboard2.colSales')}</div>
+            {money && <div className="text-right">{t('leaderboard2.colAvg')}</div>}
+            <div className="pl-[1.2vw]">{t('tvBoard.colTime')}</div>
           </div>
           <div ref={scrollRef} className="min-h-0 flex-1 overflow-hidden">
             {people.map((r, idx) => (
-              <TvBoardRow key={r.person_id} row={r} idx={idx} department={dept} money={money} rowVh={rowVh} fontVh={fontVh}
+              <TvBoardRow key={r.person_id} row={r} idx={idx} money={money} rowVh={rowVh} fontVh={fontVh}
                 isToday={isToday} now={now} glow={!!r.user_id && isToday && celebrate?.agentId === r.user_id} />
             ))}
             {managers.length > 0 && (
@@ -394,7 +398,7 @@ export default function TvLeaderboardPage() {
                   {t('leaderboard2.managersHeading')}
                 </div>
                 {managers.map((r, idx) => (
-                  <TvBoardRow key={r.person_id} row={r} idx={idx} department={dept} money={money} rowVh={rowVh} fontVh={fontVh}
+                  <TvBoardRow key={r.person_id} row={r} idx={idx} money={money} rowVh={rowVh} fontVh={fontVh}
                     isToday={isToday} now={now} glow={!!r.user_id && isToday && celebrate?.agentId === r.user_id} />
                 ))}
               </>

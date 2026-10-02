@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  addDaysYmd, apiGetLeaderboardV2, BOARD_FIRST_DAY, boardDay, bookedChips, conversionPct, daysBetween, deptChips,
+  addDaysYmd, apiGetLeaderboardV2, avgSaleMkd, BOARD_FIRST_DAY, boardDay, bookedChips, conversionPct, daysBetween, deptChips,
   initialFilter, rankRows, splitManagers, toBoardV2, webConfirmed, type BoardRow,
 } from './leaderboardV2';
 
@@ -70,6 +70,12 @@ describe('splitManagers / conversionPct', () => {
   it('conversion 0–1 → one-decimal percent', () => {
     expect(conversionPct({ conversion: 0.3548 })).toBe(35.5);
     expect(conversionPct({ conversion: null })).toBeNull();
+  });
+  it('the average sale = total value ÷ sales (bookings included), null without a sale or money', () => {
+    expect(avgSaleMkd({ total_count: 10, total_value_mkd: 44980 })).toBe(4498);
+    expect(avgSaleMkd({ total_count: 3, total_value_mkd: 5000 })).toBe(1667);
+    expect(avgSaleMkd({ total_count: 0, total_value_mkd: 0 })).toBeNull();
+    expect(avgSaleMkd({ total_count: 4, total_value_mkd: undefined })).toBeNull();
   });
 });
 

@@ -1,20 +1,17 @@
-// One person on the TV board: rank (non-managers with a total), name + team
-// badge + presence, one chip per department she sold in ("Aff. out 3 · 9.000
-// ден"), the collabBox bookings still waiting for a parcel ("+5 чекаат пратка"),
-// the total, the work of the whole day and the time on the CRM.
-import { BellRing } from 'lucide-react';
+// One person on the TV board (owner 02.10.2026: "треба да покажува колку е вкупен број на продажби, просек на
+// продажба и време во ЦРМ"): rank (non-managers with a total), name + team badge + presence, the number of sales
+// (collabBox bookings included), the average sale and the time on the CRM.
 import { useTranslation } from 'react-i18next';
 import { formatDenari } from '@/lib/currency';
-import { conversionPct, type BoardRow, type Department } from '@/lib/leaderboardV2';
-import { DeptChips, PresenceDot } from './TvBoardParts';
-import { RANK_ACCENT, TV_GRID, fmtDur, hhmm, initials, teamLabel } from './tvBoardHelpers';
+import { avgSaleMkd, type BoardRow } from '@/lib/leaderboardV2';
+import { PresenceDot } from './TvBoardParts';
+import { RANK_ACCENT, fmtDur, hhmm, initials, teamLabel, tvGrid } from './tvBoardHelpers';
 
 export function TvBoardRow({
-  row, idx, department, money, rowVh, fontVh, isToday, now, glow,
+  row, idx, money, rowVh, fontVh, isToday, now, glow,
 }: {
   row: BoardRow;
   idx: number;
-  department: Department | null;
   money: boolean;
   rowVh: number;
   fontVh: number;
@@ -26,10 +23,8 @@ export function TvBoardRow({
   const sold = row.total_count > 0;
   const p = row.presence;
   const quiet = !sold && !row.worked && (p.state === 'offline' || p.state === 'n/a');
-  const conv = conversionPct(row);
-  const den = (v: number | undefined) => (money ? formatDenari(v ?? 0) : '');
-  // chips and second lines never shrink below what a wall screen can be read from
-  const chipVh = Math.max(1.45, fontVh * 0.8);
+  const avg = avgSaleMkd(row);
+  // second lines never shrink below what a wall screen can be read from
   const smallVh = Math.max(1.3, fontVh * 0.66);
 
   const lastDecisionText = (iso: string) => {
@@ -45,14 +40,11 @@ export function TvBoardRow({
       return (
         <div className="min-w-0 leading-tight">
           <div className="font-semibold tabular-nums">{fmtDur(p.online_min)}</div>
-          <div className="truncate text-slate-400 tabular-nums" style={{ fontSize: `${smallVh}vh` }}>
-            {start ? `${hhmm(start)}–${end ? hhmm(end) : ''}` : ''}
-            {p.idle_alerts > 0 && (
-              <span className="ml-[0.4vw] inline-flex items-center gap-[0.2vw] text-amber-300" title={t('tvBoard.idleAlerts', { n: p.idle_alerts })}>
-                <BellRing style={{ width: '1.3vh', height: '1.3vh' }} />{p.idle_alerts}
-              </span>
-            )}
-          </div>
+          {start && (
+            <div className="truncate text-slate-400 tabular-nums" style={{ fontSize: `${smallVh}vh` }}>
+              {`${hhmm(start)}–${end ? hhmm(end) : ''}`}
+            </div>
+          )}
         </div>
       );
     }
@@ -63,7 +55,7 @@ export function TvBoardRow({
 
   return (
     <div data-testid="tv-row"
-      className={`grid ${TV_GRID} items-center border-t border-white/5 px-[1.6vw] ${idx % 2 ? 'bg-white/[0.015]' : ''} ${sold ? '' : quiet ? 'opacity-40' : 'opacity-60'}`}
+      className={`grid ${tvGrid(money)} items-center border-t border-white/5 px-[1.6vw] ${idx % 2 ? 'bg-white/[0.015]' : ''} ${sold ? '' : quiet ? 'opacity-40' : 'opacity-60'}`}
       style={{ minHeight: `${rowVh}vh`, fontSize: `${fontVh}vh`, ...(glow ? { animation: 'tv-glow 1.4s ease-in-out 2' } : {}) }}>
       {/* Rank — non-managers with a total */}
       <div>
@@ -90,25 +82,21 @@ export function TvBoardRow({
           <span className="shrink-0 rounded bg-sky-400/15 px-[0.5vw] py-[0.2vh] text-[1.2vh] font-semibold text-sky-300">{t('tvBoard.stateBreak')}</span>
         )}
       </div>
-      {/* Departments: sales per department + the bookings awaiting a parcel */}
-      <DeptChips row={row} department={department} money={money} style={{ fontSize: `${chipVh}vh` }} />
-      {/* Total */}
-      <div className="text-right tabular-nums">
-        <div className="font-bold">
-          {row.total_count}
-          {row.cancelled_after_sale > 0 && (
-            <span className="ml-[0.3vw] text-[0.5em] font-medium text-rose-300" title={t('leaderboard2.cancelledHint')}>−{row.cancelled_after_sale}</span>
-          )}
+      {/* Sales */}
+      <div className="text-right font-bold tabular-nums" data-testid="tv-sales">
+        {row.total_count}
+        {row.cancelled_after_sale > 0 && (
+          <span className="ml-[0.3vw] text-[0.5em] font-medium text-rose-300" title={t('leaderboard2.cancelledHint')}>−{row.cancelled_after_sale}</span>
+        )}
+      </div>
+      {/* Average sale (owners) */}
+      {money && (
+        <div className="text-right font-semibold tabular-nums text-slate-200" data-testid="tv-avg">
+          {avg != null ? formatDenari(avg) : '—'}
         </div>
-        {money && <div className="font-semibold text-slate-300" style={{ fontSize: `${smallVh}vh` }}>{den(row.total_value_mkd)}</div>}
-      </div>
-      {/* Worked — the whole day, or the chosen department's (20260944000600); "—" when none */}
-      <div className="text-center tabular-nums text-slate-200">
-        <div>{row.worked || '—'}</div>
-        {conv != null && <div className="text-slate-400" style={{ fontSize: `${smallVh}vh` }}>{t('leaderboard2.convShort', { pct: conv.toFixed(1) })}</div>}
-      </div>
+      )}
       {/* Time on the CRM / last decision */}
-      {timeCell()}
+      <div className="pl-[1.2vw]">{timeCell()}</div>
     </div>
   );
 }

@@ -1,21 +1,17 @@
-// One person on the TV board as a CARD — the phone / tablet layout (below 1024 px
-// wide) of TvBoardRow. The same facts, stacked so nothing is cut or squeezed:
-// rank, initials + presence, the full name, team badge (+ idle / break), the total
-// and its денари on the right, a chip per department she sold in plus the collabBox
-// bookings still waiting for a parcel, and one line with the day's work,
-// conversion and time on the CRM.
-import { BellRing, Clock } from 'lucide-react';
+// One person on the TV board as a CARD — the phone / tablet layout (below 1024 px wide) of TvBoardRow. The same
+// three facts (owner 02.10.2026): the number of sales (collabBox bookings included), the average sale (owners) and
+// the time on the CRM — with rank, initials + presence, the full name and the team badge (+ idle / break).
+import { Clock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { formatDenari } from '@/lib/currency';
-import { conversionPct, type BoardRow, type Department } from '@/lib/leaderboardV2';
-import { DeptChips, PresenceDot } from './TvBoardParts';
+import { avgSaleMkd, type BoardRow } from '@/lib/leaderboardV2';
+import { PresenceDot } from './TvBoardParts';
 import { RANK_ACCENT, fmtDur, hhmm, initials, teamLabel } from './tvBoardHelpers';
 
 export function TvBoardCard({
-  row, department, money, isToday, now, glow,
+  row, money, isToday, now, glow,
 }: {
   row: BoardRow;
-  department: Department | null;
   money: boolean;
   isToday: boolean;
   now: Date;
@@ -25,7 +21,7 @@ export function TvBoardCard({
   const sold = row.total_count > 0;
   const p = row.presence;
   const quiet = !sold && !row.worked && (p.state === 'offline' || p.state === 'n/a');
-  const conv = conversionPct(row);
+  const avg = avgSaleMkd(row);
 
   // the time on the CRM, else the last decision / the login, else why there is none
   const timeText = () => {
@@ -75,37 +71,24 @@ export function TvBoardCard({
             )}
           </div>
         </div>
-        {/* Total */}
+        {/* Sales + the average sale */}
         <div className="shrink-0 text-right tabular-nums">
-          <div className="text-xl font-bold leading-none text-slate-50">
+          <div className="text-xl font-bold leading-none text-slate-50" data-testid="tv-sales">
             {row.total_count}
             {row.cancelled_after_sale > 0 && (
               <span className="ml-1 text-xs font-medium text-rose-300" title={t('leaderboard2.cancelledHint')}>−{row.cancelled_after_sale}</span>
             )}
           </div>
-          {money && <div className="mt-1 text-xs font-semibold text-slate-300">{formatDenari(row.total_value_mkd ?? 0)}</div>}
+          {money && avg != null && (
+            <div className="mt-1 text-xs font-semibold text-slate-300" data-testid="tv-avg">{t('leaderboard2.avgLine', { value: formatDenari(avg) })}</div>
+          )}
         </div>
       </div>
 
-      {/* Departments + bookings */}
-      <DeptChips row={row} department={department} money={money} compact className="mt-2.5" />
-
-      {/* The day's work and the time on the CRM */}
-      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
-        <span>
-          {t('tvBoard.colWorked')}{' '}
-          <b className="font-semibold tabular-nums text-slate-200">{row.worked || (department ? '—' : 0)}</b>
-          {conv != null && <span className="tabular-nums"> · {t('leaderboard2.convShort', { pct: conv.toFixed(1) })}</span>}
-        </span>
-        <span className="inline-flex min-w-0 items-center gap-1 tabular-nums">
-          <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden />
-          <span className="min-w-0">{timeText()}</span>
-          {p.idle_alerts > 0 && (
-            <span className="ml-1 inline-flex items-center gap-0.5 text-amber-300" title={t('tvBoard.idleAlerts', { n: p.idle_alerts })}>
-              <BellRing className="h-3.5 w-3.5" aria-hidden />{p.idle_alerts}
-            </span>
-          )}
-        </span>
+      {/* The time on the CRM */}
+      <div className="mt-2 flex min-w-0 items-center gap-1 text-xs tabular-nums text-slate-400">
+        <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden />
+        <span className="min-w-0">{timeText()}</span>
       </div>
     </div>
   );

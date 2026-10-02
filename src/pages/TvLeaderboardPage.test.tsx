@@ -79,7 +79,7 @@ function serve(payload: unknown) {
 const renderAt = (url: string) => render(<MemoryRouter initialEntries={[url]}><TvLeaderboardPage /></MemoryRouter>);
 
 describe('TV leaderboard v2', () => {
-  it('one row per agent: department chips, bookings, rank, managers last', async () => {
+  it('one row per agent: sales, average sale, time on the CRM — rank, managers last (owner 02.10.2026)', async () => {
     const fetchMock = serve(v2);
     renderAt('/tv/leaderboard?key=k');
     expect(await screen.findByText('Aleksandra Hristoska')).toBeInTheDocument();
@@ -87,12 +87,16 @@ describe('TV leaderboard v2', () => {
     expect(rows.map((r) => within(r).queryByText(/^(Татјана|Aleksandra|Marija|Nina)/)?.textContent)).toEqual([
       'Татјана Кипровска', 'Aleksandra Hristoska', 'Marija Temelkovska', 'Nina',
     ]);
-    // the department chip: "Aff. in 10 · 44.980 ден"
-    expect(within(rows[1]).getByTestId('chip-altercpa').textContent)
-      .toBe(i18n.t('leaderboard2.chip', { dept: i18n.t('leaderboard2.deptShort.altercpa'), n: 10, value: formatDenari(44980) }));
-    // a teleshop caller's day is her collabBox bookings: "Тел. in +23 чекаат пратка · 51.900 ден"
-    expect(within(rows[0]).getByTestId('chip-booked-teleshop_other').textContent)
-      .toBe(i18n.t('leaderboard2.bookedChip', { dept: i18n.t('leaderboard2.deptShort.teleshopOther'), n: 23, value: formatDenari(51900) }));
+    // no department chips any more — the number of sales and the average sale
+    expect(within(rows[1]).queryByTestId('chip-altercpa')).toBeNull();
+    expect(within(rows[1]).getByTestId('tv-sales').textContent).toBe('10−1');           // 10, one cancelled after the sale
+    expect(within(rows[1]).getByTestId('tv-avg').textContent).toBe(formatDenari(4498));  // 44.980 / 10
+    // a teleshop caller's collabBox bookings count as her sales: 23, 51.900 / 23
+    expect(within(rows[0]).getByTestId('tv-sales').textContent).toBe('23');
+    expect(within(rows[0]).getByTestId('tv-avg').textContent).toBe(formatDenari(2257));
+    expect(screen.queryByText(i18n.t('leaderboard2.colDepartments'))).toBeNull();
+    expect(within(screen.getByTestId('tv-head')).getByText(i18n.t('leaderboard2.colSales'))).toBeInTheDocument();
+    expect(within(screen.getByTestId('tv-head')).getByText(i18n.t('leaderboard2.colAvg'))).toBeInTheDocument();
     expect(within(rows[0]).getByText('1')).toBeInTheDocument();                    // rank 1
     // managers: after the heading, no rank
     expect(screen.getByText(i18n.t('leaderboard2.managersHeading'))).toBeInTheDocument();
@@ -101,7 +105,7 @@ describe('TV leaderboard v2', () => {
     expect(screen.getByText('36')).toBeInTheDocument();
     expect(screen.getByText(formatDenari(88300))).toBeInTheDocument();
     expect(screen.getByText(`2 · ${formatDenari(5000)}`)).toBeInTheDocument();
-    expect(screen.getByText(i18n.t('leaderboard2.convShort', { pct: '35.5' }))).toBeInTheDocument();
+    expect(screen.getByTestId('kpi-avg').textContent).toContain(formatDenari(2453));     // 88.300 / 36
     const url = new URL(String((fetchMock.mock.calls[0] as unknown[])[0]));
     expect(url.searchParams.get('v')).toBe('2');
     expect(url.searchParams.get('department')).toBeNull();
@@ -120,7 +124,7 @@ describe('TV leaderboard v2', () => {
     });
   });
 
-  it('a phone gets one card per person: nothing cut, the same chips, managers last', async () => {
+  it('a phone gets one card per person: sales + average + time, managers last', async () => {
     // below 1024 px (Tailwind lg) the board is a scrolling list of cards
     vi.stubGlobal('matchMedia', (query: string) => ({
       matches: query.includes('max-width: 1023px'), media: query, onchange: null,
@@ -132,14 +136,12 @@ describe('TV leaderboard v2', () => {
     expect(screen.queryAllByTestId('tv-row')).toHaveLength(0);
     const cards = screen.getAllByTestId('tv-card');
     expect(cards).toHaveLength(4);
-    expect(within(cards[1]).getByTestId('chip-altercpa').textContent)
-      .toBe(i18n.t('leaderboard2.chip', { dept: i18n.t('leaderboard2.deptShort.altercpa'), n: 10, value: formatDenari(44980) }));
-    expect(within(cards[0]).getByTestId('chip-booked-teleshop_other').textContent)
-      .toBe(i18n.t('leaderboard2.bookedChip', { dept: i18n.t('leaderboard2.deptShort.teleshopOther'), n: 23, value: formatDenari(51900) }));
-    expect(within(cards[1]).getByText(formatDenari(44980))).toBeInTheDocument();   // the card's total
+    expect(within(cards[1]).getByTestId('tv-avg').textContent).toBe(i18n.t('leaderboard2.avgLine', { value: formatDenari(4498) }));
+    expect(within(cards[0]).getByTestId('tv-sales').textContent).toBe('23');
+    expect(within(cards[0]).queryByTestId('chip-booked-teleshop_other')).toBeNull();
     expect(within(cards[0]).getByText('1')).toBeInTheDocument();                    // rank 1
     expect(screen.getByText(i18n.t('leaderboard2.managersHeading'))).toBeInTheDocument();
-    expect(screen.queryByText(i18n.t('leaderboard2.colDepartments'))).toBeNull();   // no table header
+    expect(screen.queryByTestId('tv-head')).toBeNull();   // no table header
   });
 
   it('the Web filter shows the shop itself, live — counted like its own panel, "чека потврда" included', async () => {
@@ -255,7 +257,7 @@ describe('TV leaderboard v2', () => {
     renderAt('/tv/leaderboard?key=k');
     expect(await screen.findByText('Ruzhica Parizovska')).toBeInTheDocument();
     expect(screen.getByText(i18n.t('leaderboard2.legacyApi'))).toBeInTheDocument();
-    expect(screen.getByTestId('chip-elyon_crm').textContent)
-      .toBe(i18n.t('leaderboard2.chip', { dept: i18n.t('leaderboard2.deptShort.elyon_crm'), n: 5, value: formatDenari(14500) }));
+    expect(screen.getByTestId('tv-sales').textContent).toBe('5');
+    expect(screen.getByTestId('tv-avg').textContent).toBe(formatDenari(2900));   // 14.500 / 5
   });
 });
