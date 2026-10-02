@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { AlertTriangle, Hourglass, Info, LayoutGrid, Table2, Truck } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { type CohortLeadsIn, type CohortSourceRow } from '../shared/cohortTypes';
+import { dropEmptyManagement, type CohortLeadsIn, type CohortSourceRow } from '../shared/cohortTypes';
 import {
-  bookedCount, bucketParts, cohortDrill, isBookingSplit, isMexOnlySplit, mexOnlyCount, outsideParts, tileKeys, type Part,
+  bookedCount, bucketParts, cohortDrill, cohortRowEmpty, isBookingSplit, isMexOnlySplit, mexOnlyCount, outsideParts, tileKeys,
+  type Part,
 } from '../shared/cohortModel';
 import { COHORT_ICON, CohortBar } from '../shared/CohortBar';
 import { OrdersPartLink } from '../shared/CohortLinks';
@@ -42,7 +43,7 @@ const OPEN_DOT = 'border border-muted-foreground/70 bg-transparent';
  * because leads are not sales. The table view is the same numbers as a table.
  */
 export function CohortSources({
-  rows, total, leadsTotal, money, range, f,
+  rows: allRows, total, leadsTotal, money, range, f,
 }: {
   rows: CohortSourceRow[];
   /** The header's total (Σ rows) — each card's share is of this. */
@@ -53,6 +54,8 @@ export function CohortSources({
   f: InsightsFormat;
 }) {
   const { t } = f;
+  // Менаџмент is written apart only when it has something (owner 02.10.2026: "ако има нешто")
+  const rows = dropEmptyManagement(allRows, cohortRowEmpty);
   const [view, setView] = useState<SourcesView>(readView);
   const pick = (v: SourcesView) => { setView(v); writeView(v); };
 
@@ -227,7 +230,8 @@ function SourceCard({ row, grand, money, range, f }: {
         </div>
         {noFunnel ? (
           <p className="mt-1 text-xs text-muted-foreground">
-            {t(row.key === 'social' ? 'overview.cohort.leads.noFunnelSocial' : 'overview.cohort.leads.noFunnel')}
+            {t(row.key === 'social' ? 'overview.cohort.leads.noFunnelSocial'
+              : row.key === 'management' ? 'overview.cohort.leads.noFunnelManagement' : 'overview.cohort.leads.noFunnel')}
           </p>
         ) : leads && leads.came_in > 0 ? (
           <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">

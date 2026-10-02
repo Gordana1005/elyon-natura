@@ -7,7 +7,8 @@
  */
 import { apiFetch } from './api';
 
-export const WAREHOUSE_DEPARTMENTS = ['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web'] as const;
+/** The cohort departments in the owner's order — Менаџмент last (02.10.2026, 20260947001000). */
+export const WAREHOUSE_DEPARTMENTS = ['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web', 'management'] as const;
 export type WarehouseDepartment = (typeof WAREHOUSE_DEPARTMENTS)[number];
 export type WarehouseTab = 'send' | 'pack' | 'pack_stale';
 export type QueueOrder = 'oldest' | 'newest';

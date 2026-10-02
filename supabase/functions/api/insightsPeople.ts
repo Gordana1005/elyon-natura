@@ -70,7 +70,7 @@ export const PEOPLE_NON_MONEY_KEYS: ReadonlySet<string> = new Set([
   "last_active_at",
   "paid", "paid_legacy", "paid_unproven", "courier", "courier_problem", "label", "to_pack", "returned",
   "cancelled_after_sale", "trashed_after_sale", "replacement",
-  "altercpa", "elyon_crm", "social", "teleshop_out", "teleshop_other", "web",
+  "altercpa", "elyon_crm", "social", "teleshop_out", "teleshop_other", "web", "management",
   // teams (+ business lines, 20260943000950: a team's kind / order / people per lane, a member's lane)
   "name", "mode", "kind", "online_now", "break_now", "drill_exact", "members",
   "team_kind", "sort_order", "lanes", "lane", "in", "out", "none",

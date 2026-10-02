@@ -10,8 +10,9 @@
  */
 import { apiFetch } from './api';
 
-/** The six departments in the owner's order (28.09.2026) — the Insights SOURCE_ORDER. */
-export const ASSIGNER_DEPARTMENTS = ['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web'] as const;
+/** The departments in the owner's order (28.09.2026; Менаџмент last, 02.10.2026 — a buyer whose
+ *  last purchase was a Менаџмент person's sale, 20260947001000) — the Insights SOURCE_ORDER. */
+export const ASSIGNER_DEPARTMENTS = ['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web', 'management'] as const;
 export type AssignerDepartment = (typeof ASSIGNER_DEPARTMENTS)[number];
 /** `by_department` also carries the customers with no known department. */
 export const UNKNOWN_DEPARTMENT = 'unknown';

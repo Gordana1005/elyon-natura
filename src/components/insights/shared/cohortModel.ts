@@ -4,7 +4,8 @@
  */
 import { ORDERS_DRILL_KEYS } from '@/lib/api';
 import {
-  COHORT_BUCKETS, COHORT_OUTSIDE, COHORT_SOURCE_PARAM, COHORT_SOURCES, cohortSourceParam,
+  COHORT_BUCKETS, COHORT_OUTSIDE, COHORT_SOURCE_PARAM, COHORT_SOURCES, cohortSourceParam, emptySourceRow,
+  MANAGEMENT_SOURCE, withManagementRow,
   type Cohort, type CohortBucket, type CohortBucketKey, type CohortComposition, type CohortLeadsIn, type CohortOutside,
   type CohortOutsideKey, type CohortQuality, type CohortQualityKind, type CohortSourceKey, type CohortSourceRow,
   type CohortSplit,
@@ -157,14 +158,22 @@ const toBuckets = (parts: Record<string, Part>, keys: readonly string[]) =>
     ...(parts[k].booked ? { booked: parts[k].booked } : {}),
   }));
 
+/** A department row with nothing in it: no sale in the total and nothing outside it. */
+export const cohortRowEmpty = (r: Pick<CohortSourceRow, 'total' | 'outside'>) =>
+  num(r.total?.count) === 0 && (r.outside ?? []).every((o) => num(o.count) === 0);
+
 /**
  * The cohort for the selected sources (empty / all = the whole business, the
  * server's own numbers). A subset is re-summed from `by_source`, so the header
- * always equals Σ of the rows shown under it.
+ * always equals Σ of the rows shown under it. `rows` always holds a Менаџмент
+ * row (an empty one when the body sent none — withManagementRow), so a number
+ * over the whole business drills with no department filter; a card / table
+ * leaves an EMPTY Менаџмент row out when it draws (dropEmptyManagement).
  */
 export function cohortView(c: Cohort, selected: CohortSourceKey[] | null | undefined): CohortView {
   const order = (k: string) => { const i = (COHORT_SOURCES as readonly string[]).indexOf(k); return i < 0 ? 99 : i; };
-  const all = [...(c.by_source ?? [])].sort((a, b) => order(a.key) - order(b.key));
+  const all = withManagementRow([...(c.by_source ?? [])], () => emptySourceRow(MANAGEMENT_SOURCE))
+    .sort((a, b) => order(a.key) - order(b.key));
   const rows = selected && selected.length ? all.filter((r) => selected.includes(r.key)) : all;
   const filtered = rows.length < all.length;
   if (!filtered) {
@@ -298,7 +307,10 @@ export function cohortDrill(
   const booked = num(s.booked);
   const made = { orders: s.orders, web: s.web, mexOnly: s.mex_only, booked };
   if (!supported) return { href: null, ordersHref: null, ...made, blocked: 'unsupported' };
-  const sources = [...new Set(inPlay.map((x) => x.r.key))];
+  // Every row the number is made of names its department — a row with nothing in this part adds
+  // no order to the list, so naming it keeps the list exact and lets "every department" be sent
+  // as none (a whole-business number with an empty Менаџмент row links unfiltered).
+  const sources = [...new Set(rows.map((r) => r.key))];
   const href = s.orders > 0 ? cohortHref(key, sources, range) : null;
   if (s.web === 0 && s.mex_only === 0 && booked === 0) return { href, ordersHref: null, ...made, blocked: href ? null : 'none' };
   const kinds = [s.web > 0, s.mex_only > 0, booked > 0].filter(Boolean).length;

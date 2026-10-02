@@ -150,6 +150,8 @@ function BySource({ data, f }: { data: ProfitResponse; f: InsightsFormat }) {
               const d = data.realized[s];
               const r = data.cohort.by_source.find((x) => x.key === s);
               if (!r) return null;
+              // Менаџмент only when it has something (owner 02.10.2026)
+              if (s === 'management' && r.sales === 0) return null;
               return (
                 <tr key={s} className="border-b last:border-0">
                   <th scope="row" className="px-3 py-2 text-left font-medium">

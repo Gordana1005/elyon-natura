@@ -129,7 +129,7 @@ export default function OverviewTab() {
     retry: 0,
   });
 
-  // Which departments are in view. Empty filter = all six; the order is fixed.
+  // Which departments are in view. Empty filter = all of them (Менаџмент last); the order is fixed.
   const selected = useMemo(
     () => (filters.sources.length ? SOURCE_ORDER.filter((k) => filters.sources.includes(k)) : SOURCE_ORDER),
     [filters.sources],

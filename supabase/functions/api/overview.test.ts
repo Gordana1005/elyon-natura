@@ -125,7 +125,7 @@ describe("stripOverviewMoney", () => {
     (p.trend.points[0].by_source as Record<string, unknown>).teleshop_out =
       { placed_count: 30, placed_value_eur: 900, delivered_count: 9, delivered_cash_mkd: 22000 };
     const out = stripOverviewMoney(p) as any;
-    expect(OVERVIEW_SOURCES).toEqual(["altercpa", "elyon_crm", "teleshop_out", "teleshop_other", "social", "web"]);
+    expect(OVERVIEW_SOURCES).toEqual(["altercpa", "elyon_crm", "teleshop_out", "teleshop_other", "social", "web", "management"]);
     expect(out.sources[1].drill).toEqual({ sale_source: ["collabbox", "elyon_crm", "altercpa", "affiliate"], cohort_source: ["teleshop_out"] });
     expect(out.sources[1].splits[0].drill).toEqual({ sale_source: ["elyon_crm"], detail: ["prediction_list"], cohort_source: ["teleshop_out"] });
     expect(out.trend.points[0].by_source.teleshop_out).toEqual({ placed_count: 30, delivered_count: 9 });

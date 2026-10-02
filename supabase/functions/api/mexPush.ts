@@ -500,7 +500,7 @@ export function departmentProfile(dept: string | null | undefined): MexAccount |
   switch (dept) {
     case "altercpa": case "elyon_crm": return "bio_natural";
     case "teleshop_out": case "teleshop_other": case "social": return "natura";
-    default: return null;   // web is never pushed; unknown decides nothing
+    default: return null;   // web is never pushed; management (a seller's team, not a folder) and unknown decide nothing
   }
 }
 

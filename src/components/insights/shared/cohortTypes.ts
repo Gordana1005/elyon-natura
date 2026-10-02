@@ -46,9 +46,23 @@
  * builders; move it there once it is free.
  */
 
-/** The six departments, in the owner's order (overview/palette SOURCE_ORDER is the same list). */
-export const COHORT_SOURCES = ['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web'] as const;
+/** The departments, in the owner's order (overview/palette SOURCE_ORDER is the same list).
+ *  Менаџмент (`management`, owner 02.10.2026 — migration 20260947001000) is the seventh and
+ *  last: a sale by a person on the Менаџмент team on the sale day, never in a team's In / Out,
+ *  always in the total (a LEAD stays Тим Маџари In). A body older than the migration sends
+ *  no such row; every list here simply finds none. */
+export const COHORT_SOURCES = ['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web', 'management'] as const;
 export type CohortSourceKey = (typeof COHORT_SOURCES)[number];
+
+/** Менаџмент's key — the one department no folder or parcel maps to (only the seller's team). */
+export const MANAGEMENT_SOURCE = 'management' satisfies CohortSourceKey;
+
+/** Менаџмент is written apart only WHEN IT HAS SOMETHING (owner 02.10.2026: "кај менаџментот
+ *  треба да пишува одделно ако има нешто"): a list of department rows / panels / columns drops
+ *  an EMPTY Менаџмент entry; the six keep theirs, empty or not. Filter chips always offer it. */
+export function dropEmptyManagement<T extends { key: string }>(rows: readonly T[], isEmpty: (r: T) => boolean): T[] {
+  return rows.filter((r) => r.key !== MANAGEMENT_SOURCE || !isEmpty(r));
+}
 
 /** In-total buckets, in the bar's fixed order. */
 export const COHORT_BUCKETS = [
@@ -137,6 +151,23 @@ export interface CohortSourceRow {
   leads_in: CohortLeadsIn;
 }
 
+/** A department row with nothing in it — all orders, no sale, no lead. */
+export function emptySourceRow(key: CohortSourceKey): CohortSourceRow {
+  return {
+    key, total: { count: 0, orders: 0, web: 0, mex_only: 0, booked: 0 }, buckets: [], outside: [], splits: [],
+    leads_in: { came_in: 0, became_sales: 0, cancelled: 0, trashed: 0, open: 0, conversion: null },
+  };
+}
+
+/** The WHOLE business's rows with a Менаџмент row: an empty one is appended when the body sent
+ *  none (an api older than 20260947001000, or a body that leaves an empty department out). The
+ *  rows then name every department, so a number over all of them links to /orders with no
+ *  department filter (cohortSourceParam: all seven = none) — never "the six", which would read
+ *  as "everything but Менаџмент". Only for the unfiltered rows: a chip selection is what it is. */
+export function withManagementRow<T extends { key: string }>(rows: readonly T[], empty: () => T): T[] {
+  return rows.some((r) => r.key === MANAGEMENT_SOURCE) ? [...rows] : [...rows, empty()];
+}
+
 export interface CohortCashFlow {
   /** MEX COD delivered in the period, any sale day (owners only). */
   cod_mkd?: number;
@@ -200,8 +231,9 @@ export interface Cohort {
 export const COHORT_SOURCE_PARAM = 'cohort_source';
 
 /** The cohort_source value for a set of sources: the known keys in display
- *  order, or null when none or all six are asked for (no filter — the api then
- *  also lists an order not classified yet, as the cohort counts it). */
+ *  order, or null when none or all seven are asked for (no filter — the api then
+ *  also lists an order not classified yet, as the cohort counts it). The six
+ *  without Менаџмент DO filter (they leave its sales out). */
 export function cohortSourceParam(sources: readonly string[]): string | null {
   const known = COHORT_SOURCES.filter((k) => sources.includes(k));
   return known.length && known.length < COHORT_SOURCES.length ? known.join(',') : null;

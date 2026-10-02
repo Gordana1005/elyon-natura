@@ -21,8 +21,9 @@
 import { apiFetch } from '@/lib/api';
 import type { CohortBucket, CohortOutside } from '@/components/insights/shared/cohortTypes';
 
-/** The six departments, in the owner's order (28.09.2026) — the P&L's columns. */
-export const PROFIT_SOURCES = ['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web'] as const;
+/** The departments, in the owner's order (28.09.2026; Менаџмент last, 02.10.2026 —
+ *  20260947001000) — the P&L's columns (an empty Менаџмент column is not shown: plColumns). */
+export const PROFIT_SOURCES = ['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web', 'management'] as const;
 export type ProfitSourceKey = (typeof PROFIT_SOURCES)[number];
 
 /** One rate's part of the VAT line: the gross value taxed at it and its VAT. */

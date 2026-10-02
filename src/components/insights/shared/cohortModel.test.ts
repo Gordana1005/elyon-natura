@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import sample from './__fixtures__/cohort.sample.json';
 import {
-  bookedCount, bucketParts, canWeighByValue, checkSum, cohortDrill, cohortHref, cohortView, isBookingSplit, isMexOnlySplit,
-  liveQuality, mexOnlyCount, ordersSupportsCohortDrill, stripCohortMoney, sumParts, tileKeys, workedOf,
+  bookedCount, bucketParts, canWeighByValue, checkSum, cohortDrill, cohortHref, cohortRowEmpty, cohortView, isBookingSplit,
+  isMexOnlySplit, liveQuality, mexOnlyCount, ordersSupportsCohortDrill, stripCohortMoney, sumParts, tileKeys, workedOf,
 } from './cohortModel';
-import { COHORT_BUCKETS, type Cohort } from './cohortTypes';
+import {
+  COHORT_BUCKETS, COHORT_SOURCES, dropEmptyManagement, emptySourceRow, withManagementRow, type Cohort, type CohortSourceRow,
+} from './cohortTypes';
 
 // The week fixture is insights_cohort()'s exact shape for 22–28.09.2026 under
 // the owner's six departments of 28.09.2026 (20260942001000), in his order: Affiliate –
@@ -60,10 +62,13 @@ describe('the source filter re-sums from by_source', () => {
     expect(v.filtered).toBe(false);
     expect(v.total.count).toBe(1337);
     expect(v.buckets).toBe(c.buckets);
-    expect(cohortView(c, ['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web']).filtered).toBe(false);
-    // five of the six is a filter now
+    expect(cohortView(c, [...COHORT_SOURCES]).filtered).toBe(false);
+    // the six without Менаџмент is a filter (owner 02.10.2026), and so is five of the six
+    expect(cohortView(c, ['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web']).filtered).toBe(true);
     expect(cohortView(c, ['altercpa', 'elyon_crm', 'teleshop_other', 'social', 'web']).filtered).toBe(true);
-    expect(v.rows.map((r) => r.key)).toEqual(['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web']);
+    // the body has no Менаџмент row (an api before 20260947001000): the view holds an empty one, last
+    expect(v.rows.map((r) => r.key)).toEqual(['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web', 'management']);
+    expect(cohortRowEmpty(v.rows[6])).toBe(true);
   });
   it('a subset: the header equals Σ of the rows shown, parts and composition still add up', () => {
     const c = fixture();
@@ -118,12 +123,16 @@ describe('drill links: a number opens /orders only when the list holds exactly i
   });
   it('partly orders → no link on the number; its order part gets its own exact link', () => {
     const c = fixture();
-    const d = cohortDrill(c.by_source, 'paid', range, true);
+    const whole = cohortView(c, []).rows;   // the whole business — Менаџмент included (empty here)
+    const d = cohortDrill(whole, 'paid', range, true);
     expect(d).toMatchObject({ href: null, blocked: 'mixed', orders: 121, web: 46, mexOnly: 550 });
     // every source at once: no cohort_source (the api's own links do the same)
     expect(d.ordersHref).toBe(`/orders?cohort_bucket=paid&${WIN}`);
-    const total = cohortDrill(c.by_source, 'total', range, true);
+    const total = cohortDrill(whole, 'total', range, true);
     expect(total).toMatchObject({ href: null, orders: 507, ordersHref: `/orders?cohort_bucket=total&${WIN}` });
+    // the six rows alone (no Менаџмент row) are "everything but Менаџмент": that filter is sent
+    expect(cohortDrill(c.by_source, 'paid', range, true).ordersHref)
+      .toBe(`/orders?cohort_bucket=paid&cohort_source=altercpa%2Celyon_crm%2Cteleshop_out%2Cteleshop_other%2Csocial%2Cweb&${WIN}`);
     // Affiliate – Lead in + Телешоп – Lead in: the parcels have no order → only the AlterCPA part opens
     const at = cohortDrill([row(c, 'altercpa'), row(c, 'teleshop_other')], 'label', range, true);
     expect(at).toMatchObject({ href: null, blocked: 'mex_only', orders: 30, mexOnly: 32 });
@@ -168,11 +177,14 @@ describe('drill links: a number opens /orders only when the list holds exactly i
   it('cohortHref: several parts = any of them; total is the eight in-total buckets', () => {
     expect(cohortHref('total', ['elyon_crm'], range)).toBe(`/orders?cohort_bucket=total&cohort_source=elyon_crm&${WIN}`);
     expect(cohortHref(['paid', 'label'], [], range)).toBe(`/orders?cohort_bucket=paid%2Clabel&${WIN}`);
-    // the sources in display order; all six = no filter; an unknown key is never sent
+    // the sources in display order; all seven = no filter; the six without Менаџмент filter; an unknown key is never sent
     expect(cohortHref('total', ['social', 'teleshop_other'], range)).toBe(`/orders?cohort_bucket=total&cohort_source=teleshop_other%2Csocial&${WIN}`);
     expect(cohortHref('total', ['teleshop_other', 'teleshop_out', 'elyon_crm'], range))
       .toBe(`/orders?cohort_bucket=total&cohort_source=elyon_crm%2Cteleshop_out%2Cteleshop_other&${WIN}`);
-    expect(cohortHref('total', ['web', 'social', 'teleshop_other', 'teleshop_out', 'elyon_crm', 'altercpa'], range)).toBe(`/orders?cohort_bucket=total&${WIN}`);
+    expect(cohortHref('total', ['management', 'web', 'social', 'teleshop_other', 'teleshop_out', 'elyon_crm', 'altercpa'], range)).toBe(`/orders?cohort_bucket=total&${WIN}`);
+    expect(cohortHref('total', ['web', 'social', 'teleshop_other', 'teleshop_out', 'elyon_crm', 'altercpa'], range))
+      .toBe(`/orders?cohort_bucket=total&cohort_source=altercpa%2Celyon_crm%2Cteleshop_out%2Cteleshop_other%2Csocial%2Cweb&${WIN}`);
+    expect(cohortHref('total', ['management'], range)).toBe(`/orders?cohort_bucket=total&cohort_source=management&${WIN}`);
     expect(cohortHref('total', ['web', 'social', 'teleshop_other', 'elyon_crm', 'altercpa'], range))
       .toBe(`/orders?cohort_bucket=total&cohort_source=altercpa%2Celyon_crm%2Cteleshop_other%2Csocial%2Cweb&${WIN}`);
     expect(cohortHref('total', ['teleshop', 'social'], range)).toBe(`/orders?cohort_bucket=total&cohort_source=social&${WIN}`);
@@ -264,5 +276,39 @@ describe('quality rail and the money strip', () => {
     expect(s.total.orders).toBe(507);
     expect(s.cash_flow.parcels).toBe(c.cash_flow.parcels);
     expect(c.meta.money).toBe(true); // the input is untouched
+  });
+});
+
+describe('Менаџмент — the seventh department (owner 02.10.2026, migration 20260947001000)', () => {
+  const mgmt = (count: number, orders = count): CohortSourceRow => ({
+    ...emptySourceRow('management'),
+    total: { count, value_mkd: count * 2000, orders, web: 0, mex_only: 0, booked: 0 },
+    buckets: [{ key: 'to_pack', count, value_mkd: count * 2000, orders, web: 0, mex_only: 0 }],
+  });
+  it('is last in the owner’s order', () => {
+    expect(COHORT_SOURCES).toEqual(['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web', 'management']);
+  });
+  it('a body that sends it keeps its row, in place; it is never doubled', () => {
+    const c = fixture();
+    c.by_source = [mgmt(3), ...c.by_source];
+    const v = cohortView(c, []);
+    expect(v.rows.map((r) => r.key).at(-1)).toBe('management');
+    expect(v.rows.filter((r) => r.key === 'management')).toHaveLength(1);
+    expect(withManagementRow(v.rows, () => emptySourceRow('management'))).toHaveLength(7);
+  });
+  it('alone it re-sums to its own sales and drills to exactly its orders', () => {
+    const c = fixture();
+    c.by_source = [...c.by_source, mgmt(3)];
+    const v = cohortView(c, ['management']);
+    expect(v.filtered).toBe(true);
+    expect(v.total).toMatchObject({ count: 3, orders: 3 });
+    expect(cohortDrill(v.rows, 'to_pack', range, true).href).toBe(`/orders?cohort_bucket=to_pack&cohort_source=management&${WIN}`);
+  });
+  it('an EMPTY Менаџмент row is not drawn; one with a sale — or with a cancel after the sale — is', () => {
+    const empty = emptySourceRow('management');
+    expect(dropEmptyManagement([emptySourceRow('web'), empty], cohortRowEmpty).map((r) => r.key)).toEqual(['web']);   // an empty six stays
+    expect(dropEmptyManagement([emptySourceRow('web'), mgmt(1)], cohortRowEmpty).map((r) => r.key)).toEqual(['web', 'management']);
+    const cancelled = { ...empty, outside: [{ key: 'cancelled_after_sale' as const, count: 1 }] };
+    expect(dropEmptyManagement([cancelled], cohortRowEmpty)).toHaveLength(1);
   });
 });

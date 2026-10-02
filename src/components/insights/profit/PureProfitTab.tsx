@@ -21,7 +21,7 @@ import PureProfitExportDialog from './PureProfitExportDialog';
 import { CacheNote } from './CacheNote';
 import { CostSourceNote } from './CostSourceNote';
 import { PROFIT_COLOR_VARS } from './profitPalette';
-import { stripRows } from './profitModel';
+import { plColumns, stripRows } from './profitModel';
 import { useProfitQuery } from './useProfitQuery';
 
 /**
@@ -116,7 +116,7 @@ export default function PureProfitTab() {
             <ProfitTrend points={clock.trend} granularity={data.meta.granularity} cohort={clockKey === 'cohort'} f={f} />
           </div>
 
-          <SourcePLTable clockRows={clock.by_source} total={clock.total} meta={data.meta} clockLabel={clockLabel} f={f} />
+          <SourcePLTable clockRows={plColumns(clock.by_source)} total={clock.total} meta={data.meta} clockLabel={clockLabel} f={f} />
 
           <AffiliateBreakdownCard
             rows={clock.affiliates}

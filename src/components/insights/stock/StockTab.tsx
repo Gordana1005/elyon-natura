@@ -141,7 +141,9 @@ function StockBody({ data, money, sources, compare, f }: {
   const trusted = data.trust.trusted;
   const pack = data.queue.find((s) => s.stage === 'to_pack');
   const label = data.queue.find((s) => s.stage === 'label');
-  const shown = SOURCE_ORDER.filter((s) => !sources.length || sources.includes(s));
+  // Менаџмент only when it moved something (owner 02.10.2026: "ако има нешто")
+  const shown = SOURCE_ORDER.filter((s) => (!sources.length || sources.includes(s))
+    && (s !== 'management' || data.trend.some((p) => (p.by_source?.[s] ?? 0) > 0)));
   const columns = useMemo(() => data.trend.map((p) => ({
     d: p.d, total: p.units,
     segs: shown.map((s) => ({ key: s, value: p.by_source?.[s] ?? 0 })),

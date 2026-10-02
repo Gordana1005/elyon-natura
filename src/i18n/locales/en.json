@@ -2042,7 +2042,7 @@
     "sales": "Sales",
     "worked": "Worked",
     "byDepartment": "Sales today by department",
-    "kpiNote": "The same numbers as Insights → Overview: the sale day, the six departments, MEX is the proof.",
+    "kpiNote": "The same numbers as Insights → Overview: the sale day, every department (Management included), MEX is the proof.",
     "toPackBookedSub_one": "of which {{n}} booked in collabBox (awaiting parcel)",
     "toPackBookedSub_other": "of which {{n}} booked in collabBox (awaiting parcel)"
   },
@@ -5285,7 +5285,8 @@
         "teleshop_out": "Team Centar Out",
         "web": "Web shop",
         "social": "Social media",
-        "teleshopOther": "Team Centar In"
+        "teleshopOther": "Team Centar In",
+        "management": "Management"
       },
       "bucket": {
         "paid": "Collected",
@@ -5951,7 +5952,7 @@
         "sales": "Sales",
         "salesHint": "Sales credited to the person, by sale day — the same as the Overview",
         "sources": "Sources",
-        "sourcesHint": "Team Madžari In · Team Madžari Out · Team Centar Out · Team Centar In · Social media · Web shop",
+        "sourcesHint": "Team Madžari In · Team Madžari Out · Team Centar Out · Team Centar In · Social media · Web shop · Management",
         "paid": "Paid",
         "paidHint": "MEX delivered the parcel and collected the COD",
         "paidShare": "Paid",
@@ -7593,7 +7594,8 @@
       "teleshop_out": "Team Centar Out",
       "teleshopOther": "Team Centar In",
       "social": "Social media",
-      "web": "Web shop"
+      "web": "Web shop",
+      "management": "Management"
     },
     "deptShort": {
       "altercpa": "Team Madžari In",
@@ -7601,7 +7603,8 @@
       "teleshop_out": "Team Centar Out",
       "teleshopOther": "Team Centar In",
       "social": "Social",
-      "web": "Web"
+      "web": "Web",
+      "management": "Management"
     },
     "team": {
       "none": "No team"
@@ -8280,7 +8283,8 @@
       "teleshop_out": "Team Centar Out",
       "web": "Web shop",
       "social": "Social media",
-      "teleshopOther": "Team Centar In"
+      "teleshopOther": "Team Centar In",
+      "management": "Management"
     },
     "saleSource": {
       "altercpa": "Team Madžari In",
@@ -8472,6 +8476,7 @@
         "conversion": "Conversion",
         "noFunnel": "Team Centar has no leads: every collabBox document is already a sale.",
         "noFunnelSocial": "Social media have no leads: every collabBox document is already a sale.",
+        "noFunnelManagement": "Management has no leads: a lead always stays with Team Madžari In — here are only the sales of the people on the Management team.",
         "none": "No leads in the period"
       },
       "sources": {

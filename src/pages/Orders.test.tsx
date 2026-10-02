@@ -189,6 +189,18 @@ describe('/orders — the filters live in the URL', { timeout: 30_000 }, () => {
     await waitFor(() => expect(lastOrdersCall().seller).toBe('11111111-1111-4111-8111-111111111111'));
   });
 
+  it('Менаџмент is the last department chip (owner 02.10.2026) and goes to the URL and the api', async () => {
+    renderAt();
+    await ready();
+    const dept = screen.getAllByRole('group', { name: t('ordersList.dept.label') })[0];
+    const names = within(dept).getAllByRole('button').map((b) => b.textContent ?? '');
+    const mgmt = names.findIndex((n) => n.includes(t('insights.common.source.management')));
+    expect(mgmt).toBeGreaterThan(names.findIndex((n) => n.includes(t('insights.common.source.web'))));
+    fireEvent.click(within(dept).getByRole('button', { name: new RegExp(t('insights.common.source.management')) }));
+    await waitFor(() => expect(new URLSearchParams(location).get('dept')).toBe('management'));
+    await waitFor(() => expect(lastOrdersCall().dept).toBe('management'));
+  });
+
   it('a phone in the search box is sent as typed and matched by its last 8 digits', async () => {
     renderAt();
     await ready();

@@ -31,8 +31,9 @@ export type ListView = (typeof LIST_VIEWS)[number];
 export const LIST_RANGES = ['today', 'week', 'month', 'year', 'all', 'custom'] as const;
 export type ListRange = (typeof LIST_RANGES)[number];
 
-/** The six departments, in the owner's order (insights/overview/palette SOURCE_ORDER). */
-export const LIST_DEPARTMENTS = ['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web'] as const;
+/** The departments, in the owner's order (insights/overview/palette SOURCE_ORDER) — Менаџмент
+ *  last (owner 02.10.2026, 20260947001000: a Менаџмент person's sales, apart from every team). */
+export const LIST_DEPARTMENTS = ['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web', 'management'] as const;
 
 /** MEX parcel groups (the api's ordersList.ts MEX_GROUPS). */
 export const MEX_GROUP_KEYS = ['at_mex', 'courier', 'delivered', 'returned', 'rejected', 'no_parcel'] as const;

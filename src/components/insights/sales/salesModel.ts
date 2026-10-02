@@ -11,7 +11,8 @@
  *   average sale  value ÷ sales (денари, owners only)
  */
 import type { CohortBucket, CohortBucketKey, CohortLeadsIn, CohortSourceKey, CohortSourceRow } from '../shared/cohortTypes';
-import { COHORT_SOURCES } from '../shared/cohortTypes';
+import { COHORT_SOURCES, dropEmptyManagement, emptySourceRow, MANAGEMENT_SOURCE, withManagementRow } from '../shared/cohortTypes';
+import { cohortRowEmpty } from '../shared/cohortModel';
 import type {
   SalesCity, SalesCityCounts, SalesChannel, SalesCore, SalesCustomers, SalesDetail, SalesPrev, SalesProduct, SalesSource,
   SalesTiming, SalesTrendPoint,
@@ -68,9 +69,11 @@ export const returnRate = (o: Outcome) => ratio(o.returned, o.paid + o.returned)
 const NO_LEADS: CohortLeadsIn = { came_in: 0, became_sales: 0, cancelled: 0, trashed: 0, open: 0, other: 0, disposition: 0, conversion: null };
 
 /** The cohort helpers (CohortBar, cohortDrill) read source rows; this tab
- *  carries no leads (the Overview does), so they get an empty funnel. */
+ *  carries no leads (the Overview does), so they get an empty funnel. The rows
+ *  are the WHOLE business (the tab has no source filter), so they always hold a
+ *  Менаџмент row (withManagementRow) — a number over them drills unfiltered. */
 export function asCohortRows(sources: SalesSource[] | undefined): CohortSourceRow[] {
-  return (sources ?? []).map((s) => ({ ...s, leads_in: NO_LEADS }));
+  return withManagementRow((sources ?? []).map((s) => ({ ...s, leads_in: NO_LEADS })), () => emptySourceRow(MANAGEMENT_SOURCE));
 }
 
 export interface SourceView {
@@ -88,7 +91,8 @@ export interface SourceView {
 
 export function sourceViews(core: SalesCore, money: boolean): SourceView[] {
   const order = (k: string) => { const i = (COHORT_SOURCES as readonly string[]).indexOf(k); return i < 0 ? 99 : i; };
-  const rows = asCohortRows(core.by_source).sort((a, b) => order(a.key) - order(b.key));
+  // an empty Менаџмент row is not written (owner 02.10.2026: only "ако има нешто")
+  const rows = dropEmptyManagement(asCohortRows(core.by_source).sort((a, b) => order(a.key) - order(b.key)), cohortRowEmpty);
   const totalCount = num(core.total?.count);
   const totalValue = money && hasNum(core.total?.value_mkd) ? core.total.value_mkd! : null;
   return rows.map((row) => {

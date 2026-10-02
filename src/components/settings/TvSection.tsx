@@ -16,7 +16,7 @@ import { SUPPORTED_LANGUAGES } from '@/i18n';
 import { formatDayDmy } from '@/i18n/dates';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/contexts/PermissionsContext';
-import { DEPARTMENTS, deptKey } from '@/lib/leaderboardV2';
+import { FILTER_DEPARTMENTS, deptKey } from '@/lib/leaderboardV2';
 import { isLegacyTeam, teamSortOrder } from '@/lib/teamLines';
 import { teamLabel } from '@/components/tvboard/tvBoardHelpers';
 import { apiGetLeaderboardAdmin, apiGetSalesTeams, apiManageLeaderboardToken, type LeaderboardAccessToken } from '@/lib/api';
@@ -93,7 +93,7 @@ export function TvSection() {
 
   const rows: { key: string; label: string; view: { dept?: string; team?: string } }[] = [
     { key: 'all', label: t('settingsPage.tv.all'), view: {} },
-    ...DEPARTMENTS.map((d) => ({ key: `d:${d}`, label: t(`leaderboard2.dept.${deptKey(d)}`), view: { dept: d } })),
+    ...FILTER_DEPARTMENTS.map((d) => ({ key: `d:${d}`, label: t(`leaderboard2.dept.${deptKey(d)}`), view: { dept: d } })),
     ...teamViews,
   ];
 
@@ -171,7 +171,7 @@ export function TvSection() {
           <ul className="divide-y rounded-lg border" aria-labelledby="tv-links">
             {rows.map((r, i) => {
               const url = tvUrl(origin, token.token, r.view, lang);
-              const heading = i === 0 ? null : i === 1 ? t('settingsPage.tv.byDept') : i === 1 + DEPARTMENTS.length ? t('settingsPage.tv.byTeam') : null;
+              const heading = i === 0 ? null : i === 1 ? t('settingsPage.tv.byDept') : i === 1 + FILTER_DEPARTMENTS.length ? t('settingsPage.tv.byTeam') : null;
               return (
                 <li key={r.key}>
                   {heading && <p className="bg-muted/40 px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{heading}</p>}

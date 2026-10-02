@@ -123,7 +123,9 @@ describe("buildLeaderboardV2Response", () => {
     expect(withMoney.rows[0].presence.online_min).toBe(312);          // "312" → 312
     expect(withMoney.rows[0].conversion).toBe(0.3);
     expect(withMoney.summary.total_value_mkd).toBe(96900);
-    expect(withMoney.departments).toEqual([...LEADERBOARD_DEPARTMENTS]);
+    // the RPC's own list (six before 20260947001000, seven after) — never widened here
+    expect(withMoney.departments).toEqual(["altercpa", "elyon_crm", "teleshop_out", "teleshop_other", "social", "web"]);
+    expect(LEADERBOARD_DEPARTMENTS).toEqual(["altercpa", "elyon_crm", "teleshop_out", "teleshop_other", "social", "web", "management"]);
   });
 
   it("normalises presence and drops department keys that are not the six", () => {

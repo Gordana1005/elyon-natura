@@ -26,6 +26,7 @@ import { dm } from '../overview/useOverviewFormat';
 import { ClockCaption } from '../shared/ClockCaption';
 import { StackedBar } from '../shared/StackedBar';
 import { COHORT_TONE, OUTSIDE_TONE, STATUS_TEXT } from '../shared/cohortPalette';
+import { dropEmptyManagement } from '../shared/cohortTypes';
 import { useInsightsFormat, type InsightsFormat } from '../shared/useInsightsFormat';
 import { useInsightsPeriod } from '../shared/useInsightsPeriod';
 import type { DayRange } from '../shared/period';
@@ -314,7 +315,9 @@ function ReturnsBody({ data, clock, money, range, sources, compare, f }: {
       </ul>
 
       {/* ── by source ─────────────────────────────────────────────────── */}
-      <SourceReturns rows={data.by_source} clock={clock} money={money} range={range} baseLabel={baseLabel} f={f} />
+      {/* an empty Менаџмент row is not written (owner 02.10.2026: only "ако има нешто") */}
+      <SourceReturns rows={dropEmptyManagement(data.by_source, (r) => r.base === 0 && r.returned === 0 && r.open === 0)}
+        clock={clock} money={money} range={range} baseLabel={baseLabel} f={f} />
 
       {/* ── trend ─────────────────────────────────────────────────────── */}
       <Section title={t(sale ? 'insights.returns.trend.titleSale' : 'insights.returns.trend.titleMex')} clock={clockKey}

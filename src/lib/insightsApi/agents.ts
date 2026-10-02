@@ -37,7 +37,7 @@ export interface PeopleOutside {
   trashed_after_sale: number;
   replacement: number;
 }
-/** A person's (a team's) sales per department — the owner's six (28.09.2026). */
+/** A person's (a team's) sales per department — the owner's six (28.09.2026) + Менаџмент. */
 export interface PeopleBySource {
   /** Affiliate – Lead in. */
   altercpa: number;
@@ -50,6 +50,9 @@ export interface PeopleBySource {
   /** Social media — collabBox social documents (+ their MEX-only parcels), migration 20260942000500. */
   social: number;
   web: number;
+  /** Менаџмент — the sales of the people on the Менаџмент team, apart from every team (owner
+   *  02.10.2026, migration 20260947001000). Absent from a body older than the migration. */
+  management?: number;
 }
 
 /** The department keys, in the owner's order. */

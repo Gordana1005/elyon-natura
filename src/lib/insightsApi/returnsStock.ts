@@ -212,7 +212,7 @@ export interface StockProductRow {
   cost_known: boolean | null;
   units: number;
   units_prev: number | null;
-  by_source: Record<CohortSourceKey, number>;
+  by_source: Partial<Record<CohortSourceKey, number>>;
   free_units: number;
   returned_units: number;
   queue_units: number;
@@ -248,7 +248,7 @@ export interface StockResponse {
   queue_products: { key: string; name: string | null; catalogue: boolean; pack_units: number; label_units: number; on_hand: number | null }[];
   products: StockProductRow[];
   products_more: { products: number; units: number } | null;
-  trend: { d: string; units: number; by_source: Record<CohortSourceKey, number> }[];
+  trend: { d: string; units: number; by_source: Partial<Record<CohortSourceKey, number>> }[];
   hygiene: {
     duplicates: { key: string; products: { product_id: string; name: string; tracked: boolean; on_hand: number | null; units: number }[] }[];
     unmapped: { names: number; units: number; rows: { name: string; units: number }[] };

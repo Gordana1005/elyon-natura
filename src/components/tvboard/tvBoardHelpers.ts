@@ -20,6 +20,8 @@ export const DEPT_TONE: Record<Department, string> = {
   teleshop_other: 'bg-teal-400/15 text-teal-100 ring-teal-300/40',
   social: 'bg-pink-400/15 text-pink-100 ring-pink-300/40',
   web: 'bg-emerald-400/15 text-emerald-100 ring-emerald-300/40',
+  // Менаџмент (02.10.2026) — neutral on purpose: apart from the sales teams, shown under its team filter
+  management: 'bg-zinc-400/15 text-zinc-100 ring-zinc-300/40',
 };
 
 /** The department's colour as text (+ border-current) — the dashed collabBox booking chips. */
@@ -30,6 +32,7 @@ export const DEPT_TEXT: Record<Department, string> = {
   teleshop_other: 'text-teal-200',
   social: 'text-pink-200',
   web: 'text-emerald-200',
+  management: 'text-zinc-200',
 };
 
 /** Clock times of the data are Skopje wall-clock, whatever the TV's own zone. */

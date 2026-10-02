@@ -22,7 +22,8 @@ type Line = {
 /**
  * The P&L as a statement: one column per department, the owner's six in his
  * order (Affiliate – Lead in · Affiliate – Lead out · Teleshop – Lead out ·
- * Teleshop – Lead in · Social media · Web shop) and the total, one row per line — revenue, every
+ * Teleshop – Lead in · Social media · Web shop), Менаџмент when it has something
+ * (plColumns) and the total, one row per line — revenue, every
  * cost, net and margin — then the unit economics of each source (average
  * sale, cost and profit per sale, return rate, packages, cost coverage).
  * Σ source columns = the total column. The first column stays put on a phone.

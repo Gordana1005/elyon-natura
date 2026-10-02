@@ -345,7 +345,7 @@ describe("Social media — a source of its own (migration 20260942000500)", () =
 
   it("has its own P&L column, in the fixed order, and the columns still add up to the total", () => {
     const c = buildClock(SOC, null, SETTINGS);
-    expect(c.by_source.map((r) => r.key)).toEqual(["altercpa", "elyon_crm", "teleshop_out", "teleshop_other", "social", "web"]);
+    expect(c.by_source.map((r) => r.key)).toEqual(["altercpa", "elyon_crm", "teleshop_out", "teleshop_other", "social", "web", "management"]);
     const soc = c.by_source.find((r) => r.key === "social")!;
     expect(soc).toMatchObject({ sales: 2, revenue_mkd: 4000, returned: 1, returned_mkd: 1500 });
     const tel = c.by_source.find((r) => r.key === "teleshop_other")!;
