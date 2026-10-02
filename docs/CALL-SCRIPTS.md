@@ -287,3 +287,100 @@ These are decisions taken while writing the pure module and the types; B and C b
 - **`DELETE /call-scripts/item/:id`** takes the note as `?note=` (a JSON body is accepted too).
 - **Client:** `src/lib/callScriptsApi.ts` throws `CallScriptsError {status, code, body}`, with `isStale` and `currentVersion` for the 409. `CALL_SCRIPTS_QUERY_KEYS.all = ['call-scripts']` invalidates everything.
 - **Fixtures** (`src/components/callscripts/__fixtures__/`) are generated from the pure module, so their winners are real. `src/lib/callScriptsTypes.test.ts` keeps them consistent.
+
+## Implementation (workstream A, 02.10.2026)
+Built on `call-scripts-a`. Nothing is applied or deployed: the lead applies and deploys.
+
+### Migration `20260947000100_call_scripts_targeting.sql`
+Beyond the contract tables above, it contains:
+- **Drift guard:** `tg_app_settings_guard_owner_keys` was live at md5 `20972a5a1ac9b1d0d60c515b95bbbe28` on 02.10 (the shops body, CR-stripped `prosrc`). It is re-emitted with `'call_scripts'` added, which gives md5 `cebcf4fd23bc95d3ef2bb6b465ec71e8`. The guard accepts only these two values.
+- **Helper functions** (owner only, not granted to anyone):
+  - `call_script_groups()`: the 12 groups.
+  - `call_script_sections_problem(jsonb)`: the CHECK on `sections`, with the same codes as `validateSections`.
+  - `call_script_sections_normalize(jsonb)`: keeps `{id, key, text}`, plus a trimmed `title` on custom sections.
+  - `call_script_sections_text(jsonb, text)`.
+  - `call_script_blank(uuid)`, `call_script_apply_patch(call_scripts, jsonb)`, `call_script_publish_problem(call_scripts)` and `call_script_add_version(...)`.
+- **`call_scripts_set_mode(p_actor, p_mode, p_note)`:** the switch's writer. Admins only; it writes the audit action `call_scripts.mode`.
+- **`call_script_demand_json()`:** the same rows as `call_script_demand()`, returned as one jsonb array. PostgREST caps a set-returning rpc at 1000 rows and the demand is about 3.400 rows. The api reads this wrapper, cached for 60 s.
+- **Test phones:** the demand query inlines the exclusion as an anti-join on `report_excluded_phones.phone8`. This is the same rule as `is_report_excluded_phone`, but that function is SECURITY DEFINER, cannot be inlined, and cost about 2 s across the 113k members. The query now takes about 0,8 s warm.
+- **Error contract.** The machine code is in the error **HINT**, and `CSA.mapWriterError` maps it:
+
+  | SQLSTATE | HTTP | Codes |
+  |---|---|---|
+  | `CS409` | 409 | `stale` (DETAIL = the current version) |
+  | `CS404` | 404 | `not_found` |
+  | `42501` | 403 | `forbidden`, `admin_only` |
+  | `22023` | 400 | `unknown_field`, `bad_title`, `bad_description`, `bad_script_text`, `bad_group`, `unknown_product` (DETAIL = the ids), `too_many_products`, `bad_priority`, `bad_sections` (DETAIL = the problem), `bad_helpers`, `bad_translations`, `script_text_derived`, `legacy_field`, `bad_status`, `bad_transition`, `publish_needs_text` (DETAIL `title_required` / `text_required`), `legacy_fixed`, `bad_targets`, `bad_op`, `too_many`, `bad_mode`, `note_too_long`, `expected_version_required` |
+
+- **Writer rules (as built):**
+  - **Save, no-op:** a save that changes nothing returns `{action:'none', changed:false}`, with no version and no audit row.
+  - **Save, publishing:** `published_at` / `published_by` are set on the move to published and kept while the script stays published, so an edit does not count as "newer". They are cleared on unpublish and archive. Archived → published is refused (`bad_transition`); the script goes back to draft first.
+  - **Save, publish rule:** it applies to every save that leaves the script published, so a published script can never be emptied.
+  - **Limits:** title ≤ 200, description ≤ 2000, helpers ≤ 50 (title ≤ 200, content ≤ 4000), translations `sq` only, legacy `script_text` ≤ 20000.
+  - **Legacy rows:** the legacy branch never changes status.
+  - **Duplicate:** a legacy source becomes `sections=[pitch: script_text]`, and the same for sq. Every copy is a draft with `copied_from` set.
+  - **Bulk:** the skip reasons are `not_found`, `legacy`, `invalid`, `bad_transition`, `publish_needs_text` and `unchanged`.
+  - **Delete:** the delete snapshot is stored as version `old + 1`, holding the row before the delete.
+  - **Restore of a live row:** the snapshot's content and targeting come back. Products that no longer exist are dropped and reported (`dropped_products`). If the script is published and the restored version has no text, the restore is refused (`publish_needs_text`).
+  - **Restore of a deleted row:** admins only. **A deviation from the contract:** a deleted *legacy product* row comes back as **published**, because legacy rows have no draft state in the old tabs. A targeted row comes back as a draft, as the contract says.
+
+### api (`index.ts`, block "CALL SCRIPTS (targeted)" before the legacy handlers)
+- The routes are as in the table above. POST `item` and `duplicate` answer **201**. PATCH `item` also returns `action` and `changed`. Restore also returns `was_deleted` and `dropped_products`. `GET /call-scripts/deleted` returns `{deleted:[{script_id, version, title, context_type, deleted_at, actor_name, note, snapshot}]}`.
+- **`GET /calls/scripts`:**
+  - Access: staff who are admins, managers, agents, or have `call_scripts` view. Rate limit: 120 per minute.
+  - **source=prediction** needs `list_id`. An unknown list → 404 `list_not_found`. For an agent, a member row that is not assigned to them → 403 `not_your_member`.
+  - **source=manual** silently ignores a `list_id` hint the caller may not use. It then falls through to `resolvePredictionAttribution`.
+  - Only the best match and up to 4 alternatives load their bodies. A row unpublished between the cache read and the body read is dropped.
+- **Caches** (per edge isolate, cleared on every write in that isolate): mode, script metadata and products for 30 s; demand for 60 s.
+- **`GET /call-scripts/samples`:**
+  - `group` is required; `product` is optional and twins count.
+  - Lead groups → open lead orders. Prediction groups → open members of the active lists in that group.
+  - Test phones are excluded. Each sample also carries `group` and `vars` (redacted the same way as the dock), so the tester can render it with `substitute` and match it locally, even when the caller's privacy flags mask the phone.
+- **`GET /call-scripts/coverage`:**
+  - Also returns `outside: {waiting, lists[]}`: the clients on lists with no group (Current Returns, uploaded lists).
+  - `totals.waiting` counts the clients in the grid only.
+  - A product that a script names gets a row even when nobody is waiting for it.
+- **Legacy hardening:**
+  - `GET /call-scripts` lists legacy rows only.
+  - `POST /call-scripts` → 410 `use_new_editor`.
+  - `GET /call-scripts/:contextType` serves `order` / `prediction_lead` only.
+  - `PATCH /call-scripts/:id|:contextType` goes through `call_script_save` with the row's current version. Old clients send no version, so the last write wins, but every write is now a restorable version. A targeted row → 409 `use_new_editor`.
+  - `DELETE /call-scripts/:id` → `call_script_delete`, admins only.
+- `scripts/translate-call-scripts.mjs` is retired too (**a deviation: it was not on the contract's list**). It wrote `translations` straight through the service role, which would bypass the versions.
+
+### Dry-run evidence (02.10, rolled back)
+- **Backfill:** 13 live rows published and untouched; 11 draft copies; 24 `migrate` versions; mode `off`. The guard refuses a browser write of `call_scripts`, even from an admin (42501). An agent sees 13 rows; a manager sees 24.
+- **Writers:** every rule in the table above behaved as written, and every refusal returned its code. `verify-call-scripts` passed V1–V9 after the full exercise. A bypassing UPDATE made V4 fail.
+- **Demand:**
+
+  | | Waiting | Lists |
+  |---|---|---|
+  | Members, all | 113.547 | — |
+  | Open leads, all | 170 | — |
+  | y2plus | 20.595 | 8 |
+  | m6_12 | 18.567 | 8 |
+  | y1_2 | 16.961 | 8 |
+  | trash | 13.257 | 1 |
+  | never_converted | 10.674 | 2 |
+  | d57 | 10.118 | 8 |
+  | m4_6 | 7.630 | 8 |
+  | d21 | 6.072 | 8 |
+  | newcomers | 3.340 | 4 |
+  | cancels | 2.951 | 1 |
+  | lead_callback | 166 | — |
+  | lead_new | 2 | — |
+  | Current Returns (null group) | 3.383 | — |
+
+  The top products by waiting clients are MAGNESIUM CITRAT 325mg (8.882), СНАИЛ КОМПЛЕКС cps 30 (7.309), ПРОСТАТОЛ КОМПЛЕКС cps 30 (5.973), no product (5.229), АЛОЕ ВЕРА ГЕЛ СО АРОНИЈА 1Л (4.777) and Колаген Пептид со ВАНИЛА 200 гр (4.304). In total, 213 distinct products are waiting.
+
+  **Note:** the catalogue holds the same product under two scripts, for example "ПРОСТАТОЛ КОМПЛЕКС cps 30" and "Prostatol Complex (2+2)…". Twins (exact name) do not fold these. `proposeProductsForTitle` does: Cyrillic is transliterated, then c/q→k, x→ks, w→v, y→i and doubled letters are collapsed. The editor should offer those proposals.
+
+### Apply / deploy order (the lead)
+1. `node scripts/assert-mk-target.mjs`
+2. `node scripts/apply-migration-mk.mjs supabase/migrations/20260947000100_call_scripts_targeting.sql`
+3. `node scripts/verify-call-scripts.mjs`. Expect V1–V9 PASS and **V10 WARN (20 rows: the 10 BG-worded legacy scripts and their 10 draft copies)**. Then run `node scripts/engine-fixture-mk.mjs`: the migration does not touch lists, but run it per the bundle rule.
+4. Deploy the api: `npx supabase functions deploy api --project-ref bmfxhgznttcnnlqloqzp` (add `--use-api` if the CLI hangs).
+   - **The api must come after the migration.** Its legacy PATCH / DELETE call the new writers.
+   - Between steps 2 and 4, the old api still writes legacy rows directly through the service role. V4 would list any row edited in that window; re-save it through the editor to heal it.
+5. Push the frontend (A → C → B merged).
+6. Mode stays `off`. The owner decides `preview` (admins / managers see the dock) and later `on`.

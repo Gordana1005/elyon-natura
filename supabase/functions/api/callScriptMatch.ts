@@ -299,18 +299,24 @@ const CYR_TO_LAT: Record<string, string> = {
   х: 'h', ц: 'c', ч: 'ch', џ: 'dj', ш: 'sh', й: 'j', ъ: 'a', ь: '', ю: 'ju', я: 'ja', щ: 'sht', ы: 'i', э: 'e',
 };
 
-/** Lower-case Latin tokens (Cyrillic transliterated, x → ks, diacritics dropped). */
+/**
+ * Lower-case Latin tokens for fuzzy name matching: Cyrillic transliterated, diacritics dropped,
+ * and a light phonetic fold so the catalogue's two scripts meet — "ПРОСТАТОЛ КОМПЛЕКС" and
+ * "Prostatol Complex" both become prostatol / kompleks (x → ks, c / q → k, w → v, y → i, doubled
+ * letters collapsed). Matching only — never shown, never stored.
+ */
 export function nameTokens(name: string | null | undefined): string[] {
-  const lower = String(name ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const lower = String(name ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   let lat = '';
   for (const ch of lower) lat += CYR_TO_LAT[ch] ?? ch;
-  lat = lat.replace(/x/g, 'ks');
+  lat = lat.replace(/x/g, 'ks').replace(/[cq]/g, 'k').replace(/w/g, 'v').replace(/y/g, 'i').replace(/([a-z])\1+/g, '$1');
   return lat.split(/[^a-z0-9]+/).filter(Boolean);
 }
 
+/** Units and filler words, in their folded form (caps → kaps, cps → kps, ml, gr, tbl …). */
 const NAME_STOPWORDS = new Set([
-  'caps', 'cps', 'kapsuli', 'kapsula', 'ml', 'l', 'g', 'gr', 'mg', 'tbl', 'tableti', 'kom', 'ks', 'so', 'za', 'i', 'od',
-  'na', 'and', 'with', 'the', 'po', 'izbor', 'podarok', 'gratis',
+  'kaps', 'kps', 'kapsuli', 'kapsula', 'ml', 'l', 'g', 'gr', 'mg', 'tbl', 'tableti', 'kom', 'ks', 'so', 'za', 'i', 'od',
+  'na', 'and', 'vith', 'the', 'po', 'izbor', 'podarok', 'gratis',
 ]);
 const significant = (tokens: string[]) => tokens.filter((t) => t.length >= 3 && !/^\d/.test(t) && !NAME_STOPWORDS.has(t));
 

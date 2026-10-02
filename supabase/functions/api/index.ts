@@ -112,6 +112,11 @@ import * as ST from "./skopjeTime.ts";
 // /shops — Продавници (owner 02.10.2026, docs/SHOPS.md): the routes, `at` / window params, owner / counts
 // access and the *_mkd strip (pure, shops.test.ts); the reports are migration 20260946000200.
 import * as SHOPS from "./shops.ts";
+// Targeted call scripts (owner 02.10.2026, docs/CALL-SCRIPTS.md): the pure matcher shared with the UI
+// (groups, tiers, substitution, lint — callScriptMatch.test.ts) and the api helpers (parsers, the call
+// context, privacy, coverage, the library — callScriptsAdmin.test.ts). Writers: migration 20260947000100.
+import * as CSM from "./callScriptMatch.ts";
+import * as CSA from "./callScriptsAdmin.ts";
 
 // ============================================================
 // INPUT VALIDATION SCHEMAS
@@ -1455,6 +1460,61 @@ async function stockRegimeRows(adminClient: any): Promise<SV2.SettingRow[] | nul
   return stockRegimeCache.rows;
 }
 const invalidateStockRegime = () => { stockRegimeCache = null; };
+
+// Targeted call scripts (owner 02.10.2026, docs/CALL-SCRIPTS.md): the hot /calls path reads the
+// switch, the script METADATA (no bodies) and the product index from a 30 s per-isolate cache;
+// every call-scripts write clears this isolate's copy (others follow within 30 s). Bodies are
+// loaded only for the best match + up to 4 alternatives. A failed read keeps the last good copy.
+const CS_TTL_MS = 30_000;
+type CsMetaRow = {
+  id: string; context_type: string; status: string; title: string; groups: string[]; product_ids: string[];
+  priority: number; published_at: string | null; updated_at: string; version: number;
+};
+type CsProductRow = { id: string; name: string; price: number | null; brand_line: string | null; kind: string | null; is_active: boolean | null };
+let csModeCache: { at: number; mode: CSA.ScriptsMode } | null = null;
+let csMetaCache: { at: number; rows: CsMetaRow[] } | null = null;
+let csProductsCache: { at: number; rows: CsProductRow[] } | null = null;
+let csDemandCache: { at: number; rows: CSA.DemandRow[] } | null = null;
+async function csGetMode(adminClient: any): Promise<CSA.ScriptsMode> {
+  if (csModeCache && Date.now() - csModeCache.at < CS_TTL_MS) return csModeCache.mode;
+  const { data, error } = await adminClient.from("app_settings").select("value").eq("key", "call_scripts").maybeSingle();
+  if (error) { console.error("call_scripts mode read:", error.message); return csModeCache?.mode ?? "off"; }
+  csModeCache = { at: Date.now(), mode: CSA.modeOf(data?.value) };
+  return csModeCache.mode;
+}
+async function csScriptsMeta(adminClient: any): Promise<CsMetaRow[]> {
+  if (csMetaCache && Date.now() - csMetaCache.at < CS_TTL_MS) return csMetaCache.rows;
+  const { data, error } = await adminClient
+    .from("call_scripts")
+    .select("id, context_type, status, title, groups, product_ids, priority, published_at, updated_at, version")
+    .eq("context_type", "targeted").in("status", ["published", "draft"])
+    .limit(1000);
+  if (error) { console.error("call_scripts meta read:", error.message); return csMetaCache?.rows ?? []; }
+  csMetaCache = { at: Date.now(), rows: (data || []) as CsMetaRow[] };
+  return csMetaCache.rows;
+}
+async function csProducts(adminClient: any): Promise<CsProductRow[]> {
+  if (csProductsCache && Date.now() - csProductsCache.at < CS_TTL_MS) return csProductsCache.rows;
+  const rows: CsProductRow[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await adminClient
+      .from("products").select("id, name, price, brand_line, kind, is_active").order("id").range(from, from + 999);
+    if (error) { console.error("call_scripts products read:", error.message); return csProductsCache?.rows ?? rows; }
+    rows.push(...((data || []) as CsProductRow[]));
+    if (!data || data.length < 1000) break;
+  }
+  csProductsCache = { at: Date.now(), rows };
+  return rows;
+}
+// call_script_demand_json(): one jsonb array (the set-returning twin is capped at 1000 rows by PostgREST).
+async function csDemand(adminClient: any): Promise<CSA.DemandRow[] | null> {
+  if (csDemandCache && Date.now() - csDemandCache.at < 60_000) return csDemandCache.rows;
+  const { data, error } = await adminClient.rpc("call_script_demand_json");
+  if (error) { console.error("call_script_demand_json:", error.message); return csDemandCache?.rows ?? null; }
+  csDemandCache = { at: Date.now(), rows: (Array.isArray(data) ? data : []) as CSA.DemandRow[] };
+  return csDemandCache.rows;
+}
+const csInvalidate = () => { csModeCache = null; csMetaCache = null; };
 
 // CORS headers — origin is set per-request in the serve wrapper below.
 const corsHeaders = {
@@ -12059,42 +12119,492 @@ async function handleRequest(req: Request): Promise<Response> {
     // CALL SCRIPTS & LOGS
     // ============================================================
 
-    // GET /api/call-scripts (list all scripts)
+    // ============================================================
+    // CALL SCRIPTS (targeted) — owner 02.10.2026, docs/CALL-SCRIPTS.md
+    // ============================================================
+    // MUST stay BEFORE the legacy GET /call-scripts/:contextType below (it would swallow
+    // /call-scripts/<anything>). Every write goes through the audited SQL writers
+    // (call_script_* / call_scripts_*, migration 20260947000100): role check, advisory lock,
+    // version row + audit row in one transaction; a refused write's HINT is the machine code
+    // (CSA.mapWriterError → 400 / 403 / 404 / 409 stale). Write = admin, or a manager who can edit
+    // the call_scripts module; delete + the switch = admins only.
+    const csCanWrite = isAdmin || (isManager && canEditModule("call_scripts"));
+    const csWriterError = (error: any) => {
+      console.error("call scripts writer:", error?.code, error?.hint, error?.message);
+      const m = CSA.mapWriterError(error);
+      return json(m.body, m.status);
+    };
+    const csJson = async (): Promise<{ ok: true; body: unknown } | { ok: false }> => {
+      try { return { ok: true, body: await req.json() }; } catch { return { ok: false }; }
+    };
+    const csNames = async (ids: (string | null | undefined)[]): Promise<Map<string, string>> => {
+      const uniq = [...new Set(ids.filter((x): x is string => !!x))];
+      const out = new Map<string, string>();
+      if (uniq.length === 0) return out;
+      const { data } = await adminClient.from("profiles").select("user_id, full_name").in("user_id", uniq);
+      for (const p of data || []) if (p.full_name) out.set(p.user_id, p.full_name);
+      return out;
+    };
+    const csModeInfo = (mode: CSA.ScriptsMode) => ({
+      mode, enabled_for_me: CSA.scriptsEnabledFor(mode, isAdminOrManager), can_write: csCanWrite, can_delete: isAdmin, can_switch: isAdmin,
+    });
+    const CS_ROUTES = ["mode", "library", "published-index", "item", "bulk", "deleted", "coverage", "samples"];
+
+    if (segments[0] === "call-scripts" && CS_ROUTES.includes(segments[1] ?? "")) {
+      if (!hasInternalRole) return json({ error: "Forbidden", code: "forbidden" }, 403);
+      const sub = segments[1];
+      const forbidden = () => json({ error: "Forbidden", code: "forbidden" }, 403);
+      const adminOnly = () => json({ error: "Admins only", code: "admin_only" }, 403);
+      const badJson = () => json({ error: "Invalid JSON", code: "invalid_body" }, 400);
+
+      // GET / PATCH /api/call-scripts/mode — the switch (off | preview | on)
+      if (sub === "mode" && segments.length === 2) {
+        if (req.method === "GET") return json(csModeInfo(await csGetMode(adminClient)));
+        if (req.method === "PATCH") {
+          if (!isAdmin) return adminOnly();
+          const b = await csJson();
+          if (!b.ok) return badJson();
+          const p = CSA.parseMode(b.body);
+          if (!p.ok) return json({ error: p.error, code: p.code }, p.status);
+          const { error } = await adminClient.rpc("call_scripts_set_mode", { p_actor: user.id, p_mode: p.mode, p_note: p.note });
+          if (error) return csWriterError(error);
+          csInvalidate();
+          return json(csModeInfo(p.mode));
+        }
+        return json({ error: "Method not allowed" }, 405);
+      }
+
+      // GET /api/call-scripts/library?status&group&product&q — targeted + legacy product rows
+      if (sub === "library" && segments.length === 2 && req.method === "GET") {
+        const lq = CSA.parseLibraryQuery(url.searchParams);
+        if (!lq.ok) return json({ error: lq.error, code: lq.code }, lq.status);
+        const { data, error } = await adminClient
+          .from("call_scripts").select("*").in("context_type", ["targeted", "product"])
+          .order("updated_at", { ascending: false }).limit(1000);
+        if (error) return json({ error: sanitizeDbError(error) }, 400);
+        const rows = (data || []) as CSA.ScriptRow[];
+        const [names, products] = await Promise.all([csNames(rows.map((r) => r.updated_by)), csProducts(adminClient)]);
+        return json({
+          scripts: CSA.shapeLibrary(rows, { canSeeDrafts: isAdminOrManager, query: lq.query, names }),
+          products: CSA.shapeProductIndex(products),
+        });
+      }
+
+      // GET /api/call-scripts/published-index — what the dock can match (no bodies)
+      if (sub === "published-index" && segments.length === 2 && req.method === "GET") {
+        const meta = await csScriptsMeta(adminClient);
+        return json({
+          scripts: meta.filter((s) => s.status === "published")
+            .map((s) => ({ id: s.id, title: s.title, groups: s.groups ?? [], product_ids: s.product_ids ?? [], version: s.version })),
+        });
+      }
+
+      // POST /api/call-scripts/bulk {ids, op, note?}
+      if (sub === "bulk" && segments.length === 2 && req.method === "POST") {
+        if (!csCanWrite) return forbidden();
+        const b = await csJson();
+        if (!b.ok) return badJson();
+        const p = CSA.parseBulk(b.body);
+        if (!p.ok) return json({ error: p.error, code: p.code }, p.status);
+        const { data, error } = await adminClient.rpc("call_scripts_bulk", { p_actor: user.id, p_ids: p.ids, p_op: p.op, p_note: p.note });
+        if (error) return csWriterError(error);
+        csInvalidate();
+        return json({ updated: data?.updated ?? [], skipped: data?.skipped ?? [] });
+      }
+
+      // GET /api/call-scripts/deleted — admins: the latest delete snapshot of each deleted script
+      if (sub === "deleted" && segments.length === 2 && req.method === "GET") {
+        if (!isAdmin) return adminOnly();
+        const { data, error } = await adminClient
+          .from("call_script_versions").select("script_id, version, snapshot, actor_name, note, created_at")
+          .eq("action", "delete").order("created_at", { ascending: false }).limit(300);
+        if (error) return json({ error: sanitizeDbError(error) }, 400);
+        const ids = [...new Set((data || []).map((v: any) => v.script_id))];
+        const alive = new Set<string>();
+        if (ids.length > 0) {
+          const { data: live } = await adminClient.from("call_scripts").select("id").in("id", ids);
+          for (const r of live || []) alive.add(r.id);
+        }
+        const seen = new Set<string>();
+        const deleted = [];
+        for (const v of (data || []) as any[]) {
+          if (alive.has(v.script_id) || seen.has(v.script_id)) continue;
+          seen.add(v.script_id);
+          const snap = CSA.shapeScriptRow(v.snapshot as CSA.ScriptRow);
+          deleted.push({
+            script_id: v.script_id, version: v.version, title: snap.title, context_type: snap.context_type,
+            deleted_at: v.created_at, actor_name: v.actor_name ?? null, note: v.note ?? null, snapshot: snap,
+          });
+        }
+        return json({ deleted });
+      }
+
+      // GET /api/call-scripts/coverage?families=1&assigned_only=0 — the group × product grid
+      if (sub === "coverage" && segments.length === 2 && req.method === "GET") {
+        if (!csCanWrite) return forbidden();
+        const [demand, listsRes, products] = await Promise.all([
+          csDemand(adminClient),
+          adminClient.from("prediction_segment_lists").select("id, name").limit(1000),
+          csProducts(adminClient),
+        ]);
+        if (!demand) return json({ error: "The coverage could not be computed", code: "failed" }, 500);
+        // archived rows never compete; drafts are shown as "would win in preview"
+        const { data: scriptRows, error: sErr } = await adminClient
+          .from("call_scripts")
+          .select("id, context_type, status, title, groups, product_ids, priority, published_at, updated_at")
+          .eq("context_type", "targeted").in("status", ["published", "draft"]).limit(1000);
+        if (sErr || listsRes.error) return json({ error: sanitizeDbError(sErr || listsRes.error) }, 400);
+        return json(CSA.shapeCoverage(demand, (listsRes.data || []) as any[], (scriptRows || []) as any[], products, {
+          families: url.searchParams.get("families") !== "0",
+          assignedOnly: url.searchParams.get("assigned_only") === "1",
+        }));
+      }
+
+      // GET /api/call-scripts/samples?group&product — up to 10 waiting clients for the tester,
+      // privacy-filtered, each with its (redacted) variables
+      if (sub === "samples" && segments.length === 2 && req.method === "GET") {
+        if (!csCanWrite) return forbidden();
+        const group = url.searchParams.get("group");
+        const product = url.searchParams.get("product");
+        if (!CSM.isScriptGroup(group)) return json({ error: "group is required", code: "bad_group" }, 400);
+        if (product && !CSA.isUuid(product)) return json({ error: "product must be a product id", code: "unknown_product" }, 400);
+        const products = await csProducts(adminClient);
+        const twins = CSM.buildTwins(products);
+        const family = product ? CSM.familyOf(product, twins) : null;
+        const prodMap = new Map(products.map((p) => [p.id, { name: p.name, price: p.price }]));
+        const { data: excl } = await adminClient.from("report_excluded_phones").select("phone8");
+        const excluded = new Set((excl || []).map((x: any) => x.phone8));
+        const { data: me } = await adminClient.from("profiles").select("full_name").eq("user_id", user.id).maybeSingle();
+        const now = new Date();
+        const samples: any[] = [];
+        if (CSM.isLeadGroup(group)) {
+          let q = adminClient.from("orders")
+            .select("id, display_id, status, created_at, product_id, product_name, customer_name, customer_phone, customer_city, assigned_agent_id")
+            .in("status", group === "lead_new" ? ["pending", "take"] : ["call_again"])
+            .in("source_type", LEAD_SOURCE_TYPES)
+            .order("created_at", { ascending: false }).limit(40);
+          if (family) q = q.in("product_id", family);
+          const { data, error } = await q;
+          if (error) return json({ error: sanitizeDbError(error) }, 400);
+          for (const o of (data || []) as any[]) {
+            if (excluded.has(CO.phone8(o.customer_phone)) || samples.length >= 10) continue;
+            const built = CSA.redactVars(CSA.buildCallContext({
+              source: "lead", basis: "order_status", order: o, orderItems: [], products: prodMap, agentName: me?.full_name ?? null, now,
+            }), piiFlags, showOrderHistory);
+            samples.push({
+              kind: "lead", customer_name: o.customer_name, customer_phone: o.customer_phone, list_id: null, list_name: null,
+              order_id: o.id, product_id: o.product_id, product_name: o.product_name, last_purchase_at: null,
+              assigned: !!o.assigned_agent_id, group, vars: built.vars,
+            });
+          }
+        } else {
+          const { data: lists } = await adminClient.from("prediction_segment_lists").select("id, name").eq("is_active", true).limit(1000);
+          const inGroup = (lists || []).filter((l: any) => CSM.groupOfListName(l.name) === group);
+          const listName = new Map(inGroup.map((l: any) => [l.id, l.name]));
+          if (inGroup.length > 0) {
+            const { data, error } = await adminClient.from("prediction_segment_members")
+              .select("list_id, customer_name, customer_phone, last_paid_at, trigger_order_id, product_name, assigned_agent_id")
+              .in("list_id", inGroup.map((l: any) => l.id)).eq("is_completed", false)
+              .order("last_paid_at", { ascending: false, nullsFirst: false }).limit(family ? 400 : 40);
+            if (error) return json({ error: sanitizeDbError(error) }, 400);
+            const members = ((data || []) as any[]).filter((m) => !excluded.has(CO.phone8(m.customer_phone)));
+            const trigIds = [...new Set(members.map((m) => m.trigger_order_id).filter(Boolean))];
+            const trig = new Map<string, any>();
+            for (let i = 0; i < trigIds.length; i += 200) {
+              const { data: os } = await adminClient.from("orders").select("id, product_id, product_name, customer_city").in("id", trigIds.slice(i, i + 200));
+              for (const o of os || []) trig.set(o.id, o);
+            }
+            for (const m of members) {
+              if (samples.length >= 10) break;
+              const t = m.trigger_order_id ? trig.get(m.trigger_order_id) ?? null : null;
+              if (family && !(t?.product_id && family.includes(t.product_id))) continue;
+              const built = CSA.redactVars(CSA.buildCallContext({
+                source: "prediction", basis: "list_name", list: { id: m.list_id, name: listName.get(m.list_id) ?? "" }, member: m,
+                triggerOrder: t, triggerItems: [], products: prodMap, agentName: me?.full_name ?? null, now,
+              }), piiFlags, showOrderHistory);
+              samples.push({
+                kind: "member", customer_name: m.customer_name, customer_phone: m.customer_phone, list_id: m.list_id,
+                list_name: listName.get(m.list_id) ?? null, order_id: null, product_id: t?.product_id ?? null,
+                product_name: t?.product_name ?? m.product_name ?? null, last_purchase_at: showOrderHistory ? m.last_paid_at : null,
+                assigned: !!m.assigned_agent_id, group, vars: built.vars,
+              });
+            }
+          }
+        }
+        return json({ samples: redactCustomerList(samples, piiFlags) });
+      }
+
+      // /api/call-scripts/item[/:id[/duplicate|versions|restore]]
+      if (sub === "item") {
+        // POST /api/call-scripts/item {patch, note?} — a new targeted script (draft unless published)
+        if (segments.length === 2 && req.method === "POST") {
+          if (!csCanWrite) return forbidden();
+          const b = await csJson();
+          if (!b.ok) return badJson();
+          const p = CSA.parseCreateBody(b.body);
+          if (!p.ok) return json({ error: p.error, code: p.code }, p.status);
+          const { data, error } = await adminClient.rpc("call_script_save", {
+            p_actor: user.id, p_id: null, p_expected_version: null, p_patch: p.patch, p_note: p.note,
+          });
+          if (error) return csWriterError(error);
+          csInvalidate();
+          const names = await csNames([user.id]);
+          return json({ script: CSA.shapeScriptRow(data.script, { lint: true, names }) }, 201);
+        }
+        const id = segments[2];
+        if (!CSA.isUuid(id)) return json({ error: "Not found", code: "not_found" }, 404);
+
+        if (segments.length === 3 && req.method === "GET") {
+          const { data, error } = await adminClient.from("call_scripts").select("*").eq("id", id).maybeSingle();
+          if (error) return json({ error: sanitizeDbError(error) }, 400);
+          if (!data || (data.status !== "published" && !isAdminOrManager)) return json({ error: "Not found", code: "not_found" }, 404);
+          const names = await csNames([data.updated_by]);
+          return json(CSA.shapeScriptRow(data, { lint: true, names }));
+        }
+        // PATCH /api/call-scripts/item/:id {expected_version, patch, note?} — 409 stale on a newer version
+        if (segments.length === 3 && req.method === "PATCH") {
+          if (!csCanWrite) return forbidden();
+          const b = await csJson();
+          if (!b.ok) return badJson();
+          const p = CSA.parseUpdateBody(b.body);
+          if (!p.ok) return json({ error: p.error, code: p.code }, p.status);
+          const { data, error } = await adminClient.rpc("call_script_save", {
+            p_actor: user.id, p_id: id, p_expected_version: p.expected_version, p_patch: p.patch, p_note: p.note,
+          });
+          if (error) return csWriterError(error);
+          csInvalidate();
+          const names = await csNames([data.script?.updated_by]);
+          return json({ script: CSA.shapeScriptRow(data.script, { lint: true, names }), action: data.action, changed: data.changed });
+        }
+        // DELETE /api/call-scripts/item/:id?note= — admins only; a snapshot version first
+        if (segments.length === 3 && req.method === "DELETE") {
+          if (!isAdmin) return adminOnly();
+          let noteRaw: unknown = url.searchParams.get("note");
+          if (noteRaw == null) {
+            const b = await csJson();
+            if (b.ok && b.body && typeof b.body === "object") noteRaw = (b.body as any).note ?? null;
+          }
+          const n = CSA.parseNote(noteRaw);
+          if (!n.ok) return json({ error: n.error, code: n.code }, n.status);
+          const { data, error } = await adminClient.rpc("call_script_delete", { p_actor: user.id, p_id: id, p_note: n.note });
+          if (error) return csWriterError(error);
+          csInvalidate();
+          return json({ ok: true, version: data?.version ?? null });
+        }
+        // POST /api/call-scripts/item/:id/duplicate {groups, product_ids, split, note?}
+        if (segments.length === 4 && segments[3] === "duplicate" && req.method === "POST") {
+          if (!csCanWrite) return forbidden();
+          const b = await csJson();
+          if (!b.ok) return badJson();
+          const p = CSA.parseDuplicate(b.body);
+          if (!p.ok) return json({ error: p.error, code: p.code }, p.status);
+          const { data: src } = await adminClient.from("call_scripts").select("id, title").eq("id", id).maybeSingle();
+          if (!src) return json({ error: "Not found", code: "not_found" }, 404);
+          const products = await csProducts(adminClient);
+          const pName = new Map(products.map((x) => [x.id, x.name]));
+          const t = CSA.duplicateTargets(src.title, p, (pid) => pName.get(pid) ?? null);
+          if (!t.ok) return json({ error: t.error, code: t.code }, t.status);
+          const { data, error } = await adminClient.rpc("call_script_duplicate", { p_actor: user.id, p_id: id, p_targets: t.targets, p_note: p.note });
+          if (error) return csWriterError(error);
+          csInvalidate();
+          return json({ created: ((data?.created || []) as any[]).map((c) => ({ id: c.id, title: c.title })) }, 201);
+        }
+        // GET /api/call-scripts/item/:id/versions — newest first, ≤ 100
+        if (segments.length === 4 && segments[3] === "versions" && req.method === "GET") {
+          if (!csCanWrite) return forbidden();
+          const { data, error } = await adminClient
+            .from("call_script_versions").select("id, script_id, version, action, snapshot, actor_id, actor_name, note, created_at")
+            .eq("script_id", id).order("version", { ascending: false }).limit(100);
+          if (error) return json({ error: sanitizeDbError(error) }, 400);
+          return json({ versions: ((data || []) as any[]).map((v) => ({ ...v, snapshot: CSA.shapeScriptRow(v.snapshot) })) });
+        }
+        // POST /api/call-scripts/item/:id/restore {version, note?} — admins for a deleted script
+        if (segments.length === 4 && segments[3] === "restore" && req.method === "POST") {
+          if (!csCanWrite) return forbidden();
+          const b = await csJson();
+          if (!b.ok) return badJson();
+          const p = CSA.parseRestore(b.body);
+          if (!p.ok) return json({ error: p.error, code: p.code }, p.status);
+          const { data, error } = await adminClient.rpc("call_script_restore", { p_actor: user.id, p_id: id, p_version: p.version, p_note: p.note });
+          if (error) return csWriterError(error);
+          csInvalidate();
+          const names = await csNames([user.id]);
+          return json({
+            script: CSA.shapeScriptRow(data.script, { lint: true, names }),
+            was_deleted: !!data.was_deleted, dropped_products: data.dropped_products ?? [],
+          });
+        }
+      }
+      return json({ error: "Not found", code: "not_found" }, 404);
+    }
+
+    // GET /api/calls/scripts?phone&source=lead|prediction|manual&order_id&list_id&include_drafts
+    // The script for the call on /calls: the group from the lead's status / the list's name / the
+    // customer's attribution, the products from the lead / the trigger order / the last sale, the
+    // best published match (+ drafts in preview for admins / managers) and up to 4 alternatives.
+    // Off (or preview for an agent) → {enabled:false} and the dock keeps today's panel.
+    if (req.method === "GET" && path === "calls/scripts") {
+      if (!hasInternalRole || !(isAdminOrManager || isAgent || canViewModule("call_scripts"))) {
+        return json({ error: "Forbidden", code: "forbidden" }, 403);
+      }
+      if (!checkUserRateLimit(user.id, "calls.scripts", 120)) {
+        return json({ error: "Rate limit exceeded — slow down", code: "rate_limited" }, 429);
+      }
+      const mode = await csGetMode(adminClient);
+      const off = { enabled: false, mode, drafts_included: false, context: null, vars: null, best: null, alternatives: [] };
+      if (!CSA.scriptsEnabledFor(mode, isAdminOrManager)) return json(off);
+
+      const phone = (url.searchParams.get("phone") || "").trim();
+      const last8 = phone.replace(/\D/g, "").slice(-8);
+      if (last8.length < 8) return json({ error: "phone is required", code: "bad_phone" }, 400);
+      const source = url.searchParams.get("source") || "manual";
+      if (!["lead", "prediction", "manual"].includes(source)) return json({ error: "source is lead, prediction or manual", code: "bad_source" }, 400);
+      const orderHint = url.searchParams.get("order_id");
+      const listHint = url.searchParams.get("list_id");
+      if ((orderHint && !CSA.isUuid(orderHint)) || (listHint && !CSA.isUuid(listHint))) {
+        return json({ error: "order_id / list_id must be ids", code: "bad_id" }, 400);
+      }
+      const includeDrafts = isAdminOrManager && ["1", "true"].includes(url.searchParams.get("include_drafts") || "");
+      const OPEN = ["pending", "take", "call_again"];
+      const ORDER_SEL = "id, display_id, status, created_at, product_id, product_name, customer_name, customer_city, customer_phone, source_type";
+
+      const findLead = async (): Promise<any | null> => {
+        if (orderHint) {
+          const { data } = await adminClient.from("orders").select(ORDER_SEL).eq("id", orderHint).maybeSingle();
+          if (data && OPEN.includes(data.status) && LEAD_SOURCE_TYPES.includes(data.source_type) && CO.phone8(data.customer_phone) === last8) return data;
+        }
+        const { data } = await adminClient.from("orders").select(ORDER_SEL)
+          .ilike("customer_phone", `%${last8}`).in("status", OPEN).in("source_type", LEAD_SOURCE_TYPES)
+          .order("created_at", { ascending: false }).limit(1);
+        return data?.[0] ?? null;
+      };
+      // a list + this phone's member row; agents only their own member
+      const findListMember = async (listId: string): Promise<{ list: { id: string; name: string } | null; member: any | null; allowed: boolean }> => {
+        const { data: list } = await adminClient.from("prediction_segment_lists").select("id, name").eq("id", listId).maybeSingle();
+        if (!list) return { list: null, member: null, allowed: false };
+        const { data: member } = await adminClient.from("prediction_segment_members")
+          .select("customer_name, customer_phone, last_paid_at, trigger_order_id, product_name, assigned_agent_id")
+          .eq("list_id", listId).ilike("customer_phone", `%${last8}`).limit(1).maybeSingle();
+        const allowed = isAdminOrManager || (!!member && member.assigned_agent_id === user.id);
+        return { list, member: member ?? null, allowed };
+      };
+      const trigger = async (orderId: string | null | undefined) => {
+        if (!orderId) return { order: null, items: [] as any[] };
+        const [o, it] = await Promise.all([
+          adminClient.from("orders").select("product_id, product_name, customer_city").eq("id", orderId).maybeSingle(),
+          adminClient.from("order_items").select("product_id, product_name").eq("order_id", orderId),
+        ]);
+        return { order: o.data ?? null, items: (it.data || []) as any[] };
+      };
+      const lastSale = async () => {
+        const { data, error } = await adminClient.rpc("last_sale_product", { p_phone: phone }).maybeSingle();
+        return error ? null : (data as any) ?? null;
+      };
+
+      try {
+        const [products, meProfile] = await Promise.all([
+          csProducts(adminClient),
+          adminClient.from("profiles").select("full_name").eq("user_id", user.id).maybeSingle(),
+        ]);
+        const prodMap = new Map(products.map((p) => [p.id, { name: p.name, price: p.price }]));
+        const base = { source: source as "lead" | "prediction" | "manual", products: prodMap, agentName: meProfile.data?.full_name ?? null, now: new Date() };
+        let input: CSA.CallContextInput | null = null;
+
+        const asLead = async (o: any): Promise<CSA.CallContextInput> => {
+          const { data: items } = await adminClient.from("order_items").select("product_id, product_name").eq("order_id", o.id);
+          return { ...base, basis: "order_status", order: o, orderItems: (items || []) as any[] };
+        };
+        const asList = async (lm: { list: { id: string; name: string } | null; member: any }, basis: "list_name" | "attribution"): Promise<CSA.CallContextInput> => {
+          const t = await trigger(lm.member?.trigger_order_id);
+          const ls = await lastSale();
+          return {
+            ...base, basis, list: lm.list, member: lm.member, triggerOrder: t.order, triggerItems: t.items,
+            lastSale: ls,
+            knownName: lm.member?.customer_name ? null : await resolveKnownCustomerName(phone),
+          };
+        };
+
+        if (source === "lead") {
+          const o = await findLead();
+          input = o ? await asLead(o) : { ...base, basis: "none", lastSale: await lastSale(), knownName: await resolveKnownCustomerName(phone) };
+        } else if (source === "prediction") {
+          if (!listHint) return json({ error: "list_id is required for a prediction call", code: "list_required" }, 400);
+          const lm = await findListMember(listHint);
+          if (!lm.list) return json({ error: "List not found", code: "list_not_found" }, 404);
+          if (!lm.allowed) return json({ error: "This customer is not in your list", code: "not_your_member" }, 403);
+          input = await asList(lm, "list_name");
+        } else {
+          const o = await findLead();
+          if (o) input = await asLead(o);
+          if (!input && listHint) {
+            const lm = await findListMember(listHint);
+            if (lm.list && lm.allowed) input = await asList(lm, "list_name");
+          }
+          if (!input) {
+            const attr = await resolvePredictionAttribution(phone);
+            if (attr) {
+              const lm = attr.type === "segment"
+                ? await findListMember(attr.id)
+                : { list: { id: attr.id, name: attr.name }, member: null, allowed: true };
+              input = await asList({ list: lm.list ?? { id: attr.id, name: attr.name }, member: lm.member }, "attribution");
+            }
+          }
+          if (!input) input = { ...base, basis: "none", lastSale: await lastSale(), knownName: await resolveKnownCustomerName(phone) };
+        }
+
+        const built = CSA.redactVars(CSA.buildCallContext(input), piiFlags, showOrderHistory);
+        const twins = CSM.buildTwins(products);
+        const meta = await csScriptsMeta(adminClient);
+        const r = CSM.matchScripts(meta, { ...built.match, twins }, { includeDrafts });
+        const picked = [r.best, ...r.alternatives].filter((x): x is NonNullable<typeof x> => !!x);
+        let bodies = new Map<string, any>();
+        if (picked.length > 0) {
+          const { data: rows, error } = await adminClient.from("call_scripts").select("*").in("id", picked.map((x) => x.script.id));
+          if (error) return json({ error: sanitizeDbError(error) }, 400);
+          bodies = new Map((rows || []).map((row: any) => [row.id, row]));
+        }
+        const withBody = (x: (typeof picked)[number]) => {
+          const row = bodies.get(x.script.id);
+          if (!row || !(row.status === "published" || (includeDrafts && row.status === "draft"))) return null;
+          return { ...CSA.shapeScriptRow(row), match: x.match };
+        };
+        const best = r.best ? withBody(r.best) : null;
+        return json({
+          enabled: true, mode, drafts_included: includeDrafts, context: built.context, vars: built.vars,
+          best, alternatives: r.alternatives.map(withBody).filter(Boolean),
+        });
+      } catch (e: any) {
+        console.error("calls/scripts:", e?.message || e);
+        return json({ error: "The scripts could not be loaded", code: "failed" }, 500);
+      }
+    }
+
+    // ── The legacy call-script routes (old bundles, the Order / Prediction-lead tabs, OrderModal) ──
+    // Hardened 02.10.2026 (20260947000100): reads return legacy rows only; writes go through the
+    // audited writer's legacy branch (call_script_save) / call_script_delete; no new product rows.
+
+    // GET /api/call-scripts (list the legacy scripts; RLS: agents see published rows only)
     if (req.method === "GET" && path === "call-scripts") {
       const { data, error } = await supabase
         .from("call_scripts")
         .select("*")
+        .neq("context_type", "targeted")
         .order("title");
       if (error) return json({ error: sanitizeDbError(error) }, 400);
       return json(data || []);
     }
 
-    // POST /api/call-scripts (admin only - create new product script)
+    // POST /api/call-scripts — retired: new scripts are written on /call-scripts (POST /call-scripts/item)
     if (req.method === "POST" && path === "call-scripts") {
-      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
-      const body = await req.json();
-      if (!body.title?.trim()) return json({ error: "title is required" }, 400);
-      const { data, error } = await adminClient
-        .from("call_scripts")
-        .insert({
-          context_type: "product",
-          title: body.title.trim(),
-          description: body.description?.trim() || null,
-          script_text: body.script_text || "",
-          helpers: Array.isArray(body.helpers) ? body.helpers : [],
-          translations: body.translations && typeof body.translations === "object" ? body.translations : {},
-          updated_by: user.id,
-          updated_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
-      if (error) return json({ error: sanitizeDbError(error) }, 400);
-      return json(data);
+      return json({ error: "Write new scripts in the call-scripts editor", code: "use_new_editor" }, 410);
     }
 
-    // GET /api/call-scripts/:contextType
+    // GET /api/call-scripts/:contextType — the order / prediction_lead script only
     if (req.method === "GET" && segments[0] === "call-scripts" && segments.length === 2) {
       const contextType = segments[1];
+      if (contextType !== "order" && contextType !== "prediction_lead") {
+        return json({ error: "Not found", code: "not_found" }, 404);
+      }
       const { data, error } = await supabase
         .from("call_scripts")
         .select("*")
@@ -12104,70 +12614,47 @@ async function handleRequest(req: Request): Promise<Response> {
       return json(data);
     }
 
-    // PATCH /api/call-scripts/:id  (admin only)
-    // If the segment looks like a UUID → update product script by id
-    // Otherwise → upsert legacy script by context_type (prediction_lead / order)
+    // PATCH /api/call-scripts/:id | :contextType — a legacy row through the writer's legacy branch
+    // (title, description, script_text, helpers, translations.sq; versioned + audited). A uuid =
+    // a product script by id; order / prediction_lead = that fixed row. Last write wins (old
+    // clients send no version), but every write is a restorable version now.
     if (req.method === "PATCH" && segments[0] === "call-scripts" && segments.length === 2) {
-      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      if (!(isAdmin || (isManager && canEditModule("call_scripts")))) return json({ error: "Forbidden" }, 403);
       const identifier = segments[1];
-      const body = await req.json();
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier);
-
-      let data, error;
-      if (isUuid) {
-        // Product script update by id
-        ({ data, error } = await adminClient
-          .from("call_scripts")
-          .update({
-            title: body.title?.trim(),
-            description: body.description?.trim() ?? null,
-            script_text: body.script_text,
-            // Only persist helpers/translations when explicitly provided (keeps old clients + legacy paths safe)
-            ...(Array.isArray(body.helpers) ? { helpers: body.helpers } : {}),
-            ...(body.translations && typeof body.translations === "object" ? { translations: body.translations } : {}),
-            updated_by: user.id,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", identifier)
-          .select()
-          .single());
-      } else {
-        // Legacy prediction_lead / order — select then update or insert
-        const { data: existing } = await adminClient
-          .from("call_scripts")
-          .select("id")
-          .eq("context_type", identifier)
-          .maybeSingle();
-        const defaultTitle = identifier === "prediction_lead" ? "Prediction Lead Script" : "Order Script";
-        const transPatch = body.translations && typeof body.translations === "object" ? { translations: body.translations } : {};
-        if (existing) {
-          ({ data, error } = await adminClient
-            .from("call_scripts")
-            .update({ script_text: body.script_text, ...transPatch, updated_by: user.id, updated_at: new Date().toISOString() })
-            .eq("id", existing.id)
-            .select()
-            .single());
-        } else {
-          ({ data, error } = await adminClient
-            .from("call_scripts")
-            .insert({ context_type: identifier, title: defaultTitle, script_text: body.script_text, ...transPatch, updated_by: user.id })
-            .select()
-            .single());
-        }
+      let body: any;
+      try { body = await req.json(); } catch { return json({ error: "Invalid JSON", code: "invalid_body" }, 400); }
+      const isUuid = CSA.isUuid(identifier);
+      if (!isUuid && identifier !== "order" && identifier !== "prediction_lead") return json({ error: "Not found", code: "not_found" }, 404);
+      const { data: row } = isUuid
+        ? await adminClient.from("call_scripts").select("id, version, context_type").eq("id", identifier).maybeSingle()
+        : await adminClient.from("call_scripts").select("id, version, context_type").eq("context_type", identifier).maybeSingle();
+      if (!row) return json({ error: "Not found", code: "not_found" }, 404);
+      if (row.context_type === "targeted") return json({ error: "Edit targeted scripts in the call-scripts editor", code: "use_new_editor" }, 409);
+      const patch: Record<string, unknown> = {};
+      if (typeof body?.title === "string" && isUuid) patch.title = body.title;
+      if (isUuid && "description" in (body || {})) patch.description = typeof body.description === "string" ? body.description : null;
+      if (typeof body?.script_text === "string") patch.script_text = body.script_text;
+      if (Array.isArray(body?.helpers)) patch.helpers = body.helpers;
+      if (body?.translations && typeof body.translations === "object" && !Array.isArray(body.translations)) {
+        // scripts are written in mk + sq only (the old editor's languages)
+        patch.translations = body.translations.sq ? { sq: body.translations.sq } : {};
       }
-      if (error) return json({ error: sanitizeDbError(error) }, 400);
-      return json(data);
+      const { data, error } = await adminClient.rpc("call_script_save", {
+        p_actor: user.id, p_id: row.id, p_expected_version: row.version, p_patch: patch, p_note: null,
+      });
+      if (error) return csWriterError(error);
+      csInvalidate();
+      return json(data?.script ?? null);
     }
 
-    // DELETE /api/call-scripts/:id (admin only - delete product script)
+    // DELETE /api/call-scripts/:id — admins only, versioned (call_script_delete keeps a restorable snapshot)
     if (req.method === "DELETE" && segments[0] === "call-scripts" && segments.length === 2) {
-      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
-      const { error } = await adminClient
-        .from("call_scripts")
-        .delete()
-        .eq("id", segments[1]);
-      if (error) return json({ error: sanitizeDbError(error) }, 400);
-      return json({ ok: true });
+      if (!isAdmin) return json({ error: "Admins only", code: "admin_only" }, 403);
+      if (!CSA.isUuid(segments[1])) return json({ error: "Not found", code: "not_found" }, 404);
+      const { data, error } = await adminClient.rpc("call_script_delete", { p_actor: user.id, p_id: segments[1], p_note: null });
+      if (error) return csWriterError(error);
+      csInvalidate();
+      return json({ ok: true, version: data?.version ?? null });
     }
 
     // POST /api/call-logs

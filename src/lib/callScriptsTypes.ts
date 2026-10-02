@@ -130,6 +130,8 @@ export interface CoverageResponse {
   /** Per group: every waiting client (any product, none included); the winner for a client with no product. */
   all_products: Record<ScriptGroup, CoverageCell>;
   rows: CoverageRow[];
+  /** Waiting clients of lists with no group (Current Returns, uploaded lists) — outside the grid. */
+  outside?: { waiting: number; lists: { list_id: string; name: string | null; waiting: number }[] };
   totals: {
     waiting: number;
     covered: number;
@@ -252,6 +254,9 @@ export interface ScriptSample {
   product_name: string | null;
   last_purchase_at: string | null;
   assigned: boolean;
+  group: ScriptGroup;
+  /** The sample's variables, redacted like the dock's (render with substitute(); match locally with matchScripts). */
+  vars: ScriptVars;
 }
 
 export interface CallScriptsQuery {

@@ -93,7 +93,7 @@ export const apiGetTargetedScript = (id: string) =>
 export const apiCreateTargetedScript = (body: { patch: ScriptPatch; note?: string }) =>
   scriptsFetch<{ script: TargetedScript }>('call-scripts/item', post(body));
 export const apiSaveTargetedScript = (id: string, body: { expected_version: number; patch: ScriptPatch; note?: string }) =>
-  scriptsFetch<{ script: TargetedScript }>(`call-scripts/item/${enc(id)}`, patch(body));
+  scriptsFetch<{ script: TargetedScript; action: string; changed: boolean }>(`call-scripts/item/${enc(id)}`, patch(body));
 export const apiDuplicateTargetedScript = (id: string, body: DuplicateBody) =>
   scriptsFetch<DuplicateResult>(`call-scripts/item/${enc(id)}/duplicate`, post(body));
 export const apiBulkTargetedScripts = (body: { ids: string[]; op: BulkOp; note?: string }) =>
@@ -103,7 +103,7 @@ export const apiBulkTargetedScripts = (body: { ids: string[]; op: BulkOp; note?:
 export const apiGetScriptVersions = (id: string) =>
   scriptsFetch<{ versions: ScriptVersion[] }>(`call-scripts/item/${enc(id)}/versions`);
 export const apiRestoreTargetedScript = (id: string, body: { version: number; note?: string }) =>
-  scriptsFetch<{ script: TargetedScript }>(`call-scripts/item/${enc(id)}/restore`, post(body));
+  scriptsFetch<{ script: TargetedScript; was_deleted: boolean; dropped_products: string[] }>(`call-scripts/item/${enc(id)}/restore`, post(body));
 /** Admins only. */
 export const apiDeleteTargetedScript = (id: string, note?: string) =>
   scriptsFetch<{ ok: true; version: number }>(`call-scripts/item/${enc(id)}${qs({ note })}`, { method: 'DELETE' });

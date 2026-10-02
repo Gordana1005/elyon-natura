@@ -209,7 +209,9 @@ imports, not idempotent) · `import-products-bigarena.mjs`, `reconcile-panel-pdf
 `check-segment-counts.mjs`, `check-customer-intelligence.mjs` (the BG-era audits; the MK checkers
 are in the runbook) · `create-admin-users.mjs`, `create-agents-2026-05.mjs` (BG bootstrap).
 `import-costs-from-bg.mjs` and `import-scripts-from-bg.mjs` READ the Bulgarian project — reading is
-allowed, writing to it never.
+allowed, writing to it never. `import-scripts-from-bg.mjs`, `import-call-scripts.mjs` and
+`translate-call-scripts.mjs` are **retired** (02.10.2026): call scripts are written only on /call-scripts
+through the audited writers (docs/CALL-SCRIPTS.md).
 
 ---
 

@@ -165,7 +165,9 @@ columns (`title/description/script_text/helpers`) are the **Bulgarian source + p
 fallback**. Resolve with `resolveScript(script, lang)` from `src/lib/callScripts.ts`
 (never read the raw columns directly in the agent UI). Operators edit each language via
 the `BG | EN | SQ` switch in Call Support Center; the AI drafts were seeded by
-`scripts/translate-call-scripts.mjs` from `scripts/data/call-script-translations.json`.
+`scripts/translate-call-scripts.mjs` from `scripts/data/call-script-translations.json`
+(**retired 02.10.2026** — every call-script write now goes through the audited writers; scripts are
+written in mk + sq only on /call-scripts, see `elyon-call-scripts` and docs/CALL-SCRIPTS.md).
 Product TITLES stay as the brand name (fall back to base). So: still NO call-script
 *content* in the locale JSON — only the editor's chrome keys (`callScripts.*`) go there.
 

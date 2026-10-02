@@ -57,6 +57,9 @@ node --env-file=.env scripts/import-products-bigarena.mjs --commit
 
 ## 3. Call scripts — `import-call-scripts.mjs` *(carry-over)*
 
+> **Macedonia: retired 02.10.2026.** The script exits with a message; call scripts are written on
+> /call-scripts through the audited writers (docs/CALL-SCRIPTS.md, migration 20260947000100).
+
 Imports the talk-track scripts (trilingual; Albanian already drafted).
 
 ```bash

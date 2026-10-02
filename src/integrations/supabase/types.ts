@@ -289,39 +289,108 @@ export type Database = {
         }
         Relationships: []
       }
+      call_script_versions: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_name: string | null
+          created_at: string
+          id: number
+          note: string | null
+          script_id: string
+          snapshot: Json
+          version: number
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_name?: string | null
+          created_at?: string
+          id?: number
+          note?: string | null
+          script_id: string
+          snapshot: Json
+          version: number
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_name?: string | null
+          created_at?: string
+          id?: number
+          note?: string | null
+          script_id?: string
+          snapshot?: Json
+          version?: number
+        }
+        Relationships: []
+      }
       call_scripts: {
         Row: {
           context_type: string
+          copied_from: string | null
+          created_at: string
+          created_by: string | null
           description: string | null
+          groups: string[]
           helpers: Json
           id: string
+          priority: number
+          product_ids: string[]
+          published_at: string | null
+          published_by: string | null
           script_text: string
+          sections: Json
+          status: string
           title: string
           translations: Json
           updated_at: string
           updated_by: string | null
+          version: number
         }
         Insert: {
           context_type: string
+          copied_from?: string | null
+          created_at?: string
+          created_by?: string | null
           description?: string | null
+          groups?: string[]
           helpers?: Json
           id?: string
+          priority?: number
+          product_ids?: string[]
+          published_at?: string | null
+          published_by?: string | null
           script_text?: string
+          sections?: Json
+          status?: string
           title?: string
           translations?: Json
           updated_at?: string
           updated_by?: string | null
+          version?: number
         }
         Update: {
           context_type?: string
+          copied_from?: string | null
+          created_at?: string
+          created_by?: string | null
           description?: string | null
+          groups?: string[]
           helpers?: Json
           id?: string
+          priority?: number
+          product_ids?: string[]
+          published_at?: string | null
+          published_by?: string | null
           script_text?: string
+          sections?: Json
+          status?: string
           title?: string
           translations?: Json
           updated_at?: string
           updated_by?: string | null
+          version?: number
         }
         Relationships: []
       }

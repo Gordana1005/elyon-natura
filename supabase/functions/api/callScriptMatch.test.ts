@@ -303,7 +303,7 @@ const SECTIONS = [
   { id: "opening", key: "opening" as const, text: "Добар ден {{first_name}}!\n" },
   { id: "pitch", key: "pitch" as const, text: "  \n" },
   { id: "custom-abc123", key: "custom" as const, title: " Гаранција ", text: "30 дена враќање." },
-  { id: "closing", key: "closing" as const, text: "Ви благодарам." },
+  { id: "closing", key: "closing" as const, text: "\r\nВи благодарам.\t" },
 ];
 
 describe("sectionsToText (twin of call_script_sections_text)", () => {
@@ -358,7 +358,7 @@ describe("resolveTargetedScript", () => {
     expect(r.title).toBe("Prostatol 21d");
     expect(r.description).toBe("За клиенти од 21 ден");
     expect(r.sections.map((x) => x.id)).toEqual(["opening", "pitch", "custom-abc123", "closing", "custom-sqonly1"]);
-    expect(r.sections.map((x) => x.text)).toEqual(["Mirëdita {{first_name}}!", "  \n", "30 ditë kthim.", "Ви благодарам.", "Shtesë."]);
+    expect(r.sections.map((x) => x.text)).toEqual(["Mirëdita {{first_name}}!", "  \n", "30 ditë kthim.", "\r\nВи благодарам.\t", "Shtesë."]);
     expect(r.sections[2].title).toBe("Garancia");
     expect(r.fallback_section_ids).toEqual(["closing"]);
     expect(r.fallback_fields).toEqual(["description", "helpers"]);
@@ -405,11 +405,13 @@ describe("proposeProductsForTitle", () => {
     { id: "4", name: "Hepatol", kind: "product", is_active: true },
     { id: "5", name: "Нефрофикс", kind: "product", is_active: true },
     { id: "6", name: "Enduro Max 30 капсули", kind: "product", is_active: true },
+    { id: "7", name: "ПРОСТАТОЛ КОМПЛЕКС cps 30", kind: "product", is_active: true },
   ];
   it("every significant title word must be in the name; exact + products first", () => {
     const r = proposeProductsForTitle("Prostatol Complex 30 caps", products);
-    expect(r.map((x) => x.product_id)).toEqual(["3", "1", "2"]);
+    expect(r.map((x) => x.product_id)).toEqual(["3", "7", "1", "2"]);
     expect(r[0].exact).toBe(true);
+    expect(r[1].exact).toBe(true);
   });
   it("the description after the dash is ignored; Cyrillic matches Latin", () => {
     expect(proposeProductsForTitle("Hepatol Forte 30 caps – За црн дроб", products)).toEqual([]);
@@ -418,7 +420,11 @@ describe("proposeProductsForTitle", () => {
     expect(proposeProductsForTitle("Enduro Max 30 caps", products).map((x) => x.product_id)).toEqual(["6"]);
     expect(proposeProductsForTitle("30 caps", products)).toEqual([]);
   });
-  it("tokens", () => expect(nameTokens("Нефрофикс 30/1")).toEqual(["nefrofiks", "30", "1"]));
+  it("tokens fold the two scripts together", () => {
+    expect(nameTokens("Нефрофикс 30/1")).toEqual(["nefrofiks", "30", "1"]);
+    expect(nameTokens("ПРОСТАТОЛ КОМПЛЕКС")).toEqual(nameTokens("Prostatol Complex"));
+    expect(nameTokens("Hyaluron Collagen")).toEqual(["hialuron", "kolagen"]);
+  });
 });
 
 // ── where it wins ───────────────────────────────────────────────────────────

@@ -20,6 +20,18 @@ operation. It shares **nothing at runtime** with Bulgaria (own repo / own Supaba
 > **Supabase: 339 migrations, latest `20260946000400`.** Contracts: `docs/STOCK-V2.md`, `docs/SHOPS.md`; the law:
 > skills `elyon-stock-v2`, `elyon-shops` (+ warehouse, logistics, products, collabBox and security brought up to date).
 
+**Targeted call scripts — BUILT 02.10, NOT applied / NOT live** (owner 02.10; `docs/CALL-SCRIPTS.md`, skill
+`elyon-call-scripts`; workstreams A = data + api, C = the /calls dock, B = /call-scripts):
+- A (branch `call-scripts-a`): migration `20260947000100` (columns + constraints, `call_script_versions` append-only,
+  one published-only select policy, the audited writers, `call_script_demand[_json]`, the owner key
+  `call_scripts.mode = off`, 11 draft copies of the legacy product scripts), the pure matcher `callScriptMatch.ts`,
+  `callScriptsAdmin.ts`, the api routes (`/call-scripts/*`, `GET /calls/scripts`, the legacy routes hardened),
+  `scripts/verify-call-scripts.mjs` (V1–V10). Dry-run: 13 live rows untouched + 11 drafts; 113.547 members + 170 open
+  leads waiting across the 12 groups.
+- Order: migration → verify (V10 WARN: 20 rows with Bulgarian wording) → api deploy → frontend (A → C → B). The mode
+  stays **off** until the owner says preview / on. The 10 legacy product scripts still say Еконт / Спиди / евро — the
+  owner's editors rewrite them.
+
 **Done (01–02.10):**
 - **Stock v2 engine** (`af159f9`; `20260945000100`–`0500` + the integration readers `0510`, `454204c`): one append-only
   ledger `stock_moves` per Sigma article × warehouse × moment, the parcel resolver (override → collabBox goods lines →

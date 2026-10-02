@@ -346,6 +346,17 @@ target **explicitly** and verify it before running:
   difference **plus = shortage**; top sellers = shelf goods only (`…0400`). Natura's own margin on goods to the shops
   ≈ 30 % (Sigma list 07); the TV re-invoicing to Stores (≈ 1,6 М ден a month) is shown apart. Group cost = Stock v2's
   Sigma cost, NULL until every unit is costed. See `elyon-shops`.
+- **Targeted call scripts (owner, 02.10.2026; `20260947000100`, `docs/CALL-SCRIPTS.md`) — built, NOT live.** One script
+  per LIST GROUP (lead_new / lead_callback by the lead's status; newcomers · d21 · d57 · m4_6 · m6_12 · y1_2 · y2plus ·
+  cancels · never_converted · trash by the list NAME — `groupOfListName` only reads it, never renames a list; Current
+  Returns / Due to Reorder / uploaded lists = no group), optionally per product; sections Отворање · Презентација ·
+  Приговори · Затворање + quick answers, **mk + sq only**. The matcher (`callScriptMatch.ts`, shared with the UI): tier
+  group&product → group → product → general, primary product first, then priority, then newest. Writes ONLY through the
+  audited SQL writers (`call_script_save` / `_duplicate` / `_bulk` / `_restore` / `_delete`; admins + managers write
+  and publish, **only admins delete**; every change a restorable version in `call_script_versions`); agents read
+  published rows only (RLS). **`app_settings.call_scripts.mode = 'off'`** (owner key, admins switch: off | preview | on) —
+  off = /calls shows today's panel. Never write `call_scripts` with the service role from a script (the BG import and
+  translate scripts are retired). Check: `node scripts/verify-call-scripts.mjs`. See `elyon-call-scripts`.
 - **Settings writes go through the api, audited (01.10, `20260943001500`):** `/settings/:section`, grouped (Луѓе и
   пристап · Правила · Систем · Напредно · Лично); modules / role permissions / privacy via `PUT /api/settings/*`
   (admins); the browser write policies are dropped, and `app_settings` / `courier_rates` writes are admin-only. The
@@ -403,6 +414,7 @@ before non-trivial work on money, phones, warehouse, stock, shops, Sigma, webhoo
 - `elyon-customer360-and-integrations` — Customer 360 (`customer_timeline`, last-8 matching, money stripped for non-owners) and Settings → Integrations health (freshness thresholds kept in step with the Overview, the 7-day rule's owner switch).
 - `elyon-departments-and-sources` — The six departments (collabBox folder + MEX profile), `cohort_order_source`, the parcel split, `sale_source_reclass` and its rollbacks; a team never decides a department, the product line only picks the account of a CRM push. Law for anything that says where a sale belongs.
 - `elyon-collabbox-sync` — The live collabBox reader of the teleshop documents: folders/types and roles, the document ledger, orders only once the MEX parcel exists, seller credit, the 15-minute + nightly crons, one run at a time. (The shops' tills are a separate reader — `elyon-shops`.)
+- `elyon-call-scripts` — Targeted call scripts (02.10): one script per list group (+ products), the matcher shared with the UI, the variables (segments, never HTML), the audited writers + versions (admins delete), RLS published-only for agents, the `call_scripts.mode` switch (off), GET /calls/scripts, coverage, `verify-call-scripts`.
 - `elyon-products-catalogue` — Product kinds (product / bundle / gift / other) and brand lines (Natura Therapy / Bio Natural / Ad Astra / Dr.Becker → the MEX profile), the web-catalogue rule, the audited writers behind guard triggers, the machine-text cleanup, /products (the Рецепт drawer and "Набавна (Сигма)" for owners — only an approved recipe moves stock and cost), and the catalogue scripts.
 
 New skills should be added to `.grok/skills/` whenever you find yourself re-explaining the same
