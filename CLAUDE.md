@@ -162,6 +162,13 @@ target **explicitly** and verify it before running:
   `leaderboard_day_v2`. 3.130 orders moved (Sept: 760 Affiliate – Lead out → Телешоп – Lead out, 2,11 М ден), each in
   `dept_by_team_backfill` (old → new). The raw `sale_source` / detail (folder, list, intake) never change. Proof:
   `node scripts/verify-teams.mjs` T3.
+- **NAMES: Тим Центар / Тим Маџари (owner, 02.10.2026)** — Телешоп → **Тим Центар**, Affiliate → **Тим Маџари**, ALWAYS
+  with "Тим" ("Тим Маџари, Тим Центар, никогаш само центар или маџари"); departments **Тим Маџари In · Тим Маџари Out ·
+  Тим Центар Out · Тим Центар In** · Социјални мрежи · Веб-продавница; lanes **In / Out / Социјални мрежи** (en "Team
+  Centar / Team Madžari", sq "Ekipi …", bg "Екип …"). DISPLAY ONLY — keys (`teleshop`, `affiliate`, `altercpa`,
+  `elyon_crm`, `teleshop_out`, `teleshop_other`), list names and URLs never change; `sales_teams.name` renamed (audited).
+  "Affiliate / Афилијат / Партнер" for the AlterCPA CPA partners (webmasters, payouts, guarantee) is a different thing
+  and stays. Where older text below says Телешоп / Affiliate (– Lead in/out), read the new names.
 - **Sale sources are the SIX DEPARTMENTS (owner law, 28–29.09.2026, whole history)** — the raw record: the
   collabBox FOLDER (document type) and the MEX profile, never the system an order was made in ("no need to mention
   Elyon-CRM or AlterCPA anymore"); since 02.10 the SELLER'S TEAM decides first (above). Cohort keys,
