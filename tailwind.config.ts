@@ -84,6 +84,22 @@ export default {
           "danger-ring": "var(--nt-danger-ring)",
           warn: "var(--nt-warn)",
         },
+        // Natura Therapy HUB — the sidebar (owner, 02.10.2026): values (light + dark) in src/index.css .nt-sidebar.
+        ns: {
+          text: "var(--ns-text)",
+          label: "var(--ns-label)",
+          strong: "var(--ns-strong)",
+          icon: "var(--ns-icon)",
+          accent: "var(--ns-accent)",
+          "accent-text": "var(--ns-accent-text)",
+          "accent-soft": "var(--ns-accent-soft)",
+          hover: "var(--ns-hover)",
+          divider: "var(--ns-divider)",
+          chip: "var(--ns-chip)",
+          "chip-text": "var(--ns-chip-text)",
+          "chip-ring": "var(--ns-chip-ring)",
+          ring: "var(--ns-ring)",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",

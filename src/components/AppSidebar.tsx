@@ -124,9 +124,10 @@ const sections: NavSection[] = [
 ];
 
 /**
- * The Natura Therapy HUB sidebar (owner, 02.10.2026): the brand's deep forest green (as on the login),
- * the Natura Therapy logo with "Powered by elyonpremium" under it, one icon tone, a light-green bar on
- * the page you are on.
+ * The Natura Therapy HUB sidebar (owner, 02.10.2026): WHITE leads and the green is structural (his words) —
+ * the card surface of the top bar, the Natura Therapy logo with "Powered by elyonpremium" under it, one fresh
+ * green icon tone, a green bar + soft green background on the page you are on. Dark: the app's dark card, mint.
+ * Colours: the ns-* tokens (src/index.css .nt-sidebar).
  *
  * Desktop / tablet (≥ 768 px): the rail in the page flow, collapsible to icons.
  * Phone (< 768 px, owner 30.09.2026 — "perfect on every screen"): no rail eating the width; an off-canvas
@@ -208,7 +209,7 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?:
       id="app-sidebar"
       aria-hidden={isMobile && !mobileOpen ? true : undefined}
       className={cn(
-        'nt-sidebar flex flex-col border-r border-black/20 text-white',
+        'nt-sidebar flex flex-col border-r border-border bg-card text-ns-text',
         isMobile
           ? cn('fixed inset-y-0 left-0 z-50 h-[100dvh] w-[min(85vw,300px)] rounded-r-2xl shadow-2xl transition-transform duration-300 ease-in-out motion-reduce:transition-none',
                mobileOpen ? 'translate-x-0' : '-translate-x-full invisible')
@@ -219,22 +220,26 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?:
             up with the top bar's. Collapsed: the emblem alone. ── */}
       <div
         className={cn(
-          'flex h-16 shrink-0 items-center border-b border-white/[0.07]',
+          'flex h-16 shrink-0 items-center border-b border-border',
           collapsed ? 'justify-center' : 'gap-3 px-5',
         )}
       >
         {collapsed ? (
-          <img src={BRAND_LOGO.markWhite} alt={BRAND.product} draggable={false} className="h-8 w-auto select-none" />
+          <>
+            <img src={BRAND_LOGO.mark} alt={BRAND.product} draggable={false} className="h-8 w-auto select-none dark:hidden" />
+            <img src={BRAND_LOGO.markWhite} alt={BRAND.product} draggable={false} className="hidden h-8 w-auto select-none dark:block" />
+          </>
         ) : (
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <img src={BRAND_LOGO.white} alt={BRAND.product} draggable={false} className="h-[34px] w-auto select-none" />
-              <span className="rounded-[5px] bg-white/[0.08] px-1.5 py-[3px] text-[9.5px] font-bold leading-none tracking-[0.16em] text-[#a9d3c6] ring-1 ring-inset ring-white/10">
+              <img src={BRAND_LOGO.green} alt={BRAND.product} draggable={false} className="h-[34px] w-auto select-none dark:hidden" />
+              <img src={BRAND_LOGO.white} alt={BRAND.product} draggable={false} className="hidden h-[34px] w-auto select-none dark:block" />
+              <span className="rounded-[5px] bg-ns-chip px-1.5 py-[3px] text-[9.5px] font-bold leading-none tracking-[0.16em] text-ns-chip-text ring-1 ring-inset ring-ns-chip-ring">
                 {BRAND.hub}
               </span>
             </div>
-            <p className="mt-1 truncate text-[10.5px] leading-none text-white/45">
-              {BRAND.poweredBy} <span className="font-semibold tracking-tight text-white/75">{BRAND.maker}</span>
+            <p className="mt-1 truncate text-[10.5px] leading-none text-ns-label">
+              {BRAND.poweredBy} <span className="font-semibold tracking-tight text-ns-strong">{BRAND.maker}</span>
             </p>
           </div>
         )}
@@ -243,7 +248,7 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?:
             type="button"
             onClick={() => onMobileClose?.()}
             aria-label={t('common.close')}
-            className="ml-auto flex h-9 w-9 items-center justify-center rounded-lg text-white/60 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8cc3b2]/70"
+            className="ml-auto flex h-9 w-9 items-center justify-center rounded-lg text-ns-label transition-colors hover:bg-ns-hover hover:text-ns-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ns-ring"
           >
             <X className="h-5 w-5" />
           </button>
@@ -261,14 +266,14 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?:
               <button
                 type="button"
                 onClick={() => toggleSection(section.labelKey)}
-                className="group mb-1 mt-5 flex w-full items-center justify-between rounded-md px-3 py-1 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white/40 transition-colors hover:text-white/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8cc3b2]/70"
+                className="group mb-1 mt-5 flex w-full items-center justify-between rounded-md px-3 py-1 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-ns-label transition-colors hover:text-ns-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ns-ring"
                 aria-expanded={openSections[section.labelKey]}
               >
                 <span>{t(section.labelKey)}</span>
                 <ChevronDown
                   aria-hidden
                   className={cn(
-                    'h-3 w-3 text-white/30 transition-transform duration-200 group-hover:text-white/60',
+                    'h-3 w-3 opacity-60 transition-transform duration-200 group-hover:opacity-100',
                     openSections[section.labelKey] ? 'rotate-0' : '-rotate-90',
                   )}
                 />
@@ -276,7 +281,7 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?:
             )}
 
             {section.labelKey && collapsed && (
-              <div className="mx-auto my-3 h-px w-8 bg-white/10" />
+              <div className="mx-auto my-3 h-px w-8 bg-ns-divider" />
             )}
 
             <div
@@ -304,11 +309,11 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?:
                       if (isMobile) onMobileClose?.();
                     }}
                     className={cn(
-                      'group relative flex items-center rounded-lg text-[13.5px] font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8cc3b2]/70',
+                      'group relative flex items-center rounded-lg text-[13.5px] font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ns-ring',
                       collapsed ? 'mx-auto h-10 w-10 justify-center' : 'h-9 gap-3 px-3',
                       isActive
-                        ? 'bg-white/[0.09] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]'
-                        : 'text-white/[0.68] hover:bg-white/[0.05] hover:text-white',
+                        ? 'bg-ns-accent-soft font-semibold text-ns-accent-text'
+                        : 'text-ns-text hover:bg-ns-hover hover:text-ns-strong',
                     )}
                   >
                     {/* the page you are on: a light-green bar on the sidebar's edge */}
@@ -316,7 +321,7 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?:
                       <span
                         aria-hidden
                         className={cn(
-                          'absolute top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-[#8cc3b2]',
+                          'absolute top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-ns-accent',
                           collapsed ? '-left-[14px]' : '-left-3',
                         )}
                       />
@@ -325,7 +330,7 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?:
                       aria-hidden
                       className={cn(
                         'h-[18px] w-[18px] shrink-0 transition-colors duration-150',
-                        isActive ? 'text-[#8cc3b2]' : 'text-white/50 group-hover:text-white/85',
+                        isActive ? 'text-ns-accent' : 'text-ns-icon group-hover:text-ns-accent',
                       )}
                       strokeWidth={isActive ? 2 : 1.75}
                     />
@@ -353,8 +358,8 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?:
 
       {/* ── Phone: language, theme and "who is working" (the top bar keeps room for the title) ── */}
       {isMobile && (
-        <div className="shrink-0 border-t border-white/[0.07] p-3">
-          <div className="flex items-center justify-center gap-2 rounded-xl bg-white/[0.06] p-2 ring-1 ring-inset ring-white/[0.08]">
+        <div className="shrink-0 border-t border-border p-3">
+          <div className="flex items-center justify-center gap-2 rounded-xl bg-ns-hover p-2 ring-1 ring-inset ring-ns-divider">
             <LanguageSwitcher />
             <ThemeToggle />
             <PresenceHeaderButton />
@@ -363,13 +368,13 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?:
       )}
 
       {/* ── Collapse toggle ── */}
-      <div className={cn('shrink-0 border-t border-white/[0.07] p-3', isMobile && 'hidden')}>
+      <div className={cn('shrink-0 border-t border-border p-3', isMobile && 'hidden')}>
         <button
           type="button"
           onClick={() => setCollapsed(!collapsed)}
           aria-label={collapsed ? t('common.expand') : t('common.collapse')}
           className={cn(
-            'flex h-9 w-full items-center rounded-lg text-[12.5px] font-medium text-white/45 transition-colors duration-150 hover:bg-white/[0.05] hover:text-white/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8cc3b2]/70',
+            'flex h-9 w-full items-center rounded-lg text-[12.5px] font-medium text-ns-label transition-colors duration-150 hover:bg-ns-hover hover:text-ns-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ns-ring',
             collapsed ? 'justify-center' : 'gap-3 px-3',
           )}
         >

@@ -274,22 +274,49 @@ html.dark {
 }
 
 /* =========================================
-   Natura Therapy HUB — the sidebar (owner, 02.10.2026)
-   The login's deep forest green, lit at the top by the logo's #6aa291; the same in light and
-   dark (a brand surface, like the login's panel). Classes in src/components/AppSidebar.tsx.
+   Natura Therapy HUB — the sidebar (owner, 02.10.2026, second pass): WHITE leads, the green is
+   structural — the icons, the current page, the HUB tag, the focus rings. Light: the card white
+   (the top bar's), a fresher green than the logo's sage. Dark: the app's own dark card, mint accents.
+   Used through the ns-* colours in tailwind.config.ts (src/components/AppSidebar.tsx).
    ========================================= */
 .nt-sidebar {
-  background-color: #10261f;
-  background-image:
-    radial-gradient(460px 280px at 0% 0%, rgba(106, 162, 145, 0.2), transparent 70%),
-    linear-gradient(180deg, #15312a 0%, #10261f 55%, #0c1e19 100%);
-  color-scheme: dark;
+  --ns-text: #26332f;          /* labels of the items — 12:1 on white */
+  --ns-label: #687672;         /* section titles, "Powered by" — 4.8:1 */
+  --ns-strong: #1b2522;
+  --ns-icon: #3a9f7f;          /* the resting icons — fresh green, 3.3:1 */
+  --ns-accent: #1f9a72;        /* the current page's bar, hover icons, focus */
+  --ns-accent-text: #17694f;   /* the current page's label */
+  --ns-accent-soft: #e6f6ef;   /* the current page's background */
+  --ns-hover: #f2f6f4;
+  --ns-divider: #e6ece9;
+  --ns-chip: #e6f6ef;
+  --ns-chip-text: #17694f;
+  --ns-chip-ring: rgba(31, 154, 114, 0.22);
+  --ns-ring: rgba(31, 154, 114, 0.55);
+  --ns-scroll: rgba(38, 51, 47, 0.16);
 }
 
-/* A quiet scrollbar on the green — beats the app-wide rainbow one (html.dark ::-webkit-scrollbar-*). */
+.dark .nt-sidebar {
+  --ns-text: #cfd8d5;
+  --ns-label: #8a9693;
+  --ns-strong: #f1f5f4;
+  --ns-icon: #6aa291;          /* the logo green reads well on the dark card */
+  --ns-accent: #6cc4a3;        /* fresh mint */
+  --ns-accent-text: #a6e3cc;
+  --ns-accent-soft: rgba(108, 196, 163, 0.12);
+  --ns-hover: rgba(255, 255, 255, 0.05);
+  --ns-divider: rgba(255, 255, 255, 0.07);
+  --ns-chip: rgba(108, 196, 163, 0.12);
+  --ns-chip-text: #a6e3cc;
+  --ns-chip-ring: rgba(108, 196, 163, 0.25);
+  --ns-ring: rgba(108, 196, 163, 0.6);
+  --ns-scroll: rgba(255, 255, 255, 0.14);
+}
+
+/* A quiet scrollbar — beats the app-wide rainbow one (html.dark ::-webkit-scrollbar-*). */
 html .nt-sidebar .nt-sidebar-scroll {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+  scrollbar-color: var(--ns-scroll) transparent;
 }
 html .nt-sidebar .nt-sidebar-scroll::-webkit-scrollbar {
   width: 6px;
@@ -298,9 +325,6 @@ html .nt-sidebar .nt-sidebar-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
 html .nt-sidebar .nt-sidebar-scroll::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.14);
+  background: var(--ns-scroll);
   border-radius: 3px;
-}
-html .nt-sidebar .nt-sidebar-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.24);
 }
