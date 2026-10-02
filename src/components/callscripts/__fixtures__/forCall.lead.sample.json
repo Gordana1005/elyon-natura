@@ -1,0 +1,143 @@
+{
+  "enabled": true,
+  "mode": "on",
+  "drafts_included": false,
+  "context": {
+    "source": "lead",
+    "group": "lead_new",
+    "group_basis": "order_status",
+    "list_name": null,
+    "order": {
+      "id": "c3000000-0000-4000-8000-000000000001",
+      "display_id": "104233",
+      "status": "take",
+      "created_at": "2026-10-02T08:42:00Z"
+    },
+    "product": {
+      "id": "a1000000-0000-4000-8000-000000000003",
+      "name": "Neurofix",
+      "price_eur": 32.5
+    },
+    "products": [
+      {
+        "id": "a1000000-0000-4000-8000-000000000003",
+        "name": "Neurofix"
+      }
+    ],
+    "last_purchase": null,
+    "days_since_purchase": null,
+    "callback": false
+  },
+  "vars": {
+    "customer_name": "Петар Тестоски",
+    "first_name": "Петар",
+    "agent_name": "Ана",
+    "product": "Neurofix",
+    "price_eur": 32.5,
+    "last_product": null,
+    "last_purchase_at": null,
+    "days_since_purchase": null,
+    "city": "Куманово",
+    "order_id": "104233"
+  },
+  "best": {
+    "context_type": "targeted",
+    "status": "published",
+    "description": null,
+    "helpers": [],
+    "translations": {},
+    "groups": [
+      "lead_new",
+      "lead_callback"
+    ],
+    "product_ids": [
+      "a1000000-0000-4000-8000-000000000003"
+    ],
+    "priority": 5,
+    "version": 4,
+    "created_at": "2026-10-02T08:00:00Z",
+    "created_by": "b2000000-0000-4000-8000-000000000001",
+    "updated_at": "2026-10-02T10:05:00Z",
+    "updated_by": "b2000000-0000-4000-8000-000000000001",
+    "published_at": "2026-10-02T10:05:00Z",
+    "published_by": "b2000000-0000-4000-8000-000000000001",
+    "copied_from": null,
+    "id": "00000000-0000-4000-8000-000000000005",
+    "title": "Лид — Неурофикс (нов и повторен повик)",
+    "sections": [
+      {
+        "id": "opening",
+        "key": "opening",
+        "text": "Добар ден {{first_name}}, {{agent_name}} од БиоНатурал. Се јавувам за Неурофикс — нарачка {{order_id}}."
+      },
+      {
+        "id": "objections",
+        "key": "objections",
+        "text": "„Немам време сега“ → Кога да ве повикам? Ќе ве побарам точно тогаш."
+      }
+    ],
+    "script_text": "Отворање\nДобар ден {{first_name}}, {{agent_name}} од БиоНатурал. Се јавувам за Неурофикс — нарачка {{order_id}}.\n\nПриговори\n„Немам време сега“ → Кога да ве повикам? Ќе ве побарам точно тогаш.",
+    "match": {
+      "script_id": "00000000-0000-4000-8000-000000000005",
+      "tier": 1,
+      "reasons": [
+        "group:lead_new",
+        "product:a1000000-0000-4000-8000-000000000003"
+      ],
+      "matched_product_id": "a1000000-0000-4000-8000-000000000003",
+      "tie_break": null
+    }
+  },
+  "alternatives": [
+    {
+      "context_type": "targeted",
+      "status": "published",
+      "description": null,
+      "helpers": [],
+      "translations": {},
+      "groups": [
+        "lead_new"
+      ],
+      "product_ids": [],
+      "priority": 0,
+      "version": 1,
+      "created_at": "2026-10-02T08:00:00Z",
+      "created_by": "b2000000-0000-4000-8000-000000000001",
+      "updated_at": "2026-10-02T07:30:00Z",
+      "updated_by": "b2000000-0000-4000-8000-000000000001",
+      "published_at": "2026-10-02T07:30:00Z",
+      "published_by": "b2000000-0000-4000-8000-000000000001",
+      "copied_from": null,
+      "id": "00000000-0000-4000-8000-000000000004",
+      "title": "Нов лид — добредојде",
+      "sections": [
+        {
+          "id": "opening",
+          "key": "opening",
+          "text": "Добар ден, дали зборувам со {{customer_name}}? Ве повикувам од Натура Терапи — оставивте барање за {{product}}."
+        },
+        {
+          "id": "pitch",
+          "key": "pitch",
+          "text": "Да ви објаснам накратко како се користи и што можете да очекувате во првите две недели."
+        },
+        {
+          "id": "closing",
+          "key": "closing",
+          "text": "Цената е {{price}}, достава 1–2 работни дена. Да ја испратиме на адресата во {{city}}?"
+        }
+      ],
+      "script_text": "Отворање\nДобар ден, дали зборувам со {{customer_name}}? Ве повикувам од Натура Терапи — оставивте барање за {{product}}.\n\nПрезентација\nДа ви објаснам накратко како се користи и што можете да очекувате во првите две недели.\n\nЗатворање\nЦената е {{price}}, достава 1–2 работни дена. Да ја испратиме на адресата во {{city}}?",
+      "match": {
+        "script_id": "00000000-0000-4000-8000-000000000004",
+        "tier": 2,
+        "reasons": [
+          "group:lead_new",
+          "all_products"
+        ],
+        "matched_product_id": null,
+        "tie_break": null
+      }
+    }
+  ]
+}

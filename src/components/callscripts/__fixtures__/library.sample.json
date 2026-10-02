@@ -1,0 +1,597 @@
+{
+  "scripts": [
+    {
+      "context_type": "targeted",
+      "status": "published",
+      "description": "Клиенти кои купиле Простатол пред околу 3 недели.",
+      "helpers": [
+        {
+          "title": "Цена",
+          "content": "1 кутија 1.599 ден · 2+2 3.198 ден",
+          "category": "price"
+        },
+        {
+          "title": "Достава",
+          "content": "MEX, 1–2 работни дена, плаќање при подигање.",
+          "category": "delivery"
+        }
+      ],
+      "translations": {
+        "sq": {
+          "title": "Parashikim 21 ditë — Prostatol",
+          "sections": [
+            {
+              "id": "opening",
+              "key": "opening",
+              "text": "Mirëdita {{first_name}}, jam {{agent_name}} nga Natura Therapy. Ju telefonoj për {{last_product}} që e porositët {{since_purchase}}."
+            },
+            {
+              "id": "pitch",
+              "key": "pitch",
+              "text": "Si ndiheni? Shumë burra pas kutisë së parë zgjohen më rrallë natën."
+            }
+          ]
+        }
+      },
+      "groups": [
+        "d21",
+        "d57"
+      ],
+      "product_ids": [
+        "a1000000-0000-4000-8000-000000000001",
+        "a1000000-0000-4000-8000-000000000002"
+      ],
+      "priority": 10,
+      "version": 3,
+      "created_at": "2026-10-02T08:00:00Z",
+      "created_by": "b2000000-0000-4000-8000-000000000001",
+      "updated_at": "2026-10-02T09:15:00Z",
+      "updated_by": "b2000000-0000-4000-8000-000000000002",
+      "published_at": "2026-10-02T09:15:00Z",
+      "published_by": "b2000000-0000-4000-8000-000000000002",
+      "copied_from": null,
+      "updated_by_name": "Елена Менаџер",
+      "id": "00000000-0000-4000-8000-000000000001",
+      "title": "Предикција 21 ден — Простатол",
+      "sections": [
+        {
+          "id": "opening",
+          "key": "opening",
+          "text": "Добар ден {{first_name}}, јас сум {{agent_name}} од Натура Терапи. Ви се јавувам во врска со {{last_product}} што го нарачавте {{since_purchase}}."
+        },
+        {
+          "id": "pitch",
+          "key": "pitch",
+          "text": "Како се чувствувате? Многу мажи по првата кутија забележуваат помалку станување ноќе. За целосен ефект препорачуваме терапија од 3 месеци."
+        },
+        {
+          "id": "objections",
+          "key": "objections",
+          "text": "„Скапо ми е“ → Денес имаме 2+2 за {{price}}, тоа е терапија за цели два месеци.\n„Ќе размислам“ → Разбирам. Да ви ја резервирам понудата до петок?"
+        },
+        {
+          "id": "closing",
+          "key": "closing",
+          "text": "Да ја потврдам адресата: {{city}}? Пратката стига за 1–2 работни дена, плаќате при подигање."
+        },
+        {
+          "id": "custom-gift01",
+          "key": "custom",
+          "title": "Подарок",
+          "text": "Подарок: цинк 120 таблети при нарачка над 2 кутии."
+        }
+      ],
+      "script_text": "Отворање\nДобар ден {{first_name}}, јас сум {{agent_name}} од Натура Терапи. Ви се јавувам во врска со {{last_product}} што го нарачавте {{since_purchase}}.\n\nПрезентација\nКако се чувствувате? Многу мажи по првата кутија забележуваат помалку станување ноќе. За целосен ефект препорачуваме терапија од 3 месеци.\n\nПриговори\n„Скапо ми е“ → Денес имаме 2+2 за {{price}}, тоа е терапија за цели два месеци.\n„Ќе размислам“ → Разбирам. Да ви ја резервирам понудата до петок?\n\nЗатворање\nДа ја потврдам адресата: {{city}}? Пратката стига за 1–2 работни дена, плаќате при подигање.\n\nПодарок\nПодарок: цинк 120 таблети при нарачка над 2 кутии.",
+      "lint": [
+        {
+          "code": "missing_sq",
+          "severity": "info",
+          "lang": "sq",
+          "field": "section:objections",
+          "match": "objections"
+        },
+        {
+          "code": "missing_sq",
+          "severity": "info",
+          "lang": "sq",
+          "field": "section:closing",
+          "match": "closing"
+        },
+        {
+          "code": "missing_sq",
+          "severity": "info",
+          "lang": "sq",
+          "field": "section:custom-gift01",
+          "match": "custom-gift01"
+        }
+      ]
+    },
+    {
+      "context_type": "targeted",
+      "status": "published",
+      "description": null,
+      "helpers": [],
+      "translations": {},
+      "groups": [
+        "d21"
+      ],
+      "product_ids": [],
+      "priority": 0,
+      "version": 2,
+      "created_at": "2026-10-02T08:00:00Z",
+      "created_by": "b2000000-0000-4000-8000-000000000001",
+      "updated_at": "2026-10-01T12:00:00Z",
+      "updated_by": "b2000000-0000-4000-8000-000000000001",
+      "published_at": "2026-10-01T12:00:00Z",
+      "published_by": "b2000000-0000-4000-8000-000000000001",
+      "copied_from": null,
+      "updated_by_name": "Мила Админ",
+      "id": "00000000-0000-4000-8000-000000000002",
+      "title": "Предикција 21 ден — општо",
+      "sections": [
+        {
+          "id": "opening",
+          "key": "opening",
+          "text": "Добар ден {{first_name}}, {{agent_name}} од Натура Терапи. Ве повикувам да проверам дали сте задоволни со {{last_product}}."
+        },
+        {
+          "id": "closing",
+          "key": "closing",
+          "text": "Ви благодарам за времето, пријатен ден!"
+        }
+      ],
+      "script_text": "Отворање\nДобар ден {{first_name}}, {{agent_name}} од Натура Терапи. Ве повикувам да проверам дали сте задоволни со {{last_product}}.\n\nЗатворање\nВи благодарам за времето, пријатен ден!",
+      "lint": [
+        {
+          "code": "missing_sq",
+          "severity": "info",
+          "lang": "sq",
+          "field": "section:opening",
+          "match": "opening"
+        },
+        {
+          "code": "missing_sq",
+          "severity": "info",
+          "lang": "sq",
+          "field": "section:closing",
+          "match": "closing"
+        }
+      ]
+    },
+    {
+      "context_type": "targeted",
+      "status": "published",
+      "description": null,
+      "helpers": [],
+      "translations": {},
+      "groups": [],
+      "product_ids": [
+        "a1000000-0000-4000-8000-000000000001"
+      ],
+      "priority": 0,
+      "version": 1,
+      "created_at": "2026-10-02T08:00:00Z",
+      "created_by": "b2000000-0000-4000-8000-000000000001",
+      "updated_at": "2026-09-30T10:00:00Z",
+      "updated_by": "b2000000-0000-4000-8000-000000000001",
+      "published_at": "2026-09-30T10:00:00Z",
+      "published_by": "b2000000-0000-4000-8000-000000000001",
+      "copied_from": null,
+      "updated_by_name": "Мила Админ",
+      "id": "00000000-0000-4000-8000-000000000003",
+      "title": "Простатол — сите клиенти",
+      "sections": [
+        {
+          "id": "pitch",
+          "key": "pitch",
+          "text": "Простатол содржи пиреум, тиква и цинк — за полесно мокрење и помалку станување ноќе."
+        }
+      ],
+      "script_text": "Презентација\nПростатол содржи пиреум, тиква и цинк — за полесно мокрење и помалку станување ноќе.",
+      "lint": [
+        {
+          "code": "missing_sq",
+          "severity": "info",
+          "lang": "sq",
+          "field": "section:pitch",
+          "match": "pitch"
+        }
+      ]
+    },
+    {
+      "context_type": "targeted",
+      "status": "published",
+      "description": null,
+      "helpers": [],
+      "translations": {},
+      "groups": [
+        "lead_new"
+      ],
+      "product_ids": [],
+      "priority": 0,
+      "version": 1,
+      "created_at": "2026-10-02T08:00:00Z",
+      "created_by": "b2000000-0000-4000-8000-000000000001",
+      "updated_at": "2026-10-02T07:30:00Z",
+      "updated_by": "b2000000-0000-4000-8000-000000000001",
+      "published_at": "2026-10-02T07:30:00Z",
+      "published_by": "b2000000-0000-4000-8000-000000000001",
+      "copied_from": null,
+      "updated_by_name": "Мила Админ",
+      "id": "00000000-0000-4000-8000-000000000004",
+      "title": "Нов лид — добредојде",
+      "sections": [
+        {
+          "id": "opening",
+          "key": "opening",
+          "text": "Добар ден, дали зборувам со {{customer_name}}? Ве повикувам од Натура Терапи — оставивте барање за {{product}}."
+        },
+        {
+          "id": "pitch",
+          "key": "pitch",
+          "text": "Да ви објаснам накратко како се користи и што можете да очекувате во првите две недели."
+        },
+        {
+          "id": "closing",
+          "key": "closing",
+          "text": "Цената е {{price}}, достава 1–2 работни дена. Да ја испратиме на адресата во {{city}}?"
+        }
+      ],
+      "script_text": "Отворање\nДобар ден, дали зборувам со {{customer_name}}? Ве повикувам од Натура Терапи — оставивте барање за {{product}}.\n\nПрезентација\nДа ви објаснам накратко како се користи и што можете да очекувате во првите две недели.\n\nЗатворање\nЦената е {{price}}, достава 1–2 работни дена. Да ја испратиме на адресата во {{city}}?",
+      "lint": [
+        {
+          "code": "missing_sq",
+          "severity": "info",
+          "lang": "sq",
+          "field": "section:opening",
+          "match": "opening"
+        },
+        {
+          "code": "missing_sq",
+          "severity": "info",
+          "lang": "sq",
+          "field": "section:pitch",
+          "match": "pitch"
+        },
+        {
+          "code": "missing_sq",
+          "severity": "info",
+          "lang": "sq",
+          "field": "section:closing",
+          "match": "closing"
+        }
+      ]
+    },
+    {
+      "context_type": "targeted",
+      "status": "published",
+      "description": null,
+      "helpers": [],
+      "translations": {},
+      "groups": [
+        "lead_new",
+        "lead_callback"
+      ],
+      "product_ids": [
+        "a1000000-0000-4000-8000-000000000003"
+      ],
+      "priority": 5,
+      "version": 4,
+      "created_at": "2026-10-02T08:00:00Z",
+      "created_by": "b2000000-0000-4000-8000-000000000001",
+      "updated_at": "2026-10-02T10:05:00Z",
+      "updated_by": "b2000000-0000-4000-8000-000000000001",
+      "published_at": "2026-10-02T10:05:00Z",
+      "published_by": "b2000000-0000-4000-8000-000000000001",
+      "copied_from": null,
+      "updated_by_name": "Мила Админ",
+      "id": "00000000-0000-4000-8000-000000000005",
+      "title": "Лид — Неурофикс (нов и повторен повик)",
+      "sections": [
+        {
+          "id": "opening",
+          "key": "opening",
+          "text": "Добар ден {{first_name}}, {{agent_name}} од БиоНатурал. Се јавувам за Неурофикс — нарачка {{order_id}}."
+        },
+        {
+          "id": "objections",
+          "key": "objections",
+          "text": "„Немам време сега“ → Кога да ве повикам? Ќе ве побарам точно тогаш."
+        }
+      ],
+      "script_text": "Отворање\nДобар ден {{first_name}}, {{agent_name}} од БиоНатурал. Се јавувам за Неурофикс — нарачка {{order_id}}.\n\nПриговори\n„Немам време сега“ → Кога да ве повикам? Ќе ве побарам точно тогаш.",
+      "lint": [
+        {
+          "code": "missing_sq",
+          "severity": "info",
+          "lang": "sq",
+          "field": "section:opening",
+          "match": "opening"
+        },
+        {
+          "code": "missing_sq",
+          "severity": "info",
+          "lang": "sq",
+          "field": "section:objections",
+          "match": "objections"
+        }
+      ]
+    },
+    {
+      "context_type": "targeted",
+      "status": "draft",
+      "description": null,
+      "helpers": [],
+      "translations": {},
+      "groups": [
+        "trash"
+      ],
+      "product_ids": [],
+      "priority": 0,
+      "version": 2,
+      "created_at": "2026-10-02T08:00:00Z",
+      "created_by": "b2000000-0000-4000-8000-000000000001",
+      "updated_at": "2026-10-02T10:30:00Z",
+      "updated_by": "b2000000-0000-4000-8000-000000000001",
+      "published_at": null,
+      "published_by": null,
+      "copied_from": null,
+      "updated_by_name": "Мила Админ",
+      "id": "00000000-0000-4000-8000-000000000006",
+      "title": "Корпа — втора шанса",
+      "sections": [
+        {
+          "id": "opening",
+          "key": "opening",
+          "text": "Добар ден {{first_name}}, последен пат разговаравме {{since_purchase}}. Имаме нова понуда што можеби ќе ве интересира."
+        }
+      ],
+      "script_text": "Отворање\nДобар ден {{first_name}}, последен пат разговаравме {{since_purchase}}. Имаме нова понуда што можеби ќе ве интересира.",
+      "lint": [
+        {
+          "code": "missing_sq",
+          "severity": "info",
+          "lang": "sq",
+          "field": "section:opening",
+          "match": "opening"
+        }
+      ]
+    },
+    {
+      "context_type": "targeted",
+      "status": "draft",
+      "description": null,
+      "helpers": [],
+      "translations": {},
+      "groups": [],
+      "product_ids": [],
+      "priority": 0,
+      "version": 1,
+      "created_at": "2026-10-02T08:00:00Z",
+      "created_by": "b2000000-0000-4000-8000-000000000001",
+      "updated_at": "2026-09-29T09:00:00Z",
+      "updated_by": "b2000000-0000-4000-8000-000000000001",
+      "published_at": null,
+      "published_by": null,
+      "copied_from": null,
+      "updated_by_name": "Мила Админ",
+      "id": "00000000-0000-4000-8000-000000000007",
+      "title": "Општа скрипта",
+      "sections": [
+        {
+          "id": "opening",
+          "key": "opening",
+          "text": "Добар ден {{first_name}}, јас сум {{agent_name}} од Натура Терапи."
+        },
+        {
+          "id": "closing",
+          "key": "closing",
+          "text": "Ви благодарам, пријатен ден!"
+        }
+      ],
+      "script_text": "Отворање\nДобар ден {{first_name}}, јас сум {{agent_name}} од Натура Терапи.\n\nЗатворање\nВи благодарам, пријатен ден!",
+      "lint": [
+        {
+          "code": "missing_sq",
+          "severity": "info",
+          "lang": "sq",
+          "field": "section:opening",
+          "match": "opening"
+        },
+        {
+          "code": "missing_sq",
+          "severity": "info",
+          "lang": "sq",
+          "field": "section:closing",
+          "match": "closing"
+        }
+      ]
+    },
+    {
+      "context_type": "targeted",
+      "status": "archived",
+      "description": null,
+      "helpers": [],
+      "translations": {},
+      "groups": [
+        "d57"
+      ],
+      "product_ids": [],
+      "priority": 0,
+      "version": 5,
+      "created_at": "2026-10-02T08:00:00Z",
+      "created_by": "b2000000-0000-4000-8000-000000000001",
+      "updated_at": "2026-09-20T09:00:00Z",
+      "updated_by": "b2000000-0000-4000-8000-000000000001",
+      "published_at": null,
+      "published_by": null,
+      "copied_from": null,
+      "updated_by_name": "Мила Админ",
+      "id": "00000000-0000-4000-8000-000000000008",
+      "title": "Стара летна акција",
+      "sections": [
+        {
+          "id": "pitch",
+          "key": "pitch",
+          "text": "Летна акција: 2+1 до крајот на август."
+        }
+      ],
+      "script_text": "Презентација\nЛетна акција: 2+1 до крајот на август.",
+      "lint": [
+        {
+          "code": "missing_sq",
+          "severity": "info",
+          "lang": "sq",
+          "field": "section:pitch",
+          "match": "pitch"
+        }
+      ]
+    },
+    {
+      "context_type": "targeted",
+      "status": "draft",
+      "description": null,
+      "helpers": [],
+      "translations": {},
+      "groups": [
+        "y2plus"
+      ],
+      "product_ids": [
+        "a1000000-0000-4000-8000-000000000005"
+      ],
+      "priority": 0,
+      "version": 1,
+      "created_at": "2026-10-02T08:00:00Z",
+      "created_by": "b2000000-0000-4000-8000-000000000001",
+      "updated_at": "2026-10-02T11:00:00Z",
+      "updated_by": "b2000000-0000-4000-8000-000000000001",
+      "published_at": null,
+      "published_by": null,
+      "copied_from": "00000000-0000-4000-8000-000000000020",
+      "updated_by_name": "Мила Админ",
+      "id": "00000000-0000-4000-8000-000000000009",
+      "title": "Хепатол — Предикција 2+ години",
+      "sections": [
+        {
+          "id": "pitch",
+          "key": "pitch",
+          "text": "Хепатол е за поддршка на црниот дроб. Цената е 30 евро, испорака со Еконт."
+        }
+      ],
+      "script_text": "Презентација\nХепатол е за поддршка на црниот дроб. Цената е 30 евро, испорака со Еконт.",
+      "lint": [
+        {
+          "code": "bg_content",
+          "severity": "warn",
+          "lang": "mk",
+          "field": "section:pitch",
+          "match": "евро"
+        },
+        {
+          "code": "bg_content",
+          "severity": "warn",
+          "lang": "mk",
+          "field": "section:pitch",
+          "match": "Еконт"
+        },
+        {
+          "code": "missing_sq",
+          "severity": "info",
+          "lang": "sq",
+          "field": "section:pitch",
+          "match": "pitch"
+        }
+      ]
+    },
+    {
+      "context_type": "product",
+      "status": "published",
+      "description": null,
+      "helpers": [],
+      "translations": {},
+      "groups": [],
+      "product_ids": [],
+      "priority": 0,
+      "version": 1,
+      "created_at": "2026-10-02T08:00:00Z",
+      "created_by": null,
+      "updated_at": "2026-10-02T08:00:00Z",
+      "updated_by": null,
+      "published_at": null,
+      "published_by": null,
+      "copied_from": null,
+      "updated_by_name": null,
+      "id": "00000000-0000-4000-8000-000000000020",
+      "title": "Hepatol Forte 30 caps – За црн дроб и детоксикација",
+      "sections": [],
+      "script_text": "Ало, добар ден господине ______! Јас сум ______ од Натура Терапи…",
+      "lint": [
+        {
+          "code": "legacy_placeholder",
+          "severity": "warn",
+          "lang": "mk",
+          "field": "script_text",
+          "match": "______"
+        }
+      ]
+    }
+  ],
+  "products": [
+    {
+      "id": "a1000000-0000-4000-8000-000000000001",
+      "name": "Prostatol Complex",
+      "brand_line": "natura_therapy",
+      "kind": "product",
+      "is_active": true,
+      "family": "prostatol complex"
+    },
+    {
+      "id": "a1000000-0000-4000-8000-000000000002",
+      "name": "Prostatol Complex (2+2) + Цинк 120тбл",
+      "brand_line": "natura_therapy",
+      "kind": "bundle",
+      "is_active": true,
+      "family": "prostatol complex (2+2) + цинк 120тбл"
+    },
+    {
+      "id": "a1000000-0000-4000-8000-000000000003",
+      "name": "Neurofix",
+      "brand_line": "bio_natural",
+      "kind": "product",
+      "is_active": true,
+      "family": "neurofix"
+    },
+    {
+      "id": "a1000000-0000-4000-8000-000000000004",
+      "name": "GlucoFix",
+      "brand_line": "bio_natural",
+      "kind": "product",
+      "is_active": true,
+      "family": "glucofix"
+    },
+    {
+      "id": "a1000000-0000-4000-8000-000000000005",
+      "name": "Hepatol",
+      "brand_line": "natura_therapy",
+      "kind": "product",
+      "is_active": true,
+      "family": "hepatol"
+    },
+    {
+      "id": "a1000000-0000-4000-8000-000000000007",
+      "name": "HEPATOL",
+      "brand_line": "natura_therapy",
+      "kind": "product",
+      "is_active": false,
+      "family": "hepatol"
+    },
+    {
+      "id": "a1000000-0000-4000-8000-000000000006",
+      "name": "Snail Complex",
+      "brand_line": "natura_therapy",
+      "kind": "product",
+      "is_active": true,
+      "family": "snail complex"
+    }
+  ]
+}

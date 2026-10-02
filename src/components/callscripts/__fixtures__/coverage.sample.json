@@ -1,0 +1,1030 @@
+{
+  "generated_at": "2026-10-02T11:30:00Z",
+  "groups": [
+    "lead_new",
+    "lead_callback",
+    "newcomers",
+    "d21",
+    "d57",
+    "m4_6",
+    "m6_12",
+    "y1_2",
+    "y2plus",
+    "cancels",
+    "never_converted",
+    "trash"
+  ],
+  "all_products": {
+    "lead_new": {
+      "waiting": 211,
+      "assigned": 167,
+      "winner": {
+        "script_id": "00000000-0000-4000-8000-000000000004",
+        "title": "Нов лид — добредојде",
+        "tier": 2
+      },
+      "draft_winner": null,
+      "overlap": 1
+    },
+    "lead_callback": {
+      "waiting": 43,
+      "assigned": 43,
+      "winner": null,
+      "draft_winner": {
+        "script_id": "00000000-0000-4000-8000-000000000007",
+        "title": "Општа скрипта",
+        "tier": 4
+      },
+      "overlap": 0
+    },
+    "newcomers": {
+      "waiting": 193,
+      "assigned": 106,
+      "winner": null,
+      "draft_winner": {
+        "script_id": "00000000-0000-4000-8000-000000000007",
+        "title": "Општа скрипта",
+        "tier": 4
+      },
+      "overlap": 0
+    },
+    "d21": {
+      "waiting": 152,
+      "assigned": 58,
+      "winner": {
+        "script_id": "00000000-0000-4000-8000-000000000002",
+        "title": "Предикција 21 ден — општо",
+        "tier": 2
+      },
+      "draft_winner": null,
+      "overlap": 1
+    },
+    "d57": {
+      "waiting": 197,
+      "assigned": 59,
+      "winner": null,
+      "draft_winner": {
+        "script_id": "00000000-0000-4000-8000-000000000007",
+        "title": "Општа скрипта",
+        "tier": 4
+      },
+      "overlap": 0
+    },
+    "m4_6": {
+      "waiting": 260,
+      "assigned": 31,
+      "winner": null,
+      "draft_winner": {
+        "script_id": "00000000-0000-4000-8000-000000000007",
+        "title": "Општа скрипта",
+        "tier": 4
+      },
+      "overlap": 0
+    },
+    "m6_12": {
+      "waiting": 316,
+      "assigned": 12,
+      "winner": null,
+      "draft_winner": {
+        "script_id": "00000000-0000-4000-8000-000000000007",
+        "title": "Општа скрипта",
+        "tier": 4
+      },
+      "overlap": 0
+    },
+    "y1_2": {
+      "waiting": 234,
+      "assigned": 0,
+      "winner": null,
+      "draft_winner": {
+        "script_id": "00000000-0000-4000-8000-000000000007",
+        "title": "Општа скрипта",
+        "tier": 4
+      },
+      "overlap": 0
+    },
+    "y2plus": {
+      "waiting": 225,
+      "assigned": 0,
+      "winner": null,
+      "draft_winner": {
+        "script_id": "00000000-0000-4000-8000-000000000007",
+        "title": "Општа скрипта",
+        "tier": 4
+      },
+      "overlap": 0
+    },
+    "cancels": {
+      "waiting": 53,
+      "assigned": 32,
+      "winner": null,
+      "draft_winner": {
+        "script_id": "00000000-0000-4000-8000-000000000007",
+        "title": "Општа скрипта",
+        "tier": 4
+      },
+      "overlap": 0
+    },
+    "never_converted": {
+      "waiting": 12,
+      "assigned": 0,
+      "winner": null,
+      "draft_winner": {
+        "script_id": "00000000-0000-4000-8000-000000000007",
+        "title": "Општа скрипта",
+        "tier": 4
+      },
+      "overlap": 0
+    },
+    "trash": {
+      "waiting": 86,
+      "assigned": 3,
+      "winner": null,
+      "draft_winner": {
+        "script_id": "00000000-0000-4000-8000-000000000006",
+        "title": "Корпа — втора шанса",
+        "tier": 2
+      },
+      "overlap": 0
+    }
+  },
+  "rows": [
+    {
+      "key": "a1000000-0000-4000-8000-000000000001",
+      "product_ids": [
+        "a1000000-0000-4000-8000-000000000001"
+      ],
+      "name": "Prostatol Complex",
+      "brand_line": "natura_therapy",
+      "kind": "product",
+      "waiting": 1240,
+      "cells": {
+        "lead_new": {
+          "waiting": 42,
+          "assigned": 30,
+          "winner": {
+            "script_id": "00000000-0000-4000-8000-000000000004",
+            "title": "Нов лид — добредојде",
+            "tier": 2
+          },
+          "draft_winner": null,
+          "overlap": 2
+        },
+        "lead_callback": {
+          "waiting": 11,
+          "assigned": 11,
+          "winner": {
+            "script_id": "00000000-0000-4000-8000-000000000003",
+            "title": "Простатол — сите клиенти",
+            "tier": 3
+          },
+          "draft_winner": null,
+          "overlap": 1
+        },
+        "newcomers": {
+          "waiting": 120,
+          "assigned": 64,
+          "winner": {
+            "script_id": "00000000-0000-4000-8000-000000000003",
+            "title": "Простатол — сите клиенти",
+            "tier": 3
+          },
+          "draft_winner": null,
+          "overlap": 1
+        },
+        "d21": {
+          "waiting": 88,
+          "assigned": 40,
+          "winner": {
+            "script_id": "00000000-0000-4000-8000-000000000001",
+            "title": "Предикција 21 ден — Простатол",
+            "tier": 1
+          },
+          "draft_winner": null,
+          "overlap": 3
+        },
+        "d57": {
+          "waiting": 140,
+          "assigned": 52,
+          "winner": {
+            "script_id": "00000000-0000-4000-8000-000000000001",
+            "title": "Предикција 21 ден — Простатол",
+            "tier": 1
+          },
+          "draft_winner": null,
+          "overlap": 2
+        },
+        "m4_6": {
+          "waiting": 210,
+          "assigned": 31,
+          "winner": {
+            "script_id": "00000000-0000-4000-8000-000000000003",
+            "title": "Простатол — сите клиенти",
+            "tier": 3
+          },
+          "draft_winner": null,
+          "overlap": 1
+        },
+        "m6_12": {
+          "waiting": 260,
+          "assigned": 12,
+          "winner": {
+            "script_id": "00000000-0000-4000-8000-000000000003",
+            "title": "Простатол — сите клиенти",
+            "tier": 3
+          },
+          "draft_winner": null,
+          "overlap": 1
+        },
+        "y1_2": {
+          "waiting": 190,
+          "assigned": 0,
+          "winner": {
+            "script_id": "00000000-0000-4000-8000-000000000003",
+            "title": "Простатол — сите клиенти",
+            "tier": 3
+          },
+          "draft_winner": null,
+          "overlap": 1
+        },
+        "y2plus": {
+          "waiting": 75,
+          "assigned": 0,
+          "winner": {
+            "script_id": "00000000-0000-4000-8000-000000000003",
+            "title": "Простатол — сите клиенти",
+            "tier": 3
+          },
+          "draft_winner": null,
+          "overlap": 1
+        },
+        "cancels": {
+          "waiting": 34,
+          "assigned": 20,
+          "winner": {
+            "script_id": "00000000-0000-4000-8000-000000000003",
+            "title": "Простатол — сите клиенти",
+            "tier": 3
+          },
+          "draft_winner": null,
+          "overlap": 1
+        },
+        "never_converted": {
+          "waiting": 12,
+          "assigned": 0,
+          "winner": {
+            "script_id": "00000000-0000-4000-8000-000000000003",
+            "title": "Простатол — сите клиенти",
+            "tier": 3
+          },
+          "draft_winner": null,
+          "overlap": 1
+        },
+        "trash": {
+          "waiting": 58,
+          "assigned": 3,
+          "winner": {
+            "script_id": "00000000-0000-4000-8000-000000000003",
+            "title": "Простатол — сите клиенти",
+            "tier": 3
+          },
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000006",
+            "title": "Корпа — втора шанса",
+            "tier": 2
+          },
+          "overlap": 1
+        }
+      }
+    },
+    {
+      "key": "hepatol",
+      "product_ids": [
+        "a1000000-0000-4000-8000-000000000005",
+        "a1000000-0000-4000-8000-000000000007"
+      ],
+      "name": "Hepatol",
+      "brand_line": "natura_therapy",
+      "kind": "product",
+      "waiting": 279,
+      "cells": {
+        "lead_new": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": {
+            "script_id": "00000000-0000-4000-8000-000000000004",
+            "title": "Нов лид — добредојде",
+            "tier": 2
+          },
+          "draft_winner": null,
+          "overlap": 1
+        },
+        "lead_callback": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "newcomers": {
+          "waiting": 8,
+          "assigned": 2,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "d21": {
+          "waiting": 4,
+          "assigned": 1,
+          "winner": {
+            "script_id": "00000000-0000-4000-8000-000000000002",
+            "title": "Предикција 21 ден — општо",
+            "tier": 2
+          },
+          "draft_winner": null,
+          "overlap": 1
+        },
+        "d57": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "m4_6": {
+          "waiting": 36,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "m6_12": {
+          "waiting": 51,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "y1_2": {
+          "waiting": 44,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "y2plus": {
+          "waiting": 136,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000009",
+            "title": "Хепатол — Предикција 2+ години",
+            "tier": 1
+          },
+          "overlap": 0
+        },
+        "cancels": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "never_converted": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "trash": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000006",
+            "title": "Корпа — втора шанса",
+            "tier": 2
+          },
+          "overlap": 0
+        }
+      }
+    },
+    {
+      "key": "a1000000-0000-4000-8000-000000000003",
+      "product_ids": [
+        "a1000000-0000-4000-8000-000000000003"
+      ],
+      "name": "Neurofix",
+      "brand_line": "bio_natural",
+      "kind": "product",
+      "waiting": 247,
+      "cells": {
+        "lead_new": {
+          "waiting": 96,
+          "assigned": 80,
+          "winner": {
+            "script_id": "00000000-0000-4000-8000-000000000005",
+            "title": "Лид — Неурофикс (нов и повторен повик)",
+            "tier": 1
+          },
+          "draft_winner": null,
+          "overlap": 2
+        },
+        "lead_callback": {
+          "waiting": 23,
+          "assigned": 23,
+          "winner": {
+            "script_id": "00000000-0000-4000-8000-000000000005",
+            "title": "Лид — Неурофикс (нов и повторен повик)",
+            "tier": 1
+          },
+          "draft_winner": null,
+          "overlap": 1
+        },
+        "newcomers": {
+          "waiting": 44,
+          "assigned": 30,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "d21": {
+          "waiting": 31,
+          "assigned": 10,
+          "winner": {
+            "script_id": "00000000-0000-4000-8000-000000000002",
+            "title": "Предикција 21 ден — општо",
+            "tier": 2
+          },
+          "draft_winner": null,
+          "overlap": 1
+        },
+        "d57": {
+          "waiting": 27,
+          "assigned": 5,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "m4_6": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "m6_12": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "y1_2": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "y2plus": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "cancels": {
+          "waiting": 19,
+          "assigned": 12,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "never_converted": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "trash": {
+          "waiting": 7,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000006",
+            "title": "Корпа — втора шанса",
+            "tier": 2
+          },
+          "overlap": 0
+        }
+      }
+    },
+    {
+      "key": "a1000000-0000-4000-8000-000000000004",
+      "product_ids": [
+        "a1000000-0000-4000-8000-000000000004"
+      ],
+      "name": "GlucoFix",
+      "brand_line": "bio_natural",
+      "kind": "product",
+      "waiting": 128,
+      "cells": {
+        "lead_new": {
+          "waiting": 64,
+          "assigned": 50,
+          "winner": {
+            "script_id": "00000000-0000-4000-8000-000000000004",
+            "title": "Нов лид — добредојде",
+            "tier": 2
+          },
+          "draft_winner": null,
+          "overlap": 1
+        },
+        "lead_callback": {
+          "waiting": 9,
+          "assigned": 9,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "newcomers": {
+          "waiting": 21,
+          "assigned": 10,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "d21": {
+          "waiting": 17,
+          "assigned": 3,
+          "winner": {
+            "script_id": "00000000-0000-4000-8000-000000000002",
+            "title": "Предикција 21 ден — општо",
+            "tier": 2
+          },
+          "draft_winner": null,
+          "overlap": 1
+        },
+        "d57": {
+          "waiting": 12,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "m4_6": {
+          "waiting": 5,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "m6_12": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "y1_2": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "y2plus": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "cancels": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "never_converted": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "trash": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000006",
+            "title": "Корпа — втора шанса",
+            "tier": 2
+          },
+          "overlap": 0
+        }
+      }
+    },
+    {
+      "key": "a1000000-0000-4000-8000-000000000002",
+      "product_ids": [
+        "a1000000-0000-4000-8000-000000000002"
+      ],
+      "name": "Prostatol Complex (2+2) + Цинк 120тбл",
+      "brand_line": "natura_therapy",
+      "kind": "bundle",
+      "waiting": 43,
+      "cells": {
+        "lead_new": {
+          "waiting": 6,
+          "assigned": 6,
+          "winner": {
+            "script_id": "00000000-0000-4000-8000-000000000004",
+            "title": "Нов лид — добредојде",
+            "tier": 2
+          },
+          "draft_winner": null,
+          "overlap": 1
+        },
+        "lead_callback": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "newcomers": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "d21": {
+          "waiting": 10,
+          "assigned": 4,
+          "winner": {
+            "script_id": "00000000-0000-4000-8000-000000000001",
+            "title": "Предикција 21 ден — Простатол",
+            "tier": 1
+          },
+          "draft_winner": null,
+          "overlap": 2
+        },
+        "d57": {
+          "waiting": 18,
+          "assigned": 2,
+          "winner": {
+            "script_id": "00000000-0000-4000-8000-000000000001",
+            "title": "Предикција 21 ден — Простатол",
+            "tier": 1
+          },
+          "draft_winner": null,
+          "overlap": 1
+        },
+        "m4_6": {
+          "waiting": 9,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "m6_12": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "y1_2": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "y2plus": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "cancels": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "never_converted": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "trash": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000006",
+            "title": "Корпа — втора шанса",
+            "tier": 2
+          },
+          "overlap": 0
+        }
+      }
+    },
+    {
+      "key": "a1000000-0000-4000-8000-000000000006",
+      "product_ids": [
+        "a1000000-0000-4000-8000-000000000006"
+      ],
+      "name": "Snail Complex",
+      "brand_line": "natura_therapy",
+      "kind": "product",
+      "waiting": 0,
+      "cells": {
+        "lead_new": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": {
+            "script_id": "00000000-0000-4000-8000-000000000004",
+            "title": "Нов лид — добредојде",
+            "tier": 2
+          },
+          "draft_winner": null,
+          "overlap": 1
+        },
+        "lead_callback": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "newcomers": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "d21": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": {
+            "script_id": "00000000-0000-4000-8000-000000000002",
+            "title": "Предикција 21 ден — општо",
+            "tier": 2
+          },
+          "draft_winner": null,
+          "overlap": 1
+        },
+        "d57": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "m4_6": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "m6_12": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "y1_2": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "y2plus": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "cancels": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "never_converted": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000007",
+            "title": "Општа скрипта",
+            "tier": 4
+          },
+          "overlap": 0
+        },
+        "trash": {
+          "waiting": 0,
+          "assigned": 0,
+          "winner": null,
+          "draft_winner": {
+            "script_id": "00000000-0000-4000-8000-000000000006",
+            "title": "Корпа — втора шанса",
+            "tier": 2
+          },
+          "overlap": 0
+        }
+      }
+    }
+  ],
+  "totals": {
+    "waiting": 1982,
+    "covered": 1514,
+    "covered_pct": 76.4,
+    "empty_cells_with_waiting": 17,
+    "published": 5,
+    "drafts": 3
+  }
+}
