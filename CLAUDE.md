@@ -245,6 +245,16 @@ target **explicitly** and verify it before running:
   person's cancel). `scripts/repair-folder-decides.mjs` (one sub-transaction per parcel, the live writer must
   answer `created`); undo its own `--rollback <run>`. Proof for both: `node scripts/verify-folder-orders.mjs`.
   Inside Affiliate In / Out the first decider / confirmer keeps the leaderboard credit (unchanged).
+- **A CRM sale: its collabBox BOOKING decides before the parcel + the 2-day collabBox rule (owner, 02.10.2026;
+  `20260947000200` / `0300`).** Still folder + MEX profile, never the team or the product — the Телешоп Out TEAM books
+  ~18 % of its sales (its CRM prediction-list sales) in LEADS-OUT on BIO NATURAL, and those ARE Affiliate – Lead out.
+  A confirmed CRM sale with no parcel takes its OWN booking's department at once (`crm_sale_booking_dept`, the cohort's
+  booking department; trigger + cron `crm-sale-booking-dept` every 15 min); no booking yet = provisional Affiliate – Lead
+  out. A CRM sale (elyon_crm prediction_list / direct) not entered in collabBox `days` (2) Skopje days after its sale day
+  is cancelled at 21:20 (reason `other` + note `not_in_collab_2d`) and its seller gets the bell `not_in_collab` (the
+  evening before `not_in_collab_warning`) — `apply_collab_entry_rule`, ledger `collab_entry_rule_runs/_items`, undo
+  `collab_entry_rule_undo(run)`, switch `app_settings.collab_entry_rule` (owner key) **seeded `report`** — never `apply`
+  without the owner. Check: `node scripts/verify-collab-entry-rule.mjs --list`. See `elyon-departments-and-sources` §3c.
 - **Денари everywhere (owner, 28.09):** every staff-facing amount — screens, charts, exports,
   notifications — is shown in денари. The only EUR on screen is the foreign affiliate payout above.
 - **COD ≠ CRM price → MEX is right** (owner): the CRM price follows the parcel COD, except when COD =

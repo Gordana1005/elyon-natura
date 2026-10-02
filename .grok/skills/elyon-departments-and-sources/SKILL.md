@@ -175,7 +175,8 @@ first, it counts in Affiliate out, and we look at MEX — BIO NATURAL or NATURA 
   | `natura`, tracking `___-9100-%` | `teleshop_other` (Телешоп – Lead in) |
   | `natura`, `___-9108-%` / `___-1300-%` | `social` |
   | `natura`, anything else (9102, 9103 …) | `teleshop_out` (Телешоп – Lead out) |
-  | no MEX profile yet | NULL → the mapping of §3 (Affiliate – Lead out, or its tracking id's series) until MEX shows the profile |
+  | no MEX profile yet, but **its own collabBox booking** (02.10, `20260947000300`) | the booking's department — `crm_sale_booking_dept(order)` = `cohort_order_source(collabbox_department(type, doc, author, at))`, the cohort's own booking department: 10050 → Телешоп – Lead out · 10036 → Телешоп – Lead in · 10106/10055 → social · 10114 → Affiliate – Lead out · 10111 → Affiliate – Lead in |
+  | no MEX profile and no booking yet | NULL → the mapping of §3 (Affiliate – Lead out) — **provisional**; /orders marks it, and the 2-day collabBox rule (§3c) cancels it if it is never booked |
 
   Every other order is NULL: the collabBox folder decides, so a LEADS-OUT (10114) stays Affiliate –
   Lead out and a 10050 stays Телешоп – Lead out whoever booked it. `person` and `at` are unused.
@@ -232,6 +233,37 @@ first, it counts in Affiliate out, and we look at MEX — BIO NATURAL or NATURA 
   Lead out on BIO NATURAL and **Телешоп – Lead out on NATURA, whatever the lane** (a 9100 "Lead in"
   needs the series). Fine for today's CRM sales (prediction / re-sale); decide with the owner before
   Lead-in or social sales are pushed.
+
+### 3c. The booking decides before the parcel + the 2-day collabBox rule (owner, 02.10.2026)
+
+Owner 02.10 (Milјана's CRM list sale sat in Affiliate – Lead out with no parcel; /orders showed 0
+Телешоп – Lead out while the board counted the bookings): "телешоп внесуваат само преку НАТУРА …
+само тие ордерс што се во папката и се преку натура тие се од телешоп оут, а афилиејт оут праќаат само
+преку био натура". The law did not change — folder + MEX profile, never the team or the product. The
+evidence (last 10 days): every folder ships on ONE profile (out / in / social → 100 % NATURA, LEADS /
+LEADS-OUT → 100 % BIO NATURAL); the Телешоп Out TEAM books 82 % on NATURA and 18 % in LEADS-OUT on BIO
+NATURAL — the 18 % are their CRM prediction-list sales (197 of 236), so those ARE Affiliate – Lead out.
+**A team is not a department** (Frosina 56 % LEADS-OUT, Maja 42 %, Milјана 1 %).
+
+- **When:** `20260947000300` — a confirmed CRM sale with no parcel takes its OWN booking's department
+  (`crm_sale_booking_dept`: the document from `crm_sale_collab_doc`, and it must be linked to the
+  order or booked by the sale's seller — a customer's other booking is never borrowed). Kept by
+  `tg_orders_zz_dept_override` (UPDATE only — on INSERT the row does not exist) and the cron
+  `crm-sale-booking-dept` (`7,22,37,52 * * * *`, `crm_sale_booking_dept_sync()`, ≤ 60 days, updated_at
+  kept). The parcel's profile (§3b) still wins once MEX has it.
+- **The 2-day rule:** `20260947000200` — owner: "ако некоја порачка ја нема внесено во наредните 2 дена
+  во collab, тогаш оди cancel, Агентот добива известување". `apply_collab_entry_rule()` (cron
+  `collab-entry-rule` `20 * * * *`, acts at 21:xx Skopje once a day): a confirmed `elyon_crm`
+  prediction_list / direct sale, no parcel, no collabBox evidence (`crm_sale_collab_doc`: the writer's
+  link · a living sales document on the customer's phone or komitent from the sale − 2 days · the
+  phoneless twin), no unlinked parcel on the phone, `days` (2) Skopje days after its sale day →
+  cancelled (reason `other` + note `not_in_collab_2d: …`, history, system note, `keep_updated_at`) and
+  the confirmer (else the assignee) gets the bell `not_in_collab`; the evening before,
+  `not_in_collab_warning`. Ledger `collab_entry_rule_runs` / `_items`; undo
+  `collab_entry_rule_undo(run_id)`. Switch `app_settings.collab_entry_rule` (owner key) — seeded
+  **report** (02.10: 44 would be cancelled, 4–46 days old, €2.043,61; 3 warnings). A booking made after
+  the cancel is no twin (the writer's twin rule reads living sales), so it becomes its own order with
+  the parcel — counted once. Proof: `node scripts/verify-collab-entry-rule.mjs [--list]`.
 
 ### 4. The TS twin — change them together
 
