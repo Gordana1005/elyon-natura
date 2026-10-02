@@ -60,6 +60,8 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 30 * 1000,
+      // kept 30 min (was the 5-min default): back on a page you saw, it shows at once and refreshes behind
+      gcTime: 30 * 60 * 1000,
       refetchOnWindowFocus: false,
       retry: 1,
     },

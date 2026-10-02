@@ -1529,6 +1529,9 @@ const csInvalidate = () => { csModeCache = null; csMetaCache = null; };
 
 // CORS headers — origin is set per-request in the serve wrapper below.
 const corsHeaders = {
+  // The browser keeps a preflight for 2 h instead of repeating it before every call (≈ 250 ms each
+  // from Skopje; Chrome caps it at 2 h) — speed audit 02.10.2026.
+  "Access-Control-Max-Age": "7200",
   "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version, x-webhook-signature",
 };
@@ -5607,6 +5610,12 @@ async function handleRequest(req: Request): Promise<Response> {
       // Prevent admin from changing own roles
       if (userId === user.id) {
         return json({ error: "Cannot change your own roles" }, 400);
+      }
+      // A manager may set the roles of AGENT accounts only — never replace an admin's or another
+      // manager's roles (that would strip an owner of the money view or lock them out). Same rule
+      // as toggle-active / delete (roles audit, 02.10.2026).
+      if (!isAdmin && await targetHasPrivilegedRole(adminClient, userId)) {
+        return json({ error: "Forbidden — only an admin can manage this account" }, 403);
       }
 
       // Delete existing roles and insert new ones.

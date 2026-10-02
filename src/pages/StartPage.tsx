@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/contexts/PermissionsContext';
 import { homePath } from '@/lib/homePath';
 import { NoAccessScreen } from '@/components/NoAccessScreen';
+import { prefetchInsightsLanding } from '@/lib/insightsPrefetch';
 
 const Spinner = () => (
   <div className="flex h-screen items-center justify-center bg-background">
@@ -23,8 +25,16 @@ const Spinner = () => (
 export default function StartPage() {
   const { session, user, loading } = useAuth();
   const { canAccessModule, canSeeBusiness, loading: permLoading } = usePermissions();
+  const qc = useQueryClient();
   const [gaveUp, setGaveUp] = useState(false);
   const waitingForProfile = !!session && !user;
+  const ready = !loading && !!session && !!user && !permLoading;
+  const home = ready ? homePath(user, { canAccessModule, canSeeBusiness }) : null;
+
+  // Landing on Insights: its data and code start now, not after the page mounts.
+  useEffect(() => {
+    if (home === '/insights' && user?.id) prefetchInsightsLanding(qc, user.id);
+  }, [home, user?.id, qc]);
 
   useEffect(() => {
     if (!waitingForProfile) return;
@@ -36,6 +46,5 @@ export default function StartPage() {
   if (!session) return <Navigate to="/login" replace />;
   if (!user) return gaveUp ? <NoAccessScreen /> : <Spinner />;
   if (permLoading) return <Spinner />;
-  const home = homePath(user, { canAccessModule, canSeeBusiness });
   return home ? <Navigate to={home} replace /> : <NoAccessScreen />;
 }
