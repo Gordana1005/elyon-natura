@@ -6779,8 +6779,9 @@ async function handleRequest(req: Request): Promise<Response> {
       });
       const bookingsBody = OB.bookingsResponse(OB.redactBookings(rows, piiFlags), win);
       // The document's value is money: owners only, as order_origin drops its *_mkd (owner audit
-      // 02.10.2026). Everyone else gets the same rows without value_mkd.
-      if (!(await isBusinessOwner(user.id))) return json(AGD.stripBookingsMoney(bookingsBody));
+      // 02.10.2026). An agent scoped to their OWN bookings keeps their own values; anyone else who
+      // sees other people's rows without being an owner gets them without value_mkd.
+      if (!scopePersonIds && !(await isBusinessOwner(user.id))) return json(AGD.stripBookingsMoney(bookingsBody));
       return json(bookingsBody);
     }
 
