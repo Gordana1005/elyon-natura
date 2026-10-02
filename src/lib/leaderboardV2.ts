@@ -1,5 +1,5 @@
 // ── TV leaderboard v2 (owner, 28–29.09.2026) ────────────────────────────────
-// One board, one row per agent, the day split over the six departments + the
+// One board, one row per agent, the day split over the departments + the
 // collabBox bookings still waiting for their parcel. The payload is built by
 // public.leaderboard_day_v2 (migration 20260942001200) and served by
 // GET /api/leaderboard?v=2 (supabase/functions/api/leaderboardV2.ts); this file
@@ -16,10 +16,16 @@ import { TEAM_FILTER_RE } from '@/lib/teamLines';
 
 const API_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api`;
 
-/** The six departments in the owner's order. */
-export const DEPARTMENTS = ['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web'] as const;
+/** The departments in the owner's order — every key a row's `departments` map may hold. Менаџмент
+ *  (owner 02.10.2026, 20260947001000) is the seventh: a Менаџмент person's sales, apart from every team. */
+export const DEPARTMENTS = ['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web', 'management'] as const;
 export type Department = typeof DEPARTMENTS[number];
 export const isDepartment = (v: unknown): v is Department => (DEPARTMENTS as readonly string[]).includes(String(v));
+/** The department BUTTONS of the board: the six. Менаџмент has none — the owner shows it only under
+ *  the Менаџмент TEAM filter (tvBoard.team.management), where its rows carry the Менаџмент chip. */
+export const FILTER_DEPARTMENTS = ['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web'] as const satisfies readonly Department[];
+export type FilterDepartment = typeof FILTER_DEPARTMENTS[number];
+export const isFilterDepartment = (v: unknown): v is FilterDepartment => (FILTER_DEPARTMENTS as readonly string[]).includes(String(v));
 /** The i18n key of a department under leaderboard2.dept / deptShort: a key
  *  ending in `_other` is an i18next plural form, so teleshop_other is spelled
  *  teleshopOther there (the insights locales do the same). */
@@ -224,7 +230,7 @@ export function toBoardV2(data: unknown, filter: BoardFilter): BoardV2 {
     generated_at: String(d.generated_at ?? new Date().toISOString()),
     money: true,
     filter: { department: dept, team: filter.team },
-    departments: [...DEPARTMENTS],
+    departments: [...FILTER_DEPARTMENTS],
     teams: [],
     summary: {
       people: ordered.length,
@@ -342,11 +348,12 @@ export const avgSaleMkd = (row: Pick<BoardRow, 'total_count' | 'total_value_mkd'
  *  (sales_team_filter_matches, 20260943000950) reads altercpa_leads as the old team + Affiliate
  *  lane in ("Affiliate лидови"), crm_prediction as the old team + lane out on every line
  *  ("предикција"), so an old link shows the same people before and after the re-key.
- *  ?dept= / ?department= and ?team= win; ?team= takes 'team:lane' too. */
+ *  ?dept= / ?department= and ?team= win; ?team= takes 'team:lane' too. A department is one of the
+ *  six buttons — ?dept=management opens the board unfiltered (Менаџмент lives under its team). */
 export const LEGACY_MODE_TEAM: Record<string, string> = { prediction: 'crm_prediction', pending: 'altercpa_leads' };
 export function initialFilter(params: URLSearchParams): BoardFilter {
   const dRaw = params.get('dept') ?? params.get('department');
-  const department = isDepartment(dRaw) ? dRaw : null;
+  const department = isFilterDepartment(dRaw) ? dRaw : null;
   const tRaw = (params.get('team') ?? '').trim();
   const team = TEAM_FILTER_RE.test(tRaw) ? tRaw : null;
   if (department || team) return { department, team };

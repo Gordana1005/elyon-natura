@@ -23,8 +23,8 @@ describe("departments / order params", () => {
   it("an unknown key is a 400", () => {
     expect(parseDepartmentsParam("altercpa,teleshop")).toEqual({ ok: false, error: "invalid department: teleshop" });
   });
-  it("seven keys, the six departments first", () => {
-    expect(ASSIGNER_DEPARTMENTS).toEqual(["altercpa", "elyon_crm", "teleshop_out", "teleshop_other", "social", "web", "unknown"]);
+  it("eight keys, the seven departments first (Менаџмент 7th, 20260947001000), unknown last", () => {
+    expect(ASSIGNER_DEPARTMENTS).toEqual(["altercpa", "elyon_crm", "teleshop_out", "teleshop_other", "social", "web", "management", "unknown"]);
   });
   it("order param falls back to the default", () => {
     expect(parseOrderParam("OLDEST", ["newest", "oldest"] as const, "newest")).toBe("oldest");

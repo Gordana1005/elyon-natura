@@ -2042,7 +2042,7 @@
     "sales": "Shitje",
     "worked": "Të punuara",
     "byDepartment": "Shitje sot sipas departamentit",
-    "kpiNote": "Të njëjtat shifra si Insights → Pasqyra: dita e shitjes, gjashtë departamentet, MEX është prova.",
+    "kpiNote": "Të njëjtat shifra si Insights → Pasqyra: dita e shitjes, të gjitha departamentet (edhe Menaxhmenti), MEX është prova.",
     "toPackBookedSub_one": "prej tyre {{n}} e regjistruar në collabBox (pret pakon)",
     "toPackBookedSub_other": "prej tyre {{n}} të regjistruara në collabBox (presin pakon)"
   },
@@ -5285,7 +5285,8 @@
         "teleshop_out": "Ekipi Centar Out",
         "web": "Dyqani online",
         "social": "Rrjetet sociale",
-        "teleshopOther": "Ekipi Centar In"
+        "teleshopOther": "Ekipi Centar In",
+        "management": "Menaxhmenti"
       },
       "bucket": {
         "paid": "Të arkëtuara",
@@ -5951,7 +5952,7 @@
         "sales": "Shitje",
         "salesHint": "Shitje që i atribuohen personit, sipas ditës së shitjes — njësoj si Pasqyra",
         "sources": "Burimet",
-        "sourcesHint": "Ekipi Madžari In · Ekipi Madžari Out · Ekipi Centar Out · Ekipi Centar In · Rrjetet sociale · Dyqani online",
+        "sourcesHint": "Ekipi Madžari In · Ekipi Madžari Out · Ekipi Centar Out · Ekipi Centar In · Rrjetet sociale · Dyqani online · Menaxhmenti",
         "paid": "Paguar",
         "paidHint": "MEX e dorëzoi pakon dhe e arkëtoi",
         "paidShare": "Paguar",
@@ -7593,7 +7594,8 @@
       "teleshop_out": "Ekipi Centar Out",
       "teleshopOther": "Ekipi Centar In",
       "social": "Rrjetet sociale",
-      "web": "Dyqani online"
+      "web": "Dyqani online",
+      "management": "Menaxhmenti"
     },
     "deptShort": {
       "altercpa": "Ekipi Madžari In",
@@ -7601,7 +7603,8 @@
       "teleshop_out": "Ekipi Centar Out",
       "teleshopOther": "Ekipi Centar In",
       "social": "Sociale",
-      "web": "Web"
+      "web": "Web",
+      "management": "Menaxhmenti"
     },
     "team": {
       "none": "Pa ekip"
@@ -8280,7 +8283,8 @@
       "teleshop_out": "Ekipi Centar Out",
       "web": "Dyqani online",
       "social": "Rrjetet sociale",
-      "teleshopOther": "Ekipi Centar In"
+      "teleshopOther": "Ekipi Centar In",
+      "management": "Menaxhmenti"
     },
     "saleSource": {
       "altercpa": "Ekipi Madžari In",
@@ -8472,6 +8476,7 @@
         "conversion": "Konvertimi",
         "noFunnel": "Ekipi Centar nuk ka lide: çdo dokument i collabBox është tashmë shitje.",
         "noFunnelSocial": "Rrjetet sociale nuk kanë lide: çdo dokument i collabBox është tashmë shitje.",
+        "noFunnelManagement": "Menaxhmenti nuk ka lide: lidi mbetet gjithmonë te Ekipi Madžari In — këtu janë vetëm shitjet e njerëzve të Menaxhmentit.",
         "none": "Asnjë lid në periudhë"
       },
       "sources": {

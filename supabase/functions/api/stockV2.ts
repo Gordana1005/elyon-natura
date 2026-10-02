@@ -68,7 +68,8 @@ export const SIGMA_MAX_BYTES = 2 * 1024 * 1024;
 /** POST /stock/sigma/ingest: how far x-elyon-ts may be from now. */
 export const SIGMA_MAX_SKEW_S = 300;
 
-export const STOCK_DEPARTMENTS = ["altercpa", "elyon_crm", "teleshop_out", "teleshop_other", "social", "web"] as const;
+/** The cohort departments (cohort_order_source) — Менаџмент 7th since 20260947001000. */
+export const STOCK_DEPARTMENTS = ["altercpa", "elyon_crm", "teleshop_out", "teleshop_other", "social", "web", "management"] as const;
 export const STOCK_ACCOUNTS = ["natura", "bio_natural"] as const;
 export const PARCEL_STATUS_GROUPS = ["delivered", "returned", "with_courier", "problem", "to_pack"] as const;
 export const PARCEL_STATES = [

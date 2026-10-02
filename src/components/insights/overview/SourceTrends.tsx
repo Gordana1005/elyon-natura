@@ -22,7 +22,7 @@ interface Row { bucket: string; sales: number; done: number }
  * that day: "no" calls, cancels, trash and open leads included) is gone.
  */
 export function SourceTrends({
-  points, granularity, sales, sources, money, salesHref, f,
+  points, granularity, sales, sources: wanted, money, salesHref, f,
 }: {
   points: OverviewTrendPoint[];
   granularity: 'day' | 'month';
@@ -46,7 +46,7 @@ export function SourceTrends({
   const withSales = sales != null;
   const rowsBy = useMemo(() => {
     const out: Record<string, Row[]> = {};
-    for (const s of sources) {
+    for (const s of wanted) {
       out[s] = points.map((p) => {
         const c = p.by_source[s];
         return {
@@ -57,7 +57,12 @@ export function SourceTrends({
       });
     }
     return out;
-  }, [points, sources, sales, money]);
+  }, [points, wanted, sales, money]);
+  // Менаџмент gets a panel only when it has something (owner 02.10.2026: "ако има нешто")
+  const sources = useMemo(
+    () => wanted.filter((s) => s !== 'management' || (rowsBy[s] ?? []).some((r) => r.sales > 0 || r.done > 0)),
+    [wanted, rowsBy],
+  );
   const value = (v: number) => (money ? f.den(v) : f.int(v));
   const salesName = money ? t('overview.trend.sales') : t('overview.trend.salesCount');
   const doneName = money ? t('overview.trend.cash') : t('overview.trend.delivered');

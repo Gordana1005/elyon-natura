@@ -83,7 +83,7 @@ export interface StockParcelRow {
   tracking_id: string;
   account: 'natura' | 'bio_natural' | string;
   series: string | null;
-  department: string | null;         // cohort key (altercpa, elyon_crm, teleshop_out, teleshop_other, social, web)
+  department: string | null;         // cohort key (altercpa, elyon_crm, teleshop_out, teleshop_other, social, web, management)
   status_id: number | null;
   status_group: ParcelStatusGroup | null;
   created_at_mex: string | null;

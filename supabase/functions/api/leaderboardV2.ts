@@ -24,9 +24,12 @@
 
 import { parseTeamFilter } from "./teamLines.ts";
 
-/** The six departments in the owner's order (migrations 20260942000500 / 20260942001000). */
+/** The departments in the owner's order (migrations 20260942000500 / 20260942001000), and
+ *  Менаџмент 7th (owner 02.10.2026, 20260947001000: a Менаџмент person's sales are their own
+ *  department). The board shows Менаџмент only under its TEAM filter (no department button),
+ *  but a row's `departments` map and ?department=management are accepted. */
 export const LEADERBOARD_DEPARTMENTS = [
-  "altercpa", "elyon_crm", "teleshop_out", "teleshop_other", "social", "web",
+  "altercpa", "elyon_crm", "teleshop_out", "teleshop_other", "social", "web", "management",
 ] as const;
 export type LeaderboardDepartment = typeof LEADERBOARD_DEPARTMENTS[number];
 
@@ -328,7 +331,7 @@ export const LEADERBOARD_V2_NON_MONEY_KEYS: ReadonlySet<string> = new Set([
   // the web view (web_live) — its counts; value_mkd / total_mkd go with the money
   "web_live", "all_orders", "card", "cod", "by_outcome", "latest", "at", "number", "city", "outcome",
   "payment", "counted", "source", "item", "items", "last_order_at", "synced_at", "awaiting", "kind",
-  // the six departments (map keys)
+  // the departments (map keys)
   ...LEADERBOARD_DEPARTMENTS,
 ]);
 

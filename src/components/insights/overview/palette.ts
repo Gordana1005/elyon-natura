@@ -46,6 +46,15 @@
  *    light normal 13.7; dark CVD 4.8 / normal 10.6) and dark violet↔blue (Social ↔
  *    Affiliate – Lead in, CVD 4.1 / normal 13.5) — they meet only when the sources
  *    between them are 0, and every mark carries its source's name.)
+ *    МЕНАЏМЕНТ (management, 7th and last — owner 02.10.2026, migration 20260947001000:
+ *    the sales of the people on the Менаџмент team, apart from every team) is NEUTRAL
+ *    on purpose — zinc, light #3f3f46 (zinc-700) / dark #d4d4d8 (zinc-300): it is not a
+ *    sales team, it reads "apart". It fails the validator's chroma floor BY DESIGN (a
+ *    neutral cannot pass it); every pair it joins passes (validate_palette.js, pairwise
+ *    against #ffffff / #171b26): vs the six — worst CVD 16.1 light (violet) / 22.1 dark
+ *    (aqua), worst normal 16.7 light (violet) / 24.9 dark (yellow) — and vs the context
+ *    gray #94a3b8 CVD 33.9 / normal 34.1 light, 15.5 / 16.3 dark (dark sits LIGHTER than
+ *    the gray, light much darker). Contrast ≥ 3:1 both modes (10.4:1 light).
  *    Status neighbour: magenta is not the cohort's returned PINK (#f472b6 / #db2777:
  *    CVD 13.8 / normal 16.1 light, 10.0 / 10.1 dark). They never share a mark — a
  *    source hue is an identity dash beside its name or a series in a source-only
@@ -69,15 +78,16 @@
  */
 import type { OverviewBucketKey, OverviewSourceKey } from '@/lib/api';
 
-/** The six departments in the owner's order (28.09.2026) — every source list, chip,
- *  column and colour follows it (shared/cohortTypes COHORT_SOURCES is the same list). */
-export const SOURCE_ORDER: OverviewSourceKey[] = ['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web'];
+/** The departments in the owner's order (28.09.2026; Менаџмент last, 02.10.2026) — every
+ *  source list, chip, column and colour follows it (shared/cohortTypes COHORT_SOURCES is the
+ *  same list). */
+export const SOURCE_ORDER: OverviewSourceKey[] = ['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web', 'management'];
 
 /** CSS custom properties, set once on the Overview root (light + .dark). Literal
  *  strings, one per source, so Tailwind emits every one of them. */
 export const OVERVIEW_COLOR_VARS =
-  '[--ov-src-altercpa:#2a78d6] [--ov-src-elyon_crm:#eb6834] [--ov-src-teleshop_out:#ad4f96] [--ov-src-teleshop_other:#1baf7a] [--ov-src-social:#4a3aa7] [--ov-src-web:#eda100] ' +
-  'dark:[--ov-src-altercpa:#3987e5] dark:[--ov-src-elyon_crm:#d95926] dark:[--ov-src-teleshop_out:#c003a0] dark:[--ov-src-teleshop_other:#199e70] dark:[--ov-src-social:#8b5cf6] dark:[--ov-src-web:#c98500] ' +
+  '[--ov-src-altercpa:#2a78d6] [--ov-src-elyon_crm:#eb6834] [--ov-src-teleshop_out:#ad4f96] [--ov-src-teleshop_other:#1baf7a] [--ov-src-social:#4a3aa7] [--ov-src-web:#eda100] [--ov-src-management:#3f3f46] ' +
+  'dark:[--ov-src-altercpa:#3987e5] dark:[--ov-src-elyon_crm:#d95926] dark:[--ov-src-teleshop_out:#c003a0] dark:[--ov-src-teleshop_other:#199e70] dark:[--ov-src-social:#8b5cf6] dark:[--ov-src-web:#c98500] dark:[--ov-src-management:#d4d4d8] ' +
   '[--ov-context:#94a3b8] [--ov-grid:#e5e7eb] dark:[--ov-grid:#262c3b] [--ov-axis:#6b7280] dark:[--ov-axis:#8b93a7]';
 
 export const sourceColorVar = (key: OverviewSourceKey | string) => `var(--ov-src-${key})`;

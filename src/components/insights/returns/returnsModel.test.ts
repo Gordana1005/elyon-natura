@@ -52,7 +52,7 @@ describe('rsDrill', () => {
   });
 
   it('filters /orders by the selected departments (a department is not one sale_source)', () => {
-    expect(drillSourcesOf([])).toHaveLength(6);
+    expect(drillSourcesOf([])).toHaveLength(7);   // the six + Менаџмент (02.10.2026) — all of them = no filter
     const soc = rsDrill({ clock: 'sale', bucket: 'returned', comp: { orders: 2 }, count: 2, sources: ['social'], range });
     expect(params(soc.href!).cohort_source).toBe('social');
     const two = rsDrill({ clock: 'sale', bucket: 'returned', comp: { orders: 2 }, count: 2, sources: ['teleshop_other', 'altercpa'], range });

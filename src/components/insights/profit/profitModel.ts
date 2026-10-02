@@ -6,7 +6,9 @@
  */
 import type { PLRow, ProfitProduct } from '@/lib/insightsApi/profit';
 import { PROFIT_SOURCES } from '@/lib/insightsApi/profit';
-import type { CohortSourceRow } from '../shared/cohortTypes';
+import {
+  dropEmptyManagement, emptySourceRow, MANAGEMENT_SOURCE, withManagementRow, type CohortSourceRow,
+} from '../shared/cohortTypes';
 import type { ProfitResponse } from '@/lib/insightsApi/profit';
 
 export type Basis = 'estimated' | 'costed';
@@ -104,9 +106,11 @@ const EMPTY_LEADS = { came_in: 0, became_sales: 0, cancelled: 0, trashed: 0, ope
 
 /** The strip's per-source blocks as the rows CohortBar builds its links from. */
 export function stripRows(strip: ProfitResponse['strip']): CohortSourceRow[] {
-  return strip.by_source.map((s) => ({
+  // the whole business: a Менаџмент row always (an api before 02.10.2026 sends none), so a number
+  // over every department drills unfiltered (withManagementRow)
+  return withManagementRow(strip.by_source.map((s) => ({
     key: s.key, total: s.total, buckets: s.buckets, outside: s.outside, splits: [], leads_in: EMPTY_LEADS,
-  }));
+  })), () => emptySourceRow(MANAGEMENT_SOURCE));
 }
 
 // ── products ────────────────────────────────────────────────────────────────
@@ -258,8 +262,14 @@ export function simPriceFor(x: SimInput, targetPerPackage: number): number | nul
 
 export const SOURCE_KEYS = PROFIT_SOURCES;
 
-/** The Pure Profit export's column names — the owner's six departments (28.09.2026),
- *  kept English on purpose (export file content, elyon-i18n); no system names. */
+/** The P&L's department columns on screen: an EMPTY Менаџмент column (no sale, no revenue,
+ *  nothing returned) is not written — owner 02.10.2026, Менаџмент only "ако има нешто". It
+ *  holds nothing, so Σ columns = the total still holds. The export keeps every column. */
+export const plColumns = (rows: readonly PLRow[]): PLRow[] =>
+  dropEmptyManagement(rows, (r) => r.sales === 0 && r.revenue_mkd === 0 && !r.returned && !r.parcels_returned);
+
+/** The Pure Profit export's column names — the owner's departments (28.09.2026; Management
+ *  02.10.2026), kept English on purpose (export file content, elyon-i18n); no system names. */
 export const EXPORT_SOURCE_NAME: Record<(typeof PROFIT_SOURCES)[number] | 'total', string> = {
   altercpa: 'Affiliate – Lead in',
   elyon_crm: 'Affiliate – Lead out',
@@ -267,6 +277,7 @@ export const EXPORT_SOURCE_NAME: Record<(typeof PROFIT_SOURCES)[number] | 'total
   teleshop_other: 'Teleshop – Lead in',
   social: 'Social media',
   web: 'Web shop',
+  management: 'Management',
   total: 'Total',
 };
 /** The export's webmaster sheet (an Excel sheet name: ≤ 31 characters, no : \ / ? * [ ]). */

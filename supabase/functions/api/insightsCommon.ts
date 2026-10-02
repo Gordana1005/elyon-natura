@@ -44,13 +44,40 @@ import type { CsvResult, OverviewWindow } from "./overview.ts";
 
 export type { OverviewWindow as InsightsWindow } from "./overview.ts";
 
-/** The six departments, in the owner's display order (28.09.2026 — migrations
- *  20260942000500, 20260942001000): altercpa ("Affiliate – Lead in") · elyon_crm
- *  ("Affiliate – Lead out") · teleshop_out ("Телешоп – Lead out") ·
- *  teleshop_other ("Телешоп – Lead in") · social (Social media) · web. The keys
+/** The departments, in the owner's display order (28.09.2026 — migrations
+ *  20260942000500, 20260942001000): altercpa ("Тим Маџари In") · elyon_crm
+ *  ("Тим Маџари Out") · teleshop_out ("Тим Центар Out") · teleshop_other
+ *  ("Тим Центар In") · social (Социјални мрежи) · web (Веб-продавница) ·
+ *  management (Менаџмент — owner 02.10.2026, migration 20260947001000: a sale by
+ *  a person on the Менаџмент team on the sale day is counted apart, never in a
+ *  team's In / Out, and IS in every total; a LEAD stays Тим Маџари In). The keys
  *  never change; the app names them. */
-export const INSIGHTS_SOURCES = ["altercpa", "elyon_crm", "teleshop_out", "teleshop_other", "social", "web"] as const;
+export const INSIGHTS_SOURCES = ["altercpa", "elyon_crm", "teleshop_out", "teleshop_other", "social", "web", "management"] as const;
 export type InsightsSource = (typeof INSIGHTS_SOURCES)[number];
+/** The department no folder / series / parcel ever maps to: only
+ *  orders.dept_override = 'management' (the seller's team, 20260947001000). */
+export const MANAGEMENT_SOURCE: Extract<InsightsSource, "management"> = "management";
+
+/** The p_sources argument of insights_cohort / _returns / _stock: null when
+ *  every department is asked for — the SQL then counts its own full list (six
+ *  before 20260947001000, seven after), so the default never names a key an
+ *  older body would refuse — else the chosen keys. */
+export function sourcesRpcArg(values: readonly string[]): string[] | null {
+  const known = INSIGHTS_SOURCES.filter((k) => values.includes(k));
+  return !known.length || known.length === INSIGHTS_SOURCES.length ? null : known;
+}
+
+/** An insights RPC body older than 20260947001000 refuses 'management'
+ *  ("<fn>: unknown source management", 22023). The keys to ask again with —
+ *  the same choice without management, whose part is empty in such a body
+ *  anyway — or null when there is nothing to retry (another error, no
+ *  management in the choice, or management was all of it). */
+export function sourcesRetryWithoutManagement(errMessage: string | null | undefined, sent: readonly string[] | null): string[] | null {
+  if (!sent || !sent.includes(MANAGEMENT_SOURCE)) return null;
+  if (!/unknown source management\b/.test(String(errMessage ?? ""))) return null;
+  const rest = sent.filter((k) => k !== MANAGEMENT_SOURCE);
+  return rest.length ? rest : null;
+}
 
 /** The collabBox details that make an order Social media's: 'social' (series
  *  9108) and '1300' (the "Нарачка С. Мрежи-Продавница" type, series 002-1300,
@@ -106,6 +133,8 @@ const REST_PARTS: Record<InsightsSource, string[]> = {
   ],
   social: [`and(sale_source.eq.collabbox,sale_source_detail.in.(${SOCIAL_DETAILS.join(",")}))`],
   web: ["sale_source.eq.web"],
+  // no folder, series or parcel maps here: Менаџмент is ONLY dept_override = 'management'
+  management: [],
 };
 
 /** The union of some departments as PostgREST `or` terms: their non-CRM parts,
@@ -119,9 +148,12 @@ function departmentTerms(keys: readonly InsightsSource[]): string[] {
     : crmAll ? [CRM_MADE]
     : [`and(${CRM_MADE},${parcel.length === 1 ? parcel[0] : `or(${parcel.join(",")})`})`];
   const mapped = [...crm, ...keys.flatMap((k) => REST_PARTS[k])];
-  // The agent-team override (orders.dept_override, 20260942001800 — the 4-argument
-  // cohort_order_source): a set value decides; only NULL rows fall to the mapping.
-  return [`dept_override.in.(${keys.join(",")})`, `and(dept_override.is.null,or(${mapped.join(",")}))`];
+  // The override (orders.dept_override — the 4-argument cohort_order_source; since
+  // 20260947000400 the seller's team, since 20260947001000 also 'management'): a set
+  // value decides; only NULL rows fall to the mapping. Менаџмент alone maps nothing,
+  // so it is the override term only — never an empty or().
+  const override = `dept_override.in.(${keys.join(",")})`;
+  return mapped.length ? [override, `and(dept_override.is.null,or(${mapped.join(",")}))`] : [override];
 }
 
 /** Each department's ORDER part as ONE PostgREST `or` term — the twin of
@@ -130,7 +162,8 @@ function departmentTerms(keys: readonly InsightsSource[]): string[] {
  *  only ever matches CRM-entered web orders (0 today). Телешоп – Lead in is
  *  everything else, NULL included (the SQL's ELSE): a NULL sale_source /
  *  detail / tracking id never matches not.in / neq / not.like, so the NULLs
- *  are named. The six terms partition every order (insightsCommon.test.ts). */
+ *  are named. Менаџмент = `dept_override.in.(management)` alone. The seven terms
+ *  partition every order (insightsCommon.test.ts). */
 export const COHORT_SOURCE_TERM = Object.fromEntries(INSIGHTS_SOURCES.map((k) => {
   const t = departmentTerms([k]);
   return [k, t.length === 1 ? t[0] : `or(${t.join(",")})`];
@@ -138,10 +171,16 @@ export const COHORT_SOURCE_TERM = Object.fromEntries(INSIGHTS_SOURCES.map((k) =>
 
 /** GET /orders?cohort_source=a,b → one PostgREST `or` expression selecting
  *  exactly the orders cohort_order_source() puts in those sources; null when
- *  none is asked for or all six are (no filter: every order is in one). */
+ *  none is asked for or all seven are (no filter: every order is in one). The
+ *  six without management DO filter: they leave the Менаџмент sales out. */
 export function cohortSourceOrFilter(keys: readonly string[]): string | null {
   const known = INSIGHTS_SOURCES.filter((k) => keys.includes(k));
   if (!known.length || known.length === INSIGHTS_SOURCES.length) return null;
+  // the six without Менаџмент = every order but dept_override 'management' — the same rows
+  // as the six mappings OR-ed, in a filter of 50 characters instead of ~1.800
+  if (known.length === INSIGHTS_SOURCES.length - 1 && !known.includes(MANAGEMENT_SOURCE)) {
+    return `dept_override.is.null,dept_override.neq.${MANAGEMENT_SOURCE}`;
+  }
   return departmentTerms(known).join(",");
 }
 
@@ -167,7 +206,8 @@ export function insightsAccess(isOwner: boolean, isAdminOrManager: boolean): Ins
   return "forbidden";
 }
 
-/** ?source=altercpa,web → validated sources; empty/absent/"all" → all six. */
+/** ?source=altercpa,web → validated sources; empty/absent/"all" → all seven
+ *  (hand them to the RPC through sourcesRpcArg). */
 export function parseSourcesParam(raw: string | null): CsvResult {
   const r = parseCsvParam(raw, INSIGHTS_SOURCES);
   if (!r.ok) return r;

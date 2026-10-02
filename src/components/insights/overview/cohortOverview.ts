@@ -48,8 +48,9 @@ const DETAIL_RE = /^[a-z0-9_.-]{1,40}$/i;
  * Телешоп — Lead in AND Lead out — has none: every collabBox Нарачка document
  * IS a sale, so "came in = became sales = 100 %" would be a tautology (owner,
  * 28.09.2026). Nor does Social media: its orders are collabBox social documents.
+ * Nor Менаџмент (02.10.2026): a lead always stays Тим Маџари In, whoever decides it.
  */
-export const NO_FUNNEL_SOURCES: readonly string[] = ['teleshop_out', 'teleshop_other', 'social'];
+export const NO_FUNNEL_SOURCES: readonly string[] = ['teleshop_out', 'teleshop_other', 'social', 'management'];
 export const hasLeadFunnel = (key: string) => !NO_FUNNEL_SOURCES.includes(key);
 
 /**

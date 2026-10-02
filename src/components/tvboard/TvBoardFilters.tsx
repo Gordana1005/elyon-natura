@@ -6,7 +6,7 @@
 // the value is then 'team:lane'. An old link's legacy key (?team=crm_prediction,
 // ?mode=pending) stays selectable under its alias label.
 import { useTranslation } from 'react-i18next';
-import { DEPARTMENTS, deptKey, type BoardFilter, type BoardTeam, type Department } from '@/lib/leaderboardV2';
+import { FILTER_DEPARTMENTS, deptKey, type BoardFilter, type BoardTeam, type Department } from '@/lib/leaderboardV2';
 import { laneLabel, splitTeamFilter, teamFilterValue, type Lane } from '@/lib/teamLines';
 import { filterTeamLabel, teamLabel } from './tvBoardHelpers';
 
@@ -37,7 +37,8 @@ export function TvBoardFilters({ filter, teams, onChange }: {
         <button type="button" onClick={() => setDept(null)} aria-pressed={!filter.department} className={pill(!filter.department)}>
           {t('leaderboard2.filterAll')}
         </button>
-        {DEPARTMENTS.map((d) => (
+        {/* the six only — Менаџмент is shown under its TEAM filter (owner 02.10.2026) */}
+        {FILTER_DEPARTMENTS.map((d) => (
           <button key={d} type="button" onClick={() => setDept(d)} aria-pressed={filter.department === d}
             title={t(`leaderboard2.dept.${deptKey(d)}`)} className={pill(filter.department === d)}>
             {t(`leaderboard2.deptShort.${deptKey(d)}`)}

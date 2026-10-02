@@ -265,8 +265,8 @@ export function reconcile(d: Pick<PeopleResponse, 'totals' | 'people' | 'no_sell
   };
 }
 
-/** The six departments in the owner's order — every per-source list on this tab. */
-export const PEOPLE_SOURCES: readonly PeopleSourceKey[] = ['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web'];
+/** The departments in the owner's order (Менаџмент last, 02.10.2026) — every per-source list on this tab. */
+export const PEOPLE_SOURCES: readonly PeopleSourceKey[] = ['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web', 'management'];
 
 /** The no-seller rows grouped by source, in the fixed source order. */
 export function noSellerBySource(rows: NoSellerRow[]): { source: NoSellerRow['source']; rows: NoSellerRow[]; count: number; value_mkd: number | null }[] {

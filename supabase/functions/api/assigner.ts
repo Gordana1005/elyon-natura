@@ -20,10 +20,11 @@
 //     distribution, and the realtime broadcast body (`assigner` / `refresh`).
 // ============================================================================
 
-/** The six departments in the owner's order, and 'unknown' (a buyer with no
- *  customer_departments row). The same keys as the SQL (assigner_dept_key). */
+/** The departments in the owner's order (Менаџмент 7th since 20260947001000), and
+ *  'unknown' (a buyer with no customer_departments row). The same keys as the SQL
+ *  (assigner_dept_key); before 20260947001000 the SQL never answers 'management' (0). */
 export const ASSIGNER_DEPARTMENTS = [
-  "altercpa", "elyon_crm", "teleshop_out", "teleshop_other", "social", "web", "unknown",
+  "altercpa", "elyon_crm", "teleshop_out", "teleshop_other", "social", "web", "management", "unknown",
 ] as const;
 export type AssignerDepartment = typeof ASSIGNER_DEPARTMENTS[number];
 

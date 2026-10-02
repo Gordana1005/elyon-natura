@@ -99,7 +99,7 @@ export const STOCK_NON_MONEY_KEYS: ReadonlySet<string> = new Set([
   "queue_products", "name", "catalogue", "pack_units", "label_units", "on_hand",
   // products
   "products", "product_id", "sku", "placeholder", "state", "low_threshold", "cost_known",
-  "altercpa", "elyon_crm", "social", "teleshop_out", "teleshop_other", "queue_units", "days_cover", "products_more",
+  "altercpa", "elyon_crm", "social", "teleshop_out", "teleshop_other", "management", "queue_units", "days_cover", "products_more",
   // trend
   "trend", "d",
   // hygiene

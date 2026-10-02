@@ -5,6 +5,7 @@ import {
   cohortFilterChars, COHORT_FILTER_MAX_CHARS, cohortOrdersFilter, cohortSaleWindowOrFilter, insightsAccess, insightsWindows,
   isCohortExcludedPhone, overlayFreshness, parseCohortBucketParam, parseCohortExceptions, parseSourcesParam, stripInsightsMoney,
   COHORT_SOURCE_TERM, cohortSourceOrFilter, INSIGHTS_SOURCES, parseCohortSourceParam,
+  MANAGEMENT_SOURCE, sourcesRetryWithoutManagement, sourcesRpcArg,
 } from "./insightsCommon.ts";
 import type { CohortExceptions, CohortOrderRow } from "./insightsCommon.ts";
 // The week fixture in insights_cohort()'s exact shape (owner view).
@@ -507,11 +508,88 @@ describe("cohort_source — the twin of cohort_order_source(sale_source, detail,
     for (const k of INSIGHTS_SOURCES) expect(() => pgrstOrToSql(cohortSourceOrFilter([k])!)).not.toThrow();
     expect(pgrstTermToSql("mex_tracking_id.like.___-9102-*")).toBe("(o.mex_tracking_id LIKE '___-9102-%')");
     expect(pgrstTermToSql("mex_tracking_id.not.like.___-9102-*")).toBe("(NOT (o.mex_tracking_id LIKE '___-9102-%'))");
-    // the longest cohort_source a link can carry: five of the six departments
+    // the longest cohort_source a link can carry: six of the seven departments
     for (const k of INSIGHTS_SOURCES) {
       const five = cohortSourceOrFilter(INSIGHTS_SOURCES.filter((x) => x !== k))!;
+      expect(five, k).toBeTruthy();
       expect(five.length, k).toBeLessThan(1800);
     }
+  });
+});
+
+// ── Менаџмент, the seventh department (owner 02.10.2026, migration 20260947001000) ──
+describe("Менаџмент — its own department, only through dept_override", () => {
+  const OVERRIDES = [null, ...INSIGHTS_SOURCES];
+  // a set override decides whatever the mapping says: a fifth of the grid is enough for those
+  // (the NULL override walks the whole grid — the mapping is what it tests)
+  const rowsFor = (ov: string | null) => (ov == null ? SOURCE_ROWS : SOURCE_ROWS.filter((_, i) => i % 5 === 0));
+  it("is the seventh key, last in the owner's order", () => {
+    expect(INSIGHTS_SOURCES).toEqual(["altercpa", "elyon_crm", "teleshop_out", "teleshop_other", "social", "web", "management"]);
+    expect(MANAGEMENT_SOURCE).toBe("management");
+  });
+  it("alone it is the override term only — a valid filter, never an empty or()", () => {
+    expect(COHORT_SOURCE_TERM.management).toBe("dept_override.in.(management)");
+    expect(cohortSourceOrFilter(["management"])).toBe("dept_override.in.(management)");
+    expect(pgrstOrToSql(cohortSourceOrFilter(["management"])!)).toBe("((o.dept_override::text IN ('management')))");
+    for (const k of INSIGHTS_SOURCES) {
+      expect(COHORT_SOURCE_TERM[k]).not.toMatch(/or\(\)/);
+      expect(cohortSourceOrFilter([k])!).not.toMatch(/or\(\)/);
+    }
+    expect(parseCohortSourceParam("management,social")).toEqual({ ok: true, values: ["management", "social"] });
+  });
+  it("the seven terms partition every order, whatever dept_override holds", () => {
+    for (const ov of OVERRIDES) {
+      for (const r of rowsFor(ov)) {
+        const row = { ...r, dept_override: ov };
+        const hits = INSIGHTS_SOURCES.filter((k) => orMatches(COHORT_SOURCE_TERM[k], row));
+        expect(hits, JSON.stringify(row)).toEqual([ov ?? srcOf(r)]);
+      }
+    }
+  });
+  it("a Менаџмент sale is in no team's In / Out — whatever its folder, series or parcel", () => {
+    const row = (ss: string | null, d: string | null, tr: string | null) => ({ sale_source: ss, sale_source_detail: d, mex_tracking_id: tr, dept_override: "management" });
+    for (const r of [row("elyon_crm", "prediction_list", "002-9103-1/2026"), row("collabbox", "teleshop_out", "002-9102-1/2026"),
+      row("collabbox", "teleshop", null), row("elyon_crm", "collabbox_leads_out", null), row("collabbox", "social", null)]) {
+      expect(INSIGHTS_SOURCES.filter((k) => orMatches(COHORT_SOURCE_TERM[k], r)), JSON.stringify(r)).toEqual(["management"]);
+    }
+  });
+  it("the six without it filter (they leave Менаџмент out); with it, all seven = no filter", () => {
+    const six = cohortSourceOrFilter(INSIGHTS_SOURCES.filter((k) => k !== "management"))!;
+    expect(six).toBe("dept_override.is.null,dept_override.neq.management");   // short, and the same rows
+    expect(pgrstOrToSql(six)).toBe("((o.dept_override IS NULL) OR (o.dept_override <> 'management'))");
+    for (const ov of OVERRIDES) {
+      for (const r of rowsFor(ov)) {
+        const row = { ...r, dept_override: ov };
+        expect(orMatches(six, row), JSON.stringify(row)).toBe((ov ?? srcOf(r)) !== "management");
+      }
+    }
+    expect(orMatches(six, { sale_source: "elyon_crm", sale_source_detail: "prediction_list", mex_tracking_id: null, dept_override: "management" })).toBe(false);
+    expect(orMatches(six, { sale_source: "elyon_crm", sale_source_detail: "prediction_list", mex_tracking_id: null, dept_override: null })).toBe(true);
+    const mixed = cohortSourceOrFilter(["management", "altercpa"])!;
+    for (const ov of OVERRIDES) {
+      for (const r of rowsFor(ov)) {
+        const row = { ...r, dept_override: ov };
+        expect(orMatches(mixed, row), JSON.stringify(row)).toBe(["management", "altercpa"].includes(ov ?? srcOf(r)));
+      }
+    }
+  });
+  it("the RPC argument: null for all seven (the SQL's own list — six before the migration), else the keys", () => {
+    expect(sourcesRpcArg([...INSIGHTS_SOURCES])).toBeNull();
+    expect(sourcesRpcArg([])).toBeNull();
+    expect(sourcesRpcArg(["web", "altercpa"])).toEqual(["altercpa", "web"]);
+    expect(sourcesRpcArg(["altercpa", "elyon_crm", "teleshop_out", "teleshop_other", "social", "web"]))
+      .toEqual(["altercpa", "elyon_crm", "teleshop_out", "teleshop_other", "social", "web"]);
+    expect(sourcesRpcArg(["management"])).toEqual(["management"]);
+  });
+  it("an older SQL body that refuses 'management' is asked again without it", () => {
+    const msg = "insights_cohort: unknown source management";
+    expect(sourcesRetryWithoutManagement(msg, ["altercpa", "management"])).toEqual(["altercpa"]);
+    expect(sourcesRetryWithoutManagement("insights_returns: unknown source management", ["social", "web", "management"])).toEqual(["social", "web"]);
+    expect(sourcesRetryWithoutManagement(msg, ["management"])).toBeNull();           // nothing left to ask
+    expect(sourcesRetryWithoutManagement(msg, null)).toBeNull();                     // all = null, never refused
+    expect(sourcesRetryWithoutManagement(msg, ["altercpa"])).toBeNull();             // management not asked
+    expect(sourcesRetryWithoutManagement("insights_cohort: bad window", ["altercpa", "management"])).toBeNull();
+    expect(sourcesRetryWithoutManagement(undefined, ["altercpa", "management"])).toBeNull();
   });
 });
 
@@ -522,8 +600,9 @@ describe("access, sources, windows", () => {
     expect(insightsAccess(false, true)).toBe("counts");
     expect(insightsAccess(false, false)).toBe("forbidden");
   });
-  it("sources default to all six and reject unknown keys", () => {
-    expect(parseSourcesParam(null)).toEqual({ ok: true, values: ["altercpa", "elyon_crm", "teleshop_out", "teleshop_other", "social", "web"] });
+  it("sources default to all seven and reject unknown keys", () => {
+    expect(parseSourcesParam(null)).toEqual({ ok: true, values: ["altercpa", "elyon_crm", "teleshop_out", "teleshop_other", "social", "web", "management"] });
+    expect(parseSourcesParam("management")).toEqual({ ok: true, values: ["management"] });
     expect(parseSourcesParam("teleshop_out")).toEqual({ ok: true, values: ["teleshop_out"] });
     expect(parseSourcesParam("social")).toEqual({ ok: true, values: ["social"] });
     expect(parseSourcesParam("web,altercpa")).toEqual({ ok: true, values: ["web", "altercpa"] });

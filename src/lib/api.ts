@@ -404,7 +404,7 @@ export interface OrdersDrillParams {
    *  the order part the cohort counted (migration 20260940000000). */
   cohort_bucket?: string;
   /** Insights departments (csv of altercpa | elyon_crm | teleshop_out |
-   *  teleshop_other | social | web — owner 28.09.2026): the api's twin of
+   *  teleshop_other | social | web | management — owner 28.09 / 02.10.2026): the api's twin of
    *  cohort_order_source(sale_source, detail). A department is not one
    *  sale_source (collabBox documents fall in several; a CRM sale shipped on a
    *  9102 parcel is Телешоп – Lead out), so a sale_source list cannot say it;
@@ -2300,10 +2300,11 @@ export const apiGetInsightsCalls = (params?: { from?: string; to?: string }, sig
 // denars (`*_mkd`, shown via formatDenari). THREE CLOCKS: placed (created day)
 // drives buckets/placed/to_collect/lost; sold (sold_at) drives confirmed; cash
 // (MEX delivered_at) drives delivered, unproven_paid, sources[].cash, trend cash.
-/** The owner's six departments (28.09.2026): Affiliate – Lead in (altercpa) ·
- *  Affiliate – Lead out (elyon_crm) · Телешоп – Lead out (teleshop_out) ·
- *  Телешоп – Lead in (teleshop_other) · Social media · Web shop. */
-export type OverviewSourceKey = 'altercpa' | 'elyon_crm' | 'teleshop_out' | 'teleshop_other' | 'social' | 'web';
+/** The owner's departments (28.09.2026): Тим Маџари In (altercpa) · Тим Маџари Out
+ *  (elyon_crm) · Тим Центар Out (teleshop_out) · Тим Центар In (teleshop_other) ·
+ *  Social media · Web shop · Менаџмент (management — 02.10.2026, 20260947001000: the
+ *  sales of the people on the Менаџмент team, apart from every team's In / Out). */
+export type OverviewSourceKey = 'altercpa' | 'elyon_crm' | 'teleshop_out' | 'teleshop_other' | 'social' | 'web' | 'management';
 /** Disjoint: `preparing` = confirmed, NOT packed ("to pack"); `packed` =
  *  confirmed and packed. The shop panel's "preparing" is the two together, and
  *  Σ buckets = placed. (`mex_only` sits beside them, never in placed.) */

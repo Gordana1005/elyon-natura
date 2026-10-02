@@ -172,7 +172,8 @@ export default function OperationsPage() {
         {(kpi?.by_department?.length ?? 0) > 0 && (
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="text-muted-foreground">{t('ops.byDepartment')}:</span>
-            {kpi!.by_department.map((d) => (
+            {/* Менаџмент only when it sold something today (owner 02.10.2026: "ако има нешто") */}
+            {kpi!.by_department.filter((d) => d.key !== 'management' || d.count > 0).map((d) => (
               <Badge key={d.key} variant="outline" className="gap-1.5 font-normal">
                 {departmentLabel(t, d.key) || d.key}
                 <span className="font-semibold tabular-nums">{d.count}</span>

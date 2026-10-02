@@ -37,9 +37,9 @@ export function sourceBadgeVariant(source: string | null | undefined): 'destruct
   return 'outline';
 }
 
-/** The six departments (owner law 28–29.09.2026) — the keys GET /orders sends as `department`
- *  (order_departments → cohort_order_source). Labels are the Insights ones; the Lead-in key is
- *  `teleshopOther` because `_other` is an i18next plural suffix. */
+/** The departments (owner law 28–29.09.2026; Менаџмент 7th since 02.10.2026, 20260947001000) —
+ *  the keys GET /orders sends as `department` (order_departments → cohort_order_source). Labels are
+ *  the Insights ones; the Lead-in key is `teleshopOther` because `_other` is an i18next plural suffix. */
 const DEPARTMENT_I18N_KEY: Record<string, string> = {
   altercpa: 'insights.common.source.altercpa',
   elyon_crm: 'insights.common.source.elyon_crm',
@@ -47,6 +47,7 @@ const DEPARTMENT_I18N_KEY: Record<string, string> = {
   teleshop_other: 'insights.common.source.teleshopOther',
   social: 'insights.common.source.social',
   web: 'insights.common.source.web',
+  management: 'insights.common.source.management',
 };
 
 /** The order's department label, or null when the api sent none (then show the intake label). */

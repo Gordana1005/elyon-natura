@@ -279,7 +279,19 @@ describe("department · seller · MEX · source", () => {
     expect(passes([op], { dept_override: null, sale_source: "collabbox", sale_source_detail: "social" })).toBe(true);
     expect(passes([op], { dept_override: null, sale_source: "altercpa", sale_source_detail: "bridge" })).toBe(false);
     expect(COHORT_SOURCE_TERM.social).toBeTruthy();
-    expect(baseOps(params("dept=altercpa,elyon_crm,teleshop_out,teleshop_other,social,web"))).toEqual([]); // all six = no filter
+    expect(baseOps(params("dept=altercpa,elyon_crm,teleshop_out,teleshop_other,social,web,management"))).toEqual([]); // all seven = no filter
+    // the six WITHOUT Менаџмент filter: a Менаџмент sale is left out (owner 02.10.2026, 20260947001000)
+    const [six] = baseOps(params("dept=altercpa,elyon_crm,teleshop_out,teleshop_other,social,web"));
+    expect(passes([six], { dept_override: "management", sale_source: "elyon_crm", sale_source_detail: "prediction_list" })).toBe(false);
+    expect(passes([six], { dept_override: null, sale_source: "elyon_crm", sale_source_detail: "prediction_list" })).toBe(true);
+  });
+  it("dept=management = exactly dept_override 'management' (no folder maps there)", () => {
+    expect(params("dept=management").departments).toEqual(["management"]);
+    const ops = baseOps(params("dept=management"));
+    expect(ops).toEqual([{ m: "or", v: "dept_override.in.(management)" }]);
+    expect(passes(ops, { dept_override: "management", sale_source: "collabbox", sale_source_detail: "teleshop_out" })).toBe(true);
+    expect(passes(ops, { dept_override: null, sale_source: "elyon_crm", sale_source_detail: "prediction_list" })).toBe(false);
+    expect(passes(ops, { dept_override: "teleshop_out", sale_source: "elyon_crm", sale_source_detail: "prediction_list" })).toBe(false);
   });
 
   it("seller → sold_by_person_id; source → source_type", () => {

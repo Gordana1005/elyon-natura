@@ -23,7 +23,8 @@ import {
 
 export const WAREHOUSE_TABS = ["send", "pack", "pack_stale"] as const;
 export type WarehouseTab = typeof WAREHOUSE_TABS[number];
-export const WAREHOUSE_DEPARTMENTS = ["altercpa", "elyon_crm", "teleshop_out", "teleshop_other", "social", "web"] as const;
+/** The cohort departments (cohort_order_source) — Менаџмент 7th since 20260947001000. */
+export const WAREHOUSE_DEPARTMENTS = ["altercpa", "elyon_crm", "teleshop_out", "teleshop_other", "social", "web", "management"] as const;
 export const DEFAULT_LIMIT = 50;
 export const MAX_LIMIT = 200;
 

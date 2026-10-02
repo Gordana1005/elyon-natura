@@ -19841,7 +19841,7 @@ async function handleRequest(req: Request): Promise<Response> {
           p_to_end: ovWin.toEndIso,
           p_prev_from: ovWin.prev?.fromIso ?? null,
           p_prev_to_end: ovWin.prev?.toEndIso ?? null,
-          p_sources: [...IC.INSIGHTS_SOURCES],
+          p_sources: IC.sourcesRpcArg(IC.INSIGHTS_SOURCES),
           p_money: ovOwner,
         }),
         adminClient.rpc("collabbox_feed_state"),
@@ -19904,14 +19904,19 @@ async function handleRequest(req: Request): Promise<Response> {
       if ("error" in coWin) return json({ error: coWin.error }, 400);
       const coSources = IC.parseSourcesParam(url.searchParams.get("source"));
       if (!coSources.ok) return json({ error: `Invalid source: ${coSources.bad}` }, 400);
-      const { data: coData, error: coErr } = await adminClient.rpc("insights_cohort", {
+      const coArgs = (src: string[] | null) => ({
         p_from: coWin.fromIso,
         p_to_end: coWin.toEndIso,
         p_prev_from: coWin.prev?.fromIso ?? null,
         p_prev_to_end: coWin.prev?.toEndIso ?? null,
-        p_sources: coSources.values,
+        p_sources: src,
         p_money: coOwner,
       });
+      const coSent = IC.sourcesRpcArg(coSources.values);
+      let { data: coData, error: coErr } = await adminClient.rpc("insights_cohort", coArgs(coSent));
+      // a body older than 20260947001000 refuses 'management' — ask again without it
+      const coRetry = coErr ? IC.sourcesRetryWithoutManagement(coErr.message, coSent) : null;
+      if (coRetry) ({ data: coData, error: coErr } = await adminClient.rpc("insights_cohort", coArgs(coRetry)));
       if (coErr) return json({ error: `insights_cohort: ${sanitizeDbError(coErr)}` }, 500);
       return json(IC.buildCohortResponse((coData ?? {}) as Record<string, unknown>, coWin, coOwner));
     }
@@ -19945,20 +19950,28 @@ async function handleRequest(req: Request): Promise<Response> {
       if ("error" in rsWin) return json({ error: rsWin.error }, 400);
       const rsSources = IC.parseSourcesParam(url.searchParams.get("source"));
       if (!rsSources.ok) return json({ error: `Invalid source: ${rsSources.bad}` }, 400);
+      const rsSent = IC.sourcesRpcArg(rsSources.values);
       if (rsIsStock) {
-        const { data: stData, error: stErr } = await adminClient.rpc("insights_stock", {
+        const stArgs = (src: string[] | null) => ({
           p_from: rsWin.fromIso, p_to_end: rsWin.toEndIso, ...IRS.prevArgs(rsWin),
-          p_sources: rsSources.values, p_money: rsOwner,
+          p_sources: src, p_money: rsOwner,
         });
+        let { data: stData, error: stErr } = await adminClient.rpc("insights_stock", stArgs(rsSent));
+        // a body older than 20260947001000 refuses 'management' — ask again without it
+        const stRetry = stErr ? IC.sourcesRetryWithoutManagement(stErr.message, rsSent) : null;
+        if (stRetry) ({ data: stData, error: stErr } = await adminClient.rpc("insights_stock", stArgs(stRetry)));
         if (stErr) return json({ error: `insights_stock: ${sanitizeDbError(stErr)}` }, 500);
         return json(IRS.buildStockResponse((stData ?? {}) as Record<string, unknown>, rsWin, rsOwner));
       }
       const rsClock = IRS.parseReturnsClock(url.searchParams.get("clock"));
       if (!rsClock) return json({ error: "Invalid clock" }, 400);
-      const { data: rtData, error: rtErr } = await adminClient.rpc("insights_returns", {
+      const rtArgs = (src: string[] | null) => ({
         p_from: rsWin.fromIso, p_to_end: rsWin.toEndIso, p_clock: rsClock, ...IRS.prevArgs(rsWin),
-        p_sources: rsSources.values, p_money: rsOwner,
+        p_sources: src, p_money: rsOwner,
       });
+      let { data: rtData, error: rtErr } = await adminClient.rpc("insights_returns", rtArgs(rsSent));
+      const rtRetry = rtErr ? IC.sourcesRetryWithoutManagement(rtErr.message, rsSent) : null;
+      if (rtRetry) ({ data: rtData, error: rtErr } = await adminClient.rpc("insights_returns", rtArgs(rtRetry)));
       if (rtErr) return json({ error: `insights_returns: ${sanitizeDbError(rtErr)}` }, 500);
       return json(IRS.buildReturnsResponse((rtData ?? {}) as Record<string, unknown>, rsWin, rsOwner, rsClock));
     }
@@ -21873,7 +21886,7 @@ async function handleRequest(req: Request): Promise<Response> {
       const [opsCohortRes, opsBoardRes, opsReturnedRes] = await Promise.all([
         adminClient.rpc("insights_cohort", {
           p_from: opsDay.startISO, p_to_end: opsDay.endISO, p_prev_from: null, p_prev_to_end: null,
-          p_sources: [...IC.INSIGHTS_SOURCES], p_money: opsOwner,
+          p_sources: IC.sourcesRpcArg(IC.INSIGHTS_SOURCES), p_money: opsOwner,
         }),
         adminClient.rpc("leaderboard_day_v2", { p_day: todayDateStr, p_department: null, p_team: null }),
         adminClient.from("mex_parcels").select("tracking_id", { count: "exact", head: true })
