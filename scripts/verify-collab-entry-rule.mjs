@@ -13,9 +13,9 @@
  *       bell was written
  *   E4  every order the rule cancelled is still cancelled with the rule's note, or was undone / revived by a parcel
  *   D1  the cron 'crm-sale-booking-dept' runs '7,22,37,52 * * * *'
- *   D2  every confirmed CRM sale without a parcel (≤ 60 days) holds dept_override = crm_sale_booking_dept (WARN while a
- *       booking arrived after the last 15-minute pass)
- *   D3  the departments of the open CRM sales: booked (by folder) vs provisional (no booking yet)
+ *   D2  every confirmed CRM sale without a parcel (≤ 60 days) holds dept_override = order_dept_decide (20260947000400:
+ *       the seller's team → MEX profile → own booking; WARN while a booking arrived after the last 15-minute pass)
+ *   D3  the departments of the open CRM sales: by the seller's team · by the booking · provisional (neither yet)
  *
  *   --list  prints the planned cancels / warnings (order, seller, sale day, age, price) — the list the owner sees before
  *           switching to apply.
@@ -120,7 +120,11 @@ const plan = await q(`SELECT p.*, o.confirmed_by_name AS seller, sp.display_name
 {
   const [c] = await q(`SELECT schedule, active FROM cron.job WHERE jobname = 'crm-sale-booking-dept'`);
   out('D1', c?.schedule === '7,22,37,52 * * * *' && c?.active ? 'PASS' : 'FAIL', `cron crm-sale-booking-dept ${c?.schedule ?? 'MISSING'}`);
-  const rows = await q(`SELECT o.display_id, o.dept_override AS cur, public.crm_sale_booking_dept(o.id) AS want,
+  const rows = await q(`SELECT o.display_id, o.dept_override AS cur,
+      public.order_dept_decide(o.sale_source, o.sale_source_detail, o.sold_by_person_id, coalesce(o.sold_at, o.created_at),
+                               o.mex_account, o.mex_tracking_id, o.id) AS want,
+      public.order_dept_by_team(o.sale_source, o.sold_by_person_id, coalesce(o.sold_at, o.created_at)) AS team,
+      public.crm_sale_booking_dept(o.id) AS booking,
       public.cohort_order_source(o.sale_source, o.sale_source_detail, o.mex_tracking_id, o.dept_override) AS dept
     FROM public.orders o
     WHERE o.status = 'confirmed' AND o.sale_source = 'elyon_crm' AND o.sale_source_detail IN ('prediction_list', 'direct')
@@ -129,10 +133,10 @@ const plan = await q(`SELECT p.*, o.confirmed_by_name AS seller, sp.display_name
   const drift = rows.filter((r) => (r.cur ?? null) !== (r.want ?? null));
   out('D2', drift.length ? 'WARN' : 'PASS',
       drift.length ? `${drift.length} open CRM sale(s) whose booking changed since the last 15-minute pass: ${drift.slice(0, 10).map((r) => r.display_id).join(', ')}`
-                   : `every open CRM sale holds its booking's department (${rows.length})`);
+                   : `every open CRM sale holds its decided department (${rows.length})`);
   const tally = {};
   for (const r of rows) {
-    const k = `${r.want ? 'внесена' : 'привремено'} → ${r.dept}`;
+    const k = `${r.team ? 'по тим' : r.booking ? 'по внес' : 'привремено'} → ${r.dept}`;
     tally[k] = (tally[k] || 0) + 1;
   }
   out('D3', 'INFO', `open CRM sales: ${Object.entries(tally).map(([k, v]) => `${k} ${v}`).join(' · ') || 'none'}`);
