@@ -4,12 +4,13 @@ import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions, useInsightsAccess } from '@/contexts/PermissionsContext';
+// Phosphor (owner, 02.10.2026 — "better icons"): duotone at rest, filled on the page you are on.
 import {
-  Activity, BookUser, Boxes, CalendarClock, ChartNoAxesCombined, ChevronDown, Handshake, Headset,
-  HeartPulse, History, LayoutDashboard, ListChecks, Megaphone, NotebookPen, Package, PanelLeftClose,
-  PanelLeftOpen, PhoneForwarded, ScrollText, Settings, ShoppingBag, Split, Store, UsersRound, Warehouse,
-  Webhook, X,
-} from 'lucide-react';
+  AddressBookIcon, ArrowsSplitIcon, CalendarCheckIcon, CaretDownIcon, ChartLineUpIcon, ClockCounterClockwiseIcon,
+  GearSixIcon, HandshakeIcon, HeadsetIcon, HeartbeatIcon, LightningIcon, ListChecksIcon, MegaphoneIcon,
+  NotePencilIcon, PackageIcon, PhoneOutgoingIcon, PlugsIcon, PulseIcon, ScrollIcon, ShoppingBagOpenIcon,
+  SidebarSimpleIcon, SquaresFourIcon, StorefrontIcon, UsersThreeIcon, WarehouseIcon, XIcon,
+} from '@phosphor-icons/react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { SidebarCallIndicator } from '@/components/calls/SidebarCallIndicator';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -43,7 +44,7 @@ interface NavSection {
 // Inbound leads, Webhooks & ads (all 0 rows ever), Lead distribution (off since 16.09 — the Assigner
 // distributes), Search prediction (the top search bar), Import orders (never created a real order) and
 // Affiliates admin (no partners yet). Their routes still resolve (or redirect) so old links don't break.
-// Icons (Natura Therapy HUB, owner 02.10.2026): one per page, one brand tone — no rainbow.
+// Icons (Natura Therapy HUB, owner 02.10.2026): Phosphor, one per page, one brand tone — no rainbow.
 const sections: NavSection[] = [
   {
     // Affiliate (webmaster) portal — module access alone isn't enough here:
@@ -51,74 +52,74 @@ const sections: NavSection[] = [
     // so the items render only for logins that actually hold the role.
     labelKey: '',
     items: [
-      { titleKey: 'nav.affiliateDashboard', path: '/affiliate', icon: Handshake, moduleKey: 'affiliate_portal' },
-      { titleKey: 'nav.affiliateOffers', path: '/affiliate/offers', icon: Package, moduleKey: 'affiliate_portal' },
-      { titleKey: 'nav.affiliateIntegration', path: '/affiliate/integration', icon: Webhook, moduleKey: 'affiliate_portal' },
+      { titleKey: 'nav.affiliateDashboard', path: '/affiliate', icon: HandshakeIcon, moduleKey: 'affiliate_portal' },
+      { titleKey: 'nav.affiliateOffers', path: '/affiliate/offers', icon: PackageIcon, moduleKey: 'affiliate_portal' },
+      { titleKey: 'nav.affiliateIntegration', path: '/affiliate/integration', icon: PlugsIcon, moduleKey: 'affiliate_portal' },
     ],
   },
   {
     labelKey: '',
     items: [
-      { titleKey: 'nav.calls', path: '/calls', icon: Headset, moduleKey: 'calls' },
+      { titleKey: 'nav.calls', path: '/calls', icon: HeadsetIcon, moduleKey: 'calls' },
       // A queue inside /calls since plan Фаза 11 (/call-again redirects there).
-      { titleKey: 'nav.callAgain', path: '/calls?queue=call-again', icon: PhoneForwarded, moduleKey: 'calls' },
-      { titleKey: 'nav.personalList', path: '/personal-list', icon: BookUser, moduleKey: 'calls' },
+      { titleKey: 'nav.callAgain', path: '/calls?queue=call-again', icon: PhoneOutgoingIcon, moduleKey: 'calls' },
+      { titleKey: 'nav.personalList', path: '/personal-list', icon: AddressBookIcon, moduleKey: 'calls' },
       // Личен дневник (plan Фаза 7): a tab of /personal-list; the query path lights only this item.
-      { titleKey: 'nav.personalNotes', path: '/personal-list?tab=notes', icon: NotebookPen, moduleKey: 'calls' },
+      { titleKey: 'nav.personalNotes', path: '/personal-list?tab=notes', icon: NotePencilIcon, moduleKey: 'calls' },
     ],
   },
   {
     // All "looking at numbers" destinations in one place.
     labelKey: 'nav.sections.analytics',
     items: [
-      { titleKey: 'nav.dashboard', path: '/', icon: LayoutDashboard, moduleKey: 'dashboard' },
+      { titleKey: 'nav.dashboard', path: '/', icon: SquaresFourIcon, moduleKey: 'dashboard' },
       // Insights hosts the money tabs (owners only) plus the operational
       // Agents / Payout / Call Activity tabs. Its visibility is decided by
       // useInsightsAccess() in the filter below, NOT by these module keys.
-      { titleKey: 'nav.insights', path: '/insights', icon: ChartNoAxesCombined, moduleKey: 'insights', moduleKeysAny: ['performance', 'agent_activity'] },
-      { titleKey: 'nav.operations', path: '/operations', icon: Activity, moduleKey: 'operations' },
+      { titleKey: 'nav.insights', path: '/insights', icon: ChartLineUpIcon, moduleKey: 'insights', moduleKeysAny: ['performance', 'agent_activity'] },
+      { titleKey: 'nav.operations', path: '/operations', icon: PulseIcon, moduleKey: 'operations' },
       // Продавници (owner 02.10.2026): owners + managers + admins — decided by useShopsAccess() below.
-      { titleKey: 'nav.shops', path: '/shops', icon: Store, moduleKey: 'shops' },
+      { titleKey: 'nav.shops', path: '/shops', icon: StorefrontIcon, moduleKey: 'shops' },
     ],
   },
   {
     labelKey: 'nav.sections.sales',
     items: [
-      { titleKey: 'nav.orders', path: '/orders', icon: ShoppingBag, moduleKey: 'orders' },
-      { titleKey: 'nav.assigner', path: '/assigner', icon: Split, moduleKey: 'assigner' },
-      { titleKey: 'nav.predictionLists', path: '/segments', icon: ListChecks, moduleKey: 'segments' },
+      { titleKey: 'nav.orders', path: '/orders', icon: ShoppingBagOpenIcon, moduleKey: 'orders' },
+      { titleKey: 'nav.assigner', path: '/assigner', icon: ArrowsSplitIcon, moduleKey: 'assigner' },
+      { titleKey: 'nav.predictionLists', path: '/segments', icon: ListChecksIcon, moduleKey: 'segments' },
     ],
   },
   {
     labelKey: 'nav.sections.warehouse',
     items: [
-      { titleKey: 'nav.warehouse', path: '/warehouse', icon: Warehouse, moduleKey: 'warehouse' },
+      { titleKey: 'nav.warehouse', path: '/warehouse', icon: WarehouseIcon, moduleKey: 'warehouse' },
     ],
   },
   {
     labelKey: 'nav.sections.team',
     items: [
-      { titleKey: 'nav.users', path: '/users', icon: UsersRound, moduleKey: 'users' },
+      { titleKey: 'nav.users', path: '/users', icon: UsersThreeIcon, moduleKey: 'users' },
       // Performance → Insights "Agents" tab; Agent Activity → Insights "Call Activity" tab.
       // One "Смени" page (owner 30.09): agents see their own shifts, admins/managers the tools too.
-      { titleKey: 'nav.shiftsManagement', path: '/shifts', icon: CalendarClock, moduleKey: 'shifts', moduleKeysAny: ['my_shifts'] },
-      { titleKey: 'nav.callSupportCenter', path: '/call-scripts', icon: ScrollText, moduleKey: 'call_scripts' },
-      { titleKey: 'nav.callHistory', path: '/call-history', icon: History, moduleKey: 'call_history' },
+      { titleKey: 'nav.shiftsManagement', path: '/shifts', icon: CalendarCheckIcon, moduleKey: 'shifts', moduleKeysAny: ['my_shifts'] },
+      { titleKey: 'nav.callSupportCenter', path: '/call-scripts', icon: ScrollIcon, moduleKey: 'call_scripts' },
+      { titleKey: 'nav.callHistory', path: '/call-history', icon: ClockCounterClockwiseIcon, moduleKey: 'call_history' },
     ],
   },
   {
     labelKey: 'nav.sections.productsAds',
     items: [
-      { titleKey: 'nav.products', path: '/products', icon: Boxes, moduleKey: 'products' },
-      { titleKey: 'nav.altercpa', path: '/altercpa', icon: Megaphone, moduleKey: 'altercpa_bridge' },
+      { titleKey: 'nav.products', path: '/products', icon: PackageIcon, moduleKey: 'products' },
+      { titleKey: 'nav.altercpa', path: '/altercpa', icon: MegaphoneIcon, moduleKey: 'altercpa_bridge' },
     ],
   },
   {
     labelKey: '',
     items: [
       // VOIP health only once the phone system exists (telephony is deferred on MK).
-      ...(PBX_CONFIG.useRealVoip ? [{ titleKey: 'nav.voipHealth', path: '/voip-health', icon: HeartPulse, moduleKey: 'voip_health' }] : []),
-      { titleKey: 'nav.settings', path: '/settings', icon: Settings, moduleKey: 'settings' },
+      ...(PBX_CONFIG.useRealVoip ? [{ titleKey: 'nav.voipHealth', path: '/voip-health', icon: HeartbeatIcon, moduleKey: 'voip_health' }] : []),
+      { titleKey: 'nav.settings', path: '/settings', icon: GearSixIcon, moduleKey: 'settings' },
     ],
   },
 ];
@@ -216,30 +217,36 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?:
           : cn('h-screen transition-all duration-300 ease-in-out motion-reduce:transition-none', collapsed ? 'w-[68px]' : 'w-[240px]'),
       )}
     >
-      {/* ── Brand: the Natura Therapy logo, "Powered by elyonpremium" under it. 64 px — its edge lines
-            up with the top bar's. Collapsed: the emblem alone. ── */}
+      {/* ── Brand (owner, 02.10.2026): the Natura Therapy emblem in its tile, the name with HUB in green and,
+            aligned under the name, "⚡ Powered by elyonpremium" — the bolt and the orange name power it.
+            64 px, so its edge lines up with the top bar's. Collapsed: the tile alone. ── */}
       <div
         className={cn(
-          'flex h-16 shrink-0 items-center border-b border-border',
-          collapsed ? 'justify-center' : 'gap-3 px-5',
+          'nt-brand flex h-16 shrink-0 items-center border-b border-border',
+          collapsed ? 'justify-center' : 'gap-2.5 px-4',
         )}
       >
-        {collapsed ? (
-          <>
-            <img src={BRAND_LOGO.mark} alt={BRAND.product} draggable={false} className="h-8 w-auto select-none dark:hidden" />
-            <img src={BRAND_LOGO.markWhite} alt={BRAND.product} draggable={false} className="hidden h-8 w-auto select-none dark:block" />
-          </>
-        ) : (
+        <span
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-ns-accent-soft ring-1 ring-inset ring-ns-chip-ring"
+          title={collapsed ? `${BRAND.product} ${BRAND.hub}` : undefined}
+        >
+          <img
+            src={BRAND_LOGO.mark}
+            alt={collapsed ? `${BRAND.product} ${BRAND.hub}` : ''}
+            aria-hidden={collapsed ? undefined : true}
+            draggable={false}
+            className="h-7 w-7 select-none"
+          />
+        </span>
+        {!collapsed && (
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <img src={BRAND_LOGO.green} alt={BRAND.product} draggable={false} className="h-[34px] w-auto select-none dark:hidden" />
-              <img src={BRAND_LOGO.white} alt={BRAND.product} draggable={false} className="hidden h-[34px] w-auto select-none dark:block" />
-              <span className="rounded-[5px] bg-ns-chip px-1.5 py-[3px] text-[9.5px] font-bold leading-none tracking-[0.16em] text-ns-chip-text ring-1 ring-inset ring-ns-chip-ring">
-                {BRAND.hub}
-              </span>
-            </div>
-            <p className="mt-1 truncate text-[10.5px] leading-none text-ns-label">
-              {BRAND.poweredBy} <span className="font-semibold tracking-tight text-ns-strong">{BRAND.maker}</span>
+            <p className="truncate text-[15px] font-semibold leading-tight tracking-tight text-ns-strong">
+              {BRAND.product} <span className="text-ns-accent">{BRAND.hub}</span>
+            </p>
+            <p className="mt-0.5 flex items-center gap-1 text-[11px] leading-tight text-ns-label">
+              <LightningIcon weight="fill" aria-hidden className="nt-bolt h-3 w-3 shrink-0" />
+              <span className="shrink-0">{BRAND.poweredBy}</span>
+              <span className="nt-power truncate font-bold tracking-tight">{BRAND.maker}</span>
             </p>
           </div>
         )}
@@ -250,7 +257,7 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?:
             aria-label={t('common.close')}
             className="ml-auto flex h-9 w-9 items-center justify-center rounded-lg text-ns-label transition-colors hover:bg-ns-hover hover:text-ns-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ns-ring"
           >
-            <X className="h-5 w-5" />
+            <XIcon weight="bold" className="h-5 w-5" />
           </button>
         )}
       </div>
@@ -262,18 +269,21 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?:
       <nav className="nt-sidebar-scroll flex-1 overflow-y-auto overflow-x-hidden px-3 pb-4 pt-3">
         {visibleSections.map((section, idx) => (
           <div key={section.labelKey || idx}>
+            {/* the section titles in orange (owner, 02.10.2026), a hairline running to the caret */}
             {section.labelKey && !collapsed && (
               <button
                 type="button"
                 onClick={() => toggleSection(section.labelKey)}
-                className="group mb-1 mt-5 flex w-full items-center justify-between rounded-md px-3 py-1 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-ns-label transition-colors hover:text-ns-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ns-ring"
+                className="group mb-1 mt-5 flex w-full items-center gap-2 rounded-md px-3 py-1 text-[10.5px] font-bold uppercase tracking-[0.14em] text-ns-section transition-colors hover:text-ns-section-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ns-ring"
                 aria-expanded={openSections[section.labelKey]}
               >
-                <span>{t(section.labelKey)}</span>
-                <ChevronDown
+                <span className="shrink-0">{t(section.labelKey)}</span>
+                <span aria-hidden className="h-px flex-1 bg-ns-divider" />
+                <CaretDownIcon
                   aria-hidden
+                  weight="bold"
                   className={cn(
-                    'h-3 w-3 opacity-60 transition-transform duration-200 group-hover:opacity-100',
+                    'h-3 w-3 shrink-0 opacity-70 transition-transform duration-200 group-hover:opacity-100',
                     openSections[section.labelKey] ? 'rotate-0' : '-rotate-90',
                   )}
                 />
@@ -328,11 +338,11 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?:
                     )}
                     <item.icon
                       aria-hidden
+                      weight={isActive ? 'fill' : 'duotone'}
                       className={cn(
-                        'h-[18px] w-[18px] shrink-0 transition-colors duration-150',
+                        'h-5 w-5 shrink-0 transition-colors duration-150',
                         isActive ? 'text-ns-accent' : 'text-ns-icon group-hover:text-ns-accent',
                       )}
-                      strokeWidth={isActive ? 2 : 1.75}
                     />
                     {!collapsed && <span className="min-w-0 truncate">{t(item.titleKey)}</span>}
                   </Link>
@@ -379,10 +389,10 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?:
           )}
         >
           {collapsed ? (
-            <PanelLeftOpen className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden />
+            <SidebarSimpleIcon weight="duotone" className="h-5 w-5 -scale-x-100" aria-hidden />
           ) : (
             <>
-              <PanelLeftClose className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden />
+              <SidebarSimpleIcon weight="duotone" className="h-5 w-5" aria-hidden />
               <span>{t('common.collapse')}</span>
             </>
           )}

@@ -99,6 +99,8 @@ export default {
           "chip-text": "var(--ns-chip-text)",
           "chip-ring": "var(--ns-chip-ring)",
           ring: "var(--ns-ring)",
+          section: "var(--ns-section)",
+          "section-strong": "var(--ns-section-strong)",
         },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",

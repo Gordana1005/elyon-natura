@@ -294,6 +294,12 @@ html.dark {
   --ns-chip-ring: rgba(31, 154, 114, 0.22);
   --ns-ring: rgba(31, 154, 114, 0.55);
   --ns-scroll: rgba(38, 51, 47, 0.16);
+  --ns-section: #b9530f;       /* the section titles in orange (owner) — 4.9:1 on white */
+  --ns-section-strong: #9a430b;
+  --ns-bolt: #f97316;          /* the ⚡ of "Powered by" */
+  --ns-bolt-glow: rgba(249, 115, 22, 0.45);
+  --ns-power-from: #c2410c;    /* "elyonpremium" — a burnt-orange → amber sweep, AA on white */
+  --ns-power-to: #b45309;
 }
 
 .dark .nt-sidebar {
@@ -311,6 +317,12 @@ html.dark {
   --ns-chip-ring: rgba(108, 196, 163, 0.25);
   --ns-ring: rgba(108, 196, 163, 0.6);
   --ns-scroll: rgba(255, 255, 255, 0.14);
+  --ns-section: #f6a868;
+  --ns-section-strong: #fbc08f;
+  --ns-bolt: #fb923c;
+  --ns-bolt-glow: rgba(251, 146, 60, 0.55);
+  --ns-power-from: #fb923c;
+  --ns-power-to: #fbbf24;
 }
 
 /* A quiet scrollbar — beats the app-wide rainbow one (html.dark ::-webkit-scrollbar-*). */
@@ -327,4 +339,35 @@ html .nt-sidebar .nt-sidebar-scroll::-webkit-scrollbar-track {
 html .nt-sidebar .nt-sidebar-scroll::-webkit-scrollbar-thumb {
   background: var(--ns-scroll);
   border-radius: 3px;
+}
+
+/* "⚡ Powered by elyonpremium" — the bolt glows, the name is an orange sweep that runs once when the
+   page opens and keeps running while the pointer is on the brand. No motion for reduced-motion users. */
+.nt-sidebar .nt-bolt {
+  color: var(--ns-bolt);
+  filter: drop-shadow(0 0 3px var(--ns-bolt-glow));
+}
+.nt-sidebar .nt-power {
+  background-image: linear-gradient(90deg, var(--ns-power-from), var(--ns-power-to), var(--ns-power-from));
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .nt-sidebar .nt-bolt { animation: nt-bolt-spark 1.6s ease-in-out 1; }
+  .nt-sidebar .nt-power { animation: nt-power-sweep 2s ease-out 1; }
+  .nt-sidebar .nt-brand:hover .nt-bolt { animation: nt-bolt-spark 1.2s ease-in-out infinite; }
+  .nt-sidebar .nt-brand:hover .nt-power { animation: nt-power-sweep 1.4s linear infinite; }
+}
+@keyframes nt-bolt-spark {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px var(--ns-bolt-glow)); }
+  50% { transform: scale(1.2); filter: drop-shadow(0 0 7px var(--ns-bolt-glow)); }
+}
+@keyframes nt-power-sweep {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+@media (forced-colors: active) {
+  .nt-sidebar .nt-power { color: CanvasText; background: none; }
 }
