@@ -7,7 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { apiErrorText } from '@/i18n/apiErrors';
 import { apiCreateProduct, apiSetBrandLine, apiSetProductKind, apiUpdateProduct } from '@/lib/api';
-import { formatMoney } from '@/lib/currency';
+import { formatDenari, formatMoney } from '@/lib/currency';
 import { cn } from '@/lib/utils';
 import { BRAND_LINES, LINE_NAMES, LINE_TONES, UNDECIDED_TONE, type BrandLine } from '@/lib/products/brandLines';
 import { KIND_TONES, PRODUCT_KINDS, UNDECIDED_KIND_TONE, type ProductKind } from '@/lib/products/kinds';
@@ -18,6 +18,7 @@ import {
 import type { ProductRow } from './ProductsList';
 import { KindBadge, useKindLabel } from './KindChip';
 import { LineBadge } from './LineChip';
+import { sigmaCostMkd } from './recipe';
 
 const inputBase = 'w-full rounded-lg border bg-background px-3 text-base focus:outline-none focus:ring-2 focus:ring-ring md:text-sm aria-[invalid=true]:border-destructive aria-[invalid=true]:ring-destructive/40';
 const input = cn(inputBase, 'h-11 md:h-10');
@@ -28,7 +29,9 @@ const choice = 'inline-flex min-h-9 items-center gap-1 rounded-full border px-3 
  * A full-screen sheet on a phone (100dvh), a dialog from sm; the header and the
  * footer (Откажи / Зачувај) stay put while the sections scroll:
  *   Основно  name (wraps — long names are never cut), kind, line, active
- *   Цени     sale price in денари; cost price for those who see cost
+ *   Цени     sale price in денари; the purchase cost "Набавна (Сигма)" read-only for owners —
+ *            since 01.10.2026 it is the product's recipe × Sigma CalcBuyPrice, never typed in
+ *            (products.cost_price is a guarded mirror: the form never sends it)
  *   Код      SKU, barcode
  *   Залиха   quantity, low-stock threshold, days per pack (unchanged fields)
  *   Детали   description, category, supplier
@@ -74,20 +77,21 @@ export function ProductFormDialog({ open, onOpenChange, product, suppliers, show
   const set = <K extends FormField>(k: K, value: ProductFormValues[K]) => {
     setV((prev) => {
       const next = { ...prev, [k]: value };
-      if (tried) setErrors(validateForm(next, { showCost }));
+      if (tried) setErrors(validateForm(next, { showCost: false }));
       return next;
     });
   };
 
   const agentDefault = useMemo(
-    () => formatMoney(suggestedSellEur(denInputToEur(v.priceDen), showCost ? denInputToEur(v.costDen) : product?.cost_price ?? 0)),
-    [v.priceDen, v.costDen, showCost, product],
+    () => formatMoney(suggestedSellEur(denInputToEur(v.priceDen), product?.cost_price ?? 0)),
+    [v.priceDen, product],
   );
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     setTried(true);
-    const errs = validateForm(v, { showCost });
+    // the cost is never sent: it follows the recipe and Sigma (trg_products_cost_guard refuses a typed one)
+    const errs = validateForm(v, { showCost: false });
     setErrors(errs);
     const first = firstError(errs);
     if (first) {
@@ -97,7 +101,7 @@ export function ProductFormDialog({ open, onOpenChange, product, suppliers, show
     }
     const creating = !editingId;
     const ups = followUps(initial, v, { canSetKind, canSetLine, creating });
-    const patch = creating ? null : toPatch(initial, v, { showCost });
+    const patch = creating ? null : toPatch(initial, v, { showCost: false });
     if (!creating && patch && Object.keys(patch).length === 0 && !ups.kind && !ups.line) {
       toast({ title: t('products.form.nothingChanged') });
       onOpenChange(false);
@@ -107,7 +111,7 @@ export function ProductFormDialog({ open, onOpenChange, product, suppliers, show
     let id = editingId;
     try {
       if (creating) {
-        const created = await apiCreateProduct(toCreateBody(v, { showCost }));
+        const created = await apiCreateProduct(toCreateBody(v, { showCost: false }));
         id = String(created?.id ?? '');
         setCreatedId(id);
       } else if (patch && Object.keys(patch).length) {
@@ -216,8 +220,10 @@ export function ProductFormDialog({ open, onOpenChange, product, suppliers, show
                   <DenInput id="pf-price" inputRef={reg('priceDen')} value={v.priceDen} onChange={(s) => set('priceDen', s)} invalid={!!errors.priceDen} tone="text-primary" />
                 </Field>
                 {showCost && (
-                  <Field id="pf-cost" label={t('products.form.cost')} error={err('costDen')} hint={t('products.form.costHint')}>
-                    <DenInput id="pf-cost" inputRef={reg('costDen')} value={v.costDen} onChange={(s) => set('costDen', s)} invalid={!!errors.costDen} tone="text-muted-foreground" />
+                  <Field id="pf-cost" label={t('productsRecipe.form.cost')} hint={t('productsRecipe.form.costHint')}>
+                    <output id="pf-cost" className="flex h-11 items-center rounded-lg border border-dashed bg-muted/30 px-3 text-base tabular-nums text-muted-foreground md:h-10 md:text-sm">
+                      {(() => { const c = product ? sigmaCostMkd(product) : null; return c == null ? '—' : formatDenari(c); })()}
+                    </output>
                   </Field>
                 )}
               </div>

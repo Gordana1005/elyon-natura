@@ -103,7 +103,10 @@ on everything except `affiliate/*` and `GET /me`. See `elyon-affiliates`.
   `/integrations/*`, `/insights/pivot`, `/management-insights` (a non-owner admin/manager gets
   only `?scope=calls` with the `call_activity` module); money inside `/insights/overview`,
   `/customers/timeline`, the `origin` block of `GET /orders/:id` (`edfa901`) and the Операции
-  money tiles (and the WIP `/insights/cohort`).
+  money tiles (and the WIP `/insights/cohort`). Since 01–02.10: money inside `stock/v2/*` (cost, value,
+  COD, count value difference; configuration, costs, the switch and overrides are owners-only) and
+  `/shops/*` (managers / non-owner admins get the payload with every `*_mkd` absent — `stripShopsMoney`;
+  everyone else 403); the Stock v2 / shops tables are deny-all, service_role only.
 - **Owners-only UI:** Settings → Owners / Teams / Integrations, the top-bar "Who is working"
   button, the /insights money tabs (`useInsightsAccess().business` / `.money`).
 
@@ -134,12 +137,13 @@ the way down (`/insights/pivot`, Settings → Owners / Teams / Integrations) are
 `app_settings` was writable by ANY admin/manager session straight through PostgREST (policy
 "Admins can manage app_settings", 20260714000000); since **`20260943001500` (01.10) only an admin
 session** can (the policy is narrowed from `is_admin_or_manager` to admin). Even so, a direct write
-bypasses the api's checks and the audit row. `trg_app_settings_guard_owner_keys` (last re-emitted in
-20260942000100) refuses INSERT/UPDATE/DELETE of `no_parcel_rule`, `stock_mex_movements` and
-`stock_counted_at` when `current_user` is `anon` or `authenticated` (42501); the service role (the
-api, after its own check + audit) and the migration role still can. Add every new owner-only key to
-that trigger. ⚠ **`mex_push` is not in it yet** — an admin session could flip the push switch from
-the browser without the `mex.push_settings` audit row; add it before the push goes live.
+bypasses the api's checks and the audit row. `trg_app_settings_guard_owner_keys` (re-emitted from the live
+body, drift-guarded, by every migration that adds a key — last `20260946000300`) refuses INSERT/UPDATE/DELETE of
+the owner keys — live 02.10: `no_parcel_rule`, `stock_mex_movements`, `stock_counted_at`, `mex_push`,
+`link_lead_parcels`, `leads_parcel_orders`, `stock_v2` (Stock v2 switch, Sigma ingest, `profit.cost_source`) and
+`shops_reader` (the collabBox shops reader) — when
+`current_user` is `anon` or `authenticated` (42501); the service role (the api, after its own check + audit) and the
+migration role still can (verified live 02.10). Add every new owner-only key to that trigger.
 
 ### 9. AlterCPA can never create money (61c3b8c, 20260934000200)
 

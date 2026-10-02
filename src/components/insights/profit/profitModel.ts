@@ -12,7 +12,7 @@ import type { ProfitResponse } from '@/lib/insightsApi/profit';
 export type Basis = 'estimated' | 'costed';
 
 export type StepKey =
-  | 'revenue' | 'vat' | 'cogs_known' | 'cogs_est' | 'courier' | 'returns' | 'commission' | 'lead' | 'net';
+  | 'revenue' | 'vat' | 'cogs_known' | 'cogs_est' | 'cogs_extra' | 'courier' | 'returns' | 'commission' | 'lead' | 'net';
 
 export interface Step {
   key: StepKey;
@@ -34,6 +34,15 @@ export const defaultVatRate = (meta: ProfitResponse['meta']): number => meta.vat
 
 /** true = the VAT line is Σ per line at each product's Sigma rate. */
 export const vatPerProduct = (meta: ProfitResponse['meta']): boolean => meta.vat.mode === 'per_product_sigma';
+
+// ── purchase cost (Sigma, owner 01.10.2026 — docs/STOCK-V2.md) ─────────────
+
+/** Where the cost came from: Sigma CalcBuyPrice through the recipes, or the old catalogue price
+ *  (an api older than the Sigma costs sends no meta.cost = legacy). */
+export const costSource = (meta: ProfitResponse['meta']): 'sigma' | 'legacy' | 'mixed' => meta.cost?.source ?? 'legacy';
+
+/** The extra packed goods of a row (Phase B; 0 when off or from an older api). */
+export const extraGoods = (r: Pick<PLRow, 'cogs_extra_mkd'>): number => r.cogs_extra_mkd ?? 0;
 
 /** A product's rate for the floor price / simulator: its own, else the default. */
 export const productVatRate = (p: Pick<ProfitProduct, 'vat_rate'>, defaultRate: number): number =>
@@ -66,6 +75,8 @@ export function waterfall(row: PLRow, basis: Basis, defaultRate: number): Step[]
     { key: 'vat', value: -vat },
     { key: 'cogs_known', value: -row.cogs_known_mkd },
     ...(basis === 'estimated' && row.cogs_est_mkd != null ? [{ key: 'cogs_est' as const, value: -cogsEst, estimate: true }] : []),
+    // Phase B: gifts and other goods packed beyond the order lines — a cost of the costed sales
+    ...(extraGoods(row) !== 0 ? [{ key: 'cogs_extra' as const, value: -extraGoods(row) }] : []),
     { key: 'courier', value: -courier, estimate: basis === 'costed' },
     { key: 'returns', value: -returns, estimate: basis === 'costed' },
     { key: 'commission', value: -commission, estimate: basis === 'costed' },
@@ -85,7 +96,7 @@ export function waterfall(row: PLRow, basis: Basis, defaultRate: number): Step[]
 
 /** Σ costs of a row on the headline basis (estimated unknowns included). */
 export const totalCosts = (r: PLRow) =>
-  r.vat_mkd + r.cogs_known_mkd + (r.cogs_est_mkd ?? 0) + r.courier_mkd + r.returns_mkd + r.commission_mkd + r.lead_cost_mkd;
+  r.vat_mkd + r.cogs_known_mkd + (r.cogs_est_mkd ?? 0) + extraGoods(r) + r.courier_mkd + r.returns_mkd + r.commission_mkd + r.lead_cost_mkd;
 
 // ── the cohort strip as CohortBar rows ──────────────────────────────────────
 
@@ -154,7 +165,8 @@ export function productUnit(p: ProfitProduct): UnitEconomics | null {
   const vat = p.vat_mkd / n;
   const courier = p.courier_mkd / n;
   const commission = p.commission_mkd / n;
-  const cost = p.cost_known && p.unit_cost_mkd != null ? p.cogs_mkd / n : null;
+  // the known cost per package, with its share of the gifts packed alongside (Phase B)
+  const cost = p.cost_known && p.unit_cost_mkd != null ? (p.cogs_mkd + (p.cogs_extra_mkd ?? 0)) / n : null;
   return { price, vat, cost, courier, commission, net: cost == null ? null : price - vat - cost - courier - commission };
 }
 

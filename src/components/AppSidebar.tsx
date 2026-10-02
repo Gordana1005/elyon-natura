@@ -9,7 +9,7 @@ import {
   Users, CalendarDays, FileText, History, ChevronLeft,
   ChevronRight, ChevronDown, Phone, PhoneCall, Warehouse, Settings,
   Webhook, UserPlus, TrendingUp, Activity, Layers, Lock, Clock, Gauge,
-  Handshake, Radio, X, NotebookPen,
+  Handshake, Radio, X, NotebookPen, Store,
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { SidebarCallIndicator } from '@/components/calls/SidebarCallIndicator';
@@ -19,6 +19,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { PresenceHeaderButton } from '@/components/presence/PresenceHeaderButton';
 import { PBX_CONFIG } from '@/lib/voip/pbxConfig';
 import { navItemActive } from '@/lib/navActive';
+import { useShopsAccess } from '@/components/shops/useShopsAccess';
 
 interface NavItem {
   /** i18n key under nav.* — resolved with t() at render time */
@@ -75,6 +76,8 @@ const sections: NavSection[] = [
       // useInsightsAccess() in the filter below, NOT by these module keys.
       { titleKey: 'nav.insights', path: '/insights', icon: TrendingUp, moduleKey: 'insights', moduleKeysAny: ['performance', 'agent_activity'] },
       { titleKey: 'nav.operations', path: '/operations', icon: Activity, moduleKey: 'operations' },
+      // Продавници (owner 02.10.2026): owners + managers + admins — decided by useShopsAccess() below.
+      { titleKey: 'nav.shops', path: '/shops', icon: Store, moduleKey: 'shops' },
     ],
   },
   {
@@ -132,6 +135,7 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?:
   const { user } = useAuth();
   const { canAccessModule } = usePermissions();
   const insightsAccess = useInsightsAccess();
+  const shopsAccess = useShopsAccess();
 
   const isMobile = useIsMobile();
   // a tablet (768–1023 px) starts with the icon rail, so the page keeps its width; the user can expand it
@@ -163,6 +167,8 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?:
         // who can open at least one operational tab — the same rule the page
         // uses to build its tab list.
         if (item.path === '/insights') return insightsAccess.any;
+        // Shops: owners see money, managers the same pages counted; nobody else (the api refuses them).
+        if (item.path === '/shops') return shopsAccess.any;
         return canAccessModule(item.moduleKey) ||
           (item.moduleKeysAny?.some(k => canAccessModule(k)) ?? false);
       });

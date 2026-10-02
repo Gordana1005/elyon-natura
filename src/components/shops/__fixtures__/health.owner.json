@@ -1,0 +1,111 @@
+{
+  "reader": {
+    "enabled": true,
+    "last_run_at": "2026-10-02T12:15:00Z",
+    "last_status": "ok",
+    "runs_24h": 64,
+    "errors_24h": 1
+  },
+  "backfill": {
+    "sales_from": "2026-01-01",
+    "sales_done_until": "2026-07-14",
+    "stock_history_months": 14
+  },
+  "controls": {
+    "days_checked": 418,
+    "mismatches": 3
+  },
+  "anomalies": [
+    {
+      "kind": "no_receipts_by_11",
+      "shop": {
+        "code": "027",
+        "name": "Дебар",
+        "city": "Дебар",
+        "sigma_object": null,
+        "active": true
+      },
+      "day": "2026-10-02",
+      "detail": "Нема ниту една сметка до 11:00",
+      "value_mkd": null
+    },
+    {
+      "kind": "cost_above_sales",
+      "shop": {
+        "code": "006",
+        "name": "Сити Мол",
+        "city": "Скопје",
+        "sigma_object": "20",
+        "active": true
+      },
+      "day": "2026-09-30",
+      "detail": "Набавна 412.880 > продажба без ДДВ 396.540",
+      "value_mkd": -16340
+    },
+    {
+      "kind": "big_transfer",
+      "shop": null,
+      "day": "2026-09-29",
+      "detail": "10014 назад во 001 Централен, 22 продавници",
+      "value_mkd": -5440000
+    },
+    {
+      "kind": "big_return",
+      "shop": {
+        "code": "012",
+        "name": "Струмица",
+        "city": "Струмица",
+        "sigma_object": "26",
+        "active": true
+      },
+      "day": "2026-09-27",
+      "detail": "10044 враќање кон Натура, 340 парчиња",
+      "value_mkd": -298400
+    },
+    {
+      "kind": "zero_top_seller",
+      "shop": {
+        "code": "003",
+        "name": "Карпош",
+        "city": "Скопје",
+        "sigma_object": "17",
+        "active": true
+      },
+      "day": "2026-10-02",
+      "detail": "Магнезиум Цитрат 325 мг",
+      "value_mkd": null
+    },
+    {
+      "kind": "delivery_not_received",
+      "shop": {
+        "code": "007",
+        "name": "Рамстор",
+        "city": "Скопје",
+        "sigma_object": "21",
+        "active": true
+      },
+      "day": "2026-09-29",
+      "detail": "Sigma 04-01121 не е примена во collabBox",
+      "value_mkd": 96420
+    },
+    {
+      "kind": "control_mismatch",
+      "shop": {
+        "code": "006",
+        "name": "Сити Мол",
+        "city": "Скопје",
+        "sigma_object": "20",
+        "active": true
+      },
+      "day": "2026-09-28",
+      "detail": "Сметки 61.240 ≠ дневен извештај 62.880",
+      "value_mkd": -1640
+    }
+  ],
+  "freshness": {
+    "last_sales_at": "2026-10-02T12:14:00Z",
+    "last_docs_at": "2026-10-02T11:05:00Z",
+    "last_stock_snapshot_at": "2026-10-01T21:30:00Z",
+    "reader_last_run_at": "2026-10-02T12:15:00Z"
+  }
+}

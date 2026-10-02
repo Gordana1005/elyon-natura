@@ -14,6 +14,7 @@ import { LineOptions } from './LineChip';
 import { KindOptions } from './KindChip';
 import { VatOptions } from './VatChip';
 import { ratePct, shownVatFilters, type VatFilter, type VatRate } from '@/lib/products/vat';
+import { RECIPE_FILTERS, type RecipeFilter } from './recipe';
 
 const VAT_FILTER_RATE: Record<Exclude<VatFilter, 'all' | 'none'>, number> = { r5: 0.05, r18: 0.18, r10: 0.1, r0: 0 };
 
@@ -57,9 +58,11 @@ function ChipGroup<K extends string>({ id, label, keys, value, onPick, counts, l
  *   Линија   Сите · Natura Therapy · Bio Natural · Ad Astra · Dr.Becker · Неодредено
  *   Статус   Сите · Активни · Исклучени
  *   ДДВ      Сите · 5% · 18% · Некласифицирано (owners only — the VAT columns reach only them)
+ *   Рецепт   Сите · Со рецепт · Предлог · Без рецепт (owners, once the catalogue carries the recipe
+ *            status — Stock v2: the Sigma articles a product is made of, its purchase cost)
  * Each chip counts what a click on it would show (the other filters applied).
  */
-export function ProductFilters({ query, onQuery, kind, onKind, line, onLine, status, onStatus, showVat = false, vat = 'all', onVat, facets, shown, total, canSelect, onSelectShown, f }: {
+export function ProductFilters({ query, onQuery, kind, onKind, line, onLine, status, onStatus, showVat = false, vat = 'all', onVat, recipe = 'all', onRecipe, recipeCounts, facets, shown, total, canSelect, onSelectShown, f }: {
   query: string;
   onQuery: (q: string) => void;
   kind: KindFilter;
@@ -71,6 +74,10 @@ export function ProductFilters({ query, onQuery, kind, onKind, line, onLine, sta
   showVat?: boolean;
   vat?: VatFilter;
   onVat?: (v: VatFilter) => void;
+  /** Owners, when the catalogue carries recipe statuses; absent = no "Рецепт" row. */
+  recipe?: RecipeFilter;
+  onRecipe?: (r: RecipeFilter) => void;
+  recipeCounts?: Record<RecipeFilter, number>;
   facets: Facets;
   shown: number;
   total: number;
@@ -81,7 +88,7 @@ export function ProductFilters({ query, onQuery, kind, onKind, line, onLine, sta
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const isMobile = useIsMobile();
-  const filtering = kind !== DEFAULT_KIND_FILTER || line !== 'all' || status !== 'all' || vat !== 'all' || query.trim() !== '';
+  const filtering = kind !== DEFAULT_KIND_FILTER || line !== 'all' || status !== 'all' || vat !== 'all' || recipe !== 'all' || query.trim() !== '';
 
   return (
     <div role="search" aria-label={t('products.searchPlaceholder')} className="space-y-2.5 rounded-xl border bg-card/80 p-3 shadow-sm">
@@ -124,7 +131,7 @@ export function ProductFilters({ query, onQuery, kind, onKind, line, onLine, sta
             </button>
           )}
           {filtering && (
-            <button type="button" onClick={() => { onQuery(''); onKind(DEFAULT_KIND_FILTER); onLine('all'); onStatus('all'); onVat?.('all'); }}
+            <button type="button" onClick={() => { onQuery(''); onKind(DEFAULT_KIND_FILTER); onLine('all'); onStatus('all'); onVat?.('all'); onRecipe?.('all'); }}
               className="inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:h-8">
               <X className="h-3.5 w-3.5" aria-hidden />{t('products.clearFilters')}
             </button>
@@ -140,6 +147,10 @@ export function ProductFilters({ query, onQuery, kind, onKind, line, onLine, sta
       {showVat && onVat && facets.vat && (
         <ChipGroup id="products-vat-filter" label={t('products.colVat')} keys={shownVatFilters(facets.vat, vat)} value={vat} onPick={onVat}
           counts={facets.vat} labelOf={(k) => (k === 'all' ? t('products.vat.all') : k === 'none' ? t('products.vat.none') : ratePct(VAT_FILTER_RATE[k]))} f={f} />
+      )}
+      {onRecipe && recipeCounts && (
+        <ChipGroup id="products-recipe-filter" label={t('productsRecipe.filter.label')} keys={RECIPE_FILTERS} value={recipe} onPick={onRecipe}
+          counts={recipeCounts} labelOf={(k) => t(`productsRecipe.filter.${k}`)} f={f} />
       )}
     </div>
   );

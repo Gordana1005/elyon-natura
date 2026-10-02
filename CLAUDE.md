@@ -64,13 +64,16 @@ target **explicitly** and verify it before running:
   Finished-but-paused migrations live in `supabase/paused/` (never applied; see its README).
 - **Edge functions:** `api` (one deployable — deploy only when `index.ts` holds finished work),
   `altercpa-sync`, `mex-reconcile`, `web-sync`, `collabbox-sync` (the live collabBox reader —
-  read-only against collabBox; it creates an order only once the MEX parcel exists). Deploy with
+  read-only against collabBox; it creates an order only once the MEX parcel exists), `collabbox-shops`
+  (02.10 — the 22 shops' tills: read-only against collabBox with its OWN allow-list, the same login and
+  secret, one run at a time and never alongside `collabbox-sync`; it never makes an order). Deploy with
   `npx supabase functions deploy <fn> --project-ref bmfxhgznttcnnlqloqzp` after the tripwire. If the CLI hangs
   (30.09: 20 min on `api`), kill it and add `--use-api` (server-side bundling, ~30 s).
 - **Read-only SQL** (verification): POST `https://api.supabase.com/v1/projects/bmfxhgznttcnnlqloqzp/database/query`
   with `{query, read_only: true}`; checkers: `scripts/verify-attribution.mjs` (C1–C14),
   `verify-insights-ties`, `verify-assigner`, and since 01.10 `verify-shifts` (S1–S6), `verify-teams`
-  (T1–T5), `verify-address-routing` (R1–R7) — all read-only, pinned to MK.
+  (T1–T5), `verify-address-routing` (R1–R7), since 02.10 `verify-stock-v2` (S1–S17; `--preview` while the
+  switch is off) and `scripts/shops/verify-shops.mjs` (H1–H7) — all read-only, pinned to MK.
 
 ## Per-market rules (Macedonia ≠ Bulgaria) — these OVERRIDE the copied BG docs/skills
 `.grok/skills/` and `docs/` were copied from Bulgaria and still describe BG specifics in places.
@@ -85,6 +88,18 @@ target **explicitly** and verify it before running:
   is a euro debt to a foreign webmaster who invoices in euro, not a Macedonian retail price.
   The staff "Avg order value (confirmed)" tile stays денари. Do not "fix" this back — see
   `.grok/skills/elyon-currency` and `elyon-affiliates`.
+- **Purchase costs = Sigma, STORED IN DENARI (owner, 01.10.2026 — a deliberate exception to "store EUR": Sigma
+  book values;
+  `20260945000600` / `0800`, `docs/STOCK-V2.md`).** The purchase cost of EVERYTHING is Sigma `CalcBuyPrice`
+  (Ф00001-04, MKD ex VAT) for the WHOLE history — BioNatural at Ф00001 production cost, never the АД Астра
+  inter-company price. `stock_article_costs` (append-only, 1.362 articles, first load valid from `-infinity`) → a
+  product's cost through its APPROVED recipe (`product_articles` → `product_cost_history`, rebuilt by
+  `product_costs_rebuild()`; 153 products complete on 02.10) → `products.cost_price` (EUR) is a GUARDED mirror =
+  cost_mkd / 61,5 (`tg_products_cost_guard` — never type a cost into it). The 69 old EUR placeholders are archived in
+  `products_cost_legacy`. `insights_profit()` costs each line at its sale day since
+  `app_settings.stock_v2.profit.cost_source = 'sigma'` (switched 02.10, audited); the packed-extras measure (gifts)
+  waits behind `profit.extra_goods = false`. An uncosted product keeps the labelled estimate — never a silent 0.
+  Costs are owners only. See `elyon-logistics-costs`, `elyon-stock-v2`.
 - **Timezone:** `Europe/Skopje` (CET/CEST) — not Europe/Sofia (EET, one hour ahead).
 - **Phone:** country code **+389** — not +359. Last-8 matching is unchanged.
 - **Language:** default UI is Macedonian (`mk`); en/sq/bg also shipped.
@@ -207,7 +222,10 @@ target **explicitly** and verify it before running:
   AlterCPA (a commercial artifact — the ~30 % confirmation guarantee); nothing is ever pushed to AlterCPA. An
   orphan 9110/9103 parcel is linked to the ONE order on its last-8 phone created −10 d … +1 d that holds no
   parcel and fits no other orphan parcel — amount ignored (up-sells); > 72 h apart the collabBox document must
-  carry the product BY NAME. One definition: `link_lead_parcels_plan()`; cron `link-lead-parcels` 21:02 Skopje
+  carry the product BY NAME. **Rule 2b (`20260944000980`):** before the uniqueness check, a candidate cancelled /
+  trashed AS A DUPLICATE (`duplicate_order`, the bridge's "duplicate — …" trash note, the mirror's trashed reason 7 —
+  never free text) and an AlterCPA lead created after the parcel's collabBox booking (`collabbox_sale_at`; a date-only
+  import by Skopje day) are dropped. One definition: `link_lead_parcels_plan()`; cron `link-lead-parcels` 21:02 Skopje
   (switch `app_settings.link_lead_parcels`, seeded `report`); backfill `scripts/repair-link-lead-parcels.mjs`;
   every run undone by `scripts/rollback-repair.mjs --run <id>`; proof `node scripts/verify-parcel-link-rules.mjs`.
   Old September `credit_pending` LEADS documents: `scripts/collabbox-recredit.mjs`. See `docs/ALTERCPA-BRIDGE.md`.
@@ -284,10 +302,50 @@ target **explicitly** and verify it before running:
   order confirmed (+ `orders.mex_sent_at`); only 4 / 10 / 9 / 1 / 3 ship it, 2 = paid, 7 = returned — in
   mex-reconcile, the collabBox writer (`…1210`) and the Overview's "Спакувано" (`…1220`). ~260 orders still `shipped`
   at MEX 8 wait for the owner's OK before `scripts/repair-shipped-at-mex8.mjs` is applied. **/warehouse = Испрати до
-  MEX · За пакување · Залихи · Попис · Движења; no printing** (the MEX portal prints). **"Испрати до MEX" (the CRM's
+  MEX · За пакување · Залихи · Пратки · Движења · Попис (the last four = Stock v2, 01–02.10); no printing** (the MEX
+  portal prints). **"Испрати до MEX" (the CRM's
   own `add_shipment.php` push, `mexPush.ts`, ledger `mex_push_attempts`) is built and SWITCHED OFF** —
   `app_settings.mex_push.enabled = false`; the 11:00 auto-send is built, not scheduled. Never switch either on
   without the owner. See `elyon-warehouse-incoming`, `elyon-fulfilment-csv`.
+- **Stock v2 — exact stock per Sigma ARTICLE × warehouse × moment (owner, 01.10.2026; `20260945000100`–`0900`,
+  `docs/STOCK-V2.md`) — built, IN PREVIEW.** One append-only ledger `stock_moves` (event time; a change is a
+  correction row, never an edit). The opening = the **22.09 MORNING count** (the owner thinks Sigma 04; Sigma holds
+  no count document — his count sheet is awaited). **Every MEX parcel created from 22.09 00:00 Skopje is deducted at
+  its MEX label** (`created_at_mex`); a **MEX 7 return goes back on the shelf** (also for a parcel created before the
+  count); gifts are deducted; test phones move nothing. A parcel's contents, first source wins: an override → its
+  **collabBox document goods lines** (Sigma codes) → the web order → the CRM orders through **APPROVED recipes**
+  (`product_articles`). Sigma documents feed everything that is not a parcel — **never** the MEX invoices
+  (`000217`), АД Астра (`000549`), the 04↔08 transfers or a document dated before the opening. **A count is a rule**
+  (at its moment the balance IS the counted figure; back-datable; only the counted articles move).
+  **`app_settings.stock_v2.enabled = false` (preview) until the owner hands over the count sheet and approves the
+  opening** — `stock_v2_set` refuses ON without an approved opening; /warehouse shows the computed figures under the
+  banner "Преглед — пресметано од пратките, ништо не е запишано"; the preview workbook is in `exports/stock/preview`
+  (gitignored). Mapping loaded 02.10: 1.507 articles, 122 kits, recipes for 316 products (154 high = approved, 162
+  proposed for the owner's review), 155 aliases (78 approved). **The v1 regime and the status-driven deduction are
+  RETIRED** (`…0700`: `stock-mex-apply` unscheduled, `restock` / `stock/count` / `stock/mex-movements` → 410) — never
+  bring them back; `products.stock_quantity` is a guarded mirror of the ledger (cron `stock-v2-mirror`).
+  `mex_parcels.picked_up_at` (`…0900`, write-once) splits за пакување / кај курирот. Switch-on procedure and
+  never-rules: `elyon-stock-v2`.
+- **Sigma (Natura's ERP) has NO live link yet (02.10.2026).** The data is a CSV dump
+  (`D:\naturatherapy\_salesforce-plan\05-sigma-export\raw-export\`, 17–30.09) → `docs/stock/build_sigma_stock.py`
+  (articles, costs, openings, kits, recipes, the Sigma batch) → `stock_sigma_ingest` staging (versions kept, nothing
+  deleted; `stock_v2.sigma.ingest = false`). The office connector `tools/sigma-connector` (read-only, a SELECT-only
+  SQL login, HMAC to `POST /api/stock/sigma/ingest`) is built, NOT installed: it needs an always-on office PC, the
+  login from Sigma-СБ and the secret `SIGMA_CONNECTOR_SECRET` (not set yet). **Sigma 04 / 08 balances are NEVER the
+  stock truth for COD parcels:** Sigma books MEX COD monthly as a hand-typed lump to `000217` (+17 % against delivered,
+  Apr–Aug; weeks late; September not at all) and never books gifts or returns
+  (`scripts/stock/sigma-month-check.mjs`). Warehouse 08 and the courier-invoice vs COD gap are under investigation in
+  an INTERNAL report (`exports/magacin/`, gitignored) — never published, its numbers and names never in the repo.
+- **Shops (Продавници) — the collabBox shops reader (owner, 02.10.2026; `20260946000100`–`0400`, `docs/SHOPS.md`).**
+  The 22 shops of НАТУРА ТЕРАПИ СТОРЕС ДООЕЛ run their tills on collabBox. Edge function `collabbox-shops` is LIVE
+  (`app_settings.shops_reader.enabled = true`, an owner key): receipts 10022 + returns 10010 every 15 min 07–23, the
+  goods / transfer / count documents hourly, at 23:30 the infollc stock snapshot per shop + the 10018 / trade-book
+  controls; history from 01.01.2026 in the night backfill (00:30–05:30). **/shops: owners everything, managers the
+  same WITHOUT money (every `*_mkd` absent), everyone else 403.** Never add 10018 to 10022 or 10016 to 10042; ПОЕН
+  lines and trade-book corrections (ПОЕН-350 at a huge negative price after a count) are never goods; a 10005 count
+  difference **plus = shortage**; top sellers = shelf goods only (`…0400`). Natura's own margin on goods to the shops
+  ≈ 30 % (Sigma list 07); the TV re-invoicing to Stores (≈ 1,6 М ден a month) is shown apart. Group cost = Stock v2's
+  Sigma cost, NULL until every unit is costed. See `elyon-shops`.
 - **Settings writes go through the api, audited (01.10, `20260943001500`):** `/settings/:section`, grouped (Луѓе и
   пристап · Правила · Систем · Напредно · Лично); modules / role permissions / privacy via `PUT /api/settings/*`
   (admins); the browser write policies are dropped, and `app_settings` / `courier_rates` writes are admin-only. The
@@ -309,24 +367,27 @@ target **explicitly** and verify it before running:
   drawer. Take Playwright screenshots at 360 / 390 / 768 / 1024 / 1280 / 1920 px (zero overflow) before a UI push.
   Rebuilt 30.09–01.10: the Assigner, /users, /orders, /calls, /warehouse, /settings, /shifts, /products and the order
   form. The rest of the CRM follows page by page.
-- **Deferred by the owner — do not touch:** payouts / bonus / commission math; costs and lead cost
-  (he sets them later); the stock count (owner, 29.09: "don't focus on stock now" — sellable products
-  carry the placeholder 1.000 until his count arrives; keep stock working, add no detail).
+- **Deferred by the owner — do not touch:** payouts / bonus / commission math; lead cost (he sets it
+  later). **No longer deferred (owner, 01.10.2026):** the stock count and the purchase costs — they are Stock v2
+  and the Sigma costs above (the 29.09 "don't focus on stock now" is superseded). Sellable products keep the
+  placeholder 1.000 only until Stock v2 is switched on and the mirror writes the ledger's stock.
 - Search the code for `TODO(mk)` to find every unfinished real-value spot.
 
 ## Grok Skills System
 
 **This project has a first-class skills system** located in `.grok/skills/`. Check `/skills`
-before non-trivial work on money, phones, warehouse, stock, webhooks, or fulfilment.
+before non-trivial work on money, phones, warehouse, stock, shops, Sigma, webhooks, or fulfilment.
 **But apply the Macedonian per-market overrides above** — several skills still teach BG rules
 (lev peg, +359, Sofia). When a skill conflicts with the overrides, the overrides win; fix the skill.
 
 - `elyon-currency` — ⚠️ inherited BG/Macedonia rules. The currency override above wins.
 - `elyon-phone-normalization` — Last-8-digits search + E.164 storage + pollution protection.
 - `elyon-fulfilment-csv` — How an order becomes a MEX parcel: the portal-import CSV contract (rewritten 2026-08-18) and its twin, the "Испрати до MEX" `add_shipment.php` push (01.10 — claim, existence check, one-success ledger, double-parcel guard, account from the product line; switched OFF).
-- `elyon-warehouse-incoming` — /warehouse since 01.10: Испрати до MEX · За пакување · Залихи · Попис · Движења, the queue, MEX 8 = за пакување (and the not-applied ~260-order repair), no printing, the old routes' guards, stock safety.
+- `elyon-warehouse-incoming` — /warehouse since 01–02.10: Испрати до MEX · За пакување · Залихи · Пратки · Движења · Попис (the last four on Stock v2, the preview banner, who sees / counts / switches), the queue, MEX 8 = за пакување (and the not-applied ~260-order repair), no printing, the old routes' guards.
 - `elyon-webhook-and-lead-ingestion` — Inbound pipeline, HMAC, per-product slugs.
-- `elyon-stock-and-bigarena` — Stock movements, import rules, and historical operator decisions.
+- `elyon-stock-v2` — **THE LAW for stock (01.10.2026):** one append-only ledger per Sigma article × warehouse × moment, the 22.09 opening, parcels deducted at the MEX label, MEX 7 returns back, the resolver priority (override → collabBox goods lines → web → CRM via approved recipes), Sigma for everything else (never 000217 / 000549 / 04↔08), a count is a rule, preview mode and the owner-only switch-on procedure, the scripts and `verify-stock-v2`.
+- `elyon-stock-and-bigarena` — HISTORY: the retired v1 regimes (status-driven deduction, the 20260942000100 count + MEX ledger) and the Bulgarian BigArena import rules. Stock today = `elyon-stock-v2`.
+- `elyon-shops` — The 22 shops (НАТУРА ТЕРАПИ СТОРЕС ДООЕЛ) via the `collabbox-shops` reader: its own allow-list and request budget, the schedule and `shops_reader` switch, the document types that are never added up (10018 + 10022, 10016 + 10042), ПОЕН and trade-book corrections, 10005 plus = shortage, /shops money access (owners all, managers no money), `verify-shops`.
 - `elyon-agent-commissions` — Per-package agent bonuses on every PAID order (only gate is paid; source irrelevant), tiered 1/2/3€ by unit price, no minimum, credited to the confirmer. Read before touching any payout/commission math.
 - `elyon-notifications` — The bell, the 6 notification types, the English-in-DB + `meta.i18n` translation contract, owner = confirmer, and the unpaid-delivery chase job.
 - `elyon-segments-and-prediction` — The name-construction engine (**v3.7-mk, sticky trash**), the exclusivity rule, holding pens (Current Cancels 14d, NEWCOMERS 21d, Trash List), carry-over, the nightly recompute, and the /calls outcome bar (`POST /calls/outcome` — the outcome IS the call log; the disposition's last product). Law for anything touching prediction lists.
@@ -336,13 +397,13 @@ before non-trivial work on money, phones, warehouse, stock, webhooks, or fulfilm
 - `elyon-security` — RLS, HMAC, permissions, audit and secrets; Settings writes only through audited api routes (01.10), the guard-trigger writer pattern. Never write an `authenticated`-wide read policy.
 - `elyon-affiliates` — The CPA/partner system and the hard wall that keeps external logins out of staff surfaces.
 - `elyon-altercpa-bridge` — The AlterCPA lead mirror: ledger-first, callable geos, offer mapping, and why foreign leads must never reach `orders`. Read before touching `altercpa_*` or multi-country intake.
-- `elyon-logistics-costs` — Courier rate card, return round-trip loss, Pure Profit actuals, and VAT per product from Sigma (taxed per line; `docs/VAT.md`).
+- `elyon-logistics-costs` — Courier rate card, return round-trip loss, Pure Profit actuals, VAT per product from Sigma (taxed per line; `docs/VAT.md`), and the purchase costs from Sigma in denari (live since 02.10: `cost_source = 'sigma'`, approved recipes, `product_cost_history`).
 - `elyon-presence-and-leaderboard` — Shifts as the login gate (runway, roll-forward, the Смени page), presence minutes + the 30-min idle alert, sales people / identities / teams = business lines + lanes (Settings → Teams → Предлог), the write-once `orders.sold_*` stamps (who is credited with a sale, the stamping cron), the TV leaderboard v2 (`leaderboard_day_v2`, one row per agent split by department, `?team=team:lane`).
 - `elyon-web-shop-bridge` — The read-only naturatherapy.mk mirror (`web_orders`, web-sync every 15 min, `crm_export` on the shop side). Web orders are NOT CRM orders; the live shop gets no changes.
 - `elyon-customer360-and-integrations` — Customer 360 (`customer_timeline`, last-8 matching, money stripped for non-owners) and Settings → Integrations health (freshness thresholds kept in step with the Overview, the 7-day rule's owner switch).
 - `elyon-departments-and-sources` — The six departments (collabBox folder + MEX profile), `cohort_order_source`, the parcel split, `sale_source_reclass` and its rollbacks; a team never decides a department, the product line only picks the account of a CRM push. Law for anything that says where a sale belongs.
-- `elyon-collabbox-sync` — The live collabBox reader: folders/types and roles, the document ledger, orders only once the MEX parcel exists, seller credit, the 15-minute + nightly crons, one run at a time.
-- `elyon-products-catalogue` — Product kinds (product / bundle / gift / other) and brand lines (Natura Therapy / Bio Natural / Ad Astra / Dr.Becker → the MEX profile), the web-catalogue rule, the audited writers behind guard triggers, the machine-text cleanup, /products, and the catalogue scripts.
+- `elyon-collabbox-sync` — The live collabBox reader of the teleshop documents: folders/types and roles, the document ledger, orders only once the MEX parcel exists, seller credit, the 15-minute + nightly crons, one run at a time. (The shops' tills are a separate reader — `elyon-shops`.)
+- `elyon-products-catalogue` — Product kinds (product / bundle / gift / other) and brand lines (Natura Therapy / Bio Natural / Ad Astra / Dr.Becker → the MEX profile), the web-catalogue rule, the audited writers behind guard triggers, the machine-text cleanup, /products (the Рецепт drawer and "Набавна (Сигма)" for owners — only an approved recipe moves stock and cost), and the catalogue scripts.
 
 New skills should be added to `.grok/skills/` whenever you find yourself re-explaining the same
 complicated rule or workflow. Use `/skillify` right after completing a complex piece of work;

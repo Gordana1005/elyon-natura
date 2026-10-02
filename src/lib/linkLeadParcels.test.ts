@@ -9,29 +9,35 @@ import { createHash } from 'node:crypto';
 import {
   KEY, EXPECTED, PLAN_LINE_RE, POSTPONE_FIXTURES, functionBody, inlinePlanSql, rpcPlanSql, planHashParity, planCsvRows,
   moveTable, compareWithElyonRepair, noParcelBody, regexConstants, sqlStringValue, inlineNoParcelScanSql, postponedTextJs,
-  recreditBucket, skopjeDayRange,
+  recreditBucket, skopjeDayRange, PLAN_MIGRATION, LINK_MIGRATION,
 } from '../../scripts/lib/link-lead-parcels.mjs';
 import { SNAP_COLUMNS, candidateHash, lineOrderId } from '../../scripts/lib/repair-kit.mjs';
 import { assertReadOnly } from '../../scripts/verify-insights-ties.mjs';
-import { foldFixtureSql, postponeFixtureSql, FOLD_FIXTURES } from '../../scripts/verify-parcel-link-rules.mjs';
+import { foldFixtureSql, postponeFixtureSql, FOLD_FIXTURES, excludedPairSql } from '../../scripts/verify-parcel-link-rules.mjs';
+import { crmReasonFor } from '../../supabase/functions/altercpa-sync/altercpa';
 import { scopeSql, recreditLines, buildRecreditBatchSql, buildRecreditRollbackSql, rollbackCheckSql } from '../../scripts/collabbox-recredit.mjs';
 
 const mig = (f: string) => readFileSync(join(process.cwd(), 'supabase/migrations', f), 'utf8');
-const PLAN = mig('20260944000950_link_lead_parcels.sql');
+const PLAN = mig('20260944000950_link_lead_parcels.sql');            // the apply / nightly / snapshot / switch (and plan v1)
+const PLAN_V2 = mig('20260944000980_link_lead_parcels_exclusions.sql');   // THE plan body today (rule 2b)
 const EXEMPT = mig('20260944000960_no_parcel_exemptions.sql');
 const md5 = (s: string) => createHash('md5').update(s.replace(/\r/g, '')).digest('hex');
-const planBody = functionBody(PLAN, 'FUNCTION public.link_lead_parcels_plan(', '$plan$');
+const planBody = functionBody(PLAN_V2, 'FUNCTION public.link_lead_parcels_plan(', '$plan$');
+const planBodyV1 = functionBody(PLAN, 'FUNCTION public.link_lead_parcels_plan(', '$plan$');
 const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 
 describe('the plan is ONE read-only SELECT the cron and the backfill share', () => {
   it('inlines $1::integer exactly once and passes the repo read-only guard', () => {
-    const q = inlinePlanSql(PLAN, 75);
+    expect(PLAN_MIGRATION).toBe('20260944000980_link_lead_parcels_exclusions.sql');
+    expect(LINK_MIGRATION).toBe('20260944000950_link_lead_parcels.sql');
+    expect(() => assertReadOnly(inlinePlanSql(PLAN, 75))).not.toThrow();
+    const q = inlinePlanSql(PLAN_V2, 75);
     expect(q.startsWith('SELECT (')).toBe(true);
     expect(q).toContain('coalesce(75::integer, 75)');
     expect(q).not.toMatch(/\$1/);
     expect(() => assertReadOnly(q)).not.toThrow();
     expect(() => assertReadOnly(rpcPlanSql(75))).not.toThrow();
-    expect(() => inlinePlanSql(PLAN, 0)).toThrow();
+    expect(() => inlinePlanSql(PLAN_V2, 0)).toThrow();
     expect(() => inlinePlanSql(PLAN, 401)).toThrow();
     expect(() => inlinePlanSql(PLAN.replace('coalesce($1::integer, 75)', 'coalesce($1::integer, $1::integer)'), 75)).toThrow(/exactly once/);
   });
@@ -80,6 +86,71 @@ describe('the plan is ONE read-only SELECT the cron and the backfill share', () 
     const after = functionBody(PLAN, 'FUNCTION public.tg_app_settings_guard_owner_keys(');
     expect(PLAN).toContain(`'${md5(before)}', '${md5(after)}'`);
     expect(after).toBe(before.replace("'mex_push']", "'mex_push', 'link_lead_parcels']"));
+  });
+});
+
+describe('rule 2b (20260944000980): duplicates and AlterCPA leads created after the booking are dropped before rule 3', () => {
+  const seg = (body: string, from: string, to: string) => {
+    const a = body.indexOf(from), b = body.indexOf(to, a);
+    expect(a).toBeGreaterThanOrEqual(0);
+    expect(b).toBeGreaterThan(a);
+    return body.slice(a, b);
+  };
+
+  it('re-emits the plan from the LIVE 0950 body with a drift guard on both md5s', () => {
+    expect(PLAN_V2).toContain(`('public.link_lead_parcels_plan(integer)', '${md5(planBodyV1)}', '${md5(planBody)}')`);
+    expect(md5(planBodyV1)).toBe('bb592cb550602f8dc27c59b06db49452');   // live on 01.10.2026 23:40 Skopje
+    expect(PLAN_V2).not.toMatch(/CREATE OR REPLACE FUNCTION public\.link_lead_parcels\(|link_lead_parcels_nightly\(_force|cron\.schedule/);
+  });
+
+  it('keeps every other rule identical: rules 1–2, and rule 4 … the plan lines, byte for byte', () => {
+    expect(seg(planBody, 'WITH prm AS MATERIALIZED', '-- rule 2b')).toBe(seg(planBodyV1, 'WITH prm AS MATERIALIZED', 'pc AS ('));
+    expect(seg(planBody, '-- rule 4 (only a pair', 'mn AS (')).toBe(seg(planBodyV1, '-- rule 4 (only a pair', 'mn AS ('));
+    // rule 3 now counts the KEPT candidates
+    expect(planBody).toContain('pc AS (SELECT c.tracking_id, count(*)::int AS n FROM ck c GROUP BY 1)');
+    expect(planBody).toContain('oc AS (SELECT c.order_id, count(*)::int AS n FROM ck c GROUP BY 1)');
+    expect(planBody).toContain('SELECT c.* FROM ck c\n    JOIN pc ON pc.tracking_id = c.tracking_id');
+    // a parcel rule 2b emptied stays on the manual list (leads_parcel_orders_plan reads it as a link-plan candidate)
+    expect(planBody).toContain("CASE WHEN pc.n IS NULL THEN 'only_excluded_candidates'");
+    expect(planBody).toContain('FROM (SELECT DISTINCT c.tracking_id FROM cand c) p');
+  });
+
+  it('a duplicate = a DEAD order with the CRM\'s / the bridge\'s / the mirror\'s own mark — never free text', () => {
+    expect(planBody).toContain("WHEN c.status IN ('cancelled', 'trashed')");
+    expect(planBody).toContain("(c.status = 'cancelled' AND o.cancellation_reason = 'duplicate_order')");
+    expect(planBody).toContain("(c.status = 'trashed' AND o.trash_reason = 'duplicate_order')");
+    expect(planBody).toContain("l.decision = 'trashed' AND l.reason = 7");
+    expect(planBody).not.toMatch(/нарачал|naracal|vcera|вчера/i);
+    const rx = planBody.match(/o\.trash_reason_notes ~\* '([^']+)'/)?.[1];
+    expect(rx).toBe('^duplicate( —|$)');
+    const re = new RegExp(rx!, 'i');
+    // exactly what altercpa-sync writes for an AlterCPA TRASH reason 7 (the label kept ahead of the comment)
+    expect(crmReasonFor('trash', 7, 'ne se javuva')).toEqual({ value: 'other', notes: 'duplicate — ne se javuva' });
+    expect(re.test(crmReasonFor('trash', 7, 'ne se javuva').notes!)).toBe(true);
+    expect(re.test(crmReasonFor('trash', 7, '').notes!)).toBe(true);
+    expect(crmReasonFor('cancel', 7, 'x').value).toBe('duplicate_order');   // a CANCEL reason 7 → the reason value itself
+    for (const note of ['duplicates', 'веќе нарачал', 'не е duplicate', 'wrong number — duplicate']) expect(re.test(note)).toBe(false);
+  });
+
+  it('after_booking = an AlterCPA lead that came into existence after THE booking of the parcel\'s document', () => {
+    expect(planBody).toContain('public.collabbox_sale_at(d.doc_at, d.booked_at) AS at FROM public.collabbox_documents d');
+    expect(planBody).toContain('WHERE d.doc_number = c.tracking_id AND d.vanished_at IS NULL');
+    expect(planBody).toContain("(o.sale_source_detail IN ('bridge', 'history') OR la.n > 0)");
+    expect(planBody).toContain('least(o.created_at, la.lead_at)');   // the EARLIEST evidence the lead existed
+    // a date-only history import (the 14:00:00 stamp) is compared by Skopje DAY, strictly after
+    expect(planBody).toContain("OR (o.created_at AT TIME ZONE 'Europe/Skopje')::time = time '14:00:00'");
+    expect(planBody).toMatch(/AT TIME ZONE 'Europe\/Skopje'\)::date\s+> \(bk\.at AT TIME ZONE 'Europe\/Skopje'\)::date/);
+    expect(planBody).toContain('ELSE least(o.created_at, la.lead_at) > bk.at END');
+  });
+
+  it('counts what it dropped, and the verify spells rule 2b out independently (read-only)', () => {
+    expect(planBody).toContain("'excluded', (SELECT count(*) FROM cx WHERE cx.excluded IS NOT NULL)");
+    expect(planBody).toContain("'excluded', x.excluded");
+    expect(planBody).toContain("'rule', 'link-lead-parcels v2 (owner 01.10.2026)");
+    const q = `SELECT (${excludedPairSql('o', "'002-9110-1/2026'")}) AS why FROM public.orders o LIMIT 1`;
+    expect(() => assertReadOnly(q)).not.toThrow();
+    expect(excludedPairSql('o', 'p.tracking_id')).toContain("LIKE 'duplicate —%'");
+    expect(excludedPairSql('o', 'p.tracking_id')).not.toContain('~*');   // not the plan's own regex: an independent spelling
   });
 });
 

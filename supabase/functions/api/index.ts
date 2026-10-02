@@ -47,6 +47,10 @@ import * as IRS from "./insightsReturnsStock.ts";
 // 20260942000100): access, body parsing, and whether a CRM status change still
 // moves stock (pure, unit-tested in stockLedger.test.ts).
 import * as SL from "./stockLedger.ts";
+// Stock v2 (owner 01.10.2026, docs/STOCK-V2.md): exact stock per article / warehouse / day from the
+// 22.09 count + MEX parcels + Sigma — the access matrix, every query / body parser, the money strip,
+// the Sigma ingest HMAC and the end of the status-driven stock moves (pure, stockV2.test.ts).
+import * as SV2 from "./stockV2.ts";
 // The Assigner redesign (migrations 20260942001950–1962): the board, the lists
 // by buyer department, the distributor, the call-agains page — query / body
 // validation, the exact response shapes, notifications, audit, the realtime
@@ -105,6 +109,9 @@ import * as GA from "./altercpaGuarantee.ts";
 // The ONE Skopje calendar (owner 01.10.2026: "the same time everywhere"): today, day
 // boundaries (DST-exact), day buckets, bare-date bounds (pure, skopjeTime.test.ts).
 import * as ST from "./skopjeTime.ts";
+// /shops — Продавници (owner 02.10.2026, docs/SHOPS.md): the routes, `at` / window params, owner / counts
+// access and the *_mkd strip (pure, shops.test.ts); the reports are migration 20260946000200.
+import * as SHOPS from "./shops.ts";
 
 // ============================================================
 // INPUT VALIDATION SCHEMAS
@@ -390,35 +397,12 @@ const createProductSchema = z.object({
   supplier_id: z.string().uuid().nullable().optional().default(null),
 });
 
-// BigArena "Fulfillment Panel" stock export. `free` = "Свободна наличност" (units
-// NOT reserved for orders already being packed) — the client parses and merges
-// shared-barcode rows; the server still re-matches every row itself.
-const bigArenaStockSyncSchema = z.object({
-  rows: z.array(z.object({
-    sku: z.string().max(50).nullable().optional().default(null),
-    barcode: z.string().max(50).nullable().optional().default(null),
-    name: z.string().trim().min(1).max(300),
-    free: z.number().int().min(0).max(1000000),
-  })).min(1, "rows[] required").max(500, "Too many rows (max 500 per upload)"),
-  meta: z.object({
-    filename: z.string().max(160).optional().default("bigarena-stock-upload"),
-  }).optional().default({}),
-});
-
 const createSupplierSchema = z.object({
   name: z.string().trim().min(1, "Supplier name is required").max(200),
   contact_info: z.string().max(500).optional().default(""),
   email: z.string().max(255).optional().default(""),
   phone: z.string().max(30).optional().default(""),
   address: z.string().max(500).optional().default(""),
-});
-
-const restockSchema = z.object({
-  product_id: z.string().uuid(),
-  quantity: z.number().int().min(1).max(1000000),
-  supplier_name: z.string().max(200).optional().default(""),
-  invoice_number: z.string().max(100).optional().default(""),
-  notes: z.string().max(1000).optional().default(""),
 });
 
 const createCampaignSchema = z.object({
@@ -1453,6 +1437,25 @@ async function leaderboardTodayCached(adminClient: any, day: string): Promise<un
   return data;
 }
 
+// The stock regime (Stock v2, docs/STOCK-V2.md): app_settings 'stock_v2' (+ the retired v1
+// 'stock_mex_movements'), shared by every request of an isolate for 30 s. It decides whether a CRM
+// status change still moves products.stock_quantity (never once 'stock_v2' exists) and the default
+// of ?preview= (computed while the switch is off). A failed read keeps the last good rows.
+const STOCK_REGIME_TTL_MS = 30_000;
+let stockRegimeCache: { at: number; rows: SV2.SettingRow[] } | null = null;
+async function stockRegimeRows(adminClient: any): Promise<SV2.SettingRow[] | null> {
+  if (stockRegimeCache && Date.now() - stockRegimeCache.at < STOCK_REGIME_TTL_MS) return stockRegimeCache.rows;
+  const { data, error } = await adminClient
+    .from("app_settings").select("key, value").in("key", ["stock_v2", "stock_mex_movements"]);
+  if (error) {
+    console.error("stock regime read failed:", error.message);
+    return stockRegimeCache?.rows ?? null;
+  }
+  stockRegimeCache = { at: Date.now(), rows: (data || []) as SV2.SettingRow[] };
+  return stockRegimeCache.rows;
+}
+const invalidateStockRegime = () => { stockRegimeCache = null; };
+
 // CORS headers — origin is set per-request in the serve wrapper below.
 const corsHeaders = {
   "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
@@ -2380,6 +2383,51 @@ async function handleRequest(req: Request): Promise<Response> {
     const url = new URL(req.url);
     const path = url.pathname.replace(/^\/api\//, "").replace(/\/$/, "");
     const segments = path.split("/");
+
+    // ── STOCK v2: the Sigma ingest (HMAC only, no login — docs/STOCK-V2.md) ──
+    // The office connector and the CSV uploader POST one SigmaBatch. Secret
+    // SIGMA_CONNECTOR_SECRET; headers x-elyon-ts (unix seconds) and
+    // x-elyon-signature = hex(HMAC_SHA256(secret, ts + "." + rawBody)), ±300 s.
+    // Fail-closed: no secret → 503 not_configured. The raw body is read ONCE and
+    // verified before any JSON parse; ≤ 2 MB. stock_sigma_ingest() keeps only its
+    // whitelisted fields, ignores a batch id it has seen (replays inside the window
+    // are no-ops) and writes its own ledger (stock_sigma_batches) — no audit_log
+    // row, there is no human actor. Switched off (stock_v2.sigma.ingest = false)
+    // → 503 disabled, said only to a correctly signed caller.
+    if (req.method === "POST" && path === "stock/sigma/ingest") {
+      const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() || "unknown";
+      if (!checkWebhookRateLimit(`sigma-ingest:${ip}`, 30)) return json({ error: "rate_limited" }, 429);
+      const secret = Deno.env.get("SIGMA_CONNECTOR_SECRET") || "";
+      if (!secret) {
+        console.error("SIGMA_CONNECTOR_SECRET not set — REJECTING the Sigma ingest (fail-closed).");
+        return json({ error: "not_configured" }, 503);
+      }
+      const declared = Number(req.headers.get("content-length") || 0);
+      if (declared > SV2.SIGMA_MAX_BYTES) return json({ error: "too_large" }, 413);
+      let raw: Uint8Array;
+      try { raw = new Uint8Array(await req.arrayBuffer()); } catch { return json({ error: "bad_body" }, 400); }
+      if (raw.byteLength > SV2.SIGMA_MAX_BYTES) return json({ error: "too_large" }, 413);
+      const verdict = await SV2.verifySigmaSignature(
+        req.headers.get("x-elyon-ts"), raw, req.headers.get("x-elyon-signature"), secret, Date.now(),
+      );
+      if (!verdict.ok) return json({ error: verdict.error }, SV2.sigmaVerdictStatus(verdict.error));
+      let parsedBody: unknown;
+      try { parsedBody = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(raw)); } catch { return json({ error: "bad_json" }, 400); }
+      const batch = SV2.parseSigmaBatch(parsedBody);
+      if (!batch.ok) return json({ error: batch.error }, 400);
+      const regime = SV2.readStockV2Settings(await stockRegimeRows(adminClient));
+      if (!regime.present) return json({ error: "not_installed" }, 503);
+      if (!regime.sigma.ingest) return json({ error: "disabled" }, 503);
+      const { data, error } = await adminClient.rpc("stock_sigma_ingest", { p_batch: batch.value });
+      if (error) {
+        const e = SV2.stockRpcError(error);
+        if (e.status >= 500) console.error("stock_sigma_ingest failed:", error.code);
+        return json(e.body, e.status);
+      }
+      const refused = SV2.resultError(data);
+      if (refused) return json(refused.body, refused.status);
+      return json(data ?? { ok: true });
+    }
 
     // ── PUBLIC WEBHOOK (HMAC-signed, no Supabase auth) ──
     // Legacy generic webhook
@@ -3515,24 +3563,20 @@ async function handleRequest(req: Request): Promise<Response> {
       return p;
     };
 
-    // Stock regime (migration 20260942000100): once the first physical count
-    // has anchored the MEX stock ledger (app_settings.stock_mex_movements.from),
-    // MEX parcels move stock (public.stock_mex_apply) and a CRM status change
-    // must not — shipped → deduct, returned → restore and their "insufficient
-    // stock" refusal all stop, or a parcel would be counted twice. Before the
-    // count, and if the setting cannot be read, the old behaviour stays.
-    // Memoized per request (read only by the status routes that need it).
+    // Stock regime. Stock v2 (docs/STOCK-V2.md): as soon as app_settings has the
+    // 'stock_v2' key (migration 20260945000100), what leaves the warehouse is MEX
+    // parcels + collabBox goods lines in the stock ledger, and products.stock_quantity
+    // is a derived mirror a guard trigger protects (…0700) — a CRM status change
+    // moves nothing: shipped → deduct, returned → restore and their "Insufficient
+    // stock" refusal all stop. Before that the v1 rule (20260942000100: until the
+    // first count anchors the MEX ledger) decides; with nothing readable at all
+    // the old behaviour stays. Cached per isolate (stockRegimeRows), memoized per request.
     let stockByStatusMemo: Promise<boolean> | null = null;
     const stockByStatus = (): Promise<boolean> => {
       if (!stockByStatusMemo) {
         stockByStatusMemo = (async () => {
-          const { data, error } = await adminClient
-            .from("app_settings").select("value").eq("key", "stock_mex_movements").maybeSingle();
-          if (error) {
-            console.error("stock_mex_movements read failed:", error.message);
-            return true;
-          }
-          return SL.stockMovesOnStatus(data?.value ?? null);
+          const rows = await stockRegimeRows(adminClient);
+          return rows === null ? true : SV2.statusMovesStock(rows);
         })();
       }
       return stockByStatusMemo;
@@ -10077,7 +10121,8 @@ async function handleRequest(req: Request): Promise<Response> {
       if (error) return json({ error: sanitizeDbError(error) }, 400);
       // Suggested selling price = max(cost×3, current price, €15). Computed
       // server-side and exposed to everyone (it's the agent-facing default,
-      // never €0). The raw cost_price is sensitive → admins only. The VAT
+      // never €0). The raw cost_price is money → business owners only (Stock v2:
+      // it is the Sigma purchase-cost mirror, cost_mkd / 61.5). The VAT
       // columns (20260944000900) are the owners' margin view → owners only.
       const PRICE_MULTIPLIER = 3;
       const PRICE_FLOOR = 15;
@@ -10091,7 +10136,7 @@ async function handleRequest(req: Request): Promise<Response> {
         // The 28.09 catalogue scripts' notes ("Креиран автоматски (…)", "Од продажби — …")
         // are never shown anywhere (owner 01.10) — blanked here for every caller.
         const out: any = { ...p, suggested_price, description: PC.humanDescription(p.description), category: PC.humanCategory(p.category) };
-        if (!isAdmin) delete out.cost_price; // call agents/managers never see cost
+        if (!prVatOwner) delete out.cost_price; // only owners see cost (is_business_owner)
         return VT.applyVatVisibility(out, p, prVatOwner);
       });
       // `*` carries brand_line / kind (+ their _set_by / _set_at; 20260943001300 / 001400)
@@ -10102,20 +10147,28 @@ async function handleRequest(req: Request): Promise<Response> {
     // GET /api/products/catalogue — the lean catalogue the /products page reads
     // (Производи 2.0): only the columns its list, filters and form use (≈ 45 % of
     // the GET /products payload), machine text blanked, the supplier's name
-    // flattened, cost only for admins (as GET /products). Filtering is done by
+    // flattened, cost only for owners (as GET /products). Filtering is done by
     // the page over these ~700 rows (instant) — a round trip per chip would be slower.
     if (req.method === "GET" && path === "products/catalogue") {
       const catQuery = (cols: string) => supabase.from("products").select(cols).order("name", { ascending: true });
-      let { data, error } = await catQuery(PC.CATALOGUE_SELECT);
+      // VAT per product (20260944000900), the Sigma purchase cost and the recipe status (Stock v2,
+      // stock_v2_product_overview, 20260945000510) — owners only.
+      const catVatOwner = await isBusinessOwner(user.id);
+      const [first, ovRes]: any[] = await Promise.all([
+        catQuery(PC.CATALOGUE_SELECT),
+        catVatOwner ? adminClient.rpc("stock_v2_product_overview") : Promise.resolve({ data: null, error: null }),
+      ]);
+      let { data, error } = first;
       // the VAT columns arrive with 20260944000900 — an api deployed first still serves the page
       if (error && PC.isMissingVatColumn(error)) ({ data, error } = await catQuery(PC.CATALOGUE_SELECT_NO_VAT));
       if (error) return json({ error: sanitizeDbError(error) }, 400);
-      // VAT per product (20260944000900): rate, Sigma item and evidence — owners only.
-      const catVatOwner = await isBusinessOwner(user.id);
+      // reader not applied yet (or failed): no cost_mkd / recipe_status — the page shows "—" and no recipe chips
+      if (ovRes.error && !SV2.isMissingFunction(ovRes.error)) console.error("stock_v2_product_overview failed:", ovRes.error.code);
+      const catRecipes = catVatOwner && !ovRes.error ? PC.recipeOverviewMap(ovRes.data) : null;
       return json({
         generated_at: new Date().toISOString(),
         vat_visible: catVatOwner,
-        rows: (data || []).map((p: any) => PC.shapeCatalogueRow(p, { showCost: isAdmin, showVat: catVatOwner })),
+        rows: (data || []).map((p: any) => PC.shapeCatalogueRow(p, { showCost: catVatOwner, showVat: catVatOwner, recipes: catRecipes })),
       });
     }
 
@@ -10229,17 +10282,20 @@ async function handleRequest(req: Request): Promise<Response> {
       let body;
       try { body = parseBody(createProductSchema, await req.json()); } catch (e: any) { return json({ error: e.message }, 400); }
 
+      // Stock v2 (docs/STOCK-V2.md): stock_quantity is derived from the stock ledger
+      // (products_stock_mirror_refresh, guard trigger) and cost_price from the Sigma
+      // purchase costs (product_costs_rebuild, guard trigger) — a new product starts at
+      // the column defaults (0) and gets both once its recipe is approved. The two body
+      // fields are still accepted (an older form sends them) and ignored.
       const { data, error } = await adminClient
         .from("products")
         .insert({
           name: body.name,
           description: body.description,
           price: body.price,
-          cost_price: isAdmin ? body.cost_price : 0, // cost is admin-only
           sku: body.sku,
           barcode: body.barcode || null,
           days_of_supply_per_unit: body.days_of_supply_per_unit,
-          stock_quantity: body.stock_quantity,
           low_stock_threshold: body.low_stock_threshold,
           photo_url: body.photo_url,
           is_active: body.is_active,
@@ -10249,7 +10305,9 @@ async function handleRequest(req: Request): Promise<Response> {
         .select()
         .single();
       if (error) return json({ error: sanitizeDbError(error) }, 400);
-      return json(data);
+      // the row goes back with the same visibility as GET /products (cost + VAT: owners only)
+      const crOwner = await isBusinessOwner(user.id);
+      return json(VT.applyVatVisibility(PC.withCostVisibility(data, crOwner), data, crOwner));
     }
 
     // PATCH /api/products/:id
@@ -10264,32 +10322,14 @@ async function handleRequest(req: Request): Promise<Response> {
       BL.stripBrandLineFields(raw);
       PC.stripKindFields(raw);
       VT.stripVatFields(raw);   // the VAT rate has its own audited route (POST /products/vat-rate)
-      // Only the product form's fields, validated; cost_price is admin-only — managers
-      // edit everything else (a manager's cost is dropped, as before).
-      const patch = PC.parseProductPatch(raw, { canCost: isAdmin });
+      // Only the product form's fields, validated. Stock v2: stock_quantity (the stock
+      // ledger's mirror) and cost_price (the Sigma purchase-cost mirror) are no longer
+      // editable here — counts / moves go through stock/v2/*, costs through
+      // stock/v2/article-cost; both fields are dropped like any unknown key.
+      const patch = PC.parseProductPatch(raw);
       if (!patch.ok) return json({ error: patch.error }, 400);
       const body: any = patch.update;
       if (Object.keys(body).length === 0) return json({ error: "Nothing to update" }, 400);
-
-      // If stock_quantity is changing, log it
-      if (body.stock_quantity !== undefined) {
-        const { data: current } = await adminClient
-          .from("products")
-          .select("stock_quantity")
-          .eq("id", productId)
-          .single();
-        if (current && current.stock_quantity !== body.stock_quantity) {
-          await adminClient.from("inventory_logs").insert({
-            product_id: productId,
-            change_amount: body.stock_quantity - current.stock_quantity,
-            previous_stock: current.stock_quantity,
-            new_stock: body.stock_quantity,
-            reason: "manual",
-            movement_type: "manual_adjust",
-            user_id: user.id,
-          });
-        }
-      }
 
       const { data, error } = await adminClient
         .from("products")
@@ -10298,111 +10338,121 @@ async function handleRequest(req: Request): Promise<Response> {
         .select()
         .single();
       if (error) return json({ error: sanitizeDbError(error) }, 400);
-      return json(data);
+      const upOwner = await isBusinessOwner(user.id);
+      return json(VT.applyVatVisibility(PC.withCostVisibility(data, upOwner), data, upOwner));
     }
 
-    // POST /api/products/bigarena-stock-sync
-    // Upload of the BigArena "Fulfillment Panel" stock export. The client parses the
-    // file and previews the diff; we re-match every row against the catalogue here
-    // (never trusting a client-supplied product id) and overwrite stock_quantity.
-    // Products missing from the CRM are REPORTED, never created — operator decision.
+    // POST /api/products/bigarena-stock-sync — RETIRED by Stock v2 (docs/STOCK-V2.md).
+    // It overwrote products.stock_quantity from a BigArena export; that column is now
+    // the stock ledger's mirror (guard trigger, …0700) and BigArena is not the warehouse.
+    // A count is entered through POST /api/stock/v2/count.
     if (req.method === "POST" && path === "products/bigarena-stock-sync") {
-      if (!isAdminOrManager && !isWarehouse) return json({ error: "Forbidden" }, 403);
-      if (!checkUserRateLimit(user.id, "products.bigarena-stock-sync", 5)) {
-        return json({ error: "Rate limit exceeded — try again in a minute" }, 429);
+      return json({ error: "gone", use: "stock/v2/count" }, 410);
+    }
+
+    // ── Stock v2 recipes: which stock articles a product is made of (docs/STOCK-V2.md) ──
+    //   GET  /api/products/:id/articles        → ProductRecipe (owners · admin · manager · warehouse;
+    //                                             money keys for owners only)
+    //   POST /api/products/articles            {product_id, lines, approve?, valid_from?, note?} (owners)
+    //   POST /api/products/articles/approve    {product_ids} (owners)
+    //   POST /api/products/articles/exempt     {product_ids, exempt, reason?} (owners) — delivery, ПОЕН,
+    //                                             flyers… never move stock
+    // The SQL writers (product_articles_set / _approve, product_stock_exempt_set) audit themselves.
+    if ((req.method === "GET" && segments[0] === "products" && segments.length === 3 && segments[2] === "articles")
+        || (req.method === "POST" && (path === "products/articles" || path === "products/articles/approve" || path === "products/articles/exempt"))) {
+      const raOwner = await isBusinessOwner(user.id);
+      const raCaller: SV2.StockCaller = { owner: raOwner, admin: isAdmin, manager: isManager, warehouse: isWarehouse };
+      const raFail = (fn: string, error: any) => {
+        const e = SV2.stockRpcError(error);
+        if (e.status >= 500) console.error(`${fn} failed:`, error?.code);
+        return json(e.body, e.status);
+      };
+
+      if (req.method === "GET") {
+        if (!SV2.stockCan(raCaller, "read")) return json({ error: SV2.denyCode(raCaller, "read") }, 403);
+        const productId = String(segments[1] || "").toLowerCase();
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(productId)) return json({ error: "bad_product_id" }, 400);
+        const [prodRes, linesRes, exRes] = await Promise.all([
+          adminClient.from("products").select("id, name").eq("id", productId).maybeSingle(),
+          adminClient.from("product_articles")
+            .select("article_code, qty, role, status, confidence, valid_from, valid_to")
+            .eq("product_id", productId).order("valid_from", { ascending: false }).limit(500),
+          adminClient.from("product_stock_exempt").select("product_id").eq("product_id", productId).maybeSingle(),
+        ]);
+        for (const [fn, r] of [["products", prodRes], ["product_articles", linesRes], ["product_stock_exempt", exRes]] as const) {
+          if (r.error) return raFail(fn, r.error);
+        }
+        if (!prodRes.data) return json({ error: "not_found" }, 404);
+        const lineRows = (linesRes.data || []) as SV2.RecipeRowIn[];
+        const codes = [...new Set(lineRows.map((l) => l.article_code))];
+        const names = new Map<string, string>();
+        let costs = new Map<string, number>();
+        if (codes.length) {
+          const [artRes, costRes] = await Promise.all([
+            adminClient.from("stock_articles").select("code, name").in("code", codes),
+            adminClient.from("stock_article_costs").select("article_code, cost_mkd, valid_from, source, recorded_at").in("article_code", codes),
+          ]);
+          if (artRes.error) return raFail("stock_articles", artRes.error);
+          if (costRes.error) return raFail("stock_article_costs", costRes.error);
+          for (const a of artRes.data || []) names.set(String(a.code), String(a.name ?? ""));
+          costs = SV2.pickArticleCosts((costRes.data || []) as SV2.CostRow[], Date.now());
+        }
+        let productCost: number | null | undefined = undefined;
+        if (raOwner) {
+          const { data: pc, error: pcErr } = await adminClient.rpc("product_cost_at", { p_product: productId, p_at: new Date().toISOString() });
+          if (!pcErr) productCost = pc === null || pc === undefined ? null : Number(pc);
+          else if (pcErr.code !== "PGRST202") console.error("product_cost_at failed:", pcErr.code);
+        }
+        return json(SV2.shapeRecipe({
+          product: prodRes.data as { id: string; name: unknown }, lines: lineRows, names, exempt: !!exRes.data,
+          costs, money: raOwner, productCost, nowMs: Date.now(),
+        }));
       }
 
-      let body;
-      try { body = parseBody(bigArenaStockSyncSchema, await req.json()); } catch (e: any) { return json({ error: e.message }, 400); }
-      const filename = (body.meta?.filename || "bigarena-stock-upload").slice(0, 160);
-
-      // Load the catalogue once and build the same three indexes the client uses.
-      const { data: products, error: prodErr } = await adminClient
-        .from("products")
-        .select("id, sku, barcode, name, stock_quantity")
-        .limit(5000);
-      if (prodErr) return json({ error: sanitizeDbError(prodErr) }, 400);
-
-      const normalizeName = (s: any) => String(s || "").toLowerCase().replace(/\s+/g, " ").trim();
-      const bySku = new Map<string, any>();
-      const byBarcode = new Map<string, any>();
-      const byName = new Map<string, any>();
-      for (const p of (products || [])) {
-        if (p.sku) bySku.set(String(p.sku).trim(), p);
-        if (p.barcode) byBarcode.set(String(p.barcode).trim(), p);
-        const n = normalizeName(p.name);
-        if (n && !byName.has(n)) byName.set(n, p);
+      if (!SV2.stockCan(raCaller, "mappings")) return json({ error: SV2.denyCode(raCaller, "mappings") }, 403);
+      if (!checkUserRateLimit(user.id, "stock.v2.mappings", 60)) return json({ error: "rate_limited" }, 429);
+      let rb: unknown;
+      try { rb = await req.json(); } catch { return json({ error: "bad_json" }, 400); }
+      let fn: string;
+      let args: Record<string, unknown>;
+      if (path === "products/articles") {
+        const p = SV2.parseRecipeBody(rb, Date.now());
+        if (!p.ok) return json({ error: p.error }, 400);
+        fn = "product_articles_set";
+        args = {
+          p_product: p.value.product_id, p_lines: p.value.lines, p_valid_from: p.value.valid_from, p_source: "manual",
+          p_confidence: "high", p_approve: p.value.approve, p_note: p.value.note, p_actor: user.id,
+        };
+      } else if (path === "products/articles/approve") {
+        const p = SV2.parseApproveBody(rb);
+        if (!p.ok) return json({ error: p.error }, 400);
+        fn = "product_articles_approve";
+        args = { p_products: p.value, p_actor: user.id };
+      } else {
+        const p = SV2.parseExemptBody(rb);
+        if (!p.ok) return json({ error: p.error }, 400);
+        fn = "product_stock_exempt_set";
+        args = { p_products: p.value.product_ids, p_exempt: p.value.exempt, p_reason: p.value.reason, p_actor: user.id };
       }
-
-      let updated = 0;
-      let unchanged = 0;
-      const notInCrm: any[] = [];
-      const bigChanges: any[] = [];
-      const details: any[] = [];
-      const seenProductIds = new Set<string>();
-
-      for (const row of body.rows) {
-        const sku = row.sku ? String(row.sku).trim() : "";
-        const barcode = row.barcode ? String(row.barcode).trim() : "";
-        const product =
-          (sku && bySku.get(sku)) ||
-          (barcode && byBarcode.get(barcode)) ||
-          byName.get(normalizeName(row.name)) ||
-          null;
-
-        if (!product) {
-          notInCrm.push({ sku: row.sku || null, name: row.name, free: row.free });
-          continue;
-        }
-        // Two file rows resolving to the same product would fight each other — the
-        // client already merges shared-barcode rows, so this is a corrupt file.
-        if (seenProductIds.has(product.id)) {
-          details.push({ sku: row.sku, name: row.name, reason: "duplicate_match_skipped" });
-          continue;
-        }
-        seenProductIds.add(product.id);
-
-        const previous = Number(product.stock_quantity || 0);
-        if (previous === row.free) { unchanged++; continue; }
-
-        const { error: updErr } = await adminClient
-          .from("products")
-          .update({ stock_quantity: row.free })
-          .eq("id", product.id);
-        if (updErr) {
-          details.push({ sku: row.sku, name: row.name, reason: sanitizeDbError(updErr) });
-          continue;
-        }
-
-        await adminClient.from("inventory_logs").insert({
-          product_id: product.id,
-          change_amount: row.free - previous,
-          previous_stock: previous,
-          new_stock: row.free,
-          reason: "bigarena_import",
-          movement_type: "bigarena_sync",
-          user_id: user.id,
-          notes: `BigArena stock sync — ${filename}`,
-        });
-
-        // Flag drastic drops so the report surfaces them even though the operator
-        // already saw the delta in the preview.
-        if (previous - row.free > 500 && row.free < previous * 0.1) {
-          bigChanges.push({ name: product.name, previous_stock: previous, new_stock: row.free });
-        }
-        updated++;
-      }
-
-      await audit(adminClient, user.id, user.email, "products.bigarena_stock_sync", {
-        filename,
-        rows: body.rows.length,
-        updated,
-        unchanged,
-        not_in_crm: notInCrm.length,
-        big_changes: bigChanges.length,
-      });
-
-      return json({ success: true, updated, unchanged, notInCrm, bigChanges, details });
+      const { data, error } = await adminClient.rpc(fn, args);
+      if (error) return raFail(fn, error);
+      const refused = SV2.resultError(data);
+      if (refused) return json(refused.body, refused.status);
+      // A recipe / exemption that moved changes the product's cost history: rebuild it now so the
+      // profit and the /products cost follow (product_costs_rebuild, …0600 — the recipe writers of
+      // …0400 do not call it). The write already stands, so a failed rebuild is reported, not raised.
+      let costRebuild: unknown = null;
+      const { data: cr, error: crErr } = await adminClient.rpc("product_costs_rebuild", { p_actor: user.id, p_archive_legacy: false });
+      if (crErr) {
+        if (!SV2.isMissingFunction(crErr)) console.error("product_costs_rebuild failed:", crErr.code);
+        costRebuild = { ok: false, error: SV2.isMissingFunction(crErr) ? "not_installed" : "failed" };
+      } else costRebuild = cr;
+      // ...and its derived stock: refresh the mirror (…0700; a no-op while Stock v2 is off, the cron
+      // would catch up anyway). Before …0700 is applied the function does not exist — ignored.
+      const { error: mErr } = await adminClient.rpc("products_stock_mirror_refresh", {});
+      if (mErr && !SV2.isMissingFunction(mErr)) console.error("products_stock_mirror_refresh failed:", mErr.code);
+      const base = data && typeof data === "object" && !Array.isArray(data) ? data : { ok: true, result: data };
+      return json(SV2.moneyView(raOwner, { ...base, cost_rebuild: costRebuild }));
     }
 
     // GET /api/products/:id/inventory-logs
@@ -16549,174 +16599,427 @@ async function handleRequest(req: Request): Promise<Response> {
     }
 
     // ============================================================
-    // RESTOCK
+    // STOCK v1 — retired by Stock v2 (docs/STOCK-V2.md, owner 01.10.2026)
     // ============================================================
-
-    // POST /api/restock
+    //   POST /api/restock               410 → stock/v2/move (new goods are entered in Sigma)
+    //   GET  /api/stock-movements       → the v2 ledger (stock_v2_movements) — quantities roles only
+    //   POST /api/stock/count           410 → stock/v2/count
+    //   POST /api/stock/mex-movements   410 → stock/v2/switch
+    //   GET  /api/stock/health          the v1 card (stock_health), unchanged until the v2 UI replaces it
     if (req.method === "POST" && path === "restock") {
-      if (!isAdminOrManager && !isWarehouse) return json({ error: "Forbidden" }, 403);
-      let body;
-      try { body = parseBody(restockSchema, await req.json()); } catch (e: any) { return json({ error: e.message }, 400); }
-
-      // One statement (migration 20260942000100): the old read → add → write
-      // below could lose units against a concurrent stock ledger run. The old
-      // path stays only for a database without the function yet.
-      const { data: rs, error: rsErr } = await adminClient.rpc("stock_restock", {
-        p_product: body.product_id, p_quantity: body.quantity, p_actor: user.id,
-        p_supplier_name: body.supplier_name, p_invoice_number: body.invoice_number, p_notes: body.notes,
-      });
-      if (!rsErr) {
-        if (!(rs as any)?.ok) {
-          return (rs as any)?.error === "not_found"
-            ? json({ error: "Product not found" }, 404)
-            : json({ error: (rs as any)?.error || "restock failed" }, 400);
-        }
-        return json({ success: true, product_name: (rs as any).product_name, new_stock: (rs as any).new_stock });
-      }
-      if (!(rsErr.code === "PGRST202" || /stock_restock/.test(rsErr.message || ""))) {
-        return json({ error: sanitizeDbError(rsErr) }, 500);
-      }
-
-      const { data: product } = await adminClient
-        .from("products")
-        .select("stock_quantity, name")
-        .eq("id", body.product_id)
-        .single();
-      if (!product) return json({ error: "Product not found" }, 404);
-
-      const newQty = product.stock_quantity + body.quantity;
-      await adminClient.from("products").update({ stock_quantity: newQty }).eq("id", body.product_id);
-      await adminClient.from("inventory_logs").insert({
-        product_id: body.product_id,
-        change_amount: body.quantity,
-        previous_stock: product.stock_quantity,
-        new_stock: newQty,
-        reason: "restock",
-        movement_type: "restock",
-        user_id: user.id,
-        supplier_name: body.supplier_name,
-        invoice_number: body.invoice_number,
-        notes: body.notes,
-      });
-
-      return json({ success: true, product_name: product.name, new_stock: newQty });
+      return json({ error: "gone", use: "stock/v2/move" }, 410);
     }
 
-    // GET /api/stock-movements (all movements across products)
+    // GET /api/stock-movements — the same rows as GET /api/stock/v2/movements (StockMovementsPage).
+    // It used to list inventory_logs to ANY login; now owners · admin · manager · warehouse.
     if (req.method === "GET" && path === "stock-movements") {
-      const productId = url.searchParams.get("product_id");
-      const movementType = url.searchParams.get("movement_type");
-      // limit ≤ 500 · offset for /warehouse → Движења "вчитај повеќе" (Фаза 9) — no silent cap.
-      const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") || "100") || 100, 1), 500);
-      const offset = Math.max(parseInt(url.searchParams.get("offset") || "0") || 0, 0);
-
-      let query = adminClient
-        .from("inventory_logs")
-        .select("*, products:product_id(name, sku)")
-        .order("created_at", { ascending: false })
-        .order("id", { ascending: false })
-        .range(offset, offset + limit - 1);
-
-      if (productId) query = query.eq("product_id", productId);
-      if (movementType) query = query.eq("movement_type", movementType);
-
-      const { data, error } = await query;
-      if (error) return json({ error: sanitizeDbError(error) }, 400);
-
-      // Enrich with user names
-      const userIds = [...new Set((data || []).map((d: any) => d.user_id).filter(Boolean))];
-      const { data: profiles } = await adminClient
-        .from("profiles")
-        .select("user_id, full_name")
-        .in("user_id", userIds.length > 0 ? userIds : ["__none__"]);
-      const profileMap: Record<string, string> = {};
-      for (const p of profiles || []) profileMap[p.user_id] = p.full_name;
-
-      const enriched = (data || []).map((d: any) => ({
-        ...d,
-        user_name: profileMap[d.user_id] || "System",
-        product_name: d.products?.name || "Unknown",
-        product_sku: d.products?.sku || "",
-      }));
-
-      return json(enriched);
+      const smOwner = await isBusinessOwner(user.id);
+      const smCaller: SV2.StockCaller = { owner: smOwner, admin: isAdmin, manager: isManager, warehouse: isWarehouse };
+      if (!SV2.stockCan(smCaller, "read")) return json({ error: SV2.denyCode(smCaller, "read") }, 403);
+      const p = SV2.parseMovementsQuery(url.searchParams, ST.skopjeTodayYmd());
+      if (!p.ok) return json({ error: p.error }, 400);
+      const { data, error } = await adminClient.rpc("stock_v2_movements", {
+        p_filters: p.value.filters, p_limit: p.value.limit, p_offset: p.value.offset,
+      });
+      if (error) {
+        const e = SV2.stockRpcError(error);
+        if (e.status >= 500) console.error("stock_v2_movements failed:", error.code);
+        return json(e.body, e.status);
+      }
+      return json(SV2.moneyView(smOwner, data ?? { rows: [], total: 0 }));
     }
 
     // ══════════════════════════════════════════════════════════════
-    // STOCK — the physical count (попис) and MEX-driven stock movements
-    // (migration 20260942000100; the pure half is stockLedger.ts).
+    // STOCK v2 — exact stock per article, warehouse and day (owner 01.10.2026,
+    // docs/STOCK-V2.md; JSON in src/lib/stockV2Types.ts; the pure half is stockV2.ts).
+    // Every route calls ONE contract SQL function with the service role and
+    // p_actor = the caller; the SQL writers audit themselves (audit_log).
+    //   read  (owners · admin · manager · warehouse; money keys for owners only)
+    //     GET  health (+ the active warehouses) · day · article · parcels · movements · counts
+    //          · config · articles · sigma/status · sigma/month-check
+    //   count (owners · admin · warehouse; a non-owner's count is saved pending)
+    //     POST count · count/:id/void (a pending count; an approved one: owners)
+    //   owners only
+    //     POST count/:id/approve · move · parcel-override · switch · run · article-cost · alias
+    //     PUT  config
+    // ?preview= defaults to "computed, nothing written" while stock_v2.enabled is off.
+    // ══════════════════════════════════════════════════════════════
+    if (segments[0] === "stock" && segments[1] === "v2") {
+      const svOwner = await isBusinessOwner(user.id);
+      const svCaller: SV2.StockCaller = { owner: svOwner, admin: isAdmin, manager: isManager, warehouse: isWarehouse };
+      const svSub = segments.slice(2).join("/");
+      const svToday = ST.skopjeTodayYmd();
+      const svGet = req.method === "GET";
+      const svDeny = (cap: SV2.StockCapability) => json({ error: SV2.denyCode(svCaller, cap) }, 403);
+      const svOut = (data: unknown) => json(SV2.moneyView(svOwner, data ?? {}));
+      const svFail = (what: string, error: any) => {
+        const e = SV2.stockRpcError(error);
+        if (e.status >= 500) console.error(`${what} failed:`, error?.code);
+        return json(e.body, e.status);
+      };
+      // One contract function: {data} or {res} (the HTTP error — a SQL refusal or {ok:false, error}).
+      const svRpc = async (fn: string, args: Record<string, unknown>): Promise<{ data: any; res: Response | null }> => {
+        const { data, error } = await adminClient.rpc(fn, args);
+        if (error) return { data: null, res: svFail(fn, error) };
+        const refused = SV2.resultError(data);
+        if (refused) return { data: null, res: json(refused.body, refused.status) };
+        return { data, res: null };
+      };
+      const svBody = async (): Promise<{ body: unknown; res: Response | null }> => {
+        if (Number(req.headers.get("content-length") || 0) > SV2.SIGMA_MAX_BYTES) return { body: null, res: json({ error: "too_large" }, 413) };
+        try { return { body: await req.json(), res: null }; } catch { return { body: null, res: json({ error: "bad_json" }, 400) }; }
+      };
+      const svSettings = async () => SV2.readStockV2Settings(await stockRegimeRows(adminClient));
+      // products.stock_quantity is the ledger's mirror — refreshed after a real run (a no-op while v2 is off).
+      const svMirror = async (): Promise<unknown> => {
+        const { data, error } = await adminClient.rpc("products_stock_mirror_refresh", {});
+        if (error) {
+          if (error.code !== "PGRST202") console.error("products_stock_mirror_refresh failed:", error.code);
+          return { status: "error" };
+        }
+        return data;
+      };
+      if (!checkUserRateLimit(user.id, svGet ? "stock.v2.read" : "stock.v2.write", svGet ? 240 : 60)) {
+        return json({ error: "rate_limited" }, 429);
+      }
+
+      // ── reads ──────────────────────────────────────────────────────
+      if (svGet && svSub === "health") {
+        if (!SV2.stockCan(svCaller, "read")) return svDeny("read");
+        // + `warehouses` (the active ones, no money): every stock role's pickers read them here,
+        // not from the owners-only configuration.
+        const [r, whRes]: any[] = await Promise.all([
+          svRpc("stock_v2_health", { p_detail: url.searchParams.get("detail") !== "0" }),
+          adminClient.from("stock_warehouses").select("code, name, role, tracked, active, sort").eq("active", true),
+        ]);
+        if (r.res) return r.res;
+        if (whRes.error) console.error("stock_warehouses (health) failed:", whRes.error.code);
+        const base = r.data && typeof r.data === "object" && !Array.isArray(r.data) ? r.data : {};
+        return svOut({ ...base, warehouses: SV2.shapeWarehouseRefs(whRes.data || []), access: SV2.stockAccess(svCaller) });
+      }
+
+      if (svGet && svSub === "day") {
+        if (!SV2.stockCan(svCaller, "read")) return svDeny("read");
+        const p = SV2.parseDayQuery(url.searchParams, svToday);
+        if (!p.ok) return json({ error: p.error }, 400);
+        const st = await svSettings();
+        const r = await svRpc("stock_v2_day", {
+          p_day: p.value.day, p_warehouse: p.value.warehouse, p_at: p.value.at, p_money: svOwner,
+          p_preview: SV2.resolvePreview(p.value.preview, st.enabled),
+        });
+        return r.res ?? svOut(r.data);
+      }
+
+      if (svGet && svSub === "article") {
+        if (!SV2.stockCan(svCaller, "read")) return svDeny("read");
+        const p = SV2.parseArticleSeriesQuery(url.searchParams, svToday);
+        if (!p.ok) return json({ error: p.error }, 400);
+        const st = await svSettings();
+        const r = await svRpc("stock_v2_article_series", {
+          p_article: p.value.code, p_warehouse: p.value.warehouse, p_from: p.value.from, p_to: p.value.to,
+          p_preview: SV2.resolvePreview(p.value.preview, st.enabled),
+        });
+        return r.res ?? svOut(r.data);
+      }
+
+      if (svGet && svSub === "parcels") {
+        if (!SV2.stockCan(svCaller, "read")) return svDeny("read");
+        const p = SV2.parseParcelsQuery(url.searchParams, svToday);
+        if (!p.ok) return json({ error: p.error }, 400);
+        const r = await svRpc("stock_v2_parcels_day", {
+          p_day: p.value.day, p_filters: p.value.filters, p_limit: p.value.limit, p_offset: p.value.offset, p_money: svOwner,
+        });
+        return r.res ?? svOut(r.data);
+      }
+
+      if (svGet && svSub === "movements") {
+        if (!SV2.stockCan(svCaller, "read")) return svDeny("read");
+        const p = SV2.parseMovementsQuery(url.searchParams, svToday);
+        if (!p.ok) return json({ error: p.error }, 400);
+        const r = await svRpc("stock_v2_movements", { p_filters: p.value.filters, p_limit: p.value.limit, p_offset: p.value.offset });
+        return r.res ?? svOut(r.data);
+      }
+
+      // StockConfig — no SQL getter in the contract: read the tables (service role). Owners get
+      // everything; the other stock roles the warehouses (the picker) and whether v2 is on.
+      const svConfig = async (full: boolean): Promise<Response> => {
+        const none = Promise.resolve({ data: [] as any[], error: null as any });
+        const [setRes, whRes, keyRes, rtRes, ruRes]: any[] = await Promise.all([
+          adminClient.from("app_settings").select("value").eq("key", "stock_v2").maybeSingle(),
+          adminClient.from("stock_warehouses").select("id, code, name, role, tracked, sellable, sigma_moves_from, active, sort"),
+          full ? adminClient.from("stock_warehouse_keys").select("system, key, warehouse_id") : none,
+          full ? adminClient.from("stock_parcel_routes").select("id, priority, match_account, match_series, match_shape, warehouse_id, return_warehouse_id, valid_from, valid_to, active") : none,
+          full ? adminClient.from("stock_sigma_rules").select("id, match, action, reason, active") : none,
+        ]);
+        const named: [string, any][] = [["app_settings", setRes], ["stock_warehouses", whRes], ["stock_warehouse_keys", keyRes],
+          ["stock_parcel_routes", rtRes], ["stock_sigma_rules", ruRes]];
+        for (const [what, r] of named) if (r.error) return svFail(what, r.error);
+        return json(SV2.shapeConfig({
+          settings: setRes.data?.value ?? {}, warehouses: whRes.data || [], keys: keyRes.data || [],
+          routes: rtRes.data || [], rules: ruRes.data || [],
+        }, full));
+      };
+
+      if (svGet && svSub === "config") {
+        if (!SV2.stockCan(svCaller, "read")) return svDeny("read");
+        return await svConfig(SV2.stockCan(svCaller, "configure"));
+      }
+
+      if (svGet && svSub === "articles") {
+        if (!SV2.stockCan(svCaller, "read")) return svDeny("read");
+        const p = SV2.parseArticlesQuery(url.searchParams);
+        if (!p.ok) return json({ error: p.error }, 400);
+        let aq = adminClient.from("stock_articles").select("code, name, unit, brand, active").order("code", { ascending: true }).limit(p.value.limit);
+        if (p.value.active !== null) aq = aq.eq("active", p.value.active);
+        // cleanSearch() already removed , ( ) % _ \ ' " * — nothing can break out of the .or() filter
+        if (p.value.q) aq = aq.or(`code.ilike.${p.value.q}%,name.ilike.%${p.value.q}%`);
+        const st = await svSettings();
+        const [artRes, ohRes]: any[] = await Promise.all([
+          aq,
+          adminClient.rpc("stock_v2_on_hand", {
+            p_at: new Date().toISOString(), p_warehouse: p.value.warehouse, p_preview: SV2.resolvePreview(p.value.preview, st.enabled),
+          }),
+        ]);
+        if (artRes.error) return svFail("stock_articles", artRes.error);
+        if (ohRes.error) return svFail("stock_v2_on_hand", ohRes.error);
+        const rows = (artRes.data || []) as SV2.ArticleRowIn[];
+        let costs: Map<string, number> | null = null;
+        if (svOwner && rows.length) {
+          const { data: cr, error: cErr } = await adminClient.from("stock_article_costs")
+            .select("article_code, cost_mkd, valid_from, source, recorded_at").in("article_code", rows.map((a) => a.code));
+          if (cErr) return svFail("stock_article_costs", cErr);
+          costs = SV2.pickArticleCosts((cr || []) as SV2.CostRow[], Date.now());
+        }
+        return svOut(SV2.shapeArticleRows(rows, SV2.onHandMap(ohRes.data), costs));
+      }
+
+      if (svGet && svSub === "sigma/status") {
+        if (!SV2.stockCan(svCaller, "read")) return svDeny("read");
+        const head = (t: string) => adminClient.from(t).select("doc_key", { count: "exact", head: true });
+        const BATCH_COLS = "batch_id, source, mode, exported_at, window_from, window_to, counts, result, received_at";
+        const batchesQ = () => adminClient.from("stock_sigma_batches").select(BATCH_COLS).order("received_at", { ascending: false });
+        const [regimeRows, bRes, bConn, bCsv, stRes, exRes, vaRes, veRes, drRes]: any[] = await Promise.all([
+          stockRegimeRows(adminClient),
+          batchesQ().limit(20),
+          batchesQ().eq("source", "connector").limit(1),
+          batchesQ().eq("source", "csv").limit(1),
+          head("stock_sigma_docs").is("vanished_at", null).is("excluded_reason", null),
+          head("stock_sigma_docs").not("excluded_reason", "is", null),
+          head("stock_sigma_docs").not("vanished_at", "is", null),
+          head("stock_sigma_docs").gt("versions", 1),
+          head("stock_sigma_drafts"),
+        ]);
+        for (const r of [bRes, bConn, bCsv, stRes, exRes, vaRes, veRes, drRes]) if (r.error) return svFail("stock_sigma_*", r.error);
+        // the newest 20, plus the newest of each source when it is older than those
+        const seenBatch = new Set<string>();
+        const batches = [...(bRes.data || []), ...(bConn.data || []), ...(bCsv.data || [])]
+          .filter((b: any) => (seenBatch.has(b.batch_id) ? false : (seenBatch.add(b.batch_id), true)));
+        return svOut(SV2.shapeSigmaStatus({
+          settings: SV2.readStockV2Settings(regimeRows),
+          configured: !!Deno.env.get("SIGMA_CONNECTOR_SECRET"),
+          batches,
+          docs: {
+            staged: stRes.count ?? 0, excluded: exRes.count ?? 0, vanished: vaRes.count ?? 0,
+            versions_gt1: veRes.count ?? 0, drafts: drRes.count ?? 0,
+          },
+        }));
+      }
+
+      if (svGet && svSub === "sigma/month-check") {
+        if (!SV2.stockCan(svCaller, "read")) return svDeny("read");
+        const p = SV2.parseMonthQuery(url.searchParams, svToday);
+        if (!p.ok) return json({ error: p.error }, 400);
+        const r = await svRpc("stock_v2_sigma_month_check", { p_month: p.value });
+        return r.res ?? svOut(r.data);
+      }
+
+      // ── counts ─────────────────────────────────────────────────────
+      // GET stock/v2/counts?warehouse&limit → StockCountHistoryRow[] (stock_v2_counts, …0510), newest
+      // first; value_diff_mkd for owners only (the SQL computes it only with p_money).
+      if (svGet && svSub === "counts") {
+        if (!SV2.stockCan(svCaller, "read")) return svDeny("read");
+        const p = SV2.parseCountsQuery(url.searchParams);
+        if (!p.ok) return json({ error: p.error }, 400);
+        const r = await svRpc("stock_v2_counts", { p_warehouse: p.value.warehouse, p_limit: p.value.limit, p_money: svOwner });
+        return r.res ?? svOut(SV2.shapeCountHistory(r.data, svOwner));
+      }
+
+      if (req.method === "POST" && svSub === "count") {
+        if (!SV2.stockCan(svCaller, "count")) return svDeny("count");
+        const b = await svBody();
+        if (b.res) return b.res;
+        const p = SV2.parseCountRequest(b.body, Date.now());
+        if (!p.ok) return json({ error: p.error }, 400);
+        const v = p.value;
+        const { data, error } = await adminClient.rpc("stock_v2_count_save", {
+          p_warehouse: v.warehouse, p_counted_at: v.counted_at, p_kind: v.kind, p_lines: v.lines, p_source: v.source,
+          p_source_ref: v.source_ref, p_packed_counted: v.packed_counted, p_note: v.note, p_actor: user.id,
+          p_is_owner: svOwner, p_dry: v.dry,
+        });
+        if (error) return svFail("stock_v2_count_save", error);
+        // warnings and refusals as the codes the Попис tab translates ("unknown_article:000123, …")
+        const refused = SV2.countRefusal(data);
+        if (refused) return json(refused.body, refused.status);
+        return svOut(SV2.shapeCountResult(data));
+      }
+
+      const svCountAct = req.method === "POST" ? svSub.match(/^count\/([^/]+)\/(void|approve)$/) : null;
+      if (svCountAct) {
+        const countId = svCountAct[1].toLowerCase();
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(countId)) return json({ error: "bad_count_id" }, 400);
+        if (svCountAct[2] === "approve") {
+          if (!SV2.stockCan(svCaller, "approve")) return svDeny("approve");
+          const r = await svRpc("stock_v2_count_approve", { p_count: countId, p_actor: user.id });
+          return r.res ?? svOut(r.data ?? { ok: true });
+        }
+        if (!SV2.stockCan(svCaller, "count")) return svDeny("count");
+        const b = await svBody();
+        if (b.res) return b.res;
+        const reason = SV2.parseReasonBody(b.body);
+        if (!reason.ok) return json({ error: reason.error }, 400);
+        const { data: cnt, error: cErr } = await adminClient.from("stock_wh_counts").select("id, status").eq("id", countId).maybeSingle();
+        if (cErr) return svFail("stock_wh_counts", cErr);
+        if (!cnt) return json({ error: "not_found" }, 404);
+        if (cnt.status === "void") return json({ error: "already_void" }, 409);
+        if (!SV2.canVoidCount(svCaller, cnt.status)) return svDeny("approve");
+        const r = await svRpc("stock_v2_count_void", { p_count: countId, p_reason: reason.value, p_actor: user.id });
+        return r.res ?? svOut(r.data ?? { ok: true });
+      }
+
+      // ── owners only: moves, overrides, configuration, the switch, a run, costs, aliases ──
+      if (req.method === "POST" && svSub === "move") {
+        if (!SV2.stockCan(svCaller, "move")) return svDeny("move");
+        const b = await svBody();
+        if (b.res) return b.res;
+        const p = SV2.parseManualMoveRequest(b.body, Date.now());
+        if (!p.ok) return json({ error: p.error }, 400);
+        const v = p.value;
+        const r = await svRpc("stock_v2_manual_move", {
+          p_kind: v.kind, p_from: v.from, p_to: v.to, p_event_at: v.event_at, p_lines: v.lines,
+          p_doc_ref: v.doc_ref, p_note: v.note, p_actor: user.id, p_dry: v.dry,
+        });
+        return r.res ?? svOut(r.data);
+      }
+
+      if (req.method === "POST" && svSub === "parcel-override") {
+        if (!SV2.stockCan(svCaller, "override")) return svDeny("override");
+        const b = await svBody();
+        if (b.res) return b.res;
+        const p = SV2.parseParcelOverride(b.body);
+        if (!p.ok) return json({ error: p.error }, 400);
+        const r = await svRpc("stock_v2_parcel_override", {
+          p_tracking: p.value.tracking_id, p_action: p.value.action, p_payload: p.value.payload, p_note: p.value.note, p_actor: user.id,
+        });
+        return r.res ?? svOut(r.data ?? { ok: true });
+      }
+
+      if (req.method === "PUT" && svSub === "config") {
+        if (!SV2.stockCan(svCaller, "configure")) return svDeny("configure");
+        const b = await svBody();
+        if (b.res) return b.res;
+        const p = SV2.parseConfigPatch(b.body);
+        if (!p.ok) return json({ error: p.error }, 400);
+        if (p.value.settings) {
+          // the switch keeps its value here — it moves only through POST stock/v2/switch
+          invalidateStockRegime();
+          const st = await svSettings();
+          const r = await svRpc("stock_v2_set", { p_enabled: st.enabled, p_patch: p.value.settings, p_actor: user.id });
+          if (r.res) return r.res;
+        }
+        if (p.value.config) {
+          const r = await svRpc("stock_v2_config_set", { p_patch: p.value.config, p_actor: user.id });
+          if (r.res) return r.res;
+        }
+        invalidateStockRegime();
+        return await svConfig(true);
+      }
+
+      if (req.method === "POST" && svSub === "switch") {
+        if (!SV2.stockCan(svCaller, "switch")) return svDeny("switch");
+        const b = await svBody();
+        if (b.res) return b.res;
+        const p = SV2.parseSwitchBody(b.body);
+        if (!p.ok) return json({ error: p.error }, 400);
+        const r = await svRpc("stock_v2_set", { p_enabled: p.value, p_patch: {}, p_actor: user.id });
+        invalidateStockRegime();
+        if (r.res) return r.res;
+        // Switched on: the first run catches up every parcel since the opening, then the mirror.
+        let run: unknown = null;
+        let mirror: unknown = null;
+        if (p.value) {
+          const a = await svRpc("stock_v2_apply", { p_trigger: "switch_on", p_dry: false });
+          run = a.res ? { status: "error", http: a.res.status } : a.data;
+          mirror = await svMirror();
+        }
+        return svOut({ ok: true, enabled: p.value, settings: r.data, run, mirror });
+      }
+
+      if (req.method === "POST" && svSub === "run") {
+        if (!SV2.stockCan(svCaller, "run")) return svDeny("run");
+        if (!checkUserRateLimit(user.id, "stock.v2.run", 6)) return json({ error: "rate_limited" }, 429);
+        const b = await svBody();
+        if (b.res) return b.res;
+        const p = SV2.parseRunBody(b.body);
+        if (!p.ok) return json({ error: p.error }, 400);
+        const r = await svRpc("stock_v2_apply", { p_trigger: "api", p_dry: p.value });
+        if (r.res) return r.res;
+        const mirror = p.value ? null : await svMirror();
+        const base = r.data && typeof r.data === "object" && !Array.isArray(r.data) ? r.data : { result: r.data };
+        return svOut({ ...base, mirror });
+      }
+
+      if (req.method === "POST" && svSub === "article-cost") {
+        if (!SV2.stockCan(svCaller, "costs")) return svDeny("costs");
+        const b = await svBody();
+        if (b.res) return b.res;
+        const p = SV2.parseArticleCostBody(b.body, Date.now());
+        if (!p.ok) return json({ error: p.error }, 400);
+        // stock_article_cost_set() runs product_costs_rebuild() itself, in the same transaction (…0600),
+        // so the profit's cost history already follows — its result carries `rebuild`.
+        const r = await svRpc("stock_article_cost_set", {
+          p_article: p.value.code, p_cost_mkd: p.value.cost_mkd, p_valid_from: p.value.valid_from, p_note: p.value.note, p_actor: user.id,
+        });
+        return r.res ?? svOut(r.data ?? { ok: true });
+      }
+
+      if (req.method === "POST" && svSub === "alias") {
+        if (!SV2.stockCan(svCaller, "mappings")) return svDeny("mappings");
+        const b = await svBody();
+        if (b.res) return b.res;
+        const p = SV2.parseAliasBody(b.body);
+        if (!p.ok) return json({ error: p.error }, 400);
+        const r = await svRpc("stock_article_alias_set", {
+          p_source: p.value.source, p_key: p.value.key, p_lines: p.value.lines, p_approve: p.value.approve, p_actor: user.id,
+        });
+        return r.res ?? svOut(r.data ?? { ok: true });
+      }
+
+      return json({ error: "not_found" }, 404);
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // STOCK v1 — the physical count (попис) and MEX-driven stock movements
+    // (migration 20260942000100; the pure half is stockLedger.ts). Retired by
+    // Stock v2: the writes answer 410, the health card stays until the v2 UI.
     //   GET  /api/stock/health          owners · admin / manager · warehouse — no money in it
-    //   POST /api/stock/count           owners · admin · warehouse — {lines, note?, dry?}:
-    //                                   dry → the preview, else ONE count event (audited)
-    //   POST /api/stock/mex-movements   OWNERS only — {enabled, free_units?} (audited);
-    //                                   switching on runs the MEX stock ledger at once
+    //   POST /api/stock/count           410 → stock/v2/count
+    //   POST /api/stock/mex-movements   410 → stock/v2/switch
     // ══════════════════════════════════════════════════════════════
     if (segments[0] === "stock") {
-      const stOwner = await isBusinessOwner(user.id);
-      const stActorName = async (): Promise<string | null> => {
-        const { data: prof } = await adminClient.from("profiles").select("full_name").eq("user_id", user.id).maybeSingle();
-        return prof?.full_name || user.email || null;
-      };
-      const stRpcError = (fn: string, error: any) =>
-        error?.code === "PGRST202"
-          ? json({ error: "stock_not_installed" }, 503)
-          : json({ error: `${fn}: ${sanitizeDbError(error)}` }, 500);
+      if (req.method === "POST" && path === "stock/count") return json({ error: "gone", use: "stock/v2/count" }, 410);
+      if (req.method === "POST" && path === "stock/mex-movements") return json({ error: "gone", use: "stock/v2/switch" }, 410);
 
       if (req.method === "GET" && path === "stock/health") {
+        const stOwner = await isBusinessOwner(user.id);
         if (!SL.stockHealthAccess(stOwner, isAdminOrManager, isWarehouse)) return json({ error: "Forbidden" }, 403);
         const { data, error } = await adminClient.rpc("stock_health", { p_detail: url.searchParams.get("detail") !== "0" });
-        if (error) return stRpcError("stock_health", error);
-        return json({ ...((data ?? {}) as Record<string, unknown>), can_count: SL.stockCountAccess(stOwner, isAdmin, isWarehouse), can_switch: stOwner });
-      }
-
-      if (req.method === "POST" && path === "stock/count") {
-        if (!SL.stockCountAccess(stOwner, isAdmin, isWarehouse)) return json({ error: "Forbidden" }, 403);
-        let raw: unknown;
-        try { raw = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
-        const p = SL.parseCountBody(raw);
-        if (!p.ok) return json({ error: p.error }, 400);
-        const { data, error } = await adminClient.rpc("stock_count_apply", {
-          p_lines: p.value.lines, p_actor: user.id, p_actor_name: await stActorName(),
-          p_note: p.value.note, p_dry: p.value.dry,
-        });
-        if (error) return stRpcError("stock_count_apply", error);
-        const res = (data ?? {}) as Record<string, any>;
-        if (!res.ok) return json({ error: res.error || "failed" }, SL.countErrorStatus(String(res.error || "")));
-        if (!p.value.dry) {
-          await audit(adminClient, user.id, user.email, "stock.count", {
-            target_type: "stock_counts", target_id: res.count_id ?? null, target_name: `${res.products} products`,
-            payload: {
-              products: res.products, changed: res.changed, units_before: res.units_before, units_after: res.units_after,
-              up: res.up, down: res.down, not_counted: res.not_counted, anchored: res.anchored, from: res.from, note: p.value.note,
-            },
-          });
+        if (error) {
+          return error?.code === "PGRST202"
+            ? json({ error: "stock_not_installed" }, 503)
+            : json({ error: `stock_health: ${sanitizeDbError(error)}` }, 500);
         }
-        return json(res);
-      }
-
-      if (req.method === "POST" && path === "stock/mex-movements") {
-        if (!stOwner) return json({ error: "owners_only" }, 403);
-        let raw: unknown;
-        try { raw = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
-        const p = SL.parseMexSwitchBody(raw);
-        if (!p.ok) return json({ error: p.error }, 400);
-        const { data, error } = await adminClient.rpc("stock_mex_set", {
-          p_enabled: p.value.enabled, p_free_units: p.value.free_units, p_actor: user.id, p_actor_name: await stActorName(),
-        });
-        if (error) return stRpcError("stock_mex_set", error);
-        const res = (data ?? {}) as Record<string, any>;
-        if (!res.ok) return json({ error: res.error || "failed" }, SL.countErrorStatus(String(res.error || "")));
-        // Switched on: the first run catches up every parcel since the count.
-        let run: unknown = null;
-        if (p.value.enabled) {
-          const { data: r, error: rErr } = await adminClient.rpc("stock_mex_apply", { p_trigger: "switch_on" });
-          run = rErr ? { ok: false, error: sanitizeDbError(rErr) } : r;
-        }
-        await audit(adminClient, user.id, user.email, "stock.mex_movements", {
-          target_type: "app_settings", target_id: "stock_mex_movements", target_name: p.value.enabled ? "on" : "off",
-          payload: { before: res.before, after: res.after, run },
-        });
-        return json({ ok: true, settings: res.after, run });
+        // the v1 writes are retired — the old card no longer offers counting or the switch
+        return json({ ...((data ?? {}) as Record<string, unknown>), can_count: false, can_switch: false, retired: "stock_v2" });
       }
 
       return json({ error: "Not found" }, 404);
@@ -18905,6 +19208,26 @@ async function handleRequest(req: Request): Promise<Response> {
     }
 
     // ══════════════════════════════════════════════════════════════
+    // GET /api/shops/day · period · stock-matrix · deliveries · health · :code — Продавници
+    // (owner 02.10.2026, docs/SHOPS.md; JSON = src/lib/shopsTypes.ts; SQL 20260946000200)
+    //   owner (is_business_owner)        → everything
+    //   manager / non-owner admin        → the same payload, every *_mkd key ABSENT (p_money false
+    //                                      in SQL + shops.ts stripShopsMoney)
+    //   everyone else                    → 403
+    // ══════════════════════════════════════════════════════════════
+    if (req.method === "GET" && segments[0] === "shops") {
+      const shAccess = SHOPS.shopsAccess(await isBusinessOwner(user.id), isAdminOrManager);
+      if (shAccess === "forbidden") return json({ error: "Forbidden" }, 403);
+      const shRoute = SHOPS.parseShopsRoute(path, url.searchParams);
+      if (!shRoute.ok) return json({ error: shRoute.error }, shRoute.status);
+      const shCall = SHOPS.shopsRpc(shRoute.route, shAccess === "owner");
+      const { data: shData, error: shErr } = await adminClient.rpc(shCall.fn, shCall.args);
+      if (shErr) return json({ error: `${shCall.fn}: ${sanitizeDbError(shErr)}` }, 500);
+      if (shData == null) return json({ error: "Not found" }, 404);
+      return json(SHOPS.buildShopsResponse(shData, shAccess));
+    }
+
+    // ══════════════════════════════════════════════════════════════
     // GET /api/insights/cohort?from=YYYY-MM-DD&to=YYYY-MM-DD&compare=1
     //                         &source=altercpa,elyon_crm,teleshop_other,social,web
     // The sale cohort every /insights tab counts from (owner rules
@@ -19046,13 +19369,18 @@ async function handleRequest(req: Request): Promise<Response> {
         adminClient.from("profiles").select("user_id,full_name").range(0, 9999),
         adminClient.from("user_roles").select("user_id, role")
           .in("role", ["agent", "pending_agent", "prediction_agent", "admin", "manager"]).range(0, 9999),
+        // the newest Sigma cost rows — the snapshot day they name is the cost label's date (meta.cost.as_of)
+        adminClient.from("stock_article_costs").select("source_ref, valid_from")
+          .in("source", ["sigma_calcbuyprice", "sigma_last_buyprice"]).order("recorded_at", { ascending: false }).limit(200),
       ]);
       try {
         pfClocks = await IPF.loadProfitClocks(pfWin, pfDeps);
       } catch (e) {
         return json({ error: e instanceof Error ? e.message : "insights_profit failed" }, 500);
       }
-      const [pfPco, pfPca, pfRates, pfProfiles, pfRoles] = await pfRest;
+      const [pfPco, pfPca, pfRates, pfProfiles, pfRoles, pfCostRefs] = await pfRest;
+      // the label falls back to SIGMA_COST_AS_OF when the rows say no day (or the table is not there)
+      if (pfCostRefs.error) console.error("stock_article_costs (as_of):", pfCostRefs.error.code);
       if (pfProfiles.error || pfRoles.error) return json({ error: "profit: agent list unavailable" }, 500);
       // The comparison is additive: a failed previous-period scan shows no delta, never a wrong one.
       if (pfPco.error) console.error("insights_profit (prev):", pfPco.error.message);
@@ -19069,6 +19397,7 @@ async function handleRequest(req: Request): Promise<Response> {
           defaultVatRate: VT.DEFAULT_VAT_RATE,
           ...IPF.mexRate(pfRates.rates, pfRates.fallback),
           agentNames: IPF.commissionAgentNames(pfProfiles.data ?? [], pfRoles.data ?? []),
+          costAsOf: pfCostRefs.error ? null : IPF.sigmaCostAsOf(pfCostRefs.data ?? []),
         },
         new Date(),
         pfClocks.cache,

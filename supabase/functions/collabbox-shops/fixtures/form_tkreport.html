@@ -1,0 +1,181 @@
+<FORM METHOD="POST" Action="./Index?comp=tkreport&" name="searchform" id="searchform">
+<TABLE class="table">
+<tr>
+<td class = "tableheader" colspan = "2"> Извештај од трговска книга </td>
+</tr>
+<tr>
+<td> Фирма </td>
+<td>
+<SELECT NAME="cmbHolding" id="cmbHolding" class="selectInput" disabled>
+<option value="2" SELECTED>НАТУРА ТЕРАПИ STORES</option>
+</SELECT>
+</td>
+</tr>
+<tr>
+<td> Деловна единица </td>
+<td>
+<SELECT NAME="cmbDelEdinica" id="cmbDelEdinica" class="selectInput" disabled>
+<option value="-1">За сите деловни единици</option>
+<option value="2" SELECTED>01 Деловна единица 1</option>
+</SELECT>
+</td>
+</tr>
+<tr>
+<td> Магацин </td>
+<td>
+<SELECT NAME="cmbMagacin" id="cmbMagacin" class="selectInput">
+<option value="-1" SELECTED>Сите магацини</option>
+<option value="3">001 Централен магацин </option>
+<option value="5">002 Магацин за Call Centar</option>
+<option value="4">003 Продавница Карпош</option>
+<option value="6">004 Продавница Бисер</option>
+<option value="7">005 Продавница ГТЦ</option>
+<option value="8">006 Продавница Струмица</option>
+<option value="9">007 Продавница Битола</option>
+<option value="10">008 Продавница Тетово</option>
+<option value="11">009 Продавница Штип</option>
+<option value="12">010 Продавница Куманово</option>
+<option value="13">011 Продавница Прилеп</option>
+<option value="14">012 Продавница Кавадарци</option>
+<option value="15">013 Продавница Велес</option>
+<option value="16">014 Оштетена роба</option>
+<option value="17">015 Продавница Охрид</option>
+<option value="18">016 Продавница Струга</option>
+<option value="19">017 Продавница Гевгелија</option>
+<option value="37">020 Продавница Аеродром</option>
+<option value="38">021 Продавница Џон Кенеди</option>
+<option value="40">023 Продавница Кочани</option>
+<option value="41">024 Продавница Кичево</option>
+<option value="43">026 Продавница Ѓорче Петров</option>
+<option value="44">027 Продавница Драчево</option>
+<option value="45">028 Продавница Лимак</option>
+<option value="46">029 Продавница Сити Мол</option>
+</SELECT>
+</td>
+</tr>
+<tr>
+<td> Датум од </td>
+<td>
+<input type="text" name="dateFrom" id="dateFrom" class="textInput" value="01.10.2026" size="12" maxlength="10" autocomplete="off" onkeyup="validateDate(this);" onClick="javascript:return showCalendar(this.name,'dd.mm.y');"> (дд.мм.гггг) </td>
+</tr>
+<tr>
+<td> Датум до </td>
+<td>
+<input type="text" name="dateTo" id="dateTo" class="textInput" value="01.10.2026" size="12" maxlength="10" autocomplete="off" onkeyup="validateDate(this);" onClick="javascript:return showCalendar(this.name,'dd.mm.y');"> (дд.мм.гггг) </td>
+</tr>
+<tr>
+<td> Варијабилен период </td>
+<td>
+<SELECT NAME="interval" id="interval" class="selectInput">
+<option value="0">Избери варијабилен период</option>
+<option value="1">Тековен ден</option>
+<option value="6">Минатиот ден</option>
+<option value="23">Тековен ден -2</option>
+<option value="24">Тековен ден -3</option>
+<option value="25">Тековен ден -4</option>
+<option value="26">Тековен ден -5</option>
+<option value="27">Тековен ден -6</option>
+<option value="28">Тековен ден -7</option>
+<option value="2">Тековна недела</option>
+<option value="7">Минатата недела</option>
+<option value="29">Тековна недела -2</option>
+<option value="30">Тековна недела -3</option>
+<option value="31">Тековна недела -4</option>
+<option value="32">Тековна недела -5</option>
+<option value="3">Тековен месец</option>
+<option value="8">Минатиот месец</option>
+<option value="18">Тековен месец -1</option>
+<option value="19">Тековен месец -2</option>
+<option value="20">Тековен месец -3</option>
+<option value="33">Тековен месец -4</option>
+<option value="34">Тековен месец -5</option>
+<option value="4">Тековно тромесечие</option>
+<option value="9">Минатото тромесечие</option>
+<option value="11">Прво тромесечие</option>
+<option value="12">Второ тромесечие</option>
+<option value="13">Трето тромесечие</option>
+<option value="14">Четврто тромесечие</option>
+<option value="35">Тековно тромесечие -2</option>
+<option value="36">Тековно тромесечие -3</option>
+<option value="37">Тековно тромесечие -4</option>
+<option value="21">Тековно полугодие</option>
+<option value="22">Тековно полугодие -1</option>
+<option value="38">Тековно полугодие -2</option>
+<option value="39">Тековно полугодие -3</option>
+<option value="40">Тековно полугодие -4</option>
+<option value="41">Тековно полугодие -5</option>
+<option value="5">Тековна година</option>
+<option value="10">Минатата година</option>
+<option value="15">Тековна година -1</option>
+<option value="16">Тековна година -2</option>
+<option value="17">Тековна година -3</option>
+<option value="42">Тековна година -4</option>
+<option value="43">Тековна година -5</option>
+<option value="44">MTD</option>
+<option value="45">YTD</option>
+<option value="46">YTD -1</option>
+<option value="47">YTD -2</option>
+<option value="48">YTD -3</option>
+<option value="49">YTD -4</option>
+<option value="50">YTD -5</option>
+<option value="51">Последни 30 дена (од вчера)</option>
+<option value="52">MTD од вчера</option>
+<option value="53">YTD од вчера</option>
+<option value="54">Понеделник претходна недела</option>
+<option value="55">Недела претходна недела</option>
+</SELECT>
+</td>
+</tr>
+<tr>
+<td> Типови на плаќање </td>
+<td>
+<input type="checkbox" name="typePayment_Во готово" value="ON" id="typePayment_Во готово" checked> Во готово </td>
+</tr>
+<tr>
+<td>
+</td>
+<td>
+<input type="checkbox" name="typePayment_Со картичка (DINERS)" value="ON" id="typePayment_Со картичка (DINERS)" checked> Со картичка (DINERS) </td>
+</tr>
+<tr>
+<td>
+</td>
+<td>
+<input type="checkbox" name="typePayment_Со картичка (MASTERCARD)" value="ON" id="typePayment_Со картичка (MASTERCARD)" checked> Со картичка (MASTERCARD) </td>
+</tr>
+<tr>
+<td>
+</td>
+<td>
+<input type="checkbox" name="typePayment_Со картичка (VISA)" value="ON" id="typePayment_Со картичка (VISA)" checked> Со картичка (VISA) </td>
+</tr>
+<tr>
+<td>
+</td>
+<td>
+<input type="checkbox" name="typePayment_Со картичка" value="ON" id="typePayment_Со картичка" checked> Со картичка </td>
+</tr>
+<tr>
+<td> Суми по магацини </td>
+<td>
+<input type="checkbox" name="sum_by_warehouse" value="ON" id="sum_by_warehouse">
+<label FOR="sum_by_warehouse"> прикажи суми по магацини</label>
+</td>
+</tr>
+<tr>
+<td> Сортирање </td>
+<td>
+<SELECT NAME="cmbSort" id="cmbSort" class="selectInput">
+<option value="0">Тип на плаќање</option>
+<option value="1">Датум</option>
+<option value="2">Датум - Даночна група</option>
+<option value="3">Даночна група - Датум</option>
+</SELECT>
+</td>
+</tr>
+<tr>
+<td colspan = "2">
+</td>
+</tr>
+</table>
+</FORM>

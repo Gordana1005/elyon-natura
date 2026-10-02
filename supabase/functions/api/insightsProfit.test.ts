@@ -5,6 +5,7 @@ import {
   PROFIT_PRODUCTS_MAX, PROFIT_SOURCES,
   coalesceRanges, loadProfitClocks, mergeProfitRpcs, PROFIT_CACHE_MIN_DAYS, profitPieces, refreshMonths, webmasterNames,
   DEFAULT_VAT_RATE, vatOf, vatPerLine, vatUnclassifiedOf, buildQuality,
+  SIGMA_COST_AS_OF, sigmaCostAsOf, sigmaCostRowDay,
 } from "./insightsProfit.ts";
 import type { AggRow, CommRow, ProductRpcRow, ProfitCacheRow, ProfitRpc, ProfitSettings } from "./insightsProfit.ts";
 import type { InsightsWindow } from "./insightsCommon.ts";
@@ -662,5 +663,133 @@ describe("the monthly cache: loading", () => {
     }, NOW);
     expect(n).toBe(2);
     expect(out.cache).toBeNull();
+  });
+});
+
+describe("Sigma purchase costs + extra packed goods (owner 01.10.2026, migration 20260945000800)", () => {
+  // A Sigma-mode body: per-product costed packages / revenue (pc / rc), Phase B's extra (cx)
+  const SIGMA: ProfitRpc = {
+    ...COHORT,
+    cost_mode: "sigma",
+    extra_goods: true,
+    agg: [
+      // AlterCPA: all costed; 2 parcels held a gift worth 120 ден more than their lines (cx), one MEX-only
+      // parcel with known contents (xr 1.000 revenue, its packed goods 90 ден = cxm), one recipe heavier
+      // than what was packed (cxn −30)
+      agg("collected", "s", "altercpa", { n: 10, rev: 30000, pw: 10, rc: 31000, ru: 0, cm: 3000, pc: 30, lb: 30,
+        cx: 180, cxm: 90, cxn: -30, xr: 1000, xn: 4, ...vat({ v05: 31000, rc: 31000 }) }),
+      agg("collected", "s", "teleshop_other", { n: 5, rev: 10000, pw: 5, rc: 6000, ru: 4000, cm: 600, pc: 6, pu: 4, lb: 0, ...vat({ v05: 10000, rc: 6000 }) }),
+    ],
+    products: [
+      // costed on every sale day
+      { s: "altercpa", g: "collected", k: "p:a", name: "Adenofrin", kind: "product", reviewed: false, pkg: true, cost_eur: 100 / 61.5, cost_mkd: 100,
+        n: 10, qty: 30, pkgs: 30, fr: 0, rev: 30000, cm: 3000, sh: 10, lb: 30, vt: 30000 * S5, vr: 0.05, vd: false, pc: 30, rc: 30000, cx: 90, xr: 0 },
+      // the recipe was approved mid-window: 6 of 10 packages costed
+      { s: "teleshop_other", g: "collected", k: "p:z", name: "Zinc", kind: "product", reviewed: false, pkg: true, cost_eur: 100 / 61.5, cost_mkd: 100,
+        n: 5, qty: 10, pkgs: 10, fr: 0, rev: 10000, cm: 600, sh: 5, lb: 0, vt: 10000 * S5, vr: 0.05, vd: false, pc: 6, rc: 6000, cx: 0, xr: 0 },
+      // MEX-only, contents known for one parcel (xr), unknown for the rest
+      { s: "altercpa", g: "collected", k: "__mex_only__", name: null, kind: "unknown", reviewed: false, pkg: false, cost_eur: null, cost_mkd: null,
+        n: 2, qty: 0, pkgs: 0, fr: 0, rev: 1500, cm: 0, sh: 2, lb: 0, vt: 1500 * S5, vr: 0.05, vd: true, pc: 0, rc: 1000, cx: 90, xr: 1000 },
+    ],
+  };
+
+  it("the extra packed goods are a cost of the costed basis; the ratio includes them", () => {
+    const m = { n: 10, rev: 30000, card: 0, pw: 10, rc: 30000, ru: 0, rn: 0, cm: 3000, pc: 30, pu: 0, fr: 0, lb: 0,
+      v00: 0, v05: 30000, v10: 0, v18: 0, vt: 30000 * S5, vc: 30000 * S5, vu: 0, cx: 180, cxm: 90, cxn: -30, xr: 1000, xn: 4 };
+    const r = plRow({ key: "x", m, perLine: true, commissionEur: 0, returnedParcels: 0, returnedSales: 0, returnedValue: 0, costRatio: null }, SETTINGS);
+    expect(r.cogs_extra_mkd).toBe(180);
+    expect(r.cogs_extra_detail).toEqual({ mex_only_mkd: 90, mex_only_revenue_mkd: 1000, negative_mkd: -30, sales: 4 });
+    const net = 30000 - 30000 * S5 - 3000 - 180 - 1500;
+    expect(r.net_mkd).toBe(Math.round(net));
+    expect(r.costed.net_mkd).toBe(Math.round(30000 - 30000 * S5 - 3000 - 180 - 1500));
+    // Phase B off / an older caller: no measure = 0
+    const { cx: _cx, cxm: _cxm, cxn: _cxn, xr: _xr, xn: _xn, ...old } = m;
+    const o = plRow({ key: "x", m: old as typeof m, perLine: true, commissionEur: 0, returnedParcels: 0, returnedSales: 0, returnedValue: 0, costRatio: null }, SETTINGS);
+    expect(o.cogs_extra_mkd).toBe(0);
+    expect(o.net_mkd).toBe(Math.round(net + 180));
+    expect(costRatioOf(SIGMA.agg)).toBeCloseTo((3000 + 180 + 600) / (31000 + 6000), 12);
+  });
+
+  it("a product is costed per package: a partial recipe estimates only its uncosted part", () => {
+    const ratio = costRatioOf(SIGMA.agg)!;
+    const { rows } = productRows(SIGMA, SETTINGS, ratio);
+    const a = rows.find((p) => p.key === "p:a")!;
+    expect(a).toMatchObject({ cost_known: true, cost_partial: false, unit_cost_mkd: 100, packages_costed: 30, cogs_mkd: 3000, cogs_est_mkd: null, cogs_extra_mkd: 90 });
+    const z = rows.find((p) => p.key === "p:z")!;
+    expect(z).toMatchObject({ cost_known: false, cost_partial: true, unit_cost_mkd: 100, packages_costed: 6, cogs_mkd: 600 });
+    expect(z.cogs_est_mkd).toBe(Math.round(4000 * ratio));
+    // the MEX-only row: the part whose contents are known is no longer estimated
+    const mex = rows.find((p) => p.key === "__mex_only__")!;
+    expect(mex.cogs_est_mkd).toBe(Math.round(500 * ratio));
+    expect(mex.cogs_extra_mkd).toBe(90);
+    // net = revenue − VAT − known − extra − estimate − courier − commission
+    expect(a.net_mkd).toBe(Math.round(30000 - 30000 * S5 - 3000 - 90 - 10 * 150 - a.commission_mkd));
+  });
+
+  it("an older body (no pc / rc) keeps the catalogue rule: cost_eur decides the whole product", () => {
+    const { rows } = productRows(COHORT, SETTINGS, 0.2);
+    expect(rows.find((p) => p.key === "p:a")).toMatchObject({ cost_known: true, cost_partial: false, unit_cost_mkd: Math.round(2.93 * 61.5), packages_costed: 38, cogs_extra_mkd: 0 });
+    expect(rows.find((p) => p.key === "n:zinc")).toMatchObject({ cost_known: false, cost_partial: false, unit_cost_mkd: null, packages_costed: 0 });
+  });
+
+  it("meta.cost says where the cost came from; the rail names the missing recipes or the legacy costs", () => {
+    const sigma = buildProfitResponse({ cohort: SIGMA, cash: { ...CASH, cost_mode: "sigma", extra_goods: true } }, WEEK, SETTINGS, NOW);
+    expect((sigma.meta as { cost: unknown }).cost).toMatchObject({
+      source: "sigma", basis: "sigma_calcbuyprice", as_of: "2026-09-29", extra_goods: true, partial_products: 1,
+    });
+    const kinds = (sigma.quality as { kind: string; value_mkd?: number }[]);
+    expect(kinds.map((q) => q.kind)).toContain("recipe_missing");
+    expect(kinds.map((q) => q.kind)).not.toContain("cost_legacy");
+    expect(kinds.find((q) => q.kind === "extra_goods_negative")).toMatchObject({ value_mkd: -30 });
+    const legacy = buildProfitResponse({ cohort: COHORT, cash: CASH }, WEEK, SETTINGS, NOW);
+    expect((legacy.meta as { cost: unknown }).cost).toMatchObject({ source: "legacy", basis: "catalogue_cost_price", as_of: null, extra_goods: false });
+    const lk = (legacy.quality as { kind: string }[]).map((q) => q.kind);
+    expect(lk).toContain("cost_legacy");
+    expect(lk).toContain("uncosted_packages");
+    expect(lk).not.toContain("recipe_missing");
+  });
+
+  it("meta.cost.as_of = the Sigma snapshot day the loaded costs name (stock_article_costs.source_ref)", () => {
+    // what the 01.10 load wrote: 1.273 CalcBuyPrice rows of the 30.09 StockObject + 89 last-buy-price rows with no date
+    const rows = [
+      ...Array.from({ length: 5 }, () => ({ source_ref: "Ф00001-04 StockObject 2026-09-30", valid_from: "-infinity" })),
+      { source_ref: "Ф00001-01/02/09 StockObject 2026-09-30", valid_from: "-infinity" },
+      { source_ref: "Ф00001-04 2026 sales lines, median of 12", valid_from: "-infinity" },
+      { source_ref: null, valid_from: "-infinity" },
+      { source_ref: "Sigma StockObject 2026-09-29", valid_from: "-infinity" },
+    ];
+    expect(sigmaCostAsOf(rows)).toBe("2026-09-30");
+    expect(sigmaCostRowDay({ source_ref: "LagerLista 29.09.2026 15:26" })).toBe("2026-09-29");
+    // no date in the ref → the row's valid_from, on the Skopje calendar
+    expect(sigmaCostRowDay({ source_ref: "bulk", valid_from: "2026-10-14T22:30:00+00:00" })).toBe("2026-10-15");
+    expect(sigmaCostRowDay({ source_ref: "bulk", valid_from: "-infinity" })).toBeNull();
+    // a tie → the later day; nothing named → null (the label keeps SIGMA_COST_AS_OF)
+    expect(sigmaCostAsOf([{ source_ref: "x 2026-09-29" }, { source_ref: "x 2026-09-30" }])).toBe("2026-09-30");
+    expect(sigmaCostAsOf([{ source_ref: "owner" }])).toBeNull();
+    expect(sigmaCostAsOf(null)).toBeNull();
+    const meta = (asOf: string | null | undefined) => (buildProfitResponse(
+      { cohort: SIGMA, cash: { ...CASH, cost_mode: "sigma", extra_goods: true } }, WEEK, { ...SETTINGS, costAsOf: asOf }, NOW,
+    ).meta as { cost: { as_of: string | null } }).cost.as_of;
+    expect(meta("2026-09-30")).toBe("2026-09-30");
+    expect(meta(null)).toBe(SIGMA_COST_AS_OF);
+    expect(meta("30.09.2026")).toBe(SIGMA_COST_AS_OF);   // only a YYYY-MM-DD day is taken
+    // legacy costs carry no Sigma date whatever the rows say
+    expect((buildProfitResponse({ cohort: COHORT, cash: CASH }, WEEK, { ...SETTINGS, costAsOf: "2026-09-30" }, NOW).meta as { cost: { as_of: unknown } }).cost.as_of).toBeNull();
+  });
+
+  it("the monthly merge sums the cost keys, keeps the highest unit cost and one cost mode", () => {
+    const a = { ...SIGMA, products: SIGMA.products!.slice(0, 1) };
+    const b = { ...SIGMA, products: [{ ...SIGMA.products![0], cost_mkd: 120, pc: 10, rc: 10000, cm: 1200, cx: 10 }] };
+    const m = mergeProfitRpcs([a, b], "cohort", "month");
+    const p = m.products!.find((x) => x.k === "p:a")!;
+    expect(p).toMatchObject({ cost_mkd: 120, pc: 40, rc: 40000, cm: 4200, cx: 100 });
+    expect(m.cost_mode).toBe("sigma");
+    expect(m.extra_goods).toBe(true);
+    expect(m.agg!.find((x) => x.g === "collected" && x.key === "altercpa")).toMatchObject({ cx: 360, cxm: 180, cxn: -60, xr: 2000, xn: 8 });
+    // an older piece (no cost keys) never invents per-product cost keys; mixed modes say so
+    const old = mergeProfitRpcs([COHORT, COHORT], "cohort", "month");
+    expect(old.products!.find((x) => x.k === "p:a")!.pc).toBeUndefined();
+    expect(old.cost_mode).toBe("legacy");
+    expect(mergeProfitRpcs([COHORT, SIGMA], "cohort", "month").cost_mode).toBe("mixed");
   });
 });

@@ -1,6 +1,6 @@
 ---
 name: elyon-products-catalogue
-description: The product catalogue of the Macedonian Elyon CRM after "Производи 2.0" (30.09–01.10.2026) — every product's KIND (product / bundle / gift / other, products.kind, product_kind_by_name + product_kind_proposal, the TS twin in productsCatalog.ts) and BRAND LINE (natura_therapy / bio_natural / ad_astra / dr_becker, products.brand_line, product_brand_line_proposal, mex_profile_for_line — the line decides the MEX profile when the CRM itself ships), the owner's web-catalogue rule (naturatherapy.mk = Natura Therapy or Ad Astra, never Bio Natural), the two audited writers behind guard triggers (products_set_kind / products_set_brand_line) and the VAT rate per product (products.vat_rate from Sigma, products_set_vat_rate, owners only — docs/VAT.md), the machine-text cleanup and its backup table, the /products page (opens on active products of kind "product", chips, Предлог), and the scripts apply-brand-lines / map-web-catalogue / apply-product-kinds / clear-product-machine-text. Read before touching products.kind or brand_line, the /products page, the catalogue scripts, or the MEX account choice of a CRM push.
+description: The product catalogue of the Macedonian Elyon CRM after "Производи 2.0" (30.09–01.10.2026) and Stock v2 (01–02.10.2026) — each product's RECIPE (product_articles: which Sigma articles it is made of; only an APPROVED recipe moves stock and cost; the /products Рецепт drawer and "Набавна (Сигма)" column, owners only), every product's KIND (product / bundle / gift / other, products.kind, product_kind_by_name + product_kind_proposal, the TS twin in productsCatalog.ts) and BRAND LINE (natura_therapy / bio_natural / ad_astra / dr_becker, products.brand_line, product_brand_line_proposal, mex_profile_for_line — the line decides the MEX profile when the CRM itself ships), the owner's web-catalogue rule (naturatherapy.mk = Natura Therapy or Ad Astra, never Bio Natural), the two audited writers behind guard triggers (products_set_kind / products_set_brand_line) and the VAT rate per product (products.vat_rate from Sigma, products_set_vat_rate, owners only — docs/VAT.md), the machine-text cleanup and its backup table, the /products page (opens on active products of kind "product", chips, Предлог), and the scripts apply-brand-lines / map-web-catalogue / apply-product-kinds / clear-product-machine-text. Read before touching products.kind or brand_line, the /products page, the catalogue scripts, or the MEX account choice of a CRM push.
 ---
 
 # Products catalogue — kinds and brand lines (MACEDONIA)
@@ -15,7 +15,7 @@ Two owner rulings shaped the catalogue:
   ordinary PRODUCTS; the rest is categorised. The machine notes the 28.09 catalogue scripts wrote
   into descriptions "look unprofessional" — gone.
 
-Neither column is read by any report, order, money or stock path. The department of a sale stays
+Neither kind nor line is read by any report, order, money or stock path (the RECIPE is — §8). The department of a sale stays
 the collabBox folder + the MEX profile of its PARCEL (`elyon-departments-and-sources`) — a product
 line never decides a department.
 
@@ -121,9 +121,11 @@ rows whose description STARTS WITH the machine text are touched — a human note
   (tiles, accept one, accept all sure with a confirm, pick per row).
 - The product form (rebuilt 01.10): full screen on a phone, a dialog from sm; sections Основно ·
   Цени · Код · Залиха · Детали; only changed fields are sent; kind and line go through their audited
-  routes; a partial failure keeps the form open on the saved product. Managers see no cost.
-- Stock is deferred by the owner (sellable products carry the placeholder 1.000); the low-stock
-  threshold is edited in Магацин → Залихи (`elyon-warehouse-incoming`).
+  routes; a partial failure keeps the form open on the saved product. Managers see no cost; the form's cost
+  is "Набавна (Сигма)" — computed from the recipe, never typed (`products.cost_price` is a guarded mirror).
+- Stock is Stock v2 (`elyon-stock-v2`, in preview until the owner's count): sellable products keep the
+  placeholder 1.000 until the switch, then `products.stock_quantity` mirrors the ledger (guarded — the form
+  has no stock field). The low-stock threshold is edited in the product form.
 
 ## 6. Scripts (all dry run by default, Macedonia-pinned repair-kit guards)
 
@@ -151,11 +153,36 @@ choice is never overwritten), and touches no order, money or stock.
   evidence; pick 5 % / 18 % / 10 % / 0 % / Некласифицирано), a ДДВ filter row (`?vat=r5|r18|none`), "Постави ДДВ"
   for a selection. Pure half: `src/lib/products/vat.ts` (+ `vat.test.ts`); server: `supabase/functions/api/vatRates.ts`.
 
+## 8. Recipes and the Sigma purchase cost (Stock v2, owner 01.10.2026 — `docs/STOCK-V2.md`, `elyon-stock-v2`)
+
+- **`product_articles` = the recipe**: which Sigma ARTICLES (`stock_articles`, 6-digit Sigma codes or local `L…`)
+  one unit of the product is — a single product = its own article × 1, a bundle = its components, a gift packed with
+  it = role `gift` (a real cost). Lines carry `status` proposed / approved / rejected, `confidence` high / medium /
+  low, `valid_from` / `valid_to`. **Only an APPROVED recipe moves stock (a CRM-only or web parcel is resolved through
+  it) and gives the product a cost.** `product_stock_exempt` = products that carry no goods (delivery, ПОЕН, flyers):
+  never stock, cost 0.
+- **Loaded 02.10** by `scripts/stock/mapping-apply.mjs` from `docs/stock/build_sigma_stock.py`: recipes for 316
+  products — **154 approved** (confidence high) and **162 proposed for the owner's review** (135 medium, 27 low).
+- **Cost** = Σ qty × the article's Sigma `CalcBuyPrice` at that moment (`product_cost_at`, history in
+  `product_cost_history`; complete only when every line's article has a cost). `products.cost_price` (EUR) is a GUARDED
+  mirror = cost_mkd / 61,5 written only by `product_costs_rebuild()` (`tg_products_cost_guard`); the 69 old EUR values
+  are archived in `products_cost_legacy`. Denari, ex VAT — the exception to "store EUR".
+- **/products (owners only):** the column / card value **"Набавна (Сигма)"** (`cost_mkd` from
+  `stock_v2_product_overview()` via `GET /products/catalogue` — never the EUR mirror × 61,5), the **Рецепт** chips
+  (Со рецепт · Предлог · Без рецепт; "без роба" for an exempt product) and the **recipe drawer**
+  (`src/components/products/RecipeDrawer.tsx`: search Sigma articles, qty 0–100, role главен / состојка / подарок,
+  each line's cost, "Зачувај како предлог" · "Зачувај и одобри" · "Одобри го предлогот"). Routes `GET
+  products/:id/articles`, `POST products/articles`, `POST products/articles/approve`, `POST products/articles/exempt`
+  — owners, audited; after each write the api runs `product_costs_rebuild(actor, false)` (profit follows) and the
+  stock mirror. Managers and everyone else get no cost key and no recipe status.
+
 ## Never
 
 - Write `kind` / `brand_line` / `vat_*` (or their `_set_*` columns) with a plain UPDATE or PATCH — use the
   three functions; never disable the guard triggers.
 - Guess a VAT rate into a new product, or show the VAT columns to a non-owner.
+- Type a purchase cost into `products.cost_price` (the guard refuses it — set the recipe or the article's cost), show
+  a cost or a recipe status to a non-owner, or approve the proposed recipes in bulk without the owner.
 - Decide a sale's department from a product line, or a product line from a single BIO NATURAL parcel.
 - Tag a web-catalogue product Bio Natural.
 - Change the classifier in one twin only (SQL `product_kind_by_name` / TS `productsCatalog.ts`).
@@ -165,5 +192,5 @@ choice is never overwritten), and touches no order, money or stock.
 
 `elyon-fulfilment-csv` (the MEX push uses the line) · `elyon-warehouse-incoming` (Залихи) ·
 `elyon-departments-and-sources` (departments never follow a product) · `elyon-web-shop-bridge`
-(the shop is read-only) · `elyon-stock-and-bigarena` (stock, deferred) · `elyon-security` (the guard
-triggers).
+(the shop is read-only) · `elyon-stock-v2` (recipes move stock) · `elyon-logistics-costs` (costs in the
+profit) · `elyon-security` (the guard triggers).

@@ -25,3 +25,9 @@ verify_jwt = false
 # read-only (COLLABBOX_USER / COLLABBOX_PASS) - never writes to it.
 [functions.collabbox-sync]
 verify_jwt = false
+
+# collabBox SHOPS reader (20260946000100–0300, owner 02.10.2026): pg_cron caller, the same
+# x-collabbox-sync-secret header checked in code (fails closed). Reads the shops' collabBox read-only
+# through its own allow-list (sales, goods/transfer/count docs, nightly stock) - never writes to it.
+[functions.collabbox-shops]
+verify_jwt = false

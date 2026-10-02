@@ -253,7 +253,9 @@ describe('Производи 2.0 — the product form', { timeout: 30_000 }, () 
     const name = within(dialog).getByLabelText(new RegExp(`^${t('products.form.name')}`)) as HTMLTextAreaElement;
     expect(name.tagName).toBe('TEXTAREA');
     expect(name.value).toBe('СНАИЛ КОМПЛЕКС cps 30');
-    expect(within(dialog).getByLabelText(new RegExp(t('products.form.cost')))).toBeTruthy();   // admins see cost
+    // owners see the Sigma purchase cost, read-only (owner 01.10.2026: recipe × CalcBuyPrice, never typed in)
+    const cost = within(dialog).getByLabelText(t('productsRecipe.form.cost'));
+    expect(cost.tagName).toBe('OUTPUT');
     fireEvent.change(within(dialog).getByLabelText(t('products.form.barcode')), { target: { value: '5310000000' } });
     fireEvent.click(within(within(dialog).getAllByRole('radiogroup')[0]).getByRole('radio', { name: t('products.kind.gift') }));
     fireEvent.click(within(dialog).getByRole('button', { name: t('common.save') }));
@@ -289,6 +291,7 @@ describe('Производи 2.0 — the product form', { timeout: 30_000 }, () 
     fireEvent.click(within(dialog).getByRole('button', { name: t('common.save') }));
     await waitFor(() => expect(createProduct).toHaveBeenCalled());
     expect(createProduct.mock.calls[0][0]).toMatchObject({ name: 'Zinc 30', price: 10, days_of_supply_per_unit: 15, barcode: null });
+    expect(createProduct.mock.calls[0][0]).not.toHaveProperty('cost_price');   // the cost is the guarded Sigma mirror
     await waitFor(() => expect(setKind).toHaveBeenCalledWith([uid(99)], 'product'));
     await waitFor(() => expect(setLine).toHaveBeenCalledWith([uid(99)], 'natura_therapy'));
   });
@@ -366,5 +369,47 @@ describe('ДДВ по производ (Сигма)', { timeout: 30_000 }, () =>
     expect(within(table()).queryByRole('columnheader', { name: t('products.colVat') })).toBeNull();
     expect(screen.queryAllByTestId('vat-chip')).toHaveLength(0);
     expect(within(screen.getByRole('search')).queryByRole('group', { name: t('products.colVat') })).toBeNull();
+  });
+});
+
+// Stock v2 (integration 02.10.2026): GET /products/catalogue carries, for owners, cost_mkd (the current
+// complete Sigma cost, stock_v2_product_overview) and recipe_status — the "Набавна (Сигма)" column shows
+// cost_mkd only (never the EUR mirror × 61,5) and the "Рецепт" chips find the products with no recipe.
+describe('Набавна (Сигма) и рецепт (Stock v2)', { timeout: 30_000 }, () => {
+  const RECIPE_ROWS = [
+    P(1, 'Neurofix', 'product', { cost_price: 9, cost_mkd: 553.5, recipe_status: 'approved' }),
+    P(2, 'СНАИЛ КОМПЛЕКС cps 30', 'product', { cost_price: 5, cost_mkd: null, recipe_status: 'none' }),
+    P(3, 'Достава', 'product', { cost_price: 0, cost_mkd: 0, recipe_status: 'exempt' }),
+    P(4, 'Арника гел', 'product', { cost_price: 2, cost_mkd: null, recipe_status: 'proposed' }),
+  ];
+  const costOf = (name: string) => within(rowOf(name)).getByTestId('recipe-cost').textContent ?? '';
+  const names = () => within(table()).getAllByRole('rowheader').map((h) => h.textContent ?? '');
+
+  it('an owner: the cost is cost_mkd; "Без рецепт" lists only the products with none (an exempt one never)', async () => {
+    renderAt('/products?status=all', RECIPE_ROWS);
+    await loaded();
+    expect(costOf('Neurofix')).toContain('554 ден');
+    // no complete Sigma cost → "—", not the mirror 5 € × 61,5 = 307,5 ден
+    expect(costOf('СНАИЛ КОМПЛЕКС cps 30')).toContain('—');
+    expect(costOf('СНАИЛ КОМПЛЕКС cps 30')).not.toContain('307');
+    expect(costOf('СНАИЛ КОМПЛЕКС cps 30')).toContain(t('productsRecipe.status.none'));
+    expect(costOf('Достава')).toContain(t('productsRecipe.status.exempt'));
+    expect(chipIn('productsRecipe.filter.label', t('productsRecipe.filter.none')).textContent).toContain('1');
+    fireEvent.click(chipIn('productsRecipe.filter.label', t('productsRecipe.filter.none')));
+    await waitFor(() => expect(names()).toHaveLength(1));
+    expect(names()[0]).toContain('СНАИЛ КОМПЛЕКС cps 30');
+    await waitFor(() => expect(new URLSearchParams(location).get('recipe')).toBe('none'));
+    fireEvent.click(chipIn('productsRecipe.filter.label', t('productsRecipe.filter.proposed')));
+    await waitFor(() => expect(names()).toHaveLength(1));
+    expect(names()[0]).toContain('Арника гел');
+  });
+
+  it('an api without the Stock v2 reader: "—" everywhere and no "Рецепт" chips', async () => {
+    renderAt('/products?status=all&recipe=none', RECIPE_ROWS.map((r) => { const { cost_mkd: _c, recipe_status: _s, ...rest } = r as Record<string, unknown>; return rest; }));
+    await loaded();
+    expect(costOf('Neurofix')).toContain('—');
+    expect(within(screen.getByRole('search')).queryByRole('group', { name: t('productsRecipe.filter.label') })).toBeNull();
+    // ?recipe=none is ignored while the catalogue carries no status
+    expect(names()).toHaveLength(4);
   });
 });

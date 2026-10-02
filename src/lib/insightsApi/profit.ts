@@ -13,7 +13,10 @@
  * each line at its product's rate (5 % supplements, 18 % cosmetics / devices),
  * a line with no rate at 5 % and shown apart (meta.vat); courier the
  * courier_rates 'mex' row (150 ден), lead cost a wired-but-zero slot,
- * commission today's per-package rule (unchanged).
+ * commission today's per-package rule (unchanged). Purchase cost (owner
+ * 01.10.2026): Sigma CalcBuyPrice through each product's approved recipe at the
+ * sale day (meta.cost.source 'sigma'), or the old catalogue price ('legacy'),
+ * plus the extra goods packed in the parcel (cogs_extra_mkd, Phase B).
  */
 import { apiFetch } from '@/lib/api';
 import type { CohortBucket, CohortOutside } from '@/components/insights/shared/cohortTypes';
@@ -41,6 +44,10 @@ export interface PLRow {
   cogs_known_mkd: number;
   /** null: nothing in the view is costed, so nothing can be estimated. */
   cogs_est_mkd: number | null;
+  /** Phase B — gifts and other goods packed beyond the order lines (signed; absent from an api
+   *  older than the Sigma costs, 0 while Phase B is off). Part of the costed basis. */
+  cogs_extra_mkd?: number;
+  cogs_extra_detail?: { mex_only_mkd: number; mex_only_revenue_mkd: number; negative_mkd: number; sales: number };
   courier_mkd: number;
   returns_mkd: number;
   commission_mkd: number;
@@ -103,10 +110,17 @@ export interface ProfitProduct {
   packages: number;
   free_packages: number;
   revenue_mkd: number;
+  /** Every package costed (Sigma: an approved recipe with every article costed on every sale day). */
   cost_known: boolean;
+  /** Some packages costed, some not (a recipe that starts inside the window). */
+  cost_partial?: boolean;
+  /** The average unit cost of the costed packages (денари). */
   unit_cost_mkd: number | null;
+  packages_costed?: number;
   cogs_mkd: number;
   cogs_est_mkd: number | null;
+  /** The product's share of the extra packed goods (Phase B). */
+  cogs_extra_mkd?: number;
   vat_mkd: number;
   /** The rate used (the product's, else the default); null = "others" of mixed rates. */
   vat_rate?: number | null;
@@ -134,7 +148,20 @@ export interface ProfitDistribution {
 
 export type ProfitQualityKind =
   | 'uncosted_packages' | 'mex_only_contents' | 'unproven_paid' | 'non_product_lines'
-  | 'orders_without_lines' | 'vat_unclassified' | 'vat_flat_default' | 'lead_cost_missing' | 'return_fee_unconfirmed';
+  | 'orders_without_lines' | 'vat_unclassified' | 'vat_flat_default' | 'lead_cost_missing' | 'return_fee_unconfirmed'
+  | 'cost_legacy' | 'recipe_missing' | 'extra_goods_negative';
+
+/** meta.cost (Sigma purchase costs, owner 01.10.2026; absent from an older api = legacy). */
+export interface ProfitCostMeta {
+  source: 'sigma' | 'legacy' | 'mixed';
+  basis: 'sigma_calcbuyprice' | 'catalogue_cost_price';
+  /** The Sigma snapshot date (YYYY-MM-DD). */
+  as_of: string | null;
+  extra_goods: boolean;
+  coverage: { cohort: { packages: number | null; revenue: number | null }; cash: { packages: number | null; revenue: number | null } };
+  uncosted_products: number;
+  partial_products: number;
+}
 
 /** What had no rate (taxed at the default), cohort clock, by kind. */
 export interface VatUnclassified {
@@ -187,6 +214,8 @@ export interface ProfitResponse {
     money: true;
     granularity: 'day' | 'month';
     vat: ProfitVatMeta;
+    /** Where the purchase cost came from (absent from an api older than the Sigma costs). */
+    cost?: ProfitCostMeta;
     courier: { deliver_mkd: number; return_mkd: number; source: 'courier_rates' | 'fallback' };
     lead_cost: { configured: boolean };
     commission: { rule: string; agents: number };

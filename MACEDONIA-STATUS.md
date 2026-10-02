@@ -14,13 +14,79 @@ operation. It shares **nothing at runtime** with Bulgaria (own repo / own Supaba
 
 ---
 
-## 🟢 Current state: 01.10.2026
+## 🟢 Current state: 02.10.2026
+
+> **Stock v2 + Sigma purchase costs** (owner 01.10) and **the shops** (owner 02.10) went LIVE overnight 01.10 → 02.10.
+> **Supabase: 339 migrations, latest `20260946000400`.** Contracts: `docs/STOCK-V2.md`, `docs/SHOPS.md`; the law:
+> skills `elyon-stock-v2`, `elyon-shops` (+ warehouse, logistics, products, collabBox and security brought up to date).
+
+**Done (01–02.10):**
+- **Stock v2 engine** (`af159f9`; `20260945000100`–`0500` + the integration readers `0510`, `454204c`): one append-only
+  ledger `stock_moves` per Sigma article × warehouse × moment, the parcel resolver (override → collabBox goods lines →
+  web order → CRM orders via approved recipes), desired → apply, audited writers, the day / article / parcels /
+  movements / counts / health reports. Pickup time `mex_parcels.picked_up_at` (`0900`, write-once).
+- **Retire v1** (`fbd46e8`, `0700`): `stock-mex-apply` unscheduled, `restock` / `stock/count` / `stock/mex-movements`
+  → 410, the status-driven deduction off (`stockByStatus()` false), `products.stock_quantity` = a guarded mirror (cron
+  `stock-v2-mirror`).
+- **Sigma side** (`001a62c`): `docs/stock/build_sigma_stock.py` (articles, costs, openings, kits, recipes, the batch)
+  from the CSV dump of 17–30.09, the owner's review workbook `Magacin-pregled-2026-10-01.xlsx`, the ingest `0650`
+  (staging with versions; 000217 / 000549 / 04↔08 excluded), `scripts/stock/*`, the office connector
+  `tools/sigma-connector` (built, not installed).
+- **Mapping loaded** (`mapping-apply.mjs --apply`, 02.10): 1.507 articles (1 local), 122 kits, recipes for 316
+  products — **154 approved** (high) / **162 proposed** — and 155 aliases (78 approved, 77 proposed).
+- **Purchase costs = Sigma** (`84c14b3`; `0600` / `0800`; `costs-apply.mjs --apply`): 1.362 articles costed (144 Sigma
+  rows without a cost reported, never invented), 153 products complete, all 706 legacy values archived (69 non-zero),
+  the EUR mirror written; **`stock_v2.profit.cost_source = 'sigma'`** (02.10 ~00:50, audited) — Чиста добивка now
+  costs every line from Sigma at its sale day (cache version 6); `profit.extra_goods` stays off.
+- **UI** (`2572b52`, integration `454204c`): /warehouse **Залихи · Пратки · Движења · Попис** on Stock v2 (preview
+  banner, the health card with the owner's switch); /products **"Набавна (Сигма)"**, the Рецепт chips and drawer (owners).
+- **Shops** (`058202e` data + api, `6f6db2a` UI, `f153a8b` / `9123e2e` top sellers = goods only;
+  `20260946000100`–`0400`): edge function `collabbox-shops` deployed; **`shops_reader.enabled = true`** (02.10 ~01:31,
+  audited "Да, почни веднаш"); the first run: 463 receipt lines of 01.10, 187 goods documents, a stock take of all
+  22 shops; /shops "Продавници" (owners all, managers without money).
+
+**Live now:**
+- **Stock v2 runs in PREVIEW** — `stock_v2.enabled = false`, ledger and counts empty; /warehouse computes the figures
+  from `stock_v2_desired()`. Preview workbooks: `exports/stock/preview/` (gitignored). Crons `stock-v2-apply` /
+  `stock-v2-mirror` return at once while off.
+- **Sigma: no live link.** 1 CSV batch staged (82 documents), `sigma.ingest` off. Sigma balances are never the stock
+  truth for COD parcels (the 000217 monthly lump: +17 % vs delivered, Apr–Aug; no gifts, no returns).
+- **Shops reader**: receipts every 15 min 07–23, goods documents hourly, the 23:30 stock + controls, the history
+  backfill from 01.01.2026 every night 00:30–05:30 (resumable). Check: `node scripts/shops/verify-shops.mjs`.
+- **Internal only:** the warehouse-08 investigation and the courier-invoice vs COD gap are in a local report
+  (`exports/magacin/`, gitignored) — never published, never quoted in the repo.
+
+**⏳ Waiting for the owner (before Stock v2 can be switched on — procedure: `elyon-stock-v2` §7):**
+1. **The 22.09 count sheet** itself (there is no count document in Sigma) → loaded as the opening
+   (`scripts/stock/opening-apply.mjs --xlsx …`, dry first).
+2. **Which warehouse was counted** — Sigma 04 only (his belief), or 04 + 08?
+3. **Is parcel packing inside 04?** (decides `packed_counted`: were the labelled, not yet collected parcels on the
+   counted shelf?)
+4. **What is Sigma 08** ("Кол Центар") — a real shelf, a booking object, or both? (Until then 08 is untracked and every
+   04↔08 transfer is excluded.)
+5. **Do MEX returns go back on the shelf?** (Today: yes, a MEX 7 return is `return_in` to the main warehouse; a damaged
+   return is an override.)
+6. **Review the 162 proposed recipes** (/products → Рецепт → Предлог, or the workbook) — each approval moves the
+   product's stock and gives it a cost.
+7. **An always-on office PC + a SELECT-only SQL login `elyon_reader` from Sigma-СБ** for the Sigma connector
+   (`tools/sigma-connector/README-INSTALL.md`); then the secret `SIGMA_CONNECTOR_SECRET` is set on both sides and
+   `sigma.ingest` switched on.
+- Later, also his: the 77 proposed aliases; `profit.extra_goods` (the packed gifts as a cost line); the TV
+  re-invoicing to Stores is not in the Sigma staging yet (shown as "—").
+
+## 🟢 Earlier state: 01.10.2026
 
 > The plan "CRM-от по аудитот од 30.09" (`~/.claude/plans/revert-the-421-unproven-encapsulated-brook.md`, 12 phases,
 > from an 11-agent read-only audit) went LIVE overnight 30.09 → 01.10. **Supabase: 299 migrations, latest
 > `20260943001700`.** Where to continue and what waits for the owner: `docs/handoff/2026-09-29/CONTINUE-HERE.md`
 > (§ DONE 30.09–01.10, § NEXT).
 
+- **Owner-approved manual links + rule 2b + duplicate unproven-paid (owner, 01.10 night; branch `manual-links-dupes`,
+  BUILT, NOT APPLIED):** `scripts/repair-link-manual-approved.mjs` — the 32 approved pairs of the reviewer's list (dry
+  run `c169cace`, 124.880 ден, 0 skipped); `20260944000980` — the nightly linker drops dead DUPLICATES and AlterCPA
+  leads created after the collabBox booking before the uniqueness check (read-only today: 4 → 11 links, 40 → 33
+  manual, the 7 new = the reviewer's picks); `scripts/repair-duplicate-unproven-paid.mjs` — 20 C7 duplicate leads
+  cancelled as `duplicate_order` pointing to the sibling (dry run `8623884f`). Apply order: the commit message.
 - **Phone + date parcel links + no-parcel exemptions (owner, 01.10 evening; branch `parcel-link-rules`, BUILT, NOT
   APPLIED):** `20260944000950` (`link_lead_parcels_plan()` = the rules, `link_lead_parcels()` = the apply into the
   repair ledger, cron `link-lead-parcels` 21:02 Skopje, switch `app_settings.link_lead_parcels` seeded `report`) and

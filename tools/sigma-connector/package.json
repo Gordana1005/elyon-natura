@@ -1,0 +1,18 @@
+{
+  "name": "elyon-sigma-connector",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Reads Sigma-SB (SSBNatura) in the office, read-only, and sends the stock documents to the Macedonian Elyon CRM (POST /api/stock/sigma/ingest, HMAC). Never writes to Sigma.",
+  "type": "module",
+  "main": "connector.mjs",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "delta": "node connector.mjs --mode delta",
+    "nightly": "node connector.mjs --mode nightly",
+    "dry": "node connector.mjs --mode delta --dry --out test-batch.json",
+    "grants": "node connector.mjs --print-grants"
+  },
+  "dependencies": {
+    "mssql": "^11.0.1"
+  }
+}

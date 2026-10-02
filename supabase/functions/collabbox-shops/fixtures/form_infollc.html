@@ -1,0 +1,769 @@
+<form name="searchform" id="searchform" method="post" action="./Index?comp=infollc#a1">
+<input type="hidden" name="mode" value="doListOptions" >
+<input type="hidden" name="results" value="" >
+<input type="hidden" name="searchMode" value="" >
+<table cellpadding="0">
+<tr>
+<td>
+<table cellpadding="0">
+<tr>
+<td height="20" class="bgcolorCDCFEB"> Лагер листа </td>
+<td>&nbsp;</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td>
+<table cellpadding="0" class="table">
+<tr>
+<td class="tekst">
+<table cellpadding="0">
+<tr>
+<td colspan="4"></td>
+</tr>
+<tr>
+<td colspan="4"></td>
+</tr>
+<tr>
+<td class="tekst">Фирма:&nbsp;</td>
+<td colspan="3"><SELECT NAME="holding" id="holding" class="selectInput" onChange="javascript:reloadCombo('holding','delid','leftMagIds','rightMagIds',3);">
+<option value="2">НАТУРА ТЕРАПИ STORES</option>
+</SELECT>
+</td>
+</tr>
+<tr>
+<td class="tekst">Деловна единица:&nbsp;</td>
+<td colspan="3"><div id="deledinicaDiv" >
+<TABLE cellpadding="0">
+<tr>
+<td> Можни деловни единици </td>
+<td>
+</td>
+<td colspan = "2"> Избрани деловни единици </td>
+</tr>
+<tr>
+<td>
+<SELECT NAME="sel_leftDelEd" id="sel_leftDelEd" multiple class="selectInput"style="width: 250px" size="7" ondblclick="cmdAdd_Click('leftDelEd','delid',',',1);javascript:reloadCombo('holding','delid','leftMagIds','rightMagIds',1);">
+</SELECT>
+<input type="hidden" name="leftDelEd" id="leftDelEd" value="">
+<input type="hidden" name="captions_leftDelEd" id="captions_leftDelEd">
+</td>
+<td>
+<TABLE cellpadding="0">
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_next.gif" onClick="cmdAdd_Click('leftDelEd','delid',',',1);javascript:reloadCombo('holding','delid','leftMagIds','rightMagIds',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_last.gif" onClick="cmdAddAll_Click('leftDelEd','delid',',',1);javascript:reloadCombo('holding','delid','leftMagIds','rightMagIds',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/switch.gif" onClick="cmdSwapAll_Click('leftDelEd','delid',',');javascript:reloadCombo('holding','delid','leftMagIds','rightMagIds',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_first.gif" onClick="cmdRemoveAll_Click('leftDelEd','delid',',',1);javascript:reloadCombo('holding','delid','leftMagIds','rightMagIds',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_prior.gif" onClick="cmdRemove_Click('leftDelEd','delid',',',1);javascript:reloadCombo('holding','delid','leftMagIds','rightMagIds',1);" >
+</td>
+</tr>
+</table>
+</td>
+<td>
+<SELECT NAME="sel_delid" id="sel_delid" multiple class="selectInput"style="width: 250px" size="7" ondblclick="cmdRemove_Click('leftDelEd','delid',',',1);javascript:reloadCombo('holding','delid','leftMagIds','rightMagIds',1);">
+<option value="2">01 Деловна единица 1</option>
+</SELECT>
+<input type="hidden" name="delid" id="delid">
+<input type="hidden" name="captions_delid" id="captions_delid">
+</td>
+<td> &nbsp; <script>setCombos('leftDelEd','delid',',');</script>
+</td>
+</tr>
+</table>
+</div>
+</td>
+</tr>
+<tr>
+<td class="tekst" height="19"> &nbsp;&nbsp;&nbsp;*За магацин:&nbsp;</td>
+<td colspan="3"><div id="magacinDiv" >
+<TABLE cellpadding="0">
+<tr>
+<td> Можни магацини </td>
+<td>
+</td>
+<td colspan = "2"> Избрани магацини </td>
+</tr>
+<tr>
+<td>
+<SELECT NAME="sel_leftMagIds" id="sel_leftMagIds" multiple class="selectInput"style="width: 300px" size="7" ondblclick="cmdAdd_Click('leftMagIds','rightMagIds',',',1);">
+<option value="3">001 Централен магацин </option>
+<option value="5">002 Магацин за Call Centar</option>
+<option value="4">003 Продавница Карпош</option>
+<option value="6">004 Продавница Бисер</option>
+<option value="7">005 Продавница ГТЦ</option>
+<option value="8">006 Продавница Струмица</option>
+<option value="9">007 Продавница Битола</option>
+<option value="10">008 Продавница Тетово</option>
+<option value="11">009 Продавница Штип</option>
+<option value="12">010 Продавница Куманово</option>
+<option value="13">011 Продавница Прилеп</option>
+<option value="14">012 Продавница Кавадарци</option>
+<option value="15">013 Продавница Велес</option>
+<option value="16">014 Оштетена роба</option>
+<option value="17">015 Продавница Охрид</option>
+<option value="18">016 Продавница Струга</option>
+<option value="19">017 Продавница Гевгелија</option>
+<option value="37">020 Продавница Аеродром</option>
+<option value="38">021 Продавница Џон Кенеди</option>
+<option value="40">023 Продавница Кочани</option>
+<option value="41">024 Продавница Кичево</option>
+<option value="43">026 Продавница Ѓорче Петров</option>
+<option value="44">027 Продавница Драчево</option>
+<option value="45">028 Продавница Лимак</option>
+<option value="46">029 Продавница Сити Мол</option>
+</SELECT>
+<input type="hidden" name="leftMagIds" id="leftMagIds" value="">
+<input type="hidden" name="captions_leftMagIds" id="captions_leftMagIds">
+</td>
+<td>
+<TABLE cellpadding="0">
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_next.gif" onClick="cmdAdd_Click('leftMagIds','rightMagIds',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_last.gif" onClick="cmdAddAll_Click('leftMagIds','rightMagIds',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/switch.gif" onClick="cmdSwapAll_Click('leftMagIds','rightMagIds',',');" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_first.gif" onClick="cmdRemoveAll_Click('leftMagIds','rightMagIds',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_prior.gif" onClick="cmdRemove_Click('leftMagIds','rightMagIds',',',1);" >
+</td>
+</tr>
+</table>
+</td>
+<td>
+<SELECT NAME="sel_rightMagIds" id="sel_rightMagIds" multiple class="selectInput"style="width: 300px" size="7" ondblclick="cmdRemove_Click('leftMagIds','rightMagIds',',',1);">
+</SELECT>
+<input type="hidden" name="rightMagIds" id="rightMagIds">
+<input type="hidden" name="captions_rightMagIds" id="captions_rightMagIds">
+</td>
+<td> &nbsp; <script>setCombos('leftMagIds','rightMagIds',',');</script>
+</td>
+</tr>
+</table>
+</div>
+</td>
+</tr>
+<tr>
+<td class="tekst">&nbsp;&nbsp;&nbsp;За групи на артикли:&nbsp; <div>
+<a><img src="./images/treelist.gif" height="18">
+</a>&nbsp; </div>
+</td>
+<td colspan="3"><TABLE cellpadding="0">
+<tr>
+<td> Можни групи </td>
+<td>
+</td>
+<td colspan = "2"> Избрани групи </td>
+</tr>
+<tr>
+<td>
+<SELECT NAME="sel_artgrpid" id="sel_artgrpid" multiple class="selectInput"style="width: 250px" size="7" ondblclick="cmdAdd_Click('artgrpid','sag',',',1);">
+<option value="20">ELIXY</option>
+<option value="33">I AM </option>
+<option value="0137">LEADS</option>
+<option value="34">АД АСТРА</option>
+<option value="013601">ГУМЕНИ БОНБОНИ</option>
+<option value="0136">ГУМЕНИ БОНБОНИ</option>
+<option value="0135">ДРУГИ АРТИКЛИ</option>
+<option value="02">Козметика</option>
+<option value="10">КУПОНИ</option>
+<option value="32">ЛОЈАЛИТИ</option>
+<option value="35">Мултилевел</option>
+<option value="30">НАГРАДИ</option>
+<option value="307001">НАГРАДНА ДОБРО ЗДРАВЈЕ И УБАВО ПАТУВАЊЕ</option>
+<option value="7000">НАГРАДНИ ИГРА ЦИТРОЕН</option>
+<option value="01">Продукти</option>
+<option value="04">Суплименти-Капсули</option>
+<option value="31">Суплименти-таблети</option>
+<option value="03">Течни Суплементи</option>
+<option value="99">Услуги</option>
+</SELECT>
+<input type="hidden" name="artgrpid" id="artgrpid" value="">
+<input type="hidden" name="captions_artgrpid" id="captions_artgrpid">
+</td>
+<td>
+<TABLE cellpadding="0">
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_next.gif" onClick="cmdAdd_Click('artgrpid','sag',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_last.gif" onClick="cmdAddAll_Click('artgrpid','sag',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/switch.gif" onClick="cmdSwapAll_Click('artgrpid','sag',',');" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_first.gif" onClick="cmdRemoveAll_Click('artgrpid','sag',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_prior.gif" onClick="cmdRemove_Click('artgrpid','sag',',',1);" >
+</td>
+</tr>
+</table>
+</td>
+<td>
+<SELECT NAME="sel_sag" id="sel_sag" multiple class="selectInput"style="width: 250px" size="7" ondblclick="cmdRemove_Click('artgrpid','sag',',',1);">
+</SELECT>
+<input type="hidden" name="sag" id="sag">
+<input type="hidden" name="captions_sag" id="captions_sag">
+</td>
+<td> &nbsp; <script>setCombos('artgrpid','sag',',');</script>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td> Вклучи ги подгрупите:&nbsp; </td>
+<td colspan = "3">
+<input type="checkbox" name="cbsubgroups" value="ON" id="cbsubgroups" checked>
+</td>
+</tr>
+<tr>
+<td class="tekst">&nbsp;&nbsp;&nbsp;Артикл:&nbsp;</td>
+<td colspan="3">
+<input type="text" name="prodcode" id="prodcode" class="ac_input" size="10" class="textInput" autocomplete="off" value="" onkeypress="ch13PopupFindProduct(this,event);">
+<input type="text" name="proddesc" id="proddesc" class="ac_input" size="40" class="textInput" autocomplete="off" value="" onkeypress="ch13PopupFindProduct(this,event);">
+<a><img src="images/pronajdi.png" height="16"></a>
+</td>
+</tr>
+<tr>
+<td class="tekst">&nbsp;&nbsp;&nbsp;Артикл од-до:&nbsp;</td>
+<td colspan="3">
+<input type="text" name="prodcodefrom" size="12" class="textInput" value=""> - <input type="text" name="proddescto" size="12" class="textInput" value="">
+</td>
+</tr>
+<tr>
+<td class="tekst">&nbsp;&nbsp;&nbsp;Варијабилен период:&nbsp;</td>
+<td colspan="3">
+<SELECT NAME="predefiniraniIntervali" id="predefiniraniIntervali" class="selectInput">
+<option value="0" SELECTED>Избери варијабилен период</option>
+<option value="1">Тековен ден</option>
+<option value="6">Минатиот ден</option>
+<option value="23">Тековен ден -2</option>
+<option value="24">Тековен ден -3</option>
+<option value="25">Тековен ден -4</option>
+<option value="26">Тековен ден -5</option>
+<option value="27">Тековен ден -6</option>
+<option value="28">Тековен ден -7</option>
+<option value="2">Тековна недела</option>
+<option value="7">Минатата недела</option>
+<option value="29">Тековна недела -2</option>
+<option value="30">Тековна недела -3</option>
+<option value="31">Тековна недела -4</option>
+<option value="32">Тековна недела -5</option>
+<option value="3">Тековен месец</option>
+<option value="8">Минатиот месец</option>
+<option value="18">Тековен месец -1</option>
+<option value="19">Тековен месец -2</option>
+<option value="20">Тековен месец -3</option>
+<option value="33">Тековен месец -4</option>
+<option value="34">Тековен месец -5</option>
+<option value="4">Тековно тромесечие</option>
+<option value="9">Минатото тромесечие</option>
+<option value="11">Прво тромесечие</option>
+<option value="12">Второ тромесечие</option>
+<option value="13">Трето тромесечие</option>
+<option value="14">Четврто тромесечие</option>
+<option value="35">Тековно тромесечие -2</option>
+<option value="36">Тековно тромесечие -3</option>
+<option value="37">Тековно тромесечие -4</option>
+<option value="21">Тековно полугодие</option>
+<option value="22">Тековно полугодие -1</option>
+<option value="38">Тековно полугодие -2</option>
+<option value="39">Тековно полугодие -3</option>
+<option value="40">Тековно полугодие -4</option>
+<option value="41">Тековно полугодие -5</option>
+<option value="5">Тековна година</option>
+<option value="10">Минатата година</option>
+<option value="15">Тековна година -1</option>
+<option value="16">Тековна година -2</option>
+<option value="17">Тековна година -3</option>
+<option value="42">Тековна година -4</option>
+<option value="43">Тековна година -5</option>
+<option value="44">MTD</option>
+<option value="45">YTD</option>
+<option value="46">YTD -1</option>
+<option value="47">YTD -2</option>
+<option value="48">YTD -3</option>
+<option value="49">YTD -4</option>
+<option value="50">YTD -5</option>
+<option value="51">Последни 30 дена (од вчера)</option>
+<option value="52">MTD од вчера</option>
+<option value="53">YTD од вчера</option>
+<option value="54">Понеделник претходна недела</option>
+<option value="55">Недела претходна недела</option>
+</SELECT>
+</td>
+</tr>
+<tr>
+<td class="tekst">Од датум:&nbsp;</td>
+<td colspan="3">
+<input type="text" id="datumod" name="datumod" size="10" maxlength="10" class="textInput" value="" onKeyUp="validateDate(this);" onclick="return showCalendar(this.name,'dd.mm.y')">
+</td>
+</tr>
+<tr>
+<td class="tekst">До датум:&nbsp;</td>
+<td colspan="3">
+<input type="text" id="datumdo" name="datumdo" size="10" maxlength="10" class="textInput" value="" onKeyUp="validateDate(this);" onclick="return showCalendar(this.name,'dd.mm.y')">
+</td>
+</tr>
+<tr>
+</tr>
+<tr>
+<td class="tekst"><label for="lagerbyMag" >Лагер по магацин:&nbsp;</label></td>
+<td><input type="checkbox" name="lagerbyMag" value="show" id="lagerbyMag" onclick="showHideVlezIzlez();">
+<label for="prikaziVlezIzlez" >Прикажи влез излез&nbsp;</label><input type="checkbox" name="cbVlezIzlez" value="ON" id="cbVlezIzlez">
+</td>
+<td class="tekst"><label for="lagmagshowsum" >Прикажи суми:&nbsp;</label></td>
+<td><input type="checkbox" name="lagmagshowsum" value="show" id="lagmagshowsum" checked>
+</td>
+</tr>
+<tr>
+<td class="tekst"><label for="orderbyMag" >Групирано по магацин:&nbsp;</label></td>
+<td colspan="3"><input type="checkbox" name="orderbyMag" value="show" id="orderbyMag" onclick="javascript: setProperties();" checked>
+</td>
+</tr>
+<tr><td colspan="4" class="bgcolorCDCFEB"><a>Артикли</a></td></tr>
+<tr id="artikli1">
+<td class="tekst">Тип на ресурс:&nbsp;</td>
+<td colspan="3">
+<TABLE cellpadding="0">
+<tr>
+<td> Можни опции </td>
+<td>
+</td>
+<td colspan = "2"> Избрани опции </td>
+</tr>
+<tr>
+<td>
+<SELECT NAME="sel_resursiid" id="sel_resursiid" multiple class="selectInput"style="width: 250px" size="6" ondblclick="cmdAdd_Click('resursiid','tipResurs',',',1);">
+<option value="1">Артикл</option>
+<option value="3">Консигнација</option>
+<option value="2">Услуга</option>
+</SELECT>
+<input type="hidden" name="resursiid" id="resursiid" value="">
+<input type="hidden" name="captions_resursiid" id="captions_resursiid">
+</td>
+<td>
+<TABLE cellpadding="0">
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_next.gif" onClick="cmdAdd_Click('resursiid','tipResurs',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_last.gif" onClick="cmdAddAll_Click('resursiid','tipResurs',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/switch.gif" onClick="cmdSwapAll_Click('resursiid','tipResurs',',');" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_first.gif" onClick="cmdRemoveAll_Click('resursiid','tipResurs',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_prior.gif" onClick="cmdRemove_Click('resursiid','tipResurs',',',1);" >
+</td>
+</tr>
+</table>
+</td>
+<td>
+<SELECT NAME="sel_tipResurs" id="sel_tipResurs" multiple class="selectInput"style="width: 250px" size="6" ondblclick="cmdRemove_Click('resursiid','tipResurs',',',1);">
+</SELECT>
+<input type="hidden" name="tipResurs" id="tipResurs">
+<input type="hidden" name="captions_tipResurs" id="captions_tipResurs">
+</td>
+<td> &nbsp; <script>setCombos('resursiid','tipResurs',',');</script>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr id="artikli2">
+<td class="tekst"></td>
+<td colspan="3">
+</td>
+</tr>
+<tr id="artikli6">
+<td class="tekst"><label for="prikaziBarkod" >Прикажи баркод&nbsp;</label></td>
+<td colspan="3"><input type="checkbox" name="cbBarkod" value="show" id="cbBarkod">
+</td>
+</tr>
+<tr id="artikli8">
+<td class="tekst"><label for="originalnaSifra" >Прикажи оригинална шифра:&nbsp;</label></td>
+<td colspan="3"><input type="checkbox" name="originalnaSifra" value="show" id="originalnaSifra">
+</td>
+</tr>
+<tr id="artikli9">
+<td class="tekst"><label for="originalenNaziv" >Прикажи оригинален назив:&nbsp;</label></td>
+<td colspan="3"><input type="checkbox" name="originalenNaziv" value="show" id="originalenNaziv">
+</td>
+</tr>
+<tr id="artikli10">
+<td class="tekst"><label for="ddvProcentPoArtikl" >Прикажи ДДВ процент по артикл:&nbsp;</label></td>
+<td colspan="3"><input type="checkbox" name="ddvProcentPoArtikl" value="show" id="ddvProcentPoArtikl">
+</td>
+</tr>
+<tr id="artikli11">
+<td class="tekst"><label for="fiksenAtributBroj" >Прикажи фиксен атрибут број:&nbsp;</label></td>
+<td>
+<input type="checkbox" name="fiksenAtributBroj" value="show" id="fiksenAtributBroj">
+</td>
+</tr>
+<tr id="artikli12">
+<td class="tekst">Единица мера:&nbsp;</td>
+<td colspan="3">
+<select id="edinicaMera" name="edinicaMera"><option value="-1">Избери</option>
+<option value="бр.">бр.</option>
+<option value="пар.">пар.</option>
+</select>
+</td>
+</tr>
+<tr id="artikli13">
+<td class="tekst">Прикажи тежина и волумен&nbsp;</td>
+<td colspan="3">
+<input type="checkbox" name="prikaziTezinaVolumen" value="ON" id="prikaziTezinaVolumen">
+</td>
+</tr>
+<tr id="artikli14">
+<td class="tekst">Добавувач:&nbsp;</td>
+<td colspan="3">
+<select id="dobavuvac" name="dobavuvac"><option value="-1">Изберете добавувач</option>
+</select>
+</td>
+</tr>
+<tr><td colspan="4" class="bgcolorCDCFEB"><a>Дополнителни параметри</a></td></tr>
+<tr id="dopolnitelni1">
+<td class="tekst">Начин на прикажување:&nbsp;</td>
+<td colspan="3">
+<SELECT NAME="groupmode" id="groupmode" class="selectInput">
+<option value="0">По група на артикли</option>
+<option value="1">По азбучен ред</option>
+<option value="2">По шифра на артикл</option>
+<option value="3">По шифра на група</option>
+<option value="4">По тип на бренд</option>
+<option value="5">По сектор</option>
+</SELECT> &nbsp;Подреди по опис на артикл&nbsp; <input type="checkbox" name="podrediPoOpisNaArtikl" value="show" id="podrediPoOpisNaArtikl">
+</td>
+</tr>
+<tr id="dopolnitelni2">
+<td class="tekst">Количина од:&nbsp;</td>
+<td>
+<input type="text" id="kolicinaod" name="kolicinaod" class="textInput" value="" onKeyUp=validateFloat(event);>
+</td>
+<td class="tekst">Количина до:&nbsp;</td>
+<td>
+<input type="text" id="kolicinado" name="kolicinado" class="textInput" value="" onKeyUp=validateFloat(event);>
+</td>
+</tr>
+<tr id="dopolnitelni23">
+<td class="tekst"><label for="samoLagerPogolemOdNula" >Прикажи само лагер различен од 0:&nbsp;</label></td>
+<td colspan="3"><input type="checkbox" name="samoLagerPogolemOdNula" value="show" id="samoLagerPogolemOdNula">
+</td>
+</tr>
+<tr id="dopolnitelni3">
+<td class="tekst">Типови цени:&nbsp;</td>
+<td colspan="3"><TABLE cellpadding="0">
+<tr>
+<td> Можни опции </td>
+<td>
+</td>
+<td colspan = "2"> Избрани опции </td>
+</tr>
+<tr>
+<td>
+<SELECT NAME="sel_priceTypesLeft" id="sel_priceTypesLeft" multiple class="selectInput"style="width: 250px" size="6" ondblclick="cmdAdd_Click('priceTypesLeft','priceTypes',',',1);">
+<option value="1">Малопродажна цена</option>
+<option value="3">Мултилевел Маркетинг</option>
+</SELECT>
+<input type="hidden" name="priceTypesLeft" id="priceTypesLeft" value="">
+<input type="hidden" name="captions_priceTypesLeft" id="captions_priceTypesLeft">
+</td>
+<td>
+<TABLE cellpadding="0">
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_next.gif" onClick="cmdAdd_Click('priceTypesLeft','priceTypes',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_last.gif" onClick="cmdAddAll_Click('priceTypesLeft','priceTypes',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/switch.gif" onClick="cmdSwapAll_Click('priceTypesLeft','priceTypes',',');" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_first.gif" onClick="cmdRemoveAll_Click('priceTypesLeft','priceTypes',',',1);" >
+</td>
+</tr>
+<tr>
+<td class = "padding_td" height = "1">
+<img src="themes/collabbox/images/nav_prior.gif" onClick="cmdRemove_Click('priceTypesLeft','priceTypes',',',1);" >
+</td>
+</tr>
+</table>
+</td>
+<td>
+<SELECT NAME="sel_priceTypes" id="sel_priceTypes" multiple class="selectInput"style="width: 250px" size="6" ondblclick="cmdRemove_Click('priceTypesLeft','priceTypes',',',1);">
+</SELECT>
+<input type="hidden" name="priceTypes" id="priceTypes">
+<input type="hidden" name="captions_priceTypes" id="captions_priceTypes">
+</td>
+<td> &nbsp; <script>setCombos('priceTypesLeft','priceTypes',',');</script>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr id="dopolnitelni21">
+<td class="tekst"><label for="sumaByPriceType" >Прикажи сума по тип на цена:&nbsp;</label></td>
+<td colspan="3"><input type="checkbox" name="cbSumaPoTipCena" value="show" id="cbSumaPoTipCena">
+</td>
+</tr>
+<tr id="dopolnitelni12">
+<td class="tekst"><label for="historyprice">Цена на датум на лагер:&nbsp;</label></td>
+<td colspan="3"><input type="checkbox" name="historyprice" value="ON" id="historyprice">
+</td>
+</tr>
+<tr id="dopolnitelni4">
+<td class="tekst">Начин на печатење:&nbsp;</td>
+<td colspan="3">
+<select name="printmode" class="selectInput">
+<option value="0" selected>Сумарно</option>
+</select>
+</td>
+</tr>
+<tr id="dopolnitelni25">
+<td>
+<label FOR="prikaziMinIMaxKolicini"> Прикажи мин и макс количини:&nbsp;</label>
+</td>
+<td>
+<input type="checkbox" name="prikaziMinIMaxKolicini" value="ON" id="prikaziMinIMaxKolicini">
+</td>
+</tr>
+<tr id="dopolnitelni5">
+<td class="tekst">Критична количина:&nbsp;</td>
+<td colspan="3"><label for="minkrkol" >минимална&nbsp;<input type="checkbox" name="minkrkol" value="ON" id="minkrkol"> &nbsp;</label><label for="maxkrkol" >максимална&nbsp;<input type="checkbox" name="maxkrkol" value="ON" id="maxkrkol">
+</label></td>
+<td></td>
+</tr>
+<tr id="dopolnitelni6">
+<td class = "tekst">
+<label FOR="avrPrice"> Просечна цена:</label> &nbsp; </td>
+<td colspan = "3">
+<input type="checkbox" name="avrPrice" value="ON" id="avrPrice">
+</td>
+</tr>
+<tr id="dopolnitelni20">
+<td class = "tekst">
+<label FOR="marza"> Маржа:</label> &nbsp; </td>
+<td colspan = "3">
+<input type="checkbox" name="marza" value="ON" id="marza">
+</td>
+</tr>
+<tr id="dopolnitelni7">
+<td class="tekst"><label for="notUsedProducts" >Прикажи некористени артикли:&nbsp;</label></td>
+<td colspan="3"><input type="checkbox" name="notUsedProducts" value="show" id="notUsedProducts">
+</td>
+</tr>
+<tr id="dopolnitelni8">
+<td class = "tekst"> Резервација: &nbsp; </td>
+<td colspan = "3">
+<input type="checkbox" name="rezerv" value="y" id="rezerv" checked>
+</td>
+</tr>
+<tr id="dopolnitelni22">
+</tr>
+<tr id="dopolnitelni9">
+<td class="tekst"><label for="negLager" >Негативен лагер:&nbsp;</label></td>
+<td colspan="3"><input type="checkbox" name="negLager" value="show" id="negLager" onclick="javascript: setProperties();">
+</td>
+</tr>
+<tr id="dopolnitelni10">
+<td class="tekst"><label for="samoLager" >Прикажи само лагер:&nbsp;</label></td>
+<td colspan="3"><input type="checkbox" name="samoLager" value="show" id="samoLager">
+</td>
+</tr>
+<tr id="dopolnitelni13">
+<td class="tekst"><label for="prekinatProducts" >Прикажи прекинати артикли:&nbsp;</label></td>
+<td colspan="3"><input type="checkbox" name="prekinatProducts" value="show" id="prekinatProducts">
+</td>
+</tr>
+<tr id="dopolnitelni11" name="dopolnitelni11"><td class="tekst"><label id="label" name="label" for="cenaglavmag">Прикажи набавна цена во главен магацин</label>
+</td>
+<td colspan="3"><input type="checkbox" id="cenaglavmag" name="cenaglavmag" value="">
+</td>
+</tr>
+<tr id="dopolnitelni14" name="dopolnitelni14"><td class="tekst"><label id="label" name="label" for="vkupnopodanok">Прикажи вкупно суми поделени по данок</label>
+</td>
+<td colspan="3"><input type="checkbox" id="vkupnopodanok" name="vkupnopodanok" value="">
+</td>
+</tr>
+<tr id="dopolnitelni15">
+<td class="tekst"><label for="fiksniAtributi" >Фиксни атрибути:&nbsp;</label></td>
+<td colspan="3"><div ><input type="checkbox" name="cbFiksniAtributi" value="ON" id="cbFiksniAtributi" onchange ="javascript:showLagerListaFiksniAtributiComboBox();">
+</div>
+<div id="lagerListaFiksniAtributiDiv" name="lagerListaFiksniAtributiDiv"><SELECT NAME="cmbArtiklFiksniAtributiType_1" id="cmbArtiklFiksniAtributiType_1" class="selectInput">
+<option value="0">Избери фиксен атрибут</option>
+<option value="1">Боја</option>
+<option value="2">Број</option>
+<option value="3">Конфекциски број</option>
+<option value="4">Потекло</option>
+<option value="5">Датум на производство</option>
+<option value="6">Датум на важност</option>
+<option value="7">Сериски</option>
+<option value="8">Пол</option>
+<option value="9">Сезона</option>
+</SELECT>
+<img onclick="javascript:addNewComboBoxFiksniAtributi();; " src="themes/collabbox/images/add_new_item_24px.png" height="18px">
+<input type="hidden" id="brojFiksniAtributi" name="brojFiksniAtributi" value="1">
+<input type="hidden" id="redosledFiksniAtributi" name="redosledFiksniAtributi" value="">
+<input type="hidden" id="showFiksniAtributi" name="showFiksniAtributi" value="false">
+</div>
+</td>
+</tr>
+<tr id="dopolnitelni16">
+<td class="tekst"><label for="fiksniAtributi" >Приказ на web:&nbsp;</label></td>
+<td colspan="3"><input type="checkbox" name="checkBoxPrikazNaWeb" value="show" id="checkBoxPrikazNaWeb">
+</td>
+</tr>
+<tr id="dopolnitelni24">
+<td class="tekst"><label for="fiksniAtributi" >Прикажи само вкупен лагер&nbsp;</label></td>
+<td colspan="3"><input type="checkbox" name="samovkupenlager" id="samovkupenlager" ></td>
+</tr>
+<tr id="dopolnitelni26">
+<td class="tekst"><label for="procentProdazbaPoArtikl" >Процент на продажба по артикл&nbsp;</label></td>
+<td colspan="3"><input type="checkbox" name="prodazbaPoArtikl" id="prodazbaPoArtikl" ></td>
+</tr>
+<tr id="dopolnitelni19">
+<td>
+<label FOR="prikaziSektor"> Прикажи сектор:&nbsp;</label>
+</td>
+<td>
+<input type="checkbox" name="prikaziSektor" value="ON" id="prikaziSektor">
+</td>
+</tr>
+<tr id="dopolnitelni17">
+<td></td>
+<td colspan="3"><TABLE id="customFieldTable" class="table">
+<tr>
+<td colspan = "2">
+<input type="hidden" name="customDataType_Part number" id="customDataType_Part number" value="4">
+<input type="hidden" name="customObjectID_Part number" id="customObjectID_Part number" value="10434">
+<input type="hidden" name="customDataType_Земја на потекло" id="customDataType_Земја на потекло" value="12">
+<input type="hidden" name="customObjectID_Земја на потекло" id="customObjectID_Земја на потекло" value="10281">
+<input type="hidden" name="customDataType_Увозник" id="customDataType_Увозник" value="12">
+<input type="hidden" name="customObjectID_Увозник" id="customObjectID_Увозник" value="10282">
+<input type="hidden" name="customDataType_Фабрички број" id="customDataType_Фабрички број" value="4">
+<input type="hidden" name="customObjectID_Фабрички број" id="customObjectID_Фабрички број" value="10433">
+<SELECT NAME="custom" id="custom" class="selectinput"style="max-width: 400px; ">
+<option value="All">Сите атрибути</option>
+<option value="Part number">Part number</option>
+<option value="Земја на потекло">Земја на потекло</option>
+<option value="Увозник">Увозник</option>
+<option value="Фабрички број">Фабрички број</option>
+</SELECT>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td colspan = "3">
+<input type="hidden" name="number" id="number" value="0">
+<input type="hidden" name="delcustom" id="delcustom" value="none">
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td colspan="4" class = "redtext_small">
+<DIV id="magMsg" name="magMsg">Изберете магацин!</DIV>
+</td>
+</tr>
+<tr>
+<td colspan="4" class = "redtext_small">
+<DIV id="artMsg" name="artMsg">Изберете артикл!</DIV>
+</td>
+</tr>
+<tr>
+<td colspan="4"></td>
+</tr>
+<tr>
+<td colspan="4">
+<input type = "hidden" name = "savedSearchId" value="-1">
+<input type = "hidden" name = "savedSearchTitle" value="">
+<input type = "hidden" name = "savedSearchType" value="0">
+<input type = "hidden" name = "searchParentId" value="10">
+<input type = "hidden" name = "autorun" value="true">
+<input type = "hidden" id = "isSelectListDelEd" name = "isSelectListDelEd" value="1">
+</td>
+</tr>
+<tr>
+<td colspan="4"></td>
+</tr>
+<tr>
+<td colspan="4"><div id="res"></div></td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</form>

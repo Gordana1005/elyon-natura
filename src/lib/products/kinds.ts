@@ -64,8 +64,15 @@ export interface CatalogueRow {
   barcode: string | null;
   /** EUR (stored); shown in денари. */
   price: number;
-  /** EUR; present only for a login that sees cost (admins). */
+  /** EUR mirror of the Sigma cost (cost_mkd / 61,5); present only for an owner. Not shown — cost_mkd is. */
   cost_price?: number;
+  /**
+   * Stock v2, owners only (stock_v2_product_overview, 20260945000510): the current complete Sigma
+   * purchase cost in денари without VAT (null = none; an exempt product 0) — "Набавна (Сигма)" —
+   * and the recipe status behind the "Рецепт" chips. Absent until that reader is applied.
+   */
+  cost_mkd?: number | null;
+  recipe_status?: 'approved' | 'proposed' | 'none' | 'exempt';
   suggested_price: number;
   stock_quantity: number;
   low_stock_threshold: number;

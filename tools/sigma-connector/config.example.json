@@ -1,0 +1,19 @@
+{
+  "_help": "Копирај во config.json. Лозинката и тајниот клуч НЕ се пишуваат тука — тие се во Windows променливи (System environment variables): SIGMA_SQL_PASSWORD и SIGMA_CONNECTOR_SECRET.",
+  "sql": {
+    "server": "192.168.7.22",
+    "port": 1433,
+    "database": "SSBNatura",
+    "user": "elyon_reader",
+    "passwordEnv": "SIGMA_SQL_PASSWORD",
+    "encrypt": true,
+    "trustServerCertificate": true
+  },
+  "endpoint": "https://bmfxhgznttcnnlqloqzp.supabase.co/functions/v1/api/stock/sigma/ingest",
+  "secretEnv": "SIGMA_CONNECTOR_SECRET",
+  "opening": "2026-09-22",
+  "snapshotDays": 120,
+  "overlapMinutes": 30,
+  "stateFile": "state.json",
+  "logDir": "logs"
+}
