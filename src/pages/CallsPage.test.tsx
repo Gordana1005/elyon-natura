@@ -32,15 +32,35 @@ vi.mock('@/components/calls/PromoOfTheDayBanner', () => ({ PromoOfTheDayBanner: 
 vi.mock('@/components/OrderModal', () => ({ OrderModal: () => null }));
 vi.mock('@/components/CreateOrderModal', () => ({ CreateOrderModal: () => null }));
 vi.mock('@/components/calls/ClientProfileCard', () => ({
-  ClientProfileCard: ({ phone, callAction, toolbar }: { phone: string; callAction?: ReactNode; toolbar?: ReactNode }) => (
-    <div><div data-testid="customer">{phone}</div>{callAction}{toolbar}</div>
+  ClientProfileCard: ({ phone, callAction, toolbar, scriptContext }: { phone: string; callAction?: ReactNode; toolbar?: ReactNode; scriptContext?: unknown }) => (
+    <div>
+      <div data-testid="customer">{phone}</div>
+      <div data-testid="script-ctx">{JSON.stringify(scriptContext ?? null)}</div>
+      {callAction}{toolbar}
+    </div>
   ),
 }));
-const queue = vi.hoisted(() => ({ markAfterCall: vi.fn() }));
-vi.mock('@/components/calls/useMyQueue', async (orig) => ({
-  ...(await orig<typeof import('@/components/calls/useMyQueue')>()),
-  useMyQueue: () => ({ queues: [], queuesLoading: false, members: [] }),
-  useQueueMutations: () => ({ markAfterCall: queue.markAfterCall, skipMember: vi.fn() }),
+// The prediction queues: the lists the agent has + their members (served the way useMyQueue does).
+const queue = vi.hoisted(() => ({ markAfterCall: vi.fn(), queues: [] as unknown[], members: {} as Record<string, unknown[]> }));
+vi.mock('@/components/calls/useMyQueue', async (orig) => {
+  const { useEffect } = await import('react');
+  return {
+    ...(await orig<typeof import('@/components/calls/useMyQueue')>()),
+    useMyQueue: (activeListId: string | null, onLoaded?: (id: string, m: any[]) => void) => {
+      useEffect(() => {
+        if (activeListId && queue.members[activeListId]) onLoaded?.(activeListId, queue.members[activeListId] as any[]);
+      }, [activeListId]); // eslint-disable-line react-hooks/exhaustive-deps
+      return { queues: queue.queues, queuesLoading: false, members: [] };
+    },
+    useQueueMutations: () => ({ markAfterCall: queue.markAfterCall, skipMember: vi.fn() }),
+  };
+});
+// The targeted call scripts: the switch (GET /call-scripts/mode) and the script for the call.
+const scripts = vi.hoisted(() => ({ mode: vi.fn(), forCall: vi.fn() }));
+vi.mock('@/lib/callScriptsApi', async (orig) => ({
+  ...(await orig<typeof import('@/lib/callScriptsApi')>()),
+  apiGetScriptsMode: (...a: unknown[]) => scripts.mode(...a),
+  apiGetCallScriptsForCall: (...a: unknown[]) => scripts.forCall(...a),
 }));
 
 const api = vi.hoisted(() => ({
@@ -95,6 +115,10 @@ beforeEach(() => {
   api.record.mockResolvedValue({ ok: true, outcome: 'no_answer', order_id: 'lead-a', order_action: 'none', product_name: null, call_log_id: 'log-1', member_marked: 0, callback_at: null, warnings: [], next: 'fetch' });
   api.callbacks.mockResolvedValue(callbacks);
   api.progress.mockResolvedValue({ day: '2026-10-01', calls_today: 7, sales_today: 2, worked_today: 5, generated_at: '2026-10-01T08:00:00Z' });
+  queue.queues = [];
+  queue.members = {};
+  scripts.mode.mockResolvedValue({ mode: 'off', enabled_for_me: false, can_write: false, can_delete: false, can_switch: false });
+  scripts.forCall.mockResolvedValue({ enabled: false, mode: 'off', drafts_included: false, context: null, vars: null, best: null, alternatives: [] });
 });
 afterEach(() => {
   cleanup();
@@ -231,5 +255,65 @@ describe('CallsPage — dialling and the callbacks view', () => {
     expect(row).toHaveTextContent('Повици денес');
     await waitFor(() => expect(row).toHaveTextContent('7'));
     await waitFor(() => expect(row).toHaveTextContent('2'));
+  });
+});
+
+describe('CallsPage — the call script context', () => {
+  const ctx = () => JSON.parse(screen.getByTestId('script-ctx').textContent || 'null');
+
+  it('a lead on screen → source lead + that order', async () => {
+    renderAt('/calls');
+    await waitFor(() => expect(screen.getByTestId('customer')).toHaveTextContent(A));
+    expect(ctx()).toEqual({ source: 'lead', orderId: 'lead-a' });
+  });
+
+  it('a prediction list member → source prediction + the list (never the Pendings entry)', async () => {
+    const C = '+38970333333';
+    api.orders.mockResolvedValue({ orders: [], total: 0 });
+    api.summary.mockResolvedValue({ ready: 0, open: 0, parked: 0, talked_today: 0 });
+    queue.queues = [{ list_id: 'list-21', list_name: '21d 26+ (1-3 orders)', list_category: 'prediction', display_order: 1, remaining: 1, total: 1 }];
+    queue.members = { 'list-21': [{ list_id: 'list-21', customer_phone: C, customer_name: 'Ристо', trigger_event_at: '2026-09-10T09:00:00Z', paid_count: 2, lifetime_value: 52 }] };
+    renderAt('/calls');
+    await waitFor(() => expect(screen.getByTestId('customer')).toHaveTextContent(C));
+    expect(ctx()).toEqual({ source: 'prediction', listId: 'list-21' });
+  });
+
+  it('a callback opened from "Повторни повици" KEEPS its order (it used to arrive as a bare phone)', async () => {
+    renderAt('/calls?queue=call-again');
+    const card = await screen.findByTestId('callback-card');
+    fireEvent.click(within(card).getByRole('button'));
+    await waitFor(() => expect(screen.getByTestId('customer')).toHaveTextContent('+38970999000'));
+    expect(ctx()).toEqual({ source: 'manual', orderId: 'o9', listId: null });
+  });
+
+  it('a prediction callback keeps its list', async () => {
+    api.callbacks.mockResolvedValue({
+      ...callbacks,
+      items: [{ ...callbacks.items[0], kind: 'prediction', key: 'member:l57', order_id: null, display_id: null, list_id: 'list-57', list_name: '57d 26+ (1-3 orders)' }],
+    });
+    renderAt('/calls?queue=call-again');
+    fireEvent.click(within(await screen.findByTestId('callback-card')).getByRole('button'));
+    await waitFor(() => expect(screen.getByTestId('customer')).toHaveTextContent('+38970999000'));
+    expect(ctx()).toEqual({ source: 'manual', orderId: null, listId: 'list-57' });
+  });
+
+  it("mode off: no script row in the pinned bar and today's padding", async () => {
+    const { container } = renderAt('/calls');
+    await waitFor(() => expect(screen.getByTestId('customer')).toHaveTextContent(A));
+    await waitFor(() => expect(scripts.mode).toHaveBeenCalled());
+    expect(screen.queryByTestId('outcome-bar-accessory')).toBeNull();
+    expect(container.querySelector('.pb-28')).not.toBeNull();
+    expect(scripts.forCall).not.toHaveBeenCalled();
+  });
+
+  it('mode on: the phone script row sits in the pinned bar (pb-36 makes room) and asks for this lead', async () => {
+    scripts.mode.mockResolvedValue({ mode: 'on', enabled_for_me: true, can_write: false, can_delete: false, can_switch: false });
+    const { container } = renderAt('/calls');
+    await waitFor(() => expect(screen.getByTestId('customer')).toHaveTextContent(A));
+    const acc = await screen.findByTestId('outcome-bar-accessory');
+    expect(within(acc).getByTestId('script-dock-trigger')).toBeInTheDocument();
+    expect(container.querySelector('.pb-36')).not.toBeNull();
+    await waitFor(() => expect(scripts.forCall).toHaveBeenCalled());
+    expect(scripts.forCall.mock.calls[0][0]).toEqual({ phone: A, source: 'lead', order_id: 'lead-a', list_id: null });
   });
 });

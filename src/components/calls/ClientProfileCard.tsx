@@ -20,6 +20,8 @@ import { PersonalHoldBadge } from '@/components/PersonalHoldBadge';
 import { PersonalListButton } from '@/components/calls/PersonalListButton';
 import { ActiveViewBadge } from '@/components/ActiveViewBadge';
 import { hoverLift } from '@/lib/design-utils';
+import { ScriptDock } from './scripts/ScriptDock';
+import { useCallScriptsMode, type CallScriptCtx } from './scripts/useCallScripts';
 
 interface Props {
   phone: string;
@@ -45,6 +47,12 @@ interface Props {
   avgPackagePrice?: number | null;
   /** Show the Call Scripts & Helpers panel below history (everyone on Calls). */
   showScripts?: boolean;
+  /**
+   * What /calls is working on (lead / prediction list / opened by hand). When the targeted scripts
+   * are on for this user (GET /call-scripts/mode), the script dock replaces today's panel and sits
+   * right under the toolbar; off (or unknown), today's panel stays exactly as it was.
+   */
+  scriptContext?: CallScriptCtx;
 }
 
 function Metric({ label, value, valueClass }: { label: string; value: number; valueClass?: string }) {
@@ -56,8 +64,13 @@ function Metric({ label, value, valueClass }: { label: string; value: number; va
   );
 }
 
-export function ClientProfileCard({ phone, onOpenOrder, onCreateOrder, onClaimedToPersonalList, onCustomerUpdated, toolbar, callAction, avgPackagePrice, showScripts }: Props) {
+export function ClientProfileCard({ phone, onOpenOrder, onCreateOrder, onClaimedToPersonalList, onCustomerUpdated, toolbar, callAction, avgPackagePrice, showScripts, scriptContext }: Props) {
   const { t } = useTranslation();
+  // Targeted call scripts (owner 02.10.2026): only once the server says the dock is on for me;
+  // while the mode loads nothing is shown, so today's panel never flashes before the dock.
+  const scriptsMode = useCallScriptsMode();
+  const scriptDockOn = !!showScripts && scriptsMode.data?.enabled_for_me === true;
+  const legacyScripts = !!showScripts && !scriptDockOn && !scriptsMode.isLoading;
   const { data: intel, loading: intelLoading } = useCustomerIntelligence(phone);
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -319,8 +332,13 @@ export function ClientProfileCard({ phone, onOpenOrder, onCreateOrder, onClaimed
       {/* Calling controls + queue, supplied by the page. */}
       {toolbar}
 
+      {/* The script for this client (md and up; phones get it from the pinned outcome bar). */}
+      {scriptDockOn && (
+        <ScriptDock phone={phone} context={scriptContext ?? { source: 'manual' }} className="hidden md:block" />
+      )}
+
       {/* Unified dossier — every order + every call attempt */}
-      <CustomerHistoryTabs phone={phone} onOpenOrder={onOpenOrder} showScripts={showScripts} />
+      <CustomerHistoryTabs phone={phone} onOpenOrder={onOpenOrder} showScripts={legacyScripts} />
     </div>
   );
 }

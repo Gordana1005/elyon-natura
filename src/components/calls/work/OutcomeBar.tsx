@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ComponentType, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ComponentType, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Check, Clock, Loader2, PhoneMissed, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -42,6 +42,11 @@ export interface OutcomeBarProps {
   now?: () => Date;
   /** The customer on screen — a new one drops a half-written note and closes the rows. */
   resetKey?: string;
+  /**
+   * Phones only (below md): a compact row inside the pinned bar, above the buttons — the call
+   * script's trigger (ScriptDockMobile). Hidden while a note is being typed (the keyboard needs the room).
+   */
+  accessory?: ReactNode;
   className?: string;
 }
 
@@ -84,7 +89,7 @@ const chipCls = 'inline-flex min-h-10 md:min-h-8 items-center gap-1.5 rounded-fu
  *   Потврди     — the order form
  */
 export function OutcomeBar({
-  disabled, busy, onNoAnswer, onCallAgain, onCancel, onTrash, onConfirm, keyboard = true, now = () => new Date(), resetKey, className,
+  disabled, busy, onNoAnswer, onCallAgain, onCancel, onTrash, onConfirm, keyboard = true, now = () => new Date(), resetKey, accessory, className,
 }: OutcomeBarProps) {
   const { t } = useTranslation();
   const [panel, setPanel] = useState<Panel | null>(null);
@@ -216,6 +221,9 @@ export function OutcomeBar({
       )}
       data-testid="outcome-bar"
     >
+      {accessory && !step && (
+        <div className="mx-auto mb-2 max-w-3xl md:hidden" data-testid="outcome-bar-accessory">{accessory}</div>
+      )}
       <div className="mx-auto flex max-w-3xl flex-col-reverse gap-2 md:max-w-none md:flex-col">
         <div role="toolbar" aria-label={t('callsWork.barLabel')} className="grid grid-cols-5 gap-1.5 md:gap-2">
           {OUTCOME_ORDER.map((o, i) => {

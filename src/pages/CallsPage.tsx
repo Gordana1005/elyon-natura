@@ -9,6 +9,8 @@ import { ClientProfileCard } from '@/components/calls/ClientProfileCard';
 import { useMyQueue, useQueueMutations, PENDINGS_QUEUE_ID, type QueueMember, type QueueListSummary } from '@/components/calls/useMyQueue';
 import { getCallSession, setCallSession, type CallSessionSnapshot } from '@/components/calls/callSession';
 import { OutcomeBar } from '@/components/calls/work/OutcomeBar';
+import { ScriptDockMobile } from '@/components/calls/scripts/ScriptDockMobile';
+import { useScriptDockEnabled, type CallScriptCtx } from '@/components/calls/scripts/useCallScripts';
 import { DialPanel } from '@/components/calls/work/DialPanel';
 import { UndoBar } from '@/components/calls/work/UndoBar';
 import { CallsProgress } from '@/components/calls/work/CallsProgress';
@@ -177,6 +179,11 @@ export default function CallsPage() {
   const attemptAtRef = useRef<{ phone: string; at: number } | null>(null);
   // The customer was opened from the callbacks view → go back there after the outcome.
   const fromCallbacksRef = useRef(false);
+  // A callback opened from "Повторни повици" keeps WHICH order / list it was (the ?phone= hop
+  // used to lose both): parked here until the ?phone= effect takes the phone, then kept in
+  // manualCtx for as long as that phone is on screen. Only the call script reads it.
+  const callbackCtxRef = useRef<{ order_id: string | null; list_id: string | null; phone8: string } | null>(null);
+  const [manualCtx, setManualCtx] = useState<{ order_id: string | null; list_id: string | null; phone8: string } | null>(null);
   const deferred = useDeferredOutcome();
   // Polls pause while the tab is hidden and back off to 60 s while a queue is empty;
   // the `assigner` broadcast (useCallsLive below) refreshes them the moment work moves.
@@ -266,6 +273,21 @@ export default function CallsPage() {
     if (!selectedPhoneKey) return null;
     return pendingOrders.find((o: any) => normalizePhoneKey(o.customer_phone || '') === selectedPhoneKey) || null;
   }, [pendingOrders, selectedPhoneKey, normalizePhoneKey]);
+
+  // What the call script is about (targeted scripts, owner 02.10.2026): the open lead on screen,
+  // the prediction list (never the synthetic Pendings entry), or a client opened by hand with
+  // whatever its callback carried. Read by the script dock only — no outcome uses it.
+  const scriptDockOn = useScriptDockEnabled();
+  const scriptCtx = useMemo<CallScriptCtx>(() => {
+    if (currentSource === 'pending') {
+      return { source: 'lead', orderId: currentPendingOrderId ?? activePendingOrder?.id ?? null };
+    }
+    if (currentSource === 'prediction' && activeListId && activeListId !== PENDINGS_QUEUE_ID) {
+      return { source: 'prediction', listId: activeListId };
+    }
+    const hint = manualCtx && manualCtx.phone8 === selectedPhoneKey ? manualCtx : null;
+    return { source: 'manual', orderId: hint?.order_id ?? activePendingOrder?.id ?? null, listId: hint?.list_id ?? null };
+  }, [currentSource, currentPendingOrderId, activePendingOrder, activeListId, manualCtx, selectedPhoneKey]);
 
   // For prediction-sourced customers (current queue list), surface avg_package_price
   // (added in redesign) into the high-visibility ClientProfileCard using currency helpers.
@@ -359,12 +381,15 @@ export default function CallsPage() {
     setHandOpenedPhone(fromUrl);
     setCurrentSource('manual');
     setCurrentPendingOrderId(null);
+    const cb = callbackCtxRef.current;
+    callbackCtxRef.current = null;
+    setManualCtx(cb && cb.phone8 === normalizePhoneKey(fromUrl) ? cb : null);
     takeCallback(fromUrl);
     // Strip the param so a manual refresh doesn't reopen the same customer.
     const next = new URLSearchParams(searchParams);
     next.delete('phone');
     setSearchParams(next, { replace: true });
-  }, [searchParams, setSearchParams, takeCallback]);
+  }, [searchParams, setSearchParams, takeCallback, normalizePhoneKey]);
 
   // Auto-pick the first non-empty queue on mount / when queues load. Pendings
   // win outright: leads are always the priority, and selecting the queue here
@@ -1137,8 +1162,14 @@ export default function CallsPage() {
   const openCallback = useCallback((item: MyCallback) => {
     deferred.commit();
     fromCallbacksRef.current = true;
+    // Keep the callback's order / list for the call script (the outcome bodies are unchanged).
+    callbackCtxRef.current = {
+      order_id: item.order_id ?? null,
+      list_id: item.list_id ?? null,
+      phone8: normalizePhoneKey(item.customer_phone),
+    };
     setSearchParams({ phone: item.customer_phone });
-  }, [deferred, setSearchParams]);
+  }, [deferred, setSearchParams, normalizePhoneKey]);
 
   const setView = useCallback((v: CallsView) => {
     if (v === view) return;
@@ -1407,6 +1438,7 @@ export default function CallsPage() {
           onConfirm={() => { void handleAnswerConfirmed(); }}
           keyboard={!isMobile}
           resetKey={selectedPhone}
+          accessory={scriptDockOn ? <ScriptDockMobile phone={selectedPhone} context={scriptCtx} /> : undefined}
         />
       )}
 
@@ -1440,7 +1472,8 @@ export default function CallsPage() {
   return (
     <AppLayout title="" headerActions={headerControls}>
       {/* Bottom padding on phones = room for the pinned outcome bar. */}
-      <div className={`space-y-3 md:space-y-4 ${barShown ? 'pb-28 md:pb-0' : ''}`}>
+      {/* (+ the script row inside that bar when the targeted scripts are on). */}
+      <div className={`space-y-3 md:space-y-4 ${barShown ? (scriptDockOn ? 'pb-36 md:pb-0' : 'pb-28 md:pb-0') : ''}`}>
         <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
           <QueueTabs view={view} onChange={setView} dueCount={callbacksDue} />
           <div className="lg:w-[30rem]">
@@ -1513,6 +1546,7 @@ export default function CallsPage() {
               toolbar={actionBar}
               avgPackagePrice={currentAvgPackagePrice}
               showScripts
+              scriptContext={scriptCtx}
             />
           </div>
         )}
