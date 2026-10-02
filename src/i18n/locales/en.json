@@ -728,6 +728,40 @@
     "recountHint": "Each agent sees only their own count. Editing the promo re-scores today's numbers."
   },
   "callScripts": {
+    "groups": {
+      "lead_new": "New lead",
+      "lead_callback": "Callback",
+      "newcomers": "New buyers",
+      "d21": "21–57 days",
+      "d57": "57–120 days",
+      "m4_6": "4–6 months",
+      "m6_12": "6–12 months",
+      "y1_2": "1–2 years",
+      "y2plus": "Over 2 years",
+      "cancels": "Cancels",
+      "never_converted": "Never bought",
+      "trash": "Trash"
+    },
+    "sections": {
+      "opening": "Opening",
+      "pitch": "Pitch",
+      "objections": "Objections",
+      "closing": "Closing",
+      "custom": "Own section"
+    },
+    "vars": {
+      "customer_name": "Full name",
+      "first_name": "First name",
+      "agent_name": "Your name",
+      "product": "Product",
+      "price": "Price",
+      "last_product": "Last product",
+      "last_purchase_date": "Last purchase date",
+      "days_since_purchase": "Days since purchase",
+      "since_purchase": "Time since purchase",
+      "city": "City",
+      "order_id": "Order number"
+    },
     "predictionLeadScript": "Prediction Lead Script",
     "orderScript": "Order Script",
     "varCustomerName": "Customer's name",
@@ -2771,6 +2805,91 @@
     "finishCurrentFirst": "Finish this client first",
     "finishCurrentFirstDesc": "You opened this client without recording an answer. Choose an answer (No Answer, Cancel, Confirm…) before moving to another client.",
     "mustAnswerBanner": "You must record an answer for this client before opening another one — No Answer counts too."
+  },
+  "scriptDock": {
+    "title": "Script",
+    "trigger": "Script · {{title}}",
+    "triggerEmpty": "Script · none for this call",
+    "triggerLoading": "Script · loading…",
+    "collapse": "Collapse the script",
+    "expand": "Open the script",
+    "preview": "Preview",
+    "previewHint": "Preview mode: only admins and managers see the new scripts — agents still see the old list.",
+    "updated": "Updated {{date}} · v{{version}}",
+    "recommended": "Recommended",
+    "tabsLabel": "Scripts for this call",
+    "picked": "Picked by hand",
+    "closePicked": "Close the hand-picked script",
+    "noGroup": "No group",
+    "groupTitle": "The customer's group",
+    "listTitle": "List: {{list}}",
+    "productTitle": "The call's product",
+    "lang": "Script in {{lang}}",
+    "loading": "Loading the script…",
+    "error": "The script could not be loaded.",
+    "retry": "Try again",
+    "empty": "No script for {{what}}",
+    "emptyGeneric": "No script for this call",
+    "emptyHint": "Nobody has written a script for this group and product yet. Use search to open another published script.",
+    "write": "Write it",
+    "search": {
+      "button": "Find a script",
+      "placeholder": "Script title…",
+      "empty": "No script with that title.",
+      "heading": "Published scripts",
+      "loadFailed": "The script could not be opened."
+    },
+    "why": {
+      "button": "Why?",
+      "title": "Why this script",
+      "contextTitle": "The call",
+      "matchTitle": "Match",
+      "group": "Group matches: {{group}}",
+      "allGroups": "The script is for every group",
+      "product": "Product matches: {{product}}",
+      "productOther": "another product of the order",
+      "allProducts": "The script is for every product",
+      "twin": "Matched through the same product under another catalogue code",
+      "tier": {
+        "1": "Tier 1 of 4 — group and product",
+        "2": "Tier 2 of 4 — group, every product",
+        "3": "Tier 3 of 4 — product, every group",
+        "4": "Tier 4 of 4 — general script"
+      },
+      "tieBreak": {
+        "primary_product": "Ahead of the next script: it matches the call's main product",
+        "priority": "Ahead of the next script: higher priority",
+        "newest": "Ahead of the next script: published more recently"
+      },
+      "basis": {
+        "order_status": "The group comes from the lead's status: {{status}}",
+        "list_name": "The group comes from the list: {{list}}",
+        "attribution": "The group comes from the customer's last list: {{list}}",
+        "attributionNoList": "The group comes from the customer's last list",
+        "none": "The customer has no group — only scripts for every group apply"
+      },
+      "drafts": "Drafts are included",
+      "picked": "You picked this script by hand — it was not chosen for this customer."
+    },
+    "body": {
+      "nav": "Script sections",
+      "empty": "The script has no text yet.",
+      "fallbackBadge": "MK",
+      "fallbackHint": "No Albanian text — the Macedonian text is shown.",
+      "missing": "Unknown: {{label}}"
+    },
+    "quick": {
+      "title": "Quick answers",
+      "chip": "Quick answers ({{count}})",
+      "search": "Search quick answers (Latin or Cyrillic)…",
+      "none": "No quick answers.",
+      "noMatches": "No matches."
+    },
+    "source": {
+      "lead": "Leads",
+      "prediction": "Prediction",
+      "manual": "Opened by hand"
+    }
   },
   "scriptsPanel": {
     "title": "Call Scripts & Helpers",

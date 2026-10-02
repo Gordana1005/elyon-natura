@@ -259,3 +259,32 @@ describe('DialPanel — the Call button while VOIP is off', () => {
     expect(screen.queryByTestId('dial-tel')).toBeNull();
   });
 });
+
+describe('OutcomeBar — the phone accessory (the call script row)', () => {
+  const handlers = () => ({ onNoAnswer: vi.fn(), onCallAgain: vi.fn(), onCancel: vi.fn(), onTrash: vi.fn(), onConfirm: vi.fn() });
+
+  it('renders inside the pinned bar, ABOVE the buttons, and only below md', () => {
+    render(<OutcomeBar {...handlers()} now={() => NOW} accessory={<button type="button">Скрипта · Тест</button>} />);
+    const bar = screen.getByTestId('outcome-bar');
+    const acc = within(bar).getByTestId('outcome-bar-accessory');
+    expect(acc).toHaveClass('md:hidden');
+    expect(acc).toHaveTextContent('Скрипта · Тест');
+    // DOM order = screen order here: the accessory comes before the toolbar's column
+    expect(acc.compareDocumentPosition(screen.getByRole('toolbar')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('steps aside while a note is typed (the keyboard needs the room), and comes back after', () => {
+    render(<OutcomeBar {...handlers()} now={() => NOW} accessory={<span>Скрипта</span>} />);
+    fireEvent.click(within(screen.getByRole('toolbar')).getByRole('button', { name: /Откажа/ }));
+    expect(screen.getByTestId('outcome-bar-accessory')).toBeInTheDocument(); // the reason chips leave it
+    fireEvent.click(within(screen.getByRole('group')).getByRole('button', { name: 'Нема пари' }));
+    expect(screen.queryByTestId('outcome-bar-accessory')).toBeNull();
+    fireEvent.click(within(screen.getByTestId('note-step')).getByRole('button', { name: 'Затвори' }));
+    expect(screen.getByTestId('outcome-bar-accessory')).toBeInTheDocument();
+  });
+
+  it('no accessory → nothing extra (today\'s bar)', () => {
+    render(<OutcomeBar {...handlers()} now={() => NOW} />);
+    expect(screen.queryByTestId('outcome-bar-accessory')).toBeNull();
+  });
+});

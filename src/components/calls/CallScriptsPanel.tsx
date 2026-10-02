@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
-import { FileText, ChevronDown, ChevronRight, ChevronUp, Loader2, Search, HelpCircle } from 'lucide-react';
+import { FileText, ChevronDown, ChevronRight, ChevronUp, Loader2 } from 'lucide-react';
 import { apiGetAllCallScripts, type CallScript } from '@/lib/api';
 import {
   resolveScript, SCRIPT_LANGS, storedScriptLang, persistScriptLang, type ScriptLang,
@@ -9,7 +9,7 @@ import {
 import { FlagIcon } from '@/components/LanguageSwitcher';
 import { cn } from '@/lib/utils';
 import { hoverLift } from '@/lib/design-utils';
-import { normalizeForSearch } from '@/lib/transliterate';
+import { QuickAnswers } from '@/components/callscripts/QuickAnswers';
 
 export function CallScriptsPanel() {
   const { t } = useTranslation();
@@ -123,22 +123,6 @@ function ScriptAccordionItem({
   // fallback to the Macedonian base still applies, so a half-translated Albanian
   // script shows Macedonian for whatever is missing rather than a blank.
   const r = resolveScript(script, lang);
-  // Local state for the 30% helpers pane (clean, per-script, no global stuffing)
-  const [helperSearch, setHelperSearch] = useState('');
-  const [openHelper, setOpenHelper] = useState<string | null>(null); // single open for minimalist feel
-
-  const searchNorm = normalizeForSearch(helperSearch);
-  const helpers = (r.helpers || []).filter(h => {
-    if (!searchNorm) return true;
-    const titleNorm = normalizeForSearch(h.title);
-    const contentNorm = normalizeForSearch(h.content || '');
-    return titleNorm.includes(searchNorm) || contentNorm.includes(searchNorm);
-  });
-
-  const toggleHelper = (title: string) => {
-    setOpenHelper(prev => (prev === title ? null : title));
-  };
-
   return (
     <div className={cn(
       'rounded-lg border transition-colors',
@@ -185,69 +169,8 @@ function ScriptAccordionItem({
                 : <span className="text-muted-foreground italic text-xs">{t('scriptsPanel.noContent')}</span>}
             </div>
 
-            {/* RIGHT 30% — clean, minimalist helpers / FAQ pane */}
-            <div className="rounded-lg border border-border/40 bg-card/60 p-2.5 flex flex-col min-w-0">
-              <div className="flex items-center justify-between mb-1.5 px-1">
-                <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  <HelpCircle className="h-3 w-3 text-sky-400" />
-                  {t('scriptsPanel.helpers')}
-                  {helpers.length > 0 && <span className="font-normal normal-case text-[10px]">({helpers.length})</span>}
-                </div>
-              </div>
-
-              {/* Tiny search (only useful, not stuffed) */}
-              { (r.helpers || []).length > 3 && (
-                <div className="relative mb-1.5">
-                  <Search className="absolute left-2 top-1.5 h-3 w-3 text-muted-foreground/60" />
-                  <input
-                    type="text"
-                    value={helperSearch}
-                    onChange={(e) => { setHelperSearch(e.target.value); setOpenHelper(null); }}
-                    placeholder={t('scriptsPanel.searchPlaceholder')}
-                    className="w-full bg-background/60 border border-border/50 text-[11px] pl-6 pr-2 py-1 rounded-md focus:outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-muted-foreground/50"
-                    title={t('scriptsPanel.searchTooltip')}
-                  />
-                </div>
-              )}
-
-              <div className="flex-1 space-y-0.5 overflow-y-auto max-h-[340px] pr-0.5 text-[11px]">
-                {helpers.length === 0 ? (
-                  <div className="text-[10px] text-muted-foreground/60 italic px-1 py-2">
-                    { (r.helpers || []).length === 0
-                      ? t('scriptsPanel.noHelpers')
-                      : t('scriptsPanel.noMatches') }
-                  </div>
-                ) : (
-                  helpers.map((h, idx) => {
-                    const key = `${h.title}-${idx}`;
-                    const isOpen = openHelper === key;
-                    return (
-                      <div key={key} className={cn(
-                        'rounded border border-border/30 bg-muted/10',
-                        isOpen && 'border-primary/20 bg-primary/5'
-                      )}>
-                        <button
-                          type="button"
-                          onClick={() => toggleHelper(key)}
-                          className="w-full flex items-center gap-1.5 px-2 py-1 text-left hover:bg-muted/30 rounded"
-                        >
-                          <ChevronRight className={cn('h-3 w-3 shrink-0 transition-transform text-muted-foreground/70', isOpen && 'rotate-90')} />
-                          <span className="font-medium truncate">{h.title}</span>
-                          {h.category && (
-                            <span className="ml-auto text-[9px] px-1 py-px rounded bg-muted/40 text-muted-foreground/70">{h.category}</span>
-                          )}
-                        </button>
-                        {isOpen && h.content && (
-                          <div className="px-2.5 pb-2 pt-0.5 text-[11px] leading-[1.55] text-foreground/90 whitespace-pre-wrap border-t border-primary/10">
-                            {h.content}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
+            {/* RIGHT 30% — the helpers / FAQ pane (shared with the targeted dock's "Брзи одговори") */}
+            <QuickAnswers helpers={r.helpers || []} legacy />
           </div>
         </div>
       )}
