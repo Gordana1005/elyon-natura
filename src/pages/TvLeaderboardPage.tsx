@@ -224,7 +224,11 @@ export default function TvLeaderboardPage() {
   const shownDay = day ?? today;
   const goToDay = (wanted: string | null) => setDay(boardDay(wanted, today));
   const rows = useMemo(() => data?.rows ?? [], [data]);
-  const { people, managers } = useMemo(() => splitManagers(rows), [rows]);
+  const { people, managers: allManagers } = useMemo(() => splitManagers(rows), [rows]);
+  // Менаџмент is shown ONLY when the Менаџмент team is chosen (owner 02.10.2026: "менаџментот се покажува само доколку
+  // влеземе во менаџмент, не се покажува на други места"); their sales still count in the KPI totals.
+  const showManagers = splitTeamFilter(filter.team).team === 'management';
+  const managers = showManagers ? allManagers : [];
   const s = data?.summary ?? {};
   const money = data?.money !== false;
   const dept = data?.legacy ? data.filter.department : filter.department;
@@ -234,7 +238,7 @@ export default function TvLeaderboardPage() {
   const webView = dept === 'web' && data != null && data.web_live !== undefined;
 
   // Row height follows the head count so a normal day fits without paging.
-  const rowVh = Math.max(3.6, Math.min(6.2, 58 / Math.max(1, rows.length + (managers.length ? 1 : 0))));
+  const rowVh = Math.max(3.6, Math.min(6.2, 58 / Math.max(1, people.length + managers.length + (managers.length ? 1 : 0))));
   const fontVh = Math.min(3, Math.max(1.75, rowVh * 0.5));
 
   const presenceTile = () => {
@@ -352,12 +356,12 @@ export default function TvLeaderboardPage() {
           {error === 'Unauthorized' ? t('tvBoard.invalidKey') : error}
         </div>
       )}
-      {!loading && !error && !webView && rows.length === 0 && (
+      {!loading && !error && !webView && people.length + managers.length === 0 && (
         <div className="mt-10 text-center text-base text-slate-400 lg:mt-[18vh] lg:text-[2.6vh]">{t('leaderboard2.noPeople')}</div>
       )}
 
       {/* Phone / tablet: one card per person, the page scrolls */}
-      {!loading && !error && !webView && rows.length > 0 && compact && (
+      {!loading && !error && !webView && people.length + managers.length > 0 && compact && (
         <div className="flex flex-col gap-2 pb-2">
           {people.map((r) => (
             <TvBoardCard key={r.person_id} row={r} money={money} isToday={isToday} now={now}
@@ -378,7 +382,7 @@ export default function TvLeaderboardPage() {
       )}
 
       {/* Wall screen: the table */}
-      {!loading && !error && !webView && rows.length > 0 && !compact && (
+      {!loading && !error && !webView && people.length + managers.length > 0 && !compact && (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
           <div data-testid="tv-head" className={`grid ${tvGrid(money)} shrink-0 items-center px-[1.6vw] py-[1.1vh] text-[1.4vh] font-semibold uppercase tracking-[0.1em] text-slate-400`}>
             <div>#</div>
