@@ -93,7 +93,8 @@ export function AppLayout({ children, title, headerActions }: AppLayoutProps) {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-muted transition-colors">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
+                  {/* the brand greens (Natura Therapy HUB, 02.10.2026), not the app primary — emerald / orange */}
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#2f6556] text-sm font-bold text-white dark:bg-[#6aa291] dark:text-[#0b1714]">
                     {initials}
                   </div>
                   {/* Hide full user info on small screens to avoid crowding next to the (narrow) sidebar */}

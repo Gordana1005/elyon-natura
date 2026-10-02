@@ -57,16 +57,16 @@
 
     --radius: 0.5rem;
 
-    /* Sidebar — Matching the stable lighter green primary */
-    --sidebar-background: 225 28% 9%;    /* Darker and cooler */
-    --sidebar-foreground: 220 18% 78%;
-    --sidebar-primary: 142 72% 48%;      /* Pleasant lighter emerald green */
+    /* Sidebar — the Natura Therapy brand (owner 02.10.2026); AppSidebar paints .nt-sidebar */
+    --sidebar-background: 161 41% 11%;   /* Natura Therapy forest green (02.10.2026) — see .nt-sidebar */
+    --sidebar-foreground: 156 14% 80%;
+    --sidebar-primary: 161 23% 53%;      /* #6aa291, the logo green */
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 225 25% 14%;
-    --sidebar-accent-foreground: 0 0% 95%;
-    --sidebar-border: 225 22% 17%;
-    --sidebar-ring: 142 72% 48%;
-    --sidebar-muted: 225 22% 20%;
+    --sidebar-accent: 162 30% 17%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 162 28% 18%;
+    --sidebar-ring: 161 32% 66%;
+    --sidebar-muted: 162 22% 22%;
   }
 
   .dark {
@@ -271,4 +271,36 @@ html.dark {
 /* …and keep the focus halo on an autofilled field (the office PCs autofill saved logins). */
 .nt-login input:-webkit-autofill:focus {
   box-shadow: 0 0 0 4px var(--nt-ring), 0 0 0 1000px var(--nt-field) inset;
+}
+
+/* =========================================
+   Natura Therapy HUB — the sidebar (owner, 02.10.2026)
+   The login's deep forest green, lit at the top by the logo's #6aa291; the same in light and
+   dark (a brand surface, like the login's panel). Classes in src/components/AppSidebar.tsx.
+   ========================================= */
+.nt-sidebar {
+  background-color: #10261f;
+  background-image:
+    radial-gradient(460px 280px at 0% 0%, rgba(106, 162, 145, 0.2), transparent 70%),
+    linear-gradient(180deg, #15312a 0%, #10261f 55%, #0c1e19 100%);
+  color-scheme: dark;
+}
+
+/* A quiet scrollbar on the green — beats the app-wide rainbow one (html.dark ::-webkit-scrollbar-*). */
+html .nt-sidebar .nt-sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+}
+html .nt-sidebar .nt-sidebar-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+html .nt-sidebar .nt-sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+html .nt-sidebar .nt-sidebar-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 3px;
+}
+html .nt-sidebar .nt-sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.24);
 }

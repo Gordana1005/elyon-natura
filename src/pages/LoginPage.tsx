@@ -20,19 +20,17 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import naturaLogoWhite from '@/assets/brand/natura-logo-white.svg';
-import naturaMark from '@/assets/brand/natura-mark.svg';
-import naturaMarkWhite from '@/assets/brand/natura-mark-white.svg';
+import { BRAND, BRAND_LOGO } from '@/lib/brand';
 
 // TODO(macedonia): final login domain — must match the admin emails seeded in
 // scripts/create-admin-users.mjs (Phase 3). Placeholder for now.
 const EMAIL_DOMAIN = 'elyon-mk.local';
 
-// "Natura Therapy HUB" + "Powered by elyonpremium" (owner, 02.10.2026). Brand lines — the same
-// words in every language, never translated.
-const PRODUCT = 'Natura Therapy';
-const POWERED_BY = 'Powered by';
-const MAKER = 'elyonpremium';
+// The brand lines and logos live in src/lib/brand.ts (shared with the sidebar).
+const PRODUCT = BRAND.product;
+const naturaLogoWhite = BRAND_LOGO.white;
+const naturaMark = BRAND_LOGO.mark;
+const naturaMarkWhite = BRAND_LOGO.markWhite;
 
 // The login offers mk / sq / en — no Bulgarian (owner, 02.10.2026) — the floor's first.
 const FLOOR_FIRST: AppLanguage[] = ['mk', 'sq'];
@@ -452,7 +450,7 @@ export default function LoginPage() {
         </div>
 
         <footer className="px-5 pb-6 pt-2 text-center text-xs text-nt-muted lg:pb-12 xl:pb-16 2xl:pb-20">
-          {POWERED_BY} <span className="font-semibold tracking-tight text-nt-text">{MAKER}</span>
+          {BRAND.poweredBy} <span className="font-semibold tracking-tight text-nt-text">{BRAND.maker}</span>
         </footer>
       </main>
     </div>

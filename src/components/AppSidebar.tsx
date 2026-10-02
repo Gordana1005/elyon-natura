@@ -5,11 +5,10 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions, useInsightsAccess } from '@/contexts/PermissionsContext';
 import {
-  LayoutDashboard, ShoppingCart, Package,
-  Users, CalendarDays, FileText, History, ChevronLeft,
-  ChevronRight, ChevronDown, Phone, PhoneCall, Warehouse, Settings,
-  Webhook, UserPlus, TrendingUp, Activity, Layers, Lock, Clock, Gauge,
-  Handshake, Radio, X, NotebookPen, Store,
+  Activity, BookUser, Boxes, CalendarClock, ChartNoAxesCombined, ChevronDown, Handshake, Headset,
+  HeartPulse, History, LayoutDashboard, ListChecks, Megaphone, NotebookPen, Package, PanelLeftClose,
+  PanelLeftOpen, PhoneForwarded, ScrollText, Settings, ShoppingBag, Split, Store, UsersRound, Warehouse,
+  Webhook, X,
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { SidebarCallIndicator } from '@/components/calls/SidebarCallIndicator';
@@ -20,6 +19,7 @@ import { PresenceHeaderButton } from '@/components/presence/PresenceHeaderButton
 import { PBX_CONFIG } from '@/lib/voip/pbxConfig';
 import { navItemActive } from '@/lib/navActive';
 import { useShopsAccess } from '@/components/shops/useShopsAccess';
+import { BRAND, BRAND_LOGO } from '@/lib/brand';
 
 interface NavItem {
   /** i18n key under nav.* — resolved with t() at render time */
@@ -43,6 +43,7 @@ interface NavSection {
 // Inbound leads, Webhooks & ads (all 0 rows ever), Lead distribution (off since 16.09 — the Assigner
 // distributes), Search prediction (the top search bar), Import orders (never created a real order) and
 // Affiliates admin (no partners yet). Their routes still resolve (or redirect) so old links don't break.
+// Icons (Natura Therapy HUB, owner 02.10.2026): one per page, one brand tone — no rainbow.
 const sections: NavSection[] = [
   {
     // Affiliate (webmaster) portal — module access alone isn't enough here:
@@ -58,10 +59,10 @@ const sections: NavSection[] = [
   {
     labelKey: '',
     items: [
-      { titleKey: 'nav.calls', path: '/calls', icon: PhoneCall, moduleKey: 'calls' },
+      { titleKey: 'nav.calls', path: '/calls', icon: Headset, moduleKey: 'calls' },
       // A queue inside /calls since plan Фаза 11 (/call-again redirects there).
-      { titleKey: 'nav.callAgain', path: '/calls?queue=call-again', icon: Clock, moduleKey: 'calls' },
-      { titleKey: 'nav.personalList', path: '/personal-list', icon: Lock, moduleKey: 'calls' },
+      { titleKey: 'nav.callAgain', path: '/calls?queue=call-again', icon: PhoneForwarded, moduleKey: 'calls' },
+      { titleKey: 'nav.personalList', path: '/personal-list', icon: BookUser, moduleKey: 'calls' },
       // Личен дневник (plan Фаза 7): a tab of /personal-list; the query path lights only this item.
       { titleKey: 'nav.personalNotes', path: '/personal-list?tab=notes', icon: NotebookPen, moduleKey: 'calls' },
     ],
@@ -74,7 +75,7 @@ const sections: NavSection[] = [
       // Insights hosts the money tabs (owners only) plus the operational
       // Agents / Payout / Call Activity tabs. Its visibility is decided by
       // useInsightsAccess() in the filter below, NOT by these module keys.
-      { titleKey: 'nav.insights', path: '/insights', icon: TrendingUp, moduleKey: 'insights', moduleKeysAny: ['performance', 'agent_activity'] },
+      { titleKey: 'nav.insights', path: '/insights', icon: ChartNoAxesCombined, moduleKey: 'insights', moduleKeysAny: ['performance', 'agent_activity'] },
       { titleKey: 'nav.operations', path: '/operations', icon: Activity, moduleKey: 'operations' },
       // Продавници (owner 02.10.2026): owners + managers + admins — decided by useShopsAccess() below.
       { titleKey: 'nav.shops', path: '/shops', icon: Store, moduleKey: 'shops' },
@@ -83,9 +84,9 @@ const sections: NavSection[] = [
   {
     labelKey: 'nav.sections.sales',
     items: [
-      { titleKey: 'nav.orders', path: '/orders', icon: ShoppingCart, moduleKey: 'orders' },
-      { titleKey: 'nav.assigner', path: '/assigner', icon: UserPlus, moduleKey: 'assigner' },
-      { titleKey: 'nav.predictionLists', path: '/segments', icon: Layers, moduleKey: 'segments' },
+      { titleKey: 'nav.orders', path: '/orders', icon: ShoppingBag, moduleKey: 'orders' },
+      { titleKey: 'nav.assigner', path: '/assigner', icon: Split, moduleKey: 'assigner' },
+      { titleKey: 'nav.predictionLists', path: '/segments', icon: ListChecks, moduleKey: 'segments' },
     ],
   },
   {
@@ -97,32 +98,36 @@ const sections: NavSection[] = [
   {
     labelKey: 'nav.sections.team',
     items: [
-      { titleKey: 'nav.users', path: '/users', icon: Users, moduleKey: 'users' },
+      { titleKey: 'nav.users', path: '/users', icon: UsersRound, moduleKey: 'users' },
       // Performance → Insights "Agents" tab; Agent Activity → Insights "Call Activity" tab.
       // One "Смени" page (owner 30.09): agents see their own shifts, admins/managers the tools too.
-      { titleKey: 'nav.shiftsManagement', path: '/shifts', icon: CalendarDays, moduleKey: 'shifts', moduleKeysAny: ['my_shifts'] },
-      { titleKey: 'nav.callSupportCenter', path: '/call-scripts', icon: FileText, moduleKey: 'call_scripts' },
+      { titleKey: 'nav.shiftsManagement', path: '/shifts', icon: CalendarClock, moduleKey: 'shifts', moduleKeysAny: ['my_shifts'] },
+      { titleKey: 'nav.callSupportCenter', path: '/call-scripts', icon: ScrollText, moduleKey: 'call_scripts' },
       { titleKey: 'nav.callHistory', path: '/call-history', icon: History, moduleKey: 'call_history' },
     ],
   },
   {
     labelKey: 'nav.sections.productsAds',
     items: [
-      { titleKey: 'nav.products', path: '/products', icon: Package, moduleKey: 'products' },
-      { titleKey: 'nav.altercpa', path: '/altercpa', icon: Radio, moduleKey: 'altercpa_bridge' },
+      { titleKey: 'nav.products', path: '/products', icon: Boxes, moduleKey: 'products' },
+      { titleKey: 'nav.altercpa', path: '/altercpa', icon: Megaphone, moduleKey: 'altercpa_bridge' },
     ],
   },
   {
     labelKey: '',
     items: [
       // VOIP health only once the phone system exists (telephony is deferred on MK).
-      ...(PBX_CONFIG.useRealVoip ? [{ titleKey: 'nav.voipHealth', path: '/voip-health', icon: Gauge, moduleKey: 'voip_health' }] : []),
+      ...(PBX_CONFIG.useRealVoip ? [{ titleKey: 'nav.voipHealth', path: '/voip-health', icon: HeartPulse, moduleKey: 'voip_health' }] : []),
       { titleKey: 'nav.settings', path: '/settings', icon: Settings, moduleKey: 'settings' },
     ],
   },
 ];
 
 /**
+ * The Natura Therapy HUB sidebar (owner, 02.10.2026): the brand's deep forest green (as on the login),
+ * the Natura Therapy logo with "Powered by elyonpremium" under it, one icon tone, a light-green bar on
+ * the page you are on.
+ *
  * Desktop / tablet (≥ 768 px): the rail in the page flow, collapsible to icons.
  * Phone (< 768 px, owner 30.09.2026 — "perfect on every screen"): no rail eating the width; an off-canvas
  * drawer opened by the hamburger in AppLayout's top bar, full labels, closed by the backdrop, Esc, the X or
@@ -177,30 +182,6 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?:
     })
     .filter(Boolean) as NavSection[];
 
-  // Vertical gradient colors for the nav icons (non-active state).
-  // We treat the entire visible nav as one vertical sequence.
-  // More aggressive color progression: starts at green (top, telephony/brand) and
-  // rapidly shifts through teal/blue/purple/magenta to end in red at the bottom.
-  // This gives a much wider rainbow of colors (not just green-to-blue) when viewing the whole sidebar.
-  const flatNavItems = visibleSections.flatMap((s) => s.items);
-  const totalNavItems = flatNavItems.length;
-  const pathToIconColor = new Map<string, string>();
-  flatNavItems.forEach((item, idx) => {
-    if (totalNavItems <= 1) {
-      pathToIconColor.set(item.path, 'hsl(135, 70%, 58%)');
-      return;
-    }
-    const progress = idx / (totalNavItems - 1);
-    // Hue starts vibrant green (~135) and aggressively shifts +220° to red (~355)
-    // passing through cyan, blue, indigo, purple, magenta etc. for lots of color variety.
-    const hue = 135 + progress * 220;
-    // Stronger saturation ramp for more vivid colors as we descend
-    const sat = 60 + progress * 20;
-    // Lightness tuned for dark sidebar (visible but not overpowering)
-    const light = 58;
-    pathToIconColor.set(item.path, `hsl(${hue.toFixed(0)}, ${sat.toFixed(0)}%, ${light}%)`);
-  });
-
   useEffect(() => {
     const initial: Record<string, boolean> = {};
     visibleSections.forEach(s => {
@@ -217,38 +198,52 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?:
   return (
     <>
     {isMobile && mobileOpen && (
-      <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[1px]" aria-hidden onClick={() => onMobileClose?.()} />
+      <div
+        className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px] duration-200 animate-in fade-in-0 motion-reduce:animate-none"
+        aria-hidden
+        onClick={() => onMobileClose?.()}
+      />
     )}
     <aside
       id="app-sidebar"
       aria-hidden={isMobile && !mobileOpen ? true : undefined}
       className={cn(
-        'flex flex-col border-r border-sidebar-border bg-sidebar',
+        'nt-sidebar flex flex-col border-r border-black/20 text-white',
         isMobile
-          ? cn('fixed inset-y-0 left-0 z-50 h-[100dvh] w-[min(85vw,300px)] shadow-2xl transition-transform duration-300 ease-in-out',
+          ? cn('fixed inset-y-0 left-0 z-50 h-[100dvh] w-[min(85vw,300px)] rounded-r-2xl shadow-2xl transition-transform duration-300 ease-in-out motion-reduce:transition-none',
                mobileOpen ? 'translate-x-0' : '-translate-x-full invisible')
-          : cn('h-screen transition-all duration-300 ease-in-out', collapsed ? 'w-[68px]' : 'w-[240px]'),
+          : cn('h-screen transition-all duration-300 ease-in-out motion-reduce:transition-none', collapsed ? 'w-[68px]' : 'w-[240px]'),
       )}
     >
-      {/* ── Brand ── */}
-      <div className="flex h-16 shrink-0 items-center gap-3 border-b border-sidebar-border px-4">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary shadow-sm shadow-primary/20">
-          <Phone className="h-4 w-4 text-primary-foreground" />
-        </div>
-        <span
-          className={cn(
-            'text-[15px] font-bold tracking-tight text-sidebar-accent-foreground transition-opacity duration-200',
-            collapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100',
-          )}
-        >
-          Elyon CRM
-        </span>
+      {/* ── Brand: the Natura Therapy logo, "Powered by elyonpremium" under it. 64 px — its edge lines
+            up with the top bar's. Collapsed: the emblem alone. ── */}
+      <div
+        className={cn(
+          'flex h-16 shrink-0 items-center border-b border-white/[0.07]',
+          collapsed ? 'justify-center' : 'gap-3 px-5',
+        )}
+      >
+        {collapsed ? (
+          <img src={BRAND_LOGO.markWhite} alt={BRAND.product} draggable={false} className="h-8 w-auto select-none" />
+        ) : (
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <img src={BRAND_LOGO.white} alt={BRAND.product} draggable={false} className="h-[34px] w-auto select-none" />
+              <span className="rounded-[5px] bg-white/[0.08] px-1.5 py-[3px] text-[9.5px] font-bold leading-none tracking-[0.16em] text-[#a9d3c6] ring-1 ring-inset ring-white/10">
+                {BRAND.hub}
+              </span>
+            </div>
+            <p className="mt-1 truncate text-[10.5px] leading-none text-white/45">
+              {BRAND.poweredBy} <span className="font-semibold tracking-tight text-white/75">{BRAND.maker}</span>
+            </p>
+          </div>
+        )}
         {isMobile && (
           <button
             type="button"
             onClick={() => onMobileClose?.()}
             aria-label={t('common.close')}
-            className="ml-auto flex h-9 w-9 items-center justify-center rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            className="ml-auto flex h-9 w-9 items-center justify-center rounded-lg text-white/60 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8cc3b2]/70"
           >
             <X className="h-5 w-5" />
           </button>
@@ -259,19 +254,21 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?:
       <SidebarCallIndicator collapsed={collapsed} />
 
       {/* ── Navigation ── */}
-      <nav className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4 space-y-1">
+      <nav className="nt-sidebar-scroll flex-1 overflow-y-auto overflow-x-hidden px-3 pb-4 pt-3">
         {visibleSections.map((section, idx) => (
           <div key={section.labelKey || idx}>
             {section.labelKey && !collapsed && (
               <button
+                type="button"
                 onClick={() => toggleSection(section.labelKey)}
-                className="group flex w-full items-center justify-between rounded-lg px-3 py-2 mt-4 mb-0.5 text-[11px] font-semibold uppercase tracking-widest text-sidebar-foreground/50 hover:text-sidebar-foreground/70 transition-colors"
+                className="group mb-1 mt-5 flex w-full items-center justify-between rounded-md px-3 py-1 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white/40 transition-colors hover:text-white/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8cc3b2]/70"
                 aria-expanded={openSections[section.labelKey]}
               >
                 <span>{t(section.labelKey)}</span>
                 <ChevronDown
+                  aria-hidden
                   className={cn(
-                    'h-3 w-3 transition-transform duration-200',
+                    'h-3 w-3 text-white/30 transition-transform duration-200 group-hover:text-white/60',
                     openSections[section.labelKey] ? 'rotate-0' : '-rotate-90',
                   )}
                 />
@@ -279,12 +276,14 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?:
             )}
 
             {section.labelKey && collapsed && (
-              <div className="mx-auto my-3 h-px w-6 bg-sidebar-border" />
+              <div className="mx-auto my-3 h-px w-8 bg-white/10" />
             )}
 
             <div
               className={cn(
                 'space-y-0.5 overflow-hidden transition-all duration-200 ease-in-out',
+                // room for the light-green bar that sits on the sidebar's edge
+                '-ml-3 pl-3',
                 section.labelKey && !collapsed && !openSections[section.labelKey]
                   ? 'max-h-0 opacity-0'
                   : 'max-h-[500px] opacity-100',
@@ -299,31 +298,38 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?:
                   <Link
                     key={item.path}
                     to={item.path}
+                    aria-current={isActive ? 'page' : undefined}
                     onClick={() => {
                       // on a phone the drawer closes after navigating
                       if (isMobile) onMobileClose?.();
                     }}
                     className={cn(
-                      'group flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] font-medium transition-all duration-150',
-                      collapsed && 'justify-center px-0',
+                      'group relative flex items-center rounded-lg text-[13.5px] font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8cc3b2]/70',
+                      collapsed ? 'mx-auto h-10 w-10 justify-center' : 'h-9 gap-3 px-3',
                       isActive
-                        ? 'bg-primary/10 text-primary shadow-sm'
-                        : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+                        ? 'bg-white/[0.09] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]'
+                        : 'text-white/[0.68] hover:bg-white/[0.05] hover:text-white',
                     )}
                   >
-                    <item.icon
-                      className={cn(
-                        'h-[18px] w-[18px] shrink-0 transition-all duration-150',
-                        isActive && 'text-primary',
-                        !isActive && 'group-hover:brightness-125 group-hover:saturate-150',
-                      )}
-                      style={!isActive ? { color: pathToIconColor.get(item.path) || 'hsl(220, 12%, 65%)' } : undefined}
-                      strokeWidth={isActive ? 2.2 : 1.8}
-                    />
-                    {!collapsed && <span className="truncate min-w-0">{t(item.titleKey)}</span>}
-                    {isActive && !collapsed && (
-                      <div className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />
+                    {/* the page you are on: a light-green bar on the sidebar's edge */}
+                    {isActive && (
+                      <span
+                        aria-hidden
+                        className={cn(
+                          'absolute top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-[#8cc3b2]',
+                          collapsed ? '-left-[14px]' : '-left-3',
+                        )}
+                      />
                     )}
+                    <item.icon
+                      aria-hidden
+                      className={cn(
+                        'h-[18px] w-[18px] shrink-0 transition-colors duration-150',
+                        isActive ? 'text-[#8cc3b2]' : 'text-white/50 group-hover:text-white/85',
+                      )}
+                      strokeWidth={isActive ? 2 : 1.75}
+                    />
+                    {!collapsed && <span className="min-w-0 truncate">{t(item.titleKey)}</span>}
                   </Link>
                 );
 
@@ -347,8 +353,8 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?:
 
       {/* ── Phone: language, theme and "who is working" (the top bar keeps room for the title) ── */}
       {isMobile && (
-        <div className="shrink-0 border-t border-sidebar-border p-3">
-          <div className="flex items-center justify-center gap-2 rounded-xl bg-card p-2">
+        <div className="shrink-0 border-t border-white/[0.07] p-3">
+          <div className="flex items-center justify-center gap-2 rounded-xl bg-white/[0.06] p-2 ring-1 ring-inset ring-white/[0.08]">
             <LanguageSwitcher />
             <ThemeToggle />
             <PresenceHeaderButton />
@@ -357,19 +363,21 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?:
       )}
 
       {/* ── Collapse toggle ── */}
-      <div className={cn(
-        "shrink-0 border-t border-sidebar-border p-3",
-        isMobile && "hidden"
-      )}>
+      <div className={cn('shrink-0 border-t border-white/[0.07] p-3', isMobile && 'hidden')}>
         <button
+          type="button"
           onClick={() => setCollapsed(!collapsed)}
-          className="flex w-full items-center justify-center gap-2 rounded-xl py-2 text-xs font-medium text-sidebar-foreground/50 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-150"
+          aria-label={collapsed ? t('common.expand') : t('common.collapse')}
+          className={cn(
+            'flex h-9 w-full items-center rounded-lg text-[12.5px] font-medium text-white/45 transition-colors duration-150 hover:bg-white/[0.05] hover:text-white/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8cc3b2]/70',
+            collapsed ? 'justify-center' : 'gap-3 px-3',
+          )}
         >
           {collapsed ? (
-            <ChevronRight className="h-4 w-4" />
+            <PanelLeftOpen className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden />
           ) : (
             <>
-              <ChevronLeft className="h-4 w-4" />
+              <PanelLeftClose className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden />
               <span>{t('common.collapse')}</span>
             </>
           )}
