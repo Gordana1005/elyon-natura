@@ -89,7 +89,7 @@ if (!roles.some((r) => r.role === 'admin')) {
   console.log('· admin role already present');
 }
 
-console.log(`\nLogin at https://elyon-natura.vercel.app`);
+console.log(`\nLogin at https://naturall.mk`);
 console.log(`  email:    ${EMAIL}   (type the FULL address — it contains an @)`);
 console.log(`  password: ${PASSWORD}`);
 console.log('\nRotate this password once you are in.');

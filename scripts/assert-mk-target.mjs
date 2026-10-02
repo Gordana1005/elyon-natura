@@ -30,6 +30,10 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const EXPECTED_REF = 'bmfxhgznttcnnlqloqzp';   // Macedonia
 const FORBIDDEN_REF = 'sxymaloycddnoxudxaqp';  // live Bulgaria — never a target
 const EXPECTED_VERCEL = 'elyon-natura';  // renamed from elyon-macedonia 2026-08-01
+const EXPECTED_VERCEL_PROJECT = 'prj_cwxmm4jb74hUHmAb6YzbUG7PuDy3';
+// The elyoncoding Pro team "elyon-s-projects" since 02.10.2026 — the BG elyoncrm lives on another team.
+const EXPECTED_VERCEL_ORG = 'team_fT756uoO13MD9jtimyq27JNy';
+const FORBIDDEN_VERCEL_PROJECT = 'prj_965V2iBg793RmiJJw9m6Tl3djllX'; // live Bulgaria (elyoncrm)
 const MAX_ORDERS = Number(process.env.MK_MAX_ORDERS || 1_000_000);
 const MAX_BG_PHONE_SHARE = 0.20;   // MK data is +389; a fifth in +359 means wrong database
 
@@ -66,8 +70,12 @@ ok('.env agrees');
 // 3 — Vercel link.
 try {
   const vp = JSON.parse(readFileSync(join(root, '.vercel', 'project.json'), 'utf8'));
+  if (vp.projectId === FORBIDDEN_VERCEL_PROJECT) fail('.vercel/project.json points at LIVE BULGARIA (elyoncrm)');
   if (vp.projectName !== EXPECTED_VERCEL) fail(`.vercel/project.json projectName = "${vp.projectName}", expected "${EXPECTED_VERCEL}"`);
-  ok(`vercel → ${vp.projectName}`);
+  if (vp.projectId !== EXPECTED_VERCEL_PROJECT) fail(`.vercel/project.json projectId = "${vp.projectId}", expected "${EXPECTED_VERCEL_PROJECT}"`);
+  if (vp.orgId !== EXPECTED_VERCEL_ORG)
+    fail(`.vercel/project.json orgId = "${vp.orgId}", expected the Pro team "${EXPECTED_VERCEL_ORG}" (elyon-s-projects)`);
+  ok(`vercel → ${vp.projectName} on elyon-s-projects`);
 } catch (e) {
   if (e.code !== 'ENOENT') throw e;
   console.log('· .vercel/project.json absent (skipped)');

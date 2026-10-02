@@ -22,7 +22,7 @@ const ENDPOINTS = [
 // Overpass REQUIRES a User-Agent. Without one, overpass-api.de answers 406/504
 // and kumi 429 — all of which look like rate limiting but are not. Identify the
 // client honestly; it is also what lets an operator contact us about a bad query.
-const USER_AGENT = 'elyon-natura-crm/1.0 (Macedonian address import; +https://elyon-natura.vercel.app)';
+const USER_AGENT = 'elyon-natura-crm/1.0 (Macedonian address import; +https://naturall.mk)';
 
 export const CACHE_DIR = path.join(process.cwd(), 'scripts', 'data', 'osm-cache');
 

@@ -147,7 +147,7 @@ if (ROLE === 'admin' && names.length > 1) {
   console.log('  ↑ expected — trg_admin_grant_all_roles fans admin out to every role but affiliate.');
 }
 
-console.log(`\nLogin at https://elyon-natura.vercel.app`);
+console.log(`\nLogin at https://naturall.mk`);
 console.log(`  username: ${EMAIL}   ← type the FULL address, it contains an @`);
 console.log('  password: (as supplied)');
 console.log('\nRecord this account in docs/VAULT.md §3 (gitignored). Rotate the password after first login.');

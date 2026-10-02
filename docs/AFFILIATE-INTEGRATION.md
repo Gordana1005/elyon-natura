@@ -17,7 +17,7 @@ Technical documentation for affiliates (webmasters) sending leads to Elyon via S
 
 Log in to your Elyon affiliate portal:
 
-- **Portal:** https://elyon-natura.vercel.app
+- **Portal:** https://naturall.mk (the old https://elyon-natura.vercel.app still works)
 - **Email / password:** issued to you individually by your Elyon manager.
 
 > 🛑 **Corrected 2026-08-06.** This block used to point at `https://www.elyoncall.com` with a

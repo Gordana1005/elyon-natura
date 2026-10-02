@@ -6,9 +6,12 @@ system, run as a completely separate operation. It has its OWN infrastructure an
 
 > **Naming note:** the deployment was stood up for Macedonia on 2026-06-30 and re-aimed at
 > **Macedonia** on 2026-07-31. The Vercel project was renamed `elyon-macedonia` → `elyon-natura`
-> on 2026-08-01, so the live URL is **https://elyon-natura.vercel.app**
-> (`elyon-macedonia.vercel.app` still resolves to the same deployment and is kept as a legacy
-> alias — both are in the edge function's CORS allowlist).
+> on 2026-08-01. **Since 02.10.2026 the CRM is "Natura Therapy HUB" on https://naturall.mk**
+> (owner; `www.naturall.mk` 308-redirects to it). `elyon-natura.vercel.app` and the legacy
+> `elyon-macedonia.vercel.app` still resolve to the same deployment (TV screens, affiliate partners)
+> — all of them are in the edge function's CORS allowlist.
+> On 02.10.2026 the Vercel project also **moved from the Hobby team `gordanas-projects-a53c0208`
+> to the elyoncoding Pro team `elyon-s-projects`** (same project id; the BG `elyoncrm` stayed behind).
 > The GitHub repo **was** renamed too and is now **`Gordana1005/elyon-natura`**
 > (verified against `git remote -v`, 2026-08-13 — the old `elyon-macedonia` URL 404s, so a push
 > to it fails with "Repository not found"). Only the **Supabase ref** (`bmfxhgznttcnnlqloqzp`)
@@ -43,7 +46,9 @@ exits non-zero if anything points at Bulgaria.
 The shell's working directory **silently resets between tool calls**. NEVER rely on the current
 directory to choose which project a command acts on. For ANY state-changing command, pass the
 target **explicitly** and verify it before running:
-- **Vercel:** `vercel <cmd> --cwd "D:\Dev\archives\elyon-natura" --scope gordanas-projects-a53c0208`
+- **Vercel:** `vercel <cmd> --cwd "D:\Dev\archives\elyon-natura" --scope elyon-s-projects --token <elyoncoding token>`
+  — the machine's default CLI login (`gordana1005`) is the Hobby team that holds BG `elyoncrm` and
+  can no longer see this project; never use it for MK. The REST API takes `teamId=team_fT756uoO13MD9jtimyq27JNy`.
 - **Supabase:** confirm `supabase/config.toml` `project_id = "bmfxhgznttcnnlqloqzp"` before any link/push/deploy
 - **Git:** `git -C "D:\Dev\archives\elyon-natura" …` (the repo folder is `elyon-natura`; there is no `elyon-macedonia` folder)
 - Read the tool's echoed target (e.g. "to Project X"); if it's ever `elyoncrm`/BG → abort immediately.
@@ -54,7 +59,11 @@ target **explicitly** and verify it before running:
 
 ## Infra (Macedonia only)
 - **Supabase:** ref `bmfxhgznttcnnlqloqzp` → https://bmfxhgznttcnnlqloqzp.supabase.co
-- **Vercel:** project `elyon-natura`, scope `gordanas-projects-a53c0208` → https://elyon-natura.vercel.app (GitHub-connected → auto-deploys on push to `main`)
+- **Vercel:** project `elyon-natura` (`prj_cwxmm4jb74hUHmAb6YzbUG7PuDy3`), Pro team "Elyon's projects" `elyon-s-projects`
+  (`team_fT756uoO13MD9jtimyq27JNy`, account elyoncoding) since 02.10.2026 → **https://naturall.mk** (+ elyon-natura.vercel.app);
+  GitHub-connected → auto-deploys on push to `main`. Token: `D:\naturatherapy\vault.md` line 60 — never print it.
+- **Domain:** `naturall.mk` — registrar + DNS at MK-Host (`dns1/dns2.mk-host.mk`): apex A `216.150.1.1` + `216.150.16.1`,
+  `www` CNAME `bcdc79c7195035f5.vercel-dns-017.com` (Vercel's records; no Cloudflare). No mail on the domain yet.
 - **GitHub:** `Gordana1005/elyon-natura` (renamed from `elyon-macedonia`; the old name 404s)
 - **Secrets:** `docs/VAULT.md` (gitignored) — keys, webhook secret, admin logins
 - **Status / done / TODO:** `MACEDONIA-STATUS.md` (repo root)
