@@ -407,7 +407,8 @@ orders." ONE board, one row per person, the day split over the six departments.
   a row / phone card = rank, name, team badge (+ idle / break), SALES (`total_count`, collabBox bookings included,
   −N cancelled after the sale), the AVERAGE SALE (`avgSaleMkd` = total value ÷ sales; owners only, `tvGrid(money)`
   drops the column without money) and the time on the CRM. No department chips, no "+N чекаат пратка", no worked
-  column (the KPI strip shows the average instead of "Обработени" for owners). `DeptChips` stays in TvBoardParts
+  column (the KPI strip shows the average instead of "Обработени" for owners). Менаџмент rows show ONLY under the
+  Менаџмент team filter (owner 02.10.2026; their sales still count in the KPI totals). `DeptChips` stays in TvBoardParts
   unused — do not bring the chips back without the owner. Filter bar with each line's lanes;
   `?dept=` (or `?department=`) / `?team=` (incl. `team:lane`) pin a TV, an old
   `?mode=prediction|pending` URL opens its legacy alias (`LEGACY_MODE_TEAM`: `crm_prediction` /
