@@ -157,6 +157,17 @@ describe('/orders — Нарачки by default', { timeout: 30_000 }, () => {
     expect(within(row).queryByText(t('ordersList.operator.chip', { name: 'Ивана Петровска' }))).toBeNull();
   });
 
+  it('a value-hidden row (a dept_admin, another department) shows "—", never 0 ден — table and card', async () => {
+    const { price: _p, mex_cod_mkd: _c, ...rest } = ORDERS[1];
+    renderAt('/orders', { orders: [ORDERS[0], { ...rest, value_hidden: true }] });
+    const rows = await ready();
+    expect(within(rows[1]).getByTitle(t('ordersList.value.hidden'))).toHaveTextContent('—');
+    expect(within(rows[1]).queryByText(/\d ден/)).toBeNull();
+    const cards = screen.getAllByTestId('order-card');
+    expect(within(cards[1]).getByTitle(t('ordersList.value.hidden'))).toHaveTextContent('—');
+    expect(within(cards[1]).queryByText(/0 ден/)).toBeNull();
+  });
+
   it('a row opens the order in one click', async () => {
     renderAt();
     const [row] = await ready();

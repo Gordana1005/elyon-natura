@@ -12,6 +12,11 @@
  * Money keys (`*_mkd`, денари — MEX COD is already денари, render with
  * formatDenari, never convert) are owners only: an admin / manager gets the same
  * payload with every money key ABSENT (meta.money = false).
+ *
+ * Access levels (20260947001600): the whole tab = can_see_mex_cash (super_admin / owner /
+ * finance). A dept_admin gets their own account only — meta.accounts = ['bio_natural'] (Тим
+ * Маџари) or ['natura'] (Тим Центар), every block carrying only that account, meta.dept_scope set
+ * and meta.account_note = 'natura_includes_web' when NATURA is shown (it also ships the web shop).
  */
 import { apiFetch } from '@/lib/api';
 
@@ -45,7 +50,12 @@ export interface MexCashResponse {
     generated_at: string;
     money: boolean;
     today: string;
-    accounts: MexAccount[];
+    /** The accounts this payload carries (absent on an older body = both). */
+    accounts?: MexAccount[];
+    /** A dept_admin's departments (access levels, 20260947001600). */
+    dept_scope?: string[];
+    /** 'natura_includes_web': NATURA also ships the web shop — its figures hold web parcels too. */
+    account_note?: string | null;
     /** The newest MEX sweep (max mex_parcels.last_seen_at). */
     data_through: string | null;
   };
@@ -54,6 +64,21 @@ export interface MexCashResponse {
   /** The last 6 settlement periods up to today's, newest first (independent of the window). */
   halves: MexCashHalf[];
   now: Record<MexAccount, MexCashNow>;
+}
+
+/** The accounts to draw: meta.accounts in the fixed order (unknown keys dropped); none / an empty
+ *  or unusable list = both. Pure. */
+export function shownMexAccounts(meta: Pick<MexCashResponse['meta'], 'accounts'> | null | undefined): MexAccount[] {
+  const list = Array.isArray(meta?.accounts) ? MEX_ACCOUNTS.filter((a) => meta!.accounts!.includes(a)) : [];
+  return list.length ? list : [...MEX_ACCOUNTS];
+}
+
+/** Whether to say that NATURA also carries the web shop: NATURA is drawn and the api says so,
+ *  or NATURA is the only account drawn. Pure. */
+export function naturaIncludesWeb(meta: Pick<MexCashResponse['meta'], 'accounts' | 'account_note'> | null | undefined): boolean {
+  const shown = shownMexAccounts(meta);
+  if (!shown.includes('natura')) return false;
+  return meta?.account_note === 'natura_includes_web' || (shown.length === 1);
 }
 
 export const apiGetInsightsMexCash = (p: { from: string; to: string }, signal?: AbortSignal): Promise<MexCashResponse> =>

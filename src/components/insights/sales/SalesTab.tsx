@@ -12,6 +12,7 @@ import { skopjeHm } from '@/lib/presence/state';
 import { OVERVIEW_COLOR_VARS } from '../overview/palette';
 import { useInsightsPeriod } from '../shared/useInsightsPeriod';
 import { useInsightsFormat } from '../shared/useInsightsFormat';
+import { CompanyWideNote } from '../shared/CompanyWideNote';
 import { CohortBar } from '../shared/CohortBar';
 import { QualityRail } from '../shared/QualityRail';
 import { LoadError } from '../shared/LoadError';
@@ -97,7 +98,10 @@ export default function SalesTab() {
   const detail = detailQ.data;
   const money = core?.meta?.money === true;
   const detailMoney = detail?.meta?.money === true;
-  const rows = useMemo(() => asCohortRows(core?.by_source), [core]);
+  const rows = useMemo(() => asCohortRows(core?.by_source, core?.meta?.dept_scope), [core]);
+  // A dept_admin (access levels, 20260947001600): the detail tables are the whole company's
+  // counts, never their departments' money — say so above them.
+  const detailCompanyWide = detail?.meta?.company_wide === true;
   const prev = period.compare ? prevHeadline(core?.prev) : null;
 
   const cutAt = core?.meta.partial && core.meta.prev_to_end ? skopjeHm(core.meta.prev_to_end) : '';
@@ -178,6 +182,7 @@ export default function SalesTab() {
                   <Button variant="ghost" size="sm" className="ml-auto h-6 px-2 text-xs" onClick={() => { void detailQ.refetch(); }}>{t('common.retry')}</Button>
                 </p>
               )}
+              {detailCompanyWide && <CompanyWideNote />}
               <SalesProducts detail={detail} money={detailMoney} f={f} />
               <SalesCities detail={detail} money={detailMoney} f={f} />
               <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">

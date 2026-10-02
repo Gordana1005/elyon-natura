@@ -35,6 +35,12 @@ export interface SalesMeta {
   part: 'core' | 'detail';
   granularity?: 'day' | 'week' | 'month';
   top_n?: number;
+  /** A dept_admin's departments (access levels, 20260947001600). part=core: the totals,
+   *  buckets, sources and trend are these departments'; part=detail: counts only. */
+  dept_scope?: string[];
+  /** part=detail for a dept_admin: products / cities / buyers / basket are the WHOLE company's
+   *  counts, with no money key (meta.money = false). */
+  company_wide?: boolean;
 }
 
 /** One source, in the cohort's shape (no leads — the Overview carries those). */

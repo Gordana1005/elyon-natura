@@ -9,6 +9,8 @@ import {
   apiGetInsightsReturns, type ReturnsClock, type ReturnsResponse, type ReturnsSourceRow,
 } from '@/lib/insightsApi/returnsStock';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDeptScope } from '@/contexts/PermissionsContext';
+import { scopedKeys } from '@/lib/access';
 import { apiErrorText } from '@/i18n/apiErrors';
 import { cancelReasonLabel } from '@/lib/cancellationReasons';
 import { trashReasonLabel } from '@/lib/trashReasons';
@@ -18,7 +20,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/EmptyState';
 import { cn } from '@/lib/utils';
 import { skopjeHm } from '@/lib/presence/state';
-import { OVERVIEW_COLOR_VARS, sourceColorVar } from '../overview/palette';
+import { OVERVIEW_COLOR_VARS, SOURCE_ORDER, sourceColorVar } from '../overview/palette';
 import { FilterBar } from '../overview/FilterBar';
 import { DrillLink } from '../overview/DrillLink';
 import { parseOverviewParams, writeOverviewParams, type OverviewFilters } from '../overview/model';
@@ -78,7 +80,15 @@ export default function ReturnsTab() {
   const range = period.range;
   const clock: ReturnsClock = sp.get(RETURNS_CLOCK_PARAM) === 'returned' ? 'returned' : 'sale';
   const chips = useMemo(() => parseOverviewParams(sp, period.today), [sp, period.today]);
-  const sources = chips.sources;
+  // A dept_admin (access levels, 20260947001600) is locked to their departments: the chips offer
+  // only those and a link's other departments are dropped (the api forces the same scope).
+  const scope = scopedKeys(SOURCE_ORDER, useDeptScope());
+  const scopeKey = scope?.join(',') ?? '';
+  const sources = useMemo(
+    () => (scope ? chips.sources.filter((k) => scope.includes(k)) : chips.sources),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [chips.sources, scopeKey],
+  );
   const filters: OverviewFilters = useMemo(() => ({
     preset: period.preset, range, compare: period.compare, sources, teams: [],
   }), [period.preset, range, period.compare, sources]);
@@ -114,6 +124,8 @@ export default function ReturnsTab() {
   });
   const data = q.data;
   const money = data?.meta.money === true;
+  // The chips: the login's scope, else the payload's (meta.dept_scope), else all seven.
+  const chipKeys = scope ?? scopedKeys(SOURCE_ORDER, data?.meta.dept_scope) ?? SOURCE_ORDER;
   const errorText = (err: unknown) =>
     err instanceof Error && /^HTTP 404$|not found/i.test(err.message) ? t('insights.returns.notDeployed') : apiErrorText(err);
 
@@ -126,7 +138,7 @@ export default function ReturnsTab() {
       )}
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="min-w-0 flex-1"><FilterBar filters={filters} onChange={setFilters} teams={[]} f={f} /></div>
+        <div className="min-w-0 flex-1"><FilterBar filters={filters} onChange={setFilters} teams={[]} f={f} sourceKeys={chipKeys} /></div>
         <ClockToggle clock={clock} onChange={setClock} f={f} />
       </div>
 
@@ -275,15 +287,16 @@ function ReturnsBody({ data, clock, money, range, sources, compare, f }: {
         <Tile icon={RotateCcw} label={t(sale ? 'insights.returns.tile.rateSale' : 'insights.returns.tile.rateMex')}
           value={f.pct(k.rate)}
           sub={k.prev ? t('insights.returns.tile.prevRate', { pct: f.pct(k.prev.rate), n: f.int(k.prev.returned) }) : undefined} />
-        {money ? (
-          <Tile icon={Coins} label={t('insights.returns.tile.uncollected')} value={f.den(k.returned.value_mkd ?? 0)}
+        {money && k.returned.value_mkd != null ? (
+          <Tile icon={Coins} label={t('insights.returns.tile.uncollected')} value={f.den(k.returned.value_mkd)}
             sub={t('insights.returns.tile.uncollectedSub')} />
-        ) : (
+        ) : k.round_trip ? (
           <Tile icon={Package} label={t('insights.returns.tile.parcels')} value={f.int(k.round_trip.parcels)}
             sub={t('insights.returns.tile.parcelsSub')} />
-        )}
-        {money && (
-          <Tile icon={Route} label={t('insights.returns.tile.roundTrip')} value={f.den(k.round_trip.loss_mkd ?? 0)}
+        ) : null}
+        {/* The round trip is a margin figure: absent for administrators / dept_admins / managers. */}
+        {money && k.round_trip && k.round_trip.loss_mkd != null && (
+          <Tile icon={Route} label={t('insights.returns.tile.roundTrip')} value={f.den(k.round_trip.loss_mkd)}
             sub={t('insights.returns.tile.roundTripSub', {
               rate: f.den(k.round_trip.return_cost_mkd ?? 0),
               outbound: f.den(k.round_trip.outbound_if_billed_mkd ?? 0),
@@ -688,7 +701,7 @@ function ReturnsNotes({ data, clock, f }: { data: ReturnsResponse; clock: Return
       title: t('insights.returns.notes.rejected'), body: t('insights.returns.notes.rejectedHint', { date: data.now.oldest ? dm(data.now.oldest, true) : '—' }) });
   }
   items.push({ key: 'reason', sev: 'info', icon: Info, title: t('insights.returns.notes.reason'), body: t('insights.returns.notes.reasonHint') });
-  if (data.kpis.round_trip.parcels > 0) {
+  if ((data.kpis.round_trip?.parcels ?? 0) > 0) {
     items.push({ key: 'fee', sev: 'info', icon: Route, title: t('insights.returns.notes.fee'), body: t('insights.returns.notes.feeHint') });
   }
   void clock;

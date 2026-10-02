@@ -6,6 +6,8 @@ import { apiGetInsightsOverview, type OverviewResponse } from '@/lib/api';
 import { apiGetInsightsAgents, type PeopleResponse } from '@/lib/insightsApi/agents';
 import { apiGetInsightsSales, type SalesDetail } from '@/lib/insightsApi/sales';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDeptScope } from '@/contexts/PermissionsContext';
+import { scopedKeys } from '@/lib/access';
 import { apiErrorText } from '@/i18n/apiErrors';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -77,9 +79,7 @@ export default function OverviewTab() {
   // below it — sources, teams — are the Overview's own.
   const period = useInsightsPeriod();
   const chips = useMemo(() => parseOverviewParams(sp, period.today), [sp, period.today]);
-  const filters: OverviewFilters = useMemo(() => ({
-    preset: period.preset, range: period.range, compare: period.compare, sources: chips.sources, teams: chips.teams,
-  }), [period.preset, period.range, period.compare, chips.sources, chips.teams]);
+  const loginScope = useDeptScope();
   const setFilters = useCallback(
     (next: Partial<OverviewFilters>) => setSp((prev) => writeOverviewParams(prev, next), { replace: true }),
     [setSp],
@@ -102,13 +102,28 @@ export default function OverviewTab() {
   // ONE request per view: the cohort carries its own previous period, so a
   // department filter needs no second Overview for the previous span.
   const q = useQuery({
-    queryKey: ['insights-overview', user?.id, filters.range.from, filters.range.to, filters.compare, fixture],
-    queryFn: ({ signal }) => load(filters.range, filters.compare, signal),
+    queryKey: ['insights-overview', user?.id, period.range.from, period.range.to, period.compare, fixture],
+    queryFn: ({ signal }) => load(period.range, period.compare, signal),
     staleTime: 5 * 60_000,
     placeholderData: keepPreviousData,
     retry: 0,
   });
   const data = q.data;
+
+  // A dept_admin (access levels, 20260947001600) is locked to their departments: the chips
+  // offer only those, and a link carrying another department's chip drops it. The payload's
+  // meta.dept_scope wins once it is here; before that the login's own scope.
+  const dataScope = data?.meta.dept_scope ?? data?.cohort?.meta?.dept_scope ?? null;
+  const scopeKey = (dataScope ?? loginScope)?.join(',') ?? null;
+  const scope = useMemo(
+    () => scopedKeys(SOURCE_ORDER, scopeKey === null ? null : scopeKey.split(',').filter(Boolean)),
+    [scopeKey],
+  );
+  const filters: OverviewFilters = useMemo(() => ({
+    preset: period.preset, range: period.range, compare: period.compare,
+    sources: scope ? chips.sources.filter((k) => scope.includes(k)) : chips.sources,
+    teams: chips.teams,
+  }), [period.preset, period.range, period.compare, chips.sources, chips.teams, scope]);
 
   // The teams are the Agents tab's (GET /insights/agents): the SAME query key as
   // AgentsTab, so the two share one cache entry and show the same numbers.
@@ -201,7 +216,7 @@ export default function OverviewTab() {
         </p>
       )}
 
-      <FilterBar filters={filters} onChange={setFilters} teams={teamChips} f={f} />
+      <FilterBar filters={filters} onChange={setFilters} teams={teamChips} f={f} sourceKeys={scope ?? SOURCE_ORDER} />
 
       {!data ? (
         q.isError ? (

@@ -107,6 +107,22 @@ describe('Агенти — admin / manager (no money)', { timeout: 30_000 }, () 
   });
 });
 
+describe('Агенти — dept_admin (access levels 20260947001600)', { timeout: 30_000 }, () => {
+  it('reads like the full view with money, and hides the figures its totals do not carry', async () => {
+    const d = owner();
+    const { cod_mkd: _c, paid_mkd: _p, prev: _pr, conversion: _cv, ...totals } = d.totals!;
+    d.totals = totals;
+    d.spark = (d.spark ?? []).map(({ value_mkd: _v, ...p }) => p);
+    d.meta = { ...d.meta, money: true, access: 'dept', dept_scope: ['teleshop_out', 'teleshop_other', 'social'] };
+    const { container } = renderWith(d);
+    expect(await screen.findByText(formatDenari(d.totals!.with_person_mkd!), {}, { timeout: 10_000 })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: i18n.t('insights.agents.teams.title') })).toBeInTheDocument();
+    // no conversion tile (its key is absent), and never NaN anywhere
+    expect(screen.queryByText(i18n.t('insights.agents.kpi.conversion'))).toBeNull();
+    expect(container.textContent).not.toMatch(/NaN/);
+  });
+});
+
 describe('Агенти — agent (self)', { timeout: 30_000 }, () => {
   it('shows only their own numbers', async () => {
     const d = owner();

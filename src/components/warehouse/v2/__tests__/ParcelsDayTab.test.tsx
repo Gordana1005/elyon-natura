@@ -14,7 +14,7 @@ vi.mock('@/lib/stockV2Api', () => ({
   apiStockV2Config: () => h.config(),
 }));
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: { isAdmin: true, isManager: false, isWarehouse: false } }) }));
-vi.mock('@/contexts/PermissionsContext', () => ({ usePermissions: () => ({ canSeeBusiness: h.owner }) }));
+vi.mock('@/contexts/PermissionsContext', () => ({ usePermissions: () => ({ canSeeBusiness: h.owner, canSeeMargins: h.owner }) }));
 
 beforeAll(async () => {
   globalThis.ResizeObserver ??= class { observe() {} unobserve() {} disconnect() {} } as unknown as typeof ResizeObserver;

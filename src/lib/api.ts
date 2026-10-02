@@ -2492,6 +2492,9 @@ export interface OverviewResponse {
     days?: number;
     generated_at: string;
     money: boolean;
+    /** A dept_admin's departments (access levels, 20260947001600): the cohort counts only
+     *  these; absent for everyone else. */
+    dept_scope?: string[];
   };
   freshness: OverviewFreshness[];
   kpis: OverviewKpis;

@@ -40,7 +40,10 @@ export function AgentsKpis({ data, people, money, prevLabel, onNoSeller, f }: {
   const active = people.filter(hasActivity).length;
   const online = people.filter((p) => p.online_state === 'online' || p.online_state === 'idle').length;
   const cancelledAfter = people.reduce((a, p) => a + (p.outside?.cancelled_after_sale ?? 0), 0);
-  const prev = tot.prev;
+  // A dept_admin's totals (meta.access = 'dept') carry no prev and no conversion: no delta, and
+  // the conversion tile is not drawn (never a "—" pretending to be a figure).
+  const prev = tot.prev ?? null;
+  const hasConversion = tot.conversion !== undefined;
   const spark = (data.spark ?? []).map((p) => ({ d: p.d, v: p.with_person }));
 
   const hero = money && tot.with_person_mkd != null ? f.den(tot.with_person_mkd) : f.int(withPerson);
@@ -85,10 +88,12 @@ export function AgentsKpis({ data, people, money, prevLabel, onNoSeller, f }: {
             d={prev ? delta(tot.worked, prev.worked, 'up') : null}
             sub={t('insights.agents.kpi.workedSub', { sale: f.int(tot.sale_decisions), cancel: f.int(tot.cancel_decisions), trash: f.int(tot.trash_decisions) })}
             f={f} />
-          <Tile icon={Percent} label={t('insights.agents.kpi.conversion')}
-            value={tot.conversion != null ? f.pct(tot.conversion) : '—'}
-            d={prev && prev.worked > 0 && tot.worked > 0 ? delta(tot.sale_decisions / tot.worked, prev.sale_decisions / prev.worked, 'up') : null}
-            sub={t('insights.agents.kpi.conversionSub')} f={f} />
+          {hasConversion && (
+            <Tile icon={Percent} label={t('insights.agents.kpi.conversion')}
+              value={tot.conversion != null ? f.pct(tot.conversion) : '—'}
+              d={prev && prev.worked > 0 && tot.worked > 0 ? delta(tot.sale_decisions / tot.worked, prev.sale_decisions / prev.worked, 'up') : null}
+              sub={t('insights.agents.kpi.conversionSub')} f={f} />
+          )}
           <Tile icon={UserCheck} label={t('insights.agents.kpi.paid')} value={f.int(b.paid)} tone={STATUS_TEXT.good}
             sub={t('insights.agents.kpi.paidSub', { share: f.share(b.paid, withPerson) })} f={f} />
           <Tile icon={Undo2} label={t('insights.agents.kpi.returnRate')} tone={STATUS_TEXT.returned}

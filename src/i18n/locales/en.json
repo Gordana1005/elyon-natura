@@ -1764,7 +1764,8 @@
       "partialTitle": "The product was saved, but not everything",
       "partialKind": "the kind was not saved: {{error}}",
       "partialLine": "the line was not saved: {{error}}",
-      "nothingChanged": "Nothing to save"
+      "nothingChanged": "Nothing to save",
+      "adminOnlyCore": "Only an administrator changes the name, the price and whether it is active."
     },
     "colVat": "VAT",
     "vat": {
@@ -2043,7 +2044,10 @@
     "byDepartment": "Sales today by department",
     "kpiNote": "The same numbers as Insights → Overview: the sale day, every department (Management included), MEX is the proof.",
     "toPackBookedSub_one": "of which {{n}} booked in collabBox (awaiting parcel)",
-    "toPackBookedSub_other": "of which {{n}} booked in collabBox (awaiting parcel)"
+    "toPackBookedSub_other": "of which {{n}} booked in collabBox (awaiting parcel)",
+    "salesValueTodayTeam": "Sales value today ({{team}})",
+    "deptSalesSub_one": "{{n}} team sale today",
+    "deptSalesSub_other": "{{n}} team sales today"
   },
   "segments": {
     "category": {
@@ -2559,7 +2563,8 @@
     "rowActions": "Actions for {{id}}",
     "value": {
       "cod": "The parcel’s COD at MEX",
-      "price": "The CRM price (no parcel yet)"
+      "price": "The CRM price (no parcel yet)",
+      "hidden": "Value hidden — an order of another department"
     },
     "details": "Details",
     "hideDetails": "Hide details",
@@ -6458,7 +6463,8 @@
         "courierHint": "Picked up, in delivery, delivery attempted or a problem (MEX 1, 3, 4, 9, 10, 13).",
         "label": "Packed, waiting for the courier",
         "labelHint": "The parcel exists at MEX, the courier has not picked it up yet (MEX 8)."
-      }
+      },
+      "naturaIncludesWeb": "NATURA also ships the Web shop’s parcels — NATURA’s figures include the web orders."
     }
   },
   "agentsTab": {
@@ -9782,7 +9788,12 @@
   },
   "access": {
     "noPageTitle": "You have no page you can open",
-    "noPageDesc": "This login has no role or page assigned. Please contact an administrator."
+    "noPageDesc": "This login has no role or page assigned. Please contact an administrator.",
+    "scope": {
+      "title": "Money shown for {{team}} only"
+    },
+    "companyWide": "Whole company · counts only (no amounts)",
+    "companyWideShort": "whole company"
   },
   "appError": {
     "title": "Something did not load",

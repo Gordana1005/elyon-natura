@@ -401,7 +401,10 @@ const STATE_TONE: Record<string, string> = {
   not_tracked: 'bg-muted text-muted-foreground',
 };
 
-function ProductTable({ data, money, f }: { data: StockResponse; money: boolean; f: InsightsFormat }) {
+function ProductTable({ data, money: moneyIn, f }: { data: StockResponse; money: boolean; f: InsightsFormat }) {
+  // The purchase-cost column is a margin figure: an administrator's payload keeps meta.money but
+  // carries no cost_mkd (access levels, 20260947001600) — then no column of "—" is drawn.
+  const money = moneyIn && (data.products ?? []).some((p) => p.cost_mkd != null);
   const { t } = f;
   const [q, setQ] = useState('');
   const [sort, setSort] = useState<StockSort>('units');

@@ -14,6 +14,8 @@ import { mexGroupOf, type MexGroupKey } from './listParams';
 export interface ListOrderLike {
   status: string;
   price?: number | string | null;
+  /** The value is withheld from this viewer (access levels, 20260947001600). */
+  value_hidden?: boolean;
   mex_cod_mkd?: number | null;
   mex_status_id?: number | null;
   mex_tracking_id?: string | null;
@@ -30,8 +32,10 @@ export const fmtCount = (n: number | null | undefined) =>
 
 const SALE = new Set(['confirmed', 'shipped', 'delivered', 'paid', 'returned']);
 
-/** The value in денари, as text, and whether it is the parcel's COD. */
-export function orderValue(o: Pick<ListOrderLike, 'price' | 'mex_cod_mkd'>): { text: string; fromParcel: boolean } {
+/** The value in денари, as text, and whether it is the parcel's COD. A withheld value (a
+ *  dept_admin's row of another department: value_hidden, no price) is "—", never 0 ден. */
+export function orderValue(o: Pick<ListOrderLike, 'price' | 'mex_cod_mkd' | 'value_hidden'>): { text: string; fromParcel: boolean; hidden?: boolean } {
+  if (o.value_hidden === true) return { text: '—', fromParcel: false, hidden: true };
   if (o.mex_cod_mkd != null) return { text: formatDenari(o.mex_cod_mkd), fromParcel: true };
   return { text: formatMoney(o.price ?? 0), fromParcel: false };
 }

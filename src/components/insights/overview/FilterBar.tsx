@@ -12,14 +12,17 @@ const chipOff = 'bg-card text-foreground hover:bg-muted';
  * The Overview's own chips — sources and teams. The PERIOD (presets, custom
  * days, compare) is the page's one InsightsFilterBar, shared by every tab
  * (../shared/useInsightsPeriod), so a tab switch keeps it.
+ * `sourceKeys` = the departments to offer (default all seven): a dept_admin is locked to
+ * their own (access levels, 20260947001600), so no chip offers a department they cannot see.
  */
 export function FilterBar({
-  filters, onChange, teams, f,
+  filters, onChange, teams, f, sourceKeys = SOURCE_ORDER,
 }: {
   filters: OverviewFilters;
   onChange: (next: Partial<OverviewFilters>) => void;
   teams: { key: string; name: string }[];
   f: OverviewFormat;
+  sourceKeys?: readonly OverviewSourceKey[];
 }) {
   const { t } = f;
   const toggleIn = <T extends string>(list: T[], v: T): T[] => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
@@ -27,9 +30,9 @@ export function FilterBar({
   return (
     <div className="rounded-xl border bg-card/80 px-3 py-2 shadow-sm">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <div role="group" aria-label={t('overview.sourcesLabel')} className="flex flex-wrap items-center gap-1.5">
+        {sourceKeys.length > 0 && <div role="group" aria-label={t('overview.sourcesLabel')} className="flex flex-wrap items-center gap-1.5">
           <span className="mr-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('overview.sourcesLabel')}</span>
-          {SOURCE_ORDER.map((s: OverviewSourceKey) => {
+          {sourceKeys.map((s: OverviewSourceKey) => {
             const on = filters.sources.includes(s);
             return (
               <button key={s} type="button" aria-pressed={on} onClick={() => onChange({ sources: toggleIn(filters.sources, s) })}
@@ -45,7 +48,7 @@ export function FilterBar({
               {t('overview.allSources')}
             </button>
           )}
-        </div>
+        </div>}
         {teams.length > 0 && (
           <div role="group" aria-label={t('overview.teamsLabel')} className="flex flex-wrap items-center gap-1.5">
             <span className="mr-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('overview.teamsLabel')}</span>

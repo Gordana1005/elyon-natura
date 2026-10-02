@@ -49,7 +49,7 @@ function useSectionBadges(v: SettingsViewer): Partial<Record<SettingsSectionId, 
   const unmappedQ = useQuery({ queryKey: ['sales-unmapped', 90], queryFn: () => apiGetSalesUnmapped(90), enabled: v.isOwner, staleTime: STALE, retry: 0 });
   const ownersQ = useQuery({ queryKey: ['business-owners'], queryFn: apiGetBusinessOwners, enabled: v.isOwner, staleTime: STALE, retry: 0 });
   const tvQ = useQuery({ queryKey: ['lb-admin', 'prediction'], queryFn: () => apiGetLeaderboardAdmin('prediction'), enabled: v.isAdmin, staleTime: STALE, retry: 0 });
-  const courierQ = useQuery({ queryKey: ['courier-rates'], queryFn: apiGetCourierRates, enabled: v.isOwner, staleTime: STALE, retry: 0 });
+  const courierQ = useQuery({ queryKey: ['courier-rates'], queryFn: apiGetCourierRates, enabled: v.canSeeMargins, staleTime: STALE, retry: 0 });
 
   return useMemo(() => {
     const b: Partial<Record<SettingsSectionId, NavBadge>> = {};

@@ -39,7 +39,7 @@ const choice = 'inline-flex min-h-9 items-center gap-1 rounded-full border px-3 
  * what changed; the kind and the line go through their audited routes (admins +
  * owners) and a partial failure says exactly what was not saved.
  */
-export function ProductFormDialog({ open, onOpenChange, product, suppliers, showCost, canSetKind, canSetLine, onSaved }: {
+export function ProductFormDialog({ open, onOpenChange, product, suppliers, showCost, canSetKind, canSetLine, canEditCore = true, onSaved }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   product: ProductRow | null;
@@ -47,6 +47,9 @@ export function ProductFormDialog({ open, onOpenChange, product, suppliers, show
   showCost: boolean;
   canSetKind: boolean;
   canSetLine: boolean;
+  /** Name, sale price and active: admins only — PATCH /products/:id answers 403 admin_only to
+   *  anyone else who changes them (bd9bc60). false = shown read-only, the switch hidden. */
+  canEditCore?: boolean;
   /** After any successful write; `id` = the saved product. */
   onSaved: (id: string) => void;
 }) {
@@ -166,7 +169,7 @@ export function ProductFormDialog({ open, onOpenChange, product, suppliers, show
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4 sm:px-6" data-testid="product-form-body">
             <Section title={t('products.form.sectionBasic')}>
               <Field id="pf-name" label={t('products.form.name')} required error={err('name')}>
-                <textarea id="pf-name" ref={reg('name')} rows={2} value={v.name} maxLength={200}
+                <textarea id="pf-name" ref={reg('name')} rows={2} value={v.name} maxLength={200} readOnly={!canEditCore}
                   onChange={(e) => set('name', e.target.value.replace(/\n/g, ' '))}
                   onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
                   aria-invalid={!!errors.name} aria-describedby={errors.name ? 'pf-name-err' : undefined}
@@ -205,19 +208,22 @@ export function ProductFormDialog({ open, onOpenChange, product, suppliers, show
                 ) : <LineBadge line={v.line} size="md" />}
                 {(!canSetKind || !canSetLine) && <p className="text-xs text-muted-foreground">{t('products.form.ownersOnly')}</p>}
               </div>
-              <label htmlFor="pf-active" className="flex items-start justify-between gap-3 rounded-lg border p-3">
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium">{t('products.form.active')}</span>
-                  <span className="block text-xs text-muted-foreground">{t('products.form.activeHint')}</span>
-                </span>
-                <Switch id="pf-active" checked={v.isActive} onCheckedChange={(on) => set('isActive', on)} />
-              </label>
+              {canEditCore && (
+                <label htmlFor="pf-active" className="flex items-start justify-between gap-3 rounded-lg border p-3">
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium">{t('products.form.active')}</span>
+                    <span className="block text-xs text-muted-foreground">{t('products.form.activeHint')}</span>
+                  </span>
+                  <Switch id="pf-active" checked={v.isActive} onCheckedChange={(on) => set('isActive', on)} />
+                </label>
+              )}
+              {!canEditCore && <p className="text-xs text-muted-foreground">{t('products.form.adminOnlyCore')}</p>}
             </Section>
 
             <Section title={t('products.form.sectionPrices')}>
               <div className={cn('grid gap-3', showCost && 'sm:grid-cols-2')}>
                 <Field id="pf-price" label={t('products.form.price')} required error={err('priceDen')} hint={t('products.agentDefaultHint', { amount: agentDefault })}>
-                  <DenInput id="pf-price" inputRef={reg('priceDen')} value={v.priceDen} onChange={(s) => set('priceDen', s)} invalid={!!errors.priceDen} tone="text-primary" />
+                  <DenInput id="pf-price" inputRef={reg('priceDen')} value={v.priceDen} onChange={(s) => set('priceDen', s)} invalid={!!errors.priceDen} tone="text-primary" readOnly={!canEditCore} />
                 </Field>
                 {showCost && (
                   <Field id="pf-cost" label={t('productsRecipe.form.cost')} hint={t('productsRecipe.form.costHint')}>
@@ -322,13 +328,14 @@ function Field({ id, label, required, error, hint, children }: {
   );
 }
 
-function DenInput({ id, value, onChange, invalid, tone, inputRef }: {
+function DenInput({ id, value, onChange, invalid, tone, inputRef, readOnly }: {
   id: string; value: string; onChange: (s: string) => void; invalid: boolean; tone: string; inputRef: (el: HTMLElement | null) => void;
+  readOnly?: boolean;
 }) {
   return (
     <div className="relative">
       <input id={id} ref={inputRef} value={value} onChange={(e) => onChange(e.target.value)} inputMode="decimal" autoComplete="off"
-        aria-invalid={invalid} className={cn(input, 'pr-12 tabular-nums')} />
+        readOnly={readOnly} aria-invalid={invalid} className={cn(input, 'pr-12 tabular-nums', readOnly && 'bg-muted/40 text-muted-foreground')} />
       <span className={cn('pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm', tone)}>ден</span>
     </div>
   );

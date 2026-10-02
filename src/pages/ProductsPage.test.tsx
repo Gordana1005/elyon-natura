@@ -12,7 +12,8 @@ vi.mock('@/integrations/supabase/client', () => ({
 }));
 const auth: { user: { id: string; isAdmin: boolean; isManager: boolean } } = { user: { id: 'u-admin', isAdmin: true, isManager: false } };
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => auth }));
-const perms = { canSeeBusiness: true };
+// canSeeBusiness = company-wide revenue; canSeeMargins = cost / VAT / recipes (access levels 20260947001600).
+const perms = { canSeeBusiness: true, canSeeMargins: true };
 vi.mock('@/contexts/PermissionsContext', () => ({ usePermissions: () => perms }));
 vi.mock('@/layouts/AppLayout', () => ({
   AppLayout: ({ title, children }: { title: string; children: React.ReactNode }) => <div><h1>{title}</h1>{children}</div>,
@@ -55,6 +56,7 @@ afterEach(() => {
   vi.clearAllMocks();
   auth.user = { id: 'u-admin', isAdmin: true, isManager: false };
   perms.canSeeBusiness = true;
+  perms.canSeeMargins = true;
   wide = true;
 });
 
@@ -218,21 +220,44 @@ describe('Производи 2.0 — the list', { timeout: 30_000 }, () => {
   it('a manager edits products but sees no cost and sets no kind / line', async () => {
     auth.user = { id: 'u-man', isAdmin: false, isManager: true };
     perms.canSeeBusiness = false;
+    perms.canSeeMargins = false;
     renderAt();
     await loaded();
     expect(within(table()).queryByRole('columnheader', { name: t('products.colCostPrice') })).toBeNull();
     expect(within(table()).queryAllByRole('checkbox')).toHaveLength(0);
     expect(within(rowOf('Neurofix')).queryByRole('button', { name: t('products.kind.setFor', { name: 'Neurofix' }) })).toBeNull();
+    // creating, enabling / disabling, the name and the price are admin-only (POST /products,
+    // PATCH /products/:id → 403 admin_only): no button, no switch, the two fields read-only
+    expect(screen.queryByRole('button', { name: t('products.addProduct') })).toBeNull();
+    expect(within(rowOf('Neurofix')).queryByRole('button', { name: t('products.disable') })).toBeNull();
     fireEvent.click(within(rowOf('Neurofix')).getByRole('button', { name: t('products.editOf', { name: 'Neurofix' }) }));
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).queryByLabelText(new RegExp(t('products.form.cost')))).toBeNull();
     expect(within(dialog).queryByRole('radiogroup')).toBeNull();
     expect(within(dialog).getByText(t('products.form.ownersOnly'))).toBeTruthy();
+    expect(within(dialog).queryByRole('switch')).toBeNull();
+    expect(within(dialog).getByText(t('products.form.adminOnlyCore'))).toBeTruthy();
+    expect((within(dialog).getByLabelText(new RegExp(`^${t('products.form.name')}`)) as HTMLTextAreaElement).readOnly).toBe(true);
+    expect((within(dialog).getByLabelText(new RegExp(`^${t('products.form.price')}`)) as HTMLInputElement).readOnly).toBe(true);
+  });
+
+  it('an administrator (revenue, no margins): creates and edits, but no purchase cost, recipe or VAT', async () => {
+    perms.canSeeMargins = false;
+    renderAt('/products?status=all', ROWS.map((r) => ({ ...r, cost_mkd: 553.5, recipe_status: 'approved', vat_rate: 0.05 })), true);
+    await loaded();
+    expect(screen.getByRole('button', { name: t('products.addProduct') })).toBeTruthy();
+    expect(within(rowOf('Neurofix')).getByRole('button', { name: t('products.disable') })).toBeTruthy();
+    expect(within(table()).queryByRole('columnheader', { name: t('productsRecipe.col') })).toBeNull();
+    // a stale vat_visible never shows a VAT column to a non-margin viewer
+    expect(within(table()).queryByRole('columnheader', { name: t('products.colVat') })).toBeNull();
+    expect(screen.queryAllByTestId('vat-chip')).toHaveLength(0);
+    expect(screen.queryAllByTestId('recipe-cost')).toHaveLength(0);
   });
 
   it('an agent sees the list only — no edit, no proposal', async () => {
     auth.user = { id: 'u-agent', isAdmin: false, isManager: false };
     perms.canSeeBusiness = false;
+    perms.canSeeMargins = false;
     renderAt('/products?view=proposal');
     await loaded();
     expect(screen.queryByRole('tab', { name: t('products.tabs.proposal') })).toBeNull();

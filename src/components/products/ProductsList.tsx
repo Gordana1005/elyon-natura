@@ -34,8 +34,11 @@ export interface RowHandlers {
 export interface RowFlags {
   /** "Набавна (Сигма)" + the recipe — owners only (is_business_owner(); owner 01.10.2026). */
   showCost: boolean;
-  /** Edit / enable / disable: admins and managers. */
+  /** Edit: admins and managers. */
   canEdit: boolean;
+  /** Enable / disable: admins only (PATCH /products/:id refuses anyone else's is_active, 403
+   *  admin_only). Absent = follows canEdit (an older caller). */
+  canToggleActive?: boolean;
   /** Set lines and kinds, select rows: admins + owners. */
   canSetLine: boolean;
   /** The VAT column (owners: the api sends the VAT columns to owners only, who also set it). */
@@ -105,7 +108,7 @@ function ProductsTable(p: ProductsListProps) {
         <tbody>
           {p.rows.map((r) => (
             <TableRow key={r.id} r={r} selected={p.selected.has(r.id)} busy={p.busyIds.has(r.id)}
-              showCost={p.showCost} canEdit={p.canEdit} canSetLine={p.canSetLine} showVat={p.showVat} h={p.handlers} />
+              showCost={p.showCost} canEdit={p.canEdit} canToggleActive={p.canToggleActive} canSetLine={p.canSetLine} showVat={p.showVat} h={p.handlers} />
           ))}
         </tbody>
       </table>
@@ -115,7 +118,7 @@ function ProductsTable(p: ProductsListProps) {
 
 interface RowProps extends RowFlags { r: ProductRow; selected: boolean; busy: boolean; h: RowHandlers }
 
-const TableRow = memo(function TableRow({ r, selected, busy, showCost, canEdit, canSetLine, showVat, h }: RowProps) {
+const TableRow = memo(function TableRow({ r, selected, busy, showCost, canEdit, canToggleActive, canSetLine, showVat, h }: RowProps) {
   const { t } = useTranslation();
   return (
     <tr data-product-row className={cn('border-t hover:bg-muted/30', selected && 'bg-muted/40')}>
@@ -150,7 +153,7 @@ const TableRow = memo(function TableRow({ r, selected, busy, showCost, canEdit, 
       {showCost && <td className="whitespace-nowrap px-1 py-1 text-right"><RecipeCost r={r} onOpen={() => h.onRecipe(r)} /></td>}
       <td className="whitespace-nowrap px-2 py-1.5 text-right font-semibold tabular-nums text-primary">{formatMoney(r.price)}</td>
       <td className="px-2 py-1.5"><StatusBadge active={r.is_active} /></td>
-      <td className="px-2 py-1 pr-3 text-right"><RowActions r={r} canEdit={canEdit} h={h} compact /></td>
+      <td className="px-2 py-1 pr-3 text-right"><RowActions r={r} canEdit={canEdit} canToggleActive={canToggleActive ?? canEdit} h={h} compact /></td>
     </tr>
   );
 });
@@ -161,13 +164,13 @@ function ProductCards(p: ProductsListProps) {
     <ul className="grid min-w-0 gap-3 md:grid-cols-2" aria-label={t('nav.products')}>
       {p.rows.map((r) => (
         <ProductCard key={r.id} r={r} selected={p.selected.has(r.id)} busy={p.busyIds.has(r.id)}
-          showCost={p.showCost} canEdit={p.canEdit} canSetLine={p.canSetLine} showVat={p.showVat} h={p.handlers} />
+          showCost={p.showCost} canEdit={p.canEdit} canToggleActive={p.canToggleActive} canSetLine={p.canSetLine} showVat={p.showVat} h={p.handlers} />
       ))}
     </ul>
   );
 }
 
-const ProductCard = memo(function ProductCard({ r, selected, busy, showCost, canEdit, canSetLine, showVat, h }: RowProps) {
+const ProductCard = memo(function ProductCard({ r, selected, busy, showCost, canEdit, canToggleActive, canSetLine, showVat, h }: RowProps) {
   const { t } = useTranslation();
   const fact = 'text-[11px] font-medium uppercase tracking-wide text-muted-foreground';
   return (
@@ -204,13 +207,15 @@ const ProductCard = memo(function ProductCard({ r, selected, busy, showCost, can
         )}
       </dl>
       <div className="flex flex-wrap justify-end gap-2 border-t pt-2">
-        <RowActions r={r} canEdit={canEdit} h={h} />
+        <RowActions r={r} canEdit={canEdit} canToggleActive={canToggleActive ?? canEdit} h={h} />
       </div>
     </li>
   );
 });
 
-function RowActions({ r, canEdit, h, compact }: { r: ProductRow; canEdit: boolean; h: RowHandlers; compact?: boolean }) {
+function RowActions({ r, canEdit, canToggleActive, h, compact }: {
+  r: ProductRow; canEdit: boolean; canToggleActive: boolean; h: RowHandlers; compact?: boolean;
+}) {
   const { t } = useTranslation();
   if (compact) {
     return (
@@ -225,11 +230,13 @@ function RowActions({ r, canEdit, h, compact }: { r: ProductRow; canEdit: boolea
               title={t('products.edit')} aria-label={t('products.editOf', { name: r.name })}>
               <Edit className="h-4 w-4 text-muted-foreground" aria-hidden />
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => h.onToggleActive(r)}
-              title={r.is_active ? t('products.disable') : t('products.enable')}
-              aria-label={r.is_active ? t('products.disable') : t('products.enable')}>
-              <Power className={cn('h-4 w-4', r.is_active ? 'text-muted-foreground' : 'text-emerald-600')} aria-hidden />
-            </Button>
+            {canToggleActive && (
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => h.onToggleActive(r)}
+                title={r.is_active ? t('products.disable') : t('products.enable')}
+                aria-label={r.is_active ? t('products.disable') : t('products.enable')}>
+                <Power className={cn('h-4 w-4', r.is_active ? 'text-muted-foreground' : 'text-emerald-600')} aria-hidden />
+              </Button>
+            )}
           </>
         )}
       </span>
@@ -245,9 +252,11 @@ function RowActions({ r, canEdit, h, compact }: { r: ProductRow; canEdit: boolea
           <Button variant="outline" size="sm" className="h-9" onClick={() => h.onEdit(r)} aria-label={t('products.editOf', { name: r.name })}>
             <Edit className="mr-1.5 h-4 w-4" aria-hidden />{t('products.edit')}
           </Button>
-          <Button variant="outline" size="sm" className="h-9" onClick={() => h.onToggleActive(r)}>
-            <Power className="mr-1.5 h-4 w-4" aria-hidden />{r.is_active ? t('products.disable') : t('products.enable')}
-          </Button>
+          {canToggleActive && (
+            <Button variant="outline" size="sm" className="h-9" onClick={() => h.onToggleActive(r)}>
+              <Power className="mr-1.5 h-4 w-4" aria-hidden />{r.is_active ? t('products.disable') : t('products.enable')}
+            </Button>
+          )}
         </>
       )}
     </>

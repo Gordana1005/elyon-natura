@@ -2,7 +2,9 @@ import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { AlertTriangle, Banknote, CalendarRange, FlaskConical, Info, PackageCheck, Truck, Undo2 } from 'lucide-react';
-import { apiGetInsightsMexCash, MEX_ACCOUNTS, type MexAccount, type MexCashDay, type MexCashResponse } from '@/lib/insightsApi/mexCash';
+import {
+  apiGetInsightsMexCash, MEX_ACCOUNTS, naturaIncludesWeb, shownMexAccounts, type MexAccount, type MexCashDay, type MexCashResponse,
+} from '@/lib/insightsApi/mexCash';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiErrorText } from '@/i18n/apiErrors';
 import { Button } from '@/components/ui/button';
@@ -60,6 +62,9 @@ function rowsOf(days: MexCashDay[], byMonth: boolean): Row[] {
  * fee invoices bill) and what it holds right now. It is NOT money in our bank:
  * MEX pays it out later, in lumps; no payout date is in any data the CRM holds
  * yet. Owners see денари (meta.money); admins/managers the same page counted.
+ * A dept_admin (access levels, 20260947001600) sees their own account only (meta.accounts):
+ * every block draws just the accounts the payload names, and a NATURA view says that NATURA
+ * also ships the web shop.
  *
  * Data: GET /insights/mex-cash (insights_mex_cash, migration 20260947001300).
  * In a DEV build `?mcFixture=1` renders the synthetic fixture instead.
@@ -126,35 +131,48 @@ export default function MexCashTab() {
 function MexCashBody({ data, f }: { data: MexCashResponse; f: InsightsFormat }) {
   const { t } = f;
   const money = data.meta.money === true;
+  // The accounts this viewer may see (a dept_admin: one), in the fixed order.
+  const accounts = useMemo(() => shownMexAccounts(data.meta), [data.meta]);
+  const several = accounts.length > 1;
   const acc = (a: MexAccount) => t(`insights.mexCash.account.${a}`);
   const val = (cod: number | null | undefined, parcels: number) => (money && cod != null ? f.den(cod) : f.int(parcels));
 
   const total = useMemo(() => {
-    const parcels = MEX_ACCOUNTS.reduce((s, a) => s + (data.total?.[a]?.parcels ?? 0), 0);
-    const cod = MEX_ACCOUNTS.reduce((s, a) => s + (data.total?.[a]?.cod_mkd ?? 0), 0);
-    const returned = MEX_ACCOUNTS.reduce((s, a) => s + (data.total?.[a]?.returned ?? 0), 0);
-    const returnedCod = MEX_ACCOUNTS.reduce((s, a) => s + (data.total?.[a]?.returned_cod_mkd ?? 0), 0);
+    const parcels = accounts.reduce((s, a) => s + (data.total?.[a]?.parcels ?? 0), 0);
+    const cod = accounts.reduce((s, a) => s + (data.total?.[a]?.cod_mkd ?? 0), 0);
+    const returned = accounts.reduce((s, a) => s + (data.total?.[a]?.returned ?? 0), 0);
+    const returnedCod = accounts.reduce((s, a) => s + (data.total?.[a]?.returned_cod_mkd ?? 0), 0);
     return { parcels, cod, returned, returnedCod };
-  }, [data]);
+  }, [data, accounts]);
 
   const byMonth = (data.days?.length ?? 0) > MONTH_FROM_DAYS;
   const rows = useMemo(() => rowsOf(data.days ?? [], byMonth), [data, byMonth]);
   const columns = useMemo(() => rows.map((r) => ({
     d: r.d,
-    total: MEX_ACCOUNTS.reduce((s, a) => s + (money ? r[a].cod ?? 0 : r[a].parcels), 0),
-    segs: MEX_ACCOUNTS.map((a) => ({ key: a, value: money ? r[a].cod ?? 0 : r[a].parcels })),
-  })), [rows, money]);
+    total: accounts.reduce((s, a) => s + (money ? r[a].cod ?? 0 : r[a].parcels), 0),
+    segs: accounts.map((a) => ({ key: a, value: money ? r[a].cod ?? 0 : r[a].parcels })),
+  })), [rows, money, accounts]);
   const rowLabel = (d: string) => (byMonth ? `${d.slice(5, 7)}.${d.slice(0, 4)}` : dm(d, true));
   const asOf = data.meta.data_through ? skopjeHm(data.meta.data_through) : '';
 
   return (
     <>
-      {/* The period: collected on the delivery day, per account, and what came back. */}
-      <ul className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Tile icon={Banknote} label={t(money ? 'insights.mexCash.kpi.collected' : 'insights.mexCash.kpi.delivered')}
-          value={val(total.cod, total.parcels)}
-          sub={money ? t('insights.mexCash.parcelsN', { n: f.int(total.parcels), count: total.parcels }) : t('insights.mexCash.kpi.deliveredSub')} />
-        {MEX_ACCOUNTS.map((a) => (
+      {/* NATURA also ships the web shop: a NATURA view says so (a dept_admin of Тим Центар). */}
+      {naturaIncludesWeb(data.meta) && (
+        <p role="note" className="flex items-start gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-xs leading-snug text-muted-foreground">
+          <Info className="mt-px h-4 w-4 shrink-0" aria-hidden />
+          <span>{t('insights.mexCash.naturaIncludesWeb')}</span>
+        </p>
+      )}
+      {/* The period: collected on the delivery day, per account, and what came back. With one
+          account the total IS that account, so no separate total tile. */}
+      <ul className={cn('grid grid-cols-2 gap-3', several ? 'lg:grid-cols-4' : 'lg:grid-cols-2')}>
+        {several && (
+          <Tile icon={Banknote} label={t(money ? 'insights.mexCash.kpi.collected' : 'insights.mexCash.kpi.delivered')}
+            value={val(total.cod, total.parcels)}
+            sub={money ? t('insights.mexCash.parcelsN', { n: f.int(total.parcels), count: total.parcels }) : t('insights.mexCash.kpi.deliveredSub')} />
+        )}
+        {accounts.map((a) => (
           <Tile key={a} label={acc(a)} value={val(data.total?.[a]?.cod_mkd, data.total?.[a]?.parcels ?? 0)}
             sub={money ? t('insights.mexCash.parcelsN', { n: f.int(data.total?.[a]?.parcels ?? 0), count: data.total?.[a]?.parcels ?? 0 }) : t('insights.mexCash.kpi.deliveredSub')}>
             <span className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
@@ -175,14 +193,14 @@ function MexCashBody({ data, f }: { data: MexCashResponse; f: InsightsFormat }) 
         {columns.length > 1 && (
           <DayColumns
             columns={columns}
-            parts={MEX_ACCOUNTS.map((a) => ({ key: a, label: acc(a), tone: ACCOUNT_TONE[a] }))}
+            parts={accounts.map((a) => ({ key: a, label: acc(a), tone: ACCOUNT_TONE[a] }))}
             granularity={byMonth ? 'month' : 'day'}
             label={t('insights.mexCash.daily.title')}
             fmt={money ? (v) => f.den(v) : undefined}
             f={f}
           />
         )}
-        <DayTable rows={[...rows].reverse()} money={money} rowLabel={rowLabel} f={f} />
+        <DayTable rows={[...rows].reverse()} accounts={accounts} money={money} rowLabel={rowLabel} f={f} />
       </Section>
 
       {/* MEX's settlement periods — independent of the period above. */}
@@ -190,7 +208,7 @@ function MexCashBody({ data, f }: { data: MexCashResponse; f: InsightsFormat }) 
         title={<span className="inline-flex items-center gap-1.5"><CalendarRange className="h-3.5 w-3.5" aria-hidden />{t('insights.mexCash.halves.title')}</span>}
         sub={t('insights.mexCash.halves.sub')}
       >
-        <HalvesTable data={data} money={money} f={f} />
+        <HalvesTable data={data} accounts={accounts} money={money} f={f} />
         <p className="text-[11px] leading-snug text-muted-foreground">{t('insights.mexCash.halves.payouts')}</p>
       </Section>
 
@@ -198,10 +216,10 @@ function MexCashBody({ data, f }: { data: MexCashResponse; f: InsightsFormat }) 
       <Section title={t('insights.mexCash.now.title')} clock="now">
         <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <NowTile icon={Truck} label={t('insights.mexCash.now.courier')} hint={t('insights.mexCash.now.courierHint')}
-            parts={MEX_ACCOUNTS.map((a) => ({ a, n: data.now?.[a]?.courier ?? 0, cod: data.now?.[a]?.courier_cod_mkd }))}
+            parts={accounts.map((a) => ({ a, n: data.now?.[a]?.courier ?? 0, cod: data.now?.[a]?.courier_cod_mkd }))}
             money={money} acc={acc} f={f} />
           <NowTile icon={PackageCheck} label={t('insights.mexCash.now.label')} hint={t('insights.mexCash.now.labelHint')}
-            parts={MEX_ACCOUNTS.map((a) => ({ a, n: data.now?.[a]?.label ?? 0, cod: data.now?.[a]?.label_cod_mkd }))}
+            parts={accounts.map((a) => ({ a, n: data.now?.[a]?.label ?? 0, cod: data.now?.[a]?.label_cod_mkd }))}
             money={money} acc={acc} f={f} />
         </ul>
       </Section>
@@ -210,9 +228,10 @@ function MexCashBody({ data, f }: { data: MexCashResponse; f: InsightsFormat }) 
 }
 
 /** Day rows: a table from md, cards below it (the UI law: no sideways scroll). */
-function DayTable({ rows, money, rowLabel, f }: {
-  rows: Row[]; money: boolean; rowLabel: (d: string) => string; f: InsightsFormat;
+function DayTable({ rows, accounts, money, rowLabel, f }: {
+  rows: Row[]; accounts: MexAccount[]; money: boolean; rowLabel: (d: string) => string; f: InsightsFormat;
 }) {
+  const several = accounts.length > 1;
   const { t } = f;
   const cell = (x: Row[MexAccount]) => (
     <>
@@ -221,9 +240,9 @@ function DayTable({ rows, money, rowLabel, f }: {
     </>
   );
   const sum = (r: Row) => ({
-    parcels: MEX_ACCOUNTS.reduce((s, a) => s + r[a].parcels, 0),
-    cod: money ? MEX_ACCOUNTS.reduce((s, a) => s + (r[a].cod ?? 0), 0) : null,
-    returned: MEX_ACCOUNTS.reduce((s, a) => s + r[a].returned, 0),
+    parcels: accounts.reduce((s, a) => s + r[a].parcels, 0),
+    cod: money ? accounts.reduce((s, a) => s + (r[a].cod ?? 0), 0) : null,
+    returned: accounts.reduce((s, a) => s + r[a].returned, 0),
   });
   if (!rows.length) return <p className="py-4 text-center text-sm text-muted-foreground">{t('insights.mexCash.empty')}</p>;
   return (
@@ -233,8 +252,8 @@ function DayTable({ rows, money, rowLabel, f }: {
           <thead className="sticky top-0 bg-card">
             <tr className="border-b text-[11px] uppercase tracking-wide text-muted-foreground">
               <th scope="col" className="px-2 py-1.5 text-left font-medium">{t('insights.mexCash.col.day')}</th>
-              {MEX_ACCOUNTS.map((a) => <th key={a} scope="col" className="px-2 py-1.5 text-right font-medium">{t(`insights.mexCash.account.${a}`)}</th>)}
-              <th scope="col" className="px-2 py-1.5 text-right font-medium">{t('insights.mexCash.col.total')}</th>
+              {accounts.map((a) => <th key={a} scope="col" className="px-2 py-1.5 text-right font-medium">{t(`insights.mexCash.account.${a}`)}</th>)}
+              {several && <th scope="col" className="px-2 py-1.5 text-right font-medium">{t('insights.mexCash.col.total')}</th>}
               <th scope="col" className="px-2 py-1.5 text-right font-medium">{t('insights.mexCash.col.returned')}</th>
             </tr>
           </thead>
@@ -244,8 +263,8 @@ function DayTable({ rows, money, rowLabel, f }: {
               return (
                 <tr key={r.d} className="border-b align-top last:border-0">
                   <th scope="row" className="px-2 py-1.5 text-left font-medium">{rowLabel(r.d)}</th>
-                  {MEX_ACCOUNTS.map((a) => <td key={a} className="px-2 py-1.5 text-right">{cell(r[a])}</td>)}
-                  <td className="px-2 py-1.5 text-right">{cell({ parcels: s.parcels, cod: s.cod, returned: s.returned })}</td>
+                  {accounts.map((a) => <td key={a} className="px-2 py-1.5 text-right">{cell(r[a])}</td>)}
+                  {several && <td className="px-2 py-1.5 text-right">{cell({ parcels: s.parcels, cod: s.cod, returned: s.returned })}</td>}
                   <td className="px-2 py-1.5 text-right text-muted-foreground">{f.int(s.returned)}</td>
                 </tr>
               );
@@ -263,7 +282,7 @@ function DayTable({ rows, money, rowLabel, f }: {
                 <span className="font-semibold">{money && s.cod != null ? f.den(s.cod) : f.int(s.parcels)}</span>
               </div>
               <dl className="mt-1 space-y-0.5 text-xs">
-                {MEX_ACCOUNTS.map((a) => (
+                {accounts.map((a) => (
                   <div key={a} className="flex justify-between gap-2">
                     <dt className="text-muted-foreground">{t(`insights.mexCash.account.${a}`)}</dt>
                     <dd>{money && r[a].cod != null ? `${f.den(r[a].cod)} · ` : ''}{t('insights.mexCash.parcelsN', { n: f.int(r[a].parcels), count: r[a].parcels })}</dd>
@@ -283,8 +302,9 @@ function DayTable({ rows, money, rowLabel, f }: {
 }
 
 /** The last 6 settlement periods, newest first; the running one is marked. */
-function HalvesTable({ data, money, f }: { data: MexCashResponse; money: boolean; f: InsightsFormat }) {
+function HalvesTable({ data, accounts, money, f }: { data: MexCashResponse; accounts: MexAccount[]; money: boolean; f: InsightsFormat }) {
   const { t } = f;
+  const several = accounts.length > 1;
   const halves = data.halves ?? [];
   const label = (from: string, to: string) => `${dm(from)} – ${dm(to, true)}`;
   const figure = (parcels: number, cod: number | undefined) => (money && cod != null ? f.den(cod) : f.int(parcels));
@@ -299,27 +319,29 @@ function HalvesTable({ data, money, f }: { data: MexCashResponse; money: boolean
           <thead>
             <tr className="border-b text-[11px] uppercase tracking-wide text-muted-foreground">
               <th scope="col" className="px-2 py-1.5 text-left font-medium">{t('insights.mexCash.col.period')}</th>
-              {MEX_ACCOUNTS.map((a) => <th key={a} scope="col" className="px-2 py-1.5 text-right font-medium">{t(`insights.mexCash.account.${a}`)}</th>)}
-              <th scope="col" className="px-2 py-1.5 text-right font-medium">{t('insights.mexCash.col.total')}</th>
+              {accounts.map((a) => <th key={a} scope="col" className="px-2 py-1.5 text-right font-medium">{t(`insights.mexCash.account.${a}`)}</th>)}
+              {several && <th scope="col" className="px-2 py-1.5 text-right font-medium">{t('insights.mexCash.col.total')}</th>}
             </tr>
           </thead>
           <tbody>
             {halves.map((h) => {
-              const parcels = MEX_ACCOUNTS.reduce((s, a) => s + (h[a]?.parcels ?? 0), 0);
-              const cod = money ? MEX_ACCOUNTS.reduce((s, a) => s + (h[a]?.cod_mkd ?? 0), 0) : undefined;
+              const parcels = accounts.reduce((s, a) => s + (h[a]?.parcels ?? 0), 0);
+              const cod = money ? accounts.reduce((s, a) => s + (h[a]?.cod_mkd ?? 0), 0) : undefined;
               return (
                 <tr key={h.from} className={cn('border-b align-top last:border-0', !h.complete && 'bg-muted/30')}>
                   <th scope="row" className="px-2 py-1.5 text-left font-medium">{label(h.from, h.to)}{tag(h.complete)}</th>
-                  {MEX_ACCOUNTS.map((a) => (
+                  {accounts.map((a) => (
                     <td key={a} className="px-2 py-1.5 text-right">
                       <span className="block font-medium">{figure(h[a]?.parcels ?? 0, h[a]?.cod_mkd)}</span>
                       {money && <span className="block text-[11px] text-muted-foreground">{t('insights.mexCash.parcelsN', { n: f.int(h[a]?.parcels ?? 0), count: h[a]?.parcels ?? 0 })}</span>}
                     </td>
                   ))}
-                  <td className="px-2 py-1.5 text-right">
-                    <span className="block font-semibold">{figure(parcels, cod)}</span>
-                    {money && <span className="block text-[11px] text-muted-foreground">{t('insights.mexCash.parcelsN', { n: f.int(parcels), count: parcels })}</span>}
-                  </td>
+                  {several && (
+                    <td className="px-2 py-1.5 text-right">
+                      <span className="block font-semibold">{figure(parcels, cod)}</span>
+                      {money && <span className="block text-[11px] text-muted-foreground">{t('insights.mexCash.parcelsN', { n: f.int(parcels), count: parcels })}</span>}
+                    </td>
+                  )}
                 </tr>
               );
             })}
@@ -328,8 +350,8 @@ function HalvesTable({ data, money, f }: { data: MexCashResponse; money: boolean
       </div>
       <ul className="space-y-2 md:hidden">
         {halves.map((h) => {
-          const parcels = MEX_ACCOUNTS.reduce((s, a) => s + (h[a]?.parcels ?? 0), 0);
-          const cod = money ? MEX_ACCOUNTS.reduce((s, a) => s + (h[a]?.cod_mkd ?? 0), 0) : undefined;
+          const parcels = accounts.reduce((s, a) => s + (h[a]?.parcels ?? 0), 0);
+          const cod = money ? accounts.reduce((s, a) => s + (h[a]?.cod_mkd ?? 0), 0) : undefined;
           return (
             <li key={h.from} className={cn('rounded-lg border p-3 text-sm tabular-nums', !h.complete && 'bg-muted/30')}>
               <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -337,7 +359,7 @@ function HalvesTable({ data, money, f }: { data: MexCashResponse; money: boolean
                 <span className="font-semibold">{figure(parcels, cod)}</span>
               </div>
               <dl className="mt-1 space-y-0.5 text-xs">
-                {MEX_ACCOUNTS.map((a) => (
+                {accounts.map((a) => (
                   <div key={a} className="flex justify-between gap-2">
                     <dt className="text-muted-foreground">{t(`insights.mexCash.account.${a}`)}</dt>
                     <dd>{money && h[a]?.cod_mkd != null ? `${f.den(h[a]!.cod_mkd)} · ` : ''}{t('insights.mexCash.parcelsN', { n: f.int(h[a]?.parcels ?? 0), count: h[a]?.parcels ?? 0 })}</dd>

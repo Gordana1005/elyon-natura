@@ -9,7 +9,7 @@ const h = vi.hoisted(() => ({ user: { isAdmin: false, isManager: false, isWareho
 vi.mock('@/integrations/supabase/client', () => ({ supabase: {} }));
 vi.mock('@/layouts/AppLayout', () => ({ AppLayout: ({ children }: { children: React.ReactNode }) => <main>{children}</main> }));
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: h.user }) }));
-vi.mock('@/contexts/PermissionsContext', () => ({ usePermissions: () => ({ canSeeBusiness: h.owner }) }));
+vi.mock('@/contexts/PermissionsContext', () => ({ usePermissions: () => ({ canSeeBusiness: h.owner, canSeeMargins: h.owner }) }));
 vi.mock('@/lib/api', () => ({ apiGetProducts: () => Promise.resolve([]), apiFetch: vi.fn() }));
 vi.mock('@/lib/warehouseApi', () => ({ apiGetWarehouseQueue: () => new Promise(() => {}) }));
 vi.mock('@/components/warehouse/WarehouseKpis', () => ({ WarehouseKpis: () => <div data-testid="kpis" /> }));

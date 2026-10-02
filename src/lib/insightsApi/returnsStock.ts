@@ -33,6 +33,9 @@ export interface RsMeta {
   clock: ReturnsClock;
   granularity: 'day' | 'month';
   sources?: CohortSourceKey[];
+  /** Returns: a dept_admin's departments (the api forces scope ∩ requested; access levels
+   *  20260947001600). Absent for everyone else. */
+  dept_scope?: string[];
   has_prev: boolean;
   /** Stock only: Skopje today (the queue's ages count from it). */
   today?: string;
@@ -64,7 +67,9 @@ export interface ReturnsKpis {
   crm_only_returned: RsPart;
   cancelled_after_sale: RsPart;
   trashed_after_sale: RsPart;
-  round_trip: {
+  /** The courier round trip of the returns — ABSENT for every viewer who does not see margins
+   *  (administrators, dept_admins, managers; access levels 20260947001600). */
+  round_trip?: {
     parcels: number;
     return_cost_mkd?: number;
     deliver_cost_mkd?: number;

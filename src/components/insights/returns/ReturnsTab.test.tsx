@@ -48,6 +48,26 @@ function renderWith(impl: (p: { clock: string }) => ReturnsResponse, query = WIN
 }
 const heroSale = () => i18n.t('insights.returns.hero.titleSale', { period: '01.09 – 27.09.2026' });
 
+// Access levels (20260947001600): a non-margin viewer (administrator, dept_admin) gets no
+// kpis.round_trip; a dept_admin's payload says its departments (meta.dept_scope).
+describe('Returns — no margins (administrator / dept_admin)', { timeout: 30_000 }, () => {
+  it('renders without the round trip, and a dept_admin gets only their department chips', async () => {
+    const s = S();
+    delete (s.kpis as Partial<typeof s.kpis>).round_trip;
+    s.meta = { ...s.meta, dept_scope: ['altercpa', 'elyon_crm'] };
+    const { container } = renderWith(() => s);
+    expect(await screen.findByText(heroSale(), {}, { timeout: 10_000 })).toBeInTheDocument();
+    expect(screen.queryByText(i18n.t('insights.returns.tile.roundTrip'))).toBeNull();
+    expect(screen.queryByText(i18n.t('insights.returns.notes.fee'))).toBeNull();
+    // the uncollected COD (revenue) stays
+    expect(screen.getAllByText(formatDenari(s.kpis.returned.value_mkd!)).length).toBeGreaterThan(0);
+    const group = screen.getByRole('group', { name: i18n.t('overview.sourcesLabel') });
+    const chips = [...group.querySelectorAll('button[aria-pressed]')].map((b) => b.textContent);
+    expect(chips).toEqual([i18n.t('insights.common.source.altercpa'), i18n.t('insights.common.source.elyon_crm')]);
+    expect(container.textContent).not.toMatch(/NaN/);
+  });
+});
+
 describe('Returns — owner, cohort clock', { timeout: 30_000 }, () => {
   it('leads with the cohort\'s returned part and says how much is still open', async () => {
     const s = S();

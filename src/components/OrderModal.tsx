@@ -137,6 +137,11 @@ export interface OrderModalData {
   price?: number;
   displayId?: string;
   items?: ItemLocal[];
+  /** The list row came with its value withheld (GET /orders `value_hidden`, access levels
+   *  20260947001600: a dept_admin's row of another department) — its price / line prices are
+   *  absent and must never be shown or written back as 0. The full order (GET /orders/:id)
+   *  still carries them. */
+  valueHidden?: boolean;
   assigned_agent_id?: string | null;
   ship_after_date?: string | null;
 }
@@ -224,6 +229,9 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
 
   // Products
   const [items, setItems] = useState<ItemLocal[]>([]);
+  // The lines were built without trustworthy prices (a value-hidden list row and no full order
+  // to read them from): they are shown, but never synced back — a sync would write 0 ден.
+  const [itemsUntrusted, setItemsUntrusted] = useState(false);
   // Raw string while a line-total is being typed (avoids mid-keystroke reformat).
   const [totalDraft, setTotalDraft] = useState<Record<number, string>>({});
   const [productsList, setProductsList] = useState<any[]>([]);
@@ -264,6 +272,7 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
     setEditingScript(false);
     setAmountPaid(0);
     setItems([]);
+    setItemsUntrusted(false);
 
     setLoadingScript(true);
     setLoadingProducts(true);
@@ -307,6 +316,7 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
 
         // Determine items: for orders use fetched order_items, for leads use passed data
         let resolvedItems: ItemLocal[] = [];
+        let untrusted = false;
         if (!isLead && fullOrder?.order_items?.length > 0) {
           resolvedItems = fullOrder.order_items.map((i: any) => ({
             id: i.id,
@@ -316,19 +326,28 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
             price_per_unit: Number(i.price_per_unit),
             total_price: Number(i.total_price),
           }));
-        } else if (data.items && data.items.length > 0) {
+        } else if (data.items && data.items.length > 0 && !data.valueHidden) {
           resolvedItems = data.items.map(i => ({ ...i }));
+          // A list line without a price (withheld) is never written back as 0.
+          untrusted = !isLead && data.items.some(i => i.price_per_unit == null || !Number.isFinite(Number(i.price_per_unit)));
         } else if (data.product) {
-          // Legacy fallback: only use if no items exist at all
+          // Legacy fallback: only use if no items exist at all. The list row's price is absent
+          // when its value is withheld (value_hidden) — the full order's price is the truth then.
+          const fullPrice = !isLead && fullOrder && fullOrder.price != null && Number.isFinite(Number(fullOrder.price))
+            ? Number(fullOrder.price) : null;
+          const listPrice = data.valueHidden || data.price == null ? null : data.price;
+          const price = listPrice ?? fullPrice;
+          if (price == null && !isLead && data.valueHidden) untrusted = true;
           resolvedItems = [{
             id: '__legacy__',
             product_id: null,
             product_name: data.product || '',
             quantity: data.quantity || 1,
-            price_per_unit: data.price || 0,
-            total_price: calcRowTotal(data.quantity || 1, data.price || 0),
+            price_per_unit: price ?? 0,
+            total_price: calcRowTotal(data.quantity || 1, price ?? 0),
           }];
         }
+        setItemsUntrusted(untrusted);
 
         // Reconcile to the official warehouse / catalogue name whenever we have a product_id.
         // This ensures that even if the order originally came from OpenCart with "Prostatol 3 + Palmetto..."
@@ -632,7 +651,9 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
         // Sync items only if order is NOT in a locked status AND not transitioning TO locked
         const isCurrentlyLocked = lockedStatuses.includes(data.status);
         const isTransitioningToLocked = lockedStatuses.includes(selectedStatus);
-        if (!isCurrentlyLocked && !isTransitioningToLocked) {
+        // Lines built without their real prices (a value-hidden row, the full order not loaded)
+        // are never synced: that would overwrite the order's prices with 0.
+        if (!isCurrentlyLocked && !isTransitioningToLocked && !itemsUntrusted) {
           await apiSyncOrderItems(data.id, activeItems.map(i => ({
             product_id: i.product_id,
             product_name: i.product_name,

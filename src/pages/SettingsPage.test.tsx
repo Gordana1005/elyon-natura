@@ -31,6 +31,7 @@ vi.mock('@/contexts/PermissionsContext', () => ({
     financialVisibility: [],
     privacy: [{ role: 'pending_agent', show_customer_phone: true, show_customer_name: true, show_customer_address: true, show_order_history: true, show_segment_members: true, can_hear_recordings: false, can_hear_own_recordings: false }],
     canSeeBusiness: perms.canSeeBusiness,
+    canSeeMargins: perms.canSeeBusiness,
     canAccessModule: (m: string) => (m === 'users' ? perms.canUsers : true),
     refresh,
   }),

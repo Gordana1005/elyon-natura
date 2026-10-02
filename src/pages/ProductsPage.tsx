@@ -83,13 +83,17 @@ export default function ProductsPage() {
   const f = useInsightsFormat();
   const { toast } = useToast();
   const { user } = useAuth();
-  const { canSeeBusiness } = usePermissions();
+  const { canSeeBusiness, canSeeMargins } = usePermissions();
   const kindLabel = useKindLabel();
   const canEdit = !!(user?.isAdmin || user?.isManager);
-  // Purchase cost (Sigma) and recipes are owners only (owner 01.10.2026; every active admin is an
-  // owner); the api strips the cost keys for everyone else.
-  const showCost = canSeeBusiness;
-  // Lines and kinds are set by admins + owners (the api's gate: isAdmin || is_business_owner()).
+  // Creating a product and changing its name / price / active state are admin-only: POST
+  // /products is admin-only and PATCH /products/:id answers 403 admin_only to anyone else who
+  // changes those (bd9bc60) — a manager keeps editing the rest.
+  const isAdmin = !!user?.isAdmin;
+  // Purchase cost (Sigma), recipes and VAT are margin figures: super_admin / owner / finance only
+  // (can_see_margins(), access levels 20260947001600); the api strips the cost keys for everyone else.
+  const showCost = canSeeMargins;
+  // Lines and kinds are set by admins + revenue owners (the api's gate: isAdmin || is_business_owner()).
   const canSetLine = !!user?.isAdmin || canSeeBusiness;
 
   const [params, setParams] = useSearchParams();
@@ -110,8 +114,10 @@ export default function ProductsPage() {
     }, { replace: true }), [setParams]);
 
   const [products, setProducts] = useState<ProductRow[]>([]);
-  // the api sends the VAT columns to owners only and says so (vat_visible)
-  const [vatVisible, setVatVisible] = useState(false);
+  // the api sends the VAT columns to margin viewers only and says so (vat_visible); the UI also
+  // requires canSeeMargins, so a stale catalogue response never shows a VAT column to anyone else
+  const [vatFromApi, setVatFromApi] = useState(false);
+  const vatVisible = vatFromApi && canSeeMargins;
   const vatParam = params.get('vat');
   const vat: VatFilter = vatVisible && isVatFilter(vatParam) ? vatParam : 'all';
   const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -132,7 +138,7 @@ export default function ProductsPage() {
   const fetchProducts = useCallback((first = false) => {
     if (first) setPhase('loading');
     apiGetProductCatalogue()
-      .then((data) => { setProducts([...(data?.rows ?? [])].sort(byName)); setVatVisible(data?.vat_visible === true); setPhase('ready'); })
+      .then((data) => { setProducts([...(data?.rows ?? [])].sort(byName)); setVatFromApi(data?.vat_visible === true); setPhase('ready'); })
       .catch((err: unknown) => {
         if (first) { setLoadError(apiErrorText(err)); setPhase('error'); }
         else toast({ title: t('common.error'), description: apiErrorText(err), variant: 'destructive' });
@@ -305,7 +311,7 @@ export default function ProductsPage() {
           ) : (
             <p className="text-sm text-muted-foreground">{t('products.nProducts', { count: products.length })}</p>
           )}
-          {canEdit && view === 'list' && (
+          {isAdmin && view === 'list' && (
             <Button onClick={() => setForm({ open: true, product: null })} className="h-9">
               <Plus className="mr-1.5 h-4 w-4" aria-hidden />{t('products.addProduct')}
             </Button>
@@ -354,7 +360,7 @@ export default function ProductsPage() {
             ) : (
               <div className="min-w-0 space-y-3" aria-busy={query !== deferredQuery}>
                 <ProductsList
-                  rows={page} showCost={showCost} canEdit={canEdit} canSetLine={canSetLine} showVat={vatVisible}
+                  rows={page} showCost={showCost} canEdit={canEdit} canToggleActive={isAdmin} canSetLine={canSetLine} showVat={vatVisible}
                   selected={selected} onSelectShown={selectShown} busyIds={busyIds} handlers={handlers}
                 />
                 {rows.length > page.length && (
@@ -387,6 +393,7 @@ export default function ProductsPage() {
         showCost={showCost}
         canSetKind={canSetLine}
         canSetLine={canSetLine}
+        canEditCore={isAdmin}
         onSaved={() => fetchProducts()}
       />
 

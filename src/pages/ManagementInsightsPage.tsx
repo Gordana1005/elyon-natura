@@ -1,8 +1,5 @@
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { AppLayout } from '@/layouts/AppLayout';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { BarChart3 } from 'lucide-react';
@@ -21,12 +18,13 @@ import MexCashTab from '@/components/insights/mexcash/MexCashTab';
 import CallActivityTab from '@/components/insights/calls/CallActivityTab';
 import { InsightsFilterBar } from '@/components/insights/shared/InsightsFilterBar';
 import { switchTabParams } from '@/components/insights/shared/period';
+import { DeptScopeBadge } from '@/components/access/DeptScopeBadge';
 
 // Tab catalogue. `need` keys into useInsightsAccess(). Only Pure Profit and
-// Margin Lab are `business` — owners only (is_business_owner(): the owners list
-// and every active admin, 20260939000500). The cohort tabs (Overview, Sales,
+// Margin Lab are `business` — margins only (can_see_margins(): super_admin / owner /
+// finance, access levels 20260947001600). The cohort tabs (Overview, Sales,
 // Prediction lists, Stock, Returns) open to admins/managers too and gate their
-// money by the payload's meta.money. Agents / Payout / Call Activity keep their
+// money by the payload's meta.money (a dept_admin: their departments, meta.dept_scope). Agents / Payout / Call Activity keep their
 // module rules (Agents also honours the legacy Performance key, so nobody lost
 // the old standalone page). Every tab brings its own data; each lives in its
 // own file under src/components/insights/<tab>/.
@@ -39,8 +37,8 @@ const TAB_DEFS = [
   { value: 'sales', labelKey: 'insights.tabSales', need: 'overview' },
   // Наплата (MEX) (owner 02.10.2026): what MEX collected per delivery day, account and
   // settlement period — off the Overview, where it read as money received that day.
-  // A short NAMED list only (app_settings.mex_cash.viewers: Mile + Hedi), not every
-  // owner — can_see_mex_cash() on the server, GET /insights/mex-cash answers 403 to anyone else.
+  // The whole tab = can_see_mex_cash() (= can_see_margins since 20260947001600); a
+  // dept_admin sees their own MEX account only; GET /insights/mex-cash 403s anyone else.
   { value: 'mex-cash', labelKey: 'insights.tabMexCash', need: 'mexCash' },
   { value: 'agents', labelKey: 'insights.tabAgents', need: 'agents' },
   { value: 'payout', labelKey: 'insights.tabPayout', need: 'payout' },
@@ -66,31 +64,15 @@ export default function ManagementInsightsPage() {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Per-area access — shared with the sidebar, see useInsightsAccess().
-  const insightsAccess = useInsightsAccess();
-  // Наплата (MEX): the named viewers only (my_can_see_mex_cash(), migration 20260947001300).
-  const { user } = useAuth();
-  const mexCashQ = useQuery({
-    queryKey: ['my-can-see-mex-cash', user?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc('my_can_see_mex_cash');
-      if (error) return false;
-      return data === true;
-    },
-    enabled: !!user?.id && insightsAccess.business,
-    staleTime: 10 * 60_000,
-    retry: 0,
-  });
-  const access = { ...insightsAccess, mexCash: insightsAccess.business && mexCashQ.data === true };
+  // Per-area access — shared with the sidebar, see useInsightsAccess(). Наплата (MEX) and the
+  // margin tabs come from the access level in get_my_permissions() (20260947001600) — no
+  // separate viewer check any more.
+  const access = useInsightsAccess();
   const tabs = TAB_DEFS.filter(tab => access[tab.need]);
 
   // The default is always a tab this user can actually see.
   const requested = searchParams.get('tab');
-  // A link straight to Наплата (MEX) waits for the viewer check instead of opening (and
-  // fetching) the first tab meanwhile.
-  const mexCashPending = requested === 'mex-cash' && insightsAccess.business && mexCashQ.isPending;
-  const activeTab = mexCashPending ? 'mex-cash'
-    : tabs.some(tab => tab.value === requested) ? requested! : (tabs[0]?.value ?? 'overview');
+  const activeTab = tabs.some(tab => tab.value === requested) ? requested! : (tabs[0]?.value ?? 'overview');
 
   // No page-level aggregate: every tab fetches its own endpoint (the full
   // GET /management-insights report is no tab's data any more — the api keeps
@@ -113,9 +95,13 @@ export default function ManagementInsightsPage() {
       <div className="space-y-5">
         {/* A tab switch keeps the shared period (and drops the old tab's own filters). */}
         <Tabs value={activeTab} onValueChange={(v) => setSearchParams(switchTabParams(searchParams, v))}>
-          <TabsList className="h-auto">
-            {tabs.map(tab => <TabsTrigger key={tab.value} value={tab.value}>{t(tab.labelKey)}</TabsTrigger>)}
-          </TabsList>
+          <div className="flex flex-wrap items-center gap-2">
+            <TabsList className="h-auto">
+              {tabs.map(tab => <TabsTrigger key={tab.value} value={tab.value}>{t(tab.labelKey)}</TabsTrigger>)}
+            </TabsList>
+            {/* A dept_admin's money is their departments only — say which, next to the tabs. */}
+            {access.deptScope && access.deptScope.length > 0 && <DeptScopeBadge keys={access.deptScope} />}
+          </div>
 
           {showPeriodBar && <InsightsFilterBar className="mt-4" />}
 
@@ -132,7 +118,7 @@ export default function ManagementInsightsPage() {
             <TabsContent value="mex-cash" className="mt-4"><MexCashTab /></TabsContent>
           )}
 
-          {/* Pure Profit + Margins: owners only, GET /insights/profit (one shared query). */}
+          {/* Pure Profit + Margins: margins only (super_admin / owner / finance), GET /insights/profit (one shared query). */}
           {access.business && <>
             <TabsContent value="pure-profit" className="mt-4"><PureProfitTab /></TabsContent>
             <TabsContent value="margin-lab" className="mt-4"><MarginLabTab /></TabsContent>

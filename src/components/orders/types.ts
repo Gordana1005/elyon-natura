@@ -5,7 +5,11 @@ export interface ApiOrder {
   id: string;
   display_id: string;
   product_name: string;
+  /** EUR. ABSENT on a row with value_hidden. */
   price: number;
+  /** A dept_admin's row of ANOTHER department (access levels, 20260947001600): the api sends no
+   *  price, no order_items prices and no *_mkd / *_eur key — the value shows "—", never 0 ден. */
+  value_hidden?: boolean;
   quantity: number;
   status: OrderStatus;
   customer_name: string;

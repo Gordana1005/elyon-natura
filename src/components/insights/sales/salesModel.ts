@@ -71,9 +71,17 @@ const NO_LEADS: CohortLeadsIn = { came_in: 0, became_sales: 0, cancelled: 0, tra
 /** The cohort helpers (CohortBar, cohortDrill) read source rows; this tab
  *  carries no leads (the Overview does), so they get an empty funnel. The rows
  *  are the WHOLE business (the tab has no source filter), so they always hold a
- *  Менаџмент row (withManagementRow) — a number over them drills unfiltered. */
-export function asCohortRows(sources: SalesSource[] | undefined): CohortSourceRow[] {
-  return withManagementRow((sources ?? []).map((s) => ({ ...s, leads_in: NO_LEADS })), () => emptySourceRow(MANAGEMENT_SOURCE));
+ *  Менаџмент row (withManagementRow) — a number over them drills unfiltered.
+ *  A dept_admin's payload (`scope` = meta.dept_scope, access levels 20260947001600) holds only
+ *  their departments: the rows are those, one per scope key (empty when the body sent none),
+ *  and no Менаџмент row is added outside the scope — a number drills to their departments. */
+export function asCohortRows(sources: SalesSource[] | undefined, scope?: readonly string[] | null): CohortSourceRow[] {
+  const rows = (sources ?? []).map((s) => ({ ...s, leads_in: NO_LEADS }));
+  if (Array.isArray(scope)) {
+    return COHORT_SOURCES.filter((k) => scope.includes(k))
+      .map((k) => rows.find((r) => r.key === k) ?? emptySourceRow(k));
+  }
+  return withManagementRow(rows, () => emptySourceRow(MANAGEMENT_SOURCE));
 }
 
 export interface SourceView {
@@ -92,7 +100,7 @@ export interface SourceView {
 export function sourceViews(core: SalesCore, money: boolean): SourceView[] {
   const order = (k: string) => { const i = (COHORT_SOURCES as readonly string[]).indexOf(k); return i < 0 ? 99 : i; };
   // an empty Менаџмент row is not written (owner 02.10.2026: only "ако има нешто")
-  const rows = dropEmptyManagement(asCohortRows(core.by_source).sort((a, b) => order(a.key) - order(b.key)), cohortRowEmpty);
+  const rows = dropEmptyManagement(asCohortRows(core.by_source, core.meta?.dept_scope).sort((a, b) => order(a.key) - order(b.key)), cohortRowEmpty);
   const totalCount = num(core.total?.count);
   const totalValue = money && hasNum(core.total?.value_mkd) ? core.total.value_mkd! : null;
   return rows.map((row) => {

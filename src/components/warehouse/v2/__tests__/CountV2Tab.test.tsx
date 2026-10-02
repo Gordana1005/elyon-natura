@@ -23,7 +23,7 @@ vi.mock('@/lib/stockV2Api', () => ({
   apiStockV2Run: (d: boolean) => h.run(d),
 }));
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: { isAdmin: h.admin, isManager: false, isWarehouse: !h.admin } }) }));
-vi.mock('@/contexts/PermissionsContext', () => ({ usePermissions: () => ({ canSeeBusiness: h.owner }) }));
+vi.mock('@/contexts/PermissionsContext', () => ({ usePermissions: () => ({ canSeeBusiness: h.owner, canSeeMargins: h.owner }) }));
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: h.toast }) }));
 
 beforeAll(async () => {

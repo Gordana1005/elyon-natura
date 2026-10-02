@@ -22,8 +22,10 @@ export { readPageOffset } from './stockV2Model';
 /** Who sees what on the v2 tabs — the api decides; this only hides what it would refuse. */
 export function useStockAccess() {
   const { user } = useAuth();
-  const { canSeeBusiness } = usePermissions();
-  const isOwner = !!canSeeBusiness;
+  // The Stock v2 switch, a run, approving a count / the opening: stock-v2 writes are margin-class
+  // (403 owners_only unless can_see_margins — access levels, 20260947001600).
+  const { canSeeMargins } = usePermissions();
+  const isOwner = !!canSeeMargins;
   const isAdmin = !!user?.isAdmin;
   return {
     isOwner,

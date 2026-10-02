@@ -1764,7 +1764,8 @@
       "partialTitle": "Produkti u ruajt, por jo gjithçka",
       "partialKind": "lloji nuk u ruajt: {{error}}",
       "partialLine": "linja nuk u ruajt: {{error}}",
-      "nothingChanged": "Nuk ka ndryshime për t’u ruajtur"
+      "nothingChanged": "Nuk ka ndryshime për t’u ruajtur",
+      "adminOnlyCore": "Emrin, çmimin dhe aktivitetin i ndryshon vetëm administratori."
     },
     "colVat": "TVSH",
     "vat": {
@@ -2043,7 +2044,10 @@
     "byDepartment": "Shitje sot sipas departamentit",
     "kpiNote": "Të njëjtat shifra si Insights → Pasqyra: dita e shitjes, të gjitha departamentet (edhe Menaxhmenti), MEX është prova.",
     "toPackBookedSub_one": "prej tyre {{n}} e regjistruar në collabBox (pret pakon)",
-    "toPackBookedSub_other": "prej tyre {{n}} të regjistruara në collabBox (presin pakon)"
+    "toPackBookedSub_other": "prej tyre {{n}} të regjistruara në collabBox (presin pakon)",
+    "salesValueTodayTeam": "Vlera e shitjeve sot ({{team}})",
+    "deptSalesSub_one": "{{n}} shitje e ekipit sot",
+    "deptSalesSub_other": "{{n}} shitje të ekipit sot"
   },
   "segments": {
     "category": {
@@ -2559,7 +2563,8 @@
     "rowActions": "Veprime për {{id}}",
     "value": {
       "cod": "Pagesa në dorëzim e pakos te MEX",
-      "price": "Çmimi në CRM (ende pa pako)"
+      "price": "Çmimi në CRM (ende pa pako)",
+      "hidden": "Vlera është e fshehur — porosi e një departamenti tjetër"
     },
     "details": "Detajet",
     "hideDetails": "Fshih detajet",
@@ -6458,7 +6463,8 @@
         "courierHint": "Të marra, në dorëzim, tentim dorëzimi ose problem (MEX 1, 3, 4, 9, 10, 13).",
         "label": "E paketuar, pret korrierin",
         "labelHint": "Pakoja ekziston te MEX, korrieri ende nuk e ka marrë (MEX 8)."
-      }
+      },
+      "naturaIncludesWeb": "NATURA dërgon edhe pakot e Dyqanit online — shifrat e NATURA përfshijnë edhe porositë nga ueb-i."
     }
   },
   "agentsTab": {
@@ -9782,7 +9788,12 @@
   },
   "access": {
     "noPageTitle": "Nuk keni asnjë faqe që mund ta hapni",
-    "noPageDesc": "Kësaj hyrjeje nuk i është caktuar rol ose faqe. Kontaktoni administratorin."
+    "noPageDesc": "Kësaj hyrjeje nuk i është caktuar rol ose faqe. Kontaktoni administratorin.",
+    "scope": {
+      "title": "Paratë shfaqen vetëm për: {{team}}"
+    },
+    "companyWide": "E gjithë kompania · vetëm numra (pa shuma)",
+    "companyWideShort": "e gjithë kompania"
   },
   "appError": {
     "title": "Diçka nuk u ngarkua",

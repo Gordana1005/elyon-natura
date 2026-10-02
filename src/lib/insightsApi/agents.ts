@@ -20,7 +20,10 @@
  */
 import { apiFetch } from '@/lib/api';
 
-export type PeopleAccessKind = 'owner' | 'counts' | 'self';
+/** owner = company-wide money · counts = no money · self = an agent's own row · dept = a
+ *  dept_admin (access levels, 20260947001600): their team's people WITH money, totals for their
+ *  departments without cod_mkd / paid_mkd / prev / conversion. */
+export type PeopleAccessKind = 'owner' | 'counts' | 'self' | 'dept';
 
 export interface PeopleBuckets {
   paid: number;
@@ -190,8 +193,10 @@ export interface PeopleTotals {
   trash_decisions: number;
   callback_decisions: number;
   unmapped_decisions: number;
-  conversion: number | null;
-  prev: { sales: number; with_person: number; worked: number; sale_decisions: number } | null;
+  /** Absent for a dept_admin (meta.access = 'dept'): their totals carry no conversion. */
+  conversion?: number | null;
+  /** Absent for a dept_admin (meta.access = 'dept'). */
+  prev?: { sales: number; with_person: number; worked: number; sale_decisions: number } | null;
 }
 
 export interface PeopleDetailDay {
@@ -241,6 +246,8 @@ export interface PeopleResponse {
     person?: string | null;
     /** An agent whose login is no sales person yet. */
     self_unlinked?: boolean;
+    /** A dept_admin's departments (meta.access = 'dept'). */
+    dept_scope?: string[];
   };
   /** Absent for an agent (self view). */
   totals?: PeopleTotals;

@@ -23,8 +23,12 @@ export type SettingsSectionId =
 export interface SettingsViewer {
   isAdmin: boolean;
   isManager: boolean;
-  /** is_business_owner(): every active admin, plus the owners list. */
+  /** is_business_owner() = can_see_revenue(): company-wide revenue (super_admin / owner / finance /
+   *  administrator — access levels, 20260947001600). */
   isOwner: boolean;
+  /** can_see_margins(): margins, purchase costs, courier rates, bonus rules (super_admin / owner /
+   *  finance). An administrator is an owner (revenue) but NOT a margin viewer. */
+  canSeeMargins: boolean;
   /** canAccessModule('users') — the Корисници page itself. */
   canUsers: boolean;
   /** PBX_CONFIG.useRealVoip — telephony is deferred while it is off. */
@@ -61,8 +65,10 @@ export const SECTIONS: SettingsSectionDef[] = [
     visible: (v) => v.isOwner },
   { id: 'tv', group: 'system', labelKey: 'settingsPage.section.tv.label', descKey: 'settingsPage.section.tv.desc',
     visible: (v) => v.isAdmin },
+  // The courier rate card is a margin figure: GET / PATCH /courier-rates answer 403 owners_only
+  // unless can_see_margins (access levels, 20260947001600).
   { id: 'courier', group: 'system', labelKey: 'settingsPage.section.courier.label', descKey: 'settingsPage.section.courier.desc',
-    visible: (v) => v.isOwner },
+    visible: (v) => v.canSeeMargins },
   { id: 'partners', group: 'system', labelKey: 'settingsPage.section.partners.label', descKey: 'settingsPage.section.partners.desc',
     visible: (v) => v.isOwner },
   { id: 'warehouse', group: 'system', labelKey: 'settingsPage.section.warehouse.label', descKey: 'settingsPage.section.warehouse.desc',

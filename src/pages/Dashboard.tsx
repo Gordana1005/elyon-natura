@@ -53,6 +53,11 @@ interface DashStats {
   returns_orders?: number;
   paid_revenue?: number;
   payout_earned?: number;
+  /** false = a non-revenue manager (access levels, 20260947001600): total_value / paid_revenue /
+   *  payout_earned are ABSENT — the money tiles are hidden, never "0 ден". */
+  money?: boolean;
+  /** A dept_admin's departments: every order figure is theirs only, payout_earned absent. */
+  dept_scope?: string[];
   /** Per-sales-motion split of the agent's own orders. Keys: pendings |
    *  prediction | other | __total. `other` is the pre-CRM import, which
    *  predates the split — it is in __total but has no column of its own. */
@@ -291,6 +296,7 @@ import { formatMoney } from '@/lib/currency';
 import { activityText } from '@/lib/activityFeed';
 import { EmptyState } from '@/components/EmptyState';
 import { addDays } from '@/components/insights/shared/period';
+import { DeptScopeBadge } from '@/components/access/DeptScopeBadge';
 
 // Macedonia shows denars only. Routed through the shared helper so this page
 // can never drift from the rest of the app's money formatting.
@@ -456,6 +462,12 @@ export default function Dashboard() {
       : pct(sales, stats?.total_orders || 0);
     const paidRevenue = stats?.paid_revenue ?? 0;
     const payoutEarned = stats?.payout_earned ?? 0;
+    // Access levels (20260947001600): a non-revenue manager's payload says money: false and
+    // carries no money key — every money tile is hidden (never "0 ден"); a dept_admin's carries
+    // no payout_earned — the payout tile is hidden. While loading, the tiles keep their frame.
+    const moneyHidden = stats?.money === false;
+    const showPayout = !moneyHidden && (!stats || stats.payout_earned != null);
+    const deptScope = Array.isArray(stats?.dept_scope) && stats.dept_scope.length > 0 ? stats.dept_scope : null;
     const packagesSold = stats?.packages_sold ?? stats?.units_sold ?? 0;
     const packagesAwaiting = stats?.packages_awaiting ?? 0;
     const productRows = Object.entries(stats?.products_sold || {}).sort((a, b) => b[1] - a[1]);
@@ -483,7 +495,10 @@ export default function Dashboard() {
       <AppLayout title={t('titles.myPerformance')}>
         {/* Period toggle + day navigator + custom range */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm text-muted-foreground">{periodLabel}</p>
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <p className="text-sm text-muted-foreground">{periodLabel}</p>
+            {deptScope && <DeptScopeBadge keys={deptScope} />}
+          </div>
           <div className="flex flex-wrap items-center gap-2">
             {agentPeriod === 'today' && (
               <div className="flex items-center gap-1">
@@ -565,13 +580,15 @@ export default function Dashboard() {
               ? t('dashboard.conversionSubProcessed', { won: actTotal.won, processed: actTotal.processed })
               : t('dashboard.conversionSubOrders')}
           />
-          <MetricCard
-            title={t('dashboard.revenueConfirmed')}
-            value={formatMoney(revenueConfirmed)}
-            icon={FileText}
-            color="bg-[hsl(var(--success))]"
-            subtitle={t('dashboard.revenueConfirmedSub')}
-          />
+          {!moneyHidden && (
+            <MetricCard
+              title={t('dashboard.revenueConfirmed')}
+              value={formatMoney(revenueConfirmed)}
+              icon={FileText}
+              color="bg-[hsl(var(--success))]"
+              subtitle={t('dashboard.revenueConfirmedSub')}
+            />
+          )}
           <MetricCard
             title={t('dashboard.predictionMembers')}
             value={predMembers}
@@ -584,29 +601,33 @@ export default function Dashboard() {
 
         {/* Earnings — what the work paid, after the work itself */}
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 mb-4">
-          <MetricCard
-            title={t('dashboard.payoutEarned')}
-            value={formatMoney(payoutEarned)}
-            icon={Banknote}
-            color="bg-emerald-600"
-            subtitle={t('dashboard.payoutEarnedSub')}
-          />
+          {showPayout && (
+            <MetricCard
+              title={t('dashboard.payoutEarned')}
+              value={formatMoney(payoutEarned)}
+              icon={Banknote}
+              color="bg-emerald-600"
+              subtitle={t('dashboard.payoutEarnedSub')}
+            />
+          )}
           <MetricCard
             title={t('dashboard.packagesSold')}
             value={packagesSold}
             icon={Package}
             color="bg-primary"
-            subtitle={packagesSold > 0 && paidRevenue > 0
+            subtitle={!moneyHidden && packagesSold > 0 && paidRevenue > 0
               ? t('dashboard.perPackage', { price: fmtCurrency(paidRevenue / packagesSold) })
               : t('dashboard.packagesSoldSub')}
           />
-          <MetricCard
-            title={t('dashboard.paidRevenue')}
-            value={formatMoney(paidRevenue)}
-            icon={Banknote}
-            color="bg-[hsl(var(--info))]"
-            subtitle={t('dashboard.paidRevenueSub')}
-          />
+          {!moneyHidden && (
+            <MetricCard
+              title={t('dashboard.paidRevenue')}
+              value={formatMoney(paidRevenue)}
+              icon={Banknote}
+              color="bg-[hsl(var(--info))]"
+              subtitle={t('dashboard.paidRevenueSub')}
+            />
+          )}
           <MetricCard
             title={t('dashboard.packagesAwaiting')}
             value={packagesAwaiting}

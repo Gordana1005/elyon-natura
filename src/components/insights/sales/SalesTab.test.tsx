@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import i18n from '@/i18n';
@@ -49,8 +49,9 @@ const detailPayload = (money = true): SalesDetail => {
   return money ? d : strip(d);
 };
 
-function renderWith(money = true) {
-  h.sales.mockImplementation((p: { part: string }) => Promise.resolve(p.part === 'core' ? corePayload(money) : detailPayload(money)));
+function renderWith(money = true, payloads?: { core: SalesCore; detail: SalesDetail }) {
+  h.sales.mockImplementation((p: { part: string }) => Promise.resolve(
+    payloads ? (p.part === 'core' ? payloads.core : payloads.detail) : p.part === 'core' ? corePayload(money) : detailPayload(money)));
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
@@ -105,6 +106,37 @@ describe('Sales — owner', () => {
       expect(sp.get('sold_to')).toBe('2026-09-27');
       expect(sp.get('cohort_bucket')).toBeTruthy();
     }
+  }, 30_000);
+});
+
+// Access levels (20260947001600): a dept_admin's core is their departments' (with money) but the
+// MEX channels and the timing are the whole company's counts with no *_mkd; the detail part is
+// the whole company's counts (meta.company_wide).
+describe('Sales — dept_admin', () => {
+  const CENTAR = ['teleshop_out', 'teleshop_other', 'social'];
+  const payloads = () => {
+    const core = corePayload(true);
+    core.meta = { ...core.meta, dept_scope: CENTAR };
+    core.by_source = core.by_source.filter((s) => CENTAR.includes(s.key));
+    core.channels = strip({ meta: {}, channels: core.channels }).channels;
+    core.timing = strip({ meta: {}, timing: core.timing }).timing;
+    const detail = detailPayload(false);
+    detail.meta = { ...detail.meta, dept_scope: CENTAR, company_wide: true };
+    return { core, detail };
+  };
+
+  it('says the detail tables are the whole company; channels count without a money column, never NaN', async () => {
+    const p = payloads();
+    const { container } = renderWith(true, p);
+    expect(await screen.findByRole('heading', { name: i18n.t('insights.sales.products.title') }, { timeout: 10_000 })).toBeInTheDocument();
+    // the detail tables, the MEX channels and the timing each say "whole company"
+    expect(screen.getAllByText(i18n.t('access.companyWide')).length).toBeGreaterThanOrEqual(3);
+    const channels = screen.getByRole('heading', { name: i18n.t('insights.sales.channels.title') }).closest('section')!;
+    expect(within(channels).queryByRole('columnheader', { name: i18n.t('insights.sales.channels.colCod') })).toBeNull();
+    // the footer adds up the channels themselves (company-wide), not the department header
+    const sum = p.core.channels.reduce((a, c) => a + c.count, 0);
+    expect(within(channels).getByText(new Intl.NumberFormat('de-DE').format(sum))).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/NaN/);
   }, 30_000);
 });
 

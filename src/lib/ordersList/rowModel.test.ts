@@ -8,6 +8,12 @@ describe('the row', () => {
     expect(orderValue({ price: 20, mex_cod_mkd: 0 })).toEqual({ text: '0 ден', fromParcel: true }); // a replacement
   });
 
+  it('value: a withheld value (a dept_admin\'s row of another department) is "—", never 0 ден', () => {
+    expect(orderValue({ value_hidden: true })).toEqual({ text: '—', fromParcel: false, hidden: true });
+    // even if a stray COD were present, a hidden row never shows it
+    expect(orderValue({ value_hidden: true, mex_cod_mkd: 1490 }).text).toBe('—');
+  });
+
   it('is dated by its own status clock', () => {
     const base = { created_at: '2026-09-20T08:00:00Z', sold_at: '2026-09-22T08:00:00Z', confirmed_at: '2026-09-21T08:00:00Z', cancelled_at: '2026-09-23T08:00:00Z', trashed_at: '2026-09-24T08:00:00Z' };
     expect(rowInstant({ ...base, status: 'paid' })).toBe(base.sold_at);

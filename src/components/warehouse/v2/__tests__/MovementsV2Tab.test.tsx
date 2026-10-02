@@ -14,7 +14,7 @@ vi.mock('@/lib/stockV2Api', () => ({
   apiStockV2Config: () => h.config(),
 }));
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: { isAdmin: false, isManager: true, isWarehouse: false } }) }));
-vi.mock('@/contexts/PermissionsContext', () => ({ usePermissions: () => ({ canSeeBusiness: false }) }));
+vi.mock('@/contexts/PermissionsContext', () => ({ usePermissions: () => ({ canSeeBusiness: false, canSeeMargins: false }) }));
 
 beforeAll(async () => {
   await i18n.changeLanguage('mk');

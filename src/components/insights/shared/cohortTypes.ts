@@ -209,6 +209,9 @@ export interface Cohort {
     clock: 'sale';
     sources?: CohortSourceKey[];
     granularity?: 'day' | 'month';
+    /** A dept_admin's departments (access levels, 20260947001600): by_source holds only these
+     *  and the total / buckets are theirs. Absent = the whole business. */
+    dept_scope?: string[];
   };
   total: CohortTotal;
   buckets: CohortBucket[];

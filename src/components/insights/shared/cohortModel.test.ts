@@ -312,3 +312,32 @@ describe('Менаџмент — the seventh department (owner 02.10.2026, migra
     expect(dropEmptyManagement([cancelled], cohortRowEmpty)).toHaveLength(1);
   });
 });
+
+// A dept_admin's cohort (access levels, 20260947001600): by_source holds only their departments.
+describe('cohortView — a department-scoped cohort', () => {
+  const row = (key: string, count: number) => ({
+    key, total: { count, orders: count, web: 0, mex_only: 0 }, buckets: [{ key: 'paid', count }], outside: [], splits: [],
+    leads_in: { came_in: 0, became_sales: 0, cancelled: 0, trashed: 0, open: 0, conversion: null },
+  });
+  const c = {
+    meta: { from: '2026-10-01', to: '2026-10-01', generated_at: '', money: true, clock: 'sale', dept_scope: ['teleshop_out', 'teleshop_other', 'social'] },
+    total: { count: 5 }, buckets: [{ key: 'paid', count: 5 }], outside: [],
+    by_source: [row('social', 2), row('teleshop_out', 3)],
+    leads_in: { came_in: 0, became_sales: 0, cancelled: 0, trashed: 0, open: 0, conversion: null },
+    cash_flow: { parcels: 0 }, spark: [], quality: [],
+  } as unknown as Cohort;
+
+  it('rows = the scope, in order, an empty row for a department with nothing; no Менаџмент row added', () => {
+    const v = cohortView(c, null);
+    expect(v.rows.map((r) => r.key)).toEqual(['teleshop_out', 'teleshop_other', 'social']);
+    expect(v.rows[1].total.count).toBe(0);
+    expect(v.filtered).toBe(false);
+    expect(v.total.count).toBe(5);
+  });
+
+  it('a chip inside the scope re-sums those rows only', () => {
+    const v = cohortView(c, ['social']);
+    expect(v.filtered).toBe(true);
+    expect(v.total.count).toBe(2);
+  });
+});

@@ -25,6 +25,9 @@ export function SalesKpis({ core, detail, money, f }: { core: SalesCore; detail:
   const pr = paidRate(o);
   const rr = returnRate(o);
 
+  // A dept_admin's detail is the whole company's counts (meta.company_wide): the two tiles built
+  // on it say so, so they are never read as the department's.
+  const cw = detail?.meta?.company_wide === true ? ` · ${t('access.companyWideShort')}` : '';
   const units = detail?.products?.summary?.units ?? null;
   const unitSales = detail?.basket?.by_source?.reduce((a, s) => a + s.with_units, 0) ?? null;
   const perSale = units != null && unitSales ? ratio(units, unitSales) : null;
@@ -46,10 +49,10 @@ export function SalesKpis({ core, detail, money, f }: { core: SalesCore; detail:
         hint={t('insights.sales.kpi.inFlightHint', { pct: f.share(o.inFlight, o.count) })} f={f} />
       <Kpi icon={Package} label={t('insights.sales.kpi.perSale')}
         value={perSale != null ? fmtNum(perSale, f.lang, 1) : detail ? '—' : '…'}
-        hint={units != null ? t('insights.sales.kpi.perSaleHint', { n: f.int(units) }) : t('insights.sales.detailLoading')} f={f} />
+        hint={units != null ? t('insights.sales.kpi.perSaleHint', { n: f.int(units) }) + cw : t('insights.sales.detailLoading')} f={f} />
       <Kpi icon={Users} label={t('insights.sales.kpi.buyers')} value={buyers ? f.int(buyers.buyers) : detail ? '—' : '…'}
         hint={buyers
-          ? t('insights.sales.kpi.buyersHint', { new: f.int(buyers.new), returning: f.int(buyers.returning) })
+          ? t('insights.sales.kpi.buyersHint', { new: f.int(buyers.new), returning: f.int(buyers.returning) }) + cw
           : t('insights.sales.detailLoading')} f={f} />
     </ul>
   );

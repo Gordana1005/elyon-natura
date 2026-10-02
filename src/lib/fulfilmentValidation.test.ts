@@ -110,6 +110,13 @@ describe("validateOrderForFulfilment", () => {
     const r = validateOrderForFulfilment({ ...validHome, street: "•••", customer_address: "•••" });
     expect(r.missing).toEqual(["data_hidden"]);
   });
+
+  it("holds back a value-hidden row (no price for this viewer) — never an Otkup of 0", () => {
+    const { price: _p, ...noPrice } = validHome;
+    const r = validateOrderForFulfilment({ ...noPrice, value_hidden: true });
+    expect(r.ok).toBe(false);
+    expect(r.missing).toEqual(["data_hidden"]);
+  });
 });
 
 describe("MEX delivery zone", () => {

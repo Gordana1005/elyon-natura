@@ -3,6 +3,7 @@ import type { SalesCore } from '@/lib/insightsApi/sales';
 import { cn } from '@/lib/utils';
 import { fmtNum } from '../overview/model';
 import { ClockCaption } from '../shared/ClockCaption';
+import { CompanyWideNote } from '../shared/CompanyWideNote';
 import type { InsightsFormat } from '../shared/useInsightsFormat';
 import { HEAT_STEPS, heatGrid, hourSpan, ratio } from './salesModel';
 import { HEAT_INK, HEAT_TONE, NEUTRAL_BAR } from './salesPalette';
@@ -38,6 +39,8 @@ export function SalesTiming({ core, f }: { core: SalesCore; f: InsightsFormat })
         <h2 id="sa-timing-title" className="text-base font-semibold">{t('insights.sales.timing.title')}</h2>
         <p className="text-xs text-muted-foreground">{t('insights.sales.timing.subtitle', { n: f.int(tm?.timed ?? 0) })}</p>
         <ClockCaption clock="sale" className="mt-0.5" />
+        {/* A dept_admin's timing is the whole company's counts (access levels, 20260947001600). */}
+        {Array.isArray(core.meta?.dept_scope) && <CompanyWideNote compact className="mt-1" />}
       </div>
 
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1fr_18rem]">

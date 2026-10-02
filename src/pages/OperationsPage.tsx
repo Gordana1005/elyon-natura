@@ -8,6 +8,7 @@ import { apiGetOperationsCenter, apiGetActiveCallViews } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { formatDenari } from '@/lib/currency';
 import { departmentLabel } from '@/lib/orderSource';
+import { scopeTeamLabel } from '@/lib/deptScope';
 import { EmptyState } from '@/components/EmptyState';
 import {
   Activity, Users, ShoppingCart, RotateCcw,
@@ -38,6 +39,10 @@ interface OpsData {
   kpi: {
     sales_today: number;
     sales_value_today_mkd?: number;
+    /** A dept_admin (access levels, 20260947001600): sales_value_today_mkd is their departments'
+     *  value today, these are the departments and dept_sales_today their sales count. */
+    dept_scope?: string[];
+    dept_sales_today?: number;
     /** Sold today, no parcel yet: CRM orders + collabBox documents booked today whose MEX
      *  parcel does not exist yet (the second part = to_pack_booked_today, 20260942001900). */
     to_pack_today: number;
@@ -108,10 +113,17 @@ export default function OperationsPage() {
   const offlineAgents = agents.filter(a => !a.is_online);
 
   const bookedToday = kpi?.to_pack_booked_today ?? 0;
+  // A dept_admin's value tile is their team's departments only — say whose.
+  const deptTeam = scopeTeamLabel(kpi?.dept_scope, t);
   const kpiCards: { label: string; value: string | number; icon: typeof ShoppingCart; color: string; sub?: string }[] = [
     { label: t('ops.salesToday'), value: kpi?.sales_today || 0, icon: ShoppingCart, color: 'bg-primary/10 text-primary' },
     ...(kpi?.sales_value_today_mkd != null
-      ? [{ label: t('ops.salesValueToday'), value: formatDenari(kpi.sales_value_today_mkd), icon: TrendingUp, color: 'bg-primary/10 text-primary' }]
+      ? [{
+        label: deptTeam ? t('ops.salesValueTodayTeam', { team: deptTeam }) : t('ops.salesValueToday'),
+        value: formatDenari(kpi.sales_value_today_mkd), icon: TrendingUp, color: 'bg-primary/10 text-primary',
+        ...(deptTeam && kpi.dept_sales_today != null
+          ? { sub: t('ops.deptSalesSub', { n: kpi.dept_sales_today, count: kpi.dept_sales_today }) } : {}),
+      }]
       : []),
     { label: t('ops.toPackToday'), value: kpi?.to_pack_today || 0, icon: CheckCircle2, color: 'bg-amber-500/10 text-amber-600',
       ...(bookedToday > 0 ? { sub: t('ops.toPackBookedSub', { n: bookedToday, count: bookedToday }) } : {}) },

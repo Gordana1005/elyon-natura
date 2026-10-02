@@ -126,6 +126,35 @@ describe('Overview — no pre-cohort widget', () => {
   }, 30_000);
 });
 
+describe('Overview — a dept_admin (access levels 20260947001600)', () => {
+  const CENTAR = ['teleshop_out', 'teleshop_other', 'social'];
+  const scoped = (): WithCohort => {
+    const p = withCohort();
+    const c = p.cohort as { meta: Record<string, unknown>; by_source: { key: string }[] };
+    c.meta = { ...c.meta, dept_scope: CENTAR };
+    c.by_source = c.by_source.filter((r) => CENTAR.includes(r.key));
+    return { ...p, meta: { ...p.meta, money: true, dept_scope: CENTAR } };
+  };
+  const chips = () => within(screen.getByRole('group', { name: i18n.t('overview.sourcesLabel') })).getAllByRole('button')
+    .filter((b) => b.hasAttribute('aria-pressed'));
+
+  it('the department chips are locked to their departments; the page renders on 3 of 7 rows', async () => {
+    const { container } = renderWith(scoped());
+    await screen.findByText(cohortTitle(), {}, { timeout: 10_000 });
+    expect(chips().map((b) => b.textContent)).toEqual([
+      i18n.t('insights.common.source.teleshop_out'), i18n.t('insights.common.source.teleshopOther'), i18n.t('insights.common.source.social'),
+    ]);
+    expect(container.textContent).not.toMatch(/NaN/);
+  }, 30_000);
+
+  it('a link carrying another department\'s chip drops it', async () => {
+    renderWith(scoped(), { query: '&src=altercpa,social' });
+    await screen.findByText(cohortTitle(), {}, { timeout: 10_000 });
+    expect(chips().filter((b) => b.getAttribute('aria-pressed') === 'true').map((b) => b.textContent))
+      .toEqual([i18n.t('insights.common.source.social')]);
+  }, 30_000);
+});
+
 describe('Overview — the call centre first (owner 02.10.2026)', () => {
   it('no MEX cash and no MEX-cash trend: they live on Insights → Наплата (MEX)', async () => {
     renderWith(withCohort());

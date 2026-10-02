@@ -172,7 +172,14 @@ export const cohortRowEmpty = (r: Pick<CohortSourceRow, 'total' | 'outside'>) =>
  */
 export function cohortView(c: Cohort, selected: CohortSourceKey[] | null | undefined): CohortView {
   const order = (k: string) => { const i = (COHORT_SOURCES as readonly string[]).indexOf(k); return i < 0 ? 99 : i; };
-  const all = withManagementRow([...(c.by_source ?? [])], () => emptySourceRow(MANAGEMENT_SOURCE))
+  // A dept_admin's cohort (meta.dept_scope, access levels 20260947001600) holds only their
+  // departments: "all" is those rows — no empty Менаџмент row is added outside the scope, so
+  // a number over all of them drills to exactly their departments.
+  const scope = Array.isArray(c.meta?.dept_scope) ? c.meta.dept_scope : null;
+  const all = (scope
+    ? COHORT_SOURCES.filter((k) => scope.includes(k))
+      .map((k) => (c.by_source ?? []).find((r) => r.key === k) ?? emptySourceRow(k))
+    : withManagementRow([...(c.by_source ?? [])], () => emptySourceRow(MANAGEMENT_SOURCE)))
     .sort((a, b) => order(a.key) - order(b.key));
   const rows = selected && selected.length ? all.filter((r) => selected.includes(r.key)) : all;
   const filtered = rows.length < all.length;

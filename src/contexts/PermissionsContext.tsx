@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState, useCallback, Re
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import type { AppRole } from '@/contexts/AuthContext';
+import { NO_MONEY_ACCESS, parseMoneyAccess, type AccessLevel, type MoneyAccess } from '@/lib/access';
 
 // ── Types ──
 
@@ -58,11 +59,29 @@ interface PermissionsContextType {
   canSeeFinancial: (metric: keyof Omit<FinancialVisibility, 'role'>) => boolean;
   /** Check a customer-privacy flag for the current user (admin-first, OR across roles) */
   canSeePrivacy: (flag: keyof Omit<RolePrivacy, 'role'>) => boolean;
-  /** The full business/money view: the server's is_business_owner() — a login
-   *  listed in public.business_owners OR any ACTIVE admin (owner ruling
-   *  2026-09-28, 20260939000500; managers are not owners). No client-side role
-   *  bypass on top of it. UX only: the api enforces the same rule server-side. */
+  /** Company-wide REVENUE: the server's is_business_owner() = can_see_revenue() since
+   *  20260947001600 — the levels super_admin / owner / finance / administrator with an
+   *  active profile. A dept_admin is NOT here (their revenue is scoped: deptScope).
+   *  No client-side role bypass on top of it. UX only: the api enforces the same rule. */
   canSeeBusiness: boolean;
+  /** The person's money level (20260947001600): super_admin · owner · finance ·
+   *  administrator · dept_admin · team_lead · operator · warehouse · partner; null until
+   *  loaded or when the server does not say. App roles still decide the PAGES. */
+  accessLevel: AccessLevel | null;
+  /** A dept_admin's departments (cohort keys, e.g. ['teleshop_out','teleshop_other','social']).
+   *  Non-null ONLY for a dept_admin; null for everyone else (company-wide viewers included —
+   *  read canSeeRevenue for them). [] = a dept_admin with no department valid today. */
+  deptScope: string[] | null;
+  /** Margins, purchase costs (Sigma), VAT per product, net profit: super_admin / owner /
+   *  finance (can_see_margins()). Administrators and dept_admins never. */
+  canSeeMargins: boolean;
+  /** Company-wide revenue + returns (can_see_revenue()) — the same answer as canSeeBusiness. */
+  canSeeRevenue: boolean;
+  /** The WHOLE Insights → Наплата (MEX) tab (can_see_mex_cash() = can_see_margins()). */
+  canSeeMexCash: boolean;
+  /** Department-scoped наплата: null = the whole tab, string[] = a dept_admin's departments,
+   *  [] = none (administrators included). */
+  mexCashDepartments: string[] | null;
   /** Refresh all permissions from DB */
   refresh: () => Promise<void>;
 }
@@ -121,6 +140,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
   const [financialVisibility, setFinancialVisibility] = useState<FinancialVisibility[]>([]);
   const [privacy, setPrivacy] = useState<RolePrivacy[]>([]);
   const [isBusinessOwner, setIsBusinessOwner] = useState(false);
+  const [money, setMoney] = useState<MoneyAccess>(NO_MONEY_ACCESS);
   const [loading, setLoading] = useState(true);
   // Whose permissions are loaded. The fetch starts in an effect AFTER the render in which a login
   // appears, so for that one render `loading` still says false (it was false on the login page)
@@ -147,6 +167,12 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
         financialVisibility?: FinancialVisibility[];
         privacy?: RolePrivacy[];
         isBusinessOwner?: boolean;
+        accessLevel?: unknown;
+        departments?: unknown;
+        canSeeMargins?: unknown;
+        canSeeRevenue?: unknown;
+        canSeeMexCash?: unknown;
+        mexCashDepartments?: unknown;
       } | null;
       setModules(payload?.modules ?? []);
       setRolePermissions(payload?.rolePermissions ?? []);
@@ -154,6 +180,8 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
       setPrivacy(payload?.privacy ?? []);
       // Strictly `true` — a missing key (RPC not migrated yet) means NOT an owner.
       setIsBusinessOwner(payload?.isBusinessOwner === true);
+      // The access level and its money scope (20260947001600) — strict, see parseMoneyAccess.
+      setMoney(parseMoneyAccess(payload));
     } catch {
       // Silently fail — permissions will default to restrictive
     } finally {
@@ -162,9 +190,10 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // A different login never inherits the previous one's owner flag, not
-    // even for the moment its own permissions take to load.
+    // A different login never inherits the previous one's owner flag or money
+    // scope, not even for the moment its own permissions take to load.
     setIsBusinessOwner(false);
+    setMoney(NO_MONEY_ACCESS);
     if (user) { setLoading(true); fetchAll(user.id); }
     else { setLoading(false); setLoadedFor(null); }
   }, [user?.id]);
@@ -243,6 +272,8 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
   // The server's predicate only (see the type). An external partner login can never be an
   // owner — the server refuses to add one — but the hard wall holds here too.
   const canSeeBusiness = isBusinessOwner && !user?.isExternalAffiliate;
+  // The same hard wall for the access level: an external partner never sees company money.
+  const m = user?.isExternalAffiliate ? NO_MONEY_ACCESS : money;
 
   return (
     <PermissionsContext.Provider value={{
@@ -250,6 +281,12 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
       loading: loading || (!!user && loadedFor !== user.id),
       isModuleEnabled, canAccessModule, canAction, canSeeFinancial, canSeePrivacy,
       canSeeBusiness,
+      accessLevel: m.accessLevel,
+      deptScope: m.deptScope,
+      canSeeMargins: m.canSeeMargins,
+      canSeeRevenue: m.canSeeRevenue,
+      canSeeMexCash: m.canSeeMexCash,
+      mexCashDepartments: m.mexCashDepartments,
       refresh: () => (user ? fetchAll(user.id) : Promise.resolve()),
     }}>
       {children}
@@ -263,27 +300,48 @@ export function usePermissions() {
   return ctx;
 }
 
-/** Which parts of /insights the current login may open. `business` gates the
- *  owners-only tabs (Pure Profit, Margin Lab) and follows canSeeBusiness ONLY
- *  (is_business_owner(): the owners list + every active admin, 20260939000500).
- *  `overview` opens the cohort tabs — the connected Overview, Sales, Prediction
- *  lists, Stock, Returns — to owners (with money) and to admins/managers (the
- *  same pages counted: every payload's meta.money). The operational tabs keep
- *  their module rules.
- *  ManagementInsightsPage and the sidebar both read this, so the two can never
- *  disagree; the server enforces the same split (GET /insights/profit and GET
- *  /management-insights are owners-only — the latter except ?scope=calls — and
- *  every other /insights/* endpoint strips money for a non-owner). */
+/** A dept_admin's departments, or null — for a widget that may render outside the provider
+ *  (a report tab under test): no provider = no scope known, the payload's meta.dept_scope
+ *  still narrows the view. Display only; the api enforces. */
+export function useDeptScope(): string[] | null {
+  return useContext(PermissionsContext)?.deptScope ?? null;
+}
+
+/** Which parts of /insights the current login may open (access levels, 20260947001600).
+ *  - `business` — the MARGIN tabs (Pure Profit, Margin Lab; any profit tab): canSeeMargins
+ *    only (super_admin / owner / finance). Administrators and dept_admins never.
+ *  - `mexCash` — Наплата (MEX): the whole tab (canSeeMexCash) or a dept_admin's own account
+ *    (mexCashDepartments holds ≥ 1 department; the api narrows the payload to it).
+ *  - `overview` — the cohort tabs (Overview, Sales, Prediction lists, Stock, Returns): every
+ *    company-wide revenue viewer (canSeeBusiness), any admin/manager with Insights (the same
+ *    pages counted) and a dept_admin with Insights (their departments' money).
+ *  - `money` — some money on /insights: company-wide revenue or a dept_admin's departments.
+ *    Every tab renders money from the payload's meta.money; this flag is for the UI around it
+ *    (a money column's header, an export button) before or without a payload.
+ *  - `deptScope` — a dept_admin's departments (null for everyone else).
+ *  The operational tabs keep their module rules. ManagementInsightsPage and the sidebar both
+ *  read this, so the two can never disagree; the server enforces the same split (GET
+ *  /insights/profit is margins-only, /insights/mex-cash 403s anyone without a scope, and every
+ *  other /insights/* endpoint strips or narrows money for the viewer). The global Insights
+ *  module switch still hides everything from everyone. */
 export function useInsightsAccess() {
-  const { canAccessModule, canSeeBusiness, isModuleEnabled } = usePermissions();
+  const {
+    canAccessModule, canSeeBusiness, canSeeMargins, canSeeMexCash, mexCashDepartments, deptScope, isModuleEnabled,
+  } = usePermissions();
   const { user } = useAuth();
   const canInsights = canAccessModule('insights');
-  // The global module switch still hides Insights from everyone, owners too.
-  const business = canSeeBusiness && isModuleEnabled('insights');
-  // The connected Overview (2026-09-28): owners see it with money; any
-  // admin/manager with Insights sees the same page counted, without money.
-  // GET /insights/overview enforces the same split (meta.money).
-  const overview = business || (canInsights && !!(user?.isAdmin || user?.isManager) && !user?.isExternalAffiliate);
+  const insightsOn = isModuleEnabled('insights');
+  const deptAdmin = (deptScope?.length ?? 0) > 0;
+  // Margins / purchase costs / profit: super_admin, owner, finance only.
+  const business = canSeeMargins && insightsOn;
+  // Наплата (MEX): the whole tab, or a dept_admin's own MEX account.
+  const mexCash = (canSeeMexCash || (mexCashDepartments?.length ?? 0) > 0) && insightsOn;
+  // The connected Overview: company-wide revenue viewers see it with money; any admin/manager
+  // with Insights the same page counted; a dept_admin their departments' money.
+  // GET /insights/overview enforces the same split (meta.money, meta.dept_scope).
+  const overview = (canSeeBusiness && insightsOn)
+    || (canInsights && !!(user?.isAdmin || user?.isManager) && !user?.isExternalAffiliate)
+    || (canInsights && deptAdmin);
   // Agents also honours the legacy Performance module key.
   const agents = canInsights || canAccessModule('performance');
   // Payout: admin/manager (insights access implies management).
@@ -291,10 +349,9 @@ export function useInsightsAccess() {
   // Call Activity is its own module (admin-only by default), governed from
   // Settings → Role Permissions.
   const calls = canAccessModule('call_activity');
-  // Money on /insights (denars, EUR, profit) = business owners only
-  // (= canSeeBusiness, is_business_owner() on the server). Every tab renders
-  // money from the payload's meta.money; this flag is for the UI around it
-  // (a money column's header, an export button) before or without a payload.
-  const money = canSeeBusiness;
-  return { business, overview, agents, payout, calls, money, any: business || overview || agents || payout || calls };
+  const money = canSeeBusiness || deptAdmin;
+  return {
+    business, mexCash, overview, agents, payout, calls, money, deptScope,
+    any: business || mexCash || overview || agents || payout || calls,
+  };
 }

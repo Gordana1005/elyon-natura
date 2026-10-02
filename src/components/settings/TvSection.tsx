@@ -36,7 +36,9 @@ export function TvSection() {
   const { t, i18n } = useTranslation();
   const { toast } = useToast();
   const qc = useQueryClient();
-  const { canSeeBusiness } = usePermissions();
+  // The bonus rules are margin-class (/settings/bonus* answers 403 owners_only unless
+  // can_see_margins — access levels, 20260947001600).
+  const { canSeeMargins } = usePermissions();
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   // Same cache key as Insights → Агенти (TeamsBoard), so both see one token list.
   const cfgQ = useQuery({ queryKey: ['lb-admin', 'prediction'], queryFn: () => apiGetLeaderboardAdmin('prediction') });
@@ -178,7 +180,7 @@ export function TvSection() {
       )}
 
       {/* The prediction (Out) bonuses: targets, the return cut, the month (owners — 02.10.2026) */}
-      {canSeeBusiness && <BonusSection />}
+      {canSeeMargins && <BonusSection />}
 
       <ConfirmDialog
         open={!!confirm}

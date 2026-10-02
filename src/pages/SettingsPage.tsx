@@ -58,7 +58,7 @@ function SectionBody({ id, viewer }: { id: SettingsSectionId; viewer: SettingsVi
 export default function SettingsPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const { canSeeBusiness, canAccessModule } = usePermissions();
+  const { canSeeBusiness, canSeeMargins, canAccessModule } = usePermissions();
   const { section } = useParams<{ section?: string }>();
   const [sp] = useSearchParams();
   const location = useLocation();
@@ -67,8 +67,8 @@ export default function SettingsPage() {
   const canUsers = canAccessModule('users');
 
   const viewer = useMemo<SettingsViewer>(() => ({
-    isAdmin, isManager, isOwner: canSeeBusiness, canUsers, voipOn: PBX_CONFIG.useRealVoip,
-  }), [isAdmin, isManager, canSeeBusiness, canUsers]);
+    isAdmin, isManager, isOwner: canSeeBusiness, canSeeMargins: !!canSeeMargins, canUsers, voipOn: PBX_CONFIG.useRealVoip,
+  }), [isAdmin, isManager, canSeeBusiness, canSeeMargins, canUsers]);
 
   if (!isAdmin && !isManager) {
     return (

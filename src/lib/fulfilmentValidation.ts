@@ -54,6 +54,8 @@ export interface FulfilmentOrder {
   apartment?: string | null;
   customer_address?: string | null;
   customer_city?: string | null;
+  /** The value is withheld from this viewer (a dept_admin's row of another department). */
+  value_hidden?: boolean;
 }
 
 // What the API returns for a PII field the current role isn't allowed to see.
@@ -93,6 +95,8 @@ export function validateOrderForFulfilment(o: FulfilmentOrder): FulfilmentValida
   // If the data is masked for this role, nothing below can be trusted — surface
   // one clear message rather than a pile of false "missing" flags.
   if (looksMasked(o)) return { ok: false, missing: ['data_hidden'] };
+  // No price for this viewer (value_hidden): its COD cannot be written — never an Otkup of 0.
+  if (o.value_hidden === true) return { ok: false, missing: ['data_hidden'] };
 
   const missing: FulfilmentField[] = [];
 

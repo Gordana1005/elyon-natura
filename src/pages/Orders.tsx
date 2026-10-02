@@ -101,6 +101,10 @@ function cpaBaseText(base: string | undefined, currency: string | undefined): st
 }
 
 function orderToModalData(order: ApiOrder): OrderModalData {
+  // A row of another department for a dept_admin (value_hidden, access levels 20260947001600)
+  // carries no price and no line prices: never hand those to the modal as editable lines — it
+  // reads the real ones from GET /orders/:id.
+  const hidden = order.value_hidden === true;
   return {
     id: order.id,
     displayId: order.display_id,
@@ -113,9 +117,10 @@ function orderToModalData(order: ApiOrder): OrderModalData {
     status: order.status,
     notes: order.notes || null,
     quantity: order.quantity,
-    price: order.price,
+    price: hidden ? undefined : order.price,
+    valueHidden: hidden,
     assigned_agent_id: order.assigned_agent_id,
-    items: (order.order_items || []).map((i: any) => ({
+    items: (hidden ? [] : order.order_items || []).map((i: any) => ({
       id: i.id,
       product_id: i.product_id,
       product_name: i.product_name,
@@ -885,7 +890,8 @@ export default function Orders() {
         'ADDRESS': o.customer_address || '',
         // Денари, the same whole-10 figure the MEX file's Otkup carries (codFor)
         // — orders.price is stored EUR and must never reach a COD column raw.
-        'COD AMOUNT (MKD)': codFor(o.price || 0).amount,
+        // A value-hidden row (another department, for a dept_admin) has no price: blank, never 0.
+        'COD AMOUNT (MKD)': o.value_hidden ? '' : codFor(o.price || 0).amount,
         'PRODUCT': items,
         'CONFIRMED BY': creditName(o) || '',
         'SOURCE': departmentLabel(t, o.department) || sourceLabel(t, o.source_type),

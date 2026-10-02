@@ -3,10 +3,12 @@ import {
   groupedSections, MONEY_SECTIONS, sectionAccess, sectionFromLegacy, SECTIONS, visibleSections, type SettingsViewer,
 } from './sections';
 
-const admin: SettingsViewer = { isAdmin: true, isManager: true, isOwner: true, canUsers: true, voipOn: false };
-const manager: SettingsViewer = { isAdmin: false, isManager: true, isOwner: false, canUsers: true, voipOn: false };
+const admin: SettingsViewer = { isAdmin: true, isManager: true, isOwner: true, canSeeMargins: true, canUsers: true, voipOn: false };
+const manager: SettingsViewer = { isAdmin: false, isManager: true, isOwner: false, canSeeMargins: false, canUsers: true, voipOn: false };
 const managerNoUsers: SettingsViewer = { ...manager, canUsers: false };
-const ownerManager: SettingsViewer = { ...manager, isOwner: true };
+const ownerManager: SettingsViewer = { ...manager, isOwner: true, canSeeMargins: true };
+// Access levels (20260947001600): an administrator sees revenue company-wide, never margins.
+const administrator: SettingsViewer = { ...admin, canSeeMargins: false };
 const ids = (v: SettingsViewer) => visibleSections(v).map((s) => s.id);
 
 describe('Settings sections — who sees what', () => {
@@ -30,6 +32,13 @@ describe('Settings sections — who sees what', () => {
     const v = ids(ownerManager);
     for (const m of MONEY_SECTIONS) expect(v).toContain(m);
     for (const a of ['access', 'tv', 'engine', 'warehouse'] as const) expect(v).not.toContain(a);
+  });
+
+  it('an administrator (revenue, no margins) sees everything but the courier rate card', () => {
+    expect(ids(administrator)).toEqual([
+      'users', 'teams', 'access', 'money', 'rules', 'integrations', 'tv', 'partners', 'warehouse', 'engine', 'personal',
+    ]);
+    expect(sectionAccess('courier', administrator)).toBe('hidden');
   });
 
   it('groups come in the fixed order and empty groups are dropped', () => {

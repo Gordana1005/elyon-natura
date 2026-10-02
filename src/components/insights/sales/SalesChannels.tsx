@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { ClockCaption } from '../shared/ClockCaption';
 import { STATUS_TEXT } from '../shared/cohortPalette';
 import type { InsightsFormat } from '../shared/useInsightsFormat';
+import { CompanyWideNote } from '../shared/CompanyWideNote';
 import { SourceMix } from './SalesProducts';
 import { channelViews, paidRate, returnRate, seriesKey } from './salesModel';
 
@@ -17,9 +18,16 @@ import { channelViews, paidRate, returnRate, seriesKey } from './salesModel';
  * NATURA 9102 / 9100 / 9108 parcel counts in Телешоп / Social media (owner
  * 28.09). Rows add up to the header.
  */
-export function SalesChannels({ core, money, f }: { core: SalesCore; money: boolean; f: InsightsFormat }) {
+export function SalesChannels({ core, money: moneyIn, f }: { core: SalesCore; money: boolean; f: InsightsFormat }) {
   const { t } = f;
-  const rows = channelViews(core.channels, core.total.count);
+  // A dept_admin (meta.dept_scope, access levels 20260947001600) gets the channels as the WHOLE
+  // company's counts, with no *_mkd: the rows then add up to their own sum (not to the
+  // department header), and no money column is drawn — never a column of "—" or "0 ден".
+  const companyWide = Array.isArray(core.meta?.dept_scope);
+  const channels = core.channels ?? [];
+  const total = companyWide ? channels.reduce((a, c) => a + (c.count || 0), 0) : core.total.count;
+  const money = moneyIn && !companyWide && channels.some((c) => c.value_mkd != null || c.cod_mkd != null);
+  const rows = channelViews(channels, total);
   const account = (a: string | null) => (a ? t(`insights.sales.channels.account.${a}`, { defaultValue: a }) : '—');
   const series = (s: string) => t(`insights.sales.channels.series.${seriesKey(s)}`, { defaultValue: s });
 
@@ -30,6 +38,7 @@ export function SalesChannels({ core, money, f }: { core: SalesCore; money: bool
         <p className="text-xs text-muted-foreground">{t('insights.sales.channels.subtitle')}</p>
         <ClockCaption clock="sale" className="mt-0.5" />
       </div>
+      {companyWide && <CompanyWideNote compact />}
       <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
         <table className={cn('w-full text-sm', money ? 'min-w-[820px]' : 'min-w-[620px]')}>
           <caption className="sr-only">{t('insights.sales.channels.title')}</caption>
@@ -73,7 +82,7 @@ export function SalesChannels({ core, money, f }: { core: SalesCore; money: bool
           <tfoot>
             <tr className="border-t-2 bg-muted/30 font-semibold">
               <th scope="row" colSpan={2} className="px-3 py-2 text-left">{t('insights.common.table.total')}</th>
-              <td className="px-3 py-2 text-right tabular-nums">{f.int(core.total.count)}</td>
+              <td className="px-3 py-2 text-right tabular-nums">{f.int(total)}</td>
               {money && <td className="px-3 py-2 text-right tabular-nums">{core.total.value_mkd != null ? f.den(core.total.value_mkd) : '—'}</td>}
               {money && <td className="px-3 py-2 text-right tabular-nums">{core.total.cod_mkd != null ? f.den(core.total.cod_mkd) : '—'}</td>}
               <td colSpan={4} />

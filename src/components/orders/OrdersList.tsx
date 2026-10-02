@@ -271,7 +271,8 @@ function ValueCell({ o, bare }: { o: ApiOrder; bare?: boolean }) {
   const { t } = useTranslation();
   const v = orderValue(o);
   return (
-    <span className={cn('tabular-nums', !bare && 'font-semibold')} title={v.fromParcel ? t('ordersList.value.cod') : t('ordersList.value.price')}>
+    <span className={cn('tabular-nums', !bare && 'font-semibold', v.hidden && 'text-muted-foreground')}
+      title={v.hidden ? t('ordersList.value.hidden') : v.fromParcel ? t('ordersList.value.cod') : t('ordersList.value.price')}>
       {v.text}
     </span>
   );

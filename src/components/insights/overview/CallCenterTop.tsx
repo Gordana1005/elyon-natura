@@ -8,6 +8,7 @@ import { apiErrorText } from '@/i18n/apiErrors';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { ClockCaption } from '../shared/ClockCaption';
+import { CompanyWideNote } from '../shared/CompanyWideNote';
 import { switchTabParams } from '../shared/period';
 import { teamLaneName } from '../agents/parts';
 import type { InsightsFormat } from '../shared/useInsightsFormat';
@@ -206,6 +207,8 @@ export function TopProductsCard({ q, sources, f, className }: {
           <Package className="h-4 w-4 text-muted-foreground" aria-hidden />{t('overview.callCenter.products.title')}
         </h3>
         <ClockCaption clock="sale" />
+        {/* A dept_admin's products are the whole company's counts (access levels, 20260947001600). */}
+        {data?.meta?.company_wide === true && <CompanyWideNote compact className="mt-1" />}
       </header>
 
       {!data ? (
