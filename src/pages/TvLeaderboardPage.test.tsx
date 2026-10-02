@@ -91,6 +91,7 @@ describe('TV leaderboard v2', () => {
     // no department chips any more — the number of sales and the average sale
     expect(within(rows[1]).queryByTestId('chip-altercpa')).toBeNull();
     expect(within(rows[1]).getByTestId('tv-sales').textContent).toBe('10−1');           // 10, one cancelled after the sale
+    expect(within(rows[1]).getByTestId('tv-value').textContent).toBe(formatDenari(44980)); // the total денари
     expect(within(rows[1]).getByTestId('tv-avg').textContent).toBe(formatDenari(4498));  // 44.980 / 10
     // a teleshop caller's collabBox bookings count as her sales: 23, 51.900 / 23
     expect(within(rows[0]).getByTestId('tv-sales').textContent).toBe('23');
@@ -136,6 +137,7 @@ describe('TV leaderboard v2', () => {
     expect(screen.queryAllByTestId('tv-row')).toHaveLength(0);
     const cards = screen.getAllByTestId('tv-card');
     expect(cards).toHaveLength(3);
+    expect(within(cards[1]).getByTestId('tv-value').textContent).toBe(formatDenari(44980));
     expect(within(cards[1]).getByTestId('tv-avg').textContent).toBe(i18n.t('leaderboard2.avgLine', { value: formatDenari(4498) }));
     expect(within(cards[0]).getByTestId('tv-sales').textContent).toBe('23');
     expect(within(cards[0]).queryByTestId('chip-booked-teleshop_other')).toBeNull();

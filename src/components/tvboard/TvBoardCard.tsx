@@ -79,8 +79,11 @@ export function TvBoardCard({
               <span className="ml-1 text-xs font-medium text-rose-300" title={t('leaderboard2.cancelledHint')}>−{row.cancelled_after_sale}</span>
             )}
           </div>
+          {money && (
+            <div className="mt-1 text-sm font-semibold text-slate-100" data-testid="tv-value">{formatDenari(row.total_value_mkd ?? 0)}</div>
+          )}
           {money && avg != null && (
-            <div className="mt-1 text-xs font-semibold text-slate-300" data-testid="tv-avg">{t('leaderboard2.avgLine', { value: formatDenari(avg) })}</div>
+            <div className="mt-0.5 text-xs font-medium text-slate-400" data-testid="tv-avg">{t('leaderboard2.avgLine', { value: formatDenari(avg) })}</div>
           )}
         </div>
       </div>

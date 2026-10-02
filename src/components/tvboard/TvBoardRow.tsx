@@ -89,6 +89,12 @@ export function TvBoardRow({
           <span className="ml-[0.3vw] text-[0.5em] font-medium text-rose-300" title={t('leaderboard2.cancelledHint')}>−{row.cancelled_after_sale}</span>
         )}
       </div>
+      {/* Value — the total денари (owners) */}
+      {money && (
+        <div className="text-right font-bold tabular-nums" data-testid="tv-value">
+          {formatDenari(row.total_value_mkd ?? 0)}
+        </div>
+      )}
       {/* Average sale (owners) */}
       {money && (
         <div className="text-right font-semibold tabular-nums text-slate-200" data-testid="tv-avg">

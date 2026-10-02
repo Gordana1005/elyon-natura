@@ -388,6 +388,7 @@ export default function TvLeaderboardPage() {
             <div>#</div>
             <div>{t('tvBoard.colAgent')}</div>
             <div className="text-right">{t('leaderboard2.colSales')}</div>
+            {money && <div className="text-right">{t('leaderboard2.kpiValue')}</div>}
             {money && <div className="text-right">{t('leaderboard2.colAvg')}</div>}
             <div className="pl-[1.2vw]">{t('tvBoard.colTime')}</div>
           </div>

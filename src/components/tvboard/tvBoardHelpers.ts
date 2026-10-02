@@ -6,10 +6,11 @@ import i18n from '@/i18n';
 import type { Department } from '@/lib/leaderboardV2';
 import { isLegacyTeam, splitTeamFilter, teamLaneLabel } from '@/lib/teamLines';
 
-/** The board's columns (owner 02.10.2026: "колку е вкупен број на продажби, просек на продажба и време во ЦРМ"):
- *  rank · person · sales · average sale · time on the CRM; without money (non-owners) no average column. */
+/** The board's columns (owner 02.10.2026: "колку е вкупен број на продажби, просек на продажба и време во ЦРМ" — and the
+ *  total value with them): rank · person · sales · value · average sale · time on the CRM; without money (non-owners)
+ *  neither money column. */
 export const tvGrid = (money: boolean) => (money
-  ? 'grid-cols-[5%_42%_12%_20%_21%]'
+  ? 'grid-cols-[5%_35%_10%_15%_16%_19%]'
   : 'grid-cols-[5%_57%_15%_23%]');
 
 /** One tone per department — the same order and meaning everywhere on the board. */
