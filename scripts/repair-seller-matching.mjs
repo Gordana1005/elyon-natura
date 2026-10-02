@@ -98,6 +98,8 @@ import {
 export const KEY = 'seller-matching';
 export const SOURCES = Object.freeze(['operator', 'login-names', 'own-doc', 'mex-phone', 'db-phone', 'export-phone', 'corrections', 'canceller', 'canceller-trashed']);
 const PHONE_SOURCES = ['mex-phone', 'db-phone', 'export-phone'];
+/** Outcomes of the own-parcel test that say the parcel is not this sale's — held whatever sources are enabled. */
+export const PARCEL_HOLDS = Object.freeze(['doc_conflict', 'channel_mismatch', 'doc_predates_order', 'parcel_shared', 'non_collabbox_parcel']);
 const REAL = ['confirmed', 'shipped', 'delivered', 'paid', 'returned'];
 const DEFAULT_COLLAB_DIR = 'C:/Users/Mile/collab_out';
 /** Нарачка LEADS (9110) · LEADS-OUT Нарачка (9103) — the BIO NATURAL lead documents. */
@@ -466,25 +468,25 @@ export function classify(o, ctx) {
   // 2. the order's own parcel
   if (trackings.length) {
     const e = ev['own-doc'];
+    // The parcel is not this sale's (an older document, two authors, another department's or a web
+    // parcel, held by another order): held WHATEVER sources are enabled — no source may credit a
+    // sale through somebody else's parcel (02.10.2026: with own-doc off, the canceller used to take
+    // two of these).
+    if (PARCEL_HOLDS.includes(e.r)) return { ...out, outcome: 'hold', reason: e.r };
     // a parcel on a history import from before the MEX register (02.04.2026) was linked later, by phone:
     // its document names the AlterCPA decider in 19–30 % of the known cases (precision table) — never evidence
     if (e.ok && o.det === 'history' && out.period !== 'from_april') return { ...out, outcome: 'hold', reason: 'history_parcel_linked_later' };
-    if (on.has('own-doc')) {
-      if (e.ok) return stamp('own-doc', 'collabbox', author(e), { doc: e.doc });
-      if (['doc_conflict', 'channel_mismatch', 'doc_predates_order', 'parcel_shared'].includes(e.r)) return { ...out, outcome: 'hold', reason: e.r };
-    }
-    if (e.r === 'non_collabbox_parcel') return { ...out, outcome: 'hold', reason: 'non_collabbox_parcel' };
-    if (ev.canceller && on.has('canceller')) return stamp('canceller', 'altercpa', ev.canceller);
-    if (ev['canceller-trashed'] && on.has('canceller-trashed')) return stamp('canceller-trashed', 'altercpa', ev['canceller-trashed']);
-    return { ...out, outcome: 'unknown', reason: e.r || 'own_doc_not_enabled' };
+    if (e.ok) return on.has('own-doc') ? stamp('own-doc', 'collabbox', author(e), { doc: e.doc }) : { ...out, outcome: 'unknown', reason: 'own_doc_not_enabled' };
+    // the canceller only stands in for a document that is GONE (its precision: 91.5 % cancelled, 59.6 % trashed)
+    if (e.r === 'parcel_document_gone' && ev.canceller && on.has('canceller')) return stamp('canceller', 'altercpa', ev.canceller);
+    if (e.r === 'parcel_document_gone' && ev['canceller-trashed'] && on.has('canceller-trashed')) return stamp('canceller-trashed', 'altercpa', ev['canceller-trashed']);
+    return { ...out, outcome: 'unknown', reason: e.r };
   }
 
   // 3. the customer's phone (amount ignored) — "the old ones" only: a sale from 02.04.2026 on (the MEX
   // register) that still has no parcel of its own is not the sale a document on its phone shipped
   // (the phone rule names the decider in 37–80 % of those, against 92–93 % before)
   if (out.period === 'from_april') {
-    if (ev.canceller && on.has('canceller')) return stamp('canceller', 'altercpa', ev.canceller);
-    if (ev['canceller-trashed'] && on.has('canceller-trashed')) return stamp('canceller-trashed', 'altercpa', ev['canceller-trashed']);
     const why = !ev.operator ? 'no_operator' : !ev.operator.evidence ? `login_${ev.operator.login}_no_documents` : `login_${ev.operator.login}@${ev.operator.month}_not_one_person`;
     return { ...out, outcome: 'unknown', reason: `mex_era_sale_without_parcel · ${why}` };
   }
@@ -498,10 +500,6 @@ export function classify(o, ctx) {
   // 4. the 05.08 name matcher
   if (ev.corrections?.ok && on.has('corrections')) return stamp('corrections', 'collabbox', author(ev.corrections), { doc: ev.corrections.doc });
   if (ev.corrections?.ambiguous && on.has('corrections')) return { ...out, outcome: 'hold', reason: 'corrections:several_authors' };
-
-  // 5. the canceller (never reached by a cohort sale without a parcel today — kept for completeness)
-  if (ev.canceller && on.has('canceller')) return stamp('canceller', 'altercpa', ev.canceller);
-  if (ev['canceller-trashed'] && on.has('canceller-trashed')) return stamp('canceller-trashed', 'altercpa', ev['canceller-trashed']);
 
   const why = !ev.operator ? 'no_operator'
     : !ev.operator.evidence ? `login_${ev.operator.login}_no_documents`
@@ -578,7 +576,13 @@ async function precision(ctx) {
 }
 
 // ─── the plan ───────────────────────────────────────────────────────────────
-export async function buildPlan({ collabDir = DEFAULT_COLLAB_DIR, dataDir = null, sources = new Set(SOURCES), withPrecision = true } = {}) {
+/**
+ * Everything the sources look at, loaded once (read-only): the unresolved orders, the export, the
+ * ledger, MEX, the AlterCPA order list, the corrections, people, and the holders of every document a
+ * source may take. `ctx.opts.sources` is a placeholder — classify(o, { ...ctx, opts: { sources } }).
+ * Also used by scripts/repair-legacy-no-seller.mjs (one load, two source sets).
+ */
+export async function loadEvidence({ collabDir = DEFAULT_COLLAB_DIR, dataDir = null } = {}) {
   const exp = loadExport(collabDir);
   ok(`collabBox export: ${exp.docs} documents (${exp.docsPath}, ${fmtSkopje(exp.mtime)}, sha ${exp.docsSha.slice(0, 12)}…), ${exp.phonesOf.size} komitenti with a phone`);
   const orders = (await sqlRead(candidatesSql())).map((o) => ({ ...o, parcels: typeof o.parcels === 'string' ? JSON.parse(o.parcels) : (o.parcels || []) }));
@@ -594,21 +598,29 @@ export async function buildPlan({ collabDir = DEFAULT_COLLAB_DIR, dataDir = null
   const altUser = new Map(people.idents.filter((i) => i.kind === 'altercpa_user').map((i) => [`${i.account_id}:${i.value}`, i]));
   const logins = loginTallies(alt.tally, resolver, altUser, db.mkAccount);
   // every document number any source may take must have its holders loaded
-  const ctx0 = buildContext({ exp, db, holders: new Map(), resolver, idents: people.idents, raw: alt.raw, corrections: corrections.by, logins, opts: { sources } });
+  const ctx0 = buildContext({ exp, db, holders: new Map(), resolver, idents: people.idents, raw: alt.raw, corrections: corrections.by, logins, opts: { sources: new Set() } });
   const nums = [];
   for (const o of orders) {
     nums.push(o.tr, ...(o.parcels || []));
     for (const src of PHONE_SOURCES) for (const d of phoneDocs(src, o, ctx0)) if (inWindow(o, d)) nums.push(d.doc);
   }
   ctx0.holders = await loadHolders(nums);
+  return {
+    orders, ctx: ctx0, resolver, logins,
+    evidence: { export: { file: exp.docsPath, sha256: exp.docsSha, documents: exp.docs, komitenti_sha256: exp.komSha },
+      altercpa_raw: { file: rawPath, sha256: alt.sha }, corrections: { file: corrPath, sha256: corrections.sha } },
+  };
+}
+
+export async function buildPlan({ collabDir = DEFAULT_COLLAB_DIR, dataDir = null, sources = new Set(SOURCES), withPrecision = true } = {}) {
+  const { orders, ctx: base, resolver, logins, evidence } = await loadEvidence({ collabDir, dataDir });
+  const ctx0 = { ...base, opts: { sources } };
   const rows = orders.map((o) => classify(o, ctx0));
   const stamps = rows.filter((r) => r.outcome === 'stamp');
   const lineOf = new Map(stamps.map((r) => [r.order_id, planLine(r.order_id, r.source, `${r.person_id || '-'}|${r.ext}|${r.via}|${r.sold_at}`, r.doc || '')]));
   const prec = withPrecision ? await precision(ctx0) : null;
   return {
-    orders, rows, stamps, lines: [...lineOf.values()], lineOf, resolver, logins, prec,
-    evidence: { export: { file: exp.docsPath, sha256: exp.docsSha, documents: exp.docs, komitenti_sha256: exp.komSha },
-      altercpa_raw: { file: rawPath, sha256: alt.sha }, corrections: { file: corrPath, sha256: corrections.sha } },
+    orders, rows, stamps, lines: [...lineOf.values()], lineOf, resolver, logins, prec, evidence,
   };
 }
 

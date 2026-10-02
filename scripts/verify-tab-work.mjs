@@ -110,13 +110,14 @@ export async function verify({ from, to }) {
     const cr = (a, b) => {
       const gran = `CASE WHEN (${lit(b, 'timestamptz')} AT TIME ZONE 'Europe/Skopje')::date - (${lit(a, 'timestamptz')} AT TIME ZONE 'Europe/Skopje')::date + 1 <= 62 THEN 'day' ELSE 'week' END`;
       return `WITH r AS MATERIALIZED (
-          SELECT r.person_id, r.kind, r.sale_day FROM public.insights_sale_rows(${lit(a, 'timestamptz')}, ${lit(b, 'timestamptz')}, false) r WHERE r.in_total
+          SELECT r.person_id, r.kind, r.sale_day, r.q_no_seller FROM public.insights_sale_rows(${lit(a, 'timestamptz')}, ${lit(b, 'timestamptz')}, false) r WHERE r.in_total
         ), x AS (
           SELECT r.person_id, CASE WHEN ${gran} = 'day' THEN r.sale_day ELSE date_trunc('week', r.sale_day)::date END AS b, count(*) AS n
           FROM r WHERE r.person_id IS NOT NULL GROUP BY 1, 2
         )
         SELECT jsonb_build_object('gran', ${gran}, 'total', (SELECT coalesce(sum(x.n), 0) FROM x),
-          'no_seller', (SELECT count(*) FROM r WHERE r.kind IN ('order', 'booking') AND r.person_id IS NULL),
+          -- q_no_seller = person NULL minus the accepted 'legacy_no_seller' sales (20260944001300)
+          'no_seller', (SELECT count(*) FROM r WHERE r.kind IN ('order', 'booking') AND r.q_no_seller),
           'rows', (SELECT coalesce(jsonb_agg(jsonb_build_object('p', x.person_id, 'b', to_char(x.b, 'YYYY-MM-DD'), 'n', x.n)), '[]'::jsonb) FROM x)) AS j`;
     };
     credited = (await stamp('credited', cr(win.fromIso, win.toEndIso))).j;

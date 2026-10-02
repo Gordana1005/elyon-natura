@@ -154,7 +154,9 @@ export interface PeopleTeam extends PeopleMeasures {
 }
 
 export type NoSellerReason =
-  'web_shop' | 'mex_only' | 'altercpa_cancelled' | 'awaiting_stamp' | 'unmapped' | 'no_decider';
+  'web_shop' | 'mex_only' | 'altercpa_cancelled' | 'awaiting_stamp' | 'unmapped' | 'no_decider'
+  /** An old sale accepted with NO seller (owner 02.10.2026, orders.sold_via = 'legacy_no_seller', migration 20260944001300). */
+  | 'legacy_no_seller';
 
 export interface NoSellerRow {
   reason: NoSellerReason;

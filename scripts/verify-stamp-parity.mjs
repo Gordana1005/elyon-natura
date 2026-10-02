@@ -9,7 +9,9 @@
  *      by 20260944001200 — run inline, so this works BEFORE the migration is applied) with
  *      scripts/backfill-order-deciders.mjs planPageSql, over every unstamped real sale;
  *   2. the same over every real sale INCLUDING already-stamped ones (scope marker swapped);
- *   3. the re-derived stamp of every stamped order with what orders.sold_* holds now.
+ *   3. the re-derived stamp of every stamped order with what orders.sold_* holds now — the accepted
+ *      "legacy – no seller" marks (sold_via 'legacy_no_seller', 20260944001300) are counted apart, and one
+ *      the plan could now credit is listed (never a failure: the owner decides).
  * Expected: 0 row diffs in 1 and 2 (the two are KEEP-IN-STEP twins), and 3 "differ" = 0 apart
  * from rows a human changed after stamping. sold_at may differ below 1 ms (the script
  * round-trips through a JS Date; the function keeps microseconds). Exit code 1 on any diff.
@@ -96,16 +98,26 @@ async function compare(withStamped) {
 async function storedVsDerived(fnRows) {
   const stored = await sqlRead(`SELECT id::text AS id, sold_at, sold_via, sold_by_ext, sold_by_person_id::text AS person_id
       FROM public.orders WHERE sold_at IS NOT NULL`);
-  let same = 0, differ = 0, notInPlan = 0; const ex = [];
+  let same = 0, differ = 0, notInPlan = 0, legacy = 0; const ex = []; const nowCredited = [];
   for (const s of stored) {
     const d = fnRows.get(s.id);
+    // "legacy – no seller" (owner 02.10.2026, 20260944001300 + repair-legacy-no-seller.mjs): an accepted
+    // sale with NO seller — the plan derives nobody for it, by design. Counted apart; one the plan COULD
+    // now credit (a new identity, a late document) is listed for the owner, never stamped over.
+    if (s.sold_via === 'legacy_no_seller') {
+      legacy++;
+      if (d?.rule && nowCredited.length < 10) nowCredited.push({ id: s.id, rule: d.rule, person_id: d.person_id, ext: d.ext });
+      continue;
+    }
     if (!d) { notInPlan++; continue; }
     const ok = d.via === s.sold_via && (d.ext ?? null) === (s.sold_by_ext ?? null)
       && (s.person_id == null || d.person_id === s.person_id)
       && d.sold_at && Math.abs(new Date(d.sold_at) - new Date(s.sold_at)) < 1;
     if (ok) same++; else { differ++; if (ex.length < 10) ex.push({ id: s.id, stored: s, derived: d }); }
   }
-  console.log(`\nstored stamps: ${stored.length} · re-derived equal ${same} · differ ${differ} · not in plan (live trigger / later edits) ${notInPlan}`);
+  console.log(`\nstored stamps: ${stored.length} · re-derived equal ${same} · differ ${differ} · not in plan (live trigger / later edits) ${notInPlan}`
+    + ` · accepted "legacy – no seller" ${legacy}${nowCredited.length ? ` (the plan could now credit ${nowCredited.length}+ of them — owner's call)` : ''}`);
+  if (nowCredited.length) console.log('  legacy rows the plan now names a decider for:', JSON.stringify(nowCredited));
   if (ex.length) console.log('  examples:', JSON.stringify(ex, null, 1).slice(0, 4000));
 }
 

@@ -5516,7 +5516,8 @@
           "altercpa_cancelled": "Cancelled in AlterCPA, shipped by MEX",
           "awaiting_stamp": "Approved, seller being assigned",
           "unmapped": "Unknown seller",
-          "no_decider": "No record of who decided"
+          "no_decider": "No record of who decided",
+          "legacy_no_seller": "Legacy – no seller (accepted)"
         },
         "hint": {
           "web_shop": "Web orders have no agent by nature.",
@@ -5524,7 +5525,8 @@
           "altercpa_cancelled": "AlterCPA says cancelled or trash, so nobody is credited — but MEX took the parcel, so it is a sale.",
           "awaiting_stamp": "Approved in AlterCPA; the seller is assigned every 5 minutes.",
           "unmapped": "The seller is known only by a name or number nobody has linked to a person yet.",
-          "no_decider": "Neither the CRM nor AlterCPA recorded who made the sale (old history)."
+          "no_decider": "Neither the CRM nor AlterCPA recorded who made the sale (old history).",
+          "legacy_no_seller": "Old sales that no record or document can credit to anyone; the owner accepted them with no seller (02.10.2026). Not an error — nobody is credited."
         },
         "via": {
           "crm": "CRM",
@@ -9133,7 +9135,8 @@
       "altercpa": "in AlterCPA",
       "crm_push": "CRM → AlterCPA",
       "collabbox": "in collabBox",
-      "import": "import"
+      "import": "import",
+      "legacy_no_seller": "legacy – no seller (accepted)"
     },
     "decision": {
       "approved": "approved",

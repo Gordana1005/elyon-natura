@@ -5516,7 +5516,8 @@
           "altercpa_cancelled": "Anuluar në AlterCPA, dërguar nga MEX",
           "awaiting_stamp": "Miratuar, shitësi po caktohet",
           "unmapped": "Shitës i panjohur",
-          "no_decider": "Nuk ka shënim kush vendosi"
+          "no_decider": "Nuk ka shënim kush vendosi",
+          "legacy_no_seller": "Shitje e vjetër – pa shitës (e pranuar)"
         },
         "hint": {
           "web_shop": "Porositë nga interneti nuk kanë agjent nga natyra.",
@@ -5524,7 +5525,8 @@
           "altercpa_cancelled": "AlterCPA thotë anuluar ose kosh, prandaj askush nuk merr meritë — por MEX e mori pakon, pra është shitje.",
           "awaiting_stamp": "Miratuar në AlterCPA; shitësi caktohet çdo 5 minuta.",
           "unmapped": "Shitësi njihet vetëm me një emër ose numër që askush ende nuk e ka lidhur me person.",
-          "no_decider": "As CRM as AlterCPA nuk shënuan kush e bëri shitjen (histori e vjetër)."
+          "no_decider": "As CRM as AlterCPA nuk shënuan kush e bëri shitjen (histori e vjetër).",
+          "legacy_no_seller": "Shitje të vjetra që asnjë shënim apo dokument nuk mund t'ia atribuojë dikujt; pronari i pranoi pa shitës (02.10.2026). Nuk është gabim — askush nuk merr meritë."
         },
         "via": {
           "crm": "CRM",
@@ -9133,7 +9135,8 @@
       "altercpa": "në AlterCPA",
       "crm_push": "CRM → AlterCPA",
       "collabbox": "në collabBox",
-      "import": "import"
+      "import": "import",
+      "legacy_no_seller": "e vjetër – pa shitës (e pranuar)"
     },
     "decision": {
       "approved": "aprovuar",

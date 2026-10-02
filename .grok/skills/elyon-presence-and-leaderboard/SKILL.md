@@ -234,6 +234,19 @@ matches). Deliberately NOT `confirmed_at` — altercpa-sync's untouched guard re
 | `altercpa` | their operator decided it in their panel | AlterCPA user id |
 | `collabbox` | the collabBox document author (the sync, the importers, the seller backfill) | author as written |
 | `import` | the 2026-08 AlterCPA history import | operator name |
+| `legacy_no_seller` | an old sale no evidence can credit, accepted with NO seller (owner 02.10.2026; migration 20260944001300, `scripts/repair-legacy-no-seller.mjs`) | always NULL — and `sold_by_person_id` too (CHECK `orders_sold_via_check`) |
+
+- **Seller matching + "legacy – no seller" (owner 02.10.2026; 20260944001200 / 1300, NOT applied at the
+  time of writing).** `scripts/repair-seller-matching.mjs` credits the cron's `unresolved` sales from the
+  sources the owner approves (`--sources`; approved: `login-names` = an AlterCPA login named per Skopje month
+  when ≥ 85 % of ≥ 20 tied approvals carry one collabBox author, and `canceller` = the operator who cancelled a
+  lead whose parcel's document is gone); a parcel that is not the sale's own is held whatever the sources.
+  `scripts/repair-legacy-no-seller.mjs` marks what NO source can credit: `sold_at` = the cohort moment,
+  `sold_via 'legacy_no_seller'`. The cron never lists or re-stamps it (it takes `sold_at IS NULL`); the
+  Agents tab / TV board keep it under "no seller" with the reason `legacy_no_seller`; the data-quality
+  "no seller" warning (`insights_sale_rows.q_no_seller`, the Work tab) and Settings → Teams → unmapped skip it.
+  What only an UNAPPROVED source would credit stays plain unresolved. Both scripts: dry run → ledger →
+  `--rollback --run <id>`.
 
 - **Write-once per column** (`trg_orders_sold_write_once`, :502): a set value is silently kept,
   NULL → value is an allowed fill. A deliberate correction needs
