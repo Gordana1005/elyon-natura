@@ -1,4 +1,4 @@
-# Elyon CRM — MACEDONIA edition (Natura Therapy MK)
+# Natura Therapy HUB — the Elyon CRM, MACEDONIA edition (Natura Therapy MK) · https://naturall.mk
 
 This repository is the **Macedonian** instance of the Elyon CRM — a hard fork of the Bulgarian
 system, run as a completely separate operation. It has its OWN infrastructure and shares
@@ -64,6 +64,11 @@ target **explicitly** and verify it before running:
   GitHub-connected → auto-deploys on push to `main`. Token: `D:\naturatherapy\vault.md` line 60 — never print it.
 - **Domain:** `naturall.mk` — registrar + DNS at MK-Host (`dns1/dns2.mk-host.mk`): apex A `216.150.1.1` + `216.150.16.1`,
   `www` CNAME `bcdc79c7195035f5.vercel-dns-017.com` (Vercel's records; no Cloudflare). No mail on the domain yet.
+- **Speed (measured from Skopje, 02.10.2026):** Vercel serves the SPA from its Frankfurt edge (`fra1`); Supabase is in
+  `eu-west-1` (Ireland) — auth health ≈ 120–150 ms, the `api` edge function runs in `eu-central-2` (Zurich) by default
+  (≈ 230 ms for a light call; forcing `x-region: eu-west-1` was SLOWER for it). DB healthy (cache hit 98,6 %, ~33/90
+  connections). First load ≈ 344 KB gzipped (was ≈ 703 KB before the lazy locales). Moving the Supabase region means
+  rebuilding the project — not worth it at these numbers.
 - **GitHub:** `Gordana1005/elyon-natura` (renamed from `elyon-macedonia`; the old name 404s)
 - **Secrets:** `docs/VAULT.md` (gitignored) — keys, webhook secret, admin logins
 - **Status / done / TODO:** `MACEDONIA-STATUS.md` (repo root)
@@ -111,7 +116,10 @@ target **explicitly** and verify it before running:
   Costs are owners only. See `elyon-logistics-costs`, `elyon-stock-v2`.
 - **Timezone:** `Europe/Skopje` (CET/CEST) — not Europe/Sofia (EET, one hour ahead).
 - **Phone:** country code **+389** — not +359. Last-8 matching is unchanged.
-- **Language:** default UI is Macedonian (`mk`); en/sq/bg also shipped.
+- **Language:** default UI is Macedonian (`mk`); `sq` and `en` also shipped. **Bulgarian was removed on 02.10.2026
+  (owner: "not needed")** — `bg.json` is gone; never add it back. Each language is its own lazy chunk
+  (`src/i18n/index.ts`, an i18next backend over `import.meta.glob`, fallback `mk`): a session downloads only its
+  language. Never import a locale JSON statically in app code — that puts every language back into the first load.
 - **VAT is PER PRODUCT, from Sigma (owner, 01.10.2026 — replaces the flat 18 % of 28.09; `docs/VAT.md`).**
   Every product carries the rate Natura's books charge for it — `products.vat_rate`: food supplements **5 %**,
   cosmetics / gels / creams / oils / devices / chia drinks **18 %** (Sigma `Item.VatId`; the 2026 invoices agree).
@@ -449,7 +457,7 @@ before non-trivial work on money, phones, warehouse, stock, shops, Sigma, webhoo
 - `elyon-segments-and-prediction` — The name-construction engine (**v3.7-mk, sticky trash**), the exclusivity rule, holding pens (Current Cancels 14d, NEWCOMERS 21d, Trash List), carry-over, the nightly recompute, and the /calls outcome bar (`POST /calls/outcome` — the outcome IS the call log; the disposition's last product). Law for anything touching prediction lists.
 - `elyon-assigner` — Distribution + the Unassign tab, agent workload truth, the live board with team + lane badges, the agent's call-agains on /calls (`/call-again` redirects), and the stopped lead-distribution engine.
 - `elyon-voip-and-pbx` — The A1 trunk, Asterisk/FreePBX, the WebRTC softphone and recordings. BG-specific; MK telephony is deferred.
-- `elyon-i18n` — EN/BG/SQ/MK: every user-visible string goes through i18n in all four locales, no exceptions; the owner's terminology (предикција, лидови, "На чекање" only for pending).
+- `elyon-i18n` — MK/SQ/EN (Bulgarian removed 02.10.2026): every user-visible string goes through i18n in all three locales, no exceptions; the owner's terminology (предикција, лидови, "На чекање" only for pending).
 - `elyon-security` — RLS, HMAC, permissions, audit and secrets; Settings writes only through audited api routes (01.10), the guard-trigger writer pattern. Never write an `authenticated`-wide read policy.
 - `elyon-affiliates` — The CPA/partner system and the hard wall that keeps external logins out of staff surfaces.
 - `elyon-altercpa-bridge` — The AlterCPA lead mirror: ledger-first, callable geos, offer mapping, and why foreign leads must never reach `orders`. Read before touching `altercpa_*` or multi-country intake.

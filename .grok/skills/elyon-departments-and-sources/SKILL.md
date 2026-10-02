@@ -47,7 +47,7 @@ learned the folder law too (`mayReviveWith`, below). CLAUDE.md carries the law i
 | 6 | `web` | **Веб-продавница** | The naturatherapy.mk shop — the `web_orders` mirror, **not** orders | `web_orders` rows; `orders.sale_source = 'web'` only for a CRM-entered web order (0 rows) | NATURA, `NTMK…` / `M…` |
 
 Keys never change; labels live in the app (`insights.common.source.*` and `overview.source.*` in
-all four locales — the Lead-in label's i18n key is `teleshopOther`). The key `elyon_crm` now means
+every locale — the Lead-in label's i18n key is `teleshopOther`). The key `elyon_crm` now means
 "Affiliate – Lead out", and `teleshop_other` means "Телешоп – Lead in" — do not rename keys to
 match labels.
 
@@ -547,7 +547,7 @@ collabBox order keeps its system confirmer `System (collabbox-sync)` and SHOWS i
    NEW department: `cohort_order_source` (both forms), `cohort_parcel_split/source`, every
    insights function's source list (re-emit from the live bodies with a drift guard, as
    20260942001000 did), `INSIGHTS_SOURCES` + terms in `insightsCommon.ts` (+ test), the i18n
-   labels (`insights.common.source.*`, `overview.source.*`) in all four locales,
+   labels (`insights.common.source.*`, `overview.source.*`) in every locale,
    `insights_profit_cache_version()` +1, and the checkers
    (`verify-attribution` C2, `verify-insights-ties`). `order_dept_override()` (the MEX-profile
    rule) covers only CRM-made sales (`prediction_list` / `direct`) — a collabBox type never joins

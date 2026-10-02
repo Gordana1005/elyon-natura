@@ -140,7 +140,7 @@ The stub of 20260939000200 was replaced by `20260942000900` (the collabBox sync 
   log from `collabbox_sync_runs` — `last_run_at`, `last_error`, `runs_24h` / `failed_24h`, the jobs
   above and the 7-day strip (rows in 24 h = created + updated + credited). The words follow the
   15-minute schedules since `145645c` (`settings.integrations.feedDesc.*`, `expect.daytime_15m`
-  "every 15 min, 06:00–23:00", `expect.cbx_15m` "every 15 min, 07:00–23:00", in all four locales).
+  "every 15 min, 06:00–23:00", `expect.cbx_15m` "every 15 min, 07:00–23:00", in every locale).
   **The UI reads it like every other feed (29.09 afternoon):** "Last success" (`lastOk`) = the
   last ok sync run, "Runs, 24 h" with the failures in red, then a "Newest document" row
   (`newestDoc`) for `data_through`; the 7-day strip and the jobs `rolling` (the 15-minute pass,

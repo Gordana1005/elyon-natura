@@ -502,7 +502,7 @@ The sections below are the history up to 19.08.
 
 ### Earlier state (19.08)
 
-- **Frontend (Vercel):** https://elyon-natura.vercel.app (`gordanas-projects-a53c0208/elyon-natura`, GitHub-connected → **push to `main` auto-deploys production**)
+- **Frontend (Vercel):** **https://naturall.mk** ("Natura Therapy HUB", since 02.10.2026; www → apex; DNS at MK-Host) — also https://elyon-natura.vercel.app. Project `elyon-natura` on the elyoncoding Pro team `elyon-s-projects` since 02.10.2026 (was the Hobby team `gordanas-projects-a53c0208`), GitHub-connected → **push to `main` auto-deploys production**
 - **Backend (Supabase):** `bmfxhgznttcnnlqloqzp` — **206 migrations applied** (repo and remote in step, latest `20260928000100`), edge function `api` deployed (v52, 2026-08-19), `WEBHOOK_SECRET` set, `pg_cron` on, **`INSIGHTS_ENGINE=sql`**.
 - **Data (2026-08-05): the historical order book is LOADED.** 80.360 orders · 47.231 customers ·
   56.807 prediction-list memberships. 0 call logs. **88 products** (67 + 21 created for the import),

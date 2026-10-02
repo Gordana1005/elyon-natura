@@ -14,7 +14,7 @@
 
 | Thing | Where | Identifier |
 |---|---|---|
-| Frontend (React SPA) | Vercel | project `elyon-natura` (`prj_cwxmm4jb74hUHmAb6YzbUG7PuDy3`), scope `gordanas-projects-a53c0208` → https://elyon-natura.vercel.app (legacy alias `elyon-macedonia.vercel.app`); push to `main` = production |
+| Frontend (React SPA) | Vercel | project `elyon-natura` (`prj_cwxmm4jb74hUHmAb6YzbUG7PuDy3`), Pro team `elyon-s-projects` (`team_fT756uoO13MD9jtimyq27JNy`, since 02.10.2026) → **https://naturall.mk** (+ https://elyon-natura.vercel.app, legacy alias `elyon-macedonia.vercel.app`); push to `main` = production |
 | DB + Auth + Edge Functions | Supabase | ref **`bmfxhgznttcnnlqloqzp`** — Pro plan, Small compute (t4g.small, 2 GB) since 18.08, daily backups, disk 8 GB since 28.09 |
 | Edge Functions | Supabase | `api` (the one REST router — ONE deployable shared by every screen), `altercpa-sync`, `mex-reconcile`, `web-sync`, `collabbox-sync` |
 | Repo | GitHub | `Gordana1005/elyon-natura`, branch `main`; local folder `D:\Dev\archives\elyon-natura` |
@@ -30,7 +30,7 @@
    `.vercel/project.json` and the remote row counts; exits non-zero on anything Bulgarian.
 2. **Pass the target explicitly.** The shell's working directory resets between tool calls
    (often to the BG repo): `git -C "D:\Dev\archives\elyon-natura" …`,
-   `vercel … --cwd "D:\Dev\archives\elyon-natura" --scope gordanas-projects-a53c0208`,
+   `vercel … --cwd "D:\Dev\archives\elyon-natura" --scope elyon-s-projects --token <elyoncoding token>`,
    `--project-ref bmfxhgznttcnnlqloqzp`. Read back the target the tool echoes.
 3. **Several sessions work on this repo at once.** `git status` and the file's mtime before editing
    shared files (`supabase/functions/api/index.ts`, `src/lib/api.ts`, the locales, CLAUDE.md), and

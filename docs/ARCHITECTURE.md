@@ -32,14 +32,14 @@ Natura Therapy MK sells nutritional supplements to Macedonian customers, cash on
 - **Truth:** MEX alone decides shipped / paid / returned; AlterCPA decides only confirmed-or-dead;
   collabBox proves dispatch, not payment.
 - **Time:** `Europe/Skopje` everywhere; pg_cron is UTC, so jobs gate themselves on Skopje hours.
-- **Language:** Macedonian by default; en / sq / bg also shipped.
+- **Language:** Macedonian by default; sq / en also shipped (Bulgarian removed 02.10.2026). Each language is a lazy chunk.
 - **Telephony:** deferred (Phase 2) — agents press Call / End in the CRM and talk on their own
   handsets.
 
 ## 2. Components and hosting
 
 ```
- Browser (React SPA) ──► Vercel "elyon-natura"  (https://elyon-natura.vercel.app)
+ Browser (React SPA) ──► Vercel "elyon-natura"  (https://naturall.mk — Pro team elyon-s-projects)
         │ fetch + JWT
         ▼
  Supabase bmfxhgznttcnnlqloqzp ─────────────────────────────────────────────────────────────

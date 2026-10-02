@@ -70,7 +70,7 @@ who made the sale, `elyon-presence-and-leaderboard` — is NOT used by any bell 
 
 ## Rule 2 — write English, ship `meta` for translation
 
-The DB cannot know which of EN/BG/SQ/MK the reader picked, so producers write **English**
+The DB cannot know which of EN/SQ/MK the reader picked, so producers write **English**
 `title`/`message` **and** an optional:
 
 ```json
@@ -80,7 +80,7 @@ meta = { "i18n": "notif.shippedUnpaid", "order": "ORD-37262", "customer": "…",
 `localizeNotification()` renders `t(meta.i18n + '.title' | '.body', { ...meta, defaultValue: <stored English> })`
 (the payload is spread FIRST so row data can never override `defaultValue`). So a missing locale
 key degrades to readable English — never a `⟪key⟫` placeholder. `meta IS NULL` = legacy row,
-rendered verbatim. Add every new key to **all four** locale files (`en`, `bg`, `sq`, `mk`;
+rendered verbatim. Add every new key to **all three** locale files (`en`, `sq`, `mk`;
 `npm test` enforces parity). Interpolated values are DB data (order id, customer name, counts)
 and are never translated — see [elyon-i18n](../elyon-i18n/SKILL.md).
 

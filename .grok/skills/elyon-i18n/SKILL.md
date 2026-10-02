@@ -6,7 +6,7 @@ description: Use whenever adding, changing, or translating ANY user-facing text 
 # Elyon i18n Skill — Quadrilingual UI Rules (EN + BG + SQ + MK)
 
 Since 2026-06-12 the CRM is internationalized with **i18next + react-i18next**.
-Every user-facing string lives in `src/i18n/locales/en.json` + `bg.json` + `sq.json`
+Every user-facing string lives in `src/i18n/locales/en.json` + `sq.json`
 + `mk.json` (single namespace, dot-path keys, identical key trees — enforced by
 `src/i18n/__tests__/parity.test.ts` in `npm test`). **2,744 keys** as of 2026-07-22.
 
@@ -50,7 +50,7 @@ default. Office TV URL therefore looks like `/tv/leaderboard?key=…&lang=mk`.
 ## The Rules
 
 1. **Never hardcode user-facing text** in JSX, toasts, placeholders, or labels.
-   Add a key to ALL FOUR locale files (`en.json`, `bg.json`, `sq.json`,
+   Add a key to ALL THREE locale files (`en.json`, `sq.json`,
    `mk.json`) in the same commit, then render with `t('domain.key')`. The parity
    test fails if any locale is missing the key.
 2. **Key convention**: `domain.subarea.key`. Enum lookups use the raw enum
@@ -138,7 +138,7 @@ Cyrillic, that text is external data and must be copied byte-identical:**
   holds Bulgarian city names**; the Macedonianised `Софија` matches nothing when
   typed.
 - `languages.*` names every language **in its own language** (`English`,
-  `Български`, `Shqip`, `Македонски`) in all four files. Do not "translate" them.
+  `Shqip`, `Македонски`) in all three files. Do not "translate" them.
 
 Quick audit for this whole class:
 ```
@@ -234,7 +234,7 @@ export FILE content (CSV/XLSX headers + AgentsTab CSV row).
 - Dev mode renders missing keys as `⟪key⟫` and warns in console — misses are loud
 
 Bulgarian terminology is call-centre Bulgarian, terse (operator preference).
-The operator reviews `bg.json` in-app; adjust wording when he objects, but keep
+The operator reviews the wording in-app; adjust it when he objects, but keep
 keys stable.
 
 Macedonian (`mk.json`) is literary Skopje standard in the same terse register,
