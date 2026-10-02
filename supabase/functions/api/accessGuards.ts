@@ -2,7 +2,9 @@
 // Route guards + money strips that need no business decision (owner audit
 // 02.10.2026 — exports/roles/current-state-2026-10-02.md §4 gaps, §5 money).
 //
-// Owners = public.is_business_owner() (business_owners OR an active admin).
+// Owners = public.is_business_owner() — since the access levels (20260947001600) that is
+// can_see_revenue(): super_admin / owner / finance / administrator. Margin-class strips and the
+// dept_admin's department scoping live in accessLevels.ts.
 // Everyone else gets the same payload with the money keys ABSENT — the
 // stripOverviewMoney pattern (overview.ts): a whitelist where one exists, so a
 // money field added later is dropped for non-owners by default.

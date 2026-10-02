@@ -132,6 +132,9 @@ import * as CSA from "./callScriptsAdmin.ts";
 // current-state-2026-10-02.md §4–5): the Табла's counts for non-owners, payout read scope, the
 // app-settings allow-list, agent contacts, warehouse / bookings prices, admin-only product fields.
 import * as AGD from "./accessGuards.ts";
+// Access LEVELS (owner 02.10.2026, 20260947001600): margin strips for revenue-only viewers and
+// the department scoping of a dept_admin's insights / orders / Табла.
+import * as ALV from "./accessLevels.ts";
 
 // ============================================================
 // INPUT VALIDATION SCHEMAS
@@ -3651,6 +3654,50 @@ async function handleRequest(req: Request): Promise<Response> {
       return p;
     };
 
+    // Access LEVELS (owner's decisions 02.10.2026, migration 20260947001600). is_business_owner()
+    // above is now can_see_revenue() — company-wide REVENUE (super_admin / owner / finance /
+    // administrator). MARGIN-class things — purchase costs (Sigma), VAT per product, profit, the
+    // courier rate card, bonus settings, stock values, recipes, the MEX cash tab — need
+    // can_see_margins() (super_admin / owner / finance). A dept_admin sees no company-wide money,
+    // only their departments' (dept_scope). All fail-closed, memoized per request.
+    const accessMemo = new Map<string, Promise<unknown>>();
+    const accessRpc = <T,>(fn: string, uid: string, fallback: T, parse: (d: unknown) => T): Promise<T> => {
+      const key = `${fn}:${uid}`;
+      let p = accessMemo.get(key) as Promise<T> | undefined;
+      if (!p) {
+        p = (async () => {
+          const { data, error } = await adminClient.rpc(fn, { p_uid: uid });
+          if (error) {
+            console.error(`${fn} failed:`, error.message);
+            return fallback;
+          }
+          return parse(data);
+        })();
+        accessMemo.set(key, p);
+      }
+      return p;
+    };
+    /** Margins, purchase costs, profit, VAT per product, MEX cash: super_admin / owner / finance. */
+    const canSeeMargins = (uid: string): Promise<boolean> => accessRpc("can_see_margins", uid, false, (d) => d === true);
+    /** The person's level (access_level); null when unknown. */
+    const accessLevelOf = (uid: string): Promise<string | null> =>
+      accessRpc("access_level", uid, null, (d) => (typeof d === "string" ? d : null));
+    /** The money view of a person: margins · revenue (company-wide) · dept (a dept_admin's
+     *  departments) · none. ONE answer per request. */
+    const moneyViewOf = async (uid: string): Promise<ALV.MoneyView> => {
+      const [margins, revenue] = await Promise.all([canSeeMargins(uid), isBusinessOwner(uid)]);
+      if (margins || revenue) return ALV.moneyViewOf({ margins, revenue, level: null, scope: null });
+      const level = await accessLevelOf(uid);
+      if (level !== "dept_admin") return { kind: "none" };
+      const scope = await accessRpc("dept_scope", uid, [] as ALV.DeptKey[], ALV.parseDeptScope);
+      return ALV.moneyViewOf({ margins, revenue, level, scope });
+    };
+    /** A dept_admin's departments, or null for everyone else. */
+    const deptScopeOf = async (uid: string): Promise<ALV.DeptKey[] | null> => {
+      const v = await moneyViewOf(uid);
+      return v.kind === "dept" ? v.scope : null;
+    };
+
     // Stock regime. Stock v2 (docs/STOCK-V2.md): as soon as app_settings has the
     // 'stock_v2' key (migration 20260945000100), what leaves the warehouse is MEX
     // parcels + collabBox goods lines in the stock ledger, and products.stock_quantity
@@ -6704,7 +6751,12 @@ async function handleRequest(req: Request): Promise<Response> {
         isAdminOrManager,
       );
 
-      return json({ orders: redactCustomerList(enrichedOrders, piiFlags), total: count, page, limit });
+      // Access levels (owner 02.10.2026): a dept_admin sees order VALUES only for the orders of
+      // their departments; any other row (or one whose department is unknown) comes without price /
+      // line prices / *_mkd and with value_hidden: true. Everyone else unchanged.
+      const olScope = isAdminOrManager ? await deptScopeOf(user.id) : null;
+      const olRows = olScope ? ALV.scopeOrderValues(enrichedOrders, olScope) : enrichedOrders;
+      return json({ orders: redactCustomerList(olRows, piiFlags), total: count, page, limit });
     }
 
     // GET /api/orders/sellers — the /orders seller filter: every sales person
@@ -7768,6 +7820,17 @@ async function handleRequest(req: Request): Promise<Response> {
       // decision. Admin / manager only (the order window's "Origin & proof");
       // the receiver's name / city follow the same PII switches as the order.
       let origin: Record<string, any> | null = null;
+      // A dept_admin (access levels, 02.10.2026): the origin block's money (price, COD, collabBox
+      // amount) only when the order is one of their departments' (order_departments — the /orders
+      // list's own answer; unknown = hidden).
+      const odScope = isAdminOrManager ? await deptScopeOf(user.id) : null;
+      let odInScope = false;
+      if (odScope) {
+        const { data: odRows, error: odErr } = await adminClient.rpc("order_departments", { p_ids: [order.id] });
+        if (odErr) console.error("order_departments (order):", odErr.message);
+        const odDept = ((odRows || []) as any[])[0]?.department;
+        odInScope = typeof odDept === "string" && (odScope as readonly string[]).includes(odDept);
+      }
       if (isAdminOrManager) {
         const { data: og, error: ogErr } = await adminClient.rpc("order_origin", { p_id: order.id });
         if (ogErr) console.error("order_origin:", ogErr.message);
@@ -7780,7 +7843,7 @@ async function handleRequest(req: Request): Promise<Response> {
           }
           // Money in the origin block is for business owners only — the same rule
           // Customer 360 applies to the parcel COD (managers see the rest).
-          if (!(await isBusinessOwner(user.id))) {
+          if (!odInScope && !(await isBusinessOwner(user.id))) {
             delete origin.price_mkd;
             if (origin.parcel) delete origin.parcel.cod_mkd;
             if (origin.collabbox && typeof origin.collabbox === "object") {
@@ -7793,6 +7856,8 @@ async function handleRequest(req: Request): Promise<Response> {
 
       // Mask customer identity per role; hide the status timeline + duplicate-order
       // lookups when the role can't see order history (e.g. investor managers).
+      // The order's own price and line prices stay for everyone who can open it: the order form
+      // (OrderModal) edits from them, and a missing price would be saved back as 0.
       return json({
         ...stripCpaAttribution(redactCustomer(order, piiFlags), isAdminOrManager),
         order_items: orderItems || [],
@@ -9361,10 +9426,13 @@ async function handleRequest(req: Request): Promise<Response> {
       // `bonusNames` is the narrower EXACT-name set and gates the PAYOUT only —
       // see the comment on payout_earned below. Both empty for the admin/team
       // path, so that behaviour is byte-identical.
+      // `deptOr` (a dept_admin, access levels 02.10.2026): only the orders of their departments —
+      // IC.cohortSourceOrFilter, the /orders?cohort_source twin of cohort_order_source().
       async function computeMetrics(
         effectiveAgentId: string | null,
         ownerNames: string[] = [],
         bonusNames: string[] = [],
+        deptOr: string | null = null,
       ) {
         const ownerFilter = (uid: string) =>
           ownerNames.length ? salesOwnerOrFilterWithNames(uid, ownerNames) : salesOwnerOrFilter(uid);
@@ -9406,6 +9474,7 @@ async function handleRequest(req: Request): Promise<Response> {
             .gte("created_at", winFrom).lte("created_at", winTo)
             .or("source_type.is.null,source_type.neq.monadon_legacy");
           if (effectiveAgentId) q = q.or(ownerFilter(effectiveAgentId));
+          if (deptOr) q = q.or(deptOr);
           return q;
         });
         for (const o of activityOrders) byId.set(o.id, o);
@@ -9416,6 +9485,7 @@ async function handleRequest(req: Request): Promise<Response> {
             .gte("paid_at", winFrom).lte("paid_at", winTo)
             .or("source_type.is.null,source_type.neq.monadon_legacy");
           if (effectiveAgentId) q = q.or(ownerFilter(effectiveAgentId));
+          if (deptOr) q = q.or(deptOr);
           return q;
         });
         for (const o of paidWindowOrders) byId.set(o.id, o);
@@ -9637,7 +9707,13 @@ async function handleRequest(req: Request): Promise<Response> {
         inspectFolded = variants.folded;
         inspectExact = variants.exact;
       }
-      const adminMetrics = await computeMetrics(effectiveAgentId, inspectFolded, inspectExact);
+      // Access levels (owner 02.10.2026): a dept_admin's "My performance" counts THEIR departments'
+      // orders, with their revenue (money: true, dept_scope); a company-wide revenue viewer sees the
+      // whole company; anyone else the counts without money (below).
+      const dashView = await moneyViewOf(user.id);
+      const dashScope = dashView.kind === "dept" ? dashView.scope : null;
+      const dashDeptOr = dashScope ? (IC.cohortSourceOrFilter(dashScope) ?? null) : null;
+      const adminMetrics = await computeMetrics(effectiveAgentId, inspectFolded, inspectExact, dashDeptOr);
 
       // For dual-role users, also compute personal metrics
       let personalMetrics = null;
@@ -9656,8 +9732,11 @@ async function handleRequest(req: Request): Promise<Response> {
       // that agent's. A non-owner keeps every count; total_value, paid_revenue and payout_earned are
       // absent (AGD.stripDashboardMoney, a whitelist like stripOverviewMoney). Agents (the branch
       // above) keep their own figures.
-      if (!(await isBusinessOwner(user.id))) return json(AGD.stripDashboardMoney(dashBody));
-      return json(dashBody);
+      if (dashScope) return json({ ...ALV.stripDashboardMargins(dashBody), money: true, dept_scope: dashScope });
+      if (dashView.kind === "none") return json(AGD.stripDashboardMoney(dashBody));
+      // the bonus earned is payout maths — margin-class; a revenue viewer (administrator) keeps revenue
+      if (dashView.kind === "revenue") return json({ ...ALV.stripDashboardMargins(dashBody), money: true });
+      return json({ ...dashBody, money: true });
     }
 
     // GET /api/my-orders?tab=confirmed|shipped|paid|returned&period=today|month|custom&date=YYYY-MM-DD&from=&to=&page=&limit=&agent_id=
@@ -10038,8 +10117,12 @@ async function handleRequest(req: Request): Promise<Response> {
         returns: todayOrders.filter((o: any) => returnedTransitionIdsToday.has(o.id) && o.status === "returned").length,
       };
 
+      // profit / totalCost subtract the purchase cost — margin-class (access levels, 02.10.2026):
+      // a revenue viewer (administrator) gets the rest without them.
+      const ceoMargins = await canSeeMargins(user.id);
       return json({
-        revenue, profit, outstanding, totalCost, paidCount, paidAmount,
+        revenue, outstanding, paidCount, paidAmount,
+        ...(ceoMargins ? { profit, totalCost } : {}),
         confirmedCount, shippedCount, returnedCount, returnedAmount,
         funnel: { allTaken, confirmed, paid, shipped, returned, pending, conversionRate, confirmationRate, returnRate },
         dailyRevenue,
@@ -10100,15 +10183,14 @@ async function handleRequest(req: Request): Promise<Response> {
       // never €0). The raw cost_price is money → business owners only (Stock v2:
       // it is the Sigma purchase-cost mirror, cost_mkd / 61.5). The VAT
       // columns (20260944000900) are the owners' margin view → owners only.
-      const PRICE_MULTIPLIER = 3;
-      const PRICE_FLOOR = 15;
-      const prVatOwner = await isBusinessOwner(user.id);
+      // Cost, VAT and a cost-derived suggested price are MARGIN-class (access levels, owner
+      // 02.10.2026): can_see_margins() — super_admin / owner / finance — not every revenue viewer.
+      const prVatOwner = await canSeeMargins(user.id);
       const result = (data || []).map((p: any) => {
-        const cost = Number(p.cost_price || 0);
-        const price = Number(p.price || 0); // website retail = the agents' default
-        // Default the agent sees = website retail price when set; otherwise the
-        // cost×3 / €15 floor so it's never €0. Agents can edit down (discounts).
-        const suggested_price = price > 0 ? price : Math.max(cost * PRICE_MULTIPLIER, PRICE_FLOOR);
+        // Default the agent sees = website retail price when set; otherwise the cost×3 / €15
+        // floor so it's never €0 — the cost×3 only for a margin viewer (it reveals the cost),
+        // the €15 floor for everyone else. Agents can edit down (discounts).
+        const suggested_price = ALV.suggestedPrice(p.price, p.cost_price, prVatOwner);
         // The 28.09 catalogue scripts' notes ("Креиран автоматски (…)", "Од продажби — …")
         // are never shown anywhere (owner 01.10) — blanked here for every caller.
         const out: any = { ...p, suggested_price, description: PC.humanDescription(p.description), category: PC.humanCategory(p.category) };
@@ -10129,7 +10211,7 @@ async function handleRequest(req: Request): Promise<Response> {
       const catQuery = (cols: string) => supabase.from("products").select(cols).order("name", { ascending: true });
       // VAT per product (20260944000900), the Sigma purchase cost and the recipe status (Stock v2,
       // stock_v2_product_overview, 20260945000510) — owners only.
-      const catVatOwner = await isBusinessOwner(user.id);
+      const catVatOwner = await canSeeMargins(user.id); // margin-class (access levels, 02.10.2026)
       const [first, ovRes]: any[] = await Promise.all([
         catQuery(PC.CATALOGUE_SELECT),
         catVatOwner ? adminClient.rpc("stock_v2_product_overview") : Promise.resolve({ data: null, error: null }),
@@ -10157,7 +10239,8 @@ async function handleRequest(req: Request): Promise<Response> {
     // transaction. OWNERS only (the rate moves every profit figure).
     // Response: {rate, requested, updated, unchanged, missing[], changes[]}.
     if (req.method === "POST" && path === "products/vat-rate") {
-      if (!(await isBusinessOwner(user.id))) return json({ error: isAdminOrManager ? "owners_only" : "Forbidden" }, 403);
+      // margin-class: can_see_margins (access levels, 02.10.2026)
+      if (!(await canSeeMargins(user.id))) return json({ error: isAdminOrManager ? "owners_only" : "Forbidden" }, 403);
       if (!checkUserRateLimit(user.id, "products.vat-rate", 60)) {
         return json({ error: "Rate limit exceeded — try again in a minute" }, 429);
       }
@@ -10283,7 +10366,7 @@ async function handleRequest(req: Request): Promise<Response> {
         .single();
       if (error) return json({ error: sanitizeDbError(error) }, 400);
       // the row goes back with the same visibility as GET /products (cost + VAT: owners only)
-      const crOwner = await isBusinessOwner(user.id);
+      const crOwner = await canSeeMargins(user.id); // cost + VAT: margin-class
       return json(VT.applyVatVisibility(PC.withCostVisibility(data, crOwner), data, crOwner));
     }
 
@@ -10327,7 +10410,7 @@ async function handleRequest(req: Request): Promise<Response> {
         .select()
         .single();
       if (error) return json({ error: sanitizeDbError(error) }, 400);
-      const upOwner = await isBusinessOwner(user.id);
+      const upOwner = await canSeeMargins(user.id); // cost + VAT: margin-class
       return json(VT.applyVatVisibility(PC.withCostVisibility(data, upOwner), data, upOwner));
     }
 
@@ -10349,7 +10432,8 @@ async function handleRequest(req: Request): Promise<Response> {
     // The SQL writers (product_articles_set / _approve, product_stock_exempt_set) audit themselves.
     if ((req.method === "GET" && segments[0] === "products" && segments.length === 3 && segments[2] === "articles")
         || (req.method === "POST" && (path === "products/articles" || path === "products/articles/approve" || path === "products/articles/exempt"))) {
-      const raOwner = await isBusinessOwner(user.id);
+      // recipes carry the Sigma purchase cost and move the cost history: margin-class
+      const raOwner = await canSeeMargins(user.id);
       const raCaller: SV2.StockCaller = { owner: raOwner, admin: isAdmin, manager: isManager, warehouse: isWarehouse };
       const raFail = (fn: string, error: any) => {
         const e = SV2.stockRpcError(error);
@@ -11485,6 +11569,9 @@ async function handleRequest(req: Request): Promise<Response> {
       if (!(await isBusinessOwner(user.id))) {
         return json(IP.stripAgentPerformance(results, { keepPayout: isPersonalView }));
       }
+      // Access levels (02.10.2026): profit subtracts the purchase cost — margin-class. A revenue
+      // viewer (administrator) keeps revenue, loses total_profit / net_contribution / profit_per_lead.
+      if (!(await canSeeMargins(user.id))) return json(ALV.stripAgentPerformanceMargins(results));
       return json(results);
     }
 
@@ -14661,9 +14748,10 @@ async function handleRequest(req: Request): Promise<Response> {
     // ============================================================
 
     // GET /api/settings/bonus — the prediction (Out) bonus targets: in force today per department, upcoming, history
-    // (owners — is_business_owner; owner 02.10.2026, 20260947001100).
+    // (owners — 20260947001100; since the access levels of 02.10.2026 bonus maths is MARGIN-class:
+    // can_see_margins, never an administrator).
     if (req.method === "GET" && path === "settings/bonus") {
-      if (!(await isBusinessOwner(user.id))) return json({ error: "owners_only" }, 403);
+      if (!(await canSeeMargins(user.id))) return json({ error: "owners_only" }, 403);
       const { data, error } = await adminClient.from("bonus_prediction_targets")
         .select("id, department, valid_from, daily_target_mkd, m1_eur, m2_eur, m3_eur, note, created_at")
         .order("valid_from", { ascending: false }).limit(500);
@@ -14678,7 +14766,7 @@ async function handleRequest(req: Request): Promise<Response> {
     // PUT /api/settings/bonus/rules { settle_after_days, return_tiers [{min_pct, cut_pct}] } — the month's return cut
     // (owners; bonus_rules_set re-checks and audits; 20260947001200).
     if (req.method === "PUT" && path === "settings/bonus/rules") {
-      if (!(await isBusinessOwner(user.id))) return json({ error: "owners_only" }, 403);
+      if (!(await canSeeMargins(user.id))) return json({ error: "owners_only" }, 403);
       let raw: unknown;
       try { raw = await req.json(); } catch { return json({ error: "invalid_body" }, 400); }
       const b = BONUS.parseBonusRulesBody(raw);
@@ -14694,7 +14782,7 @@ async function handleRequest(req: Request): Promise<Response> {
     // GET /api/settings/bonus/month?month=YYYY-MM — a month's prediction bonus per seller: Σ daily shares, return %,
     // cut, final € (provisional until settled; owners).
     if (req.method === "GET" && path === "settings/bonus/month") {
-      if (!(await isBusinessOwner(user.id))) return json({ error: "owners_only" }, 403);
+      if (!(await canSeeMargins(user.id))) return json({ error: "owners_only" }, 403);
       const month = BONUS.parseMonthParam(url.searchParams.get("month")) ?? `${skopjeDayRange("").today.slice(0, 7)}-01`;
       const { data, error } = await adminClient.rpc("bonus_month", { p_month: month });
       if (error) return json({ error: sanitizeDbError(error) }, 400);
@@ -14703,7 +14791,7 @@ async function handleRequest(req: Request): Promise<Response> {
 
     // POST /api/settings/bonus/settle { month: "YYYY-MM" } — an owner freezes a month now (before settle_after_days).
     if (req.method === "POST" && path === "settings/bonus/settle") {
-      if (!(await isBusinessOwner(user.id))) return json({ error: "owners_only" }, 403);
+      if (!(await canSeeMargins(user.id))) return json({ error: "owners_only" }, 403);
       let raw: any;
       try { raw = await req.json(); } catch { return json({ error: "invalid_body" }, 400); }
       const month = BONUS.parseMonthParam(raw?.month);
@@ -14716,7 +14804,7 @@ async function handleRequest(req: Request): Promise<Response> {
     // PUT /api/settings/bonus { department, valid_from, target_mkd, m1_eur, m2_eur, m3_eur, note? } — a new version
     // from a day (that day's version replaced); the SQL writer re-checks the owner and writes the audit row.
     if (req.method === "PUT" && path === "settings/bonus") {
-      if (!(await isBusinessOwner(user.id))) return json({ error: "owners_only" }, 403);
+      if (!(await canSeeMargins(user.id))) return json({ error: "owners_only" }, 403);
       let raw: unknown;
       try { raw = await req.json(); } catch { return json({ error: "invalid_body" }, 400); }
       const b = BONUS.parseBonusTargetBody(raw);
@@ -17120,7 +17208,7 @@ async function handleRequest(req: Request): Promise<Response> {
     // GET /api/stock-movements — the same rows as GET /api/stock/v2/movements (StockMovementsPage).
     // It used to list inventory_logs to ANY login; now owners · admin · manager · warehouse.
     if (req.method === "GET" && path === "stock-movements") {
-      const smOwner = await isBusinessOwner(user.id);
+      const smOwner = await canSeeMargins(user.id); // stock values at cost: margin-class
       const smCaller: SV2.StockCaller = { owner: smOwner, admin: isAdmin, manager: isManager, warehouse: isWarehouse };
       if (!SV2.stockCan(smCaller, "read")) return json({ error: SV2.denyCode(smCaller, "read") }, 403);
       const p = SV2.parseMovementsQuery(url.searchParams, ST.skopjeTodayYmd());
@@ -17152,13 +17240,17 @@ async function handleRequest(req: Request): Promise<Response> {
     // ?preview= defaults to "computed, nothing written" while stock_v2.enabled is off.
     // ══════════════════════════════════════════════════════════════
     if (segments[0] === "stock" && segments[1] === "v2") {
-      const svOwner = await isBusinessOwner(user.id);
+      // Access levels (owner 02.10.2026): every owner capability here — costs, values at cost,
+      // counts approval, moves, recipes, the switch — is MARGIN-class (can_see_margins). A
+      // company-wide revenue viewer (administrator) reads as staff and keeps only a parcel's COD.
+      const svOwner = await canSeeMargins(user.id);
+      const svRevenue = !svOwner && (await isBusinessOwner(user.id));
       const svCaller: SV2.StockCaller = { owner: svOwner, admin: isAdmin, manager: isManager, warehouse: isWarehouse };
       const svSub = segments.slice(2).join("/");
       const svToday = ST.skopjeTodayYmd();
       const svGet = req.method === "GET";
       const svDeny = (cap: SV2.StockCapability) => json({ error: SV2.denyCode(svCaller, cap) }, 403);
-      const svOut = (data: unknown) => json(SV2.moneyView(svOwner, data ?? {}));
+      const svOut = (data: unknown) => json(svRevenue ? ALV.stockV2RevenueView(data ?? {}) : SV2.moneyView(svOwner, data ?? {}));
       const svFail = (what: string, error: any) => {
         const e = SV2.stockRpcError(error);
         if (e.status >= 500) console.error(`${what} failed:`, error?.code);
@@ -17234,7 +17326,7 @@ async function handleRequest(req: Request): Promise<Response> {
         const p = SV2.parseParcelsQuery(url.searchParams, svToday);
         if (!p.ok) return json({ error: p.error }, 400);
         const r = await svRpc("stock_v2_parcels_day", {
-          p_day: p.value.day, p_filters: p.value.filters, p_limit: p.value.limit, p_offset: p.value.offset, p_money: svOwner,
+          p_day: p.value.day, p_filters: p.value.filters, p_limit: p.value.limit, p_offset: p.value.offset, p_money: svOwner || svRevenue,
         });
         return r.res ?? svOut(r.data);
       }
@@ -18359,6 +18451,10 @@ async function handleRequest(req: Request): Promise<Response> {
     // work (the per-kind texts of the old routes) and broadcasts `assigner`.
     // Response: {kind, dry_run, pool, selected, assigned, per_agent:[{agent_id,
     // full_name, count}]}. SQL refusals (22023) come back as 400 {error}.
+    // TODO(mk) access levels (owner 02.10.2026): a dept_admin should see / deal only the lists of
+    // their departments (customer_departments). Not enforced yet on purpose: the lead pendings and
+    // many new buyers are department 'unknown', so forcing p_departments = dept_scope could hide the
+    // AlterCPA leads Тим Маџари deals every morning. Needs the owner's rule for 'unknown' first.
     if (req.method === "POST" && path === "assigner/distribute") {
       if (!canViewModule("assigner") || !isAdminOrManager) return json({ error: "Forbidden" }, 403);
       let body: unknown;
@@ -19678,6 +19774,9 @@ async function handleRequest(req: Request): Promise<Response> {
     if (req.method === "GET" && path === "insights/overview") {
       const ovOwner = await isBusinessOwner(user.id);
       if (!ovOwner && !isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      // A dept_admin (access levels, owner 02.10.2026): the outer Overview counted (no money, as a
+      // manager), the sale cohort ONLY their departments' — with money (meta.dept_scope).
+      const ovScope = ovOwner ? null : await deptScopeOf(user.id);
       const ovWin = OV.overviewWindows(
         url.searchParams.get("from"), url.searchParams.get("to"),
         url.searchParams.get("compare") === "1",
@@ -19700,8 +19799,8 @@ async function handleRequest(req: Request): Promise<Response> {
           p_to_end: ovWin.toEndIso,
           p_prev_from: ovWin.prev?.fromIso ?? null,
           p_prev_to_end: ovWin.prev?.toEndIso ?? null,
-          p_sources: IC.sourcesRpcArg(IC.INSIGHTS_SOURCES),
-          p_money: ovOwner,
+          p_sources: ovScope ? ovScope : IC.sourcesRpcArg(IC.INSIGHTS_SOURCES),
+          p_money: ovOwner || !!ovScope,
         }),
         adminClient.rpc("collabbox_feed_state"),
       ]);
@@ -19713,7 +19812,11 @@ async function handleRequest(req: Request): Promise<Response> {
       if (ovCohortRes.error) console.error("insights_cohort (overview):", ovCohortRes.error.message);
       ovBody.cohort = ovCohortRes.error || !ovCohortRes.data
         ? null
-        : IC.buildCohortResponse(ovCohortRes.data as Record<string, unknown>, ovWin, ovOwner);
+        : IC.buildCohortResponse(ovCohortRes.data as Record<string, unknown>, ovWin, ovOwner || !!ovScope);
+      if (ovScope) {
+        if (ovBody.cohort) ovBody.cohort = ALV.withDeptMeta(ovBody.cohort as Record<string, unknown>, ovScope);
+        return json(ALV.scopeOverviewMeta(ovBody, ovScope));
+      }
       return json(ovBody);
     }
 
@@ -19734,7 +19837,11 @@ async function handleRequest(req: Request): Promise<Response> {
       const { data: shData, error: shErr } = await adminClient.rpc(shCall.fn, shCall.args);
       if (shErr) return json({ error: `${shCall.fn}: ${sanitizeDbError(shErr)}` }, 500);
       if (shData == null) return json({ error: "Not found" }, 404);
-      return json(SHOPS.buildShopsResponse(shData, shAccess));
+      const shBody = SHOPS.buildShopsResponse(shData, shAccess);
+      // Access levels (02.10.2026): costs and margins (group / Natura / shop) are MARGIN-class —
+      // a revenue viewer (administrator) keeps the sales, loses every cost / margin key.
+      if (shAccess === "owner" && !(await canSeeMargins(user.id))) return json(ALV.stripShopsMargins(shBody));
+      return json(shBody);
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -19755,7 +19862,9 @@ async function handleRequest(req: Request): Promise<Response> {
     if (req.method === "GET" && path === "insights/cohort") {
       const coAccess = IC.insightsAccess(await isBusinessOwner(user.id), isAdminOrManager);
       if (coAccess === "forbidden") return json({ error: "Forbidden" }, 403);
-      const coOwner = coAccess === "owner";
+      // a dept_admin: their departments only (requested ∩ scope), with money
+      const coScope = coAccess === "owner" ? null : await deptScopeOf(user.id);
+      const coOwner = coAccess === "owner" || !!coScope;
       const coWin = IC.insightsWindows(
         url.searchParams.get("from"), url.searchParams.get("to"),
         url.searchParams.get("compare") === "1",
@@ -19771,13 +19880,14 @@ async function handleRequest(req: Request): Promise<Response> {
         p_sources: src,
         p_money: coOwner,
       });
-      const coSent = IC.sourcesRpcArg(coSources.values);
+      const coSent = coScope ? ALV.scopeSources(coSources.values, coScope) : IC.sourcesRpcArg(coSources.values);
       let { data: coData, error: coErr } = await adminClient.rpc("insights_cohort", coArgs(coSent));
       // a body older than 20260947001000 refuses 'management' — ask again without it
       const coRetry = coErr ? IC.sourcesRetryWithoutManagement(coErr.message, coSent) : null;
       if (coRetry) ({ data: coData, error: coErr } = await adminClient.rpc("insights_cohort", coArgs(coRetry)));
       if (coErr) return json({ error: `insights_cohort: ${sanitizeDbError(coErr)}` }, 500);
-      return json(IC.buildCohortResponse((coData ?? {}) as Record<string, unknown>, coWin, coOwner));
+      const coBody = IC.buildCohortResponse((coData ?? {}) as Record<string, unknown>, coWin, coOwner);
+      return json(coScope ? ALV.withDeptMeta(coBody, coScope) : coBody);
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -19801,7 +19911,12 @@ async function handleRequest(req: Request): Promise<Response> {
         ? IRS.stockAccess(rsOwnerFlag, isAdminOrManager, isWarehouse)
         : IRS.returnsAccess(rsOwnerFlag, isAdminOrManager);
       if (rsAccess === "forbidden") return json({ error: "Forbidden" }, 403);
-      const rsOwner = rsAccess === "owner";
+      // Access levels (02.10.2026): a dept_admin's Returns count only their departments (requested ∩
+      // scope), with money; Stock stays counted for them. Margin-class keys — the courier round trip,
+      // the purchase cost, the stock value at cost — only for can_see_margins.
+      const rsScope = rsAccess === "owner" || rsIsStock ? null : await deptScopeOf(user.id);
+      const rsOwner = rsAccess === "owner" || !!rsScope;
+      const rsMargins = rsOwner && (await canSeeMargins(user.id));
       const rsWin = IC.insightsWindows(
         url.searchParams.get("from"), url.searchParams.get("to"),
         url.searchParams.get("compare") === "1",
@@ -19809,7 +19924,7 @@ async function handleRequest(req: Request): Promise<Response> {
       if ("error" in rsWin) return json({ error: rsWin.error }, 400);
       const rsSources = IC.parseSourcesParam(url.searchParams.get("source"));
       if (!rsSources.ok) return json({ error: `Invalid source: ${rsSources.bad}` }, 400);
-      const rsSent = IC.sourcesRpcArg(rsSources.values);
+      const rsSent = rsScope ? ALV.scopeSources(rsSources.values, rsScope) : IC.sourcesRpcArg(rsSources.values);
       if (rsIsStock) {
         const stArgs = (src: string[] | null) => ({
           p_from: rsWin.fromIso, p_to_end: rsWin.toEndIso, ...IRS.prevArgs(rsWin),
@@ -19820,7 +19935,8 @@ async function handleRequest(req: Request): Promise<Response> {
         const stRetry = stErr ? IC.sourcesRetryWithoutManagement(stErr.message, rsSent) : null;
         if (stRetry) ({ data: stData, error: stErr } = await adminClient.rpc("insights_stock", stArgs(stRetry)));
         if (stErr) return json({ error: `insights_stock: ${sanitizeDbError(stErr)}` }, 500);
-        return json(IRS.buildStockResponse((stData ?? {}) as Record<string, unknown>, rsWin, rsOwner));
+        const stBody = IRS.buildStockResponse((stData ?? {}) as Record<string, unknown>, rsWin, rsOwner);
+        return json(rsOwner && !rsMargins ? ALV.stripStockMargins(stBody) : stBody);
       }
       const rsClock = IRS.parseReturnsClock(url.searchParams.get("clock"));
       if (!rsClock) return json({ error: "Invalid clock" }, 400);
@@ -19832,7 +19948,9 @@ async function handleRequest(req: Request): Promise<Response> {
       const rtRetry = rtErr ? IC.sourcesRetryWithoutManagement(rtErr.message, rsSent) : null;
       if (rtRetry) ({ data: rtData, error: rtErr } = await adminClient.rpc("insights_returns", rtArgs(rtRetry)));
       if (rtErr) return json({ error: `insights_returns: ${sanitizeDbError(rtErr)}` }, 500);
-      return json(IRS.buildReturnsResponse((rtData ?? {}) as Record<string, unknown>, rsWin, rsOwner, rsClock));
+      let rtBody = IRS.buildReturnsResponse((rtData ?? {}) as Record<string, unknown>, rsWin, rsOwner, rsClock);
+      if (rsOwner && !rsMargins) rtBody = ALV.stripReturnsMargins(rtBody);
+      return json(rsScope ? ALV.withDeptMeta(rtBody, rsScope) : rtBody);
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -19848,9 +19966,23 @@ async function handleRequest(req: Request): Promise<Response> {
     //   business owner) → the page with money · everyone else, other owners
     //   and admins included → 403
     // ══════════════════════════════════════════════════════════════
+    // Since the access levels (owner 02.10.2026, 20260947001600): can_see_mex_cash() =
+    // can_see_margins() (super_admin / owner / finance) → the whole tab; a dept_admin → ONLY the MEX
+    // account of their departments (can_see_mex_cash_dept: Тим Маџари → BIO NATURAL, Тим Центар →
+    // NATURA, which also carries the web shop — meta.account_note); an administrator and everyone
+    // else → 403.
     if (req.method === "GET" && path === "insights/mex-cash") {
-      const { data: mcViewer } = await adminClient.rpc("can_see_mex_cash", { p_uid: user.id });
-      const mcAccess = IMC.mexCashAccess(mcViewer === true, await isBusinessOwner(user.id));
+      const [{ data: mcViewer, error: mcVErr }, mcDeptRes] = await Promise.all([
+        adminClient.rpc("can_see_mex_cash", { p_uid: user.id }),
+        adminClient.rpc("can_see_mex_cash_dept", { p_uid: user.id }),
+      ]);
+      if (mcVErr) console.error("can_see_mex_cash failed:", mcVErr.message);
+      if (mcDeptRes.error) console.error("can_see_mex_cash_dept failed:", mcDeptRes.error.message);
+      const mcFull = mcViewer === true && (await isBusinessOwner(user.id));
+      // NULL = the whole tab (only with can_see_mex_cash); an array = a dept_admin's departments
+      const mcDept = !mcFull && !mcDeptRes.error && Array.isArray(mcDeptRes.data) ? ALV.parseDeptScope(mcDeptRes.data) : [];
+      const mcAccounts = ALV.mexAccountsOfScope(mcDept);
+      const mcAccess = IMC.mexCashAccess(mcFull || mcAccounts.length > 0, true);
       if (mcAccess === "forbidden") return json({ error: "Forbidden" }, 403);
       const mcOwner = mcAccess === "owner";
       const mcWin = IC.insightsWindows(url.searchParams.get("from"), url.searchParams.get("to"), false);
@@ -19859,7 +19991,8 @@ async function handleRequest(req: Request): Promise<Response> {
         p_from: mcWin.fromIso, p_to_end: mcWin.toEndIso, p_money: mcOwner,
       });
       if (mcErr) return json({ error: `insights_mex_cash: ${sanitizeDbError(mcErr)}` }, 500);
-      return json(IMC.buildMexCashResponse((mcData ?? {}) as Record<string, unknown>, mcWin, mcOwner));
+      const mcBody = IMC.buildMexCashResponse((mcData ?? {}) as Record<string, unknown>, mcWin, mcOwner);
+      return json(mcFull ? mcBody : ALV.scopeMexCash(mcBody, mcDept));
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -19877,7 +20010,9 @@ async function handleRequest(req: Request): Promise<Response> {
     // parallel; the previous period (compare) only up to 93 days.
     // ══════════════════════════════════════════════════════════════
     if (req.method === "GET" && path === "insights/profit") {
-      if (!(await isBusinessOwner(user.id))) {
+      // The P&L is MARGIN-class: can_see_margins (super_admin / owner / finance — access levels,
+      // owner 02.10.2026); an administrator sees revenue, never profit.
+      if (!(await canSeeMargins(user.id))) {
         return json({ error: isAdminOrManager ? "owners_only" : "Forbidden" }, 403);
       }
       const pfWin = IC.insightsWindows(
@@ -19961,7 +20096,7 @@ async function handleRequest(req: Request): Promise<Response> {
     // returned as `remaining` (the button asks again) and the nightly job
     // takes it anyway. Owners only.
     if (req.method === "POST" && path === "insights/profit/refresh") {
-      if (!(await isBusinessOwner(user.id))) {
+      if (!(await canSeeMargins(user.id))) {
         return json({ error: isAdminOrManager ? "owners_only" : "Forbidden" }, 403);
       }
       const rfWin = IC.insightsWindows(url.searchParams.get("from"), url.searchParams.get("to"), false);
@@ -19998,6 +20133,9 @@ async function handleRequest(req: Request): Promise<Response> {
         canViewTab: canViewModule("insights") || canViewModule("performance"),
       });
       if (agAccess === "forbidden") return json({ error: "Forbidden" }, 403);
+      // A dept_admin (access levels, 02.10.2026): the people and teams of THEIR sales team(s) with
+      // money, totals of their departments only (ALV.scopePeople, meta.access 'dept').
+      const agScope = agAccess === "counts" ? await deptScopeOf(user.id) : null;
       const agWin = IC.insightsWindows(
         url.searchParams.get("from"), url.searchParams.get("to"),
         url.searchParams.get("compare") === "1",
@@ -20022,6 +20160,11 @@ async function handleRequest(req: Request): Promise<Response> {
         p_person: agPersonId,
       });
       if (agErr) return json({ error: `insights_people: ${sanitizeDbError(agErr)}` }, 500);
+      if (agScope) {
+        return json(ALV.scopePeople(
+          IP.buildPeopleResponse((agData ?? {}) as Record<string, unknown>, agWin, "owner", null), agScope, agPersonId,
+        ));
+      }
       return json(IP.buildPeopleResponse(
         (agData ?? {}) as Record<string, unknown>, agWin, agAccess, agAccess === "self" ? agPersonId : null,
       ));
@@ -20050,6 +20193,36 @@ async function handleRequest(req: Request): Promise<Response> {
       if ("error" in saWin) return json({ error: saWin.error }, 400);
       const saPart = ISA.parseSalesPart(url.searchParams.get("part"));
       if (!saPart) return json({ error: "Invalid part" }, 400);
+      // A dept_admin (access levels, 02.10.2026): insights_sales has no department filter, so the
+      // core's cohort parts come from insights_cohort for THEIR departments (with money), its trend
+      // is cut to their departments, channels / timing stay company COUNTS; the detail part is the
+      // company's counts, labelled (ALV.scopeSalesCore / scopeSalesDetail).
+      const saScope = saOwner ? null : await deptScopeOf(user.id);
+      if (saScope) {
+        const [scRaw, scCohort] = await Promise.all([
+          adminClient.rpc("insights_sales", {
+            p_from: saWin.fromIso, p_to_end: saWin.toEndIso, p_part: saPart, p_money: saPart === "core", p_top: ISA.SALES_TOP_N,
+          }),
+          saPart === "core"
+            ? adminClient.rpc("insights_cohort", {
+              p_from: saWin.fromIso, p_to_end: saWin.toEndIso,
+              p_prev_from: saWin.prev?.fromIso ?? null, p_prev_to_end: saWin.prev?.toEndIso ?? null,
+              p_sources: saScope, p_money: true,
+            })
+            : Promise.resolve({ data: null, error: null }),
+        ]);
+        if (scRaw.error) return json({ error: `insights_sales: ${sanitizeDbError(scRaw.error)}` }, 500);
+        if (scCohort.error) return json({ error: `insights_cohort: ${sanitizeDbError(scCohort.error)}` }, 500);
+        const scRawBody = (scRaw.data ?? {}) as Record<string, unknown>;
+        const scCounts = ISA.buildSalesResponse(scRawBody, null, saWin, false, saPart);
+        if (saPart === "detail") return json(ALV.scopeSalesDetail(scCounts, saScope));
+        const scCo = IC.buildCohortResponse((scCohort.data ?? {}) as Record<string, unknown>, saWin, true);
+        const scBody = ALV.scopeSalesCore(scCounts, scRawBody, scCo, saScope, !!saWin.prev);
+        const scMeta = scBody.meta as Record<string, unknown>;
+        if (!saWin.prev || !scBody.prev) Object.assign(scMeta, { prev_from: null, prev_to: null, prev_to_end: null });
+        else Object.assign(scMeta, { prev_from: saWin.prev.from, prev_to: saWin.prev.to, prev_to_end: saWin.prev.toEndIso });
+        return json(scBody);
+      }
       const [saRes, saPrevRes] = await Promise.all([
         adminClient.rpc("insights_sales", {
           p_from: saWin.fromIso, p_to_end: saWin.toEndIso, p_part: saPart, p_money: saOwner, p_top: ISA.SALES_TOP_N,
@@ -21221,7 +21394,10 @@ async function handleRequest(req: Request): Promise<Response> {
       const topSellers = Object.values(prodMap).sort((a: any, b: any) => b.revenue - a.revenue
         || String(a.product).localeCompare(String(b.product))).slice(0, 20);
 
-      return json({
+      // Access levels (02.10.2026): the profit / margin / logistics / channel P&L blocks and every
+      // cost / bonus key are MARGIN-class — a revenue viewer (administrator) gets the rest
+      // (ALV.stripManagementInsightsMargins, meta.margins = false).
+      const miBody: Record<string, unknown> = {
         meta: { from: fromRaw, to, granularity, generated_at: new Date().toISOString() },
         overview: {
           revenue: soldRevenue,        // value of orders sold (confirmed → paid), not yet-returned
@@ -21352,7 +21528,8 @@ async function handleRequest(req: Request): Promise<Response> {
           first_prediction_attr_at: chBounds.first_prediction_attr_at ?? null,
           orphan_affiliate_leads: chAccrual.orphan_leads || 0,
         },
-      });
+      };
+      return json((await canSeeMargins(user.id)) ? miBody : ALV.stripManagementInsightsMargins(miBody));
     }
 
     // ── Lead Distribution Config ─────────────────────────────
@@ -21559,7 +21736,8 @@ async function handleRequest(req: Request): Promise<Response> {
     // GET /api/courier-rates — the editable logistics rate card. Owners only
     // since Phase 10 (2026-10-01): it prices Pure Profit, so it is money.
     if (req.method === "GET" && path === "courier-rates") {
-      if (!(await isBusinessOwner(user.id))) return json({ error: "owners_only" }, 403);
+      // margin-class (it prices the profit): can_see_margins — access levels, owner 02.10.2026
+      if (!(await canSeeMargins(user.id))) return json({ error: "owners_only" }, 403);
       const { data, error } = await adminClient
         .from("courier_rates")
         .select("id,courier,service,deliver_cost,return_cost,updated_at")
@@ -21574,7 +21752,7 @@ async function handleRequest(req: Request): Promise<Response> {
     // MEX is accepted since Phase 10 (it used to be refused, so Settings could not
     // save the MEX row at all); Econt / Speedy stay editable for the Bulgarian history.
     if (req.method === "PATCH" && path === "courier-rates") {
-      if (!(await isBusinessOwner(user.id))) return json({ error: "owners_only" }, 403);
+      if (!(await canSeeMargins(user.id))) return json({ error: "owners_only" }, 403);
       let body: unknown;
       try { body = await req.json(); } catch { return json({ error: "invalid_body" }, 400); }
       const p = SA.parseCourierRates(body);
@@ -21768,8 +21946,11 @@ async function handleRequest(req: Request): Promise<Response> {
       // returns today, and per person the day's credited sales and worked decisions
       // (leaderboard_day_v2 — the TV board's numbers). Money keys only for business owners.
       const opsOwner = await isBusinessOwner(user.id);
+      // A dept_admin (access levels, 02.10.2026): the company's counts as before, plus THEIR
+      // departments' sales today with value (a second, scoped cohort — ALV.scopeOperationsKpi).
+      const opsScope = opsOwner ? null : await deptScopeOf(user.id);
       const opsDay = skopjeDayRange(todayDateStr);
-      const [opsCohortRes, opsBoardRes, opsReturnedRes] = await Promise.all([
+      const [opsCohortRes, opsBoardRes, opsReturnedRes, opsScopedRes] = await Promise.all([
         adminClient.rpc("insights_cohort", {
           p_from: opsDay.startISO, p_to_end: opsDay.endISO, p_prev_from: null, p_prev_to_end: null,
           p_sources: IC.sourcesRpcArg(IC.INSIGHTS_SOURCES), p_money: opsOwner,
@@ -21777,7 +21958,14 @@ async function handleRequest(req: Request): Promise<Response> {
         adminClient.rpc("leaderboard_day_v2", { p_day: todayDateStr, p_department: null, p_team: null }),
         adminClient.from("mex_parcels").select("tracking_id", { count: "exact", head: true })
           .gte("returned_at", opsDay.startISO).lt("returned_at", opsDay.endISO),
+        opsScope
+          ? adminClient.rpc("insights_cohort", {
+            p_from: opsDay.startISO, p_to_end: opsDay.endISO, p_prev_from: null, p_prev_to_end: null,
+            p_sources: opsScope, p_money: true,
+          })
+          : Promise.resolve({ data: null, error: null }),
       ]);
+      if (opsScopedRes.error) console.error("operations-center insights_cohort (dept):", opsScopedRes.error.message);
       if (opsCohortRes.error) console.error("operations-center insights_cohort:", opsCohortRes.error.message);
       if (opsBoardRes.error) console.error("operations-center leaderboard_day_v2:", opsBoardRes.error.message);
       const opsCo = (opsCohortRes.data ?? {}) as any;
@@ -21797,6 +21985,9 @@ async function handleRequest(req: Request): Promise<Response> {
         opsKpi.sales_value_today_mkd = Number(opsCo.total?.value_mkd ?? 0);
         opsKpi.collected_value_today_mkd = Number(opsCo.cash_flow?.cod_mkd ?? 0);
       }
+      const opsKpiOut = opsScope
+        ? ALV.scopeOperationsKpi(opsKpi, opsScopedRes.error ? null : (opsScopedRes.data as Record<string, unknown> | null), opsScope)
+        : opsKpi;
       const opsByUser: Record<string, { sales: number; worked: number }> = {};
       for (const r of (((opsBoardRes.data as any)?.rows) || []) as any[]) {
         if (r.user_id) opsByUser[r.user_id] = { sales: Number(r.total_count ?? 0), worked: Number(r.worked ?? 0) };
@@ -21883,7 +22074,7 @@ async function handleRequest(req: Request): Promise<Response> {
       });
 
       return json({
-        kpi: opsKpi,
+        kpi: opsKpiOut,
         agents: agentList.sort((a: any, b: any) => (b.sales_today - a.sales_today) || (b.worked_today - a.worked_today)),
         agents_online: agentList.filter((a: any) => a.is_online).length,
         agents_total: agentList.length,

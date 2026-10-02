@@ -156,13 +156,16 @@ target **explicitly** and verify it before running:
   we keep them, because 2.391 Macedonian customers had already paid us *after* being trashed;
   (2) **`duplicate_order` is housekeeping**, so it never removes anyone from a calling band and
   never enters the Trash List. Do not "align with BG" on either.
-- **Owners see money; every active admin is an owner (2026-09-28, `20260939000500`).**
-  `public.is_business_owner()` gates every money figure and money tab. Managers are NOT owners:
-  on shared operational surfaces (e.g. `/insights/overview`) they get the same payload with every
-  money key **absent** (the `stripOverviewMoney` whitelist pattern in
-  `supabase/functions/api/overview.ts`); owner-only surfaces (Settings → Teams / Integrations,
-  `/insights/pivot`, `/management-insights` beyond `?scope=calls`, the presence day sheet) answer
-  `403 owners_only`.
+- **Money follows the ACCESS LEVEL (owner, 02.10.2026; `20260947001600`–`1630`, api `accessLevels.ts`) — not "every
+  admin is an owner".** Roles decide pages; `user_access.level` (audited `access_set()`, super admins only) decides
+  money. **super_admin** (Mile Stoev, Мики Митров, Lazar Delev, Radislava Maneska) · **owner** (Hedi) · **finance**
+  (Ema) = everything, `can_see_margins()` (costs, VAT, profit, rate card, bonus, stock at cost, MEX cash tab) ·
+  **administrator** (Mr Tony, Nina, Dragana, Dzenet Ramadani) = revenue + returns company-wide,
+  `can_see_revenue()` = `is_business_owner()`, never a margin · **dept_admin** = revenue + наплата + returns of their
+  departments only, `dept_scope()` — Тим Центар: Teodora Krstevska, Mirjana Stefanovski; Тим Маџари: Martina Bundova,
+  Simona Krstevska, Kalina Tajkovska (`meta.dept_scope`) · everyone else: money keys ABSENT / `403 owners_only`.
+  api: `canSeeMargins()` / `isBusinessOwner()` / `deptScopeOf()`; UI: `get_my_permissions()` `accessLevel`,
+  `departments`, `canSeeMargins`, `canSeeRevenue`, `canSeeMexCash`, `mexCashDepartments`.
 - **🔁 THE SELLER'S TEAM DECIDES THE DEPARTMENT — a LEAD excepted (owner, 02.10.2026, whole history; supersedes the
   folder-only wording below and the 29.09 withdrawal of the team rule; `20260947000400`).** Owner: "од сега сметиме по
   агенти, за дашбордот и за Insights, и за пресметките … ако агентот е од телешоп Out, порачката се смета кај телешоп
@@ -243,9 +246,10 @@ target **explicitly** and verify it before running:
   "Прилив од MEX" (cash on the MEX delivery day) is NOT on the Overview, Prediction lists or Операции — it read
   as money received that day, while MEX pays out later in lumps. It lives on **Insights → Наплата (MEX)**
   (`insights_mex_cash`: per day × account, returns, MEX's half-month settlement periods 1–15 / 16–end — its fee
-  invoices bill exactly the delivered parcels — and what MEX holds now), visible ONLY to the named list
-  `app_settings.mex_cash.viewers` (Mile Stoev, Hedi; must also be an owner — `can_see_mex_cash()`), a guarded
-  owner key; per-person permissions come later. MEX payout dates are in no data we hold (no bank statements in
+  invoices bill exactly the delivered parcels — and what MEX holds now), visible to `can_see_mex_cash()` =
+  `can_see_margins()` (super_admin / owner / finance — the access levels, 02.10.2026; `app_settings.mex_cash.viewers`
+  is no longer read) and, ONLY for their own MEX account, a dept_admin (`can_see_mex_cash_dept()`: Тим Маџари →
+  BIO NATURAL, Тим Центар → NATURA, which also carries the web shop); an administrator gets 403. MEX payout dates are in no data we hold (no bank statements in
   the Sigma export) — the bank export is awaited. The cohort's own parts (Наплатено / Кај курирот / …) stay.
 - **Every source refreshes at least every 15 minutes (owner, 29.09; `20260942001300`)**; MEX — both
   APIs, BIO NATURAL and NATURA — is the final proof of shipped / paid / returned. AlterCPA: new leads

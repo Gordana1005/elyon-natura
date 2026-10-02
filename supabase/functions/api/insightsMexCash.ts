@@ -5,9 +5,12 @@
 // Dependency-free on purpose (no Deno globals, no URL imports): vitest runs
 // insightsMexCash.test.ts against this file in Node, and index.ts imports it.
 //
-//   mexCashAccess()            a NAMED viewer (app_settings.mex_cash.viewers, checked by
-//                              can_see_mex_cash() — Mile + Hedi, owner 02.10.2026) who is
-//                              also a business owner → the page with money · else 403
+//   mexCashAccess()            a viewer → the page with money · else 403. Since the access
+//                              levels (20260947001600) the api decides "viewer": can_see_mex_cash()
+//                              = can_see_margins() (super_admin / owner / finance) → the whole tab;
+//                              a dept_admin → only their departments' MEX account
+//                              (accessLevels.ts scopeMexCash); the old named list
+//                              (app_settings.mex_cash.viewers) is no longer read.
 //   MEX_CASH_NON_MONEY_KEYS    the whitelist a non-owner receives (money keys
 //                              ABSENT, never 0)
 //   buildMexCashResponse()     the RPC body with `meta` from the ONE Skopje window

@@ -1,6 +1,6 @@
 ---
 name: elyon-security
-description: Use when working on authentication, authorization, RLS policies, webhook security, audit logging, permission systems, secret handling, CORS, rate limiting, or any security-related changes. Covers the business-owners model (is_business_owner — every active admin is an owner, managers are not), the money strip for non-owners (incl. the order window's Origin and proof), the owner-only app_settings guard, the database guard that stops AlterCPA from creating money, where a login lands (/start + homePath, the permission-loading race, the no-access screen, AppErrorBoundary, the stale-chunk reload), and the 01.10.2026 hardening — Settings writes (modules, role permissions, privacy, courier rates, the MEX push switch) only through audited api routes with the browser write policies dropped (20260943001500), the audited single writers behind guard triggers (products.kind / brand_line), the warehouse status / delete guards, and the shift login gate. Critical for protecting customer data, financial information, and operational integrity.
+description: Use when working on authentication, authorization, RLS policies, webhook security, audit logging, permission systems, secret handling, CORS, rate limiting, or any security-related changes. Covers the money ACCESS LEVELS (02.10.2026 — super_admin / owner / finance see margins, administrator revenue only, dept_admin their departments only; is_business_owner = can_see_revenue, can_see_margins, dept_scope), the money strip for non-owners (incl. the order window's Origin and proof), the owner-only app_settings guard, the database guard that stops AlterCPA from creating money, where a login lands (/start + homePath, the permission-loading race, the no-access screen, AppErrorBoundary, the stale-chunk reload), and the 01.10.2026 hardening — Settings writes (modules, role permissions, privacy, courier rates, the MEX push switch) only through audited api routes with the browser write policies dropped (20260943001500), the audited single writers behind guard triggers (products.kind / brand_line), the warehouse status / delete guards, and the shift login gate. Critical for protecting customer data, financial information, and operational integrity.
 ---
 
 # Elyon Security Skill
@@ -88,13 +88,23 @@ on everything except `affiliate/*` and `GET /me`. See `elyon-affiliates`.
   **fail-closed**: an rpc error means "not an owner") and `get_my_permissions().isBusinessOwner`
   → PermissionsContext `canSeeBusiness` (also forced false for external affiliates) all ask it,
   so server and UI cannot disagree.
-- **Every ACTIVE admin is an owner** (20260939000500, owner ruling 28.09): the function returns
-  true for anyone on the list OR any login holding `admin` whose `profiles.is_active` is true.
-  The Suspend button only flips `is_active`, so a suspended admin loses the money view at once.
-  **Managers are not owners** (unless listed): they keep the operational view without money.
-  ⚠️ Comments written on 27.09 still say "no admin bypass" (`api/index.ts` ~2932,
-  PermissionsContext, SettingsPage, several route comments). The code wins: the api asks the
-  DB predicate, and the DB now lets every active admin in.
+- **SUPERSEDED 02.10.2026 — money follows the ACCESS LEVEL** (`20260947001600`–`1630`; api
+  `supabase/functions/api/accessLevels.ts`). `user_access.level` (one per person; written only by
+  `access_set()` — super admins, audited `access.set`; no row → today's rule via `access_level()`):
+  super_admin / owner / finance → `can_see_margins()` (costs, VAT, profit, rate card, bonus settings,
+  stock at cost, recipes, shops' margins, the MEX cash tab); + administrator → `can_see_revenue()`
+  (company-wide revenue + returns, never a margin); dept_admin → `dept_scope()` (their cohort keys:
+  revenue + наплата + returns of their departments only — the api forces Overview / Sales / Agents /
+  Returns / Операции / Табла / `/orders` values to the scope and says `meta.dept_scope`); everyone else
+  → no company money. `is_business_owner(uid)` is now `= can_see_revenue(uid)` (signature kept, every
+  revenue gate unchanged); `can_see_mex_cash(uid)` = `can_see_margins(uid)`, `can_see_mex_cash_dept(uid)`
+  = a dept_admin's departments (their MEX account only). In the api: `isBusinessOwner()` = revenue,
+  `canSeeMargins()` = margin-class (routes 403 `owners_only`, mixed payloads lose only the margin keys —
+  `ALV.strip*Margins`), `deptScopeOf()` / `moneyViewOf()` = the dept_admin scope; all fail-closed and
+  memoized per request. The UI reads `get_my_permissions()` `accessLevel`, `departments`,
+  `canSeeMargins`, `canSeeRevenue`, `canSeeMexCash`, `mexCashDepartments`. A suspended profile
+  (`is_active` false) loses every level at once. Before 02.10: every active admin was an owner
+  (20260939000500).
 - **Owners-only tables (RLS SELECT = `is_business_owner`):** `business_owners`, `mex_parcels`,
   `sales_people` / `sales_person_identities` / `sales_teams` / `sales_team_members` /
   `altercpa_lead_events`, `agent_presence_days` (plus each person's own rows), `web_orders` /
