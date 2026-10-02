@@ -37,7 +37,7 @@ export function SectionsEditor({ sections, onSections, sq, onSq, lang, bind, dis
   const setSection = (id: string, patch: Partial<ScriptSection>) =>
     onSections(sections.map((s) => (s.id === id ? { ...s, ...patch } : s)));
   const setSq = (id: string, patch: { text?: string; title?: string }) =>
-    onSq({ ...sq, sections: { ...sq.sections, [id]: { text: '', ...sq.sections[id], ...patch } } });
+    onSq({ ...sq, sections: { ...sq.sections, [id]: { ...(sq.sections[id] ?? { text: '' }), ...patch } } });
   const remove = (id: string) => {
     const rest = { ...sq.sections };
     delete rest[id];
@@ -104,7 +104,7 @@ export function SectionsEditor({ sections, onSections, sq, onSq, lang, bind, dis
                   </div>
                 </details>
               ) : <span />}
-              <span className="tabular-nums">{value.length.toLocaleString('mk-MK')} / {MAX_SECTION_TEXT.toLocaleString('mk-MK')}</span>
+              <span className="tabular-nums">{L.int(value.length)} / {L.int(MAX_SECTION_TEXT)}</span>
             </div>
           </section>
         );

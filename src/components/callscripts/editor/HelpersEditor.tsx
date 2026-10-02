@@ -29,7 +29,7 @@ export function HelpersEditor({ helpers, onHelpers, mkHelpers, lang, bind, disab
     <section className={`${card} space-y-3 p-3 sm:p-4`} aria-labelledby="cs-helpers" data-testid="helpers-editor">
       <div className="flex flex-wrap items-start gap-2">
         <MessageSquareText className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 basis-56">
           <h3 id="cs-helpers" className="text-sm font-semibold">{t('callScripts.editor.helpers')}</h3>
           <p className="text-xs text-muted-foreground">{lang === 'sq' ? t('callScripts.editor.helpersSqHint') : t('callScripts.editor.helpersHint')}</p>
         </div>

@@ -76,7 +76,7 @@ export function CoverageGrid({ coverage, rows, onCell, active }: {
           </thead>
           <tbody>
             <tr className="bg-muted/30" data-testid="coverage-all-row">
-              <th scope="row" className={cn(stickyCol, 'border-b border-r bg-muted/60 px-3 py-1.5 text-left font-semibold backdrop-blur')}>
+              <th scope="row" className={cn(stickyCol, 'border-b border-r bg-muted px-3 py-1.5 text-left font-semibold')}>
                 <span className="block break-words">{t('callScripts.coverage.allProducts')}</span>
                 <span className="block text-[10px] font-normal text-muted-foreground">{t('callScripts.coverage.allProductsHint')}</span>
               </th>

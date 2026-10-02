@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatSkopje } from '@/lib/skopjeTime';
+import { fmtInt, fmtNum } from '@/components/insights/overview/model';
 import { isFixedKey } from './scriptsModel';
 import type { LintCode, ScriptGroup, ScriptSectionLite, ScriptStatus, ScriptVarName, TargetedScript } from '@/lib/callScriptsTypes';
 
@@ -28,7 +29,10 @@ export function useScriptLabels() {
     variable: (v: ScriptVarName | string) => t(`callScripts.vars.${v}`),
     lint: (c: LintCode | string) => t(`callScripts.lint.code.${c}`),
     date: (iso: string | null | undefined) => (iso ? formatSkopje(iso, 'dd.MM.yyyy HH:mm') : '—'),
-    int: (n: number | null | undefined) => (n == null ? '—' : new Intl.NumberFormat('mk-MK').format(n)),
+    /** Counts with the reader's marks (1.514 in Macedonian), the Insights helpers. */
+    int: (n: number | null | undefined) => fmtInt(n, i18n.language),
+    /** A percentage figure (76.4 → "76,4%"). */
+    pct: (v: number | null | undefined) => (v == null || !Number.isFinite(v) ? '—' : `${fmtNum(v, i18n.language, 1)}%`),
   }), [t, i18n.language]);
 }
 export type ScriptLabels = ReturnType<typeof useScriptLabels>;

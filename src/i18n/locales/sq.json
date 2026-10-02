@@ -1018,7 +1018,8 @@
       "sidebar": "Pamja dhe kontrollet",
       "legacyTitle": "Ky është skript i panelit të sotëm",
       "legacyDesc": "Skriptet e produkteve të panelit të sotëm në /calls dhe skriptet e dritares së porosisë redaktohen në skedat e tyre.",
-      "legacyOpen": "Hap skedën"
+      "legacyOpen": "Hap skedën",
+      "saveShort": "Ruaj"
     },
     "duplicate": {
       "open": "Kopjo te…",
@@ -1155,7 +1156,7 @@
       "desc_off": "/calls u shfaq të gjithëve panelin e sotëm.",
       "desc_preview": "Administratorët dhe menaxherët shohin skriptet e reja në /calls; agjentët ende shohin panelin e sotëm.",
       "desc_on": "Çdo agjent në /calls sheh skriptin e ri për çdo thirrje.",
-      "covered": "Të mbuluar: {{pct}} % ({{covered}} nga {{waiting}} klientë në pritje)",
+      "covered": "Të mbuluar: {{pct}} ({{covered}} nga {{waiting}} klientë në pritje)",
       "emptyCells": "Qeliza të zbrazëta me klientë në pritje: {{n}}",
       "counts": "Të publikuara: {{published}} · drafte: {{drafts}}",
       "switched": "Skriptet në /calls: {{mode}}"

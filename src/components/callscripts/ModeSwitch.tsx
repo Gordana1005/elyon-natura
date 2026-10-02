@@ -85,7 +85,7 @@ export function ModeSwitch({ perms }: { perms: ScriptsPerms }) {
                 <span className="inline-flex items-center gap-2 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" aria-hidden />{t('common.loading')}</span>
               ) : totals ? (
                 <ul className="space-y-1">
-                  <li>{t('callScripts.mode.covered', { pct: new Intl.NumberFormat('mk-MK', { maximumFractionDigits: 1 }).format(totals.covered_pct), covered: L.int(totals.covered), waiting: L.int(totals.waiting) })}</li>
+                  <li>{t('callScripts.mode.covered', { pct: L.pct(totals.covered_pct), covered: L.int(totals.covered), waiting: L.int(totals.waiting) })}</li>
                   <li className={cn(totals.empty_cells_with_waiting > 0 && 'font-medium text-red-700 dark:text-red-300')}>{t('callScripts.mode.emptyCells', { n: L.int(totals.empty_cells_with_waiting) })}</li>
                   <li className="text-muted-foreground">{t('callScripts.mode.counts', { published: L.int(totals.published), drafts: L.int(totals.drafts) })}</li>
                 </ul>

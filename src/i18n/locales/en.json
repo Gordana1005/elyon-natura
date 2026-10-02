@@ -1018,7 +1018,8 @@
       "sidebar": "Preview and checks",
       "legacyTitle": "This is a script of today’s panel",
       "legacyDesc": "The product scripts of today’s /calls panel and the order-window scripts are edited on their own tabs.",
-      "legacyOpen": "Open the tab"
+      "legacyOpen": "Open the tab",
+      "saveShort": "Save"
     },
     "duplicate": {
       "open": "Copy to…",
@@ -1155,7 +1156,7 @@
       "desc_off": "/calls shows today’s panel to everyone.",
       "desc_preview": "Admins and managers see the new scripts on /calls; the agents still see today’s panel.",
       "desc_on": "Every agent sees the new script for every call on /calls.",
-      "covered": "Covered: {{pct}} % ({{covered}} of {{waiting}} waiting clients)",
+      "covered": "Covered: {{pct}} ({{covered}} of {{waiting}} waiting clients)",
       "emptyCells": "Empty cells with waiting clients: {{n}}",
       "counts": "Published: {{published}} · drafts: {{drafts}}",
       "switched": "Scripts on /calls: {{mode}}"

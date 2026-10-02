@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { EmptyState } from '@/components/EmptyState';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
-import { predictionListLabel } from '@/lib/predictionListLabel';
+import { listLabel } from '@/components/insights/lists/listModel';
 import {
   ALL_GROUPS, type CallScriptsQuery, type ScriptContext, type ScriptGroup, type ScriptMatch, type ScriptVars, type ScriptsLibrary,
   type TargetedScript,
@@ -69,7 +69,7 @@ function ContextCard({ ctx, L }: { ctx: ScriptContext; L: ScriptLabels }) {
     [t('callScripts.tester.ctxSource'), t(`scriptDock.source.${ctx.source}`)],
     [t('callScripts.tester.ctxGroup'), ctx.group ? L.group(ctx.group) : t('scriptDock.noGroup')],
     [t('callScripts.tester.ctxBasis'), ctx.group_basis === 'list_name' || ctx.group_basis === 'attribution'
-      ? (ctx.list_name ? t(`scriptDock.why.basis.${ctx.group_basis}`, { list: predictionListLabel(ctx.list_name) }) : t('scriptDock.why.basis.attributionNoList'))
+      ? (ctx.list_name ? t(`scriptDock.why.basis.${ctx.group_basis}`, { list: listLabel(t, ctx.list_name) }) : t('scriptDock.why.basis.attributionNoList'))
       : ctx.group_basis === 'order_status'
         ? t('scriptDock.why.basis.order_status', { status: ctx.order ? t(`status.${ctx.order.status}`) : '' })
         : t('scriptDock.why.basis.none')],

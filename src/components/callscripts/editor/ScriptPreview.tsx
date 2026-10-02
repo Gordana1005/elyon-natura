@@ -3,7 +3,8 @@ import { Eye, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
-import { predictionListLabel } from '@/lib/predictionListLabel';
+import type { TFunction } from 'i18next';
+import { listLabel } from '@/components/insights/lists/listModel';
 import type { ScriptGroup, ScriptSample, TargetedScript } from '@/lib/callScriptsTypes';
 import { ScriptBody } from '../ScriptBody';
 import { sampleVars } from '../scriptsModel';
@@ -13,9 +14,9 @@ import { useScriptSamples } from '../useCallScriptsAdmin';
 const TEMPLATE = '__template__';
 
 /** A sample client's line in the picker: the name (or phone), the list or "лид", the product. */
-export function sampleLabel(s: ScriptSample, t: (k: string) => string): string {
+export function sampleLabel(s: ScriptSample, t: TFunction): string {
   const who = s.customer_name || s.customer_phone || t('callScripts.editor.sampleHidden');
-  const where = s.kind === 'lead' ? t('callScripts.editor.sampleLead') : (s.list_name ? predictionListLabel(s.list_name) : '');
+  const where = s.kind === 'lead' ? t('callScripts.editor.sampleLead') : (s.list_name ? listLabel(t, s.list_name) : '');
   return [who, where, s.product_name].filter(Boolean).join(' · ');
 }
 

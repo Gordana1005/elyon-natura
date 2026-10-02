@@ -222,7 +222,7 @@ function ProductScriptCard({ script, canEdit, canDelete, copies, onEdit, onDelet
               )}
             </span>
             {script.description && <span className="mt-0.5 block break-words text-xs text-muted-foreground">{script.description}</span>}
-            {!expanded && preview && <span className="mt-1 block truncate text-xs text-muted-foreground/60">{preview}…</span>}
+            {!expanded && preview && <span className="mt-1 line-clamp-2 break-words text-xs text-muted-foreground/60">{preview}…</span>}
           </span>
         </button>
         {(canEdit || canDelete) && (
