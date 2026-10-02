@@ -7,9 +7,9 @@ system, run as a completely separate operation. It has its OWN infrastructure an
 > **Naming note:** the deployment was stood up for Macedonia on 2026-06-30 and re-aimed at
 > **Macedonia** on 2026-07-31. The Vercel project was renamed `elyon-macedonia` → `elyon-natura`
 > on 2026-08-01. **Since 02.10.2026 the CRM is "Natura Therapy HUB" on https://naturall.mk**
-> (owner; `www.naturall.mk` 308-redirects to it). `elyon-natura.vercel.app` and the legacy
-> `elyon-macedonia.vercel.app` still resolve to the same deployment (TV screens, affiliate partners)
-> — all of them are in the edge function's CORS allowlist.
+> (owner; `www.naturall.mk` 308-redirects to it). Since 02.10.2026 ~19:00 `elyon-natura.vercel.app` and the
+> legacy `elyon-macedonia.vercel.app` **308-redirect to naturall.mk with the path kept** (old TV links
+> `/tv?token=…` keep working); they stay in the edge function's CORS allowlist.
 > On 02.10.2026 the Vercel project also **moved from the Hobby team `gordanas-projects-a53c0208`
 > to the elyoncoding Pro team `elyon-s-projects`** (same project id; the BG `elyoncrm` stayed behind).
 > The GitHub repo **was** renamed too and is now **`Gordana1005/elyon-natura`**

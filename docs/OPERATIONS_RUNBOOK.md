@@ -14,7 +14,7 @@
 
 | Thing | Where | Identifier |
 |---|---|---|
-| Frontend (React SPA) | Vercel | project `elyon-natura` (`prj_cwxmm4jb74hUHmAb6YzbUG7PuDy3`), Pro team `elyon-s-projects` (`team_fT756uoO13MD9jtimyq27JNy`, since 02.10.2026) → **https://naturall.mk** (+ https://elyon-natura.vercel.app, legacy alias `elyon-macedonia.vercel.app`); push to `main` = production |
+| Frontend (React SPA) | Vercel | project `elyon-natura` (`prj_cwxmm4jb74hUHmAb6YzbUG7PuDy3`), Pro team `elyon-s-projects` (`team_fT756uoO13MD9jtimyq27JNy`, since 02.10.2026) → **https://naturall.mk** (https://elyon-natura.vercel.app and the legacy `elyon-macedonia.vercel.app` 308-redirect to it since 02.10.2026); push to `main` = production |
 | DB + Auth + Edge Functions | Supabase | ref **`bmfxhgznttcnnlqloqzp`** — Pro plan, Small compute (t4g.small, 2 GB) since 18.08, daily backups, disk 8 GB since 28.09 |
 | Edge Functions | Supabase | `api` (the one REST router — ONE deployable shared by every screen), `altercpa-sync`, `mex-reconcile`, `web-sync`, `collabbox-sync` |
 | Repo | GitHub | `Gordana1005/elyon-natura`, branch `main`; local folder `D:\Dev\archives\elyon-natura` |
