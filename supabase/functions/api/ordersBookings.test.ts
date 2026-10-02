@@ -180,13 +180,13 @@ describe("the 2-day collabBox entry rule badge (crm_sale_collab_states)", () => 
   });
   it("maps each state onto its order; an unknown mode reads as report", () => {
     expect(collabById([
-      { order_id: "a", collab_doc: "002-9103-178176/2026", sale_day: "2026-10-02", cancel_day: "2026-10-04", mode: "report" },
+      { order_id: "a", collab_doc: "002-9103-178176/2026", sale_day: "2026-10-02", cancel_day: "2026-10-04", mode: "report", team_dept: "teleshop_out" },
       { order_id: "b", collab_doc: null, sale_day: "2026-10-01", cancel_day: "2026-10-03", mode: "apply" },
       { order_id: "c", collab_doc: "", sale_day: null, cancel_day: null, mode: "weird" },
     ])).toEqual({
-      a: { doc: "002-9103-178176/2026", sale_day: "2026-10-02", cancel_day: "2026-10-04", mode: "report" },
-      b: { doc: null, sale_day: "2026-10-01", cancel_day: "2026-10-03", mode: "apply" },
-      c: { doc: null, sale_day: null, cancel_day: null, mode: "report" },
+      a: { doc: "002-9103-178176/2026", sale_day: "2026-10-02", cancel_day: "2026-10-04", mode: "report", team_decides: true },
+      b: { doc: null, sale_day: "2026-10-01", cancel_day: "2026-10-03", mode: "apply", team_decides: false },
+      c: { doc: null, sale_day: null, cancel_day: null, mode: "report", team_decides: false },
     });
     expect(collabById(null)).toEqual({});
   });

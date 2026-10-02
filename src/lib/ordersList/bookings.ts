@@ -79,8 +79,9 @@ export function collabBadge(o: { collab?: OrderCollab | null }): CollabBadgeMode
   };
 }
 
-/** A confirmed CRM sale with no collabBox document and no parcel: its department is provisional
- *  (no parcel → Affiliate – Lead out until the MEX profile decides). */
+/** A confirmed CRM sale with no collabBox document and no parcel, whose seller is NOT on a line team
+ *  (Менаџмент / none): its department is provisional until its booking / parcel decides. A line team's
+ *  sale is never provisional — the seller's team decides (owner 02.10.2026, 20260947000400). */
 export function isProvisionalDept(o: { collab?: OrderCollab | null; mex_tracking_id?: string | null }): boolean {
-  return !!o.collab && !o.collab.doc && !o.mex_tracking_id;
+  return !!o.collab && !o.collab.doc && !o.mex_tracking_id && !o.collab.team_decides;
 }

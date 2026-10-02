@@ -60,6 +60,7 @@ describe('the collabBox entry badge', () => {
     expect(isProvisionalDept({ collab: { ...c, doc: '002-9103-1/2026' } })).toBe(false);
     expect(isProvisionalDept({ collab: c, mex_tracking_id: '002-9103-1/2026' })).toBe(false);
     expect(isProvisionalDept({})).toBe(false);
+    expect(isProvisionalDept({ collab: { ...c, team_decides: true } })).toBe(false);
   });
   it('ddMm', () => {
     expect(ddMm('2026-10-04')).toBe('04.10');

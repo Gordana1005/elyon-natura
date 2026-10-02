@@ -300,6 +300,8 @@ export interface CollabStateRow {
   sale_day: string | null;
   cancel_day: string | null;
   mode: string | null;
+  /** 20260947000500: the department the seller's team already decides (NULL / absent = the booking / parcel decides). */
+  team_dept?: string | null;
 }
 
 /** The `collab` field a list row gets. */
@@ -310,6 +312,8 @@ export interface OrderCollab {
   /** The Skopje day the rule cancels it at 21:20 (apply mode only). */
   cancel_day: string | null;
   mode: "report" | "apply";
+  /** The seller's line team already decides the department (owner 02.10.2026) — never provisional. */
+  team_decides: boolean;
 }
 
 /** The RPC's own limit (crm_sale_collab_states raises above 200). */
@@ -343,6 +347,7 @@ export function collabById(rows: readonly CollabStateRow[] | null | undefined): 
       sale_day: r.sale_day ?? null,
       cancel_day: r.cancel_day ?? null,
       mode: r.mode === "apply" ? "apply" : "report",
+      team_decides: !!r.team_dept,
     };
   }
   return out;

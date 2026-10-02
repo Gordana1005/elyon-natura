@@ -80,6 +80,8 @@ export interface OrderCollab {
   sale_day: string | null;
   cancel_day: string | null;
   mode: 'report' | 'apply';
+  /** The seller's line team already decides the department (owner 02.10.2026) — never provisional. */
+  team_decides?: boolean;
 }
 
 /** order_items as GET /orders embeds them. */
