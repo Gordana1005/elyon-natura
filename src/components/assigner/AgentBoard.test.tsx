@@ -23,7 +23,7 @@ const agent = (over: Partial<AssignerBoardAgent>): AssignerBoardAgent => ({
 
 const BOARD_AGENTS: AssignerBoardAgent[] = [
   agent({ user_id: 'u-vesna', full_name: 'Весна Стојанова', online: true, pendings: 4, call_agains: 1, list_open: 5, list_assigned: 5 }),
-  agent({ user_id: 'u-ana', full_name: 'Ана Петровска', online: true, in_call: true, pendings: 20, call_agains: 10, list_open: 20, list_assigned: 30, team_key: 'affiliate', team_name: 'Affiliate', team_lane: 'in', shift: { start: '08:00', end: '16:00' } }),
+  agent({ user_id: 'u-ana', full_name: 'Ана Петровска', online: true, in_call: true, pendings: 20, call_agains: 10, list_open: 20, list_assigned: 30, team_key: 'affiliate', team_name: 'Тим Маџари', team_lane: 'in', shift: { start: '08:00', end: '16:00' } }),
   agent({ user_id: 'u-beti', full_name: 'Бети Николова', online: true, list_open: 2, list_assigned: 2 }),
   agent({ user_id: 'u-ivana', full_name: 'Ivana Trajkovska', online: false }),
   agent({ user_id: 'u-zak', full_name: 'Жаклина Деник', online: true, pendings: 1, pendings_pending: 1, call_agains: 1, call_agains_orders: 1 }),
@@ -70,7 +70,7 @@ describe('AgentBoard', () => {
     render(<Harness agents={BOARD_AGENTS} />);
     const ana = screen.getByTitle(/^Ана Петровска · /);
     // the team + lane as the owner names them (business lines, 30.09): "Affiliate лидови"
-    expect(ana).toHaveTextContent('Affiliate лидови');
+    expect(ana).toHaveTextContent('Тим Маџари In');
     expect(ana).not.toHaveTextContent('Pending');
     expect(ana).not.toHaveTextContent('На чекање');
     // the shift rides in the tile's title (the compact tile has no room for it)

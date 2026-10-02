@@ -7,9 +7,9 @@ import { TvBoardFilters } from './TvBoardFilters';
 beforeAll(async () => { await i18n.changeLanguage('mk'); });
 
 const TEAMS: BoardTeam[] = [
-  { key: 'teleshop', name: 'Телешоп', people: 24, kind: 'line', sort_order: 10,
+  { key: 'teleshop', name: 'Тим Центар', people: 24, kind: 'line', sort_order: 10,
     lanes: [{ lane: 'in', key: 'teleshop:in', people: 5 }, { lane: 'out', key: 'teleshop:out', people: 17 }, { lane: 'social', key: 'teleshop:social', people: 2 }] },
-  { key: 'affiliate', name: 'Affiliate', people: 21, kind: 'line', sort_order: 20, lanes: [{ lane: 'in', key: 'affiliate:in', people: 21 }] },
+  { key: 'affiliate', name: 'Тим Маџари', people: 21, kind: 'line', sort_order: 20, lanes: [{ lane: 'in', key: 'affiliate:in', people: 21 }] },
   { key: 'management', name: 'Management', people: 11, kind: 'management', sort_order: 90, lanes: [] },
 ];
 
@@ -17,10 +17,10 @@ describe('TV board — the team filter (teams = business lines)', () => {
   it('a line opens its lanes in the owner\'s words; a lane is team:lane', () => {
     const onChange = vi.fn();
     render(<TvBoardFilters filter={{ department: null, team: 'teleshop' }} teams={TEAMS} onChange={onChange} />);
-    const lanes = screen.getByRole('group', { name: i18n.t('teamLines.filterLanes', { team: 'Телешоп' }) });
-    expect(within(lanes).getByRole('button', { name: /предикција/ })).toBeInTheDocument();
+    const lanes = screen.getByRole('group', { name: i18n.t('teamLines.filterLanes', { team: 'Тим Центар' }) });
+    expect(within(lanes).getByRole('button', { name: /^Out/ })).toBeInTheDocument();
     expect(within(lanes).getByRole('button', { name: /Социјални мрежи/ })).toBeInTheDocument();
-    fireEvent.click(within(lanes).getByRole('button', { name: /лидови/ }));
+    fireEvent.click(within(lanes).getByRole('button', { name: /^In/ }));
     expect(onChange).toHaveBeenCalledWith({ department: null, team: 'teleshop:in' });
     // the team row names teams, never a board mode
     const teams = screen.getByRole('group', { name: i18n.t('leaderboard2.filterTeams') });

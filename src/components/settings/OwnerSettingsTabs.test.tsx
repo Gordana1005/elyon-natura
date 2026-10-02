@@ -23,8 +23,8 @@ const teams: SalesTeamsOverview = {
   // teams = business lines (20260943000900): the two lines, a legacy key still holding Ana, an
   // emptied legacy key (not listed), management — in sales_teams.sort_order
   teams: [
-    { key: 'teleshop', name: 'Телешоп', leaderboard_mode: 'prediction', kind: 'line', sort_order: 10 },
-    { key: 'affiliate', name: 'Affiliate', leaderboard_mode: 'pending', kind: 'line', sort_order: 20 },
+    { key: 'teleshop', name: 'Тим Центар', leaderboard_mode: 'prediction', kind: 'line', sort_order: 10 },
+    { key: 'affiliate', name: 'Тим Маџари', leaderboard_mode: 'pending', kind: 'line', sort_order: 20 },
     { key: 'altercpa_leads', name: 'Pending — AlterCPA leads', leaderboard_mode: 'pending', kind: 'legacy', sort_order: 40 },
     { key: 'crm_prediction', name: 'Prediction — ElyonCRM', leaderboard_mode: 'prediction', kind: 'legacy', sort_order: 41 },
     { key: 'management', name: 'Management', leaderboard_mode: null, kind: 'management', sort_order: 90 },
@@ -148,7 +148,7 @@ describe('Settings → Teams', () => {
     expect(screen.getByRole('heading', { name: new RegExp(`^${i18n.t('insights.agents.team.byKey.altercpa_leads').replace(/[()]/g, '\\$&')}`) })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: /Pending — AlterCPA leads/ })).toBeNull();
     expect(screen.queryByRole('heading', { name: new RegExp(`^${i18n.t('insights.agents.team.byKey.crm_prediction').replace(/[()]/g, '\\$&')}`) })).toBeNull();
-    expect(screen.getByRole('heading', { name: 'Телешоп' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Тим Центар' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: i18n.t('settings.teams.noTeam') })).toBeInTheDocument();
     expect(screen.getByText('#4222')).toBeInTheDocument();
     expect(within(screen.getByRole('button', { name: /^Boss Test/ })).getByText(i18n.t('settings.teams.badge.manager'))).toBeInTheDocument();
@@ -191,7 +191,7 @@ describe('Settings → Teams — person drawer', () => {
     expect(within(dlg).getByText(i18n.t('settings.teams.drawer.move'))).toBeInTheDocument();
     expect(within(dlg).getByText(i18n.t('settings.teams.drawer.historyEmpty'))).toBeInTheDocument();
     // default target = the first business line (Телешоп), its first lane; nothing to close for someone with no team
-    expect(within(dlg).getByText(i18n.t('settings.teams.drawer.preview.none', { team: 'Телешоп', from: '28.09.2026' }))).toBeInTheDocument();
+    expect(within(dlg).getByText(i18n.t('settings.teams.drawer.preview.none', { team: 'Тим Центар', from: '28.09.2026' }))).toBeInTheDocument();
     expect(within(dlg).getByText(i18n.t('teamLines.drawer.lane'))).toBeInTheDocument();
     fireEvent.click(within(dlg).getByRole('button', { name: i18n.t('settings.teams.drawer.moveButton') }));
     await waitFor(() => expect(move).toHaveBeenCalledWith('p3', { team_key: 'teleshop', from: expect.any(String), role: 'member', lane: 'in' }));

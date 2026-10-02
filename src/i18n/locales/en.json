@@ -4064,8 +4064,8 @@
       },
       "feedDesc": {
         "altercpa": "Lead mirror — new leads every 2 min, outcomes every 5 min (07:00–20:55)",
-        "mex_bio_natural": "Affiliate parcels (Lead in and Lead out) — every 15 min, 06:00–23:00",
-        "mex_natura": "Teleshop, social media and web parcels — every 15 min, 06:00–23:00",
+        "mex_bio_natural": "Team Madžari parcels (In and Out) — every 15 min, 06:00–23:00",
+        "mex_natura": "Team Centar, social media and web parcels — every 15 min, 06:00–23:00",
         "web": "naturatherapy.mk orders — every 15 min",
         "collabbox": "collabBox documents — a full pass every 15 min (07:00–23:00) and nightly at 00:00 (last 3 days)",
         "no_parcel_rule": "AlterCPA sales with no MEX parcel after {{days}} days — daily at {{hour}}:10"
@@ -4586,7 +4586,7 @@
       },
       "list": {
         "title": "Returns by prediction list",
-        "sub": "Affiliate – Lead out sales from the lists",
+        "sub": "Team Madžari Out sales from the lists",
         "empty": "No list sales in this period."
       },
       "dow": {
@@ -4616,7 +4616,7 @@
         "title": "By MEX account",
         "sub": "The account the parcel was sent from",
         "bio_natural": "BIO NATURAL (Elyon)",
-        "natura": "NATURA (teleshop, social, web)",
+        "natura": "NATURA (Team Centar, social, web)",
         "none": "No parcel"
       },
       "reasons": {
@@ -4957,15 +4957,15 @@
         "series": {
           "s9110": "9110 LEADS",
           "s9103": "9103 LEADS-OUT",
-          "s9100": "9100 Teleshop – Lead in",
-          "s9102": "9102 Teleshop – Lead out",
+          "s9100": "9100 Team Centar In",
+          "s9102": "9102 Team Centar Out",
           "s9108": "9108 Social media",
           "ntmk": "NTMK — web shop",
           "m": "M… — old web shop / other",
           "other": "Other",
           "none": "No parcel yet"
         },
-        "note": "The bar shows which sources ship through each series. The source is the order's own — except a CRM sale on a NATURA parcel (9102 / 9100 / 9108): it counts in Teleshop or Social media."
+        "note": "The bar shows which sources ship through each series. The source is the order's own — except a CRM sale on a NATURA parcel (9102 / 9100 / 9108): it counts in Team Centar or Social media."
       },
       "quality": {
         "title": "Table coverage",
@@ -4999,10 +4999,10 @@
       "cohort": {
         "title": "Sold from the prediction lists · {{period}}",
         "titleNoMoney": "Sales from the prediction lists · {{period}}",
-        "tie": "= Overview · Affiliate – Lead out · Prediction lists: {{n}} · {{value}}",
-        "tieNoMoney": "= Overview · Affiliate – Lead out · Prediction lists: {{n}}",
-        "tieDepts": "= Overview · Prediction lists in every department: Affiliate – Lead out {{n}} · {{value}} + other departments {{m}} · {{rest}}",
-        "tieDeptsNoMoney": "= Overview · Prediction lists in every department: Affiliate – Lead out {{n}} + other departments {{m}}"
+        "tie": "= Overview · Team Madžari Out · Prediction lists: {{n}} · {{value}}",
+        "tieNoMoney": "= Overview · Team Madžari Out · Prediction lists: {{n}}",
+        "tieDepts": "= Overview · Prediction lists in every department: Team Madžari Out {{n}} · {{value}} + other departments {{m}} · {{rest}}",
+        "tieDeptsNoMoney": "= Overview · Prediction lists in every department: Team Madžari Out {{n}} + other departments {{m}}"
       },
       "kpi": {
         "title": "Key figures of the lists",
@@ -5137,11 +5137,11 @@
           "lists": "Σ {{n}} lists",
           "notRecorded": "List not recorded (a duplicate that lost its list)",
           "slice": "= All prediction-list sales",
-          "tieOk": "= Overview · Affiliate – Lead out · Prediction lists",
+          "tieOk": "= Overview · Team Madžari Out · Prediction lists",
           "tieBad": "Does not add up to the total — please report it",
-          "other": "Affiliate – Lead out · {{split}} (no list)",
-          "elyon": "= Affiliate – Lead out total",
-          "elyonHint": "The Overview's Affiliate – Lead out card: every Affiliate – Lead out sale, with or without a list."
+          "other": "Team Madžari Out · {{split}} (no list)",
+          "elyon": "= Team Madžari Out total",
+          "elyonHint": "The Overview's Team Madžari Out card: every Team Madžari Out sale, with or without a list."
         }
       },
       "detail": {
@@ -5280,12 +5280,12 @@
         "loading": "Loading"
       },
       "source": {
-        "altercpa": "Affiliate – Lead in",
-        "elyon_crm": "Affiliate – Lead out",
-        "teleshop_out": "Teleshop – Lead out",
+        "altercpa": "Team Madžari In",
+        "elyon_crm": "Team Madžari Out",
+        "teleshop_out": "Team Centar Out",
         "web": "Web shop",
         "social": "Social media",
-        "teleshopOther": "Teleshop – Lead in"
+        "teleshopOther": "Team Centar In"
       },
       "bucket": {
         "paid": "Collected",
@@ -5309,7 +5309,7 @@
         "collabbox_out": "Order out (collabBox)",
         "teleshop_out": "Order out (collabBox)",
         "collabbox_leads_out": "LEADS-OUT (collabBox)",
-        "mex_teleshop": "Teleshop (MEX)",
+        "mex_teleshop": "Team Centar (MEX)",
         "mex_social": "Social media (MEX)",
         "mex_leads": "Unlinked parcels (LEADS)",
         "mex_leads_out": "Unlinked parcels (LEADS-OUT)",
@@ -5325,7 +5325,7 @@
         "team_collabbox_out": "Order out by the Pending agents",
         "team_collabbox_leads_out": "LEADS-OUT by the Pending agents",
         "collabbox_leads": "LEADS (collabBox)",
-        "teleshop": "Teleshop",
+        "teleshop": "Team Centar",
         "social": "Social media",
         "leads": "LEADS (9110)",
         "leads_out": "LEADS-OUT (9103)",
@@ -5595,7 +5595,7 @@
       "team": {
         "management": "Management",
         "unassigned": "No team yet",
-        "teleshop": "Teleshop"
+        "teleshop": "Team Centar"
       },
       "kpi": {
         "prevBeforeLedger": "The comparison period reaches back to the start of the work ledger ({{date}}): it is incomplete, so the changes overstate growth.",
@@ -5668,8 +5668,8 @@
         "people": "{{active}} of {{n}} people worked",
         "onlineNow": "{{n}} online",
         "noTeamKind": "Not placed in a team yet (Settings → Teams)",
-        "teleshopKind": "Teleshop · collabBox",
-        "teleshopNote": "There is no Teleshop team yet: collabBox sellers are people with credited sales but no team, so they appear under “No team yet”. They call outside the CRM, so no decisions or time exist for them here.",
+        "teleshopKind": "Team Centar · collabBox",
+        "teleshopNote": "There is no Team Centar yet: collabBox sellers are people with credited sales but no team, so they appear under “No team yet”. They call outside the CRM, so no decisions or time exist for them here.",
         "m": {
           "sale": "Sale decisions",
           "conversion": "Conversion",
@@ -5701,7 +5701,7 @@
         "hideIdle": "Hide those without activity",
         "manager": "mgmt",
         "noLogin": "no CRM login",
-        "noLoginHint": "No CRM login: decides in AlterCPA's panel or sells through collabBox (teleshop), so there is no time in the CRM.",
+        "noLoginHint": "No CRM login: decides in AlterCPA's panel or sells through collabBox (Team Centar), so there is no time in the CRM.",
         "viaTitle": "CRM {{crm}} · AlterCPA {{acpa}}",
         "creditedOpen": "Open these sales in Orders",
         "days_one": "{{n}} day",
@@ -5885,14 +5885,14 @@
       },
       "team": {
         "byKey": {
-          "altercpa_leads": "Affiliate (old team)",
-          "crm_prediction": "Teleshop (old team)",
+          "altercpa_leads": "Team Madžari (old team)",
+          "crm_prediction": "Team Centar (old team)",
           "management": "Management",
           "social": "Social media / collabBox",
-          "teleshop": "Teleshop",
+          "teleshop": "Team Centar",
           "none": "No team",
-          "affiliate": "Affiliate",
-          "teleshop_unassigned": "Teleshop · no team",
+          "affiliate": "Team Madžari",
+          "teleshop_unassigned": "Team Centar · no team",
           "social_unassigned": "Social media · no team"
         }
       },
@@ -5908,15 +5908,15 @@
         "noLinkGroup": "This group is not a team in Settings — there is no Orders list by team.",
         "partOfPerson": "Part of this person's sales are in another team — open the person.",
         "mode": {
-          "pending": "AlterCPA leads (Affiliate leads)",
+          "pending": "AlterCPA leads (Team Madžari In)",
           "prediction": "Calls from the prediction lists",
           "none": "Shown, not ranked"
         },
         "kind": {
           "social": "collabBox authors of social-media sales outside a team",
-          "teleshop": "collabBox authors of teleshop sales (Lead in and Lead out) outside a team",
+          "teleshop": "collabBox authors of Team Centar sales (In and Out) outside a team",
           "none": "Activity of people outside a team",
-          "teleshop_unassigned": "collabBox authors of teleshop sales (Lead in and Lead out) outside a team",
+          "teleshop_unassigned": "collabBox authors of Team Centar sales (In and Out) outside a team",
           "social_unassigned": "collabBox authors of social-media sales outside a team"
         }
       },
@@ -5951,7 +5951,7 @@
         "sales": "Sales",
         "salesHint": "Sales credited to the person, by sale day — the same as the Overview",
         "sources": "Sources",
-        "sourcesHint": "Affiliate – Lead in · Affiliate – Lead out · Teleshop – Lead out · Teleshop – Lead in · Social media · Web shop",
+        "sourcesHint": "Team Madžari In · Team Madžari Out · Team Centar Out · Team Centar In · Social media · Web shop",
         "paid": "Paid",
         "paidHint": "MEX delivered the parcel and collected the COD",
         "paidShare": "Paid",
@@ -6216,15 +6216,15 @@
         "vatUnclassified": "of which unclassified (at {{pct}})"
       },
       "aff": {
-        "title": "Affiliate – Lead in by webmaster",
-        "subtitle": "Under the Affiliate – Lead in column — the rows add up to it.",
+        "title": "Team Madžari In by webmaster",
+        "subtitle": "Under the Team Madžari In column — the rows add up to it.",
         "partner": "Webmaster",
         "sales": "Sales",
         "collected": "Collected",
         "parcels": "Parcels",
         "returnRate": "Return rate",
         "net": "Profit before lead cost",
-        "sum": "Affiliate – Lead in total",
+        "sum": "Team Madžari In total",
         "none": "No webmaster on file",
         "unnamed": "WM {{id}}",
         "openN": "{{n}} open",
@@ -6308,7 +6308,7 @@
           "unproven_paid": "The CRM says paid, but no delivered MEX parcel proves it — left out of the profit.",
           "non_product_lines": "Loyalty points, delivery charges, notes and flyers are not counted as packages. A reviewed product alias overrides this.",
           "orders_without_lines": "Their value is carried by the order's own product.",
-          "lead_cost_missing": "Affiliate – Lead in profit is before what the leads cost: no price per lead is entered yet.",
+          "lead_cost_missing": "Team Madžari In profit is before what the leads cost: no price per lead is entered yet.",
           "return_fee_unconfirmed": "The MEX rate card charges 0 for a return. Confirm whether MEX bills the delivery fee on returned parcels.",
           "vat_unclassified": "Taxed at 5% (the supplements' rate): MEX parcels with unknown contents, lines without a product, products with no rate yet. Set the rate in Products.",
           "vat_flat_default": "The database does not return per-product rates yet, so every sale is taxed at 5%."
@@ -6319,7 +6319,7 @@
         "summaryHint": "Every line by source, for sales in the period and for money that arrived",
         "products": "Products",
         "productsHint": "Profit by product, cost coverage and returns",
-        "affiliates": "Affiliate – Lead in webmasters",
+        "affiliates": "Team Madžari In webmasters",
         "affiliatesHint": "Profit per webmaster before lead cost"
       },
       "cache": {
@@ -6643,12 +6643,12 @@
       "h": "{{h}} h"
     },
     "team": {
-      "altercpa_leads": "Affiliate leads",
-      "affiliate_leads": "Affiliate leads",
-      "affiliate_prediction": "Affiliate prediction",
-      "teleshop_leads": "Teleshop leads",
-      "teleshop_prediction": "Teleshop prediction",
-      "crm_prediction": "Teleshop prediction",
+      "altercpa_leads": "Team Madžari In",
+      "affiliate_leads": "Team Madžari In",
+      "affiliate_prediction": "Team Madžari Out",
+      "teleshop_leads": "Team Centar In",
+      "teleshop_prediction": "Team Centar Out",
+      "crm_prediction": "Team Centar Out",
       "social": "Social media",
       "management": "Management",
       "none": "No team"
@@ -7530,14 +7530,14 @@
     "targetEarners": "paid to {{n}} team members with a sale",
     "reversedHint": "Returned or cancelled after the sale — not counted",
     "team": {
-      "crm_prediction": "Teleshop (old team)",
-      "altercpa_leads": "Affiliate (old team)",
+      "crm_prediction": "Team Centar (old team)",
+      "altercpa_leads": "Team Madžari (old team)",
       "management": "Management",
-      "teleshop": "Teleshop",
-      "affiliate": "Affiliate"
+      "teleshop": "Team Centar",
+      "affiliate": "Team Madžari"
     },
     "alias": {
-      "altercpa_leads": "Affiliate leads",
+      "altercpa_leads": "Team Madžari In · old link",
       "crm_prediction": "Prediction · every line"
     },
     "web": {
@@ -7588,18 +7588,18 @@
     "filterTeams": "Teams",
     "allTeams": "All teams",
     "dept": {
-      "altercpa": "Affiliate – Lead in",
-      "elyon_crm": "Affiliate – Lead out",
-      "teleshop_out": "Teleshop – Lead out",
-      "teleshopOther": "Teleshop – Lead in",
+      "altercpa": "Team Madžari In",
+      "elyon_crm": "Team Madžari Out",
+      "teleshop_out": "Team Centar Out",
+      "teleshopOther": "Team Centar In",
       "social": "Social media",
       "web": "Web shop"
     },
     "deptShort": {
-      "altercpa": "Aff. in",
-      "elyon_crm": "Aff. out",
-      "teleshop_out": "Tele out",
-      "teleshopOther": "Tele in",
+      "altercpa": "Team Madžari In",
+      "elyon_crm": "Team Madžari Out",
+      "teleshop_out": "Team Centar Out",
+      "teleshopOther": "Team Centar In",
       "social": "Social",
       "web": "Web"
     },
@@ -8024,16 +8024,16 @@
   },
   "teamLines": {
     "lane": {
-      "in": "leads",
-      "out": "prediction",
+      "in": "In",
+      "out": "Out",
       "social": "Social media"
     },
     "label": {
-      "teleshop_in": "Teleshop leads",
-      "teleshop_out": "Teleshop prediction",
+      "teleshop_in": "Team Centar In",
+      "teleshop_out": "Team Centar Out",
       "teleshop_social": "Social media",
-      "affiliate_in": "Affiliate leads",
-      "affiliate_out": "Affiliate prediction"
+      "affiliate_in": "Team Madžari In",
+      "affiliate_out": "Team Madžari Out"
     },
     "allLanes": "All",
     "filterLanes": "Lanes in {{team}}",
@@ -8044,11 +8044,11 @@
       "lane": "Lane",
       "laneOf": "Lane of {{team}} from {{from}}",
       "laneSaved": "Lane saved",
-      "legacyHint": "Old team: accept the proposal or move the person to Teleshop / Affiliate."
+      "legacyHint": "Old team: accept the proposal or move the person to Team Centar / Team Madžari."
     },
     "proposal": {
       "title": "Proposal: teams are business lines",
-      "desc": "Teleshop ships via NATURA (leads · prediction · Social media), Affiliate via BIO NATURAL (leads · prediction), Management is not ranked. The proposal comes from each person's sales by department over the last {{days}} days (under 5 sales: the whole history). An accepted row changes the team and lane of ALL the person's memberships, for the whole history — the department of the sales does not change.",
+      "desc": "Team Centar ships via NATURA (In · Out · Social media), Team Madžari via BIO NATURAL (In · Out), Management is not ranked. The proposal comes from each person's sales by department over the last {{days}} days (under 5 sales: the whole history). An accepted row changes the team and lane of ALL the person's memberships, for the whole history — the department of the sales does not change.",
       "show": "Show proposal",
       "hide": "Hide",
       "refresh": "Refresh the proposal",
@@ -8104,7 +8104,7 @@
     "err": {
       "invalid_rows": "A row is not valid (or the proposal changed) — refresh and try again.",
       "multiple_lines": "This person has memberships in two lines — change them row by row in the person drawer.",
-      "legacy_team": "An old team can no longer be picked — choose Teleshop, Affiliate or Management.",
+      "legacy_team": "An old team can no longer be picked — choose Team Centar, Team Madžari or Management.",
       "lane_required": "Pick a lane: leads, prediction or Social media.",
       "lane_not_allowed": "That lane does not exist in the chosen team.",
       "bad_lane": "Unknown lane.",
@@ -8275,16 +8275,16 @@
       "of": "{{a}} of {{b}}"
     },
     "source": {
-      "altercpa": "Affiliate – Lead in",
-      "elyon_crm": "Affiliate – Lead out",
-      "teleshop_out": "Teleshop – Lead out",
+      "altercpa": "Team Madžari In",
+      "elyon_crm": "Team Madžari Out",
+      "teleshop_out": "Team Centar Out",
       "web": "Web shop",
       "social": "Social media",
-      "teleshopOther": "Teleshop – Lead in"
+      "teleshopOther": "Team Centar In"
     },
     "saleSource": {
-      "altercpa": "Affiliate – Lead in",
-      "elyon_crm": "Affiliate – Lead out",
+      "altercpa": "Team Madžari In",
+      "elyon_crm": "Team Madžari Out",
       "collabbox": "collabBox",
       "web": "Web",
       "affiliate": "Affiliate",
@@ -8305,7 +8305,7 @@
       "team_collabbox_out": "Order out by the Pending agents",
       "team_collabbox_leads_out": "LEADS-OUT by the Pending agents",
       "disposition": "Call outcomes",
-      "teleshop": "Teleshop",
+      "teleshop": "Team Centar",
       "social": "Social media",
       "mex_only_unlinked": "MEX only, no order",
       "shop": "Shop",
@@ -8361,8 +8361,8 @@
       "onlineNow": "{{n}} online now",
       "peopleOnline": "{{n}} people · {{online}} online",
       "mode": {
-        "pending": "Pending · Affiliate – Lead in",
-        "prediction": "Prediction · Affiliate – Lead out",
+        "pending": "Pending · Team Madžari In",
+        "prediction": "Prediction · Team Madžari Out",
         "management": "Management",
         "unassigned": "Not on a team yet"
       },
@@ -8470,7 +8470,7 @@
         "cameIn": "Came in",
         "worked": "Worked",
         "conversion": "Conversion",
-        "noFunnel": "Teleshop has no leads: every collabBox document is already a sale.",
+        "noFunnel": "Team Centar has no leads: every collabBox document is already a sale.",
         "noFunnelSocial": "Social media have no leads: every collabBox document is already a sale.",
         "none": "No leads in the period"
       },
@@ -8579,7 +8579,7 @@
     "leadNotImported": "Never became an order in the CRM.",
     "parcelOtherPhone": "Linked to an order under another phone:",
     "mexOnly": "MEX only — no CRM or web order",
-    "mexOnlyHint": "No CRM or web-shop order matches this parcel: a sale that exists only at MEX (teleshop, social, …).",
+    "mexOnlyHint": "No CRM or web-shop order matches this parcel: a sale that exists only at MEX (Team Centar, social, …).",
     "callTimingHint": "Handling time recorded by the agent while telephony is off — not proof the customer answered.",
     "duration": "{{duration}} (agent-reported)",
     "noteOn": "on {{id}}",
@@ -8611,7 +8611,7 @@
       "affiliate": "Affiliate",
       "legacy": "Legacy",
       "collabbox": "collabBox",
-      "teleshop": "Teleshop",
+      "teleshop": "Team Centar",
       "social": "Social",
       "leads": "LEADS",
       "leads_out": "LEADS-OUT",
