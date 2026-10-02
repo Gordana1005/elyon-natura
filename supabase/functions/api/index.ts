@@ -94,6 +94,9 @@ import * as OL from "./ordersList.ts";
 // entry rule badge on each confirmed CRM sale (crm_sale_collab_states, 20260947000200) — pure,
 // unit-tested in ordersBookings.test.ts.
 import * as OB from "./ordersBookings.ts";
+// Bonuses — prediction (Out) milestones (owner 02.10.2026, 20260947001100): the target writer's body, the versions,
+// the board's part (pure, bonus.test.ts).
+import * as BONUS from "./bonus.ts";
 // /warehouse (plan Фаза 9, owner 30.09.2026): the queue (public.warehouse_queue) and
 // "Испрати до MEX" — the add_shipment.php push with its claim / existence check /
 // ledger (public.mex_push_attempts), switched OFF by app_settings.mex_push (pure,
@@ -3488,9 +3491,11 @@ async function handleRequest(req: Request): Promise<Response> {
         // day (leaderboard_web_live, 20260942001940 — orders = the cohort's web part, the outcomes,
         // the newest orders without name / phone).
         const wantWeb = q.department === "web";
-        const [v2Res, webRes] = await Promise.all([
+        const [v2Res, webRes, bonusRes] = await Promise.all([
           adminClient.rpc("leaderboard_day_v2", { p_day: lbDay, p_department: q.department, p_team: q.team }),
           wantWeb ? adminClient.rpc("leaderboard_web_live", { p_day: lbDay }) : Promise.resolve(null),
+          // the prediction (Out) bonus of the day (owner 02.10.2026: everyone on the board sees the €)
+          adminClient.rpc("bonus_prediction_day", { p_day: lbDay }),
         ]);
         const { data: v2, error: v2Err } = v2Res;
         if (v2Err || !v2) {
@@ -3499,10 +3504,14 @@ async function handleRequest(req: Request): Promise<Response> {
           return v2Err?.code === "22023" ? json({ error: "invalid team" }, 400) : json({ error: "Leaderboard unavailable" }, 500);
         }
         if (webRes?.error) console.error("leaderboard_web_live failed:", webRes.error.message);
-        return json(LB2.buildLeaderboardV2Response({
-          rpc: v2, today, money: true,
-          ...(wantWeb ? { webLive: webRes?.error ? null : webRes?.data ?? null } : {}),
-        }));
+        if (bonusRes?.error) console.error("bonus_prediction_day failed:", bonusRes.error.message);
+        return json({
+          ...LB2.buildLeaderboardV2Response({
+            rpc: v2, today, money: true,
+            ...(wantWeb ? { webLive: webRes?.error ? null : webRes?.data ?? null } : {}),
+          }),
+          bonus: bonusRes?.error ? null : BONUS.shapeBoardBonus(bonusRes?.data),
+        });
       }
 
       // The board (leaderboard_day), the per-mode bonus rules and the day's calls
@@ -14800,6 +14809,37 @@ async function handleRequest(req: Request): Promise<Response> {
     // longer write these tables (migration 20260943001500 drops its write
     // policies). Refusals are codes (settingsAccess.ts), the UI has the words.
     // ============================================================
+
+    // GET /api/settings/bonus — the prediction (Out) bonus targets: in force today per department, upcoming, history
+    // (owners — is_business_owner; owner 02.10.2026, 20260947001100).
+    if (req.method === "GET" && path === "settings/bonus") {
+      if (!(await isBusinessOwner(user.id))) return json({ error: "owners_only" }, 403);
+      const { data, error } = await adminClient.from("bonus_prediction_targets")
+        .select("id, department, valid_from, daily_target_mkd, m1_eur, m2_eur, m3_eur, note, created_at")
+        .order("valid_from", { ascending: false }).limit(500);
+      if (error) return json({ error: sanitizeDbError(error) }, 400);
+      return json(BONUS.shapeBonusTargets((data || []) as BONUS.BonusTargetRow[], skopjeDayRange("").today));
+    }
+
+    // PUT /api/settings/bonus { department, valid_from, target_mkd, m1_eur, m2_eur, m3_eur, note? } — a new version
+    // from a day (that day's version replaced); the SQL writer re-checks the owner and writes the audit row.
+    if (req.method === "PUT" && path === "settings/bonus") {
+      if (!(await isBusinessOwner(user.id))) return json({ error: "owners_only" }, 403);
+      let raw: unknown;
+      try { raw = await req.json(); } catch { return json({ error: "invalid_body" }, 400); }
+      const b = BONUS.parseBonusTargetBody(raw);
+      if (!b.ok) return json({ error: b.error }, 400);
+      const { data, error } = await adminClient.rpc("bonus_prediction_target_set", {
+        p_actor: user.id, p_department: b.value.department, p_valid_from: b.value.valid_from,
+        p_target_mkd: b.value.target_mkd, p_m1: b.value.m1_eur, p_m2: b.value.m2_eur, p_m3: b.value.m3_eur,
+        p_note: b.value.note,
+      });
+      if (error) {
+        const code = /owners_only/.test(error.message) ? 403 : 400;
+        return json({ error: /owners_only|bad_department|bad_values/.exec(error.message)?.[0] ?? sanitizeDbError(error) }, code);
+      }
+      return json({ ok: true, target: data });
+    }
 
     // GET /api/settings/meta — who changed each setting last and when
     // (admins + managers: Правила is read-only for a manager; no money here).
