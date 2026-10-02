@@ -160,6 +160,9 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
   const { toast } = useToast();
   const { user } = useAuth();
   const isAdmin = user?.isAdmin || user?.isManager;
+  // The order-window script (legacy "order" / "prediction_lead" rows): admins and managers edit it
+  // (the api also checks the call_scripts module permission and versions + audits every save).
+  const canEditScript = !!(user?.isAdmin || user?.isManager);
   const isLead = contextType === 'prediction_lead';
   const statusOptions = isLead
     ? LEAD_STATUS_OPTIONS
@@ -684,8 +687,9 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
 
   const handleSaveScript = async () => {
     try {
-      await apiUpdateCallScript(contextType, editedScript);
-      setScript(editedScript);
+      // The legacy route takes { script_text } (it used to receive the bare string and saved nothing).
+      const saved = await apiUpdateCallScript(contextType, { script_text: editedScript });
+      setScript(saved?.script_text ?? editedScript);
       setEditingScript(false);
       toast({ title: t('orderModal.scriptUpdated') });
     } catch (err: any) {
@@ -1302,7 +1306,7 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
                   ) : (
                     <div className="rounded-lg bg-muted/50 p-3 text-sm whitespace-pre-wrap leading-relaxed max-h-[150px] overflow-y-auto">
                       {personalizedScript || t('orderModal.noScript')}
-                      {isAdmin && (
+                      {canEditScript && (
                         <button onClick={() => { setEditedScript(script); setEditingScript(true); }} className="block mt-2 text-xs text-primary hover:underline">
                           {t('orderModal.editScript')}
                         </button>
