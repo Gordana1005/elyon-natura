@@ -728,6 +728,40 @@
     "recountHint": "Çdo agjent sheh vetëm numrin e vet. Ndryshimi i promos rillogarit numrat e sotëm."
   },
   "callScripts": {
+    "groups": {
+      "lead_new": "Lead i ri",
+      "lead_callback": "Thirrje e përsëritur",
+      "newcomers": "Blerës të rinj",
+      "d21": "21–57 ditë",
+      "d57": "57–120 ditë",
+      "m4_6": "4–6 muaj",
+      "m6_12": "6–12 muaj",
+      "y1_2": "1–2 vjet",
+      "y2plus": "Mbi 2 vjet",
+      "cancels": "Të anuluara",
+      "never_converted": "Nuk kanë blerë kurrë",
+      "trash": "Koshi"
+    },
+    "sections": {
+      "opening": "Hapja",
+      "pitch": "Prezantimi",
+      "objections": "Kundërshtimet",
+      "closing": "Mbyllja",
+      "custom": "Pjesë e veçantë"
+    },
+    "vars": {
+      "customer_name": "Emri dhe mbiemri",
+      "first_name": "Emri",
+      "agent_name": "Emri yt",
+      "product": "Produkti",
+      "price": "Çmimi",
+      "last_product": "Produkti i fundit",
+      "last_purchase_date": "Data e blerjes së fundit",
+      "days_since_purchase": "Ditë nga blerja",
+      "since_purchase": "Sa kohë më parë bleu",
+      "city": "Qyteti",
+      "order_id": "Numri i porosisë"
+    },
     "predictionLeadScript": "Skripti i lead-it të parashikimit",
     "orderScript": "Skripti i porosisë",
     "varCustomerName": "Emri i klientit",
@@ -2771,6 +2805,91 @@
     "finishCurrentFirst": "Përfundoni fillimisht këtë klient",
     "finishCurrentFirstDesc": "E hapët këtë klient pa regjistruar një përgjigje. Zgjidhni një përgjigje (Pa përgjigje, Anulo, Konfirmo…) para se të kaloni te një klient tjetër.",
     "mustAnswerBanner": "Duhet të regjistroni një përgjigje për këtë klient para se të hapni një tjetër — „Pa përgjigje“ gjithashtu llogaritet."
+  },
+  "scriptDock": {
+    "title": "Skripta",
+    "trigger": "Skripta · {{title}}",
+    "triggerEmpty": "Skripta · asnjë për këtë thirrje",
+    "triggerLoading": "Skripta · po ngarkohet…",
+    "collapse": "Mbyll skriptën",
+    "expand": "Hap skriptën",
+    "preview": "Pamje paraprake",
+    "previewHint": "Pamje paraprake: skriptet e reja i shohin vetëm administratorët dhe menaxherët — agjentët ende shohin listën e vjetër.",
+    "updated": "Përditësuar {{date}} · v{{version}}",
+    "recommended": "E rekomanduar",
+    "tabsLabel": "Skriptet për këtë thirrje",
+    "picked": "Zgjedhur me dorë",
+    "closePicked": "Mbyll skriptën e zgjedhur me dorë",
+    "noGroup": "Pa grup",
+    "groupTitle": "Grupi i klientit",
+    "listTitle": "Lista: {{list}}",
+    "productTitle": "Produkti i thirrjes",
+    "lang": "Skripta në {{lang}}",
+    "loading": "Skripta po ngarkohet…",
+    "error": "Skripta nuk mund të ngarkohej.",
+    "retry": "Provo përsëri",
+    "empty": "Nuk ka skriptë për {{what}}",
+    "emptyGeneric": "Nuk ka skriptë për këtë thirrje",
+    "emptyHint": "Ende askush nuk ka shkruar skriptë për këtë grup dhe produkt. Me kërkimin mund të hapësh një skriptë tjetër të publikuar.",
+    "write": "Shkruaje",
+    "search": {
+      "button": "Kërko skriptë",
+      "placeholder": "Titulli i skriptës…",
+      "empty": "Nuk ka skriptë me atë titull.",
+      "heading": "Skriptet e publikuara",
+      "loadFailed": "Skripta nuk mund të hapej."
+    },
+    "why": {
+      "button": "Pse?",
+      "title": "Pse kjo skriptë",
+      "contextTitle": "Thirrja",
+      "matchTitle": "Përputhja",
+      "group": "Grupi përputhet: {{group}}",
+      "allGroups": "Skripta vlen për të gjitha grupet",
+      "product": "Produkti përputhet: {{product}}",
+      "productOther": "një produkt tjetër i porosisë",
+      "allProducts": "Skripta vlen për të gjitha produktet",
+      "twin": "Përputhet përmes të njëjtit produkt me kod tjetër në katalog",
+      "tier": {
+        "1": "Niveli 1 nga 4 — grup dhe produkt",
+        "2": "Niveli 2 nga 4 — grup, të gjitha produktet",
+        "3": "Niveli 3 nga 4 — produkt, të gjitha grupet",
+        "4": "Niveli 4 nga 4 — skriptë e përgjithshme"
+      },
+      "tieBreak": {
+        "primary_product": "Para skriptës tjetër: përputhet me produktin kryesor të thirrjes",
+        "priority": "Para skriptës tjetër: prioritet më i lartë",
+        "newest": "Para skriptës tjetër: publikuar më së fundi"
+      },
+      "basis": {
+        "order_status": "Grupi vjen nga statusi i lead-it: {{status}}",
+        "list_name": "Grupi vjen nga lista: {{list}}",
+        "attribution": "Grupi vjen nga lista e fundit e klientit: {{list}}",
+        "attributionNoList": "Grupi vjen nga lista e fundit e klientit",
+        "none": "Klienti nuk ka grup — vlejnë vetëm skriptet për të gjitha grupet"
+      },
+      "drafts": "Përfshihen edhe draftet",
+      "picked": "Këtë skriptë e zgjodhe me dorë — nuk është zgjedhur sipas klientit."
+    },
+    "body": {
+      "nav": "Pjesët e skriptës",
+      "empty": "Skripta ende nuk ka tekst.",
+      "fallbackBadge": "MK",
+      "fallbackHint": "Nuk ka tekst shqip — shfaqet teksti maqedonisht.",
+      "missing": "Mungon: {{label}}"
+    },
+    "quick": {
+      "title": "Përgjigje të shpejta",
+      "chip": "Përgjigje të shpejta ({{count}})",
+      "search": "Kërko përgjigje të shpejta (latinisht ose cirilisht)…",
+      "none": "Nuk ka përgjigje të shpejta.",
+      "noMatches": "Nuk ka përputhje."
+    },
+    "source": {
+      "lead": "Lead-e",
+      "prediction": "Parashikim",
+      "manual": "Hapur me dorë"
+    }
   },
   "scriptsPanel": {
     "title": "Skriptet & ndihmësit e thirrjeve",
