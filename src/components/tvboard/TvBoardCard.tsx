@@ -3,15 +3,17 @@
 // the time on the CRM — with rank, initials + presence, the full name and the team badge (+ idle / break).
 import { Clock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { formatDenari } from '@/lib/currency';
+import { formatDenari, formatEurExact } from '@/lib/currency';
 import { avgSaleMkd, type BoardRow } from '@/lib/leaderboardV2';
 import { PresenceDot } from './TvBoardParts';
 import { RANK_ACCENT, fmtDur, hhmm, initials, teamLabel } from './tvBoardHelpers';
 
 export function TvBoardCard({
-  row, money, isToday, now, glow,
+  row, money, isToday, now, glow, bonusEur = null,
 }: {
   row: BoardRow;
+  /** the seller's € of the day (bonus_prediction_day), null = none */
+  bonusEur?: number | null;
   money: boolean;
   isToday: boolean;
   now: Date;
@@ -88,6 +90,11 @@ export function TvBoardCard({
         </div>
       </div>
 
+      {bonusEur ? (
+        <div className="mt-2 text-xs font-semibold tabular-nums text-amber-200" data-testid="tv-bonus-eur">
+          {t('leaderboard2.bonus.mine', { eur: formatEurExact(bonusEur) })}
+        </div>
+      ) : null}
       {/* The time on the CRM */}
       <div className="mt-2 flex min-w-0 items-center gap-1 text-xs tabular-nums text-slate-400">
         <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden />

@@ -7636,7 +7636,13 @@
     "noPeople": "Askush nuk ka punuar në këtë pamje atë ditë.",
     "legacyApi": "Serveri ende ka tabelën e vjetër — shfaqet vetëm departamenti i saj derisa të lëshohet versioni i ri.",
     "prevDay": "Dita e mëparshme",
-    "nextDay": "Dita tjetër"
+    "nextDay": "Dita tjetër",
+    "bonus": {
+      "pool": "Fondi {{eur}}",
+      "progress": "{{value}} nga {{target}}",
+      "col": "Bonus",
+      "mine": "Bonusi sot {{eur}}"
+    }
   },
   "altercpa": {
     "tabMirror": "Pasqyra",
@@ -9798,6 +9804,42 @@
     "form": {
       "cost": "Çmimi i blerjes (Sigma)",
       "costHint": "Llogaritet nga receta dhe çmimet në Sigma — nuk futet me dorë."
+    }
+  },
+  "bonus": {
+    "title": "Bonuset — parashikimi (Out)",
+    "desc": "Një objektiv ditor për departament; në ⅓, ⅔ dhe 3/3 të tij hapet një bonus në €. Fondi i hapur ndahet sipas vlerës që ka bërë secili agjent. Bonusi përfundimtar mujor zvogëlohet sipas kthimeve.",
+    "saved": "U ruajt",
+    "current": "Në fuqi nga {{date}}: objektivi {{target}} · {{m1}} / {{m2}} / {{m3}}",
+    "none": "Nuk ka objektiv — bonusi nuk shfaqet.",
+    "upcoming": "Nga {{date}}: objektivi {{target}} · {{m1}} / {{m2}} / {{m3}}",
+    "validFrom": "Vlen nga",
+    "target": "Objektivi ditor (den)",
+    "note": "Shënim",
+    "m1": "Bonus në ⅓ (€)",
+    "m2": "Bonus në ⅔ (€)",
+    "m3": "Bonus në 3/3 (€)",
+    "at": "në {{value}}",
+    "save": "Ruaj",
+    "history": "Historia e objektivave",
+    "rules": {
+      "title": "Zbritja sipas kthimeve",
+      "desc": "Muaji mbyllet pas numrit të dhënë të ditëve. Bonusi përfundimtar = bonuset ditore × (1 − zbritja sipas % së kthimeve të agjentit atë muaj).",
+      "settleDays": "Ditë pritjeje pas fundit të muajit",
+      "minPct": "Kthime nga (%)",
+      "cutPct": "Zbritja (%)",
+      "remove": "Hiq pragun",
+      "add": "Shto prag"
+    },
+    "month": {
+      "title": "Bonuset mujore sipas agjentit",
+      "settled": "U mbyll më {{date}} — përfundimtar.",
+      "provisional": "I përkohshëm — mbyllet më {{date}}.",
+      "settleNow": "Mbylle tani",
+      "settledToast": "Muaji u mbyll",
+      "empty": "Nuk ka bonuse këtë muaj.",
+      "total": "Gjithsej përfundimtare {{final}} (ditore {{days}})",
+      "row": "ditore {{days}} · kthime {{ret}} · −{{cut}}% →"
     }
   }
 }

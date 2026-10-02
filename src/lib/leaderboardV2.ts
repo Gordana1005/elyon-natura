@@ -12,6 +12,7 @@
 // Money: every amount is ALREADY денари (*_mkd) — render with formatDenari,
 // never formatMoney (that would multiply by the peg a second time).
 import { eurToDen } from '@/lib/currency';
+import type { BoardBonus } from '@/lib/bonusApi';
 import { TEAM_FILTER_RE } from '@/lib/teamLines';
 
 const API_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api`;
@@ -21,9 +22,9 @@ const API_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api`;
 export const DEPARTMENTS = ['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web', 'management'] as const;
 export type Department = typeof DEPARTMENTS[number];
 export const isDepartment = (v: unknown): v is Department => (DEPARTMENTS as readonly string[]).includes(String(v));
-/** The department BUTTONS of the board: the six. Менаџмент has none — the owner shows it only under
- *  the Менаџмент TEAM filter (tvBoard.team.management), where its rows carry the Менаџмент chip. */
-export const FILTER_DEPARTMENTS = ['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web'] as const satisfies readonly Department[];
+/** The department BUTTONS of the board: all seven. Менаџмент is the last button (owner 02.10.2026: the team filter bar
+ *  was removed as confusing — "само збунувачки е"); its rows show only when it is chosen. */
+export const FILTER_DEPARTMENTS = ['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web', 'management'] as const satisfies readonly Department[];
 export type FilterDepartment = typeof FILTER_DEPARTMENTS[number];
 export const isFilterDepartment = (v: unknown): v is FilterDepartment => (FILTER_DEPARTMENTS as readonly string[]).includes(String(v));
 /** The i18n key of a department under leaderboard2.dept / deptShort: a key
@@ -127,6 +128,8 @@ export interface BoardV2 {
   legacy?: boolean;
   /** The web shop's day (only with department=web; null = the api could not read it; absent = old api). */
   web_live?: WebLive | null;
+  /** The prediction (Out) bonus of the day (bonus_prediction_day, 20260947001100); null = no target set; absent = old api. */
+  bonus?: BoardBonus | null;
 }
 
 /** The TV board's web view (leaderboard_web_live, 20260942001940): the shop itself, it has no agents. */
@@ -349,7 +352,7 @@ export const avgSaleMkd = (row: Pick<BoardRow, 'total_count' | 'total_value_mkd'
  *  lane in ("Affiliate лидови"), crm_prediction as the old team + lane out on every line
  *  ("предикција"), so an old link shows the same people before and after the re-key.
  *  ?dept= / ?department= and ?team= win; ?team= takes 'team:lane' too. A department is one of the
- *  six buttons — ?dept=management opens the board unfiltered (Менаџмент lives under its team). */
+ *  seven buttons (Менаџмент included, 02.10.2026); an old ?team= link still filters, with no team bar on screen. */
 export const LEGACY_MODE_TEAM: Record<string, string> = { prediction: 'crm_prediction', pending: 'altercpa_leads' };
 export function initialFilter(params: URLSearchParams): BoardFilter {
   const dRaw = params.get('dept') ?? params.get('department');

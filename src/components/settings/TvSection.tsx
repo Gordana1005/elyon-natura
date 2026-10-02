@@ -14,13 +14,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { SUPPORTED_LANGUAGES } from '@/i18n';
 import { formatDayDmy } from '@/i18n/dates';
-import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/contexts/PermissionsContext';
 import { FILTER_DEPARTMENTS, deptKey } from '@/lib/leaderboardV2';
-import { isLegacyTeam, teamSortOrder } from '@/lib/teamLines';
-import { teamLabel } from '@/components/tvboard/tvBoardHelpers';
-import { apiGetLeaderboardAdmin, apiGetSalesTeams, apiManageLeaderboardToken, type LeaderboardAccessToken } from '@/lib/api';
+import { apiGetLeaderboardAdmin, apiManageLeaderboardToken, type LeaderboardAccessToken } from '@/lib/api';
 import { ConfirmDialog, SectionHeader, SettingsCard, settingsErrorText } from './settingsUi';
+import { BonusSection } from './BonusSection';
 
 /** The TV URL for a token + a view. `dept` / `team` are what TvLeaderboardPage's initialFilter reads. */
 export function tvUrl(origin: string, token: string, view: { dept?: string; team?: string }, lang: string): string {
@@ -38,13 +36,10 @@ export function TvSection() {
   const { t, i18n } = useTranslation();
   const { toast } = useToast();
   const qc = useQueryClient();
-  const { user } = useAuth();
   const { canSeeBusiness } = usePermissions();
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   // Same cache key as Insights → Агенти (TeamsBoard), so both see one token list.
   const cfgQ = useQuery({ queryKey: ['lb-admin', 'prediction'], queryFn: () => apiGetLeaderboardAdmin('prediction') });
-  // The team list (owners only on the api; an admin is always an owner).
-  const teamsQ = useQuery({ queryKey: ['sales-teams'], queryFn: apiGetSalesTeams, enabled: canSeeBusiness || !!user?.isAdmin, retry: 0 });
   const [lang, setLang] = useState<string>(LANGS.includes(i18n.language as never) ? i18n.language : 'mk');
   const [tokenId, setTokenId] = useState<string | null>(null);
   const [busy, setBusy] = useState<'create' | 'rotate' | 'revoke' | null>(null);
@@ -52,20 +47,8 @@ export function TvSection() {
 
   const active = useMemo(() => (cfgQ.data?.tokens ?? []).filter((tok) => tok.is_active), [cfgQ.data]);
   const token = active.find((tok) => tok.id === tokenId) ?? active[0] ?? null;
-  // The business lines: one link per team (Тим Центар, Тим Маџари — owner 02.10.2026). No link per lane any more: since
-  // the seller's team decides the department (20260947000400) a lane link ("Тим Центар In") would only repeat the
-  // department link of the same name; an old ?team=team:lane TV link still works. Legacy keys and Менаџмент (never
-  // ranked) get no link.
-  const teams = useMemo(
-    () => (teamsQ.data?.teams ?? [])
-      .filter((tm) => tm.key !== 'management' && tm.kind !== 'management' && !isLegacyTeam(tm.key) && tm.kind !== 'legacy')
-      .sort((a, b) => teamSortOrder(a.key, a.sort_order) - teamSortOrder(b.key, b.sort_order)),
-    [teamsQ.data],
-  );
-  const teamViews = useMemo(
-    () => teams.map((tm) => ({ key: `t:${tm.key}`, label: teamLabel(t, tm.key, tm.name), view: { team: tm.key } })),
-    [teams, t],
-  );
+  // No team links any more (owner 02.10.2026): the board lost its team bar ("само збунувачки е") — one link for the
+  // whole company and one per department, Менаџмент included; an old ?team= TV link still works.
 
   const act = async (kind: 'create' | 'rotate' | 'revoke', body: Parameters<typeof apiManageLeaderboardToken>[0]) => {
     setBusy(kind);
@@ -94,7 +77,6 @@ export function TvSection() {
   const rows: { key: string; label: string; view: { dept?: string; team?: string } }[] = [
     { key: 'all', label: t('settingsPage.tv.all'), view: {} },
     ...FILTER_DEPARTMENTS.map((d) => ({ key: `d:${d}`, label: t(`leaderboard2.dept.${deptKey(d)}`), view: { dept: d } })),
-    ...teamViews,
   ];
 
   return (
@@ -195,7 +177,8 @@ export function TvSection() {
         </SettingsCard>
       )}
 
-      <p className="text-[11px] text-muted-foreground">{t('settingsPage.tv.bonusDeferred')}</p>
+      {/* The prediction (Out) bonuses: targets, the return cut, the month (owners — 02.10.2026) */}
+      {canSeeBusiness && <BonusSection />}
 
       <ConfirmDialog
         open={!!confirm}

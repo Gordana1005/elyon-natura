@@ -9,9 +9,9 @@ import { isLegacyTeam, splitTeamFilter, teamLaneLabel } from '@/lib/teamLines';
 /** The board's columns (owner 02.10.2026: "колку е вкупен број на продажби, просек на продажба и време во ЦРМ" — and the
  *  total value with them): rank · person · sales · value · average sale · time on the CRM; without money (non-owners)
  *  neither money column. */
-export const tvGrid = (money: boolean) => (money
-  ? 'grid-cols-[5%_35%_10%_15%_16%_19%]'
-  : 'grid-cols-[5%_57%_15%_23%]');
+export const tvGrid = (money: boolean, bonus = false) => (money
+  ? (bonus ? 'grid-cols-[4%_30%_9%_14%_14%_11%_18%]' : 'grid-cols-[5%_35%_10%_15%_16%_19%]')
+  : (bonus ? 'grid-cols-[5%_47%_13%_13%_22%]' : 'grid-cols-[5%_57%_15%_23%]'));
 
 /** One tone per department — the same order and meaning everywhere on the board. */
 export const DEPT_TONE: Record<Department, string> = {

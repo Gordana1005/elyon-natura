@@ -5,12 +5,17 @@ import { useTranslation } from 'react-i18next';
 import { formatDenari } from '@/lib/currency';
 import { avgSaleMkd, type BoardRow } from '@/lib/leaderboardV2';
 import { PresenceDot } from './TvBoardParts';
+import { formatEurExact } from '@/lib/currency';
 import { RANK_ACCENT, fmtDur, hhmm, initials, teamLabel, tvGrid } from './tvBoardHelpers';
 
 export function TvBoardRow({
-  row, idx, money, rowVh, fontVh, isToday, now, glow,
+  row, idx, money, rowVh, fontVh, isToday, now, glow, showBonus = false, bonusEur = null,
 }: {
   row: BoardRow;
+  /** the bonus column is on (a prediction target is set for this view) */
+  showBonus?: boolean;
+  /** the seller's € of the day (bonus_prediction_day), null = none */
+  bonusEur?: number | null;
   idx: number;
   money: boolean;
   rowVh: number;
@@ -55,7 +60,7 @@ export function TvBoardRow({
 
   return (
     <div data-testid="tv-row"
-      className={`grid ${tvGrid(money)} items-center border-t border-white/5 px-[1.6vw] ${idx % 2 ? 'bg-white/[0.015]' : ''} ${sold ? '' : quiet ? 'opacity-40' : 'opacity-60'}`}
+      className={`grid ${tvGrid(money, showBonus)} items-center border-t border-white/5 px-[1.6vw] ${idx % 2 ? 'bg-white/[0.015]' : ''} ${sold ? '' : quiet ? 'opacity-40' : 'opacity-60'}`}
       style={{ minHeight: `${rowVh}vh`, fontSize: `${fontVh}vh`, ...(glow ? { animation: 'tv-glow 1.4s ease-in-out 2' } : {}) }}>
       {/* Rank — non-managers with a total */}
       <div>
@@ -99,6 +104,12 @@ export function TvBoardRow({
       {money && (
         <div className="text-right font-semibold tabular-nums text-slate-200" data-testid="tv-avg">
           {avg != null ? formatDenari(avg) : '—'}
+        </div>
+      )}
+      {/* Bonus € of the day (everyone sees it — owner 02.10.2026) */}
+      {showBonus && (
+        <div className={`text-right font-semibold tabular-nums ${bonusEur ? 'text-amber-200' : 'text-slate-600'}`} data-testid="tv-bonus-eur">
+          {bonusEur ? formatEurExact(bonusEur) : '—'}
         </div>
       )}
       {/* Time on the CRM / last decision */}

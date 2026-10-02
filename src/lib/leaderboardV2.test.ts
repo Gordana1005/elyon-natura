@@ -39,7 +39,7 @@ describe('deptChips / bookedChips', () => {
     expect(deptChips(r, 'elyon_crm')).toEqual([{ dept: 'elyon_crm', sales: 3, value_mkd: 9000 }]);
     expect(bookedChips(r, 'elyon_crm')).toEqual([]);
   });
-  it('Менаџмент (02.10.2026): a row’s management cell is a chip of its own, last — never a button', () => {
+  it('Менаџмент (02.10.2026): a row’s management cell is a chip of its own, last — and the last filter button', () => {
     const m = row({
       is_manager: true,
       departments: { management: cell({ sales: 2, value_mkd: 5000, booked: 1, booked_value_mkd: 1800 }), altercpa: cell({ sales: 1, value_mkd: 2400 }) },
@@ -51,8 +51,8 @@ describe('deptChips / bookedChips', () => {
     expect(bookedChips(m)).toEqual([{ dept: 'management', booked: 1, value_mkd: 1800 }]);
     expect(isDepartment('management')).toBe(true);
     expect(DEPARTMENTS.at(-1)).toBe('management');
-    expect(FILTER_DEPARTMENTS).toEqual(['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web']);
-    expect(isFilterDepartment('management')).toBe(false);
+    expect(FILTER_DEPARTMENTS).toEqual(['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web', 'management']);
+    expect(isFilterDepartment('management')).toBe(true);
   });
 });
 
@@ -113,9 +113,9 @@ describe('initialFilter', () => {
     expect(f('mode=pending&dept=web')).toEqual({ department: 'web', team: null });
     expect(f('dept=teleshop&team=Bad Team')).toEqual({ department: null, team: null });
   });
-  it('?dept=management is no department button: the board opens unfiltered (Менаџмент lives under its team)', () => {
-    expect(f('dept=management')).toEqual({ department: null, team: null });
-    expect(f('dept=management&team=management')).toEqual({ department: null, team: 'management' });
+  it('?dept=management opens the Менаџмент button (the team bar is gone since 02.10.2026)', () => {
+    expect(f('dept=management')).toEqual({ department: 'management', team: null });
+    expect(f('dept=management&team=management')).toEqual({ department: 'management', team: 'management' });
   });
 });
 

@@ -207,4 +207,19 @@ UPDATE public.orders o SET dept_override = d.want
  WHERE o.id = d.id AND d.cur_ovr IS DISTINCT FROM d.want
    AND o.dept_override IS NOT DISTINCT FROM d.cur_ovr;
 
+-- ── 5. the profit cache: 6 → 7 — closed months are merged again with the seller-team departments (0400 / 0900) and
+--     the Менаџмент split; a cached month of the old version is never reused ─────────────────────────────────────────
+DO $v$
+BEGIN
+  IF (SELECT public.insights_profit_cache_version()) <> 6 THEN
+    RAISE EXCEPTION 'management department: insights_profit_cache_version is not 6 any more';
+  END IF;
+END
+$v$;
+CREATE OR REPLACE FUNCTION public.insights_profit_cache_version()
+ RETURNS integer
+ LANGUAGE sql
+ IMMUTABLE
+AS $function$ SELECT 7 $function$;
+
 COMMIT;

@@ -141,17 +141,16 @@ describe('Поставки — list → detail (a phone shows one at a time)', {
     expect(await screen.findByRole('heading', { name: t('settingsPage.tv.title') })).toBeInTheDocument();
   });
 
-  it('ТВ табла: a link per department and per business line (no lane links since 02.10) — no legacy or management link', async () => {
+  it('ТВ табла: one link for all and one per department, Менаџмент included — no team links since 02.10', async () => {
     renderAt('/settings/tv');
     const links = await screen.findByRole('list', { name: t('settingsPage.tv.linksTitle') });
     const open = (label: string) => within(links).getByRole('link', { name: `${t('settingsPage.tv.open')} · ${label}` }).getAttribute('href') ?? '';
     const lbl = (k: string) => t(k);
     expect(open(t('settingsPage.tv.all'))).toMatch(/\/tv\/leaderboard\?key=tok123&lang=mk$/);
     expect(open(t('leaderboard2.dept.teleshopOther'))).toContain('dept=teleshop_other');
-    expect(open(lbl('tvBoard.team.teleshop'))).toContain('team=teleshop');
-    expect(open(lbl('tvBoard.team.affiliate'))).toContain('team=affiliate');
-    expect(within(links).queryAllByRole('link').some((a) => /team=[a-z]+%3A/.test(a.getAttribute('href') ?? ''))).toBe(false);
-    expect(within(links).queryByText(/ElyonCRM|стар тим|Менаџмент|Management/)).toBeNull();
+    expect(open(lbl('leaderboard2.dept.management'))).toContain('dept=management');
+    expect(within(links).queryAllByRole('link').some((a) => /[?&]team=/.test(a.getAttribute('href') ?? ''))).toBe(false);
+    expect(within(links).queryByText(/ElyonCRM|стар тим/)).toBeNull();
     // rotate asks first
     fireEvent.click(screen.getByRole('button', { name: new RegExp(t('settingsPage.tv.rotate')) }));
     expect(await screen.findByRole('alertdialog')).toBeInTheDocument();

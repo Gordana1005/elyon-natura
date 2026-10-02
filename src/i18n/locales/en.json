@@ -7636,7 +7636,13 @@
     "noPeople": "Nobody worked in this view that day.",
     "legacyApi": "The server still runs the old board — only its own department is shown until the new version is deployed.",
     "prevDay": "Previous day",
-    "nextDay": "Next day"
+    "nextDay": "Next day",
+    "bonus": {
+      "pool": "Pool {{eur}}",
+      "progress": "{{value}} of {{target}}",
+      "col": "Bonus",
+      "mine": "Bonus today {{eur}}"
+    }
   },
   "altercpa": {
     "tabMirror": "Mirror",
@@ -9798,6 +9804,42 @@
     "form": {
       "cost": "Purchase cost (Sigma)",
       "costHint": "Computed from the recipe and the Sigma prices — never typed in."
+    }
+  },
+  "bonus": {
+    "title": "Bonuses — prediction (Out)",
+    "desc": "A daily target per department; at ⅓, ⅔ and 3/3 of it a € bonus unlocks. The unlocked pool is shared by the value each agent made. The final monthly bonus is cut by returns.",
+    "saved": "Saved",
+    "current": "In force from {{date}}: target {{target}} · {{m1}} / {{m2}} / {{m3}}",
+    "none": "No target set — no bonus is shown.",
+    "upcoming": "From {{date}}: target {{target}} · {{m1}} / {{m2}} / {{m3}}",
+    "validFrom": "Valid from",
+    "target": "Daily target (MKD)",
+    "note": "Note",
+    "m1": "Bonus at ⅓ (€)",
+    "m2": "Bonus at ⅔ (€)",
+    "m3": "Bonus at 3/3 (€)",
+    "at": "at {{value}}",
+    "save": "Save",
+    "history": "Target history",
+    "rules": {
+      "title": "Cut by returns",
+      "desc": "The month is settled after the given number of days. Final bonus = the daily bonuses × (1 − the cut for the agent's return % that month).",
+      "settleDays": "Days to wait after the month ends",
+      "minPct": "Returns from (%)",
+      "cutPct": "Cut (%)",
+      "remove": "Remove tier",
+      "add": "Add tier"
+    },
+    "month": {
+      "title": "Monthly bonuses per agent",
+      "settled": "Settled on {{date}} — final.",
+      "provisional": "Provisional — settles on {{date}}.",
+      "settleNow": "Settle now",
+      "settledToast": "The month is settled",
+      "empty": "No bonuses this month.",
+      "total": "Final total {{final}} (daily {{days}})",
+      "row": "daily {{days}} · returns {{ret}} · −{{cut}}% →"
     }
   }
 }

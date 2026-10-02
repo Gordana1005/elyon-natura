@@ -33,6 +33,8 @@ import {
 } from '@/lib/leaderboardV2';
 import { Confetti, StatCard } from '@/components/tvboard/TvBoardParts';
 import { TvBoardFilters } from '@/components/tvboard/TvBoardFilters';
+import { TvBonusStrip } from '@/components/tvboard/TvBonusStrip';
+import { bonusDepartmentsFor, bonusForPerson } from '@/lib/bonusApi';
 import { tvGrid, filterTeamLabel } from '@/components/tvboard/tvBoardHelpers';
 import { splitTeamFilter } from '@/lib/teamLines';
 import { TvBoardRow } from '@/components/tvboard/TvBoardRow';
@@ -227,8 +229,12 @@ export default function TvLeaderboardPage() {
   const { people, managers: allManagers } = useMemo(() => splitManagers(rows), [rows]);
   // Менаџмент is shown ONLY when the Менаџмент team is chosen (owner 02.10.2026: "менаџментот се покажува само доколку
   // влеземе во менаџмент, не се покажува на други места"); their sales still count in the KPI totals.
-  const showManagers = splitTeamFilter(filter.team).team === 'management';
+  const showManagers = filter.department === 'management' || splitTeamFilter(filter.team).team === 'management';
   const managers = showManagers ? allManagers : [];
+  // the prediction (Out) bonus (20260947001100): the strip and the € column show where a target is set for the view
+  const bonusDeps = bonusDepartmentsFor(data?.bonus, filter.department);
+  const showBonus = bonusDeps.length > 0;
+  const bonusOf = (personId: string) => bonusForPerson(data?.bonus, personId)?.bonus_eur ?? null;
   const s = data?.summary ?? {};
   const money = data?.money !== false;
   const dept = data?.legacy ? data.filter.department : filter.department;
@@ -349,6 +355,9 @@ export default function TvLeaderboardPage() {
       </div>
       )}
 
+      {/* The prediction (Out) bonus of the day */}
+      {!webView && <TvBonusStrip bonus={data?.bonus} department={filter.department} />}
+
       {/* States */}
       {loading && <div className="mt-10 text-center text-base text-slate-400 lg:mt-[18vh] lg:text-[2.6vh]">{t('common.loading')}</div>}
       {!loading && error && (
@@ -364,7 +373,7 @@ export default function TvLeaderboardPage() {
       {!loading && !error && !webView && people.length + managers.length > 0 && compact && (
         <div className="flex flex-col gap-2 pb-2">
           {people.map((r) => (
-            <TvBoardCard key={r.person_id} row={r} money={money} isToday={isToday} now={now}
+            <TvBoardCard key={r.person_id} row={r} money={money} isToday={isToday} now={now} bonusEur={bonusOf(r.person_id)}
               glow={!!r.user_id && isToday && celebrate?.agentId === r.user_id} />
           ))}
           {managers.length > 0 && (
@@ -373,7 +382,7 @@ export default function TvLeaderboardPage() {
                 {t('leaderboard2.managersHeading')}
               </div>
               {managers.map((r) => (
-                <TvBoardCard key={r.person_id} row={r} money={money} isToday={isToday} now={now}
+                <TvBoardCard key={r.person_id} row={r} money={money} isToday={isToday} now={now} bonusEur={bonusOf(r.person_id)}
                   glow={!!r.user_id && isToday && celebrate?.agentId === r.user_id} />
               ))}
             </>
@@ -384,17 +393,19 @@ export default function TvLeaderboardPage() {
       {/* Wall screen: the table */}
       {!loading && !error && !webView && people.length + managers.length > 0 && !compact && (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
-          <div data-testid="tv-head" className={`grid ${tvGrid(money)} shrink-0 items-center px-[1.6vw] py-[1.1vh] text-[1.4vh] font-semibold uppercase tracking-[0.1em] text-slate-400`}>
+          <div data-testid="tv-head" className={`grid ${tvGrid(money, showBonus)} shrink-0 items-center px-[1.6vw] py-[1.1vh] text-[1.4vh] font-semibold uppercase tracking-[0.1em] text-slate-400`}>
             <div>#</div>
             <div>{t('tvBoard.colAgent')}</div>
             <div className="text-right">{t('leaderboard2.colSales')}</div>
             {money && <div className="text-right">{t('leaderboard2.kpiValue')}</div>}
             {money && <div className="text-right">{t('leaderboard2.colAvg')}</div>}
+            {showBonus && <div className="text-right">{t('leaderboard2.bonus.col')}</div>}
             <div className="pl-[1.2vw]">{t('tvBoard.colTime')}</div>
           </div>
           <div ref={scrollRef} className="min-h-0 flex-1 overflow-hidden">
             {people.map((r, idx) => (
               <TvBoardRow key={r.person_id} row={r} idx={idx} money={money} rowVh={rowVh} fontVh={fontVh}
+                showBonus={showBonus} bonusEur={bonusOf(r.person_id)}
                 isToday={isToday} now={now} glow={!!r.user_id && isToday && celebrate?.agentId === r.user_id} />
             ))}
             {managers.length > 0 && (
@@ -404,6 +415,7 @@ export default function TvLeaderboardPage() {
                 </div>
                 {managers.map((r, idx) => (
                   <TvBoardRow key={r.person_id} row={r} idx={idx} money={money} rowVh={rowVh} fontVh={fontVh}
+                showBonus={showBonus} bonusEur={bonusOf(r.person_id)}
                     isToday={isToday} now={now} glow={!!r.user_id && isToday && celebrate?.agentId === r.user_id} />
                 ))}
               </>

@@ -112,16 +112,18 @@ describe('TV leaderboard v2', () => {
     expect(url.searchParams.get('department')).toBeNull();
   });
 
-  it('the filter bar asks for a department; an old ?mode= URL opens its team', async () => {
+  it('the filter bar is the departments only (Менаџмент last); an old ?mode= URL still opens its team until a button is pressed', async () => {
     const fetchMock = serve(v2);
     renderAt('/tv/leaderboard?key=k&mode=pending');
     await screen.findByText('Aleksandra Hristoska');
     expect(new URL(String((fetchMock.mock.calls[0] as unknown[])[0])).searchParams.get('team')).toBe('altercpa_leads');
+    expect(screen.queryByRole('group', { name: i18n.t('leaderboard2.filterTeams') })).toBeNull();   // no team bar
+    expect(screen.getByRole('button', { name: i18n.t('leaderboard2.deptShort.management') })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: i18n.t('leaderboard2.deptShort.teleshopOther') }));
     await vi.waitFor(() => {
       const last = new URL(String((fetchMock.mock.calls.at(-1) as unknown[])[0]));
       expect(last.searchParams.get('department')).toBe('teleshop_other');
-      expect(last.searchParams.get('team')).toBe('altercpa_leads');
+      expect(last.searchParams.get('team')).toBeNull();
     });
   });
 
