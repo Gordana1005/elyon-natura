@@ -50,3 +50,29 @@ describe("bonus — the board's part", () => {
     expect(b?.departments[0].people[0]).toMatchObject({ person_id: "p1", share: 0.5, bonus_eur: 25 });
   });
 });
+
+import { cutFor, parseBonusRulesBody, parseMonthParam } from "./bonus.ts";
+
+describe("bonus — the month rules", () => {
+  it("validates the settle days and the tiers, sorted by min %", () => {
+    expect(parseBonusRulesBody({ settle_after_days: 3, return_tiers: [{ min_pct: 20, cut_pct: 33 }, { min_pct: "15", cut_pct: 20 }] }))
+      .toEqual({ ok: true, value: { settle_after_days: 3, return_tiers: [{ min_pct: 15, cut_pct: 20 }, { min_pct: 20, cut_pct: 33 }] } });
+    expect(parseBonusRulesBody({ settle_after_days: 40, return_tiers: [] })).toEqual({ ok: false, error: "bad_settle_days" });
+    expect(parseBonusRulesBody({ settle_after_days: 3, return_tiers: [{ min_pct: 15, cut_pct: 120 }] })).toEqual({ ok: false, error: "bad_tiers" });
+    expect(parseBonusRulesBody({ settle_after_days: 3, return_tiers: [{ min_pct: 15, cut_pct: 1 }, { min_pct: 15, cut_pct: 2 }] }))
+      .toEqual({ ok: false, error: "bad_tiers" });
+  });
+  it("the owner's example: 15 → 20 %, 18 → 25 %, 20 → 33 %", () => {
+    const tiers = [{ min_pct: 15, cut_pct: 20 }, { min_pct: 18, cut_pct: 25 }, { min_pct: 20, cut_pct: 33 }];
+    expect(cutFor(14.9, tiers)).toBe(0);
+    expect(cutFor(15, tiers)).toBe(20);
+    expect(cutFor(18.4, tiers)).toBe(25);
+    expect(cutFor(23, tiers)).toBe(33);
+    expect(cutFor(null, tiers)).toBe(0);
+  });
+  it("?month=YYYY-MM", () => {
+    expect(parseMonthParam("2026-09")).toBe("2026-09-01");
+    expect(parseMonthParam("2026-13")).toBeNull();
+    expect(parseMonthParam(null)).toBeNull();
+  });
+});

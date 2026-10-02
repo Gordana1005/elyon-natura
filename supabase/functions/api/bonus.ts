@@ -150,3 +150,43 @@ export function shapeBoardBonus(rpc: unknown): BoardBonus | null {
     }),
   };
 }
+
+// ── the month and the return cut (20260947001200) ───────────────────────────
+
+export interface BonusRules { settle_after_days: number; return_tiers: { min_pct: number; cut_pct: number }[] }
+
+/** PUT /settings/bonus/rules body → the rules, or an error code (the SQL writer re-checks). */
+export function parseBonusRulesBody(body: unknown): { ok: true; value: BonusRules } | { ok: false; error: string } {
+  if (!body || typeof body !== "object") return { ok: false, error: "invalid_body" };
+  const b = body as Record<string, unknown>;
+  const days = num(b.settle_after_days);
+  if (days == null || !Number.isInteger(days) || days < 0 || days > 31) return { ok: false, error: "bad_settle_days" };
+  if (!Array.isArray(b.return_tiers) || b.return_tiers.length > 20) return { ok: false, error: "bad_tiers" };
+  const tiers: { min_pct: number; cut_pct: number }[] = [];
+  for (const t of b.return_tiers) {
+    const x = (t ?? {}) as Record<string, unknown>;
+    const min = num(x.min_pct);
+    const cut = num(x.cut_pct);
+    if (min == null || cut == null || min < 0 || min > 100 || cut < 0 || cut > 100) return { ok: false, error: "bad_tiers" };
+    tiers.push({ min_pct: Math.round(min * 10) / 10, cut_pct: Math.round(cut * 10) / 10 });
+  }
+  tiers.sort((a, b) => a.min_pct - b.min_pct);
+  for (let i = 1; i < tiers.length; i++) if (tiers[i].min_pct === tiers[i - 1].min_pct) return { ok: false, error: "bad_tiers" };
+  return { ok: true, value: { settle_after_days: days, return_tiers: tiers } };
+}
+
+/** ?month=YYYY-MM → the month's first day (YYYY-MM-01), else null. */
+export function parseMonthParam(raw: string | null | undefined): string | null {
+  const m = /^(\d{4})-(\d{2})$/.exec(String(raw ?? ""));
+  if (!m) return null;
+  const mo = Number(m[2]);
+  return mo >= 1 && mo <= 12 ? `${m[1]}-${m[2]}-01` : null;
+}
+
+/** The cut a return % falls into (the highest tier whose min_pct ≤ return %) — the SQL's twin, for the UI preview. */
+export function cutFor(returnPct: number | null, tiers: readonly { min_pct: number; cut_pct: number }[]): number {
+  if (returnPct == null) return 0;
+  let cut = 0;
+  for (const t of tiers) if (returnPct >= t.min_pct) cut = Math.max(cut, t.cut_pct);
+  return cut;
+}

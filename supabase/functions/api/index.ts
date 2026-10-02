@@ -14818,7 +14818,49 @@ async function handleRequest(req: Request): Promise<Response> {
         .select("id, department, valid_from, daily_target_mkd, m1_eur, m2_eur, m3_eur, note, created_at")
         .order("valid_from", { ascending: false }).limit(500);
       if (error) return json({ error: sanitizeDbError(error) }, 400);
-      return json(BONUS.shapeBonusTargets((data || []) as BONUS.BonusTargetRow[], skopjeDayRange("").today));
+      const { data: rules } = await adminClient.from("app_settings").select("value").eq("key", "bonus_rules").maybeSingle();
+      return json({
+        ...BONUS.shapeBonusTargets((data || []) as BONUS.BonusTargetRow[], skopjeDayRange("").today),
+        rules: (rules as any)?.value ?? null,
+      });
+    }
+
+    // PUT /api/settings/bonus/rules { settle_after_days, return_tiers [{min_pct, cut_pct}] } — the month's return cut
+    // (owners; bonus_rules_set re-checks and audits; 20260947001200).
+    if (req.method === "PUT" && path === "settings/bonus/rules") {
+      if (!(await isBusinessOwner(user.id))) return json({ error: "owners_only" }, 403);
+      let raw: unknown;
+      try { raw = await req.json(); } catch { return json({ error: "invalid_body" }, 400); }
+      const b = BONUS.parseBonusRulesBody(raw);
+      if (!b.ok) return json({ error: b.error }, 400);
+      const { data, error } = await adminClient.rpc("bonus_rules_set", { p_actor: user.id, p_rules: b.value });
+      if (error) {
+        const code = /owners_only/.test(error.message) ? 403 : 400;
+        return json({ error: /owners_only|bad_settle_days|bad_tiers/.exec(error.message)?.[0] ?? sanitizeDbError(error) }, code);
+      }
+      return json({ ok: true, rules: data });
+    }
+
+    // GET /api/settings/bonus/month?month=YYYY-MM — a month's prediction bonus per seller: Σ daily shares, return %,
+    // cut, final € (provisional until settled; owners).
+    if (req.method === "GET" && path === "settings/bonus/month") {
+      if (!(await isBusinessOwner(user.id))) return json({ error: "owners_only" }, 403);
+      const month = BONUS.parseMonthParam(url.searchParams.get("month")) ?? `${skopjeDayRange("").today.slice(0, 7)}-01`;
+      const { data, error } = await adminClient.rpc("bonus_month", { p_month: month });
+      if (error) return json({ error: sanitizeDbError(error) }, 400);
+      return json(data ?? { month, people: [] });
+    }
+
+    // POST /api/settings/bonus/settle { month: "YYYY-MM" } — an owner freezes a month now (before settle_after_days).
+    if (req.method === "POST" && path === "settings/bonus/settle") {
+      if (!(await isBusinessOwner(user.id))) return json({ error: "owners_only" }, 403);
+      let raw: any;
+      try { raw = await req.json(); } catch { return json({ error: "invalid_body" }, 400); }
+      const month = BONUS.parseMonthParam(raw?.month);
+      if (!month) return json({ error: "bad_month" }, 400);
+      const { data, error } = await adminClient.rpc("bonus_month_settle", { p_month: month, p_actor: user.id, p_force: true });
+      if (error) return json({ error: sanitizeDbError(error) }, 400);
+      return json(data);
     }
 
     // PUT /api/settings/bonus { department, valid_from, target_mkd, m1_eur, m2_eur, m3_eur, note? } — a new version
