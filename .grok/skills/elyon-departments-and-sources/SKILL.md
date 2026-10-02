@@ -271,7 +271,15 @@ lead(pending) тогаш е дефинитивно affiliate lead in тимот,
   Телешоп – Lead in → Lead out, 27 Lead out → Социјални. Set-based (a per-row decide over 360k orders
   exceeds the statement timeout) — `verify-teams.mjs` T3 re-checks the stored value against
   `order_dept_by_team` for every real sale of 60 days.
-- **Never:** let a team decide a LEAD; let Менаџмент decide a department; change `sale_source` /
+- **From 01.01.2026** (`20260947000900`, owner 02.10 evening): every active person's earliest membership starts
+  01.01.2026; Slobodanka Petrova = teleshop:out 01.01–31.05 + affiliate:in from 01.06 (her own folders); former staff
+  by their own folders (Марија Бошковска affiliate:out, Симона Саздовска teleshop:out — not primary). 3.180 orders moved,
+  `dept_history_backfill` run_tag `team_history_2026`.
+- **Менаџмент = the 7th category** (`20260947001000`): `sales_person_team_at` (line OR management) → `order_dept_by_team`
+  → `management` for a Менаџмент seller's non-lead sale; the CHECK, insights_cohort / overview / sales / returns / stock /
+  people (`src_management`, by_source.management), leaderboard_day_v2, assigner_dept_key list it 7th (re-emitted by
+  counted exact edits). Σ by_source = total (Sept: 8.703 incl. management 196). Run_tag `management_dept` (2.787 moved).
+- **Never:** let a team decide a LEAD; fold Менаџмент into a line department; change `sale_source` /
   detail for this (they stay the raw record); bring back the crm_prediction-team rule of `…1800`.
 
 ### 3c. The booking decides before the parcel + the 2-day collabBox rule (owner, 02.10.2026)

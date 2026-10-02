@@ -158,7 +158,11 @@ target **explicitly** and verify it before running:
   → the folder + MEX-profile rules below. Stored in `orders.dept_override` by `order_dept_decide` (team → a CRM sale's
   MEX profile → its own booking → NULL = the mapping; stored only where it changes the department), kept by
   `zzz_orders_dept_override`, `tg_sales_team_members_dept` (a team change re-decides the person's orders) and the
-  15-minute `crm-sale-booking-dept` pass; a BOOKING follows its author's team in `insights_sale_rows` /
+  15-minute `crm-sale-booking-dept` pass; **since 02.10 evening the team decides from 01.01.2026** (`20260947000900`:
+  memberships dated back, Slobodanka Petrova Тим Центар Out to 31.05 by her own folders, former staff placed by theirs)
+  and **Менаџмент is its own, 7th category** (`20260947001000`, key `management`: a Менаџмент seller's non-lead sale is
+  never Тим Центар / Тим Маџари; counted in every total, shown apart; on the TV board only under its own team filter;
+  a lead stays Тим Маџари In); a BOOKING follows its author's team in `insights_sale_rows` /
   `leaderboard_day_v2`. 3.130 orders moved (Sept: 760 Affiliate – Lead out → Телешоп – Lead out, 2,11 М ден), each in
   `dept_by_team_backfill` (old → new). The raw `sale_source` / detail (folder, list, intake) never change. Proof:
   `node scripts/verify-teams.mjs` T3.
