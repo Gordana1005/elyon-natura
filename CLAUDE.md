@@ -146,9 +146,25 @@ target **explicitly** and verify it before running:
   `supabase/functions/api/overview.ts`); owner-only surfaces (Settings → Teams / Integrations,
   `/insights/pivot`, `/management-insights` beyond `?scope=calls`, the presence day sheet) answer
   `403 owners_only`.
-- **Sale sources are the SIX DEPARTMENTS (owner law, 28–29.09.2026, whole history)** — decided by
-  the collabBox FOLDER (document type) and the MEX profile; **never** by the system an order was made
-  in, never by the seller's team ("no need to mention Elyon-CRM or AlterCPA anymore"). Cohort keys,
+- **🔁 THE SELLER'S TEAM DECIDES THE DEPARTMENT — a LEAD excepted (owner, 02.10.2026, whole history; supersedes the
+  folder-only wording below and the 29.09 withdrawal of the team rule; `20260947000400`).** Owner: "од сега сметиме по
+  агенти, за дашбордот и за Insights, и за пресметките … ако агентот е од телешоп Out, порачката се смета кај телешоп
+  Out … различно е само за affiliate, затоа што тука е приоритет лидот, ако е lead(pending) тогаш е дефинитивно
+  affiliate lead in … Affiliate out е тимот од affiliate IN, истите луѓе но порачките не се од leads." ONE rule,
+  `order_dept_by_team(sale_source, seller, sale time)`: a LEAD (sale_source altercpa — an AlterCPA lead or a 10111 LEADS
+  document) → Affiliate – Lead in, whoever decided it; else the seller's LINE team on the Skopje sale day
+  (`sales_person_line_at`): teleshop:out → Телешоп – Lead out (also its LEADS-OUT / BIO NATURAL sales) · teleshop:in →
+  Телешоп – Lead in · teleshop:social → Социјални · affiliate → Affiliate – Lead out; Менаџмент / legacy team / no seller
+  → the folder + MEX-profile rules below. Stored in `orders.dept_override` by `order_dept_decide` (team → a CRM sale's
+  MEX profile → its own booking → NULL = the mapping; stored only where it changes the department), kept by
+  `tg_orders_zz_dept_override`, `tg_sales_team_members_dept` (a team change re-decides the person's orders) and the
+  15-minute `crm-sale-booking-dept` pass; a BOOKING follows its author's team in `insights_sale_rows` /
+  `leaderboard_day_v2`. 3.130 orders moved (Sept: 760 Affiliate – Lead out → Телешоп – Lead out, 2,11 М ден), each in
+  `dept_by_team_backfill` (old → new). The raw `sale_source` / detail (folder, list, intake) never change. Proof:
+  `node scripts/verify-teams.mjs` T3.
+- **Sale sources are the SIX DEPARTMENTS (owner law, 28–29.09.2026, whole history)** — the raw record: the
+  collabBox FOLDER (document type) and the MEX profile, never the system an order was made in ("no need to mention
+  Elyon-CRM or AlterCPA anymore"); since 02.10 the SELLER'S TEAM decides first (above). Cohort keys,
   in display order (`cohort_order_source(sale_source, detail, mex_tracking_id)` /
   `cohort_parcel_source()`, migration `20260942001000`):
   - **Affiliate – Lead in** (`altercpa`): AlterCPA affiliate leads (pending → decided; an ad lead
@@ -171,8 +187,8 @@ target **explicitly** and verify it before running:
     `orders.dept_override` (set by `order_dept_override(…, mex_account, mex_tracking_id)`, re-decided when
     the parcel links) and the 4-argument `cohort_order_source(…, dept_override)` every report uses. A
     MEX-only BIO NATURAL parcel is always affiliate. The "crm_prediction team → Телешоп – Lead out" rule
-    (`…1800`) was WITHDRAWN the same morning — never reintroduce a team rule for departments (teams
-    became business lines on 30.09 and still never place a sale — `verify-teams.mjs` T3). The
+    (`…1800`) was WITHDRAWN the same morning; on 02.10 the owner made the SELLER'S LINE TEAM the first decider
+    (above, `20260947000400`) — the old crm_prediction-team rule itself stays dead. The
     Prediction-lists tab holds the list sales of every department. A MEX parcel with no order
     goes by series (9110 → Lead in · 9103 → Lead out · 9102 → Teleshop out · 9100 → Teleshop in ·
     9108/1300 → Social · NTMK/M… → Web).
@@ -246,9 +262,8 @@ target **explicitly** and verify it before running:
   answer `created`); undo its own `--rollback <run>`. Proof for both: `node scripts/verify-folder-orders.mjs`.
   Inside Affiliate In / Out the first decider / confirmer keeps the leaderboard credit (unchanged).
 - **A CRM sale: its collabBox BOOKING decides before the parcel + the 2-day collabBox rule (owner, 02.10.2026;
-  `20260947000200` / `0300`).** Still folder + MEX profile, never the team or the product — the Телешоп Out TEAM books
-  ~18 % of its sales (its CRM prediction-list sales) in LEADS-OUT on BIO NATURAL, and those ARE Affiliate – Lead out.
-  A confirmed CRM sale with no parcel takes its OWN booking's department at once (`crm_sale_booking_dept`, the cohort's
+  `20260947000200` / `0300`).** For a seller in Менаџмент / no line team (the team decides everyone else — above): a
+  confirmed CRM sale with no parcel takes its OWN booking's department at once (`crm_sale_booking_dept`, the cohort's
   booking department; trigger + cron `crm-sale-booking-dept` every 15 min); no booking yet = provisional Affiliate – Lead
   out. A CRM sale (elyon_crm prediction_list / direct) not entered in collabBox `days` (2) Skopje days after its sale day
   is cancelled at 21:20 (reason `other` + note `not_in_collab_2d`) and its seller gets the bell `not_in_collab` (the
@@ -299,8 +314,8 @@ target **explicitly** and verify it before running:
   ranked). Labels: Телешоп лидови · Телешоп предикција · Социјални мрежи · Affiliate лидови · Affiliate предикција.
   `sales_team_members.lane`; the old keys `crm_prediction` / `altercpa_leads` stay as legacy aliases (old TV links);
   one filter function `sales_team_filter_matches` (`team:lane`). The owner confirms people in Settings → Teams →
-  **Предлог** (`sales_team_line_proposal` → `sales_team_lines_apply`; 82 re-keyed, 17 wait for him). A team groups
-  people — it **NEVER decides a department**.
+  **Предлог** (`sales_team_line_proposal` → `sales_team_lines_apply`; 82 re-keyed, 17 wait for him). Since 02.10 the
+  seller's LINE team DECIDES the department (a lead excepted — `order_dept_by_team`, above); Менаџмент never does.
 - **The PRODUCT LINE decides the MEX profile when the CRM itself ships (owner, 30.09):** `products.brand_line` —
   Bio Natural / Dr.Becker → BIO NATURAL, Natura Therapy / Ad Astra → NATURA (`mex_profile_for_line()`); a mixed
   basket needs a person's pick (the exact rule is still the owner's). **Everything on naturatherapy.mk is Natura
@@ -422,7 +437,7 @@ before non-trivial work on money, phones, warehouse, stock, shops, Sigma, webhoo
 - `elyon-presence-and-leaderboard` — Shifts as the login gate (runway, roll-forward, the Смени page), presence minutes + the 30-min idle alert, sales people / identities / teams = business lines + lanes (Settings → Teams → Предлог), the write-once `orders.sold_*` stamps (who is credited with a sale, the stamping cron), the TV leaderboard v2 (`leaderboard_day_v2`, one row per agent split by department, `?team=team:lane`).
 - `elyon-web-shop-bridge` — The read-only naturatherapy.mk mirror (`web_orders`, web-sync every 15 min, `crm_export` on the shop side). Web orders are NOT CRM orders; the live shop gets no changes.
 - `elyon-customer360-and-integrations` — Customer 360 (`customer_timeline`, last-8 matching, money stripped for non-owners) and Settings → Integrations health (freshness thresholds kept in step with the Overview, the 7-day rule's owner switch).
-- `elyon-departments-and-sources` — The six departments (collabBox folder + MEX profile), `cohort_order_source`, the parcel split, `sale_source_reclass` and its rollbacks; a team never decides a department, the product line only picks the account of a CRM push. Law for anything that says where a sale belongs.
+- `elyon-departments-and-sources` — The six departments (collabBox folder + MEX profile), `cohort_order_source`, the parcel split, `sale_source_reclass` and its rollbacks; since 02.10 the SELLER'S LINE TEAM decides first (a lead is always Affiliate – Lead in, Менаџмент never decides — `order_dept_by_team`), the product line only picks the account of a CRM push. Law for anything that says where a sale belongs.
 - `elyon-collabbox-sync` — The live collabBox reader of the teleshop documents: folders/types and roles, the document ledger, orders only once the MEX parcel exists, seller credit, the 15-minute + nightly crons, one run at a time. (The shops' tills are a separate reader — `elyon-shops`.)
 - `elyon-call-scripts` — Targeted call scripts (02.10): one script per list group (+ products), the matcher shared with the UI, the variables (segments, never HTML), the audited writers + versions (admins delete), RLS published-only for agents, the `call_scripts.mode` switch (off), GET /calls/scripts, coverage, `verify-call-scripts`.
 - `elyon-products-catalogue` — Product kinds (product / bundle / gift / other) and brand lines (Natura Therapy / Bio Natural / Ad Astra / Dr.Becker → the MEX profile), the web-catalogue rule, the audited writers behind guard triggers, the machine-text cleanup, /products (the Рецепт drawer and "Набавна (Сигма)" for owners — only an approved recipe moves stock and cost), and the catalogue scripts.

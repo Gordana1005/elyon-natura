@@ -264,8 +264,13 @@ async function main() {
          LEFT JOIN public.orders m ON m.id = (r.evidence ->> 'created_order')::uuid
          LEFT JOIN public.mex_parcels p ON p.tracking_id = r.evidence ->> 'tracking'
         WHERE r.rule = 'FD_revert' AND r.after IS NOT NULL AND r.evidence ? 'created_order'
-          AND (o.status::text NOT IN ('cancelled', 'trashed') OR o.mex_tracking_id IS NOT NULL OR m.id IS NULL OR p.order_id IS DISTINCT FROM m.id
-               OR public.cohort_order_source(m.sale_source, m.sale_source_detail, m.mex_tracking_id, m.dept_override) IS DISTINCT FROM r.evidence ->> 'dept_after'))::int AS fd_bad,
+          -- the holder no longer holds THIS parcel (dead, or alive again on its OWN later parcel — a lead's 9110); since
+          -- 20260947000400 the made order's department is its seller's team where the team decides (owner 02.10.2026)
+          AND ((o.mex_tracking_id IS NULL AND o.status::text NOT IN ('cancelled', 'trashed'))
+               OR o.mex_tracking_id = r.evidence ->> 'tracking' OR m.id IS NULL OR p.order_id IS DISTINCT FROM m.id
+               OR public.cohort_order_source(m.sale_source, m.sale_source_detail, m.mex_tracking_id, m.dept_override)
+                  IS DISTINCT FROM coalesce(public.order_dept_by_team(m.sale_source, m.sold_by_person_id, coalesce(m.sold_at, m.created_at)),
+                                            r.evidence ->> 'dept_after')))::int AS fd_bad,
       (SELECT count(*) FROM public.collabbox_documents d JOIN public.orders o ON o.external_source = 'collabbox' AND o.external_order_id = d.doc_number
         WHERE d.doc_type_id = '10111' AND d.outcome NOT IN ('exists', 'updated'))::int AS leads_doc_order_not_recorded`);
   add('L1', l1.lpo_bad || l1.fd_bad ? 'FAIL' : (l1.lpo_made || l1.fd_units ? 'PASS' : 'INFO'),

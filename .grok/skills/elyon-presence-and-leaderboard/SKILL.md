@@ -31,7 +31,13 @@ a CRM-made sale follows its MEX profile).
 - **A team is a BUSINESS LINE** (owner 30.09, for the whole history): **Телешоп** (ships via NATURA;
   lanes in / out / social), **Affiliate** (ships via BIO NATURAL; lanes in / out), **Менаџмент** (no
   lane, never ranked). Teams group PEOPLE on the boards, Insights → Agents, the Assigner and Смени.
-- **The department decides where a sale counts; the team never does.** A sale's department is
+- **🔁 Since 02.10.2026 the SELLER'S LINE TEAM decides the department (owner; `20260947000400`)** — a
+  lead (AlterCPA / 10111) is always Affiliate – Lead in; a Телешоп Out agent's sales are all Телешоп –
+  Lead out (LEADS-OUT / BIO NATURAL included); an Affiliate agent's non-lead sales are Affiliate – Lead
+  out; Менаџмент falls back to the folder / profile. So on the board one agent = one department (her
+  team's), bookings included. See `elyon-departments-and-sources` §3b+. The paragraph below is the
+  history before that ruling.
+- **(Until 02.10) The department decides where a sale counts; the team never does.** A sale's department is
   `cohort_order_source(sale_source, detail, mex_tracking_id, dept_override)`: the collabBox folder
   and the MEX profile — never the system it was made in, never the seller, never her team. A
   CRM-made sale follows its parcel's profile (owner 29.09 ~12:05, `20260942001860`: BIO NATURAL =

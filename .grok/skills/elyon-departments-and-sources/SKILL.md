@@ -234,12 +234,52 @@ first, it counts in Affiliate out, and we look at MEX — BIO NATURAL or NATURA 
   needs the series). Fine for today's CRM sales (prediction / re-sale); decide with the owner before
   Lead-in or social sales are pushed.
 
+### 3b+. 🔁 THE SELLER'S TEAM DECIDES — a lead excepted (owner, 02.10.2026 afternoon; `20260947000400`)
+
+Supersedes the folder-first wording of this skill, the 29.09 withdrawal of the team rule and the 02.10
+morning "a team is not a department" (§3c header). Owner, after seeing 18 of 22 Телешоп Out agents also
+book LEADS-OUT: "од сега сметиме по агенти, за дашбордот и за Insights, и за пресметките … ако агентот е
+од телешоп Out, порачката се смета кај телешоп Out … Тие што се телешоп out, имаат право да праќаат и
+leads-out, и телешоп Out … различно е само за affiliate, затоа што тука е приоритет лидот, ако е
+lead(pending) тогаш е дефинитивно affiliate lead in тимот, Affiliate out е тимот од affiliate IN, истите
+луѓе но порачките не се од leads." Whole history.
+
+| The sale | → department |
+|---|---|
+| a LEAD — `sale_source = altercpa` (AlterCPA intake, or a 10111 "Нарачка LEADS" document) | Affiliate – Lead in, **whoever** decided it |
+| seller on `teleshop:out` on the Skopje sale day | Телешоп – Lead out (its "Нарачка out", its LEADS-OUT / BIO NATURAL, its "Нарачка in" — all) |
+| seller on `teleshop:in` | Телешоп – Lead in |
+| seller on `teleshop:social` | Социјални мрежи |
+| seller on `affiliate:*` (not a lead) | Affiliate – Lead out |
+| seller in Менаџмент / a legacy team (crm_prediction) / no seller | the old rules: a CRM sale → MEX profile (§3b) → own booking (§3c); anything else → its folder (§3) |
+| a MEX-only parcel (no seller) | by profile then series (unchanged) |
+
+- **One place:** `order_dept_by_team(sale_source, person, at)` over `sales_person_line_at(person, at)` (kind
+  `line` teams, primary first, latest `valid_from`). `order_dept_decide(…, order_id)` = nullif(coalesce(team,
+  `order_dept_override` profile, `crm_sale_booking_dept`), the 3-arg mapping) → `orders.dept_override`
+  (sparse: stored only where it changes the department; the /orders PostgREST filter reads it unchanged).
+- **Kept by:** `tg_orders_zz_dept_override` (insert / source / seller / sale time / parcel),
+  `tg_sales_team_members_dept` (AFTER INSERT/UPDATE/DELETE on `sales_team_members` →
+  `orders_dept_recompute(person)` — a team change in Settings → Teams re-decides that person's orders),
+  the 15-minute `crm_sale_booking_dept_sync`.
+- **Bookings** (collabBox documents with no order yet) follow their AUTHOR's team: `insights_sale_rows`
+  (bkr: `coalesce(order_dept_by_team(dep[1], author, sale_at), cohort_order_source(dep…))`) and
+  `leaderboard_day_v2`'s uncounted CRM twins — both re-emitted from the live body by one exact
+  replace each (drift-guarded).
+- **Backfill 02.10:** 3.130 orders moved, each in `dept_by_team_backfill` (old_dept → new_dept,
+  old_dept_override). September: 760 Affiliate – Lead out → Телешоп – Lead out (2,11 М ден), 132
+  Телешоп – Lead in → Lead out, 27 Lead out → Социјални. Set-based (a per-row decide over 360k orders
+  exceeds the statement timeout) — `verify-teams.mjs` T3 re-checks the stored value against
+  `order_dept_by_team` for every real sale of 60 days.
+- **Never:** let a team decide a LEAD; let Менаџмент decide a department; change `sale_source` /
+  detail for this (they stay the raw record); bring back the crm_prediction-team rule of `…1800`.
+
 ### 3c. The booking decides before the parcel + the 2-day collabBox rule (owner, 02.10.2026)
 
 Owner 02.10 (Milјана's CRM list sale sat in Affiliate – Lead out with no parcel; /orders showed 0
 Телешоп – Lead out while the board counted the bookings): "телешоп внесуваат само преку НАТУРА …
 само тие ордерс што се во папката и се преку натура тие се од телешоп оут, а афилиејт оут праќаат само
-преку био натура". The law did not change — folder + MEX profile, never the team or the product. The
+преку био натура". (Superseded the same afternoon by §3b+: the seller's team decides; what follows now applies to sellers in Менаџмент / without a line team.) The folder + MEX profile, never the product. The
 evidence (last 10 days): every folder ships on ONE profile (out / in / social → 100 % NATURA, LEADS /
 LEADS-OUT → 100 % BIO NATURAL); the Телешоп Out TEAM books 82 % on NATURA and 18 % in LEADS-OUT on BIO
 NATURAL — the 18 % are their CRM prediction-list sales (197 of 236), so those ARE Affiliate – Lead out.

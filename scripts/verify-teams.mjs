@@ -15,10 +15,12 @@
  *       and leaderboard_day_v2(day, NULL, f) for f = altercpa_leads / crm_prediction / every
  *       'team:lane' on the board = exactly the rows of the unfiltered board that f names, with
  *       the same numbers
- *   T3  no function that decides a DEPARTMENT reads a team: cohort_order_source,
- *       order_dept_override, classify_sale_source, collabbox_department, cohort_parcel_source,
- *       cohort_parcel_split, tg_orders_dept_override (every overload) mention neither
- *       sales_team_members, sales_teams nor sales_person_in_team
+ *   T3  the SELLER'S TEAM decides a department in ONE place (owner 02.10.2026, 20260947000400):
+ *       order_dept_by_team (via sales_person_line_at) — a lead (sale_source altercpa) never; the
+ *       pure mappings cohort_order_source, order_dept_override, classify_sale_source,
+ *       collabbox_department, cohort_parcel_source, cohort_parcel_split mention no team table;
+ *       no AlterCPA lead carries a stored department; every real sale of the last 60 days by a
+ *       line member sits in its seller's team department
  *   T4  the teams table: teleshop / affiliate = line, management = management, the old keys =
  *       legacy; no lane on a non-line membership; 'social' only in teleshop
  *   T5  sales_team_line_proposal(60)'s window counts = a recount order by order with the
@@ -144,9 +146,9 @@ async function verifyAliases(day) {
   }
 }
 
-// ── T3: departments never read a team ─────────────────────────────────────────
+// ── T3: the seller's team decides, in one place (owner 02.10.2026) ────────────
 async function verifyDepartmentsIgnoreTeams() {
-  const c = check('T3', 'no function that decides a department reads a team');
+  const c = check('T3', "the seller's team decides a department in one place (a lead never)");
   const rows = await timed('department functions', `
     SELECT p.oid::regprocedure::text AS sig,
            p.prosrc ~* 'sales_team_members' AS members,
@@ -155,14 +157,26 @@ async function verifyDepartmentsIgnoreTeams() {
     FROM pg_proc p JOIN pg_namespace ns ON ns.oid = p.pronamespace
     WHERE ns.nspname = 'public'
       AND p.proname IN ('cohort_order_source', 'order_dept_override', 'classify_sale_source', 'collabbox_department',
-                        'cohort_parcel_source', 'cohort_parcel_split', 'tg_orders_dept_override')
+                        'cohort_parcel_source', 'cohort_parcel_split')
     ORDER BY 1`);
-  c.info('functions', rows.map((r) => r.sig).join(' · '));
+  c.info('pure mappings', rows.map((r) => r.sig).join(' · '));
   for (const need of ['cohort_order_source', 'order_dept_override', 'classify_sale_source', 'collabbox_department']) {
     if (!rows.some((r) => r.sig.startsWith(`${need}(`))) c.warn(`${need}`, 'not found');
   }
-  c.tie('functions that mention sales_team_members / sales_teams / sales_person_in_team', [],
+  c.tie('pure mappings that mention sales_team_members / sales_teams / sales_person_in_team', [],
     rows.filter((r) => r.members || r.teams || r.in_team).map((r) => r.sig));
+  const [d] = await timed('team decision', `
+    SELECT (SELECT strpos(prosrc, 'p_sale_source = ''altercpa''') > 0 FROM pg_proc WHERE proname = 'order_dept_by_team') AS lead_first,
+           (SELECT count(*) FROM public.orders WHERE sale_source = 'altercpa' AND dept_override IS NOT NULL)::int AS lead_with_dept,
+           (SELECT count(*) FROM public.orders o
+             WHERE o.status::text IN ('confirmed', 'shipped', 'paid', 'returned')
+               AND coalesce(o.sold_at, o.created_at) >= now() - interval '60 days'
+               AND public.order_dept_by_team(o.sale_source, o.sold_by_person_id, coalesce(o.sold_at, o.created_at)) IS NOT NULL
+               AND public.cohort_order_source(o.sale_source, o.sale_source_detail, o.mex_tracking_id, o.dept_override)
+                   IS DISTINCT FROM public.order_dept_by_team(o.sale_source, o.sold_by_person_id, coalesce(o.sold_at, o.created_at)))::int AS off_team`);
+  c.tie('order_dept_by_team: a lead (altercpa) first', true, d?.lead_first === true);
+  c.tie('AlterCPA leads with a stored department', 0, d?.lead_with_dept);
+  c.tie("real sales (60 days) of line members outside their team's department", 0, d?.off_team);
 }
 
 // ── T4: the teams table ───────────────────────────────────────────────────────
