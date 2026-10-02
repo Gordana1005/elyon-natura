@@ -315,6 +315,28 @@ matches). Deliberately NOT `confirmed_at` — altercpa-sync's untouched guard re
   10114 LEADS-OUT document on the order holding its parcel (`collabbox_credit_order()`, write-once,
   never over another decider — `elyon-collabbox-sync`); `scripts/backfill-sellers-collabbox.mjs`
   did the same for history (run `5b29ca75`, 506 sales).
+- **A revived DEAD order counts on the BOOKING day (owner 03.10.2026 "ДА"; `20260947001800` / `1801` /
+  `1810`).** The one sanctioned mover of a SET `sold_at` is `sale_day_revive_apply(p_dry, p_scope, p_since,
+  p_limit, p_actor)` over ONE plan, `sale_day_revive_plan()`: a stamped sale holding a parcel whose
+  reviving evidence (its collabBox SALES document — `collabbox_sale_at(doc_at, booked_at)` — or, with no
+  document, the parcel's `created_at_mex`) arrived while the order was `dead` (cancelled / trashed —
+  `order_status_at()` over `order_history`; a history import / 18.09 catch-up by its insert status),
+  `unsold` (pending / take / call_again) or `stale` (an AlterCPA bridge / history approval with no parcel
+  of its own, older than `no_parcel_rule.days` = 10 at the arrival). New `sold_at` = the document time
+  (else the parcel's), forward only, only when the Skopje day changes and the sale was dated before the
+  evidence. A living approval keeps its time. ONLY `sold_at` moves — `sold_via` / `sold_by_*` /
+  `confirmed_by_*` never; `zzz_orders_dept_override` re-decides the department for the new day (a lead
+  stays Тим Маџари In). The writer sets `elyon.allow_sold_change` + `elyon.keep_updated_at` LOCALLY and
+  restores them; ledger `sale_day_revive_runs` / `_moves` (old → new, basis, document, value, department
+  before / after); undo `sale_day_revive_undo(run [, actor, basis])` — only where `sold_at` still holds the
+  moved value, and an undone order is never moved again. Forward: `collabbox_credit_order()` stamps a dead
+  / undecided order with the document time in every month, and the cron `sale-day-revive`
+  (`7-59/15 * * * *`, switch `app_settings.sale_day_revive` apply | report | off) re-times whatever
+  mex-reconcile (rule C, the 9110 upsell revive), the link repairs or the stamping cron revive later.
+  Unstamped orders (`sold_at` NULL) are never touched — stamping `sold_at` alone would hide them from the
+  stamping cron. The segment engine reads `created_at`, not `sold_at`: no list band moves. Check:
+  `node scripts/verify-sale-day-revive.mjs` (R1–R7). `verify-stamp-parity` part 3 lists the moved rows as
+  "differ" (the plan re-derives the original stamp time) — expected, never a failure.
 - **28.09 revision (e84cca3, stamp-review.md defect 1):** only an APPROVAL push counts
   (`audit_log order.altercpa_push`, `payload.params.accept = '1'`, not `noop`); callback
   (status 3) and cancel (status 5) pushes never make anyone the seller; the fill never resolves
@@ -516,6 +538,8 @@ The older owner tools below still hold:
 - A fold / `ILIKE` / trim in SQL identity matching — exact values only (the collabBox author
   whitespace collapse is the one documented exception).
 - Overwriting `sold_*` without `elyon.allow_sold_change`, or bumping `updated_at` in a bulk stamp.
+- Moving a set `sold_at` anywhere but `sale_day_revive_apply()` (one plan, one ledger, one undo), or
+  re-timing a LIVING approval (alive at the arrival, or one that held its own earlier parcel).
 - A manager ranked on the board, a bonus on the v2 board, a department chosen by the seller or
   her team (two team rules were tried and withdrawn — never a third), or a board query that calls
   the 3-argument `cohort_order_source` (it loses the MEX-profile override).

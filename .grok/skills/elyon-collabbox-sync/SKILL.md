@@ -252,9 +252,15 @@ confirmed" line predates this 29.09 change; the function body is the law.)
 Write-once `sold_*`: NULL → value only. Verdicts: `stamped` · `stamped_no_person` ·
 `person_filled` (same author, person now known) · `already` · `other_decider` (credited by another
 rule — never overwritten) · `not_a_sale` · `doc_predates_order` (document > 48 h older than the
-order) · `parcel_shared` · `no_author`. `sold_at` = the document time unless that moves the sale
-into another Skopje month than its cohort day (AlterCPA decision, confirmed_at, created_at) —
-then the cohort day (closed months never move).
+order) · `parcel_shared` · `no_author`. `sold_at` = the document time when the order was DEAD
+(cancelled / trashed) or an undecided lead (pending / take / call_again) at the document's — or its
+parcel's — arrival (`order_status_at`; owner 03.10.2026 "ДА", `20260947001800`: a revived order
+counts on the booking day, in every month). Otherwise the document time unless that moves the sale
+into another Skopje month than its cohort day (AlterCPA decision, confirmed_at, created_at) — then
+the cohort day. Before 03.10 a dead lead credited across a month boundary kept its old lead day
+(ORD-88154: lead 12.08, cancelled 13.08, LEADS booked 01.09 → counted 12.08). The orders it had
+already stamped — and every other revival (mex-reconcile, the link repairs, the stamping cron) —
+are re-timed by `sale_day_revive_apply()` (see `elyon-presence-and-leaderboard` §3).
 
 ## The booking day — `booked_at` (owner 01.10.2026; `20260944000500` / `20260944000600`)
 
