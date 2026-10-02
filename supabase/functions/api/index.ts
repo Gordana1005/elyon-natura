@@ -128,6 +128,10 @@ import * as SHOPS from "./shops.ts";
 // context, privacy, coverage, the library — callScriptsAdmin.test.ts). Writers: migration 20260947000100.
 import * as CSM from "./callScriptMatch.ts";
 import * as CSA from "./callScriptsAdmin.ts";
+// Route guards + money strips with no business decision (owner audit 02.10.2026, exports/roles/
+// current-state-2026-10-02.md §4–5): the Табла's counts for non-owners, payout read scope, the
+// app-settings allow-list, agent contacts, warehouse / bookings prices, admin-only product fields.
+import * as AGD from "./accessGuards.ts";
 
 // ============================================================
 // INPUT VALIDATION SCHEMAS
@@ -4746,10 +4750,14 @@ async function handleRequest(req: Request): Promise<Response> {
     }
 
     // ── TV LEADERBOARD ADMIN (roster / bonus rules / access tokens) ──
-    // Admin/manager only. The public board is the separate token-gated
-    // GET /api/leaderboard handler above (before the auth gate).
+    // Admin only (owner audit 02.10.2026; was admin/manager): a token opens the
+    // public board — денари per agent and department, no login — so listing,
+    // creating, rotating and revoking tokens, the roster and the bonus tiers
+    // belong to the admins (Settings → ТВ is admin-only in the UI too). The
+    // public board is the separate token-gated GET /api/leaderboard handler
+    // above (before the auth gate).
     if (path === "leaderboard/admin" && req.method === "GET") {
-      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      if (!isAdmin) return json({ error: "Forbidden — admin only" }, 403);
       const mode = url.searchParams.get("mode") === "pending" ? "pending" : "prediction";
       const { day } = skopjeDayStart();
       const [rosterRes, rulesRes, tokRes] = await Promise.all([
@@ -4768,7 +4776,7 @@ async function handleRequest(req: Request): Promise<Response> {
     // Since 2026-09-28 the roster only ADDS people to today's board (teams decide
     // who is on it by default — leaderboard_day()); it can no longer hide anyone.
     if (path === "leaderboard/roster" && req.method === "POST") {
-      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      if (!isAdmin) return json({ error: "Forbidden — admin only" }, 403);
       let body: any; try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
       const mode = body?.mode === "pending" ? "pending" : "prediction";
       const ids: string[] = Array.isArray(body?.agent_ids) ? body.agent_ids.filter((x: any) => typeof x === "string") : [];
@@ -4783,7 +4791,7 @@ async function handleRequest(req: Request): Promise<Response> {
     }
 
     if (path === "leaderboard/rules" && req.method === "POST") {
-      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      if (!isAdmin) return json({ error: "Forbidden — admin only" }, 403);
       let body: any; try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
       const mode = body?.mode === "pending" ? "pending" : "prediction";
       const metric = String(body?.metric || "");
@@ -4799,7 +4807,7 @@ async function handleRequest(req: Request): Promise<Response> {
     }
 
     if (path === "leaderboard/token" && req.method === "POST") {
-      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      if (!isAdmin) return json({ error: "Forbidden — admin only" }, 403);
       let body: any; try { body = await req.json(); } catch { body = {}; }
       const action = String(body?.action || "create");
       // Audited since Phase 10 (2026-10-01): a rotate / revoke blanks every TV on the old link.
@@ -5814,8 +5822,11 @@ async function handleRequest(req: Request): Promise<Response> {
           ...u,
           roles: roleMap[u.user_id] || [],
         }));
+      // Every staff login reads this list (assignment pickers, report filters); only admins get
+      // the e-mail (owner audit 02.10.2026) — no page shows it. Names, ids and roles stay.
+      const agentRows = (rows: any[]) => AGD.stripAgentContacts(rows, isAdmin);
 
-      if (!includeHistoric) return json(assignableUsers);
+      if (!includeHistoric) return json(agentRows(assignableUsers));
 
       // ── Historic (name-only) operators ───────────────────────────────────
       // The imported AlterCPA history records WHO sold each order as a name and
@@ -5831,13 +5842,13 @@ async function handleRequest(req: Request): Promise<Response> {
       // Keys come from the SAME agentIdentityKey()/buildAgentIdentityIndex() pair
       // that agent-performance groups its rows with, so a dropdown option can
       // never drift into matching zero rows.
-      if (!isAdminOrManager) return json(assignableUsers);
+      if (!isAdminOrManager) return json(agentRows(assignableUsers));
 
       const { data: operatorNames, error: opNameErr } = await adminClient.rpc("order_operator_names");
       if (opNameErr) {
         // A missing/failed RPC must not blank the dropdown — degrade to accounts.
         console.error("order_operator_names failed:", opNameErr.message);
-        return json(assignableUsers);
+        return json(agentRows(assignableUsers));
       }
 
       // Fold every spelling of a name onto one identity, and onto a real account
@@ -5870,7 +5881,7 @@ async function handleRequest(req: Request): Promise<Response> {
           order_count: v.orders,
         }));
 
-      return json([...assignableUsers, ...historic]);
+      return json(agentRows([...assignableUsers, ...historic]));
     }
 
     // POST /api/orders (create order — admin/manager/agent)
@@ -6766,7 +6777,11 @@ async function handleRequest(req: Request): Promise<Response> {
       const rows = OB.filterBookings(OB.buildBookingRows(sale, docs, names), {
         departments: p.departments, sellerId: p.sellerId, search: p.search, scopePersonIds,
       });
-      return json(OB.bookingsResponse(OB.redactBookings(rows, piiFlags), win));
+      const bookingsBody = OB.bookingsResponse(OB.redactBookings(rows, piiFlags), win);
+      // The document's value is money: owners only, as order_origin drops its *_mkd (owner audit
+      // 02.10.2026). Everyone else gets the same rows without value_mkd.
+      if (!(await isBusinessOwner(user.id))) return json(AGD.stripBookingsMoney(bookingsBody));
+      return json(bookingsBody);
     }
 
     // GET /api/active-views?phones=a,b,c — "who is viewing" for a whole /orders
@@ -7677,227 +7692,14 @@ async function handleRequest(req: Request): Promise<Response> {
       return json({ success: true, updated: toUpdate.length, skipped: skipped.length, skipped_ids: skipped });
     }
 
-    // POST /api/orders/bigarena-sync — daily upload of BigArena tracking export (CSV/XLSX)
-    // Client sends clean parsed array (never raw file) after preview. Ref = numeric part of display_id.
-    // Only transitions *shipped* (or delivered) orders to paid/returned. Full audit + provenance notes.
+    // POST /api/orders/bigarena-sync — RETIRED (owner audit 02.10.2026): 410 Gone for everyone.
+    // A Bulgarian leftover: it took a BigArena tracking export and moved shipped / delivered
+    // orders to paid / returned / cancelled (and restocked returns) by hand, outside MEX — and any
+    // admin, manager or warehouse login could run it. MEX is the only truth for paid / returned
+    // here (mex-reconcile, both accounts, every 15 min); the MK upload button was removed
+    // 2026-08-18. The old implementation is in git history (before this commit).
     if (req.method === "POST" && path === "orders/bigarena-sync") {
-      if (!isAdminOrManager && !isWarehouse) return json({ error: "Forbidden" }, 403);
-      if (!checkUserRateLimit(user.id, "orders.bigarena-sync", 8)) return json({ error: "Rate limit exceeded — try again in a minute" }, 429);
-
-      const body = await req.json();
-      const updates = Array.isArray(body?.updates) ? body.updates : [];
-      const meta = body?.meta || {};
-      if (updates.length === 0) return json({ error: "updates[] required" }, 400);
-      if (updates.length > 1000) return json({ error: "Too many rows (max 1000 per upload)" }, 400);
-
-      const filename = (meta.filename || 'bigarena-upload').toString().slice(0, 120);
-
-      // Normalize refs (keep only digits, match the fulfilment CSV export convention)
-      const work = updates.map((u: any) => ({
-        ref: String(u.ref || '').replace(/\D/g, ''),
-        rawStatus: String(u.rawStatus || ''),
-        target: (u.targetStatus === 'paid' || u.targetStatus === 'returned' || u.targetStatus === 'cancelled') ? u.targetStatus : null,
-      })).filter(w => w.ref && w.target);
-
-      if (work.length === 0) return json({ success: true, updated: { paid: 0, returned: 0 }, skipped: [], note: 'No valid ref+target after normalization' });
-
-      const uniqueRefs = [...new Set(work.map(w => w.ref))];
-
-      // Batch candidate fetch (ilike on display_id is safe for small batches; we filter exact numeric in JS)
-      const orClauses = uniqueRefs.map(r => `display_id.ilike.%${r}%`).join(',');
-      const { data: candidates, error: candErr } = await adminClient
-        .from("orders")
-        .select("id, display_id, status, customer_name")
-        .or(orClauses);
-      if (candErr) return json({ error: sanitizeDbError(candErr) }, 400);
-
-      // Exact numeric match + only eligible current statuses
-      const refToOrder: Record<string, any> = {};
-      for (const o of (candidates || [])) {
-        const num = String(o.display_id || '').replace(/\D/g, '');
-        if (uniqueRefs.includes(num) && (o.status === 'shipped' || o.status === 'delivered')) {
-          refToOrder[num] = o; // last wins if weird dupes (should not happen)
-        }
-      }
-
-      const toPaidIds: string[] = [];
-      const toReturnedIds: string[] = [];
-      const toCancelledIds: string[] = [];
-      const skipped: any[] = [];
-      const matchedRefs: string[] = [];
-
-      for (const w of work) {
-        const order = refToOrder[w.ref];
-        if (!order) {
-          skipped.push({ ref: w.ref, reason: 'not_found_or_not_shipped' });
-          continue;
-        }
-        if (order.status === w.target) {
-          skipped.push({ ref: w.ref, display_id: order.display_id, reason: 'already_' + w.target });
-          continue;
-        }
-        matchedRefs.push(w.ref);
-        if (w.target === 'paid') toPaidIds.push(order.id);
-        else if (w.target === 'cancelled') toCancelledIds.push(order.id);
-        else toReturnedIds.push(order.id);
-      }
-
-      const updated: { paid: number; returned: number; cancelled: number } = { paid: 0, returned: 0, cancelled: 0 };
-
-      // Helper to write a provenance note (non-fatal)
-      const addProvenanceNote = async (orderId: string, ref: string, raw: string, toStatus: string) => {
-        try {
-          await adminClient.from("order_notes").insert({
-            order_id: orderId,
-            text: `BigArena sync (${filename}): "${raw}" → ${toStatus} (ref ${ref})`,
-            author_id: user.id,
-            author_name: "BigArena Sync",
-          });
-        } catch (e) { /* best effort */ }
-      };
-
-      // Process PAID group (no stock impact, just status + history)
-      if (toPaidIds.length > 0) {
-        const { error: upErr } = await adminClient
-          .from("orders")
-          .update({ status: 'paid', updated_at: new Date().toISOString() })
-          .in("id", toPaidIds);
-        if (upErr) return json({ error: sanitizeDbError(upErr) }, 400);
-
-        const { data: prof } = await adminClient.from("profiles").select("full_name").eq("user_id", user.id).single();
-        const actorName = prof?.full_name || "System";
-
-        const hist = toPaidIds.map(id => {
-          const o = Object.values(refToOrder).find((x: any) => x.id === id);
-          return { order_id: id, from_status: o?.status || 'shipped', to_status: 'paid', changed_by: user.id, changed_by_name: actorName };
-        });
-        await adminClient.from("order_history").insert(hist);
-
-        // Provenance notes + count
-        for (const id of toPaidIds) {
-          const o = Object.values(refToOrder).find((x: any) => x.id === id) as any;
-          const w = work.find(ww => refToOrder[ww.ref]?.id === id);
-          if (o && w) await addProvenanceNote(id, w.ref, w.rawStatus, 'paid');
-        }
-        updated.paid = toPaidIds.length;
-      }
-
-      // Process RETURNED group (full stock restore + logs, exactly like bulk —
-      // the restore only until the first stock count: stockByStatus)
-      if (toReturnedIds.length > 0) {
-        for (const oid of (await stockByStatus()) ? toReturnedIds : []) {
-          const { data: orderItems } = await adminClient.from("order_items").select("*").eq("order_id", oid);
-          if (orderItems && orderItems.length > 0) {
-            for (const item of orderItems) {
-              if (!item.product_id) continue;
-              const { data: prod } = await adminClient.from("products").select("stock_quantity, name").eq("id", item.product_id).single();
-              if (prod) {
-                const newQty = (prod.stock_quantity || 0) + (item.quantity || 1);
-                await adminClient.from("products").update({ stock_quantity: newQty }).eq("id", item.product_id);
-                await adminClient.from("inventory_logs").insert({
-                  product_id: item.product_id,
-                  change_amount: item.quantity || 1,
-                  previous_stock: prod.stock_quantity,
-                  new_stock: newQty,
-                  reason: "order_return",
-                  movement_type: "order_return",
-                  user_id: user.id,
-                  notes: `BigArena sync returned — ${item.product_name} x${item.quantity}`,
-                });
-              }
-            }
-          } else {
-            // Legacy single-product path
-            const { data: full } = await adminClient.from("orders").select("product_id, quantity, display_id, product_name").eq("id", oid).single();
-            if (full?.product_id) {
-              const qty = full.quantity || 1;
-              const { data: prod } = await adminClient.from("products").select("stock_quantity, name").eq("id", full.product_id).single();
-              if (prod) {
-                const newQty = (prod.stock_quantity || 0) + qty;
-                await adminClient.from("products").update({ stock_quantity: newQty }).eq("id", full.product_id);
-                await adminClient.from("inventory_logs").insert({
-                  product_id: full.product_id,
-                  change_amount: qty,
-                  previous_stock: prod.stock_quantity,
-                  new_stock: newQty,
-                  reason: "order_return",
-                  movement_type: "order_return",
-                  user_id: user.id,
-                  notes: `BigArena sync returned — ${full.display_id}`,
-                });
-              }
-            }
-          }
-        }
-
-        const { error: upErr } = await adminClient
-          .from("orders")
-          .update({ status: 'returned', updated_at: new Date().toISOString(), returned_at: new Date().toISOString() })
-          .in("id", toReturnedIds);
-        if (upErr) return json({ error: sanitizeDbError(upErr) }, 400);
-
-        const { data: prof } = await adminClient.from("profiles").select("full_name").eq("user_id", user.id).single();
-        const actorName = prof?.full_name || "System";
-
-        const hist = toReturnedIds.map(id => {
-          const o = Object.values(refToOrder).find((x: any) => x.id === id);
-          return { order_id: id, from_status: o?.status || 'shipped', to_status: 'returned', changed_by: user.id, changed_by_name: actorName };
-        });
-        await adminClient.from("order_history").insert(hist);
-
-        for (const id of toReturnedIds) {
-          const o = Object.values(refToOrder).find((x: any) => x.id === id) as any;
-          const w = work.find(ww => refToOrder[ww.ref]?.id === id);
-          if (o && w) await addProvenanceNote(id, w.ref, w.rawStatus, 'returned');
-        }
-        updated.returned = toReturnedIds.length;
-      }
-
-      // Process CANCELLED group (BigArena "Отменена"/"Анулирана" — cancelled at the
-      // warehouse, never went out → NO stock restore, just status + history + note).
-      if (toCancelledIds.length > 0) {
-        const { error: upErr } = await adminClient
-          .from("orders")
-          .update({ status: 'cancelled', updated_at: new Date().toISOString() })
-          .in("id", toCancelledIds);
-        if (upErr) return json({ error: sanitizeDbError(upErr) }, 400);
-
-        const { data: prof } = await adminClient.from("profiles").select("full_name").eq("user_id", user.id).single();
-        const actorName = prof?.full_name || "System";
-
-        const hist = toCancelledIds.map(id => {
-          const o = Object.values(refToOrder).find((x: any) => x.id === id);
-          return { order_id: id, from_status: o?.status || 'shipped', to_status: 'cancelled', changed_by: user.id, changed_by_name: actorName };
-        });
-        await adminClient.from("order_history").insert(hist);
-
-        for (const id of toCancelledIds) {
-          const o = Object.values(refToOrder).find((x: any) => x.id === id) as any;
-          const w = work.find(ww => refToOrder[ww.ref]?.id === id);
-          if (o && w) await addProvenanceNote(id, w.ref, w.rawStatus, 'cancelled');
-        }
-        updated.cancelled = toCancelledIds.length;
-      }
-
-      await audit(adminClient, user.id, user.email, "order.bigarena_status_sync", {
-        target_type: "order",
-        target_name: `${filename} (${matchedRefs.length} matched)`,
-        payload: {
-          filename,
-          updated,
-          skipped_count: skipped.length,
-          matched_refs: matchedRefs,
-          total_submitted: updates.length,
-        },
-      });
-
-      return json({
-        success: true,
-        updated,
-        skipped,
-        matched: matchedRefs.length,
-        unmatchedRefs: uniqueRefs.filter(r => !matchedRefs.includes(r)),
-      });
+      return json({ error: "gone", reason: "MEX decides paid / returned (mex-reconcile)" }, 410);
     }
 
     // GET /api/orders/:id
@@ -9842,12 +9644,19 @@ async function handleRequest(req: Request): Promise<Response> {
         personalMetrics = await computeMetrics(user.id);
       }
 
-      return json({
+      const dashBody = {
         ...adminMetrics,
         personalMetrics,
         isDualRole,
         period, from: fromDate, to: toDate,
-      });
+      };
+      // Money is owners-only (owner audit 02.10.2026): a manager lands on "My performance" and this
+      // branch answers with the COMPANY's paid revenue / pipeline value / bonus — or, with agent_id,
+      // that agent's. A non-owner keeps every count; total_value, paid_revenue and payout_earned are
+      // absent (AGD.stripDashboardMoney, a whitelist like stripOverviewMoney). Agents (the branch
+      // above) keep their own figures.
+      if (!(await isBusinessOwner(user.id))) return json(AGD.stripDashboardMoney(dashBody));
+      return json(dashBody);
     }
 
     // GET /api/my-orders?tab=confirmed|shipped|paid|returned&period=today|month|custom&date=YYYY-MM-DD&from=&to=&page=&limit=&agent_id=
@@ -10018,8 +9827,10 @@ async function handleRequest(req: Request): Promise<Response> {
     }
 
     // GET /api/ceo-dashboard-stats?period=today|yesterday|month|custom&from=&to=&agent_id=
+    // Owners only (owner audit 02.10.2026): revenue, profit, cost and rankings for the whole company.
+    // No page reads it any more (the Табла for admins is the Insights Overview).
     if (req.method === "GET" && path === "ceo-dashboard-stats") {
-      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      if (!(await isBusinessOwner(user.id))) return json({ error: isAdminOrManager ? "owners_only" : "Forbidden" }, 403);
 
       const period = url.searchParams.get("period") || "month";
       const agentFilter = url.searchParams.get("agent_id") || null;
@@ -10440,9 +10251,10 @@ async function handleRequest(req: Request): Promise<Response> {
       return json(BL.shapeSetResult(data));
     }
 
-    // POST /api/products
+    // POST /api/products — admin only (owner audit 02.10.2026; was admin/manager): a new product IS a
+    // name + price + active switch, the three fields only an admin may set (PATCH below).
     if (req.method === "POST" && path === "products") {
-      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      if (!isAdmin) return json({ error: "Forbidden — admin only", code: "admin_only" }, 403);
       let body;
       try { body = parseBody(createProductSchema, await req.json()); } catch (e: any) { return json({ error: e.message }, 400); }
 
@@ -10494,6 +10306,18 @@ async function handleRequest(req: Request): Promise<Response> {
       if (!patch.ok) return json({ error: patch.error }, 400);
       const body: any = patch.update;
       if (Object.keys(body).length === 0) return json({ error: "Nothing to update" }, 400);
+
+      // The price, the name and the active switch feed every order's value and the catalogue:
+      // admins only (owner audit 02.10.2026). A manager still edits the rest of the form; a value
+      // the form re-sends unchanged is not a change (AGD.productAdminFieldChanges).
+      if (!isAdmin && AGD.PRODUCT_ADMIN_FIELDS.some((k) => k in body)) {
+        const { data: curProduct, error: curErr } = await adminClient
+          .from("products").select("name, price, is_active").eq("id", productId).maybeSingle();
+        if (curErr) return json({ error: sanitizeDbError(curErr) }, 400);
+        if (!curProduct) return json({ error: "Product not found" }, 404);
+        const adminOnly = AGD.productAdminFieldChanges(body, curProduct);
+        if (adminOnly.length) return json({ error: "Forbidden — admin only", code: "admin_only", fields: adminOnly }, 403);
+      }
 
       const { data, error } = await adminClient
         .from("products")
@@ -11670,6 +11494,13 @@ async function handleRequest(req: Request): Promise<Response> {
     // Unpaid = paid packages not yet on a status=paid settlement.
 
     if (segments[0] === "agent-payouts") {
+      // Commission is money (owner audit 02.10.2026): every agent's payout is read by OWNERS
+      // (is_business_owner) only; anyone else reads only their own (AGD.payoutReadAgentId /
+      // canReadPayout). Every write — preview, create, edit, void — is owners only; a manager could
+      // create a hand-typed settlement up to PAYOUT_AMOUNT_MAX. The bonus maths below is unchanged.
+      const payoutOwner = await isBusinessOwner(user.id);
+      const payoutOwnersOnly = () => json({ error: isAdminOrManager ? "owners_only" : "Forbidden" }, 403);
+
       // Sanity ceiling for hand-typed amounts — a slipped keystroke must not
       // write a six-figure commission into the ledger.
       const PAYOUT_AMOUNT_MAX = 100000;
@@ -11735,8 +11566,7 @@ async function handleRequest(req: Request): Promise<Response> {
       if (req.method === "GET" && segments[1] === "summary" && segments.length === 2) {
         const from = url.searchParams.get("from");
         const to = url.searchParams.get("to");
-        let agentId = url.searchParams.get("agent_id");
-        if (!isAdminOrManager) agentId = user.id;
+        const agentId = AGD.payoutReadAgentId(payoutOwner, url.searchParams.get("agent_id"), user.id);
         if (agentId && !UUID_RE.test(agentId)) return json({ error: "Invalid agent_id" }, 400);
 
         // ── Engine switch (same pattern as agent-performance / insights) ──
@@ -11865,7 +11695,7 @@ async function handleRequest(req: Request): Promise<Response> {
 
       // GET /api/agent-payouts/preview?agent_id=&from=&to=
       if (req.method === "GET" && segments[1] === "preview" && segments.length === 2) {
-        if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+        if (!payoutOwner) return payoutOwnersOnly();
         const agentId = url.searchParams.get("agent_id");
         if (!agentId || !UUID_RE.test(agentId)) return json({ error: "agent_id required" }, 400);
         const from = url.searchParams.get("from");
@@ -11906,9 +11736,8 @@ async function handleRequest(req: Request): Promise<Response> {
 
       // GET /api/agent-payouts  (list settlements)
       if (req.method === "GET" && segments.length === 1) {
-        let agentId = url.searchParams.get("agent_id");
+        const agentId = AGD.payoutReadAgentId(payoutOwner, url.searchParams.get("agent_id"), user.id);
         const status = url.searchParams.get("status"); // paid | voided | all
-        if (!isAdminOrManager) agentId = user.id;
 
         let q = adminClient
           .from("agent_payouts")
@@ -11940,7 +11769,7 @@ async function handleRequest(req: Request): Promise<Response> {
           .eq("id", id)
           .maybeSingle();
         if (error || !payout) return json({ error: "Not found" }, 404);
-        if (!isAdminOrManager && payout.agent_user_id !== user.id) {
+        if (!AGD.canReadPayout(payoutOwner, payout.agent_user_id, user.id)) {
           return json({ error: "Forbidden" }, 403);
         }
 
@@ -11996,7 +11825,7 @@ async function handleRequest(req: Request): Promise<Response> {
 
       // POST /api/agent-payouts  — mark agent paid (create settlement)
       if (req.method === "POST" && segments.length === 1) {
-        if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+        if (!payoutOwner) return payoutOwnersOnly();
         const body = await req.json();
         const agentId = body.agent_id;
         if (!agentId || !UUID_RE.test(agentId)) return json({ error: "agent_id required" }, 400);
@@ -12098,7 +11927,7 @@ async function handleRequest(req: Request): Promise<Response> {
       // the order line items are never touched, so the double-pay guard and the
       // unpaid balance stay intact whatever the operator types here.
       if (req.method === "PATCH" && segments.length === 2 && UUID_RE.test(segments[1])) {
-        if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+        if (!payoutOwner) return payoutOwnersOnly();
         const id = segments[1];
         const body = await req.json().catch(() => ({}));
 
@@ -12187,7 +12016,7 @@ async function handleRequest(req: Request): Promise<Response> {
 
       // POST /api/agent-payouts/:id/void
       if (req.method === "POST" && segments.length === 3 && UUID_RE.test(segments[1]) && segments[2] === "void") {
-        if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+        if (!payoutOwner) return payoutOwnersOnly();
         const id = segments[1];
         const body = await req.json().catch(() => ({}));
         const { data: payout } = await adminClient.from("agent_payouts").select("*").eq("id", id).maybeSingle();
@@ -14605,7 +14434,8 @@ async function handleRequest(req: Request): Promise<Response> {
     // ============================================================
 
     // GET /api/app-settings — every authenticated user reads (e.g. the agent's
-    // Personal List "/N" badge needs the cap). Returns a flat key→value map.
+    // Personal List "/N" badge needs the cap). Returns a flat key→value map —
+    // the whole map for admins, the UI's allow-list for everyone else.
     if (req.method === "GET" && path === "app-settings") {
       const { data, error } = await adminClient.from("app_settings").select("key, value");
       if (error) return json({ error: sanitizeDbError(error) }, 400);
@@ -14620,7 +14450,10 @@ async function handleRequest(req: Request): Promise<Response> {
       if (out.promo_of_the_day === undefined) out.promo_of_the_day = PROMO_OF_THE_DAY_DEFAULT;
       if (out.altercpa_push_enabled === undefined) out.altercpa_push_enabled = false;
       out.voip_minutes_bundle = { ...VOIP_MINUTES_BUNDLE_DEFAULT, ...(out.voip_minutes_bundle || {}) };
-      return json(out);
+      // Admins read every key (Settings). Everyone else gets only the keys the UI reads for them
+      // (owner audit 02.10.2026 — bonus rules, the MEX-cash viewers and the owner switches were
+      // readable by every staff login): AGD.appSettingsForViewer, an allow-list.
+      return json(AGD.appSettingsForViewer(out, { admin: isAdmin, manager: isManager }));
     }
 
     // PATCH /api/app-settings — admin-only. Body: { personal_list_max_holds: 50 }
@@ -16404,6 +16237,9 @@ async function handleRequest(req: Request): Promise<Response> {
 
       // Sort combined by date desc
       results.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      // Prices are owners-only (owner audit 02.10.2026): warehouse and managers get every row
+      // without price / line prices (AGD.stripIncomingOrderMoney).
+      if (!(await isBusinessOwner(user.id))) return json(results.map((r) => AGD.stripIncomingOrderMoney(r)));
       return json(results);
     }
 
@@ -16413,6 +16249,9 @@ async function handleRequest(req: Request): Promise<Response> {
       const itemId = segments[2];
       const body = await req.json();
       const source = body._source; // "order" or "prediction_lead"
+      // The saved row goes back without its prices for a non-owner, as GET above (owner audit 02.10.2026).
+      const incomingOwner = await isBusinessOwner(user.id);
+      const incomingRowOut = (row: any) => (incomingOwner || !row ? row : AGD.stripIncomingOrderMoney(row));
 
       // Status is NOT set from the warehouse (owner audit 30.09.2026): this route had an
       // any-status dropdown (paid included) that skipped every rule of
@@ -16546,7 +16385,7 @@ async function handleRequest(req: Request): Promise<Response> {
           }
         }
 
-        return json(updatedLead);
+        return json(incomingRowOut(updatedLead));
       } else {
         // Update order fields directly using adminClient
         const orderUpdates: Record<string, any> = {};
@@ -16685,7 +16524,7 @@ async function handleRequest(req: Request): Promise<Response> {
 
         const { data, error } = await adminClient.from("orders").update(orderUpdates).eq("id", itemId).select().single();
         if (error) return json({ error: sanitizeDbError(error) }, 400);
-        return json(data);
+        return json(incomingRowOut(data));
       }
     }
 
@@ -18669,7 +18508,8 @@ async function handleRequest(req: Request): Promise<Response> {
     // the orders-side mirror of the is_completed rule. Ignored when list_ids
     // narrows the call, because pendings are not list-scoped.
     if (req.method === "POST" && path === "assigner/unassign-all") {
-      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      // The Assigner module decides, as on the other assigner routes (owner audit 02.10.2026).
+      if (!canViewModule("assigner") || !isAdminOrManager) return json({ error: "Forbidden" }, 403);
       if (!checkUserRateLimit(user.id, "assigner.unassign", 20)) {
         return json({ error: "Rate limit exceeded — try again in a minute" }, 429);
       }
@@ -18784,9 +18624,11 @@ async function handleRequest(req: Request): Promise<Response> {
       });
     }
 
-    // PATCH /api/segments/:id — admin-only edit of rule parameters
+    // PATCH /api/segments/:id — admin-only edit of rule parameters. Admin only in fact since the
+    // owner audit 02.10.2026 (a manager could pass): the engine resolves a list by EXACT name and
+    // deletes memberships before resolving, so a rename silently empties the list.
     if (req.method === "PATCH" && segments[0] === "segments" && segments.length === 2) {
-      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      if (!isAdmin) return json({ error: "Forbidden — admin only" }, 403);
       const listId = segments[1];
       let body;
       try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
