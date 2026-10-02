@@ -29,7 +29,8 @@ export const SCRIPTS_STALE_MS = 5 * 60_000;
 export const phone8 = (phone: string | null | undefined) => String(phone ?? '').replace(/\D/g, '').slice(-8);
 
 export const callScriptsForCallKey = (phone: string, ctx: CallScriptCtx) =>
-  ['calls-scripts', phone8(phone), ctx.source, ctx.orderId ?? null, ctx.listId ?? null] as const;
+  // Under CALL_SCRIPTS_QUERY_KEYS.all (['call-scripts']), so a save in the editor refreshes an open /calls dock.
+  ['call-scripts', 'for-call', phone8(phone), ctx.source, ctx.orderId ?? null, ctx.listId ?? null] as const;
 
 export function useCallScriptsMode() {
   return useQuery({
