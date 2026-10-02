@@ -17,6 +17,8 @@
  *                         main checkout ../elyon-natura/scripts/data next to this worktree)
  *     --no-precision      skip the precision pass (the apply always skips it)
  *     --preview           a dry run that records nothing (no data_repair_runs row)
+ *     --orders <file>     stamp ONLY these sales (ORD-… or uuids; the owner's corroborated list) — the rest is
+ *                         classified and reported, never stamped
  *
  * ── WHICH ORDERS ─────────────────────────────────────────────────────────────
  * EXACTLY the population of the stamping cron and its parity gate: order_decider_plan(10 years)
@@ -262,7 +264,7 @@ async function loadDb() {
 }
 
 /** Who holds a document number: an order naming it (tracking or collabBox DocNumber), the register, the ledger, a web order. */
-async function loadHolders(nums) {
+export async function loadHolders(nums) {
   const out = new Map();
   const list = [...new Set(nums)].filter(Boolean);
   for (let i = 0; i < list.length; i += 3000) {
@@ -606,16 +608,22 @@ export async function loadEvidence({ collabDir = DEFAULT_COLLAB_DIR, dataDir = n
   }
   ctx0.holders = await loadHolders(nums);
   return {
-    orders, ctx: ctx0, resolver, logins,
+    orders, ctx: ctx0, resolver, logins, tally: alt.tally,
     evidence: { export: { file: exp.docsPath, sha256: exp.docsSha, documents: exp.docs, komitenti_sha256: exp.komSha },
       altercpa_raw: { file: rawPath, sha256: alt.sha }, corrections: { file: corrPath, sha256: corrections.sha } },
   };
 }
 
-export async function buildPlan({ collabDir = DEFAULT_COLLAB_DIR, dataDir = null, sources = new Set(SOURCES), withPrecision = true } = {}) {
+export async function buildPlan({ collabDir = DEFAULT_COLLAB_DIR, dataDir = null, sources = new Set(SOURCES), withPrecision = true, onlyOrders = null } = {}) {
   const { orders, ctx: base, resolver, logins, evidence } = await loadEvidence({ collabDir, dataDir });
   const ctx0 = { ...base, opts: { sources } };
-  const rows = orders.map((o) => classify(o, ctx0));
+  // --orders: only the listed sales may be stamped (the owner's corroborated list, 02.10.2026) — every
+  // other row is classified as usual and reported, but left alone
+  const rows = orders.map((o) => {
+    const r = classify(o, ctx0);
+    if (onlyOrders && !onlyOrders.has(o.display_id) && !onlyOrders.has(o.id)) return { ...r, outcome: 'skip', reason: `not_in_order_list (${r.outcome}${r.source ? ` ${r.source}` : ''})` };
+    return r;
+  });
   const stamps = rows.filter((r) => r.outcome === 'stamp');
   const lineOf = new Map(stamps.map((r) => [r.order_id, planLine(r.order_id, r.source, `${r.person_id || '-'}|${r.ext}|${r.via}|${r.sold_at}`, r.doc || '')]));
   const prec = withPrecision ? await precision(ctx0) : null;
@@ -697,7 +705,7 @@ function parseSources(s) {
 async function main() {
   const args = parseArgs(process.argv.slice(2), {
     flags: ['apply', 'rollback', 'outside-quiet-window', 'no-precision', 'preview'],
-    values: ['run', 'actor', 'chunk', 'collab-dir', 'data-dir', 'sources'],
+    values: ['run', 'actor', 'chunk', 'collab-dir', 'data-dir', 'sources', 'orders'],
   });
   const APPLY = !!args.apply;
   mkGuard();
@@ -712,8 +720,19 @@ async function main() {
 
   const sources = parseSources(args.sources);
   const options = { sources: SOURCES.filter((s) => sources.has(s)) };
+  // --orders <file>: ORD-… display ids or uuids (whitespace / comma separated) — recorded, the apply repeats it
+  const onlyOrders = args.orders ? new Set(readFileSync(args.orders, 'utf8').split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean)) : null;
+  if (onlyOrders) options.orders = [...onlyOrders].sort();
   const collabDir = args['collab-dir'] || DEFAULT_COLLAB_DIR;
-  const plan = await buildPlan({ collabDir, dataDir: args['data-dir'] || null, sources, withPrecision: !APPLY && !args['no-precision'] });
+  const plan = await buildPlan({ collabDir, dataDir: args['data-dir'] || null, sources, withPrecision: !APPLY && !args['no-precision'], onlyOrders });
+  if (onlyOrders) {
+    const listed = plan.rows.filter((r) => onlyOrders.has(r.display_id) || onlyOrders.has(r.order_id));
+    const missing = [...onlyOrders].filter((x) => !plan.rows.some((r) => r.display_id === x || r.order_id === x));
+    const notStamped = listed.filter((r) => r.outcome !== 'stamp');
+    ok(`--orders: ${onlyOrders.size} listed · ${listed.length} in the unresolved set · ${listed.length - notStamped.length} stamped by --sources`);
+    if (missing.length) warn(`not in the cron's unresolved set (stamped meanwhile?): ${missing.join(', ')}`);
+    if (notStamped.length) warn(`listed but no enabled source stamps them: ${notStamped.map((r) => `${r.display_id} (${r.outcome} ${r.reason || ''})`).join(', ')}`);
+  }
   const { rows, stamps, lines, lineOf, resolver } = plan;
   report(plan);
   const csv = writeCsv(`${KEY}-${APPLY ? 'apply-' : ''}${fileStamp()}.csv`, rows.map((r) => ({
@@ -750,7 +769,7 @@ async function main() {
     console.log(bold(`\nDry run recorded: ${green(id)}`) + `  (hash ${hash.slice(0, 12)}…, ${lines.length} orders; sources ${options.sources.join(',')})`);
     console.log('Nothing was written to orders. After the owner approves the sources, in the quiet window (after 20:55 Skopje):');
     console.log('  node scripts/assert-mk-target.mjs');
-    console.log(`  node scripts/repair-seller-matching.mjs --apply --run ${id} --sources ${options.sources.join(',')}\n`);
+    console.log(`  node scripts/repair-seller-matching.mjs --apply --run ${id} --sources ${options.sources.join(',')}${args.orders ? ` --orders "${args.orders}"` : ''}\n`);
     return;
   }
 
