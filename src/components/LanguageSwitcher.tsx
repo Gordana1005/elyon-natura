@@ -10,7 +10,7 @@ import {
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
 
-// Inline SVGs instead of emoji flags — Windows renders 🇬🇧/🇧🇬 as plain
+// Inline SVGs instead of emoji flags — Windows renders 🇬🇧/🇲🇰 as plain
 // letters, and most agents are on Windows.
 function UkFlag({ className }: { className?: string }) {
   return (
@@ -20,16 +20,6 @@ function UkFlag({ className }: { className?: string }) {
       <path d="M0,0 L60,30 M60,0 L0,30" stroke="#C8102E" strokeWidth="3" />
       <path d="M30,0 V30 M0,15 H60" stroke="#fff" strokeWidth="10" />
       <path d="M30,0 V30 M0,15 H60" stroke="#C8102E" strokeWidth="6" />
-    </svg>
-  );
-}
-
-function BgFlag({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 60 30" className={className} aria-hidden="true">
-      <rect width="60" height="10" y="0" fill="#fff" />
-      <rect width="60" height="10" y="10" fill="#00966E" />
-      <rect width="60" height="10" y="20" fill="#D62612" />
     </svg>
   );
 }
@@ -76,7 +66,6 @@ function MkFlag({ className }: { className?: string }) {
 
 const FLAGS: Record<AppLanguage, (p: { className?: string }) => JSX.Element> = {
   en: UkFlag,
-  bg: BgFlag,
   sq: AlFlag,
   mk: MkFlag,
 };

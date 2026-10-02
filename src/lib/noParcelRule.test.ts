@@ -19,7 +19,7 @@ describe('no-parcel rule window in labels', () => {
   });
 
   it('no rule label hardcodes 7 any more, in any locale', () => {
-    for (const lng of ['en', 'mk', 'bg', 'sq']) {
+    for (const lng of ['en', 'mk', 'sq']) {
       const t = i18n.getFixedT(lng);
       expect(t('overview.attention.kind.approved_no_parcel_7d', { days: 12 })).toContain('12');
       expect(t('settings.integrations.feed.no_parcel_rule', { days: 12 })).toContain('12');

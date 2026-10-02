@@ -312,7 +312,7 @@ describe('i18n — the keys the page builds at runtime exist in every language',
       ...['day', 'ranking', 'shop', 'stock', 'deliveries', 'health'].map((k) => `shops.tabs.${k}`),
       'nav.shops',
     ];
-    for (const lng of ['mk', 'en', 'sq', 'bg']) {
+    for (const lng of ['mk', 'en', 'sq']) {
       const missing = keys.filter((k) => !i18n.exists(k, { lng }));
       expect(missing, lng).toEqual([]);
     }

@@ -39,7 +39,7 @@ describe('small helpers', () => {
   it('codes and accounts in words', () => {
     expect(codeText(t, 'mex_refused: Invalid city')).toBe(t('warehousePage.code.mex_refused'));
     expect(codeText(t, 'something_new')).toBe('something_new');
-    for (const lng of ['mk', 'en', 'sq', 'bg']) for (const c of KNOWN_CODES) expect(i18n.exists(`warehousePage.code.${c}`, { lng })).toBe(true);
+    for (const lng of ['mk', 'en', 'sq']) for (const c of KNOWN_CODES) expect(i18n.exists(`warehousePage.code.${c}`, { lng })).toBe(true);
     expect(accountName('bio_natural')).toBe('BIO NATURAL');
     expect(accountName('natura')).toBe('NATURA');
   });

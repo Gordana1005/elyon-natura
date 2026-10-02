@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import en from '../locales/en.json';
-import bg from '../locales/bg.json';
 import sq from '../locales/sq.json';
 import mk from '../locales/mk.json';
 
@@ -23,7 +22,6 @@ function flat(obj: Record<string, unknown>, prefix = '', out: Record<string, str
 const EN = flat(en as Record<string, unknown>);
 // Every translated locale, checked against EN. Adding a language = one entry.
 const TRANSLATED: Record<string, Record<string, string>> = {
-  bg: flat(bg as Record<string, unknown>),
   sq: flat(sq as Record<string, unknown>),
   mk: flat(mk as Record<string, unknown>),
 };

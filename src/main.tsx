@@ -1,6 +1,6 @@
-// i18n must initialize before anything renders so the cached language is
-// active from the first paint (no English flash for Bulgarian users).
-import "@/i18n";
+// i18n first: the app mounts once the starting language (one lazy chunk) is loaded, so it is
+// active from the first paint — no raw keys, no flash of another language.
+import { i18nReady } from "@/i18n";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
@@ -21,4 +21,7 @@ window.addEventListener("vite:preloadError", (event) => {
   window.location.reload();
 });
 
-createRoot(document.getElementById("root")!).render(<App />);
+const mount = () => createRoot(document.getElementById("root")!).render(<App />);
+// If the language chunk fails (offline, a stale deploy) the app still mounts — the preloadError
+// handler above reloads once to pick up the new build.
+i18nReady.then(mount, mount);

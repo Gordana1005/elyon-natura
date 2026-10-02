@@ -743,7 +743,7 @@ describe("POST stock/v2/count — warnings and refusals as codes", () => {
     expect(countRefusal({ ok: true, warnings: [] })).toBeNull();
   });
 
-  it("every code stock_v2_count_save() can answer is one the UI translates (SQL twin + all four locales)", () => {
+  it("every code stock_v2_count_save() can answer is one the UI translates (SQL twin + every locale)", () => {
     const sql = readFileSync(resolve(__dirname, "../../migrations/20260945000400_stock_v2_writers.sql"), "utf8");
     const between = (a: string, b: string) => sql.slice(sql.indexOf(a), sql.indexOf(b));
     const save = between("CREATE OR REPLACE FUNCTION public.stock_v2_count_save(", "CREATE OR REPLACE FUNCTION public.stock_v2_count_approve(");
@@ -759,7 +759,7 @@ describe("POST stock/v2/count — warnings and refusals as codes", () => {
     for (const c of [...warn, ...refusals, "unknown_article", "whole_units_only"]) {
       expect(codes.has(COUNT_CODE_ALIASES[c] ?? c), c).toBe(true);
     }
-    for (const lang of ["mk", "en", "sq", "bg"]) {
+    for (const lang of ["mk", "en", "sq"]) { // Bulgarian switched off 02.10.2026
       const loc = JSON.parse(readFileSync(resolve(__dirname, `../../../src/i18n/locales/${lang}.json`), "utf8"));
       for (const c of COUNT_CODES) expect(typeof loc.stock2.count.warn[c], `${lang}: stock2.count.warn.${c}`).toBe("string");
     }

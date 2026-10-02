@@ -49,7 +49,7 @@ describe('operatorTitle — how the name was decided', () => {
   });
 
   it('exists in all four languages', () => {
-    for (const lng of ['mk', 'en', 'sq', 'bg']) {
+    for (const lng of ['mk', 'en', 'sq']) {
       for (const b of ['sale', 'history', 'assigned', 'altercpa']) {
         expect(i18n.getResource(lng, 'translation', `ordersList.operator.basis.${b}`)).toBeTruthy();
       }

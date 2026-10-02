@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import en from '../locales/en.json';
-import bg from '../locales/bg.json';
 import sq from '../locales/sq.json';
 import mk from '../locales/mk.json';
 import { ALL_STATUSES, PREDICTION_LEAD_STATUSES } from '@/types';
@@ -16,7 +15,7 @@ import { TRASH_REASON_VALUES } from '@/lib/trashReasons';
 
 type Tree = { [key: string]: string | Tree };
 
-const LOCALES = { bg, sq, mk } as unknown as Record<string, Tree>; // en is the reference
+const LOCALES = { sq, mk } as unknown as Record<string, Tree>; // en is the reference
 const TRANSLATED = Object.keys(LOCALES);
 const ALL_LOCALES: Record<string, Tree> = { en: en as unknown as Tree, ...LOCALES };
 
@@ -84,15 +83,13 @@ describe('macedonian orthography', () => {
   // leaked into mk.json — the exact failure mode this locale was reviewed for.
   //
   // The exceptions below are NOT language, they are DATA that happens to be
-  // Bulgarian, and translating them breaks the feature:
-  //   languages.bg                  — every locale names a language in its own
-  //                                   language (English / Български / Shqip).
+  // Bulgarian, and translating them breaks the feature (the Bulgarian UI itself
+  // was switched off on 02.10.2026 — bg.json and languages.bg are gone):
   //   bigArenaStock.errUnrecognized — literal column headers of the BigArena
   //                                   export file the agent is looking at.
   //   delivery.typeCityPlaceholder  — the address DB holds Bulgarian city
   //                                   names; "Софија" would match nothing.
   const FOREIGN_LITERALS = new Set([
-    'languages.bg',
     'bigArenaStock.errUnrecognized',
     'delivery.typeCityPlaceholder',
   ]);

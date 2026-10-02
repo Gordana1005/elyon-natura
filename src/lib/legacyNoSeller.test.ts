@@ -187,7 +187,7 @@ describe('migrations 20260944001200 / 1300 and their twins', () => {
 });
 
 describe('the UI knows the reason in every locale', () => {
-  it.each(['en', 'mk', 'sq', 'bg'])('%s', (l) => {
+  it.each(['en', 'mk', 'sq'])('%s', (l) => {
     const j = JSON.parse(readFileSync(join(ROOT, `src/i18n/locales/${l}.json`), 'utf8'));
     expect(j.insights.agents.noSeller.reason.legacy_no_seller).toBeTruthy();
     expect(j.insights.agents.noSeller.hint.legacy_no_seller).toBeTruthy();

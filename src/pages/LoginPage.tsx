@@ -32,10 +32,10 @@ const naturaLogoWhite = BRAND_LOGO.white;
 const naturaMark = BRAND_LOGO.mark;
 const naturaMarkWhite = BRAND_LOGO.markWhite;
 
-// The login offers mk / sq / en — no Bulgarian (owner, 02.10.2026) — the floor's first.
+// mk / sq / en — Bulgarian is switched off app-wide (owner, 02.10.2026) — the floor's first.
 const FLOOR_FIRST: AppLanguage[] = ['mk', 'sq'];
 const floorRank = (l: AppLanguage) => (FLOOR_FIRST.indexOf(l) + 1) || FLOOR_FIRST.length + 1;
-const LOGIN_LANGUAGES = SUPPORTED_LANGUAGES.filter((l) => l !== 'bg').sort((a, b) => floorRank(a) - floorRank(b));
+const LOGIN_LANGUAGES = [...SUPPORTED_LANGUAGES].sort((a, b) => floorRank(a) - floorRank(b));
 
 // Deep forest green lit by the logo's own #6aa291 — the brand half on a desktop, the band on a phone.
 const BRAND_PANEL: CSSProperties = {

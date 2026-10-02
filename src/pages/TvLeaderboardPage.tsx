@@ -88,7 +88,7 @@ export default function TvLeaderboardPage() {
   const key = params.get('key') || '';
   const langParam = params.get('lang') || '';
 
-  // Public board — no login, so there is no profiles.language to read. ?lang=bg
+  // Public board — no login, so there is no profiles.language to read. ?lang=sq
   // pins the board's language per TV; without it the localStorage default wins.
   useEffect(() => {
     if (langParam && (SUPPORTED_LANGUAGES as string[]).includes(langParam) && i18n.language !== langParam) {
