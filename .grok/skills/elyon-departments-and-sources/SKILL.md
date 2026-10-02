@@ -181,7 +181,7 @@ first, it counts in Affiliate out, and we look at MEX — BIO NATURAL or NATURA 
   Every other order is NULL: the collabBox folder decides, so a LEADS-OUT (10114) stays Affiliate –
   Lead out and a 10050 stays Телешоп – Lead out whoever booked it. `person` and `at` are unused.
 - **Stored** in `orders.dept_override` (CHECK: one of the six keys or NULL). Never write it by
-  hand: `tg_orders_zz_dept_override` (BEFORE INSERT OR UPDATE OF `sale_source`,
+  hand: `zzz_orders_dept_override` (BEFORE INSERT OR UPDATE OF `sale_source`,
   `sale_source_detail`, `sold_by_person_id`, `sold_at`, `mex_account`, `mex_tracking_id`) keeps it
   — so the department moves the moment mex-reconcile links the parcel. Live ~12:05: 661 set — 651
   `elyon_crm` (BIO NATURAL: 648 list sales, 3 direct) and 10 `teleshop_out` (NATURA list sales);
@@ -226,7 +226,7 @@ first, it counts in Affiliate out, and we look at MEX — BIO NATURAL or NATURA 
   and Natura Therapy / Ad Astra → NATURA; a mixed basket, a basket with no line or a disagreeing
   department / team needs a person's pick. The line is an INPUT to the parcel, not a department rule:
   the push links the parcel through `mex_link_parcel(…, 'push')` (sets `mex_account` +
-  `mex_tracking_id`), `tg_orders_zz_dept_override` fires, and §3b places the sale by the parcel's
+  `mex_tracking_id`), `zzz_orders_dept_override` fires, and §3b places the sale by the parcel's
   profile like any other.
 - ⚠ **Check before the push goes on:** a pushed parcel carries OUR order number as its tracking id
   (no 9100 / 9102 / 9103 / 9108 series), so under today's §3b table a pushed CRM sale is Affiliate –
@@ -258,7 +258,7 @@ lead(pending) тогаш е дефинитивно affiliate lead in тимот,
   `line` teams, primary first, latest `valid_from`). `order_dept_decide(…, order_id)` = nullif(coalesce(team,
   `order_dept_override` profile, `crm_sale_booking_dept`), the 3-arg mapping) → `orders.dept_override`
   (sparse: stored only where it changes the department; the /orders PostgREST filter reads it unchanged).
-- **Kept by:** `tg_orders_zz_dept_override` (insert / source / seller / sale time / parcel),
+- **Kept by:** `zzz_orders_dept_override` (insert / source / seller / sale time / parcel),
   `tg_sales_team_members_dept` (AFTER INSERT/UPDATE/DELETE on `sales_team_members` →
   `orders_dept_recompute(person)` — a team change in Settings → Teams re-decides that person's orders),
   the 15-minute `crm_sale_booking_dept_sync`.
@@ -288,7 +288,7 @@ NATURAL — the 18 % are their CRM prediction-list sales (197 of 236), so those 
 - **When:** `20260947000300` — a confirmed CRM sale with no parcel takes its OWN booking's department
   (`crm_sale_booking_dept`: the document from `crm_sale_collab_doc`, and it must be linked to the
   order or booked by the sale's seller — a customer's other booking is never borrowed). Kept by
-  `tg_orders_zz_dept_override` (UPDATE only — on INSERT the row does not exist) and the cron
+  `zzz_orders_dept_override` (UPDATE only — on INSERT the row does not exist) and the cron
   `crm-sale-booking-dept` (`7,22,37,52 * * * *`, `crm_sale_booking_dept_sync()`, ≤ 60 days, updated_at
   kept). The parcel's profile (§3b) still wins once MEX has it.
 - **The 2-day rule:** `20260947000200` — owner: "ако некоја порачка ја нема внесено во наредните 2 дена

@@ -67,7 +67,7 @@ describe("bookingsWindow — the days a booking can exist", () => {
   });
   it("the RPC gets Skopje midnight … the day's last instant (CEST = UTC+2)", () => {
     expect(saleRowsArgs({ from: "2026-10-01", to: TODAY })).toEqual({
-      p_from: "2026-09-30T22:00:00.000Z", p_to_end: "2026-10-02T21:59:59.999999Z", p_keys: false,
+      p_from: "2026-09-30T22:00:00.000Z", p_to_end: "2026-10-02T21:59:59.999999Z",
     });
   });
 });

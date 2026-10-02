@@ -6714,8 +6714,8 @@ async function handleRequest(req: Request): Promise<Response> {
       const win = OB.bookingsWindow(p, ST.skopjeTodayYmd());
       if (win.empty || (scopePersonIds && !scopePersonIds.length)) return json(OB.bookingsResponse([], win));
 
-      const { data: srData, error: srErr } = await adminClient.rpc("insights_sale_rows", OB.saleRowsArgs(win));
-      if (srErr) return json({ error: `insights_sale_rows: ${sanitizeDbError(srErr)}` }, 500);
+      const { data: srData, error: srErr } = await adminClient.rpc("orders_bookings_rows", OB.saleRowsArgs(win));
+      if (srErr) return json({ error: `orders_bookings_rows: ${sanitizeDbError(srErr)}` }, 500);
       const sale = OB.bookingSaleRows(srData as OB.SaleRow[]);
 
       // The documents and the authors' names (display only — a failed read leaves those fields null).

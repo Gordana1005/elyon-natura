@@ -276,7 +276,7 @@ matches). Deliberately NOT `confirmed_at` — altercpa-sync's untouched guard re
     moves.
   - **The department never depends on the seller** (20260942001100): the trigger no longer moves a
     CRM sale of an AlterCPA-team agent to `altercpa/team_prediction`; it never touches
-    `sale_source`. The separate `tg_orders_zz_dept_override` (20260942001800, rule of `…1860`)
+    `sale_source`. The separate `zzz_orders_dept_override` (20260942001800, rule of `…1860`)
     fills `orders.dept_override` from the order's MEX profile, not from its seller.
 - **A disposition that becomes a sale** (a 0 ден call-outcome row an agent turns into a real
   sale, or its duplicate) is upgraded to `prediction_list` / `direct`

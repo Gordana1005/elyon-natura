@@ -78,8 +78,10 @@ export function bookingsWindow(p: Pick<BookingsParams, "dayFrom" | "dayTo">, tod
 }
 
 /** insights_sale_rows' arguments for a window (Skopje days → UTC instants). */
-export function saleRowsArgs(w: { from: string; to: string }): { p_from: string; p_to_end: string; p_keys: false } {
-  return { p_from: skopjeMidnightIso(w.from), p_to_end: skopjeDayEndIso(w.to), p_keys: false };
+/** orders_bookings_rows' arguments (20260947000700 — insights_sale_rows kind = 'booking' only, so the PostgREST
+ *  1.000-row cap never cuts the bookings off behind a week's orders). */
+export function saleRowsArgs(w: { from: string; to: string }): { p_from: string; p_to_end: string } {
+  return { p_from: skopjeMidnightIso(w.from), p_to_end: skopjeDayEndIso(w.to) };
 }
 
 // ── the rows ────────────────────────────────────────────────────────────────

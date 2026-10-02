@@ -157,7 +157,7 @@ target **explicitly** and verify it before running:
   Телешоп – Lead in · teleshop:social → Социјални · affiliate → Affiliate – Lead out; Менаџмент / legacy team / no seller
   → the folder + MEX-profile rules below. Stored in `orders.dept_override` by `order_dept_decide` (team → a CRM sale's
   MEX profile → its own booking → NULL = the mapping; stored only where it changes the department), kept by
-  `tg_orders_zz_dept_override`, `tg_sales_team_members_dept` (a team change re-decides the person's orders) and the
+  `zzz_orders_dept_override`, `tg_sales_team_members_dept` (a team change re-decides the person's orders) and the
   15-minute `crm-sale-booking-dept` pass; a BOOKING follows its author's team in `insights_sale_rows` /
   `leaderboard_day_v2`. 3.130 orders moved (Sept: 760 Affiliate – Lead out → Телешоп – Lead out, 2,11 М ден), each in
   `dept_by_team_backfill` (old → new). The raw `sale_source` / detail (folder, list, intake) never change. Proof:
