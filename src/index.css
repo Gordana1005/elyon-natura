@@ -199,3 +199,76 @@ html.dark {
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground) / 0.6);
 }
+
+/* =========================================
+   Natura Therapy HUB — the login page (owner, 02.10.2026)
+   The brand's own palette, scoped to .nt-login so the rest of the CRM keeps its tokens.
+   #6aa291 = the logo green (naturatherapy.mk). Text / button greens are deepened for
+   WCAG AA: white on #2f6556 ≈ 6.7:1; on dark, #0b1714 on #6aa291 ≈ 6.3:1. --nt-field-border and
+   --nt-focus give the fields and every focus cue their 3:1 against the page (WCAG 1.4.11).
+   Used through the `nt-*` colours in tailwind.config.ts.
+   ========================================= */
+.nt-login {
+  --nt-bg: #f6f5f0;
+  --nt-surface: #ffffff;
+  --nt-field: #ffffff;
+  --nt-border: #dcd8ce;
+  --nt-border-strong: #bfb9ab;
+  --nt-field-border: #8f8a7d;
+  --nt-focus: #2f6556;
+  --nt-text: #142420;
+  --nt-muted: #56645f;
+  --nt-subtle: #6b7672;
+  --nt-brand: #6aa291;
+  --nt-brand-ink: #2f6556;
+  --nt-btn: #2f6556;
+  --nt-btn-hover: #24524a;
+  --nt-btn-text: #ffffff;
+  --nt-ring: rgba(106, 162, 145, 0.35);
+  --nt-danger-bg: #fdf1ee;
+  --nt-danger-border: #f1c6bd;
+  --nt-danger-text: #9a2b1d;
+  --nt-danger-ring: rgba(154, 43, 29, 0.16);
+  --nt-warn: #8a5a00;
+  color-scheme: light;
+}
+
+.dark .nt-login {
+  --nt-bg: #0b1714;
+  --nt-surface: #11211d;
+  --nt-field: #102420;
+  --nt-border: #23403a;
+  --nt-border-strong: #33574e;
+  --nt-field-border: #4a7a6f;
+  --nt-focus: #8cc3b2;
+  --nt-text: #e8f0ed;
+  --nt-muted: #a3b6b0;
+  --nt-subtle: #7b968f;
+  --nt-brand: #6aa291;
+  --nt-brand-ink: #8cc3b2;
+  --nt-btn: #6aa291;
+  --nt-btn-hover: #7db3a2;
+  --nt-btn-text: #0b1714;
+  --nt-ring: rgba(106, 162, 145, 0.4);
+  --nt-danger-bg: rgba(220, 84, 62, 0.12);
+  --nt-danger-border: rgba(220, 84, 62, 0.4);
+  --nt-danger-text: #f4ad9f;
+  --nt-danger-ring: rgba(244, 173, 159, 0.22);
+  --nt-warn: #e9c46a;
+  color-scheme: dark;
+}
+
+/* Browser autofill paints its own yellow / blue over the fields — keep the brand surface. */
+.nt-login input:-webkit-autofill,
+.nt-login input:-webkit-autofill:hover,
+.nt-login input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--nt-text);
+  caret-color: var(--nt-text);
+  box-shadow: 0 0 0 1000px var(--nt-field) inset;
+  transition: background-color 9999s ease-out 0s;
+}
+
+/* …and keep the focus halo on an autofilled field (the office PCs autofill saved logins). */
+.nt-login input:-webkit-autofill:focus {
+  box-shadow: 0 0 0 4px var(--nt-ring), 0 0 0 1000px var(--nt-field) inset;
+}

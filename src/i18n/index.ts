@@ -45,6 +45,17 @@ function storedLanguage(): AppLanguage {
   return DEFAULT_LANGUAGE;
 }
 
+// <html lang> follows the UI language (WCAG 3.1.1): screen readers pick the right voice and the
+// browser stops offering to "translate from English" a Macedonian page.
+function syncDocumentLang(lng: string) {
+  try {
+    document.documentElement.lang = lng;
+  } catch {
+    // no DOM
+  }
+}
+i18n.on('languageChanged', syncDocumentLang);
+
 i18n.use(initReactI18next).init({
   resources: {
     en: { translation: en },
@@ -64,5 +75,7 @@ i18n.use(initReactI18next).init({
   // English value (fallbackLng) or, failing that, the key itself.
   parseMissingKeyHandler: import.meta.env.DEV ? (key) => `⟪${key}⟫` : undefined,
 });
+
+syncDocumentLang(i18n.language || DEFAULT_LANGUAGE);
 
 export default i18n;

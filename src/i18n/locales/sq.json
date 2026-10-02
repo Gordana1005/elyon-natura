@@ -2111,10 +2111,17 @@
     "username": "Emri i përdoruesit",
     "usernamePlaceholder": "Shkruaj emrin tënd të përdoruesit",
     "password": "Fjalëkalimi",
-    "signingIn": "Po hyhet...",
+    "required": "Plotëso këtë fushë.",
+    "signingIn": "Po hyhet…",
     "signIn": "Hyr",
     "invalidCredentials": "Kredenciale të pavlefshme",
-    "outsideShift": "Hyrja nuk lejohet jashtë orarit të turnit."
+    "outsideShift": "Hyrja nuk lejohet jashtë orarit të turnit.",
+    "showPassword": "Shfaq fjalëkalimin",
+    "capsLockOn": "Caps Lock është aktiv",
+    "tagline": "Porositë, thirrjet dhe ekipi — gjithçka në një vend.",
+    "networkError": "Nuk ka lidhje me serverin. Kontrollo lidhjen me internetin dhe provo përsëri.",
+    "accountBlocked": "Llogaria është e bllokuar. Kontakto administratorin.",
+    "serverUnavailable": "Serveri nuk po përgjigjet për momentin. Provo përsëri pas pak."
   },
   "notFound": {
     "message": "Ups! Faqja nuk u gjet",

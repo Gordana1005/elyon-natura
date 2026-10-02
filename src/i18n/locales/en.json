@@ -2111,10 +2111,17 @@
     "username": "Username",
     "usernamePlaceholder": "Enter your username",
     "password": "Password",
-    "signingIn": "Signing in...",
-    "signIn": "Sign In",
+    "required": "Please fill in this field.",
+    "signingIn": "Signing in…",
+    "signIn": "Sign in",
     "invalidCredentials": "Invalid credentials",
-    "outsideShift": "Login not allowed outside shift hours."
+    "outsideShift": "Login not allowed outside shift hours.",
+    "showPassword": "Show password",
+    "capsLockOn": "Caps Lock is on",
+    "tagline": "Orders, calls and the team — all in one place.",
+    "networkError": "Can't reach the server. Check your connection and try again.",
+    "accountBlocked": "This account is blocked. Contact your administrator.",
+    "serverUnavailable": "The server isn't responding right now. Try again in a moment."
   },
   "notFound": {
     "message": "Oops! Page not found",

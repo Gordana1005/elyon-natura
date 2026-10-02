@@ -83,10 +83,10 @@ async function main() {
 
   // ── Test 3: page contains brand text ──
   try {
-    await page.waitForSelector('text="Elyon CRM"', { timeout: TIMEOUT_MS });
-    pass('page contains "Elyon CRM"');
+    await page.waitForSelector('h1:has-text("Natura Therapy HUB")', { timeout: TIMEOUT_MS });
+    pass('page contains "Natura Therapy HUB"');
   } catch (err) {
-    fail('"Elyon CRM" text never appeared');
+    fail('"Natura Therapy HUB" text never appeared');
   }
 
   // ── Test 4: no console errors during load ──
@@ -113,7 +113,7 @@ async function main() {
       if (!page.url().endsWith("/login")) {
         await page.goto(`${TARGET}/login`, { waitUntil: "networkidle" });
       }
-      await page.fill('input#email', process.env.SMOKE_EMAIL);
+      await page.fill('input#username', process.env.SMOKE_EMAIL);
       await page.fill('input#password', process.env.SMOKE_PASSWORD);
       await page.click('button[type="submit"]');
       await page.waitForURL((u) => !u.pathname.endsWith("/login"), { timeout: TIMEOUT_MS });
