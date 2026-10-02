@@ -582,6 +582,15 @@ export function sampleVars(
   opts: { agentName?: string | null; priceEur?: number | null; now?: number } = {},
 ): ScriptVarsLite | null {
   if (!sample) return null;
+  // The api already builds the sample's variables exactly like the /calls dock (price, city, redaction) —
+  // use them; only the agent's own name is filled here.
+  if (sample.vars) {
+    return {
+      ...sample.vars,
+      agent_name: opts.agentName ?? sample.vars.agent_name ?? null,
+      price_eur: sample.vars.price_eur ?? opts.priceEur ?? null,
+    };
+  }
   const now = opts.now ?? Date.now();
   const at = sample.last_purchase_at ? Date.parse(sample.last_purchase_at) : NaN;
   const days = Number.isFinite(at) ? Math.max(0, Math.floor((now - at) / 86_400_000)) : null;

@@ -20,6 +20,11 @@ const CODES: Record<string, string> = {
 export function scriptsErrorText(e: unknown, t: TFunction): string {
   if (e instanceof CallScriptsError) {
     if (e.code && CODES[e.code]) return t(CODES[e.code], { version: e.currentVersion ?? '' });
+    // The writers' field-level refusals (bad_title, bad_sections, unknown_product, legacy_field, note_too_long,
+    // too_many_products, expected_version_required, bad_transition, invalid_body …) → one translated "invalid".
+    if (e.code && /^(bad_|unknown_|legacy_|invalid_|note_too_long$|too_many_products$|expected_version_required$|script_text_derived$)/.test(e.code)) {
+      return t('callScripts.errors.invalid');
+    }
     if (e.status === 403) return t('callScripts.errors.forbidden');
     if (e.status === 404) return t('callScripts.errors.notFound');
     if (e.status === 409) return t('callScripts.errors.stale', { version: e.currentVersion ?? '' });

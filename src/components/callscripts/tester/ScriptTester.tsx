@@ -126,7 +126,7 @@ export function ScriptTester({ library }: { library: ScriptsLibrary | undefined 
     e.preventDefault();
     const digits = phone.replace(/\D/g, '');
     if (digits.length < 8) return;
-    setAsked({ phone: phone.trim(), source, include_drafts: drafts });
+    setAsked({ phone: phone.trim(), source, include_drafts: drafts, test: true });
   };
 
   const byId = new Map(scripts.map((s) => [s.id, s]));

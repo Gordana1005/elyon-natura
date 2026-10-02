@@ -12452,7 +12452,10 @@ async function handleRequest(req: Request): Promise<Response> {
       }
       const mode = await csGetMode(adminClient);
       const off = { enabled: false, mode, drafts_included: false, context: null, vars: null, best: null, alternatives: [] };
-      if (!CSA.scriptsEnabledFor(mode, isAdminOrManager)) return json(off);
+      // The tester on /call-scripts (?test=1, admins / managers only) answers whatever the switch says:
+      // writers check their drafts on real clients BEFORE switching the floor on. The /calls dock never sends it.
+      const isTester = isAdminOrManager && ["1", "true"].includes(url.searchParams.get("test") || "");
+      if (!isTester && !CSA.scriptsEnabledFor(mode, isAdminOrManager)) return json(off);
 
       const phone = (url.searchParams.get("phone") || "").trim();
       const last8 = phone.replace(/\D/g, "").slice(-8);

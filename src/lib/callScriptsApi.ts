@@ -120,7 +120,7 @@ export const apiGetScriptSamples = (q: { group?: ScriptGroup | null; product?: s
 // ── /calls ──────────────────────────────────────────────────────────────────
 export const apiGetCallScriptsForCall = (q: CallScriptsQuery, signal?: AbortSignal) =>
   scriptsFetch<CallScriptsForCall>(
-    `calls/scripts${qs({ phone: q.phone, source: q.source, order_id: q.order_id, list_id: q.list_id, include_drafts: q.include_drafts })}`,
+    `calls/scripts${qs({ phone: q.phone, source: q.source, order_id: q.order_id, list_id: q.list_id, include_drafts: q.include_drafts, test: q.test })}`,
     signal ? { signal } : undefined,
   );
 
@@ -135,5 +135,5 @@ export const CALL_SCRIPTS_QUERY_KEYS = {
   coverage: (families = true, assignedOnly = false) => ['call-scripts', 'coverage', families, assignedOnly] as const,
   samples: (group: string | null, product: string | null) => ['call-scripts', 'samples', group, product] as const,
   forCall: (q: CallScriptsQuery) =>
-    ['call-scripts', 'for-call', q.phone, q.source, q.order_id ?? null, q.list_id ?? null, !!q.include_drafts] as const,
+    ['call-scripts', 'for-call', q.phone, q.source, q.order_id ?? null, q.list_id ?? null, !!q.include_drafts, !!q.test] as const,
 };

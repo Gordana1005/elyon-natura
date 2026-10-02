@@ -265,6 +265,8 @@ export interface CallScriptsQuery {
   order_id?: string | null;
   list_id?: string | null;
   include_drafts?: boolean;
+  /** Admins / managers on the tester: answer whatever the switch says (writers test before switching on). */
+  test?: boolean;
 }
 
 export interface LibraryQuery {
