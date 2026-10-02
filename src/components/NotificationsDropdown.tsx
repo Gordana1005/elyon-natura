@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bell, CheckCheck, Clock, AlertTriangle, Info, Package, PhoneMissed, RotateCcw, PackageX, UserPlus, BadgeCheck, Copy, Truck as TruckIcon, PackageSearch, Hourglass, TrendingUp, TrendingDown, Handshake } from 'lucide-react';
+import { Bell, CheckCheck, Clock, AlertTriangle, Info, Package, PhoneMissed, RotateCcw, PackageX, UserPlus, BadgeCheck, Copy, Truck as TruckIcon, PackageSearch, Hourglass, TrendingUp, TrendingDown, Handshake, FileX, FileWarning } from 'lucide-react';
 import { openPresencePanel, showIdleSelfToast } from '@/lib/presence/ui';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -119,6 +119,10 @@ const typeIcons: Record<string, typeof Info> = {
   altercpa_rate: TrendingUp,
   altercpa_rate_below: TrendingDown,
   affiliate_lead: Handshake,
+  // The 2-day collabBox entry rule (owner 02.10.2026, 20260947000200): a CRM sale not entered in
+  // collabBox — cancelled (red), or the evening-before warning (amber).
+  not_in_collab: FileX,
+  not_in_collab_warning: FileWarning,
 };
 
 const typeColors: Record<string, string> = {
@@ -140,6 +144,8 @@ const typeColors: Record<string, string> = {
   // Under the partner's guarantee — act on the cohort (same weight as low stock).
   altercpa_rate_below: 'text-amber-500',
   affiliate_lead: 'text-violet-500',
+  not_in_collab: 'text-red-500',
+  not_in_collab_warning: 'text-amber-500',
 };
 
 // Per-type "mood" styling for unread items in the dropdown.
@@ -155,11 +161,14 @@ const getUnreadMoodClass = (type: string): string => {
       return 'bg-pink-500/10 border-l-2 border-pink-500 data-[highlighted]:bg-pink-500/15 focus:bg-pink-500/15';
     case 'missed_call':
       return 'bg-rose-500/10 border-l-2 border-rose-500 data-[highlighted]:bg-rose-500/15 focus:bg-rose-500/15';
+    case 'not_in_collab':
+      return 'bg-red-500/10 border-l-2 border-red-600 data-[highlighted]:bg-red-500/15 focus:bg-red-500/15';
     case 'low_stock':
     case 'shipped_unpaid':
     case 'unpaid_digest':
     case 'inactivity':
     case 'altercpa_rate_below':
+    case 'not_in_collab_warning':
       return 'bg-amber-500/10 border-l-2 border-amber-500 data-[highlighted]:bg-amber-500/15 focus:bg-amber-500/15';
     case 'altercpa_rate':
       return 'bg-sky-500/10 border-l-2 border-sky-500 data-[highlighted]:bg-sky-500/15 focus:bg-sky-500/15';
@@ -178,11 +187,14 @@ const getUnreadTitleClass = (type: string): string => {
       return 'font-semibold text-pink-600 dark:text-pink-400';
     case 'missed_call':
       return 'font-semibold text-rose-600 dark:text-rose-400';
+    case 'not_in_collab':
+      return 'font-semibold text-red-600 dark:text-red-400';
     case 'low_stock':
     case 'shipped_unpaid':
     case 'unpaid_digest':
     case 'inactivity':
     case 'altercpa_rate_below':
+    case 'not_in_collab_warning':
       return 'font-semibold text-amber-600 dark:text-amber-400';
     case 'altercpa_rate':
       return 'font-semibold text-sky-600 dark:text-sky-400';
@@ -205,6 +217,8 @@ const toastSeverity: Record<string, 'error' | 'warning' | 'success' | 'default'>
   altercpa_rate: 'default',
   altercpa_rate_below: 'warning',
   affiliate_lead: 'default',
+  not_in_collab: 'error',
+  not_in_collab_warning: 'warning',
 };
 
 export function NotificationsDropdown() {
