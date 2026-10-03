@@ -46,6 +46,8 @@ because a browser tab was closed.
 | `inactivity` | `presence_record_beat()` via `presence_heartbeat()` (20260935000200) | the idle person (`meta.self`) + the `presence_idle_alert_recipients` (default owners) |
 | `assignment` | api `notifyUsers()`: bulk assign (`meta notif.ordersAssigned`), single assign (`notif.orderAssigned`), Call Agains assign (`notif.callAgainsAssigned`), prediction-list distribution (`notif.predictionLeadsAssigned`), manual lead-distribution run (`notif.leadsAssigned`) | the agent who received the work (never yourself) |
 | `affiliate_lead` | api `notifyUsers()` on `POST /cpa/lead` (`meta notif.affiliateLead`) | all admins |
+| `not_in_collab` | `apply_collab_entry_rule()` (cron `collab-entry-rule`, 21:20 Skopje; 5 days, every sale — `20260947001900`): the sale was not entered in collabBox and was cancelled (`meta notif.notInCollab`: order, customer, days). None for a sale older than `silent_after_days` (14) | the SELLER (`sales_people.user_id` of `sold_by_person_id`), else the confirmer, else the assignee |
+| `not_in_collab_warning` | the same run, the evening before (age = days − 1): it is cancelled tomorrow at 21:20 (`meta notif.notInCollabWarning`: order, customer, hour, days); once per order | same as above |
 
 **UI maps.** A type needs **five** entries in `NotificationsDropdown.tsx`: `typeIcons`,
 `typeColors`, `getUnreadMoodClass`, `getUnreadTitleClass`, `toastSeverity`. Miss one and the row
@@ -66,7 +68,9 @@ English is never shown. `order_returned` still carries no `meta` (English only).
 edge function. Same rule as commissions and the My Orders tabs. Never notify both the assignee
 and the confirmer; never notify the assignee when a confirmer exists. See
 [elyon-agent-commissions](../elyon-agent-commissions/SKILL.md). (`orders.sold_by_person_id` —
-who made the sale, `elyon-presence-and-leaderboard` — is NOT used by any bell producer.)
+who made the sale, `elyon-presence-and-leaderboard` — is used by ONE producer only: the collabBox entry
+rule's `not_in_collab` / `not_in_collab_warning` go to the seller's login first (owner 03.10.2026: "the
+seller gets it" — an AlterCPA approval has no confirmer in the CRM), then the confirmer, then the assignee.)
 
 ## Rule 2 — write English, ship `meta` for translation
 

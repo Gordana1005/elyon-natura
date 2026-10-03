@@ -14,9 +14,10 @@
 // cohort's own), never re-derived here. This module only windows, enriches
 // (collabbox_documents, sales_people), filters, scopes, masks and counts.
 //
-// It also carries the pure half of the 2-day collabBox entry rule badge on the
-// orders list (crm_sale_collab_states, migration 20260947000200): which rows of
-// a page to ask about, and the `collab` field each one gets.
+// It also carries the pure half of the collabBox entry rule badge on the orders
+// list (crm_sale_collab_states — 20260947000200, 5 days for every sale since
+// 20260947001900): which rows of a page to ask about, and the `collab` field
+// each one gets.
 //
 // Dependency-free on purpose (vitest runs ordersBookings.test.ts in Node).
 // ============================================================================
@@ -293,7 +294,7 @@ export function chunks<T>(list: readonly T[], size: number): T[][] {
   return out;
 }
 
-// ── the 2-day collabBox entry rule badge (20260947000200) ───────────────────
+// ── the collabBox entry rule badge (20260947000200 / 1900: 5 days, every sale) ─
 
 /** crm_sale_collab_states' row. */
 export interface CollabStateRow {
@@ -321,18 +322,23 @@ export interface OrderCollab {
 /** The RPC's own limit (crm_sale_collab_states raises above 200). */
 export const COLLAB_STATES_MAX_IDS = 200;
 
-const CRM_DETAILS = new Set(["prediction_list", "direct"]);
+/** The statuses the rule reads as a sale still waiting for its parcel. */
+const COLLAB_RULE_STATUSES = new Set(["confirmed", "shipped"]);
 
 /**
- * The rows of a page worth asking about: a confirmed CRM sale (elyon_crm ·
- * prediction_list | direct) with no MEX parcel — the RPC's own WHERE, so it is
- * never asked about rows it would drop anyway. The RPC re-checks.
+ * The rows of a page worth asking about — the rule's population (owner
+ * 03.10.2026, "од секаде"): a sale (confirmed, or shipped in the CRM) with no
+ * MEX parcel, a price, not made by collabBox itself (external_source
+ * 'collabbox'), not a web-shop order (sale_source 'web'), not a /calls
+ * disposition — whatever its intake (CRM, AlterCPA, partner …). The RPC's own
+ * WHERE, so it is never asked about rows it would drop anyway; it re-checks.
  */
 export function collabCandidateIds(orders: readonly Record<string, unknown>[]): string[] {
   const out: string[] = [];
   for (const o of orders) {
-    if (o.status === "confirmed" && o.sale_source === "elyon_crm"
-      && CRM_DETAILS.has(String(o.sale_source_detail ?? "")) && !o.mex_tracking_id && typeof o.id === "string") {
+    if (COLLAB_RULE_STATUSES.has(String(o.status ?? "")) && !o.mex_tracking_id
+      && o.external_source !== "collabbox" && o.sale_source !== "web"
+      && o.sale_source_detail !== "disposition" && Number(o.price ?? 0) > 0 && typeof o.id === "string") {
       out.push(o.id);
     }
   }

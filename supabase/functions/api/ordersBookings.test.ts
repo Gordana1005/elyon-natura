@@ -167,16 +167,21 @@ describe("the response", () => {
   });
 });
 
-describe("the 2-day collabBox entry rule badge (crm_sale_collab_states)", () => {
-  const o = (x: Record<string, unknown>) => ({ id: "o", status: "confirmed", sale_source: "elyon_crm", sale_source_detail: "prediction_list", mex_tracking_id: null, ...x });
-  it("asks only about confirmed CRM sales (prediction_list | direct) without a parcel", () => {
+describe("the collabBox entry rule badge (crm_sale_collab_states — 5 days, every sale)", () => {
+  const o = (x: Record<string, unknown>) => ({ id: "o", status: "confirmed", sale_source: "elyon_crm", sale_source_detail: "prediction_list", external_source: null, price: 48.78, mex_tracking_id: null, ...x });
+  it("asks about every sale made outside collabBox (confirmed / shipped, no parcel, priced) — any intake", () => {
     const ids = collabCandidateIds([
       o({ id: "a" }), o({ id: "b", sale_source_detail: "direct" }),
-      o({ id: "c", sale_source_detail: "disposition" }), o({ id: "d", status: "shipped" }),
-      o({ id: "e", sale_source: "collabbox" }), o({ id: "f", mex_tracking_id: "002-9103-1/2026" }),
-      o({ id: "g", sale_source: "altercpa", sale_source_detail: null }),
+      o({ id: "c", sale_source_detail: "disposition", price: 0 }), o({ id: "d", status: "shipped" }),
+      o({ id: "e", sale_source: "collabbox", sale_source_detail: "teleshop_out", external_source: "collabbox" }),
+      o({ id: "f", mex_tracking_id: "002-9103-1/2026" }),
+      o({ id: "g", sale_source: "altercpa", sale_source_detail: "bridge", external_source: "altercpa" }),
+      o({ id: "h", sale_source: "altercpa", sale_source_detail: "collabbox_leads", external_source: "collabbox" }),
+      o({ id: "i", sale_source: "web", sale_source_detail: "opencart" }),
+      o({ id: "j", status: "paid" }), o({ id: "k", status: "pending" }), o({ id: "l", status: "cancelled" }),
+      o({ id: "m", price: null }), o({ id: "n", sale_source: "affiliate", sale_source_detail: "partner", price: "24.23" }),
     ]);
-    expect(ids).toEqual(["a", "b"]);
+    expect(ids).toEqual(["a", "b", "d", "g", "n"]);
   });
   it("maps each state onto its order; an unknown mode reads as report", () => {
     expect(collabById([

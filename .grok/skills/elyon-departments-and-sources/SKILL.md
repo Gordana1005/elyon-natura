@@ -176,7 +176,7 @@ first, it counts in Affiliate out, and we look at MEX — BIO NATURAL or NATURA 
   | `natura`, `___-9108-%` / `___-1300-%` | `social` |
   | `natura`, anything else (9102, 9103 …) | `teleshop_out` (Телешоп – Lead out) |
   | no MEX profile yet, but **its own collabBox booking** (02.10, `20260947000300`) | the booking's department — `crm_sale_booking_dept(order)` = `cohort_order_source(collabbox_department(type, doc, author, at))`, the cohort's own booking department: 10050 → Телешоп – Lead out · 10036 → Телешоп – Lead in · 10106/10055 → social · 10114 → Affiliate – Lead out · 10111 → Affiliate – Lead in |
-  | no MEX profile and no booking yet | NULL → the mapping of §3 (Affiliate – Lead out) — **provisional**; /orders marks it, and the 2-day collabBox rule (§3c) cancels it if it is never booked |
+  | no MEX profile and no booking yet | NULL → the mapping of §3 (Affiliate – Lead out) — **provisional**; /orders marks it, and the 5-day collabBox entry rule (§3c) cancels it if it is never booked |
 
   Every other order is NULL: the collabBox folder decides, so a LEADS-OUT (10114) stays Affiliate –
   Lead out and a 10050 stays Телешоп – Lead out whoever booked it. `person` and `at` are unused.
@@ -282,7 +282,7 @@ lead(pending) тогаш е дефинитивно affiliate lead in тимот,
 - **Never:** let a team decide a LEAD; fold Менаџмент into a line department; change `sale_source` /
   detail for this (they stay the raw record); bring back the crm_prediction-team rule of `…1800`.
 
-### 3c. The booking decides before the parcel + the 2-day collabBox rule (owner, 02.10.2026)
+### 3c. The booking decides before the parcel + the collabBox entry rule (owner, 02.10 / 03.10.2026)
 
 Owner 02.10 (Milјана's CRM list sale sat in Affiliate – Lead out with no parcel; /orders showed 0
 Телешоп – Lead out while the board counted the bookings): "телешоп внесуваат само преку НАТУРА …
@@ -299,19 +299,57 @@ NATURAL — the 18 % are their CRM prediction-list sales (197 of 236), so those 
   `zzz_orders_dept_override` (UPDATE only — on INSERT the row does not exist) and the cron
   `crm-sale-booking-dept` (`7,22,37,52 * * * *`, `crm_sale_booking_dept_sync()`, ≤ 60 days, updated_at
   kept). The parcel's profile (§3b) still wins once MEX has it.
-- **The 2-day rule:** `20260947000200` — owner: "ако некоја порачка ја нема внесено во наредните 2 дена
-  во collab, тогаш оди cancel, Агентот добива известување". `apply_collab_entry_rule()` (cron
-  `collab-entry-rule` `20 * * * *`, acts at 21:xx Skopje once a day): a confirmed `elyon_crm`
-  prediction_list / direct sale, no parcel, no collabBox evidence (`crm_sale_collab_doc`: the writer's
-  link · a living sales document on the customer's phone or komitent from the sale − 2 days · the
-  phoneless twin), no unlinked parcel on the phone, `days` (2) Skopje days after its sale day →
-  cancelled (reason `other` + note `not_in_collab_2d: …`, history, system note, `keep_updated_at`) and
-  the confirmer (else the assignee) gets the bell `not_in_collab`; the evening before,
-  `not_in_collab_warning`. Ledger `collab_entry_rule_runs` / `_items`; undo
-  `collab_entry_rule_undo(run_id)`. Switch `app_settings.collab_entry_rule` (owner key) — seeded
-  **report** (02.10: 44 would be cancelled, 4–46 days old, €2.043,61; 3 warnings). A booking made after
-  the cancel is no twin (the writer's twin rule reads living sales), so it becomes its own order with
-  the parcel — counted once. Proof: `node scripts/verify-collab-entry-rule.mjs [--list]`.
+- **The collabBox entry rule — 5 DAYS, EVERY SALE, LIVE (owner 03.10.2026 "ГО"; `20260947001900` /
+  `1905` / `1910`; it replaced the 2-day CRM-only rule of `20260947000200`, which never left report).**
+  Owner: "Треба да почекаме порачката да се внесе барем следните 5 дена најново правило за од секаде, ако
+  порачката ја нема во collab 5 дена, тогаш одиме cancel со причина, нема внесено порачка во Collab.
+  Барем се додека не почнат од кај нас да испраќаат со пошта." Until the CRM ships itself ("Испрати до
+  MEX", `mex_push` OFF) a sale reaches MEX only through a collabBox document (DocNumber = tracking id).
+  - **Population** (`collab_entry_rule_plan(p_days)`, read-only, any `days` as a what-if): status
+    `confirmed` | `shipped` (shipped in the CRM with no MEX parcel), no `mex_tracking_id`, price > 0,
+    NOT `external_source = 'collabbox'`, NOT `sale_source = 'web'`, NOT a disposition, NOT a test phone,
+    `ship_after_date` not in the future, sold since `from_date` (2026-08-01) — i.e. CRM sales of every
+    department (Менаџмент included), AlterCPA approvals (Тим Маџари In), partner orders, any intake.
+    `paid` / `delivered` with no parcel (AlterCPA's own "paid") are never touched.
+  - **Evidence** — `sale_collab_evidence(order, days)`, ONE definition for the plan, the cancel re-check
+    and the /orders badge, first that fits: `pushed` (`mex_push_attempts` ok / exists_linked — the rule
+    fades out once the push is on) · `in_collab` (`crm_sale_collab_doc` unchanged: the writer's link ·
+    a living sales document on the customer's phone / komitent from the sale − 2 days · the phoneless
+    twin; + a document named by `external_order_id`) · `in_collab_amount` (`sale_collab_amount_twin`: a
+    living, unclaimed, PHONELESS document entered `least(booked_at, doc_at)` sale − 2 d … sale + days + 1
+    with the sale's value — goods / total = price × 61,5 or + 150, ± 3 ден — AND a shared name word,
+    `collab_names_share_word`: equal folded words ≥ 4 letters, or a glued name ≥ 5 letters longer) ·
+    `needs_linking` (an unlinked parcel on the phone since sale − 2 d) · `postponed`
+    (`sale_delivery_postponed_note` = the no-parcel rule's regex character for character, verify E6;
+    ≤ `postpone_days` 45). A false "in collabBox" only spares an order.
+  - **Cancel** at `days` (5) Skopje days after the sale day, 21:20 (cron `collab-entry-rule`
+    `20 * * * *` UTC, acts only in the Skopje `hour` 21 — DST-proof; after 21:02 linker · 21:06 LEADS
+    orders · 21:10 no-parcel): status-guarded and re-checked, `cancellation_reason = 'other'` (a SYSTEM
+    cancel), `cancellation_reason_notes = 'Нема внесено порачка во Collab'`, machine code
+    `not_in_collab_5d` in `collab_entry_rule_items.reason_code`, history from the order's own status,
+    a system note, `keep_updated_at`, `bulk_repair`. Bell `not_in_collab` to the SELLER
+    (`sales_people.user_id`, else confirmer, else assignee — `elyon-notifications`); the evening before
+    (age 4) `not_in_collab_warning`; a sale more than `silent_after_days` (14) old is cancelled
+    SILENTLY (`items.silent`). Undo: `collab_entry_rule_undo(run_id)` → each order back to
+    `items.status_before`. Switch `app_settings.collab_entry_rule` (owner key) =
+    `{mode apply, days 5, hour 21, warn, from_date 2026-08-01, silent_after_days 14, postpone_days 45,
+    scope all}`.
+  - **Numbers (03.10 ~03:00, read-only):** 228 in scope → cancel 163 (36 silent; ≈ 361.000 ден; ~23 are
+    10-day AlterCPA approvals the no-parcel rule takes first at 21:10), warn 35, in_collab 28,
+    postponed 2. **Backtest** (`verify-collab-entry-rule.mjs --backtest FROM TO`, the rule replayed as
+    of sale day + 5 at 21:20): September 01–27 — 464 would be cancelled, **0 wrong** (own parcel's
+    document already entered), 14 late, 438 never shipped; August 664 / 0 wrong. Before the komitent
+    phones were loaded (03.10, 1.806 → 14.279 cards) the phone test alone made 12 wrong cancels
+    (phoneless 10111 / 10114) — the amount twin was built for that and stays as the net.
+  - **After the cancel:** a later booking is no twin (the writer reads living sales) → its own order
+    with the parcel, counted once. An AlterCPA approval is revived by mex-reconcile rule C on a
+    `tracking` / `phone_cod` link of a 9110 parcel (`isAlterCpaOrder`); NOT on a COD mismatch
+    (`upsell_revive` is `no_parcel_7d`-only) nor a 9103 parcel (`mayReviveWith`). A CRM sale is NOT
+    revived to shipped (`shipGate`: not AlterCPA, not `no_parcel_7d`) — mex-reconcile may link its 9103
+    parcel and the order stays cancelled until paid / returned (the cohort counts it by MEX meanwhile,
+    `q_cancelled_but_moving`). The list engine: a cancel < 14 days from the order's `created_at` parks
+    the customer in **Current Cancels** (unassigned) for the rest of the 14 days.
+  - Proof: `node scripts/verify-collab-entry-rule.mjs [--list] [--backtest FROM TO]` (E1–E6, B1).
 
 ### 4. The TS twin — change them together
 

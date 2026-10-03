@@ -1,6 +1,7 @@
 /**
- * /orders — the collabBox bookings beside the orders, and the 2-day collabBox
- * entry rule badge on a CRM sale (owner, Mile, 02.10.2026). Pure; bookings.test.ts.
+ * /orders — the collabBox bookings beside the orders, and the collabBox entry
+ * rule badge on a sale without a parcel (owner, Mile, 02.10.2026; 5 days for
+ * every sale since 03.10.2026). Pure; bookings.test.ts.
  *
  * A booking = a collabBox order document whose MEX parcel does not exist yet:
  * a sale now (the Overview cohort and the TV board count it), an order only once
