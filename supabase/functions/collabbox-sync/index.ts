@@ -21,8 +21,9 @@
  *      leaves that day's order documents 'no_items' (re-read next night), never guessed;
  *   3. lines classified here (collabbox.ts: goods / delivery / note / marker, product via
  *      product_aliases then products.sku), stornos paired inside the window;
- *   4. komitent cards (comp=infocc) for the customers the database cannot place
- *      (public.collabbox_komitenti_needed), within the request cap and the time budget;
+ *   4. komitent cards (comp=infocc, the Коминтенти form as the operators send it — fixed 03.10.2026) for
+ *      the customers of order and 10111 LEADS documents the database cannot place
+ *      (public.collabbox_komitenti_needed: no phone anywhere first), within the request cap and the time budget;
  *   5. public.collabbox_apply_documents() in batches of 40 — THE writer (orders, conflicts, credits,
  *      the ledger, the run counters); public.collabbox_close_window() per fully read day (documents
  *      deleted in collabBox); public.collabbox_retry_open() (open rows of the last 14 days).
@@ -231,12 +232,14 @@ async function runFull(c: Ctx, window: { from: string; to: string }, today: stri
 
   const stornoPairs = pairStornos(docs);
 
-  // komitent cards for the customers the database cannot place (order documents only)
+  // komitent cards for the customers the database cannot place — the order documents AND the 10111 LEADS
+  // documents (credit): since 20260947001850 a LEADS booking counts on its booking day only with the
+  // customer's phone, and the card is where a new customer's phone is (owner 03.10.2026)
   const komitenti = { needed: 0, read: 0, found: 0, not_found: 0, skipped_budget: 0, error: null as string | null };
-  const orderDocs = docs.filter((d) => isOrderRole(d.role) && !d.storno && d.komitent_id);
-  if (orderDocs.length) {
+  const cardDocs = docs.filter((d) => (isOrderRole(d.role) || d.role === "credit") && !d.storno && d.komitent_id);
+  if (cardDocs.length) {
     const needed = await rpc<{ komitent_id: string; priority: number }[]>(c.admin, "collabbox_komitenti_needed", {
-      p_docs: orderDocs.map((d) => ({ doc_number: d.doc_number, komitent_id: d.komitent_id })),
+      p_docs: cardDocs.map((d) => ({ doc_number: d.doc_number, komitent_id: d.komitent_id })),
     });
     komitenti.needed = needed.length;
     const cards = new Map<string, KomitentCard>();

@@ -96,6 +96,44 @@ ${rows.map((r) => {
 }).join("\n")}
 </table></body></html>`;
 
+/** The live Коминтенти answer (03.10.2026): header row, 20 tdList cells per row (the checkbox cell is one),
+ *  "Пронајден е N резултат" in the dialog. */
+const komitentPageLive = (rows: { code: string; name: string; phone: string; mobile: string; tax: string; vraboten: string }[]) => `<html><body>
+<table><tr><td class="cnt" style="color:#000;"> Пронајден е ${rows.length} резултат </td></tr></table>
+<div id="printDiv"><TABLE id="table_exp" cellpadding="1" cellspacing="1" align="center">
+<tr class = "tableheader_small"> <td> <div class="noPrint"><input type="checkbox" name="popust_all" value="ON" id="popust_all"></div> </td>
+<td> Р.Б </td> <td> Шифра </td> <td> Име </td> <td> Име на латиница </td> <td> Адреса </td> <td> Адреса на латиница </td> <td> Град </td>
+<td> Држава </td> <td> Датум на раѓање </td> <td> Телефон </td> <td> Мобилен </td> <td> e-mail </td> <td> Жиро сметка </td> <td> Даночен број </td>
+<td> Факс </td> <td> Лице за контакт </td> <td> ддв број </td> <td> ЕМБС </td> <td> Вработен </td> <td class = "noPrint"> &nbsp; </td> </tr>
+${rows.map((r, i) => `<tr class = "trAlt"> <td class = "tdList"> <div class="noPrint"><input type="checkbox" name="popust_${r.code}" value="${r.code}" id="popust_${r.code}"></div> </td>
+<td class = "tdList"> ${i + 1}. </td> <td class = "tdList"> <a href="./Index?comp=ovc&id=5550002&back=1"> ${r.code} </a> </td>
+<td class = "tdList"> <a href="./Index?comp=ovc&id=5550002&back=1"> ${r.name} </a> </td> <td class = "tdList"> &nbsp; </td>
+<td class = "tdList"> ул. Прва 1&nbsp; </td> <td class = "tdList"> &nbsp; </td> <td class = "tdList"> Тетово&nbsp; </td> <td class = "tdList"> Македонија&nbsp; </td>
+<td class = "tdList"> </td> <td class = "tdList"> ${r.phone}&nbsp; </td> <td class = "tdList"> ${r.mobile}&nbsp; </td> <td class = "tdList"> &nbsp; </td>
+<td class = "tdList"> <nobr> &nbsp; </nobr> </td> <td class = "tdList"> ${r.tax}&nbsp; </td> <td class = "tdList"> &nbsp; </td> <td class = "tdList"> &nbsp; </td>
+<td class = "tdList"> &nbsp;&nbsp; </td> <td class = "tdList"> &nbsp;&nbsp; </td> <td class = "tdList"> ${r.vraboten} </td>
+<td class = "noPrint"> <input type="hidden" name="komintentiIds" id="komintentiIds" value="${r.code}"> </td> </tr>`).join("\n")}
+</table></div></body></html>`;
+/** The Коминтенти search form (a cut of the live one: the fields the server reads, the custom-field picker). */
+const komitentFormPage = `<html><body>
+<form name="searchform" method="post" action="#">
+<input type="hidden" id="language" name="language" value="1">
+<input type="text" name="name1" id="name1" value="">
+<input type="hidden" name="lettersubmit" id="lettersubmit" value="0">
+<input type="text" name="id" class="textInput" size="10" value="">
+<SELECT NAME="city" id="city"><option value="-2">Сите градови</option><option value="-1">Нема внесено град</option></SELECT>
+<SELECT NAME="pageNum" id="pageNum"><option value="50" selected>50</option><option value="100">100</option></SELECT>
+<SELECT NAME="prekinati" id="prekinati"><option value="1">Да</option><option value="2" selected>Сите</option></SELECT>
+<SELECT NAME="custom" id="custom"><option>денови на доспевање</option></SELECT>
+<input type="button" name="HtmlButton" value="Додади" onClick="javascript:setCookie();resolveClick('addcustom');">
+<input type="hidden" name="number" id="number" value="0">
+<input type="hidden" name="delcustom" id="delcustom" value="none">
+<input type="hidden" name="searchMode" id="searchMode" value="none">
+<SELECT NAME="prikaziKartica" id="prikaziKartica"><option value="-1" selected>Не</option><option value="1">Да</option></SELECT>
+<input type="checkbox" name="aktivnaKartica" value="ON" id="aktivnaKartica" checked>
+<input type="submit" name="Submit" value="Барај" onclick="javascript:resolveClick('search');setCookie();" class="button">
+</form></body></html>`;
+
 const itemsFormPage = `<html><body>
 <form name="searchform" method="post" action="./Index?comp=repbydocitm">
 <input type="hidden" name="mode" value="">
@@ -259,7 +297,32 @@ describe("komitent cards", () => {
     expect(rows[0]).toMatchObject({ name: "Марко Марковски", mobile: "070 111 222", phone: "02/3111-222", objectId: "5550001" });
     const card = komitentCard(rows[0]);
     expect(card).toMatchObject({ komitent_id: "40123", phone8: "70111222", phone_field: "mobilen", skip_reason: null, city: "Скопје" });
-    expect(komitentSearchBody("40123")).toContain("id=40123");
+  });
+  it("reads the operators' default layout (20 columns, no Број картичка) by its header row", () => {
+    const html = komitentPageLive([{ code: "40123", name: "Марко Марковски", phone: "070 111 222", mobile: "", tax: "", vraboten: "Не" }]);
+    const { rows, hasTable, resultCount } = parseKomitentSearch(html);
+    expect(hasTable).toBe(true);
+    expect(resultCount).toBe(1);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ komitentId: "40123", name: "Марко Марковски", phone: "070 111 222", mobile: "", city: "Тетово",
+      country: "Македонија", taxNumber: "", vraboten: "Не", cardNo: "", objectId: "5550002" });
+    expect(komitentCard(rows[0])).toMatchObject({ phone8: "70111222", phone_field: "telefon", skip_reason: null });
+    // a company's tax number lands in Даночен број (column 14 here, 15 in the harvest's layout)
+    const co = parseKomitentSearch(komitentPageLive([{ code: "40124", name: "Петар", phone: "", mobile: "071222333", tax: "4030999123456", vraboten: "Не" }]));
+    expect(komitentCard(co.rows[0]).skip_reason).toBe("company");
+    expect(parseKomitentSearch(komitentPageLive([{ code: "40125", name: "Ана", phone: "", mobile: "071222334", tax: "", vraboten: "Да" }])).rows[0].vraboten).toBe("Да");
+  });
+  it("builds the card search from the Коминтенти form, as the operators' Барај sends it", () => {
+    const body = new URLSearchParams(komitentSearchBody(komitentFormPage, "40123"));
+    expect(body.get("id")).toBe("40123");
+    expect(body.get("searchMode")).toBe("search");
+    expect(body.get("lettersubmit")).toBe("0");
+    expect(body.get("name1")).toBe("");
+    expect(body.get("delcustom")).toBe("none");
+    expect(body.get("prekinati")).toBe("2");          // the form's own defaults travel with it
+    expect(body.get("aktivnaKartica")).toBe("ON");
+    expect(body.has("Submit")).toBe(false);           // buttons are never sent
+    expect(isAllowed("POST", "Index?comp=infocc&action=search", body.toString())).toBe(true);
   });
   const row = (o: Partial<KomitentRow>): KomitentRow => ({
     komitentId: "45000", objectId: null, name: "Петар Петровски", nameLat: "", address: "", addressLat: "", city: "", country: "",
@@ -524,13 +587,19 @@ describe("CollabboxClient", () => {
     });
     return { client, calls, logs, sleeps };
   };
-  const server: Handler = (method, path) => {
+  const server: Handler = (method, path, body) => {
     if (path === "Login?") return { body: "<form>login</form>", setCookie: [`JSESSIONID=${SESSION}; Path=/naturatherapy; HttpOnly`] };
     if (path === "Login") return { body: LOGIN_OK };
     if (path === "Index?comp=searchdoc&action=search") return { body: headersPage([H1, H2]) };
     if (path === "Index?comp=repbydocitm" && method === "GET") return { body: itemsFormPage };
     if (path === "Index?comp=repbydocitm") return { body: itemsPage([I1, I2]) };
-    if (path.startsWith("Index?comp=infocc")) return { body: komitentPage([{ code: "40123", name: "Марко Марковски", phone: "", mobile: "070111222" }]) };
+    if (path === "Index?comp=infocc" && method === "GET") return { body: komitentFormPage };
+    if (path === "Index?comp=infocc&action=search" && method === "POST") {
+      const id = new URLSearchParams(body ?? "").get("id");
+      return id === "40123"
+        ? { body: komitentPageLive([{ code: "40123", name: "Марко Марковски", phone: "", mobile: "070111222", tax: "", vraboten: "Не" }]) }
+        : { body: "<html><body><form name=\"searchform\"></form><table><tr><td>Нема резултати за специфираното барање</td></tr></table></body></html>" };
+    }
     return { status: 404, body: "" };
   };
 
@@ -556,9 +625,21 @@ describe("CollabboxClient", () => {
     expect(new URLSearchParams(post.body).get("doktipid")).toBe(",10050,");
     const k = await client.readKomitent("40123");
     expect(k?.mobile).toBe("070111222");
-    expect(await client.readKomitent("99999")).toBeNull();
+    expect(await client.readKomitent("99999")).toBeNull();      // "Нема резултати" = not found
     expect(await client.readKomitent("1 OR 1=1")).toBeNull();   // never sent
-    expect(calls.filter((c) => c.path.startsWith("Index?comp=infocc"))).toHaveLength(2);
+    // the form once per session, then one search per card — the operators' Барај, never the paged shape
+    const kom = calls.filter((c) => c.path.startsWith("Index?comp=infocc"));
+    expect(kom.map((c) => `${c.method} ${c.path}`)).toEqual([
+      "GET Index?comp=infocc", "POST Index?comp=infocc&action=search", "POST Index?comp=infocc&action=search",
+    ]);
+    expect(new URLSearchParams(kom[1].body).get("id")).toBe("40123");
+    expect(new URLSearchParams(kom[1].body).get("searchMode")).toBe("search");
+  });
+  it("a card search that ignores its filter is an error, never 'not found' (the 29.09–03.10 failure)", async () => {
+    const register = komitentPage(Array.from({ length: 50 }, (_, i) => ({ code: String(10 + i), name: "Х", phone: "", mobile: "070111222" })));
+    const { client } = make((m, p, b, c) => (p === "Index?comp=infocc&action=search" ? { body: register } : server(m, p, b, c)));
+    await client.login();
+    await expect(client.readKomitent("40123")).rejects.toThrow(/ignored its filter/);
   });
   it("logs in again once when the session expired", async () => {
     let bounced = false;
@@ -579,8 +660,17 @@ describe("CollabboxClient", () => {
     expect(isAllowed("POST", "Index?comp=cmc&action=newMail", "x=1")).toBe(false);
     expect(isAllowed("POST", "Index?comp=kompop&act=addPopustForMoreKomIds", "searchMode=search")).toBe(false);
     expect(isAllowed("GET", "Index?comp=infdocc&mode=add&doctype=10040", null)).toBe(false);
-    expect(isAllowed("POST", "Index?comp=infocc&action=search&pgsf=0&cp=1", "searchMode=search&id=")).toBe(false);
-    expect(isAllowed("POST", "Index?comp=infocc&action=search&pgsf=0&cp=1", "searchMode=search&id=40123")).toBe(true);
+    // the komitent card: the form (display) and its pure search — nothing else of the Коминтенти page
+    expect(isAllowed("GET", "Index?comp=infocc", null)).toBe(true);
+    expect(isAllowed("POST", "Index?comp=infocc&action=search", "searchMode=search&id=40123&delcustom=none")).toBe(true);
+    expect(isAllowed("POST", "Index?comp=infocc&action=search", "searchMode=search&id=")).toBe(false);
+    expect(isAllowed("POST", "Index?comp=infocc&action=search", "searchMode=search&id=40123&delcustom=5")).toBe(false);
+    expect(isAllowed("POST", "Index?comp=infocc&action=search", "searchMode=exportxls&id=40123")).toBe(false);
+    expect(isAllowed("POST", "Index?comp=infocc&action=exportxls", "searchMode=search&id=40123")).toBe(false);
+    expect(isAllowed("POST", "Index?comp=infocc&action=addcustom", "searchMode=addcustom&id=40123")).toBe(false);
+    expect(isAllowed("POST", "Index?comp=infocc&action=search&pgsf=0&cp=1", "searchMode=search&id=40123")).toBe(false);   // the old shape
+    expect(isAllowed("GET", "Index?comp=infocc&action=search", null)).toBe(false);
+    expect(isAllowed("GET", "Index?comp=savesrch&drawframe=no&formname=searchform", null)).toBe(false);
   });
   it("stops at the request cap and on an HTTP error", async () => {
     const capped = make(server, { maxRequests: 3 });

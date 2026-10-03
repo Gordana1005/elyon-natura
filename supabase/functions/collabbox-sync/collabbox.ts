@@ -185,27 +185,67 @@ export interface KomitentRow {
   city: string; country: string; phone: string; mobile: string; email: string; bankAccount: string;
   cardNo: string; taxNumber: string; vraboten: string;
 }
-/** Rows of `id="table_exp"`: each carries a `popust_<Шифра>` checkbox and ≥ 21 `tdList` cells
- *  (2 Шифра · 3 Име · 4 Име лат. · 5 Адреса · 6 Адреса лат. · 7 Град · 8 Држава · 9 Датум раѓање ·
- *  10 Телефон · 11 Мобилен · 12 Email · 13 Жиро сметка · 14 Број картичка · 15 Даночен број · …
- *  20 Вработен). */
-export function parseKomitentSearch(html: string): { rows: KomitentRow[]; hasTable: boolean } {
+/** The result table's header text → the KomitentRow field (lower-cased, whitespace collapsed). */
+const KOMITENT_HEADERS: ReadonlyArray<[(h: string) => boolean, keyof KomitentRow]> = [
+  [(h) => h === "шифра", "komitentId"], [(h) => h === "име", "name"], [(h) => h === "име на латиница", "nameLat"],
+  [(h) => h === "адреса", "address"], [(h) => h === "адреса на латиница", "addressLat"], [(h) => h === "град", "city"],
+  [(h) => h === "држава", "country"], [(h) => h === "телефон", "phone"], [(h) => h === "мобилен", "mobile"],
+  [(h) => /^e-?mail$/.test(h), "email"], [(h) => h === "жиро сметка", "bankAccount"], [(h) => h.includes("картичк"), "cardNo"],
+  [(h) => h === "даночен број", "taxNumber"], [(h) => h === "вработен", "vraboten"],
+];
+/** The 2026-09-10 harvest's layout (Број картичка shown): 21 `tdList` cells. */
+const KOMITENT_FIXED: Readonly<Record<keyof KomitentRow, number>> = Object.freeze({
+  komitentId: 2, objectId: -1, name: 3, nameLat: 4, address: 5, addressLat: 6, city: 7, country: 8, phone: 10, mobile: 11,
+  email: 12, bankAccount: 13, cardNo: 14, taxNumber: 15, vraboten: 20,
+});
+/**
+ * Rows of `id="table_exp"`: each carries a `popust_<Шифра>` checkbox and one `tdList` cell per column.
+ * The columns are read from the table's HEADER row (Шифра · Име · … · Телефон · Мобилен · … · Вработен),
+ * because they move: the operators' default search (Прикажи картичка = no, the form the sync now sends,
+ * 03.10.2026) has 20 cells and no Број картичка, the 2026-09-10 harvest's had 21. With no readable header
+ * the harvest's fixed positions are used (2 Шифра · 3 Име · … · 10 Телефон · 11 Мобилен · … · 20 Вработен).
+ */
+export function parseKomitentSearch(html: string): { rows: KomitentRow[]; hasTable: boolean; resultCount: number | null } {
   const t0 = html.indexOf('id="table_exp"');
-  if (t0 < 0) return { rows: [], hasTable: false };
+  const resultCount = komitentResultCount(html);
+  if (t0 < 0) return { rows: [], hasTable: false, resultCount };
+  const parts = html.slice(t0).split(/<tr\b/i);
+  // the header: the first row (before any data row) naming both Шифра and Мобилен
+  let col: Partial<Record<keyof KomitentRow, number>> | null = null;
+  for (const part of parts) {
+    if (/name="popust_\d+"/i.test(part)) break;
+    const end = part.search(/<\/tr>/i);
+    const heads = [...(end >= 0 ? part.slice(0, end) : part).matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/gi)]
+      .map((m) => cellText(m[1]).toLowerCase());
+    if (!heads.includes("шифра") || !heads.includes("мобилен")) continue;
+    col = {};
+    heads.forEach((h, i) => { const hit = KOMITENT_HEADERS.find(([test]) => test(h)); if (hit && col![hit[1]] == null) col![hit[1]] = i; });
+    if (col.phone == null || col.vraboten == null) col = null;   // not the table we know — fall back
+    break;
+  }
+  const at = col ?? KOMITENT_FIXED;
+  const need = Math.max(...Object.values(at).map((i) => i ?? -1)) + 1;
   const rows: KomitentRow[] = [];
-  for (const part of html.slice(t0).split(/<tr\b/i)) {
+  for (const part of parts) {
     const code = part.match(/name="popust_(\d+)"/i)?.[1];
     if (!code) continue;
     const cells = [...part.matchAll(/<td\b[^>]*class\s*=\s*"tdList"[^>]*>([\s\S]*?)<\/td>/gi)].map((m) => cellText(m[1]));
-    if (cells.length < 21) continue;
+    if (cells.length < need) continue;
+    const get = (k: keyof KomitentRow) => { const i = at[k]; return i == null || i < 0 ? "" : cells[i] ?? ""; };
     rows.push({
-      komitentId: code || cells[2], objectId: part.match(/comp=ovc&(?:amp;)?id=(\d+)/i)?.[1] ?? null,
-      name: cells[3], nameLat: cells[4], address: cells[5], addressLat: cells[6], city: cells[7], country: cells[8],
-      phone: cells[10], mobile: cells[11], email: cells[12], bankAccount: cells[13], cardNo: cells[14],
-      taxNumber: cells[15], vraboten: cells[20],
+      komitentId: code || get("komitentId"), objectId: part.match(/comp=ovc&(?:amp;)?id=(\d+)/i)?.[1] ?? null,
+      name: get("name"), nameLat: get("nameLat"), address: get("address"), addressLat: get("addressLat"), city: get("city"),
+      country: get("country"), phone: get("phone"), mobile: get("mobile"), email: get("email"), bankAccount: get("bankAccount"),
+      cardNo: get("cardNo"), taxNumber: get("taxNumber"), vraboten: get("vraboten"),
     });
   }
-  return { rows, hasTable: true };
+  return { rows, hasTable: true, resultCount };
+}
+/** "Пронајден е 1 резултат" / "… вкупно 166460 …" → the server's own count of the search's results. */
+export function komitentResultCount(html: string): number | null {
+  const t = cellText(html);
+  const m = t.match(/Пронајден\S*\s+(?:е|се)\s+([\d.,]+)\s+резултат/i) ?? t.match(/вкупно[^0-9]{0,40}([\d.,]+)/i);
+  return m ? Number(m[1].replace(/[.,]/g, "")) : null;
 }
 
 // ─── the line-items search form, serialised as a browser would ──────────────
@@ -311,15 +351,30 @@ export function headersSearchBody(types: readonly string[], fromDmy: string, toD
     chkDatumOd: "chk", datumod: fromDmy, chkDatumDo: "chk", datumdo: toDmy, limitResults: "0",
   }).toString();
 }
-/** The komitent search by Шифра (the 2026-09-10 harvest's field set, one page). */
-export function komitentSearchBody(komitentId: string): string {
-  return new URLSearchParams({
-    searchMode: "search", name1: "", id: komitentId, address: "", city: "", opstina: "", regionId: "",
-    drzavaId: "", taxnum: "", telnum: "", mobilen: "", bankacc: "", prikaziKartica: "1", brojKartica: "",
-    lettersubmit: "0", language: "1", showAllResults: "", pageNum: "50",
-  }).toString();
+/**
+ * The komitent search by Шифра, serialised from the Коминтенти form exactly as the operators' "Барај"
+ * button sends it (resolveClick('search'): action=search, searchMode=search — a pure search; the form's
+ * other actions, addcustom / exportxls / save, are never sent and the allow-list refuses them).
+ *
+ * Why the whole form (03.10.2026): the short field list the sync sent from 29.09 (the 2026-09-10 harvest's,
+ * to `…&action=search&pgsf=0&cp=1`) made collabBox IGNORE every filter — each lookup returned the first
+ * 50 of the 166k-row register and never the card (60 read, 0 found per run). Probed read-only on 03.10:
+ * the same path with the short list → the whole register again; the browser-faithful form → "Пронајден е
+ * 1 резултат", the card asked for, its phone equal to the 01.10 register's.
+ */
+export function komitentSearchBody(formHtml: string, komitentId: string): string {
+  const form = readForm(formHtml, "searchform");
+  setField(form, "name1", "");
+  setField(form, "lettersubmit", "0");
+  setField(form, "id", komitentId);
+  setField(form, "searchMode", "search");
+  // a pure search: the custom-field picker / delete boxes stay at their do-nothing values
+  setField(form, "delcustom", "none");
+  return encodeForm(form.pairs);
 }
-export const KOMITENT_SEARCH_PATH = "Index?comp=infocc&action=search&pgsf=0&cp=1";
+/** The Коминтенти page (the search form, display only) and its search action. */
+export const KOMITENT_FORM_PATH = "Index?comp=infocc";
+export const KOMITENT_SEARCH_PATH = "Index?comp=infocc&action=search";
 
 // ─── names, markers, phones (scripts/lib/teleshop-import.mjs — KEEP IN STEP) ──
 const NAME_ENTITIES: Record<string, string> = { "&#40;": "(", "&#41;": ")", "&amp;": "&", "&quot;": '"', "&#39;": "'", "&#34;": '"', "&lt;": "<", "&gt;": ">", "&nbsp;": " " };
