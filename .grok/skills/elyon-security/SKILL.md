@@ -171,7 +171,8 @@ paid / returned.** Enforced twice:
   even `elyon.bulk_repair`. Updates are untouched: mex-reconcile moves orders on from the courier.
 - `orders.paid_basis` records WHY an order is paid (`mex | operator_ruling | legacy_import |
   manual | unproven`); a paid write that does not say is stamped `manual`
-  (`trg_orders_set_paid_basis`).
+  (`trg_orders_set_paid_basis`). Since 03.10.2026 `operator_ruling` marks the 31.038 orders proven by collabBox's
+  courier flag on the days another courier than MEX carried the parcels (`scripts/repair-courier-outcomes.mjs`).
 - `SET LOCAL elyon.bulk_repair = 'on'` silences the order-paid, order-returned and AlterCPA
   confirm-rate notification triggers for a repair transaction — transaction-local only, never a
   session SET on a pooled connection.

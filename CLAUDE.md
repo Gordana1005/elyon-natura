@@ -348,6 +348,20 @@ target **explicitly** and verify it before running:
   notifications — is shown in денари. The only EUR on screen is the foreign affiliate payout above.
 - **COD ≠ CRM price → MEX is right** (owner): the CRM price follows the parcel COD, except when COD =
   price × 61.5 + 150 (the delivery fee) or COD is 0.
+- **The parcels ANOTHER COURIER carried are judged by collabBox's own courier flag (owner, 03.10.2026 night;
+  `scripts/repair-courier-outcomes.mjs`, run `8acbad3e-7ac7-4c93-9666-8c11d2c3a7fe`).** MEX did not carry everything:
+  **Колпортер Пост** (Sigma `001308`) took the teleshop parcels on 101 days of 22.01–27.11.2024, **Еко Логистик**
+  (`000404`) the LEADS parcels 09.10.2025–22.01.2026, **Јон Експрес** (`000360`) 12 days of May–June 2026 — on such a day
+  a whole folder went to that courier, so those orders hold no MEX parcel. collabBox keeps the outcome per document
+  (attributes "Delivered" / "Return to sender", read-only through the search form's attribute columns —
+  `scripts/collabbox-delivery-attrs.mjs`; equal to MEX's final status on 98,4 % of 38.412 MEX-carried documents).
+  Applied to orders with NO MEX parcel: 25.344 paid are proven (`paid_basis = 'operator_ruling'` = "the collabBox
+  courier flag", the order's note names the document), 4.249 paid → returned, 5.694 cancelled / trashed AlterCPA
+  history leads → paid (shipped and collected — the self-cancel-then-ship pattern), 1.772 → returned; 936 left for
+  review (no flag, twins, duplicates, MEX has something). **MEX still beats everything — never judge an order that
+  holds a MEX parcel, or a MEX day, by the collabBox flag.** Prices were not changed (the document amount is in the
+  run's CSV). Input: `scripts/history/courier_outcomes_build.py` (private sources). Undo:
+  `node scripts/rollback-repair.mjs --run 8acbad3e-7ac7-4c93-9666-8c11d2c3a7fe --apply`.
 - **Test phones 070123456 / 23123123** are never in any report (owner, 28.09): their CRM orders are
   deleted (snapshot first); their web orders and MEX parcels stay in the shop/register but are
   excluded from every figure.

@@ -243,6 +243,11 @@ confirmed" line predates this 29.09 change; the function body is the law.)
   `mex_tracking_id` = DocNumber, `collabbox_doc_type` = type, `delivery_type 'home'`,
   `created_at = confirmed_at` = the document time (Skopje wall clock, DST-exact). The department
   comes from the insert trigger (`collabbox_department` by type).
+- **One exception, history only (owner 03.10.2026):** on the days ANOTHER courier carried a folder (Kolporter Post
+  2024, Eko Logistik 10.2025–01.2026, Jon Express 05–06.2026) there is no MEX parcel, and the order was judged once by
+  collabBox's own "Delivered" / "Return to sender" document attributes (`scripts/collabbox-delivery-attrs.mjs` reads
+  them through the search form; `scripts/repair-courier-outcomes.mjs`, `paid_basis 'operator_ruling'`). The live sync
+  below never reads those attributes — see CLAUDE.md "The parcels ANOTHER COURIER carried".
 - **Status from MEX, never from collabBox:** parcel 2 → `paid` (`paid_at` = delivered, `paid_basis
   'mex'`), 7 → `returned`, **8 → `confirmed` with `mex_sent_at` (за пакување — since
   `20260943001210`, owner 30.09: MEX 8 = the parcel waits for the courier)**, 4 / 10 / 9 / 1 / 3 →
