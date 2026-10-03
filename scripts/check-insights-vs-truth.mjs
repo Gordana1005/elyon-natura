@@ -21,7 +21,7 @@
  * figure three times out of three.
  */
 import { readFileSync } from 'node:fs';
-const REF='bmfxhgznttcnnlqloqzp';
+const REF='oufoazmnbwugtfldkwsn';
 const env={}; for(const l of readFileSync('d:/Dev/archives/elyon-natura/.env','utf8').split(/\r?\n/)){const m=l.match(/^\s*([A-Z0-9_]+)\s*=\s*"?([^"]*)"?\s*$/); if(m) env[m[1]]=m[2];}
 const U=env.VITE_SUPABASE_URL, A=env.VITE_SUPABASE_PUBLISHABLE_KEY;
 const r=await fetch(`${U}/auth/v1/token?grant_type=password`,{method:'POST',headers:{apikey:A,'Content-Type':'application/json'},body:JSON.stringify({email:'mile@elyon.com',password:process.env.MK_ADMIN_PASSWORD})});
@@ -43,7 +43,7 @@ for (let i=1;i<=3;i++){ const o=await go('legacy'); const d=o.revenue-t.sold_rev
 for (let i=1;i<=3;i++){ const o=await go('sql'); const d=Math.abs(o.revenue-t.sold_revenue);
   console.log(`sql     run ${i}   €${o.revenue.toFixed(2)}   ${o.sold_count} orders   ${d<0.005?'\x1b[32mmatches truth\x1b[0m':`\x1b[31mΔ €${d.toFixed(2)}\x1b[0m`}`); }
 import { readFileSync } from 'node:fs';
-const REF='bmfxhgznttcnnlqloqzp';
+const REF='oufoazmnbwugtfldkwsn';
 const env={}; for(const l of readFileSync('d:/Dev/archives/elyon-natura/.env','utf8').split(/\r?\n/)){const m=l.match(/^\s*([A-Z0-9_]+)\s*=\s*"?([^"]*)"?\s*$/); if(m) env[m[1]]=m[2];}
 const U=env.VITE_SUPABASE_URL, A=env.VITE_SUPABASE_PUBLISHABLE_KEY;
 const r=await fetch(`${U}/auth/v1/token?grant_type=password`,{method:'POST',headers:{apikey:A,'Content-Type':'application/json'},body:JSON.stringify({email:'mile@elyon.com',password:process.env.MK_ADMIN_PASSWORD})});

@@ -14,7 +14,7 @@
  * Предлог (one row at a time, with a team / lane picker). A re-run is idempotent (an applied row
  * comes back "unchanged"). Rollback: the audit_log row (action 'sales_team.lines_apply') holds every
  * membership's before / after — re-key them back with sales_team_lines_apply.
- * 🛑 Macedonia only (repair-kit guards: config.toml + .env pinned to bmfxhgznttcnnlqloqzp, +389 remote).
+ * 🛑 Macedonia only (repair-kit guards: config.toml + .env pinned to oufoazmnbwugtfldkwsn, +389 remote).
  */
 import { bold, die, mkGuard, ok, parseArgs, printTable, q, resolveActor, sql, sqlRead, assertRemoteIsMk, yellow } from './lib/repair-kit.mjs';
 

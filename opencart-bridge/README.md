@@ -42,7 +42,7 @@ agent has picked it up it is left alone.
 
 ## CRM side (already deployed)
 
-- Endpoint: `POST https://bmfxhgznttcnnlqloqzp.supabase.co/functions/v1/api/webhook/opencart`
+- Endpoint: `POST https://oufoazmnbwugtfldkwsn.supabase.co/functions/v1/api/webhook/opencart`
 - Auth: `X-Webhook-Signature: hex(HMAC_SHA256(rawBody, WEBHOOK_SECRET))`
 - The shared secret is the **`WEBHOOK_SECRET`** already set on the CRM edge
   function (the same one the landing-page webhooks use).
@@ -60,7 +60,7 @@ agent has picked it up it is left alone.
    *(This registers the two storefront order events.)*
 4. **Configure** — click the blue **✎ (Edit)** and fill in:
    - **Live sync**: `Enabled`
-   - **CRM webhook URL**: `https://bmfxhgznttcnnlqloqzp.supabase.co/functions/v1/api/webhook/opencart`
+   - **CRM webhook URL**: `https://oufoazmnbwugtfldkwsn.supabase.co/functions/v1/api/webhook/opencart`
    - **Shared secret**: the value of `WEBHOOK_SECRET` on the CRM edge function
    - **Source label**: `naturatherapy.bg` (default)
    - **Send these order statuses**: leave **Pending** selected (add more if you

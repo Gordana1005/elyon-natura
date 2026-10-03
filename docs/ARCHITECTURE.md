@@ -42,7 +42,7 @@ Natura Therapy MK sells nutritional supplements to Macedonian customers, cash on
  Browser (React SPA) ──► Vercel "elyon-natura"  (https://naturall.mk — Pro team elyon-s-projects)
         │ fetch + JWT
         ▼
- Supabase bmfxhgznttcnnlqloqzp ─────────────────────────────────────────────────────────────
+ Supabase oufoazmnbwugtfldkwsn ─────────────────────────────────────────────────────────────
    Auth · Postgres (RLS everywhere) · Vault · pg_cron + pg_net
    Edge Functions:  api (the REST router)  ·  altercpa-sync  ·  mex-reconcile  ·  web-sync  ·  collabbox-sync
         │ pg_cron → invoke_*() → POST with a shared-secret header (secret from Vault)

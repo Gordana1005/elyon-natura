@@ -33,7 +33,7 @@ import { fileURLToPath } from 'node:url';
 import { readOrders, PHASE_TO_STATUS } from './lib/altercpa.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const REF = 'bmfxhgznttcnnlqloqzp';
+const REF = 'oufoazmnbwugtfldkwsn';
 const SOURCE_LABEL = 'altercpa';
 
 const GROUPS = {

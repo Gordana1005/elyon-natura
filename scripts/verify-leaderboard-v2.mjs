@@ -42,7 +42,7 @@
  *   T   timings (server round trip per board)
  *
  * Safety: the same guard as scripts/verify-insights-ties.mjs (imported, not copied) —
- * pinned to Macedonia (bmfxhgznttcnnlqloqzp), refused if .env points at Bulgaria, every
+ * pinned to Macedonia (oufoazmnbwugtfldkwsn), refused if .env points at Bulgaria, every
  * statement a single SELECT/WITH sent with read_only: true. The token is never printed.
  */
 import { readFileSync } from 'node:fs';

@@ -31,7 +31,7 @@
  *
  * Exit: 0 = written · 2 = refused / not installed / DB unreachable.
  *
- * Safety: pinned to Macedonia (bmfxhgznttcnnlqloqzp); refused if config.toml / .env point elsewhere or at
+ * Safety: pinned to Macedonia (oufoazmnbwugtfldkwsn); refused if config.toml / .env point elsewhere or at
  * Bulgaria. The default mode is read-only by construction (verify-insights-ties.mjs guard). --unapplied never
  * commits: the statement it sends ends in RAISE EXCEPTION inside its own BEGIN.
  */
@@ -43,7 +43,7 @@ import { fileURLToPath } from 'node:url';
 import { runSql } from '../verify-insights-ties.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const REF = 'bmfxhgznttcnnlqloqzp';
+const REF = 'oufoazmnbwugtfldkwsn';
 const FORBIDDEN_REF = 'sxymaloycddnoxudxaqp';
 const API = `https://api.supabase.com/v1/projects/${REF}/database/query`;
 const MIGRATIONS = ['20260945000100_stock_v2_schema.sql', '20260945000200_stock_v2_resolver.sql',

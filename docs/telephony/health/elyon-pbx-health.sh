@@ -9,7 +9,7 @@
 # missed-call scripts). Store it at /etc/asterisk/elyon-webhook.secret (chmod 600).
 set -uo pipefail
 
-CRM_URL="https://bmfxhgznttcnnlqloqzp.supabase.co/functions/v1/api/webhook/pbx-health"
+CRM_URL="https://oufoazmnbwugtfldkwsn.supabase.co/functions/v1/api/webhook/pbx-health"
 WEBHOOK_SECRET="$(cat /etc/asterisk/elyon-webhook.secret)"
 
 # Collect via the CLI mode of the health collector (no signature needed locally).

@@ -25,7 +25,7 @@ export const BG_REF = 'sxymaloycddnoxudxaqp';        // live Bulgaria — never 
 export const OLD_MK_REF = 'bmfxhgznttcnnlqloqzp';    // Macedonia until the cutover (org naturatherapykosovo, eu-west-1)
 export const NEW_MK_REF = 'oufoazmnbwugtfldkwsn';    // Macedonia after the cutover (org elyongroup, eu-central-1)
 /** Refs that were ours and are retired: add OLD_MK_REF in the cutover commit. */
-export const RETIRED_REFS = Object.freeze([]);
+export const RETIRED_REFS = Object.freeze([OLD_MK_REF]);   // retired at the cutover, 03.10.2026
 export const KNOWN_MK_REFS = Object.freeze([NEW_MK_REF, OLD_MK_REF]);
 export const FORBIDDEN_REFS = Object.freeze([BG_REF, ...RETIRED_REFS]);
 export const ENV_OVERRIDE = 'ELYON_TARGET_REF';

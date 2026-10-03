@@ -9,7 +9,7 @@
     "encrypt": true,
     "trustServerCertificate": true
   },
-  "endpoint": "https://bmfxhgznttcnnlqloqzp.supabase.co/functions/v1/api/stock/sigma/ingest",
+  "endpoint": "https://oufoazmnbwugtfldkwsn.supabase.co/functions/v1/api/stock/sigma/ingest",
   "secretEnv": "SIGMA_CONNECTOR_SECRET",
   "opening": "2026-09-22",
   "snapshotDays": 120,

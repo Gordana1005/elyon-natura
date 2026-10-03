@@ -31,7 +31,7 @@ import { createClient } from '@supabase/supabase-js';
 import { normalizeMkGeo } from './lib/mk-translit.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const REF = 'bmfxhgznttcnnlqloqzp';                       // MACEDONIA. never change.
+const REF = 'oufoazmnbwugtfldkwsn';                       // MACEDONIA. never change.
 const COMMIT = process.argv.includes('--commit');
 
 const env = { ...process.env };

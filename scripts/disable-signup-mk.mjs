@@ -25,7 +25,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const EXPECTED_REF = 'bmfxhgznttcnnlqloqzp';
+const EXPECTED_REF = 'oufoazmnbwugtfldkwsn';
 const commit = process.argv.includes('--commit');
 
 const fail = (m) => { console.error(`\x1b[31m✗ ${m}\x1b[0m`); process.exit(1); };

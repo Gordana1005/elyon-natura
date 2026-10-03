@@ -32,7 +32,7 @@ import { fileURLToPath } from 'node:url';
 import { runSql } from '../verify-insights-ties.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const FN_URL = 'https://bmfxhgznttcnnlqloqzp.supabase.co/functions/v1/collabbox-shops';
+const FN_URL = 'https://oufoazmnbwugtfldkwsn.supabase.co/functions/v1/collabbox-shops';
 const arg = (name) => process.argv.find((a) => a.startsWith(`--${name}=`))?.split('=')[1];
 const has = (name) => process.argv.includes(`--${name}`);
 const n = (v) => Number(v ?? 0) || 0;

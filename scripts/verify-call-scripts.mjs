@@ -24,7 +24,7 @@
  *   V10 Bulgarian content (евро / € / лв / Еконт / Спиди / Бугарија …) in mk / sq texts — WARN only
  *
  * Safety: the guard of scripts/verify-insights-ties.mjs (imported) — pinned to Macedonia
- * (bmfxhgznttcnnlqloqzp), refused if .env points at Bulgaria, every statement a single SELECT /
+ * (oufoazmnbwugtfldkwsn), refused if .env points at Bulgaria, every statement a single SELECT /
  * WITH sent with read_only: true.
  */
 import { readFileSync } from 'node:fs';

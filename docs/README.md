@@ -13,7 +13,7 @@ cash — lives in this system.
 
 - **Frontend:** React + Vite on Vercel → `https://elyoncall.com`
 - **Backend:** one Supabase Edge Function (`api`) → `…/functions/v1/api`
-- **Database:** Postgres on Supabase (project `bmfxhgznttcnnlqloqzp`), RLS everywhere
+- **Database:** Postgres on Supabase (project `oufoazmnbwugtfldkwsn`), RLS everywhere
 - **Telephony:** Asterisk + FreePBX on a Sofia VPS (`pbx.elyoncall.com`), A1 "Business Voice" SIP trunk **live in production**; browser softphone (sip.js), recordings, VOIP Health dashboard
 
 ---

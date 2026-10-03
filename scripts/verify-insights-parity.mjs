@@ -46,7 +46,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const EXPECTED_REF = 'bmfxhgznttcnnlqloqzp';
+const EXPECTED_REF = 'oufoazmnbwugtfldkwsn';
 const fail = (m) => { console.error(`\x1b[31m✗ ${m}\x1b[0m`); process.exit(1); };
 
 const toml = readFileSync(join(root, 'supabase', 'config.toml'), 'utf8');

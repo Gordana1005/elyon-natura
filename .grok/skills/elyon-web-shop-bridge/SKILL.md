@@ -51,7 +51,7 @@ HANDOFF §2: 24.485 MK orders incl. the OpenCart history).
   `crm_export` + the role, diffs the catalog inside the transaction and rolls back on any
   other change, sets the password as a SCRAM verifier, then logs in AS the reader to prove
   isolation. Also `--verify`, `--set-function-secrets` (runs the MK tripwire; sets
-  `WEB_SHOP_DB_URL` + `WEB_SYNC_SECRET` [+ `WEB_SHOP_DB_CA`] on `bmfxhgznttcnnlqloqzp` and the
+  `WEB_SHOP_DB_URL` + `WEB_SYNC_SECRET` [+ `WEB_SHOP_DB_CA`] on `oufoazmnbwugtfldkwsn` and the
   Vault row `web_sync_secret`), `--backfill`, `--sync`. Secrets live in `docs/VAULT.md` §8 only.
   Rollback SQL is in the file header.
 

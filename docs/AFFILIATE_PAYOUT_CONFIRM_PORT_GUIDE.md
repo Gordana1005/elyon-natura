@@ -1029,7 +1029,7 @@ standing tool for this feature.
 
 ## 5. Database comparison (checked 2026-08-10, read-only)
 
-| | **BG** `sxymaloycddnoxudxaqp` | **MK** `bmfxhgznttcnnlqloqzp` |
+| | **BG** `sxymaloycddnoxudxaqp` | **MK** `oufoazmnbwugtfldkwsn` |
 |---|---|---|
 | Affiliate schema (5 tables, `postback_format` column, dedupe knob) | applied | **applied — verified empirically** (tables answer; `affiliates.postback_format` selectable ⇒ trigger v3 migration live; `app_settings.affiliate_dedupe_window_hours` present) |
 | Migrations needed for this port | none | **none** |
@@ -1052,7 +1052,7 @@ its first partner so the program starts life with the correct semantics.
   against the pre-change baseline (only pre-existing errors allowed).
 - `supabase db push` is blocked (no DB password) — **irrelevant here: zero migrations.**
 - Deploy: edge fn FIRST — `npx supabase functions deploy api --project-ref
-  bmfxhgznttcnnlqloqzp --use-api` — then commit by EXPLICIT paths and push (push needs
+  oufoazmnbwugtfldkwsn --use-api` — then commit by EXPLICIT paths and push (push needs
   the VAULT §4 PAT, not the cached elyoncoding creds; push = Vercel prod deploy).
 - Read `.grok/skills/` first: `elyon-affiliates`, `elyon-currency`, `elyon-i18n`,
   `elyon-security`, `elyon-altercpa-bridge` all apply.
@@ -1117,7 +1117,7 @@ Constraints for THIS repo:
     the existing error count;
   - supabase db push is blocked — and NOT needed (zero migrations);
   - deploy edge fn first (npx supabase functions deploy api --project-ref
-    bmfxhgznttcnnlqloqzp --use-api), then commit by explicit paths and push
+    oufoazmnbwugtfldkwsn --use-api), then commit by explicit paths and push
     (VAULT §4 PAT, not the cached elyoncoding creds);
   - read .grok/skills/elyon-affiliates, elyon-currency, elyon-i18n,
     elyon-security before touching anything, and update elyon-affiliates +

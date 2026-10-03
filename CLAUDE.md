@@ -14,9 +14,9 @@ system, run as a completely separate operation. It has its OWN infrastructure an
 > to the elyoncoding Pro team `elyon-s-projects`** (same project id; the BG `elyoncrm` stayed behind).
 > The GitHub repo **was** renamed too and is now **`Gordana1005/elyon-natura`**
 > (verified against `git remote -v`, 2026-08-13 — the old `elyon-macedonia` URL 404s, so a push
-> to it fails with "Repository not found"). Only the **Supabase ref** (`bmfxhgznttcnnlqloqzp`)
-> keeps its original name, on purpose: renaming the ref means rebuilding the project. Wherever
-> you see "macedonia" in that one identifier, read it as "this project".
+> to it fails with "Repository not found"). **Since 03.10.2026 the database is the Supabase project
+> `naturall` = `oufoazmnbwugtfldkwsn`** (org `elyongroup`, Frankfurt). The old ref `bmfxhgznttcnnlqloqzp`
+> (org `naturatherapykosovo`, Ireland) is RETIRED — read-only, cron off, kept only as the rollback copy.
 > **The market is Macedonia.**
 
 ## 🛑 GOLDEN RULE — never touch the Bulgarian system
@@ -49,7 +49,8 @@ target **explicitly** and verify it before running:
 - **Vercel:** `vercel <cmd> --cwd "D:\Dev\archives\elyon-natura" --scope elyon-s-projects --token <elyoncoding token>`
   — the machine's default CLI login (`gordana1005`) is the Hobby team that holds BG `elyoncrm` and
   can no longer see this project; never use it for MK. The REST API takes `teamId=team_fT756uoO13MD9jtimyq27JNy`.
-- **Supabase:** confirm `supabase/config.toml` `project_id = "bmfxhgznttcnnlqloqzp"` before any link/push/deploy
+- **Supabase:** confirm `supabase/config.toml` `project_id = "oufoazmnbwugtfldkwsn"` before any link/push/deploy
+  (the retired `bmfxhgznttcnnlqloqzp` is refused by `scripts/lib/target.mjs`, like Bulgaria)
 - **Git:** `git -C "D:\Dev\archives\elyon-natura" …` (the repo folder is `elyon-natura`; there is no `elyon-macedonia` folder)
 - Read the tool's echoed target (e.g. "to Project X"); if it's ever `elyoncrm`/BG → abort immediately.
 - **Never pass a `--project-ref` copied out of `docs/`** — those pages were inherited from Bulgaria.
@@ -58,32 +59,36 @@ target **explicitly** and verify it before running:
   sets empty. Always verify with `vercel env pull`.
 
 ## Infra (Macedonia only)
-- **Supabase:** ref `bmfxhgznttcnnlqloqzp` → https://bmfxhgznttcnnlqloqzp.supabase.co
+- **Supabase:** project `naturall`, ref `oufoazmnbwugtfldkwsn` → https://oufoazmnbwugtfldkwsn.supabase.co — org `elyongroup`
+  (Pro, Small compute, daily backups), **eu-central-1 Frankfurt**, session pooler `aws-0-eu-central-1.pooler.supabase.com:5432`.
+  Moved on 03.10.2026 from `bmfxhgznttcnnlqloqzp` (org `naturatherapykosovo`, Ireland) — that project is RETIRED: read-only,
+  cron off, the rollback copy until its deletion is signed off; never a target. How the move was done, the checks and the
+  rollback: `scripts/db-move/README.md` (`preflight.mjs`, `cutover.mjs`, `sync-acls.mjs` after any schema restore).
 - **Vercel:** project `elyon-natura` (`prj_cwxmm4jb74hUHmAb6YzbUG7PuDy3`), Pro team "Elyon's projects" `elyon-s-projects`
   (`team_fT756uoO13MD9jtimyq27JNy`, account elyoncoding) since 02.10.2026 → **https://naturall.mk** (+ elyon-natura.vercel.app);
   GitHub-connected → auto-deploys on push to `main`. Token: `D:\naturatherapy\vault.md` line 60 — never print it.
 - **Domain:** `naturall.mk` — registrar + DNS at MK-Host (`dns1/dns2.mk-host.mk`): apex A `216.150.1.1` + `216.150.16.1`,
   `www` CNAME `bcdc79c7195035f5.vercel-dns-017.com` (Vercel's records; no Cloudflare). No mail on the domain yet.
-- **Speed (measured from Skopje, 02.10.2026):** Vercel serves the SPA from its Frankfurt edge (`fra1`); Supabase is in
-  `eu-west-1` (Ireland) — auth health ≈ 120–150 ms, the `api` edge function runs in `eu-central-2` (Zurich) by default
+- **Speed (measured from Skopje, 02.10.2026):** Vercel serves the SPA from its Frankfurt edge (`fra1`); Supabase WAS in
+  `eu-west-1` (Ireland; since 03.10.2026 it is `eu-central-1` Frankfurt — these numbers are the Ireland baseline, re-measure) — auth health ≈ 120–150 ms, the `api` edge function runs in `eu-central-2` (Zurich) by default
   (≈ 230 ms for a light call; forcing `x-region: eu-west-1` was SLOWER for it). DB healthy (cache hit 98,6 %, ~33/90
-  connections). First load ≈ 344 KB gzipped (was ≈ 703 KB before the lazy locales). Moving the Supabase region means
-  rebuilding the project — not worth it at these numbers.
+  connections). First load ≈ 344 KB gzipped (was ≈ 703 KB before the lazy locales). The region moved with the
+  project on 03.10.2026.
 - **GitHub:** `Gordana1005/elyon-natura` (renamed from `elyon-macedonia`; the old name 404s)
 - **Secrets:** `docs/VAULT.md` (gitignored) — keys, webhook secret, admin logins
 - **Status / done / TODO:** `MACEDONIA-STATUS.md` (repo root)
-- **Migrations:** the DB password was never recorded, so `supabase db push` cannot open a direct
-  Postgres connection. Use `node scripts/apply-migration-mk.mjs <file.sql>` (Management API, same
-  `postgres` role). Record the DB password in VAULT §1 to restore the normal `db push` path.
+- **Migrations:** `node scripts/apply-migration-mk.mjs <file.sql>` (Management API, the `postgres` role; it records the
+  file in `schema_migrations`). The new project's DB password is in VAULT §1b, so `supabase db push` could work again —
+  keep ONE path (apply-migration-mk) unless the owner decides otherwise.
   Finished-but-paused migrations live in `supabase/paused/` (never applied; see its README).
 - **Edge functions:** `api` (one deployable — deploy only when `index.ts` holds finished work),
   `altercpa-sync`, `mex-reconcile`, `web-sync`, `collabbox-sync` (the live collabBox reader —
   read-only against collabBox; it creates an order only once the MEX parcel exists), `collabbox-shops`
   (02.10 — the 22 shops' tills: read-only against collabBox with its OWN allow-list, the same login and
   secret, one run at a time and never alongside `collabbox-sync`; it never makes an order). Deploy with
-  `npx supabase functions deploy <fn> --project-ref bmfxhgznttcnnlqloqzp` after the tripwire. If the CLI hangs
+  `npx supabase functions deploy <fn> --project-ref oufoazmnbwugtfldkwsn --no-verify-jwt` after the tripwire. If the CLI hangs
   (30.09: 20 min on `api`), kill it and add `--use-api` (server-side bundling, ~30 s).
-- **Read-only SQL** (verification): POST `https://api.supabase.com/v1/projects/bmfxhgznttcnnlqloqzp/database/query`
+- **Read-only SQL** (verification): POST `https://api.supabase.com/v1/projects/oufoazmnbwugtfldkwsn/database/query`
   with `{query, read_only: true}`; checkers: `scripts/verify-attribution.mjs` (C1–C14),
   `verify-insights-ties`, `verify-assigner`, and since 01.10 `verify-shifts` (S1–S6), `verify-teams`
   (T1–T5), `verify-address-routing` (R1–R7), since 02.10 `verify-stock-v2` (S1–S17; `--preview` while the

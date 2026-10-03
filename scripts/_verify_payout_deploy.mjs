@@ -2,7 +2,7 @@ import fs from 'fs';
 const env = fs.readFileSync('.env', 'utf8');
 const token = (env.match(/^SUPABASE_ACCESS_TOKEN=(.+)$/m) || [])[1].trim().replace(/^["']|["']$/g, '');
 const q = async (query) => {
-  const r = await fetch('https://api.supabase.com/v1/projects/bmfxhgznttcnnlqloqzp/database/query', {
+  const r = await fetch('https://api.supabase.com/v1/projects/oufoazmnbwugtfldkwsn/database/query', {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ query }),

@@ -20,7 +20,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const EXPECTED_REF = 'bmfxhgznttcnnlqloqzp';
+const EXPECTED_REF = 'oufoazmnbwugtfldkwsn';
 
 const EMAIL = 'mile@elyon.com';
 const PASSWORD = 'naturatherapy123';

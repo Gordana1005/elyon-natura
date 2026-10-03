@@ -32,7 +32,7 @@ const env = Object.fromEntries(
     })
 );
 
-if (!String(env.SUPABASE_URL).includes('bmfxhgznttcnnlqloqzp')) {
+if (!String(env.SUPABASE_URL).includes('oufoazmnbwugtfldkwsn')) {
   console.error('ABORT: not the Macedonian project ->', env.SUPABASE_URL);
   process.exit(1);
 }

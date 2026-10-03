@@ -51,7 +51,7 @@ if (!FILE) {
 }
 
 // ── guard: Macedonia only, never Bulgaria ───────────────────────────────────
-const EXPECTED = 'bmfxhgznttcnnlqloqzp';
+const EXPECTED = 'oufoazmnbwugtfldkwsn';
 const ref = readFileSync('supabase/config.toml', 'utf8').match(/^\s*project_id\s*=\s*"([^"]+)"/m)?.[1];
 if (ref !== EXPECTED) {
   console.error(`x config.toml project_id = "${ref}", expected "${EXPECTED}"`);

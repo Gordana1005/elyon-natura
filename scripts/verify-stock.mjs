@@ -34,7 +34,7 @@
  * Exit: 0 = no FAIL · 1 = at least one FAIL · 2 = refused / bad arguments / DB unreachable.
  *
  * Safety: scripts/lib/repair-kit.mjs's guard — pinned to Macedonia
- * (bmfxhgznttcnnlqloqzp), refused if .env points at Bulgaria, every statement
+ * (oufoazmnbwugtfldkwsn), refused if .env points at Bulgaria, every statement
  * sent with read_only: true (supabase_read_only_user). Writes nothing.
  */
 import { readFileSync } from 'node:fs';

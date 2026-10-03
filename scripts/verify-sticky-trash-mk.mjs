@@ -18,7 +18,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const REF = 'bmfxhgznttcnnlqloqzp';
+const REF = 'oufoazmnbwugtfldkwsn';
 
 const toml = readFileSync(join(root, 'supabase', 'config.toml'), 'utf8');
 if (toml.match(/^\s*project_id\s*=\s*"([^"]+)"/m)?.[1] !== REF) {

@@ -49,7 +49,7 @@ import { createClient } from '@supabase/supabase-js';
 import * as XLSX from 'xlsx';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const REF = 'bmfxhgznttcnnlqloqzp';        // MACEDONIA. never change.
+const REF = 'oufoazmnbwugtfldkwsn';        // MACEDONIA. never change.
 const MKD_PER_EUR = 61.5;                  // FROZEN — see src/lib/currency.ts
 const TOL = 3;                             // ден — below this, treat as equal
 const COMMIT = process.argv.includes('--commit');

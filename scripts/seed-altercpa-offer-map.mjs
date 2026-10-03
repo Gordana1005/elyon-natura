@@ -24,7 +24,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const REF = 'bmfxhgznttcnnlqloqzp';           // MACEDONIA. never change.
+const REF = 'oufoazmnbwugtfldkwsn';           // MACEDONIA. never change.
 const COMMIT = process.argv.includes('--commit');
 const GEO = 'MK';
 

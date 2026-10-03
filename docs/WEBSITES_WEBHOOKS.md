@@ -43,7 +43,7 @@ x-webhook-signature: hex( HMAC_SHA256( rawRequestBody, WEBHOOK_SECRET ) )
 - **Never put `WEBHOOK_SECRET` in browser JS.** Compute the signature server‑side. A pure‑static landing
   page needs a tiny proxy (Cloudflare Worker, etc.) holding the secret.
 
-Rotate with `npx supabase secrets set WEBHOOK_SECRET=… --project-ref bmfxhgznttcnnlqloqzp` **and** update
+Rotate with `npx supabase secrets set WEBHOOK_SECRET=… --project-ref oufoazmnbwugtfldkwsn` **and** update
 every sender in lockstep, or they start 401‑ing.
 
 ---

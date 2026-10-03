@@ -47,7 +47,7 @@ import * as XLSX from 'xlsx';
 import { normalizeMkGeo } from './lib/mk-translit.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const REF = 'bmfxhgznttcnnlqloqzp';
+const REF = 'oufoazmnbwugtfldkwsn';
 const MKD_PER_EUR = 61.5;
 const COMMIT = process.argv.includes('--commit');
 

@@ -21,7 +21,7 @@
  *   S6  today: how many gated agents are inside / outside their window right now (info)
  *
  * Safety: the guard of scripts/verify-insights-ties.mjs (imported) — pinned to Macedonia
- * (bmfxhgznttcnnlqloqzp), refused if .env points at Bulgaria, every statement a single SELECT /
+ * (oufoazmnbwugtfldkwsn), refused if .env points at Bulgaria, every statement a single SELECT /
  * WITH sent with read_only: true.
  */
 import { runSql } from './verify-insights-ties.mjs';

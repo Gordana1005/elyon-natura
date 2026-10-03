@@ -43,7 +43,7 @@ import { fileURLToPath } from 'node:url';
 import { readOrders, isTestOrder, normalizeMkPhone } from './lib/altercpa.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const REF = 'bmfxhgznttcnnlqloqzp';
+const REF = 'oufoazmnbwugtfldkwsn';
 const SOURCE = 'altercpa';
 const args = process.argv.slice(2);
 const COMMIT = args.includes('--commit');

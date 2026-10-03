@@ -35,7 +35,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const RAW = join(ROOT, 'scripts', 'data', 'altercpa-mk-raw.jsonl');
-const EXPECTED_REF = 'bmfxhgznttcnnlqloqzp';
+const EXPECTED_REF = 'oufoazmnbwugtfldkwsn';
 const BATCH = 2000;
 
 const args = process.argv.slice(2);

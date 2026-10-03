@@ -139,7 +139,7 @@ said "2 pendings" and "No pending orders to assign" at the same time.
 Both databases were queried directly. **The single most dangerous difference is
 `source_type`.**
 
-| | **BG** (`sxymaloycddnoxudxaqp`) | **MK** (`bmfxhgznttcnnlqloqzp`) |
+| | **BG** (`sxymaloycddnoxudxaqp`) | **MK** (`oufoazmnbwugtfldkwsn`) |
 |---|---|---|
 | Lead source value | `affiliate` | **`altercpa`** |
 | Bulk legacy import | `monadon_legacy` | **`import`** (80,360 rows) |

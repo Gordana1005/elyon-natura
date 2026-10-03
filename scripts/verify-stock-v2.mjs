@@ -44,7 +44,7 @@
  *       outputs carry no *_mkd key
  *
  * Safety: the guard of scripts/verify-insights-ties.mjs (imported) — pinned to Macedonia
- * (bmfxhgznttcnnlqloqzp), refused if .env points at Bulgaria, every statement a single SELECT /
+ * (oufoazmnbwugtfldkwsn), refused if .env points at Bulgaria, every statement a single SELECT /
  * WITH sent with read_only: true. Nothing is written; stock_v2_apply() is never called.
  */
 import { runSql } from './verify-insights-ties.mjs';

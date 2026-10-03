@@ -48,7 +48,7 @@ const COMMIT = args.includes('--commit');
 const RESUME = args.includes('--resume');
 const LIMIT = (() => { const i = args.indexOf('--limit'); return i >= 0 ? Number(args[i + 1]) : null; })();
 const CONCURRENCY = (() => { const i = args.indexOf('--concurrency'); return i >= 0 ? Math.max(1, Number(args[i + 1])) : 6; })();
-const REF = 'bmfxhgznttcnnlqloqzp';
+const REF = 'oufoazmnbwugtfldkwsn';
 
 const env = {};
 for (const line of readFileSync(join(ROOT, '.env'), 'utf8').split(/\r?\n/)) {

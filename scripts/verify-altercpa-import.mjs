@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 import { readOrders, isTestOrder, normalizeMkPhone, toEur, MKD_PER_EUR } from './lib/altercpa.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const REF = 'bmfxhgznttcnnlqloqzp';
+const REF = 'oufoazmnbwugtfldkwsn';
 const SOURCE = 'altercpa';
 
 const env = {};

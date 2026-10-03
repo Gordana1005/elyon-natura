@@ -23,7 +23,7 @@ const MAP_FILE = join(ROOT, 'scripts', 'data', 'altercpa-product-map.json');
 const OUT = join(ROOT, 'scripts', 'data', 'altercpa-product-map-review.md');
 const COMMIT = process.argv.includes('--commit');
 
-const REF = 'bmfxhgznttcnnlqloqzp';
+const REF = 'oufoazmnbwugtfldkwsn';
 const env = {};
 for (const line of readFileSync(join(ROOT, '.env'), 'utf8').split(/\r?\n/)) {
   const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*"?([^"]*)"?\s*$/);

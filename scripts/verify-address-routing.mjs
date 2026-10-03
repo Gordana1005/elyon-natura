@@ -28,7 +28,7 @@
  *   R7  grants: anon / authenticated can execute none of the new functions
  *
  * Safety: the guard of scripts/verify-insights-ties.mjs (imported, not copied) —
- * pinned to Macedonia (bmfxhgznttcnnlqloqzp), refused if .env points at Bulgaria,
+ * pinned to Macedonia (oufoazmnbwugtfldkwsn), refused if .env points at Bulgaria,
  * every statement a single SELECT / WITH sent with read_only: true.
  */
 import { runSql } from './verify-insights-ties.mjs';

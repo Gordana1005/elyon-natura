@@ -7,7 +7,7 @@
 import fs from 'fs';
 import path from 'path';
 
-const PROJECT_REF = 'bmfxhgznttcnnlqloqzp';
+const PROJECT_REF = 'oufoazmnbwugtfldkwsn';
 const file = process.argv[2];
 if (!file) {
   console.error('Usage: node scripts/_apply_one_migration.mjs <path-to.sql>');

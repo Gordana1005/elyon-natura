@@ -61,7 +61,7 @@ import { dirname, join } from 'node:path';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const APPLY = process.argv.includes('--apply');
-const EXPECTED_REF = 'bmfxhgznttcnnlqloqzp';
+const EXPECTED_REF = 'oufoazmnbwugtfldkwsn';
 
 const fail = (m) => { console.error(`\x1b[31m✗ ${m}\x1b[0m`); process.exit(1); };
 

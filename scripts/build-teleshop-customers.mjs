@@ -6,7 +6,7 @@
  *   node scripts/build-teleshop-customers.mjs --db-cache <file>    # reuse a saved CRM read (or save one)
  *   node scripts/build-teleshop-customers.mjs --komitenti <csv> --orders-dir <dir> --out-dir <dir>
  *
- * READ-ONLY. Pinned to Macedonia (bmfxhgznttcnnlqloqzp; refused unless supabase/config.toml agrees).
+ * READ-ONLY. Pinned to Macedonia (oufoazmnbwugtfldkwsn; refused unless supabase/config.toml agrees).
  * Every statement is a single SELECT/WITH checked by assertReadOnly() AND sent with read_only: true,
  * so Postgres refuses a write that slipped past the text check. The token is never printed.
  *
@@ -29,7 +29,7 @@ import * as XLSX from 'xlsx';
 import { buildTeleshopCustomers, RULES_VERSION, SKIP_REASONS } from './lib/teleshop-customers.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const REF = 'bmfxhgznttcnnlqloqzp';            // Macedonia — the ONLY project this script reads
+const REF = 'oufoazmnbwugtfldkwsn';            // Macedonia — the ONLY project this script reads
 const FORBIDDEN_REF = 'sxymaloycddnoxudxaqp';  // live Bulgaria — never
 const API = `https://api.supabase.com/v1/projects/${REF}/database/query`;
 const DEFAULT_KOMITENTI = 'C:/Users/Mile/collab_out/08-komitenti-klienti/komitenti_full.csv';

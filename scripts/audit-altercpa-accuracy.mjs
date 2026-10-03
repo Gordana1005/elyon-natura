@@ -21,7 +21,7 @@ for (const line of readFileSync(ROOT + '/.env', 'utf8').split(/\r?\n/)) {
   if (m) env[m[1]] = m[2];
 }
 const URL = env.VITE_SUPABASE_URL || env.SUPABASE_URL;
-if (!URL?.includes('bmfxhgznttcnnlqloqzp')) { console.error('Not Macedonia. Refusing.'); process.exit(1); }
+if (!URL?.includes('oufoazmnbwugtfldkwsn')) { console.error('Not Macedonia. Refusing.'); process.exit(1); }
 const supabase = createClient(URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
 // ── source of truth 1: AlterCPA raw (history) + live ledger (bridge era) ────

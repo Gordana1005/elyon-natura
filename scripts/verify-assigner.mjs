@@ -32,7 +32,7 @@
  *   T   timings (server round trips)
  *
  * Safety: the guard of scripts/verify-insights-ties.mjs (imported, not copied) —
- * pinned to Macedonia (bmfxhgznttcnnlqloqzp), refused if .env points at Bulgaria,
+ * pinned to Macedonia (oufoazmnbwugtfldkwsn), refused if .env points at Bulgaria,
  * every statement a single SELECT / WITH sent with read_only: true. A dry-run
  * distribution takes no row lock and writes nothing, so it runs read-only.
  */

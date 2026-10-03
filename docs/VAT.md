@@ -178,7 +178,7 @@ order (454.771 ден), unmatched web names (100% WHEY Protein 500 г 22.500 …
    its cache signature or version changed since (drift guard); NOTICE `706 products set (431 at 5 %, 275 at 18 %)`.
    Then `node scripts/apply-migration-mk.mjs 20260944000910_product_vat_rate_fixes.sql` — NOTICE `5 products set
    to 18 % (now 426 at 5 %, 280 at 18 %)`. (Both applied to MK 01.10.2026 evening.)
-3. `npx supabase functions deploy api --project-ref bmfxhgznttcnnlqloqzp` (add `--use-api` if the CLI hangs).
+3. `npx supabase functions deploy api --project-ref oufoazmnbwugtfldkwsn` (add `--use-api` if the CLI hangs).
    The api tolerates the migration missing (catalogue falls back to the old columns; the P&L answers
    `flat_default`), but the migration goes first.
 4. Merge to `main` and push (Vercel auto-deploys the frontend).

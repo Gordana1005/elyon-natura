@@ -14,7 +14,7 @@ UID_="${1:-}"; EXT="${2:-}"; DIALED="${3:-}"; HC="${4:-0}"
 RX="${5:-0}"; TX="${6:-0}"; RXPLOSS="${7:-0}"; RXJIT="${8:-}"; RTT="${9:-}"
 [ -z "$UID_" ] && exit 0
 
-CRM_URL="https://bmfxhgznttcnnlqloqzp.supabase.co/functions/v1/api/webhook/call-quality"
+CRM_URL="https://oufoazmnbwugtfldkwsn.supabase.co/functions/v1/api/webhook/call-quality"
 WEBHOOK_SECRET="$(cat /etc/asterisk/elyon-webhook.secret)"
 
 # Packet-loss % = lost / (received + lost).

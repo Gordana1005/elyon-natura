@@ -77,7 +77,7 @@ node connector.mjs --print-grants
 Копирајте `config.example.json` во `config.json`. Обично не треба да се менува ништо; проверете:
 
 - `sql.server` = `192.168.7.22` (или името на серверот), `sql.database` = `SSBNatura`, `sql.user` = `elyon_reader`;
-- `endpoint` = адресата на CRM (`…bmfxhgznttcnnlqloqzp…/stock/sigma/ingest`) — **само македонскиот CRM**;
+- `endpoint` = адресата на CRM (`…oufoazmnbwugtfldkwsn…/stock/sigma/ingest`) — **само македонскиот CRM**;
   програмата одбива адреса на бугарскиот систем;
 - `opening` = `2026-09-22` (пописот — документите пред него не се праќаат).
 

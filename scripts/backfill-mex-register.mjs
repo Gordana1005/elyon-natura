@@ -60,7 +60,7 @@ import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const EXPECTED_REF = 'bmfxhgznttcnnlqloqzp';       // MACEDONIA. never change.
+const EXPECTED_REF = 'oufoazmnbwugtfldkwsn';       // MACEDONIA. never change.
 const MEX_BASE = 'https://mex.mk/api/json';
 const PER_PAGE = 500;
 const BATCH = 500;                                 // mex_upsert_parcels takes ≤ 500 rows

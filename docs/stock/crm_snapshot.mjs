@@ -18,7 +18,7 @@
  *   parcels         MEX parcels created since 22.09 by account and lines source
  * No customer data: no name, phone, address or note text leaves the database.
  *
- * Safety: Macedonia only — scripts/lib/repair-kit.mjs mkGuard() (config.toml = bmfxhgznttcnnlqloqzp,
+ * Safety: Macedonia only — scripts/lib/repair-kit.mjs mkGuard() (config.toml = oufoazmnbwugtfldkwsn,
  * nothing points at Bulgaria) + assertRemoteIsMk(); every statement is sent with read_only: true, so
  * Postgres itself refuses a write. The access token comes from .env (or the environment) and is never printed.
  */

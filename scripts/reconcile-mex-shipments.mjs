@@ -49,7 +49,7 @@ import { fileURLToPath } from 'node:url';
 import { createClient } from '@supabase/supabase-js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const REF = 'bmfxhgznttcnnlqloqzp';                       // MACEDONIA. never change.
+const REF = 'oufoazmnbwugtfldkwsn';                       // MACEDONIA. never change.
 const MKD_PER_EUR = 61.5;                                  // FROZEN — see src/lib/currency.ts
 const DELIVERY_MKD = 150;
 

@@ -25,7 +25,7 @@
  *   H6  no customer data: shop_sales_lines has no customer column; receipts with a named komitent (info).
  *   H7  freshness while the reader is on (07:30–23:00 Skopje): receipts < 35 min, goods < 75 min, stock < 26 h.
  *
- * Safety: the guard of scripts/verify-insights-ties.mjs (imported) — pinned to Macedonia (bmfxhgznttcnnlqloqzp),
+ * Safety: the guard of scripts/verify-insights-ties.mjs (imported) — pinned to Macedonia (oufoazmnbwugtfldkwsn),
  * refused if .env points at Bulgaria, every statement a single SELECT / WITH sent with read_only: true.
  */
 import { runSql } from '../verify-insights-ties.mjs';

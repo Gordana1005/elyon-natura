@@ -12,7 +12,7 @@
 
 ## 0. The protocol every Macedonian write script follows
 
-- **Guards.** `mkGuard()` pins the ref `bmfxhgznttcnnlqloqzp`, refuses a `supabase/config.toml` or
+- **Guards.** `mkGuard()` pins the ref `oufoazmnbwugtfldkwsn`, refuses a `supabase/config.toml` or
   `.env` that mentions the Bulgarian project, and loads `SUPABASE_ACCESS_TOKEN` without printing it;
   `assertRemoteIsMk()` refuses a remote whose orders look Bulgarian (+359). Reads go through the
   Management API with `read_only: true` (`sqlRead`).

@@ -29,7 +29,7 @@
  *       Only the reader login proof (reads VAULT §8).
  *   node scripts/apply-shop-crm-export.mjs --set-function-secrets [--ca <pem>]
  *       Runs the MK tripwire, then sets WEB_SHOP_DB_URL + WEB_SYNC_SECRET (and
- *       WEB_SHOP_DB_CA if --ca) as function secrets on bmfxhgznttcnnlqloqzp via
+ *       WEB_SHOP_DB_CA if --ca) as function secrets on oufoazmnbwugtfldkwsn via
  *       the Management API, and creates/updates the Vault row web_sync_secret.
  *   node scripts/apply-shop-crm-export.mjs --backfill | --sync
  *       Calls the deployed web-sync function (secret from VAULT §8): --backfill
@@ -58,7 +58,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 const SHOP_REF = 'kctgthpoeysmhmkrnkil';
 const SHOP_STAGING_REF = 'lwekxbsxabqzygfuhpdl';
-const CRM_REF = 'bmfxhgznttcnnlqloqzp';           // Macedonia — secrets go here
+const CRM_REF = 'oufoazmnbwugtfldkwsn';           // Macedonia — secrets go here
 const BG_REF = 'sxymaloycddnoxudxaqp';            // live Bulgaria — never
 const READER = 'elyon_crm_reader';
 const TENANT_SLUG = 'naturatherapy-mk';
@@ -196,7 +196,7 @@ function writeVault8({ url, syncSecret, rotated, readerDisplay }) {
     '  3 connections). DDL: `supabase/shop-side/crm_export_tenant2.sql` (rollback block in its header).',
     `- Last applied: ${new Date().toISOString()} by scripts/apply-shop-crm-export.mjs` +
       ` (password ${rotated ? 'generated/rotated' : 'kept'}); reader = ${readerDisplay}`,
-    '- `WEB_SHOP_DB_URL` (function secret on bmfxhgznttcnnlqloqzp for web-sync; the reader via the shop session pooler):',
+    '- `WEB_SHOP_DB_URL` (function secret on oufoazmnbwugtfldkwsn for web-sync; the reader via the shop session pooler):',
     `  \`${url}\``,
     '- `WEB_SYNC_SECRET` (function secret + Vault row `web_sync_secret`; pg_cron sends it as `x-web-sync-secret`):',
     `  \`${syncSecret}\``,
@@ -675,7 +675,7 @@ async function modeVerify() {
 }
 
 async function modeSecrets() {
-  console.log('\nFunction secrets → bmfxhgznttcnnlqloqzp (Macedonia)\n');
+  console.log('\nFunction secrets → oufoazmnbwugtfldkwsn (Macedonia)\n');
   const trip = spawnSync(process.execPath, [join(root, 'scripts', 'assert-mk-target.mjs')], { cwd: root, stdio: 'inherit' });
   if (trip.status !== 0) fail('tripwire refused — not setting anything');
 

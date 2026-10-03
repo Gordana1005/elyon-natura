@@ -379,7 +379,7 @@ Beyond the contract tables above, it contains:
 1. `node scripts/assert-mk-target.mjs`
 2. `node scripts/apply-migration-mk.mjs supabase/migrations/20260947000100_call_scripts_targeting.sql`
 3. `node scripts/verify-call-scripts.mjs`. Expect V1–V9 PASS and **V10 WARN (20 rows: the 10 BG-worded legacy scripts and their 10 draft copies)**. Then run `node scripts/engine-fixture-mk.mjs`: the migration does not touch lists, but run it per the bundle rule.
-4. Deploy the api: `npx supabase functions deploy api --project-ref bmfxhgznttcnnlqloqzp` (add `--use-api` if the CLI hangs).
+4. Deploy the api: `npx supabase functions deploy api --project-ref oufoazmnbwugtfldkwsn` (add `--use-api` if the CLI hangs).
    - **The api must come after the migration.** Its legacy PATCH / DELETE call the new writers.
    - Between steps 2 and 4, the old api still writes legacy rows directly through the service role. V4 would list any row edited in that window; re-save it through the editor to heal it.
 5. Push the frontend (A → C → B merged).

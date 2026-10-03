@@ -15,7 +15,7 @@
 | Thing | Where | Identifier |
 |---|---|---|
 | Frontend (React SPA) | Vercel | project `elyon-natura` (`prj_cwxmm4jb74hUHmAb6YzbUG7PuDy3`), Pro team `elyon-s-projects` (`team_fT756uoO13MD9jtimyq27JNy`, since 02.10.2026) → **https://naturall.mk** (https://elyon-natura.vercel.app and the legacy `elyon-macedonia.vercel.app` 308-redirect to it since 02.10.2026); push to `main` = production |
-| DB + Auth + Edge Functions | Supabase | ref **`bmfxhgznttcnnlqloqzp`** — Pro plan, Small compute (t4g.small, 2 GB) since 18.08, daily backups, disk 8 GB since 28.09 |
+| DB + Auth + Edge Functions | Supabase | ref **`oufoazmnbwugtfldkwsn`** — Pro plan, Small compute (t4g.small, 2 GB) since 18.08, daily backups, disk 8 GB since 28.09 |
 | Edge Functions | Supabase | `api` (the one REST router — ONE deployable shared by every screen), `altercpa-sync`, `mex-reconcile`, `web-sync`, `collabbox-sync` |
 | Repo | GitHub | `Gordana1005/elyon-natura`, branch `main`; local folder `D:\Dev\archives\elyon-natura` |
 | AlterCPA | api.cpa.moe | read by `altercpa-sync` (+ the manual CPA push) |
@@ -31,12 +31,12 @@
 2. **Pass the target explicitly.** The shell's working directory resets between tool calls
    (often to the BG repo): `git -C "D:\Dev\archives\elyon-natura" …`,
    `vercel … --cwd "D:\Dev\archives\elyon-natura" --scope elyon-s-projects --token <elyoncoding token>`,
-   `--project-ref bmfxhgznttcnnlqloqzp`. Read back the target the tool echoes.
+   `--project-ref oufoazmnbwugtfldkwsn`. Read back the target the tool echoes.
 3. **Several sessions work on this repo at once.** `git status` and the file's mtime before editing
    shared files (`supabase/functions/api/index.ts`, `src/lib/api.ts`, the locales, CLAUDE.md), and
    deploy `api` only when `index.ts` holds finished work.
 4. **Read-only SQL** for any check: POST
-   `https://api.supabase.com/v1/projects/bmfxhgznttcnnlqloqzp/database/query` with
+   `https://api.supabase.com/v1/projects/oufoazmnbwugtfldkwsn/database/query` with
    `{query, read_only: true}`, or `sqlRead` from `scripts/lib/repair-kit.mjs`.
 
 ## 3. Local development and gates
@@ -66,7 +66,7 @@ git -C "D:/Dev/archives/elyon-natura" push "https://x-access-token:${PAT}@github
 
 **Edge Functions** (after the tripwire):
 ```bash
-npx supabase functions deploy <api|altercpa-sync|mex-reconcile|web-sync|collabbox-sync> --project-ref bmfxhgznttcnnlqloqzp --use-api
+npx supabase functions deploy <api|altercpa-sync|mex-reconcile|web-sync|collabbox-sync> --project-ref oufoazmnbwugtfldkwsn --use-api
 ```
 The CLI reads `SUPABASE_ACCESS_TOKEN` from the environment; a stale `supabase login` for another
 account gives 403. Every function except `api` is called by pg_cron with a shared-secret header and
@@ -97,7 +97,7 @@ NATURAL = affiliate, NATURA = by series). The `api` runs v83 (29.09 11:37, `edfa
 `COLLABBOX_SYNC_SECRET`. Each cron-called function's secret is ALSO a DB Vault row that
 `invoke_*()` reads: `altercpa_sync_secret`, `mex_sync_secret`, `web_sync_secret`,
 `collabbox_sync_secret` (+ `postback_drain_secret`). A missing Vault row = the cron silently does
-nothing. Set with `npx supabase secrets set NAME=… --project-ref bmfxhgznttcnnlqloqzp` (Vercel env:
+nothing. Set with `npx supabase secrets set NAME=… --project-ref oufoazmnbwugtfldkwsn` (Vercel env:
 the REST API, never PowerShell-piped stdin).
 
 ## 5. Every cron job (pg_cron, verified live 29.09)
@@ -255,7 +255,7 @@ for older days — a missed stretch, open rows older than 14 days, or a history 
 2. **Dry-run one day first** — it writes nothing (no order, ledger or run row); the output holds
    customer data, keep it out of git:
    ```bash
-   curl -s -X POST https://bmfxhgznttcnnlqloqzp.supabase.co/functions/v1/collabbox-sync \
+   curl -s -X POST https://oufoazmnbwugtfldkwsn.supabase.co/functions/v1/collabbox-sync \
      -H "x-collabbox-sync-secret: $COLLABBOX_SYNC_SECRET" -H "Content-Type: application/json" \
      -d '{"mode":"manual","from":"2026-09-20","to":"2026-09-20","dry_run":true}' > exports/collabbox/dry-2026-09-20.json
    ```
@@ -264,7 +264,7 @@ for older days — a missed stretch, open rows older than 14 days, or a history 
 3. **Run windows of at most 4 days**, one after another, synchronously so each answers with its
    summary:
    ```bash
-   curl -s -X POST https://bmfxhgznttcnnlqloqzp.supabase.co/functions/v1/collabbox-sync \
+   curl -s -X POST https://oufoazmnbwugtfldkwsn.supabase.co/functions/v1/collabbox-sync \
      -H "x-collabbox-sync-secret: $COLLABBOX_SYNC_SECRET" -H "Content-Type: application/json" \
      -d '{"mode":"manual","from":"2026-09-17","to":"2026-09-20","wait":true}'
    ```

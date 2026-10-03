@@ -10,7 +10,7 @@
  *
  * Exit: 0 = ok (or disabled on a dry run) · 1 = the run failed / was refused · 2 = guard refusal.
  *
- * Safety. Pinned to Macedonia (bmfxhgznttcnnlqloqzp): supabase/config.toml must agree and .env must not
+ * Safety. Pinned to Macedonia (oufoazmnbwugtfldkwsn): supabase/config.toml must agree and .env must not
  * point at Bulgaria. The dry run is one SELECT sent with read_only: true through the guard of
  * scripts/verify-insights-ties.mjs. --apply first runs scripts/assert-mk-target.mjs (the tripwire) and
  * then sends exactly one whitelisted statement (SELECT public.stock_v2_apply(...) / stock_v2_reset(...))
@@ -23,7 +23,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { runSql } from '../verify-insights-ties.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const REF = 'bmfxhgznttcnnlqloqzp';            // Macedonia — the ONLY project this script writes
+const REF = 'oufoazmnbwugtfldkwsn';            // Macedonia — the ONLY project this script writes
 const FORBIDDEN_REF = 'sxymaloycddnoxudxaqp';  // live Bulgaria — never
 const API = `https://api.supabase.com/v1/projects/${REF}/database/query`;
 

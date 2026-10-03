@@ -1,7 +1,7 @@
 # Database — Supabase Postgres, end to end
 
 > Every table, enum, function, trigger, the RLS model, the segment engine, and how data actually
-> moves. Project ref **`bmfxhgznttcnnlqloqzp`**. ~39 tables, 3 enums, ~18 functions, ~70 migrations in
+> moves. Project ref **`oufoazmnbwugtfldkwsn`**. ~39 tables, 3 enums, ~18 functions, ~70 migrations in
 > [../supabase/migrations](../supabase/migrations). Apply with `npx supabase db push --linked`.
 
 > ⚠️ **The generated types file is stale.** [src/integrations/supabase/types.ts](../src/integrations/supabase/types.ts)

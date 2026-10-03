@@ -32,7 +32,7 @@
  *   S13 a non-owner payload (p_money = false) carries no *_mkd / *_eur key
  *
  * Safety: the same guard as scripts/verify-insights-ties.mjs (imported, not
- * copied) — pinned to Macedonia (bmfxhgznttcnnlqloqzp), refused if .env points
+ * copied) — pinned to Macedonia (oufoazmnbwugtfldkwsn), refused if .env points
  * at Bulgaria, every statement a single SELECT/WITH sent with read_only: true.
  */
 import { readFileSync } from 'node:fs';

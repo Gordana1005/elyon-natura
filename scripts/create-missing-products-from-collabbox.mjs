@@ -38,7 +38,7 @@ import { createClient } from '@supabase/supabase-js';
 import * as XLSX from 'xlsx';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const REF = 'bmfxhgznttcnnlqloqzp';
+const REF = 'oufoazmnbwugtfldkwsn';
 const MKD_PER_EUR = 61.5;
 const DEFAULT_SUPPLY_DAYS = 15;
 const ACTIVE_WINDOW_DAYS = 90;

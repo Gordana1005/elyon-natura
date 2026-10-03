@@ -74,7 +74,7 @@ import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const MK_REF = 'bmfxhgznttcnnlqloqzp';
+const MK_REF = 'oufoazmnbwugtfldkwsn';
 const BG_REF = 'sxymaloycddnoxudxaqp'; // live Bulgaria — never a target, never touched
 const EXPORT_DIR = join(ROOT, 'exports', 'attribution');
 const OPERATORS_JSON = join(ROOT, 'scripts', 'data', 'altercpa-operators.json');

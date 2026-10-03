@@ -24,7 +24,7 @@ $_['entry_abandoned']  = 'Capture abandoned carts';
 $_['entry_import_since'] = 'Import orders from (date)';
 
 // Help
-$_['help_url']         = 'Paste your CRM endpoint, e.g. https://bmfxhgznttcnnlqloqzp.supabase.co/functions/v1/api/webhook/opencart';
+$_['help_url']         = 'Paste your CRM endpoint, e.g. https://oufoazmnbwugtfldkwsn.supabase.co/functions/v1/api/webhook/opencart';
 $_['help_secret']      = 'Must match the WEBHOOK_SECRET set on the CRM edge function. Never shared with the browser/customer.';
 $_['help_source']      = 'Shown in the CRM so you know where the pending came from. Default: naturatherapy.bg';
 $_['help_statuses']    = 'Only orders that reach one of these statuses are pushed as Pendings. Default: Pending.';

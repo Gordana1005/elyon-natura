@@ -73,7 +73,7 @@ A browser agent at `www.elyoncall.com` (with `VITE_USE_REAL_VOIP=true`) register
 ### Frontend / cloud
 - Vercel project `elyoncrm` (team `team_vvGANvn1DSdgZZAIUBkcCSWh`); prod domains `elyoncall.com`/`www.elyoncall.com`.
 - Env: **`VITE_USE_REAL_VOIP=true`** (Production, non-sensitive) + the `VITE_SUPABASE_*` vars. Deploys on push to `main` (GitHub `Gordana1005/elyoncrm`).
-- Supabase project `bmfxhgznttcnnlqloqzp`; Edge Function `api`. Secrets/keys in [`docs/VAULT.md`](../VAULT.md).
+- Supabase project `oufoazmnbwugtfldkwsn`; Edge Function `api`. Secrets/keys in [`docs/VAULT.md`](../VAULT.md).
 
 ## 3. Backups
 - **PBX:** `/root/elyon-pbx-backup/asterisk-db-stable-v1.sql` (FreePBX MySQL dump) + `asterisk-etc-stable-v1.tar.gz` (`/etc/asterisk`). Refresh before risky changes:

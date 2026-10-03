@@ -34,7 +34,7 @@ case "$FILE" in *.wav) : ;; *) FILE="${FILE}.wav" ;; esac
 SIZE=0; [ -f "$MIX" ] && SIZE="$(stat -c%s "$MIX" 2>/dev/null || echo 0)"
 [ "${START:-0}" -gt 0 ] 2>/dev/null || START=0
 
-CRM_URL="https://bmfxhgznttcnnlqloqzp.supabase.co/functions/v1/api/webhook/recording"
+CRM_URL="https://oufoazmnbwugtfldkwsn.supabase.co/functions/v1/api/webhook/recording"
 WEBHOOK_SECRET="$(cat /etc/asterisk/elyon-webhook.secret)"
 
 BODY="{\"uniqueid\":\"$UID_\",\"ext\":\"$EXT\",\"dialed\":\"$DIALED\",\"file\":\"$FILE\",\"start_epoch\":$START,\"end_epoch\":$END,\"size\":$SIZE}"

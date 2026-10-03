@@ -5,7 +5,7 @@
 > URLs by hand — it calls thin wrappers in **[../src/lib/api.ts](../src/lib/api.ts)**. Base URL:
 > `${VITE_SUPABASE_URL}/functions/v1/api`.
 
-Deploy: `npx supabase functions deploy api --project-ref bmfxhgznttcnnlqloqzp` (export `SUPABASE_ACCESS_TOKEN` first — see [OPERATIONS_RUNBOOK.md](OPERATIONS_RUNBOOK.md)).
+Deploy: `npx supabase functions deploy api --project-ref oufoazmnbwugtfldkwsn` (export `SUPABASE_ACCESS_TOKEN` first — see [OPERATIONS_RUNBOOK.md](OPERATIONS_RUNBOOK.md)).
 
 ---
 

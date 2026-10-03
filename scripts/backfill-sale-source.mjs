@@ -52,7 +52,7 @@ import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const MK_REF = 'bmfxhgznttcnnlqloqzp';
+const MK_REF = 'oufoazmnbwugtfldkwsn';
 const BG_REF = 'sxymaloycddnoxudxaqp'; // live Bulgaria — never a target, never touched
 const EXPORT_DIR = join(ROOT, 'exports', 'attribution');
 const CLASSIFY_SIG = 'public.classify_sale_source(text,text,text,uuid,numeric,text)';

@@ -461,8 +461,8 @@ the booking drops out and the order counts instead — same day, same author. Se
 - Setup / redeploy (Macedonia only): `node scripts/assert-mk-target.mjs` →
   `node scripts/apply-migration-mk.mjs supabase/migrations/20260942000900_collabbox_nightly_sync.sql`
   (only on a fresh project) → `npx supabase secrets set COLLABBOX_USER=… COLLABBOX_PASS=…
-  COLLABBOX_SYNC_SECRET=<64 hex> --project-ref bmfxhgznttcnnlqloqzp` →
-  `npx supabase functions deploy collabbox-sync --project-ref bmfxhgznttcnnlqloqzp` →
+  COLLABBOX_SYNC_SECRET=<64 hex> --project-ref oufoazmnbwugtfldkwsn` →
+  `npx supabase functions deploy collabbox-sync --project-ref oufoazmnbwugtfldkwsn` →
   `select vault.create_secret('<the same 64 hex>', 'collabbox_sync_secret');` →
   `node scripts/engine-fixture-mk.mjs`.
 - `scripts/collabbox-fetch.mjs` (the Node twin of the client, same allow-list idea) reads the
@@ -475,7 +475,7 @@ answers in ~30–90 s; keep the secret in an environment variable, keep the outp
 holds customer data):
 
 ```bash
-curl -s -X POST https://bmfxhgznttcnnlqloqzp.supabase.co/functions/v1/collabbox-sync \
+curl -s -X POST https://oufoazmnbwugtfldkwsn.supabase.co/functions/v1/collabbox-sync \
   -H "x-collabbox-sync-secret: $COLLABBOX_SYNC_SECRET" -H "Content-Type: application/json" \
   -d '{"mode":"manual","from":"2026-09-27","to":"2026-09-27","dry_run":true}' > dry-2026-09-27.json
 ```

@@ -191,10 +191,10 @@ into this week's payout window.
 node scripts/assert-mk-target.mjs          # 🛑 before every state-changing command
 
 # 1. the merchant token (read-only use), as a function secret
-npx supabase secrets set ALTERCPA_TOKEN_MAIN=<token> --project-ref bmfxhgznttcnnlqloqzp
+npx supabase secrets set ALTERCPA_TOKEN_MAIN=<token> --project-ref oufoazmnbwugtfldkwsn
 
 # 2. the cron gate — must match the vault row
-npx supabase secrets set ALTERCPA_SYNC_SECRET=<64-hex> --project-ref bmfxhgznttcnnlqloqzp
+npx supabase secrets set ALTERCPA_SYNC_SECRET=<64-hex> --project-ref oufoazmnbwugtfldkwsn
 #    SELECT vault.create_secret('<same 64-hex>', 'altercpa_sync_secret');
 ```
 

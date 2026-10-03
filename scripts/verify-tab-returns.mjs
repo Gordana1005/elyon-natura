@@ -30,7 +30,7 @@
  *   S2  stock: no valuation while the count is untrusted
  *
  * Safety: the guard of scripts/verify-insights-ties.mjs (imported, not copied) —
- * pinned to Macedonia (bmfxhgznttcnnlqloqzp), refused if .env points at
+ * pinned to Macedonia (oufoazmnbwugtfldkwsn), refused if .env points at
  * Bulgaria, every statement a single SELECT/WITH sent with read_only: true.
  */
 import { readFileSync } from 'node:fs';

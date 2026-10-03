@@ -18,7 +18,7 @@
  *   ·   counts: live notebooks / notes, authors, soft-deleted waiting
  *
  * Safety: the guard of scripts/verify-insights-ties.mjs (imported, not copied) — pinned to
- * Macedonia (bmfxhgznttcnnlqloqzp), refused if .env points at Bulgaria, every statement a single
+ * Macedonia (oufoazmnbwugtfldkwsn), refused if .env points at Bulgaria, every statement a single
  * SELECT / WITH sent with read_only: true. Never reads a title or a body — only counts.
  */
 import { runSql } from './verify-insights-ties.mjs';

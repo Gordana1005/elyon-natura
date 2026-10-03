@@ -2,7 +2,7 @@
 
 Technical documentation for affiliates (webmasters) sending leads to Elyon via S2S API.
 
-- **Base URL:** `https://bmfxhgznttcnnlqloqzp.supabase.co/functions/v1/api`
+- **Base URL:** `https://oufoazmnbwugtfldkwsn.supabase.co/functions/v1/api`
 - **Auth:** your personal API key (`aff_…`), passed in the JSON body as `key`, as `?key=` query parameter, or as an `X-Api-Key` header.
 - **Format:** JSON in, JSON out. UTF-8. All money values are **EUR**.
 - **GEO:** North Macedonia (MK). Phone numbers are normalized to Macedonian E.164 (`+389…`) — leads without enough digits are rejected with `nophone`.
@@ -88,7 +88,7 @@ Errors: `{"status":"error","error":"<code>"}`
 ### Example — curl
 
 ```bash
-curl -X POST "https://bmfxhgznttcnnlqloqzp.supabase.co/functions/v1/api/cpa/lead" \
+curl -X POST "https://oufoazmnbwugtfldkwsn.supabase.co/functions/v1/api/cpa/lead" \
   -H "Content-Type: application/json" \
   -d '{
     "key":    "aff_YOUR_KEY_HERE",
@@ -113,7 +113,7 @@ $payload = [
   'sub1'    => $sub1,
   'clickid' => $clickid,
 ];
-$ch = curl_init('https://bmfxhgznttcnnlqloqzp.supabase.co/functions/v1/api/cpa/lead');
+$ch = curl_init('https://oufoazmnbwugtfldkwsn.supabase.co/functions/v1/api/cpa/lead');
 curl_setopt_array($ch, [
   CURLOPT_POST => true,
   CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE),
@@ -129,7 +129,7 @@ $res = json_decode(curl_exec($ch), true);
 ### Example — Node.js
 
 ```js
-const res = await fetch("https://bmfxhgznttcnnlqloqzp.supabase.co/functions/v1/api/cpa/lead", {
+const res = await fetch("https://oufoazmnbwugtfldkwsn.supabase.co/functions/v1/api/cpa/lead", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({

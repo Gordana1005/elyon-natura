@@ -8,7 +8,7 @@
  *   node scripts/stock/sigma-ingest-file.mjs [file] --direct        # stock_sigma_ingest() through the Management API,
  *                                                                   #   every chunk in ONE transaction, ROLLED BACK
  *   node scripts/stock/sigma-ingest-file.mjs [file] --direct --apply   # … committed (the lead)
- *   options: --url <ingest url>   default https://bmfxhgznttcnnlqloqzp.supabase.co/functions/v1/api/stock/sigma/ingest
+ *   options: --url <ingest url>   default https://oufoazmnbwugtfldkwsn.supabase.co/functions/v1/api/stock/sigma/ingest
  *            --max-docs 500 --max-bytes 1000000   the chunk limits (tools/sigma-connector/sigma-fields.json)
  *
  * --send signs every request: x-elyon-ts (unix seconds) and x-elyon-signature = hex(HMAC_SHA256(secret, ts + '.' +

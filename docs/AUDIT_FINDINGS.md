@@ -11,7 +11,7 @@
 > - **D4** `src/integrations/supabase/types.ts` regenerated (1462 → 1978 lines; now includes courier_offices, customer_profiles, segment members, shift_breaks, active_call_views, etc.).
 >
 > Verified: `npm run build` ✅ and `npm test` ✅. **The backend (A1/A2) requires an Edge‑Function deploy
-> to reach production:** `npx supabase functions deploy api --project-ref bmfxhgznttcnnlqloqzp`.
+> to reach production:** `npx supabase functions deploy api --project-ref oufoazmnbwugtfldkwsn`.
 > Not yet committed/pushed. Still open: A3 (atomic stock helper), A4 (dossier caps), D1/D2 (tests + lint‑in‑CI), D3 (split index.ts), the Ads decision (revive vs remove endpoints), permission‑fallback seeding.
 
 Health snapshot: **build ✅** (`npm run build`, ~8 s) · **tests ⚠️** (1 trivial test passes — no real
