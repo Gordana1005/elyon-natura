@@ -216,6 +216,18 @@ AlterCPA approval with no parcel, its sale or decision −30 d … +1 d, amount 
 applies as well. Phoneless LEADS documents wait for their parcel: the backtest (exports/leadsrt, 19–30.09)
 found the author + folded-name pairing double-counting 208 of 677 of them.
 
+**Since `20260947002050` (owner 03.10.2026) — a RE-BOOKING is not counted twice:** a booking with the
+customer's phone and NO parcel of its own drops out of `bk` once it is OVERDUE — its first MEX batch day is over
+(MEX registered ≥ 100 parcels after its dispatch day, `doc_at` or the first sighting if later, and before today)
+— while the same last-8 phone has a sale with an existing MEX parcel (CRM order / collabBox order / MEX-only) made,
+booked or sold 7 days before … 2 days after it, with a COD, not delivered before it, at the label / with the
+courier / delivered (never MEX 3 · 9 · 13 or 7 — then it may be the re-send), still counted, with the same goods
+(same priced products, or the value ± 3 ден / ± 150). MEX making the booking's own parcel ends it (a real second
+shipment counts). Why the gate: MEX makes a document's parcel on the first working morning after its dispatch day
+(Aug–Sep: 16.234 of 16.234), and without it the rule would have hidden 60 real second shipments of September for
+hours to days (replay in exports/rebook). With it: September 3 / 7.990 ден, March–August 44 / 136.580 ден, none
+ever shipped. The board shows an excluded order-type booking as `booked_twin`.
+
 ### The rule that matters most: an order only once its MEX parcel exists
 
 Teleshop, social and LEADS-OUT are packed in collabBox, outside the CRM. A sync order without a

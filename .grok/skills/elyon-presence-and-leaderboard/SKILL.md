@@ -396,7 +396,10 @@ orders." ONE board, one row per person, the day split over the six departments.
     approval with no parcel on that phone, −30 d … +1 d, amount ignored); a phoneless LEADS document
     waits for its parcel (no reliable twin test without the phone — backtest in the migration), and a
     LEADS booking ends the moment MEX has its parcel (then MEX-only on the same booking day until an
-    order holds it). The rest of the day's documents are `booked_twin` — shown, never counted. Once
+    order holds it). **Since `20260947002050` a RE-BOOKING is dropped too** — a booking with no parcel of its
+    own whose first MEX batch day is over, while the same phone has a sale with an existing parcel (7 days
+    before … 2 days after, same goods, that parcel not in trouble / returned); its own parcel brings it back
+    (`elyon-collabbox-sync`). The rest of the day's documents are `booked_twin` — shown, never counted. Once
     the parcel exists the collabBox sync creates the order (`sold_at` = the document time), the
     booking drops out and the order counts — same day, same author. A booking whose author is not
     named in Settings → Teams sits in the no-seller bucket.
