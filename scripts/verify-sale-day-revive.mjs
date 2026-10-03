@@ -74,7 +74,7 @@ const plan = await q(`SELECT p.display_id, p.basis, p.status_at_arrival, p.old_s
       count(*) FILTER (WHERE m.applied AND m.undone_at IS NULL AND o.sold_at IS DISTINCT FROM m.new_sold_at) AS changed,
       count(*) FILTER (WHERE m.undone_at IS NOT NULL)                                              AS undone,
       count(*) FILTER (WHERE m.applied AND o.sold_via IS DISTINCT FROM m.sold_via)                 AS via_moved,
-      count(DISTINCT m.run_id)                                                                     AS runs
+      count(DISTINCT m.run_id) FILTER (WHERE m.applied)                                            AS runs
     FROM public.sale_day_revive_moves m JOIN public.orders o ON o.id = m.order_id`);
   out('R3', Number(l.changed) === 0 ? 'PASS' : 'WARN',
       `moves applied ${l.live} (in ${l.runs} runs) · still on the booking day ${l.holds} · changed since ${l.changed} · undone ${l.undone}`);
