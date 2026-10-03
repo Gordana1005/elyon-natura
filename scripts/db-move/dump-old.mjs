@@ -60,6 +60,7 @@ async function api(path, init = {}) {
     }
   }
 }
+const USE_POSTGRES = process.argv.includes('--postgres');
 const FROM = process.argv.includes('--from') ? process.argv[process.argv.indexOf('--from') + 1] : 'baseline';
 const ORDER = ['baseline', 'schema', 'data', 'auth-data', 'migrations', 'finish'];
 if (!ORDER.includes(FROM)) die(`--from must be one of ${ORDER.join(', ')}`);
@@ -77,7 +78,9 @@ async function login() {
 
 const timings = {};
 async function pgdump(label, args, file) {
-  const user = await login();
+  // --postgres: the postgres password is in pgpass (set through the API for the cutover) — the only way once the
+  // source is frozen read-only, because the platform's cli/login-role needs a writable database.
+  const user = USE_POSTGRES ? `postgres.${SOURCE_REF}` : await login();
   const t0 = Date.now();
   log(`${label} → ${file} …`);
   const r = spawnSync(`${PG}/pg_dump.exe`, [
