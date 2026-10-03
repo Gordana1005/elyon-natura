@@ -365,12 +365,25 @@ orders." ONE board, one row per person, the day split over the six departments.
     AlterCPA sale with no parcel of its own, created 1 day before … 2 days after, at a price that
     fits (the writer's `possible_twin_crm_sale` rule); a booking with NO phone is a twin of its
     author's own priced CRM sale within ±10 min of the booking, or 1 day before … 2 days after it
-    with the same script-folded customer name (`20260944000630`; `elyon-collabbox-sync`). **10111 LEADS and 10114 LEADS-OUT bookings
-    are `booked_twin` — shown, never counted**: their sale is the CRM / AlterCPA order (28.09: 17 of
-    the 23 LEADS-OUT bookings with a known phone had the same agent's CRM sale minutes apart). Once
+    with the same script-folded customer name (`20260944000630`; `elyon-collabbox-sync`). The counted
+    bookings are exactly THE cohort's booking rows (`insights_sale_rows` kind `booking`: 10036 · 10050 ·
+    10106 · 10055 · 10114 LEADS-OUT — the twin rules above drop the copies of CRM sales), and **since
+    `20260947001850` (owner 03.10.2026: "реал-тајм да се гледат сите нарачки … без разлика дали ги има
+    или нема во collab") a 10111 LEADS booking too** — Тим Маџари In, its author, its booking day — when
+    its customer's phone is known and it is not the copy of a living Тим Маџари In sale (an AlterCPA
+    approval with no parcel on that phone, −30 d … +1 d, amount ignored); a phoneless LEADS document
+    waits for its parcel (no reliable twin test without the phone — backtest in the migration), and a
+    LEADS booking ends the moment MEX has its parcel (then MEX-only on the same booking day until an
+    order holds it). The rest of the day's documents are `booked_twin` — shown, never counted. Once
     the parcel exists the collabBox sync creates the order (`sold_at` = the document time), the
     booking drops out and the order counts — same day, same author. A booking whose author is not
     named in Settings → Teams sits in the no-seller bucket.
+  - **The 10-day rule (owner 03.10.2026, `20260947001850`)** — every board reads it through the cohort:
+    ten Skopje days after the sale day a sale MEX never took counts no more (a booking with no parcel;
+    any sale with no MEX parcel — confirmed, or "shipped" in the CRM only; a parcel still at MEX 8),
+    order and status untouched; a parcel MEX holds counts until paid / returned; a return stays a
+    return (the monthly bonus return-% cut reads it). `cohort_unshipped_since()` = Skopje midnight of
+    today − `no_parcel_rule_days()`.
   - **total** = sales + counted bookings (count and денари) — what ranks.
   - **worked / conversion** = `v_sales_work` over the WHOLE day, every department (the decisions on
     the owner's test orders out): worked, sale / cancel / trash / callback decisions, conversion =

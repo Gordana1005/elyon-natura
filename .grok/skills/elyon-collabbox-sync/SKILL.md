@@ -200,6 +200,16 @@ or any name the CRM holds on that sale's phone (`20260944000630`, owner 01.10: 4
 counted twice that day; it compared with `doc_at` ±10 min before). `leaderboard_day_v2` reads the
 cohort, so such a booking shows as `booked_twin` there.
 
+**Since `20260947001850` (owner 03.10.2026):** `bk` holds bookings whose SALE day is at most 10 Skopje days
+back (`cohort_unshipped_since()`; it was `doc_at ≥ now() − 14 days`) — a booking MEX never takes stops
+counting, and a booking whose parcel exists but no order holds it becomes MEX-only on its BOOKING day (`mo`
+takes the document's `collabbox_sale_at`, the earlier of that and the parcel's creation). A **10111 LEADS**
+document (`credit_pending` / `booked`, no parcel yet) is a booking too — Тим Маџари In, its author — only
+with the customer's phone and when it is not the copy of a living Тим Маџари In sale on that phone (an
+AlterCPA approval with no parcel, its sale or decision −30 d … +1 d, amount ignored); the writer's twin rule
+applies as well. Phoneless LEADS documents wait for their parcel: the backtest (exports/leadsrt, 19–30.09)
+found the author + folded-name pairing double-counting 208 of 677 of them.
+
 ### The rule that matters most: an order only once its MEX parcel exists
 
 Teleshop, social and LEADS-OUT are packed in collabBox, outside the CRM. A sync order without a
@@ -436,9 +446,15 @@ Tripwire first; the function and the crons target Macedonia only (the URL in
 
 ## Known gaps (29.09)
 
-1. **The komitent-card lookup finds nothing** (found 0 so far); `collabbox_customers` holds only
-   `source 'parcel'` rows. Phones come from the teleshop registry and the parcel; a document with
-   neither stays `no_phone`. An owner item.
+1. **The komitent-card lookup finds nothing** (found 0 in every run — 60 read, 60 "not found" per pass,
+   03.10); `collabbox_customers` holds only `source 'parcel'` rows. Phones come from the teleshop registry
+   and the parcel; a document with neither stays `no_phone`. Evidence (03.10): the `infocc` search ignores
+   its filter fields — the 10.09 and 01.10 register harvests got all 166k komitenti with `name1=А`, every
+   page starting with the same rows — so `id=<Шифра>` returns the register's first 50 rows and never the
+   card. The register itself (exports/collabbox/collab-out-2026-10-01/komitenti_full.csv) has a phone for
+   2.859 of the 2.862 September 10111 komitenti (`komitent_id` = Шифра). A working per-card request needs
+   a live look at the form (outside the allow-list) — an owner item; it is also what would let every
+   10111 LEADS booking count at once (20260947001850 counts only the ones with a known phone).
 2. **Do-not-contact is flagged, not trashed.** A card / name marked do-not-contact creates the order
    with flag `banned_customer_do_not_contact`; the sync does NOT create the sticky-trash marker the
    history import made (598 markers). A new such customer enters the calling lists until a manager

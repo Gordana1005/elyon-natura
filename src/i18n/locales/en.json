@@ -2596,7 +2596,7 @@
     "emptyHint": "Nothing matches these filters — try \"All\", a longer period or fewer filters.",
     "bookings": {
       "title": "Entered in collabBox — waiting for a MEX parcel",
-      "hint": "Sales the operators entered in collabBox that MEX has no parcel for yet. Each becomes an order once MEX creates the parcel (usually the next morning) — then it counts once, as an order.",
+      "hint": "Sales the operators entered in collabBox that MEX has no parcel for yet — they count at once. Each becomes an order once MEX creates the parcel (usually the next morning; for LEADS the parcel goes to the lead's order) — then it counts once, as an order. One MEX never receives a parcel for stops counting 10 days after it was entered.",
       "chip": "+{{count}} in collabBox",
       "chipTitle": "{{count}} sales are entered in collabBox and waiting for a MEX parcel — not orders yet",
       "clamped": "collabBox entries are shown for the last {{days}} days at most.",
@@ -5278,7 +5278,7 @@
         },
         "hint": {
           "unproven_paid": "Marked paid but MEX has no delivered parcel. Must be 0.",
-          "stale_to_pack": "Confirmed list sales still without a parcel {{days}} days later. Either pack them or cancel them — they inflate the list's value until then.",
+          "stale_to_pack": "Confirmed list sales still without a parcel {{days}} days later. Either pack them or cancel them — until then they inflate the list's value, for at most 10 days after the sale (then they no longer count).",
           "duplicate_original_open": "The original stays confirmed while its duplicate already has a parcel — the same sale may be counted twice. Close the original.",
           "list_not_recorded": "A list sale whose list was not recorded (a duplicate made before the fix). It counts in the total, not in any list.",
           "ghost_dispositions": "\"No\" call rows that carry a MEX parcel or a sold status — usually a parcel matched to the wrong row. Never counted as sales; review the match.",

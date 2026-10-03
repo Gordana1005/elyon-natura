@@ -434,6 +434,10 @@ export interface CohortExceptions {
   excluded_phone8s: string[];
   /** Test-phone orders cohortExcludedPhoneOr() cannot see. */
   test_orders: string[];
+  /** public.cohort_unshipped_since() (20260947001850), ISO: a sale made before it that MEX never took
+   *  — no parcel (to pack, or shipped in the CRM only) or a parcel still at MEX 8 — is in no bucket.
+   *  Absent = an older database that does not send it (the buckets are then the old ones). */
+  expire_before?: string;
 }
 
 /** insights_cohort_order_exceptions(p_from, p_to_end) → validated lists, or
@@ -460,7 +464,13 @@ export function parseCohortExceptions(raw: unknown): CohortExceptions | null {
   }
   if (web.length !== r.web_claimed.length || test.length !== testRaw.length || phones.length !== phonesRaw.length) return null;
   if (web.length + ledger.length + test.length + phones.length > COHORT_EXCEPTIONS_MAX) return null;
-  return { web_claimed: web, ledger, excluded_phone8s: phones, test_orders: test };
+  // the 10-day cut (20260947001850); absent on an older database, unusable = refused
+  const out: CohortExceptions = { web_claimed: web, ledger, excluded_phone8s: phones, test_orders: test };
+  if (r.expire_before !== undefined && r.expire_before !== null) {
+    if (typeof r.expire_before !== "string" || Number.isNaN(Date.parse(r.expire_before))) return null;
+    out.expire_before = new Date(Date.parse(r.expire_before)).toISOString();
+  }
+  return out;
 }
 
 /** Disposition rows are never sales — every cohort drill carries this. */
@@ -473,9 +483,13 @@ export const COHORT_UNIVERSE_OR = "sale_source_detail.is.null,sale_source_detail
  * they get the no-parcel clauses and everyone else the MEX-first ones (the id
  * list appears at most twice, never once per clause: it keeps the URL short).
  * Always combine with COHORT_UNIVERSE_OR (cohortOrdersFilter does).
+ * `fresh` (20260947001850): the PostgREST `or` body of "sold on or after cohort_unshipped_since()"
+ * (cohortSaleWindowOrFilter from that instant) — a sale MEX never took (to pack, shipped in the CRM
+ * with no parcel, a parcel still at MEX 8) counts only while it holds; null = no 10-day cut.
  */
-export function cohortBucketOrFilter(keys: readonly string[], webClaimed: readonly string[] = []): string | null {
+export function cohortBucketOrFilter(keys: readonly string[], webClaimed: readonly string[] = [], fresh: string | null = null): string | null {
   const w = webClaimed.filter((x) => UUID_RE.test(x));
+  const fr = fresh ? `,or(${fresh})` : "";
   // a parcel exists → MEX decides · no parcel → the CRM status decides
   const hp = "mex_tracking_id.not.is.null,or(mex_status_id.not.is.null,mex_delivered_at.not.is.null)";
   const nhp = "or(mex_tracking_id.is.null,and(mex_status_id.is.null,mex_delivered_at.is.null))";
@@ -488,7 +502,7 @@ export function cohortBucketOrFilter(keys: readonly string[], webClaimed: readon
     paid: `and(${hp},${notRepl},or(mex_status_id.eq.2,and(mex_status_id.is.null,mex_delivered_at.not.is.null)))`,
     returned: `and(${hp},${notRepl},mex_status_id.eq.7)`,
     courier_problem: `and(${hp},${notRepl},mex_status_id.in.(3,9,13))`,
-    label: `and(${hp},${notRepl},mex_status_id.eq.8)`,
+    label: `and(${hp},${notRepl},mex_status_id.eq.8${fr})`,
     courier: `and(${hp},${notRepl},mex_status_id.not.in.(2,3,7,8,9,13))`,
     replacement: `and(${hp},${repl})`,
   };
@@ -496,8 +510,8 @@ export function cohortBucketOrFilter(keys: readonly string[], webClaimed: readon
     paid_unproven: `${paid},price.gt.0,${notLegacy}`,
     paid_legacy: `${paid},price.gt.0,${legacy}`,
     returned: "status.eq.returned,price.gt.0",
-    courier: "status.eq.shipped,price.gt.0",
-    to_pack: "status.eq.confirmed,price.gt.0",
+    courier: `status.eq.shipped,price.gt.0${fr}`,
+    to_pack: `status.eq.confirmed,price.gt.0${fr}`,
     cancelled_after_sale: "status.eq.cancelled,sold_at.not.is.null,price.gt.0",
     trashed_after_sale: "status.eq.trashed,sold_at.not.is.null,price.gt.0",
     replacement: "status.in.(paid,delivered,returned,shipped,confirmed),or(price.is.null,price.lte.0)",
@@ -544,6 +558,9 @@ export function cohortSaleWindowOrFilter(
   ].join(",");
 }
 
+/** The open end of the 10-day cut's "on or after" window (cohortSaleWindowOrFilter needs one). */
+export const COHORT_FAR_FUTURE = "2999-12-31T23:59:59.999Z";
+
 export interface CohortOrdersFilter {
   /** PostgREST `or=(…)` expressions, ANDed with each other (supabase-js `.or()`). */
   or: string[];
@@ -575,7 +592,18 @@ export function cohortOrdersFilter(
   const or = [COHORT_UNIVERSE_OR];
   const phones = cohortExcludedPhoneOr(ex.excluded_phone8s);
   if (phones) or.push(phones);
-  const buckets = cohortBucketOrFilter(keys, ex.web_claimed);
+  // the 10-day cut (20260947001850): "on or after cohort_unshipped_since()", the cohort's own sale moment.
+  // Only a window that straddles the cut needs the clause (it repeats the ledger ids, up to five times):
+  // one that starts on or after it loses nothing, one that ends before it keeps no expirable sale at all.
+  let fresh: string | null = null;
+  if (ex.expire_before) {
+    const cut = Date.parse(ex.expire_before);
+    if (window && Date.parse(window.toEndIso) < cut) fresh = "id.is.null";          // never true: nothing expirable is left
+    else if (!window || Date.parse(window.fromIso) < cut) {
+      fresh = cohortSaleWindowOrFilter(ex.expire_before, COHORT_FAR_FUTURE, ex.ledger);
+    }
+  }
+  const buckets = cohortBucketOrFilter(keys, ex.web_claimed, fresh);
   if (buckets) or.push(buckets);
   if (window) or.push(cohortSaleWindowOrFilter(window.fromIso, window.toEndIso, ex.ledger));
   return { or, notIds: ex.test_orders.filter((x) => UUID_RE.test(x)) };

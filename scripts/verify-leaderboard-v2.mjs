@@ -198,14 +198,20 @@ cr AS (
   FROM o2 LEFT JOIN shr sh ON sh.id = o2.id
   WHERE o2.bucket IS NOT NULL
     AND (public.cohort_in_total(o2.bucket) OR o2.bucket IN ('cancelled_after_sale', 'trashed_after_sale'))
+    -- 10 Skopje days after the sale day a sale MEX never took counts no more (20260947001850)
+    AND NOT (o2.sale_at < (SELECT public.cohort_unshipped_since())
+             AND (o2.bucket IN ('to_pack', 'label') OR (o2.bucket = 'courier' AND NOT o2.hp)))
 ),
 -- the day's collabBox documents no order holds yet: collabbox_booked_today's filter, one
 -- document at a time (the board's L6 drift check ties its own copy to the function)
 bk AS MATERIALIZED (
   SELECT dd.day, d.doc_number, d.author_person_id AS person_id, d.amount_mkd,
-         public.cohort_order_source((public.collabbox_department(d.doc_type_id, d.doc_number, d.author_person_id, d.doc_at))[1],
-                                    (public.collabbox_department(d.doc_type_id, d.doc_number, d.author_person_id, d.doc_at))[2],
-                                    d.doc_number) AS dept
+         -- the author's team first (20260947000400), as the board's bkc
+         coalesce(public.order_dept_by_team((public.collabbox_department(d.doc_type_id, d.doc_number, d.author_person_id, d.doc_at))[1],
+                                            d.author_person_id, d.doc_at),
+                  public.cohort_order_source((public.collabbox_department(d.doc_type_id, d.doc_number, d.author_person_id, d.doc_at))[1],
+                                             (public.collabbox_department(d.doc_type_id, d.doc_number, d.author_person_id, d.doc_at))[2],
+                                             d.doc_number)) AS dept
   FROM dd JOIN public.collabbox_documents d ON ${saleAt} BETWEEN dd.f AND dd.t AND d.doc_at >= dd.f
   WHERE d.outcome IN ('booked', 'awaiting_parcel') AND d.vanished_at IS NULL AND NOT d.is_storno AND d.amount_mkd > 0
     AND d.doc_type_id IN ('10036', '10050', '10111', '10114', '10106')

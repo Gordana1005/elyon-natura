@@ -24,9 +24,11 @@
  *       every point = Σ its departments, each department over the window = its total)
  *   D1  an independent recount of insights_sale_rows = the payload, and every sale lands in
  *       EXACTLY one bucket: one row per order / web order / MEX-only parcel / collabBox booking, no
- *       parcel owned twice; a booking (a collabBox document whose MEX parcel does not exist yet,
- *       20260942001900) is never a document an order holds or names, never one with a parcel, never
- *       the copy of a CRM / AlterCPA sale (the writer's possible_twin_crm_sale rule), always "to pack"
+ *       parcel owned twice; a booking (a collabBox document no order holds yet, 20260942001900) is never
+ *       a document an order holds or names, never one whose parcel an ORDER holds (a parcel MEX registered
+ *       but no order holds yet does not end it — 20260944000600; a 10111 LEADS booking ends with its
+ *       parcel — 20260947001850), never the copy of a CRM / AlterCPA sale (the writer's
+ *       possible_twin_crm_sale rule), always "to pack"
  *   D2  the order part of EVERY number (each bucket × each source, outside, splits) = the rows
  *       GET /orders?cohort_bucket&cohort_source&sold_from&sold_to lists: the api's own filter
  *       (insightsCommon.ts cohortOrdersFilter), translated to SQL, counted here
@@ -422,11 +424,15 @@ SELECT count(*) FILTER (WHERE in_total)::int AS n,
   count(*) FILTER (WHERE kind = 'booking')::int AS bookings,
   count(*) FILTER (WHERE kind = 'booking' AND (bucket IS DISTINCT FROM 'to_pack' OR order_id IS NOT NULL
                                                OR tracking_id IS NOT NULL OR display_id IS NULL))::int AS booking_bad_shape,
-  -- a booking's DocNumber (display_id) that an order holds / names, or whose MEX parcel exists
+  -- a booking's DocNumber (display_id) that an order holds / names, or whose MEX parcel an ORDER holds
+  -- (a parcel MEX registered that no order holds yet does not end the booking — 20260944000600; a 10111
+  -- LEADS booking ends with its parcel, 20260947001850)
   count(*) FILTER (WHERE kind = 'booking' AND (
       EXISTS (SELECT 1 FROM public.orders o WHERE o.mex_tracking_id = r.display_id)
       OR EXISTS (SELECT 1 FROM public.orders o WHERE o.external_source = 'collabbox' AND o.external_order_id = r.display_id)
-      OR EXISTS (SELECT 1 FROM public.mex_parcels p WHERE p.tracking_id = r.display_id)))::int AS booking_held,
+      OR EXISTS (SELECT 1 FROM public.mex_parcels p WHERE p.tracking_id = r.display_id AND p.order_id IS NOT NULL)
+      OR EXISTS (SELECT 1 FROM public.mex_parcels p JOIN public.collabbox_documents d ON d.doc_number = p.tracking_id
+                  WHERE p.tracking_id = r.display_id AND d.doc_type_id = '10111')))::int AS booking_held,
   -- the writer's possible_twin_crm_sale on the booking's phone: a CRM / AlterCPA sale with no
   -- parcel of its own, a real product, a fitting price, created 1 day before … 2 days after
   count(*) FILTER (WHERE kind = 'booking' AND phone8 IS NOT NULL AND EXISTS (
@@ -454,7 +460,7 @@ FROM r`);
     tie('a sale on more than one row (order / web order / parcel / booking)', 0, r.dup_rows),
     tie('a parcel owned twice (order+web, order+MEX-only, …; shared-by-two-orders excepted)', 0, r.parcel_twice),
     tie('a booking not shaped as one (to pack, no order, no parcel, its DocNumber)', 0, r.booking_bad_shape),
-    tie('a booking whose DocNumber an order holds / names or whose parcel exists', 0, r.booking_held),
+    tie('a booking whose DocNumber an order holds / names, whose parcel an order holds, or a LEADS one with a parcel', 0, r.booking_held),
     tie('a booking that is the copy of a CRM / AlterCPA sale (possible_twin_crm_sale)', 0, r.booking_twin),
     tie('bookings in the rows = payload total.booked', n(cohort.total?.booked), r.bookings),
   ];

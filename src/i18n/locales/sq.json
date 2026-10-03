@@ -2596,7 +2596,7 @@
     "emptyHint": "Asgjë nuk përputhet me këta filtra — provo \"Të gjitha\", një periudhë më të gjatë ose më pak filtra.",
     "bookings": {
       "title": "Regjistruar në collabBox — pret pako MEX",
-      "hint": "Shitje që operatorët i regjistruan në collabBox dhe për të cilat MEX ende nuk ka pako. Secila bëhet porosi kur MEX krijon pakon (zakonisht mëngjesin pasues) — atëherë numërohet një herë, si porosi.",
+      "hint": "Shitje që operatorët i regjistruan në collabBox dhe për të cilat MEX ende nuk ka pako — numërohen menjëherë. Secila bëhet porosi kur MEX krijon pakon (zakonisht mëngjesin pasues; te LEADS pakoja shkon te porosia e lidit) — atëherë numërohet një herë, si porosi. Nëse MEX nuk merr pako 10 ditë pas regjistrimit, nuk numërohet më.",
       "chip": "+{{count}} në collabBox",
       "chipTitle": "{{count}} shitje janë regjistruar në collabBox dhe presin pako MEX — ende nuk janë porosi",
       "clamped": "Regjistrimet e collabBox shfaqen për më së shumti {{days}} ditët e fundit.",
@@ -5278,7 +5278,7 @@
         },
         "hint": {
           "unproven_paid": "Shënuar si të paguara, por MEX nuk ka dërgesë të dorëzuar. Duhet të jetë 0.",
-          "stale_to_pack": "Shitje të konfirmuara nga listat që {{days}} ditë më vonë ende nuk kanë dërgesë. Paketojini ose anulojini — deri atëherë e fryjnë vlerën e listës.",
+          "stale_to_pack": "Shitje të konfirmuara nga listat që {{days}} ditë më vonë ende nuk kanë dërgesë. Paketojini ose anulojini — deri atëherë e fryjnë vlerën e listës, më së shumti 10 ditë pas shitjes (pastaj nuk numërohen më).",
           "duplicate_original_open": "Origjinali mbetet i konfirmuar ndërsa dublikata e tij ka tashmë dërgesë — e njëjta shitje mund të numërohet dy herë. Mbylleni origjinalin.",
           "list_not_recorded": "Një shitje nga lista, lista e së cilës nuk u regjistrua (dublikatë e bërë para rregullimit). Numërohet në total, jo në ndonjë listë.",
           "ghost_dispositions": "Rreshta „jo“ nga thirrjet që mbajnë dërgesë MEX ose status shitjeje — zakonisht dërgesë e lidhur me rreshtin e gabuar. Nuk numërohen kurrë si shitje; kontrolloni lidhjen.",

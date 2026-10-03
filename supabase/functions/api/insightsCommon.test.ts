@@ -260,6 +260,59 @@ describe("cohortOrdersFilter — everything GET /orders adds, assembled once", (
       for (const c of cases) expect(listed(keys, c), `${keys} ${c.id} ${c.customer_phone}`).toBe(twin(keys, c));
     }
   });
+  it("the 10-day cut (20260947001850): a sale MEX never took, sold before expire_before, is in no bucket", () => {
+    const CUT = "2026-09-24T22:00:00.000Z";                       // Skopje 25.09 00:00
+    const exc: CohortExceptions = { ...ex, expire_before: CUT };
+    const listedC = (keys: string[], row: R) => {
+      const parsed = parseCohortBucketParam(keys.join(","));
+      if (!parsed.ok) throw new Error("bad keys");
+      const f = cohortOrdersFilter(parsed.values, exc, { fromIso: F, toEndIso: T });
+      return f.or.every((e) => orMatches(e, row as unknown as Row)) && !f.notIds.includes(row.id);
+    };
+    // the SQL twin: insights_sale_rows' o — NOT (sale_at < $5 AND (to_pack | label | courier with no parcel))
+    const twinC = (keys: string[], row: R) => {
+      if (!twin(keys, row)) return false;
+      const b = cohortOrderBucket(row, exc.web_claimed.includes(row.id));
+      const hp = row.mex_tracking_id != null && (row.mex_status_id != null || row.mex_delivered_at != null) && !exc.web_claimed.includes(row.id);
+      const led = exc.ledger.find((e) => e.id === row.id)?.sale_at ?? null;
+      const at = Date.parse(cohortOrderSaleAt(row, row.sold_at ? null : led)!);
+      return !(at < Date.parse(CUT) && (b === "to_pack" || b === "label" || (b === "courier" && !hp)));
+    };
+    const id = (n: number) => `d0000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
+    const rows: R[] = [
+      ...cases,
+      { ...base, id: id(1), sold_at: "2026-09-26T10:00:00Z" },                                                    // to pack, fresh
+      { ...base, id: id(2), status: "shipped" },                                                                   // CRM shipped, no parcel, old
+      { ...base, id: id(3), status: "shipped", sold_at: "2026-09-26T10:00:00Z" },                                 // … fresh
+      { ...base, id: id(4), status: "shipped", mex_tracking_id: "002-9110-1/2026", mex_status_id: 8, mex_cod_mkd: 1490 },   // label, old
+      { ...base, id: id(5), status: "confirmed", mex_tracking_id: "002-9110-2/2026", mex_status_id: 8, mex_cod_mkd: 1490, sold_at: "2026-09-27T10:00:00Z" }, // label, fresh
+      { ...base, id: id(6), status: "shipped", mex_tracking_id: "002-9110-3/2026", mex_status_id: 4, mex_cod_mkd: 1490 },   // MEX holds it: stays
+      { ...base, id: id(7), status: "returned", mex_tracking_id: "002-9110-4/2026", mex_status_id: 7, mex_cod_mkd: 1490 },  // a return stays
+      { ...base, id: id(8), status: "paid" },                                                                      // paid with no parcel: not this rule's
+      { ...base, id: L1, sold_at: null, created_at: "2026-09-01T10:00:00Z" },                                    // ledger 23.09: old
+    ];
+    for (const keys of [["total"], ["to_pack"], ["courier"], ["label"], ["paid", "label"], [...COHORT_KEYS]]) {
+      for (const c of rows) expect(listedC(keys, c), `${keys} ${c.id}`).toBe(twinC(keys, c));
+    }
+    // the cut is really applied (not vacuously equal): the old to-pack sale is gone, the fresh one stays
+    expect(listedC(["to_pack"], base)).toBe(false);
+    expect(listedC(["to_pack"], rows.find((r) => r.id === id(1))!)).toBe(true);
+    expect(listedC(["courier"], rows.find((r) => r.id === id(6))!)).toBe(true);
+    // without the key (an older database) nothing changes
+    expect(listed(["to_pack"], base)).toBe(true);
+    // a window wholly after the cut carries no clause at all (the URL budget); one wholly before it keeps no expirable sale
+    const parsedTotal = parseCohortBucketParam("total");
+    if (!parsedTotal.ok) throw new Error("bad keys");
+    const after = { fromIso: "2026-09-25T22:00:00.000Z", toEndIso: T };
+    expect(cohortOrdersFilter(parsedTotal.values, exc, after)).toEqual(cohortOrdersFilter(parsedTotal.values, ex, after));
+    const before = { fromIso: F, toEndIso: "2026-09-23T21:59:59.999999Z" };
+    const fb = cohortOrdersFilter(parsedTotal.values, exc, before);
+    const inB = (row: R) => fb.or.every((e) => orMatches(e, row as unknown as Row)) && !fb.notIds.includes(row.id);
+    expect(inB(base)).toBe(false);                                                                              // to pack, 23.09
+    expect(inB({ ...base, id: id(9), status: "paid", mex_tracking_id: "002-9110-5/2026", mex_status_id: 2, mex_cod_mkd: 1490 })).toBe(true);
+    expect(inB({ ...base, id: id(10), status: "shipped", mex_tracking_id: "002-9110-6/2026", mex_status_id: 8, mex_cod_mkd: 1490 })).toBe(false);
+    expect(cohortFilterChars(fb)).toBeLessThan(cohortFilterChars(cohortOrdersFilter(parsedTotal.values, exc, { fromIso: F, toEndIso: T })));
+  });
   it("carries the universe, the test-phone text filter, the buckets and the window; test orders by id", () => {
     const f = cohortOrdersFilter(["paid"], ex, { fromIso: F, toEndIso: T });
     expect(f.or[0]).toBe(COHORT_UNIVERSE_OR);
@@ -334,6 +387,12 @@ describe("exceptions payload", () => {
     expect(parseCohortExceptions(null)).toBeNull();
     expect(parseCohortExceptions({ web_claimed: Array(301).fill(W1), ledger: [] })).toBeNull();
     expect(parseCohortExceptions({ web_claimed: Array(200).fill(W1), ledger: [], test_orders: Array(101).fill(L1) })).toBeNull();
+    // the 10-day cut (20260947001850): normalised to ISO; absent / null = none; unreadable refuses the body
+    expect(parseCohortExceptions({ web_claimed: [], ledger: [], expire_before: "2026-09-23 00:00:00+02" })?.expire_before)
+      .toBe("2026-09-22T22:00:00.000Z");
+    expect(parseCohortExceptions({ web_claimed: [], ledger: [], expire_before: null })).toEqual({ web_claimed: [], ledger: [], excluded_phone8s: [], test_orders: [] });
+    expect(parseCohortExceptions({ web_claimed: [], ledger: [], expire_before: "soon" })).toBeNull();
+    expect(parseCohortExceptions({ web_claimed: [], ledger: [], expire_before: 5 })).toBeNull();
   });
 });
 
