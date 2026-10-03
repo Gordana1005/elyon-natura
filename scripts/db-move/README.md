@@ -38,7 +38,38 @@ node scripts/with-target.mjs new -- node scripts/verify-shifts.mjs
 ELYON_TARGET_REF=oufoazmnbwugtfldkwsn node scripts/assert-mk-target.mjs
 ```
 
-## Phase 2 — the cutover (owner's call; checklist §3)
+## The cutover — DONE Saturday 03.10.2026, live 21:34 Skopje
+
+| Step | Tool | Took |
+|---|---|---|
+| parity (functions, columns, indexes, triggers, policies, constraints, migrations) | `cutover.mjs parity` | 15 s |
+| freeze the old project after the 21:02–21:20 rule jobs (cron off, drain, read-only, terminate) | `cutover.mjs freeze` | 10 s (21:22:18) |
+| fresh dump (1,07 GB, 170 tables, auth users, history) | `dump-old.mjs <dir> --postgres` | 2 min |
+| wipe + load table by table, indexes rebuilt, counts = dump | `load-data.mjs <dir> --fresh` | 4 min |
+| counts / sequences = freeze baseline, privileges, no writes after the freeze, parity incl. settings | `restore-new.mjs --from check`, `sync-acls.mjs`, `cutover.mjs writes-since`, `parity` | 1 min |
+| functions redeployed from main | `deploy-functions.mjs` | 1 min |
+| Vercel Production env → new project (read-back) | `cutover.mjs vercel-env` | 5 s |
+| repo: config.toml, `.env`, RETIRED_REFS, preconnect, refs in scripts / docs, CLAUDE.md | `switch-repo.mjs --apply` + commit `abb6496` | 1 min |
+| production build, live bundle names only the new host | `cutover.mjs vercel-wait <sha>` | 2 min |
+| smoke on naturall.mk: admin login, Табла, /orders, /calls, /warehouse — 62 requests, all to the new host, 0 errors | Playwright | 2 min |
+| cron ON (41/41), first runs of altercpa / web / mex / shops ok | `cutover.mjs cron-on` | 21:34:14 |
+
+Downtime (no logins, no writes): **12 minutes**. Everyone logs in once more with the same password.
+
+Learned that night:
+- PostgREST opens its transactions READ WRITE, so `default_transaction_read_only` does not stop API writes; the freeze
+  holds because cron is off and logins / session refresh fail (existing sessions die within the hour). `writes-since`
+  proves nothing was written.
+- The platform's `cli/login-role` needs a writable database: a frozen source is dumped as `postgres` (password set
+  through `PATCH /v1/projects/<ref>/database/password`, kept in VAULT §1), hence `dump-old.mjs --postgres`.
+- `.env` after the switch: the main keys are the new project's; the old project's stay as `*_OLD` (the db-move scripts
+  read both layouts).
+
+**The old project `bmfxhgznttcnnlqloqzp` is frozen: read-only, cron off, the rollback copy.** Rollback (only meaningful
+before staff write on the new project): `cutover.mjs cron-off` → `cutover.mjs vercel-env-old` + revert `abb6496` and push →
+`cutover.mjs unfreeze`. Delete it (and cancel Pro on `naturatherapykosovo`) only with the owner's sign-off, ~30 days on.
+
+## How the cutover was planned (kept for the next move)
 
 1. Every migration applied to the OLD project after the dump is applied to the NEW one the same day
    (`node scripts/with-target.mjs new -- node scripts/apply-migration-mk.mjs <file>`).
