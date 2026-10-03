@@ -362,6 +362,15 @@ target **explicitly** and verify it before running:
   holds a MEX parcel, or a MEX day, by the collabBox flag.** Prices were not changed (the document amount is in the
   run's CSV). Input: `scripts/history/courier_outcomes_build.py` (private sources). Undo:
   `node scripts/rollback-repair.mjs --run 8acbad3e-7ac7-4c93-9666-8c11d2c3a7fe --apply`.
+- **History: paid in the CRM, "Return to sender" at MEX → returned (owner "ДА", 03.10.2026 23:20;
+  `scripts/repair-mex-history-returns.mjs`, run `7d891eeb-8f19-4832-a169-e40410831774`).** The history audit compared
+  every order with the whole MEX register (453.204 parcels since 18.03.2020; the CRM's own `mex_parcels` only starts
+  10.11.2025). 21.597 paid orders — mostly the teleshop history import, written as paid by default — became returned
+  (650.513 €; 20.139 by the order's own document number = the MEX tracking id, 1.430 by phone + date, 28 that held the
+  parcel). Left for review: 282 with a re-send MEX delivered afterwards that no order owns, 192 whose parcel the live
+  register knows unlinked (link them, never flip — the return would count twice), 3 held by another order. The parcel
+  is named in the order's note and the ledger; it is NOT linked (the register has no row for it). Undo:
+  `node scripts/rollback-repair.mjs --run 7d891eeb-8f19-4832-a169-e40410831774 --apply`.
 - **Test phones 070123456 / 23123123** are never in any report (owner, 28.09): their CRM orders are
   deleted (snapshot first); their web orders and MEX parcels stay in the shop/register but are
   excluded from every figure.
