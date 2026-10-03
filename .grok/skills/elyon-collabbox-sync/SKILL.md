@@ -38,10 +38,12 @@ refreshed at least every 15 minutes; MEX stays the final proof").
 - A document's **DocNumber IS the MEX tracking id** of its parcel (`002-9102-177237/2026`), and its
   **type** is the folder it was booked in. The type decides; the series in the DocNumber can lie.
 - collabBox proves **dispatch, not payment**. Status and money come only from MEX.
-- **Read-only by construction.** `client.ts isAllowed()` lets out exactly six request shapes
-  (GET/POST login, the document-header search, the line-items form + its search, the komitent
-  search by id). Saving a search, the discount form, creating documents, e-mailing or Excel
-  exports are refused before sending. Strictly sequential, 1,5 s between requests, a hard cap per
+- **Read-only by construction.** `client.ts isAllowed()` lets out exactly seven request shapes
+  (GET/POST login, the document-header search, the line-items form + its search, the Коминтенти
+  form `GET Index?comp=infocc` + its pure search `POST Index?comp=infocc&action=search` with
+  `searchMode=search`, a numeric `id` and `delcustom` none — since 03.10.2026). Saving a search, the
+  discount form, `addcustom` / `exportxls`, the old paged `…&pgsf=0&cp=1` shape, creating documents,
+  e-mailing or Excel exports are refused before sending. Strictly sequential, 1,5 s between requests, a hard cap per
   run (100 full / 10 live), one re-login when the short `location.href='./Login…` redirect page
   comes back (`isLoginPage`), session ids redacted from every log line. Never widen the allow-list.
 
@@ -80,9 +82,13 @@ queued. Truth is `collabbox_sync_runs`. The frequent pass is recorded as `kind =
    8001/"ДОСТАВА" delivery, 8004/ПОЕН/КУПОН/ФЛАЕР marker, 8002/"ЗАБЕЛЕШКА" note), product via
    `product_aliases` (source `collabbox`, then `any`) then `products.sku` (active first); stornos
    paired inside the window.
-5. **Komitent cards** (`comp=infocc` by id) for customers the database cannot place
-   (`collabbox_komitenti_needed(docs)`, priority 1 = no phone anywhere), ≤ 60 per run, within the
-   budget. **This lookup currently finds nothing** (see Known gaps).
+5. **Komitent cards** (`comp=infocc` by Шифра) for the customers of order AND 10111 LEADS documents
+   the database cannot place (`collabbox_komitenti_needed(docs)`, priority 1 = no phone anywhere —
+   no parcel phone, no stored phone of any source; 2 = a parcel / register phone exists), ≤ 60 per
+   run, within the budget. The request is the Коминтенти form as the operators' "Барај" sends it
+   (one GET of the form per session, then one POST per card, ≈ 0,3 s each); a search that answers
+   with several rows and not the card is an ERROR ("ignored its filter"), never "not found". Fixed
+   03.10.2026 (v8) — see Known gaps 1.
 6. **The writer** `collabbox_apply_documents(run, docs, dry)` in batches of 40 (≤ 200 allowed),
    oldest first; one subtransaction per document (a bad document = an `error` ledger row, retried —
    never an aborted batch); `elyon.bulk_repair` (no paid/returned bells) and
@@ -350,7 +356,10 @@ in the Runbook below.
 
 Other tables: `collabbox_sync_runs` (one row per non-dry run: kind `nightly`/`live`/`manual`,
 trigger, window, counters, `stats`, `error`, `warning`); `collabbox_customers` (komitent cards —
-phone, name, city, address, skip verdict, flags; `source` `card` or `parcel`; PII, owners only).
+phone, name, city, address, skip verdict, flags; `source` `card`, `parcel` or `register_YYYYMMDD`
+(a phone from that day's register harvest, `20260947001950`, `run_id` = the load's
+`data_repair_runs` id — the writer reads only `card` / `parcel`); PII, owners only; PK `komitent_id`,
+so every reader's "any stored row" subquery returns at most one row).
 
 ## Freshness — `collabbox_feed_state()`
 
@@ -452,15 +461,23 @@ Tripwire first; the function and the crons target Macedonia only (the URL in
 
 ## Known gaps (29.09)
 
-1. **The komitent-card lookup finds nothing** (found 0 in every run — 60 read, 60 "not found" per pass,
-   03.10); `collabbox_customers` holds only `source 'parcel'` rows. Phones come from the teleshop registry
-   and the parcel; a document with neither stays `no_phone`. Evidence (03.10): the `infocc` search ignores
-   its filter fields — the 10.09 and 01.10 register harvests got all 166k komitenti with `name1=А`, every
-   page starting with the same rows — so `id=<Шифра>` returns the register's first 50 rows and never the
-   card. The register itself (exports/collabbox/collab-out-2026-10-01/komitenti_full.csv) has a phone for
-   2.859 of the 2.862 September 10111 komitenti (`komitent_id` = Шифра). A working per-card request needs
-   a live look at the form (outside the allow-list) — an owner item; it is also what would let every
-   10111 LEADS booking count at once (20260947001850 counts only the ones with a known phone).
+1. **The komitent-card lookup — FIXED 03.10.2026 (function v8, owner "ГО", read-only).** From 29.09 to
+   03.10 it found nothing (60 read, 60 "not found" per pass): the sync sent the 10.09 harvest's short
+   field list to `…&action=search&pgsf=0&cp=1`, and collabBox then IGNORES every filter and answers with
+   the first 50 of the 166k-row register (the harvests' `name1=А` "worked" only because of that). Probed
+   read-only on 03.10 (the form page + a handful of searches): the same path without paging and the short
+   list → the whole register again; the FULL form, serialised from `GET Index?comp=infocc` as the browser
+   sends it (`resolveClick('search')`: action=search, searchMode=search) → "Пронајден е 1 резултат", the
+   card asked for. That answer has 20 columns (Прикажи картичка = no — no Број картичка), so
+   `parseKomitentSearch` maps the columns by the HEADER row (fixed positions only as a fallback). 9 cards
+   checked: every phone equal to the 01.10 register's (and to the teleshop registry where it had one); a
+   new komitent of 02.10 is found with its phone; an unknown Шифра answers "Нема резултати за
+   специфираното барање" (= not found). The lookup now also covers 10111 LEADS documents (index.ts).
+   **The missing phones were loaded once from the 01.10 register** (`20260947001950` +
+   `scripts/load-komitent-register-phones.mjs`, run `ed4bcc39`, source `register_20261001`, 12.473
+   komitenti — only those of our sales documents no reader could place; rollback `--rollback <run>
+   --apply`). Such a row is not a card: the writer ignores it, `insights_sale_rows`' bk0 reads it (its
+   third source), a card read later replaces it.
 2. **Do-not-contact is flagged, not trashed.** A card / name marked do-not-contact creates the order
    with flag `banned_customer_do_not_contact`; the sync does NOT create the sticky-trash marker the
    history import made (598 markers). A new such customer enters the calling lists until a manager

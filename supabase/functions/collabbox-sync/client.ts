@@ -12,7 +12,7 @@
  * this file has no Deno dependency. Protocol: scripts/collabbox-fetch.mjs header §0–§4.
  */
 import {
-  KOMITENT_SEARCH_PATH, headersProblem, headersSearchBody, isLoginPage, itemsSearchBody,
+  KOMITENT_FORM_PATH, KOMITENT_SEARCH_PATH, headersProblem, headersSearchBody, isLoginPage, itemsSearchBody,
   komitentSearchBody, parseHeaders, parseItemsHtml, parseKomitentSearch, redact,
 } from "./collabbox.ts";
 import type { HeadersPage, ItemRow, KomitentRow } from "./collabbox.ts";
@@ -54,7 +54,9 @@ export function isAllowed(method: string, path: string, body: string | null | un
     || (method === "POST" && p === "Index?comp=searchdoc&action=search" && form?.get("searchMode") === "search")
     || (method === "GET" && p === "Index?comp=repbydocitm")
     || (method === "POST" && p === "Index?comp=repbydocitm" && form?.get("searchMode") === "doSearch" && form?.get("mode") === "doSearch")
-    || (method === "POST" && p === KOMITENT_SEARCH_PATH && form?.get("searchMode") === "search" && /^\d{1,10}$/.test(form?.get("id") ?? ""));
+    || (method === "GET" && p === KOMITENT_FORM_PATH)
+    || (method === "POST" && p === KOMITENT_SEARCH_PATH && form?.get("searchMode") === "search"
+        && /^\d{1,10}$/.test(form?.get("id") ?? "") && (form?.get("delcustom") ?? "none") === "none");
 }
 
 export class CollabboxClient {
@@ -63,6 +65,7 @@ export class CollabboxClient {
   slowestMs = 0;
   private readonly jar = new Map<string, string>();
   private itemsFormHtml: string | null = null;
+  private komitentFormHtml: string | null = null;
   private readonly base: string;
   private readonly sleep: (ms: number) => Promise<void>;
   private readonly log: (line: string) => void;
@@ -113,6 +116,7 @@ export class CollabboxClient {
   async login(): Promise<void> {
     this.jar.clear();
     this.itemsFormHtml = null;
+    this.komitentFormHtml = null;
     await this.http("GET", "Login?");
     const body = new URLSearchParams({ company_code: "", username: this.opts.user, password: this.opts.pass, browserIsIE: "0" }).toString();
     const t = await this.http("POST", "Login", body);
@@ -166,15 +170,33 @@ export class CollabboxClient {
     throw new CollabboxError(`repbydocitm ${fromDmy}..${toDmy}: no rows and no "no results" message (layout changed?)`);
   }
 
-  /** The komitent card by Шифра (Коминтенти search). null = not found. */
+  private async komitentForm(): Promise<string> {
+    if (!this.komitentFormHtml) this.komitentFormHtml = await this.authed("GET", KOMITENT_FORM_PATH, null);
+    return this.komitentFormHtml;
+  }
+
+  /**
+   * The komitent card by Шифра (the Коминтенти search, sent as the operators' form — one GET of the form
+   * per session, then one POST per card). null = not found. A search that answers with several rows and
+   * not the card asked for ignored its filter (the 29.09–03.10 failure): an error, never "not found".
+   */
   async readKomitent(komitentId: string): Promise<KomitentRow | null> {
     if (!/^\d{1,10}$/.test(komitentId)) return null;
-    const html = await this.authed("POST", KOMITENT_SEARCH_PATH, komitentSearchBody(komitentId));
-    const { rows, hasTable } = parseKomitentSearch(html);
-    if (!hasTable && !/Не се пронајдени|не врати резултати/i.test(html)) {
+    const build = async () => komitentSearchBody(await this.komitentForm(), komitentId);
+    const html = await this.authed("POST", KOMITENT_SEARCH_PATH, await build(), async () => {
+      this.komitentFormHtml = null;
+      return build();
+    });
+    const { rows, hasTable, resultCount } = parseKomitentSearch(html);
+    // "Нема резултати за специфираното барање" = no such Шифра (probed 03.10.2026)
+    if (!hasTable && !/Нема резултати|Не се пронајдени|не врати резултати/i.test(html)) {
       throw new CollabboxError(`infocc ${komitentId}: unrecognised answer (layout changed?)`);
     }
-    return rows.find((r) => r.komitentId === komitentId) ?? null;
+    const hit = rows.find((r) => r.komitentId === komitentId) ?? null;
+    if (!hit && (rows.length > 3 || (resultCount ?? 0) > 3)) {
+      throw new CollabboxError(`infocc ${komitentId}: the search ignored its filter (${resultCount ?? rows.length} results, not the card)`);
+    }
+    return hit;
   }
 }
 
