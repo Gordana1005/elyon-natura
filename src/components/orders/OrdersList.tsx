@@ -304,9 +304,10 @@ export function DeptLine({ o, compact }: {
 }
 
 /**
- * The 2-day collabBox entry rule on a confirmed CRM sale without a parcel (owner 02.10.2026,
- * crm_sale_collab_states): green "Во collabBox" (the hover names the document) or amber "Не е во
- * collabBox" — with "· се откажува dd.MM 21:20" once the rule is in apply mode. Nothing on any other row.
+ * The collabBox entry rule on a sale without a parcel (owner 02.10.2026; 5 days for every sale since
+ * 03.10.2026, crm_sale_collab_states): green "Во collabBox" (the hover names the document) or amber "Не е во
+ * collabBox" — with "· се откажува dd.MM 21:20" once the rule is in apply mode (none while something else
+ * spares it: a postponed delivery, an unlinked parcel on the phone). Nothing on any other row.
  */
 export function CollabBadge({ o, block }: { o: Pick<ApiOrder, 'collab'>; block?: boolean }) {
   const { t } = useTranslation();
@@ -326,7 +327,7 @@ export function CollabBadge({ o, block }: { o: Pick<ApiOrder, 'collab'>; block?:
     );
   }
   const title = [
-    t('ordersList.collab.missingTitle', { days: b.days ?? 2 }),
+    t('ordersList.collab.missingTitle', { days: b.days ?? 5 }),
     b.cancelDay ? t('ordersList.collab.cancelsTitle', { day: b.cancelDay, time: COLLAB_RULE_TIME }) : '',
   ].filter(Boolean).join(' ');
   return (

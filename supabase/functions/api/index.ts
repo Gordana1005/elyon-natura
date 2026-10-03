@@ -6732,10 +6732,12 @@ async function handleRequest(req: Request): Promise<Response> {
       // Display only; if an RPC fails the list still answers.
       const peopleById = await orderPeopleById(adminClient, pageOrderIds, "orders");
 
-      // The 2-day collabBox entry rule (owner 02.10.2026, 20260947000200): each confirmed CRM sale
-      // without a parcel gets `collab` = its collabBox document (or null), its sale day, the day the
-      // rule cancels it and the rule's mode — the /orders badge. ONE definition (crm_sale_collab_doc,
-      // the rule's own). Best-effort: a failed read leaves the field off and the list still answers.
+      // The collabBox entry rule (owner 02.10.2026, 20260947000200; 5 days for EVERY sale since
+      // 03.10.2026, 20260947001900): each sale without a parcel made outside collabBox (any intake —
+      // OB.collabCandidateIds) gets `collab` = its collabBox document (or null), its sale day, the day
+      // the rule cancels it and the rule's mode — the /orders badge. ONE definition
+      // (sale_collab_evidence, the rule's own). Best-effort: a failed read leaves the field off and
+      // the list still answers.
       const collabByOrder: Record<string, OB.OrderCollab> = {};
       const collabIds = OB.collabCandidateIds((orders || []) as Record<string, unknown>[]);
       if (collabIds.length) {
