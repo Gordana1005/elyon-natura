@@ -26,7 +26,8 @@ for (const line of readFileSync(join(ROOT, '.env'), 'utf8').split(/\r?\n/)) {
   const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*"?([^"]*)"?\s*$/);
   if (m) env[m[1]] = m[2];
 }
-const T = { OLD: [OLD_REF, env.SUPABASE_ACCESS_TOKEN], NEW: [NEW_REF, env.SUPABASE_ACCESS_TOKEN_NEW] };
+// both .env layouts: before the cutover plain = old and _NEW = new; after it _OLD = old and plain = new
+const T = { OLD: [OLD_REF, env.SUPABASE_ACCESS_TOKEN_OLD || env.SUPABASE_ACCESS_TOKEN], NEW: [NEW_REF, env.SUPABASE_ACCESS_TOKEN_NEW || env.SUPABASE_ACCESS_TOKEN] };
 async function q(which, query, ro = true) {
   const [ref, token] = T[which];
   if (which === 'OLD' && !ro) throw new Error('never write to the old project');

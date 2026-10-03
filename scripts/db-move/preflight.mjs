@@ -24,7 +24,8 @@ for (const line of readFileSync(join(ROOT, '.env'), 'utf8').split(/\r?\n/)) {
   const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*"?([^"]*)"?\s*$/);
   if (m) env[m[1]] = m[2];
 }
-const T = { OLD: [OLD_REF, env.SUPABASE_ACCESS_TOKEN], NEW: [NEW_REF, env.SUPABASE_ACCESS_TOKEN_NEW] };
+// both .env layouts: before the cutover plain = old and _NEW = new; after it _OLD = old and plain = new
+const T = { OLD: [OLD_REF, env.SUPABASE_ACCESS_TOKEN_OLD || env.SUPABASE_ACCESS_TOKEN], NEW: [NEW_REF, env.SUPABASE_ACCESS_TOKEN_NEW || env.SUPABASE_ACCESS_TOKEN] };
 async function api(which, path, init = {}) {
   const [ref, token] = T[which];
   const r = await fetch(`https://api.supabase.com/v1/projects/${ref}${path}`, { ...init, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...(init.headers || {}) } });
@@ -74,7 +75,7 @@ out(vaultBad.length ? 'FAIL' : 'PASS', 'vault sync secrets = function secrets', 
 out(vault.find((r) => r.name === 'project_functions_base_url')?.is_base ? 'PASS' : 'FAIL', 'vault project_functions_base_url', `https://${NEW_REF}.supabase.co`);
 
 // 4) the keys the SPA / scripts will use
-const anon = env.VITE_SUPABASE_PUBLISHABLE_KEY_NEW, svc = env.SUPABASE_SERVICE_ROLE_KEY_NEW, url = env.SUPABASE_URL_NEW;
+const anon = env.VITE_SUPABASE_PUBLISHABLE_KEY_NEW || env.VITE_SUPABASE_PUBLISHABLE_KEY, svc = env.SUPABASE_SERVICE_ROLE_KEY_NEW || env.SUPABASE_SERVICE_ROLE_KEY, url = env.SUPABASE_URL_NEW || env.SUPABASE_URL;
 const claim = (jwt) => { try { return JSON.parse(Buffer.from(jwt.split('.')[1], 'base64url').toString()); } catch { return {}; } };
 out(claim(anon).ref === NEW_REF && claim(anon).role === 'anon' ? 'PASS' : 'FAIL', '.env VITE_SUPABASE_PUBLISHABLE_KEY_NEW', `ref ${claim(anon).ref}, role ${claim(anon).role}, exp ${new Date((claim(anon).exp || 0) * 1000).toISOString().slice(0, 10)}`);
 out(claim(svc).ref === NEW_REF && claim(svc).role === 'service_role' ? 'PASS' : 'FAIL', '.env SUPABASE_SERVICE_ROLE_KEY_NEW', `ref ${claim(svc).ref}, role ${claim(svc).role}`);

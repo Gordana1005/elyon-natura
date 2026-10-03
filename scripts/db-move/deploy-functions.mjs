@@ -35,8 +35,9 @@ for (const line of readFileSync(join(ROOT, '.env'), 'utf8').split(/\r?\n/)) {
   const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*"?([^"]*)"?\s*$/);
   if (m) env[m[1]] = m[2];
 }
-const TOKEN = env.SUPABASE_ACCESS_TOKEN_NEW;
-if (!TOKEN) die('SUPABASE_ACCESS_TOKEN_NEW missing in .env');
+// before the cutover the new project's token is SUPABASE_ACCESS_TOKEN_NEW; after it, the main key
+const TOKEN = env.SUPABASE_ACCESS_TOKEN_NEW || ((env.SUPABASE_URL || '').includes(TARGET_REF) ? env.SUPABASE_ACCESS_TOKEN : undefined);
+if (!TOKEN) die('the access token of the new project is not in .env');
 async function api(path, init = {}) {
   const r = await fetch(`https://api.supabase.com/v1/projects/${TARGET_REF}${path}`, {
     ...init, headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json', ...(init.headers || {}) },
