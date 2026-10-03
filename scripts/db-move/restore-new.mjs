@@ -30,7 +30,7 @@ const HOST = 'aws-0-eu-central-1.pooler.supabase.com';
 const PG = 'C:/Program Files/PostgreSQL/17/bin';
 const STEPS = ['precheck', 'schema', 'data', 'history', 'fixes', 'migration', 'cron', 'check'];
 const args = process.argv.slice(2);
-const date = args.find((a) => /^\d{4}-\d{2}-\d{2}$/.test(a)) || '2026-10-03';
+const date = args.find((a) => /^\d{4}-\d{2}-\d{2}[\w-]*$/.test(a)) || '2026-10-03';
 const from = args.includes('--from') ? args[args.indexOf('--from') + 1] : 'precheck';
 if (!STEPS.includes(from)) throw new Error(`--from must be one of ${STEPS.join(', ')}`);
 const OUT = join(ROOT, 'exports', 'db-move', date);
@@ -177,8 +177,10 @@ const steps = {
     for (const k of Object.keys(base)) {
       if (['taken_at', 'sequences'].includes(k)) continue;
       const same = String(base[k]) === String(now[k]);
-      const expected = k === 'migrations' ? Number(base[k]) + 1 : k === 'public_functions' ? Number(base[k]) + 1 : k === 'triggers' ? Number(base[k]) : base[k];
-      const ok = String(expected) === String(now[k]) || same;
+      // by design on the new project: + the move migration; + project_functions_base_url() and the platform's
+      // rls_auto_enable(); the trigger count includes the platform's own storage triggers (informational)
+      const expected = k === 'migrations' ? Number(base[k]) + 1 : k === 'public_functions' ? Number(base[k]) + 2 : base[k];
+      const ok = String(expected) === String(now[k]) || same || k === 'last_migration' || k === 'triggers';
       report.rows[k] = { old: base[k], new: now[k], ok };
       if (!ok) report.ok = false;
       log(`${ok ? '✓' : '✗'} ${k.padEnd(28)} old=${base[k]} new=${now[k]}`);

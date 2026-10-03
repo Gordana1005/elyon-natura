@@ -26,7 +26,9 @@ const BG_REF = 'sxymaloycddnoxudxaqp';
 const HOST = 'aws-0-eu-central-1.pooler.supabase.com';
 const PG = 'C:/Program Files/PostgreSQL/17/bin';
 const args = process.argv.slice(2);
-const date = args.find((a) => /^\d{4}-\d{2}-\d{2}$/.test(a)) || '2026-10-03';
+const date = args.find((a) => /^\d{4}-\d{2}-\d{2}[\w-]*$/.test(a)) || '2026-10-03';
+// --fresh (the cutover): the target already holds an older copy → wipe public + auth users ONCE, then load everything.
+const FRESH = args.includes('--fresh');
 const MIN_ROWS = Number(args.includes('--min-rows-for-index-drop') ? args[args.indexOf('--min-rows-for-index-drop') + 1] : 20000);
 const DROP_INDEXES = !args.includes('--no-index-drop');
 const OUT = join(ROOT, 'exports', 'db-move', date);
@@ -72,8 +74,22 @@ else {
 }
 log(`data.sql: ${blocks.blocks.length} tables, ${blocks.lines} lines`);
 
+// 1b) --fresh: wipe the older copy once (marker file), so a rerun after a crash resumes instead of wiping again.
+// Equal row counts do NOT mean equal rows when the copy is older — hence the wipe before the count-based resume.
+const wipedFlag = join(OUT, 'fresh-wiped.flag');
+if (FRESH && !existsSync(wipedFlag)) {
+  const tables = q(`select string_agg(format('public.%I', tablename), ', ') from pg_tables where schemaname = 'public'`);
+  log(`--fresh: truncating ${tables.split(', ').length} public tables and the auth users of the older copy …`);
+  // replica mode: the append-only / guard triggers of the ledgers must not veto the wipe of a COPY
+  q(`set statement_timeout = 0; set lock_timeout = '60s'; set session_replication_role = replica; truncate table ${tables}`);
+  // normal mode: the auth schema's own ON DELETE CASCADE removes identities, sessions, refresh tokens, factors
+  q(`set statement_timeout = 0; delete from auth.users`);
+  writeFileSync(wipedFlag, new Date().toISOString());
+  log(`wiped: orders ${q('select count(*) from public.orders')}, auth.users ${q('select count(*) from auth.users')}, auth.sessions ${q('select count(*) from auth.sessions')}`);
+}
+
 // 2) what is already in: a table is done when its count equals the dump's rows
-const counts = Object.fromEntries(q(`select string_agg(format('%s=%s', c.relname, (xpath('/row/n/text()', query_to_xml(format('select count(*) as n from public.%I', c.relname), false, true, '')))[1]::text), ',') from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='r'`).split(',').filter(Boolean).map((kv) => { const i = kv.lastIndexOf('='); return [kv.slice(0, i), Number(kv.slice(i + 1))]; }));
+const counts =Object.fromEntries(q(`select string_agg(format('%s=%s', c.relname, (xpath('/row/n/text()', query_to_xml(format('select count(*) as n from public.%I', c.relname), false, true, '')))[1]::text), ',') from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='r'`).split(',').filter(Boolean).map((kv) => { const i = kv.lastIndexOf('='); return [kv.slice(0, i), Number(kv.slice(i + 1))]; }));
 const todo = blocks.blocks.filter((b) => counts[b.table] !== b.rows);
 const partial = todo.filter((b) => counts[b.table] > 0);
 log(`tables to load: ${todo.length} (done ${blocks.blocks.length - todo.length}); partially loaded (will be truncated first): ${partial.map((b) => b.table).join(', ') || 'none'}`);
