@@ -125,10 +125,17 @@ const steps = {
     if (body.includes(BG_REF)) die('migration mentions Bulgaria');
     const [version, slug] = [MIGRATION.slice(0, 14), MIGRATION.slice(15, -4)];
     const applied = q(`select count(*) from supabase_migrations.schema_migrations where version = ${lit(version)}`);
+    // Already in effect (the reader exists and no caller names the old host) → only the history row is missing.
+    const inEffect = q(`select (exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='project_functions_base_url')
+      and not exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.prosrc like '%bmfxhgznttcnnlqloqzp%'))::text`) === 'true';
     if (applied === '1') { log(`migration ${version} already recorded`); }
     else {
-      psqlRun('migration', { files: [file] });
-      q(`insert into supabase_migrations.schema_migrations (version, name, statements) values (${lit(version)}, ${lit(slug)}, array[${lit(body)}])`);
+      if (inEffect) log(`migration ${version} already in effect — recording it`);
+      else psqlRun('migration', { files: [file] });
+      // The row goes in from a FILE: a Windows command line would re-encode the body's non-ASCII bytes.
+      const rec = join(OUT, 'record-migration.sql');
+      writeFileSync(rec, `insert into supabase_migrations.schema_migrations (version, name, statements) values (${lit(version)}, ${lit(slug)}, array[${lit(body)}]);\n`, 'utf8');
+      psqlRun('migration-record', { files: [rec] });
     }
     const left = q(`select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.prosrc like '%bmfxhgznttcnnlqloqzp%'`);
     log(`functions still naming the old host: ${left}; base url: ${q('select public.project_functions_base_url()')}`);

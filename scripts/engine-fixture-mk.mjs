@@ -20,18 +20,15 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const REF = 'bmfxhgznttcnnlqloqzp';
+// The target comes from scripts/lib/target.mjs (03.10.2026): config.toml, or ELYON_TARGET_REF during the move
+// to the new project; the token follows the target. Bulgaria and retired refs are refused there.
+import { REF, TARGET, accessToken } from './lib/target.mjs';
 
 const toml = readFileSync(join(root, 'supabase', 'config.toml'), 'utf8');
-if (toml.match(/^\s*project_id\s*=\s*"([^"]+)"/m)?.[1] !== REF) {
+if (toml.match(/^\s*project_id\s*=\s*"([^"]+)"/m)?.[1] !== REF && !TARGET.overridden) {
   console.error('config.toml does not point at Macedonia'); process.exit(1);
 }
-const env = {};
-for (const line of readFileSync(join(root, '.env'), 'utf8').split(/\r?\n/)) {
-  const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*"?([^"]*)"?\s*$/);
-  if (m) env[m[1]] = m[2];
-}
-const token = process.env.SUPABASE_ACCESS_TOKEN || env.SUPABASE_ACCESS_TOKEN;
+const token = accessToken();
 
 async function sql(query) {
   const res = await fetch(`https://api.supabase.com/v1/projects/${REF}/database/query`, {

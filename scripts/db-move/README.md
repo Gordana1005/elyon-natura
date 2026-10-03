@@ -15,6 +15,15 @@ Everything here is pinned to those two refs and refuses the live Bulgarian proje
 | dump | `dump-old.mjs` | source read with the Management API `cli/login-role` (5-minute `cli_login_postgres`, `--role postgres`); `--schema public` only — cron / net / vault never travel; `auth.users` + `auth.identities` data; `supabase_migrations`; `--from <step>` resumes |
 | restore | `restore-new.mjs` | schema → data (replica mode, one transaction) → history → fixes (role timeouts, publication, auth trigger, 5 vault rows) → migration `20260948000100` → cron (41, inactive) → `check` vs `baseline-old.json` → `report.json`; `--from <step>` resumes |
 | migration | `gen-move-migration.mjs` | generates `supabase/migrations/20260948000100_project_move_function_urls.sql` from the live bodies of the 7 cron callers |
+| data | `load-data.mjs` | the table-by-table loader (autocommit per COPY, resumable; the big tables' plain indexes dropped and rebuilt) — the single-transaction load of `orders` crashed the Small instance |
+| **privileges** | `sync-acls.mjs` | **run after EVERY schema restore**: pg_dump writes ACLs relative to the built-in defaults, but Supabase's ALTER DEFAULT PRIVILEGES hand anon / authenticated EXECUTE on every restored function (and ALL on every table) — 544 objects came back more open than the source. Dry run, then `--apply`; verify-address-routing R7 is the canary |
+| chain test | `invoke-fn.mjs` | calls one sync function on the new project with its secret header (web-sync, mex-reconcile, altercpa-sync rolling, collabbox-sync live, collabbox-shops sales) |
+
+**Verification on 03.10 (new project, cron inactive):** every verify script was run on BOTH projects; the only
+failures specific to the replica are the checks that expect an ACTIVE cron job (verify-collab-entry-rule E1/D1,
+verify-stock-v2 S1) — intended until the cutover. verify-shifts S1, verify-assigner L1, verify-booking-day B4b,
+verify-attribution C3/C7/C8b, verify-leaderboard-v2 L3, shops H2 fail identically on the old project (pre-existing,
+for the owner). engine-fixture passes; a real password login + `api/me` + `get_my_permissions` work on the new project.
 
 Credentials never leave `.env` / `docs/VAULT.md` / `exports/db-move/<date>/` (all gitignored). `pgpass.conf` holds the
 new project's `postgres` password (reset through the API 03.10) and the short-lived source login.
