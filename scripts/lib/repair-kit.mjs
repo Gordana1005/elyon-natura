@@ -46,8 +46,10 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-export const MK_REF = 'bmfxhgznttcnnlqloqzp';
-const BG_REF = 'sxymaloycddnoxudxaqp'; // live Bulgaria — never a target, never touched
+// The target ref comes from ./target.mjs (03.10.2026, the move to the new project): config.toml, or
+// ELYON_TARGET_REF during the move. Bulgaria and retired refs are refused there at import time.
+import { MK_REF, BG_REF, TARGET, FORBIDDEN_REFS, targetEnv } from './target.mjs';
+export { MK_REF };
 
 /** FROZEN — see src/lib/currency.ts. The denar is derived; never "update" this. */
 export const MKD_PER_EUR = 61.5;
@@ -83,24 +85,18 @@ let TOKEN = null;
 export function mkGuard() {
   const toml = readFileSync(join(ROOT, 'supabase', 'config.toml'), 'utf8');
   const ref = toml.match(/^\s*project_id\s*=\s*"([^"]+)"/m)?.[1];
-  if (ref !== MK_REF) die(`supabase/config.toml project_id = "${ref}", expected "${MK_REF}" — refusing.`);
   if (toml.includes(BG_REF)) die('supabase/config.toml mentions the LIVE BULGARIAN project — refusing.');
+  if (ref !== MK_REF && !TARGET.overridden) die(`supabase/config.toml project_id = "${ref}", expected "${MK_REF}" — refusing.`);
 
-  let envText = '';
-  try { envText = readFileSync(join(ROOT, '.env'), 'utf8'); } catch { /* .env optional if exported */ }
-  if (envText.includes(BG_REF)) die('.env mentions the LIVE BULGARIAN project — refusing.');
-  const env = {};
-  for (const line of envText.split(/\r?\n/)) {
-    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*"?([^"]*)"?\s*$/);
-    if (m) env[m[1]] = m[2];
-  }
+  // The target's environment: .env + process.env; with the override the _NEW keys (see ./target.mjs).
+  const env = targetEnv();
   for (const k of ['SUPABASE_URL', 'VITE_SUPABASE_URL', 'VITE_SUPABASE_PROJECT_ID']) {
-    const v = process.env[k] || env[k];
-    if (v && v.includes(BG_REF)) die(`${k} points at LIVE BULGARIA — refusing.`);
+    const v = env[k];
+    if (v && FORBIDDEN_REFS.some((f) => v.includes(f))) die(`${k} points at a forbidden project — refusing.`);
     if (v && !v.includes(MK_REF)) die(`${k} does not point at ${MK_REF} — refusing.`);
   }
-  TOKEN = process.env.SUPABASE_ACCESS_TOKEN || env.SUPABASE_ACCESS_TOKEN || null;
-  if (!TOKEN) die('SUPABASE_ACCESS_TOKEN missing (set it in .env).');
+  TOKEN = env.SUPABASE_ACCESS_TOKEN || null;
+  if (!TOKEN) die(`SUPABASE_ACCESS_TOKEN${TARGET.overridden ? '_NEW' : ''} missing (set it in .env).`);
 }
 
 /**

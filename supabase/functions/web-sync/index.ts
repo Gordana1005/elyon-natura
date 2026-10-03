@@ -77,7 +77,7 @@ const TENANT_SLUG = "naturatherapy-mk";
 // Same pattern as public.web_order_number_ok() — keep the two in step.
 const ORDER_NUMBER_RE = /^(OC-[0-9]{1,12}|NTMK[0-9]{1,12})$/;
 // Never a shop: the Elyon CRMs (Macedonia = this project, Bulgaria = live BG).
-const FORBIDDEN_REFS = ["bmfxhgznttcnnlqloqzp", "sxymaloycddnoxudxaqp"];
+const FORBIDDEN_REFS = ["bmfxhgznttcnnlqloqzp", "oufoazmnbwugtfldkwsn", "sxymaloycddnoxudxaqp"]; // both Macedonian CRM projects (old + new, 03.10.2026) and live Bulgaria
 
 const PAGE = 500;                         // orders per read + per upsert RPC
 const MAX_PAGES_INCREMENTAL = 20;         // ≤ 10.000 orders per call

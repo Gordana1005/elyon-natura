@@ -227,23 +227,19 @@ export const sqlNormaliseExpr = (e) => String.raw`regexp_replace(
 
 // ── the Macedonian Management API client (read-only + as-a-user read-only) ────────────────────
 
-export const REF = 'bmfxhgznttcnnlqloqzp';           // Macedonia
-const FORBIDDEN_REF = 'sxymaloycddnoxudxaqp';          // live Bulgaria — never
+// The target comes from ./target.mjs (03.10.2026, the move to the new project): config.toml, or ELYON_TARGET_REF
+// during the move; Bulgaria and retired refs are refused there. ELYON_DOTENV still names another dotenv file.
+import { REF, TARGET, FORBIDDEN_REFS, targetEnv } from './target.mjs';
+export { REF };
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 function loadToken() {
   const toml = readFileSync(join(ROOT, 'supabase', 'config.toml'), 'utf8');
   const projectId = toml.match(/^\s*project_id\s*=\s*"([^"]+)"/m)?.[1];
-  if (projectId !== REF) throw new Error(`supabase/config.toml project_id = "${projectId}", expected "${REF}" (Macedonia)`);
-  // A git worktree has no .env: ELYON_DOTENV may point at the main checkout's.
-  const envPath = [process.env.ELYON_DOTENV, join(ROOT, '.env')].find((p) => p && existsSync(p));
-  const env = {};
-  for (const line of (envPath ? readFileSync(envPath, 'utf8') : '').split(/\r?\n/)) {
-    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*"?([^"]*)"?\s*$/);
-    if (m) env[m[1]] = m[2];
-  }
+  if (projectId !== REF && !TARGET.overridden) throw new Error(`supabase/config.toml project_id = "${projectId}", expected "${REF}" (Macedonia)`);
+  const env = targetEnv();   // ELYON_DOTENV or .env, plus the _NEW keys under the override
   for (const k of ['SUPABASE_URL', 'VITE_SUPABASE_URL', 'VITE_SUPABASE_PROJECT_ID']) {
-    if (env[k]?.includes(FORBIDDEN_REF)) throw new Error(`.env ${k} points at LIVE BULGARIA — refusing`);
+    if (FORBIDDEN_REFS.some((f) => env[k]?.includes(f))) throw new Error(`.env ${k} points at a forbidden project — refusing`);
   }
   if (!env.SUPABASE_ACCESS_TOKEN) throw new Error('SUPABASE_ACCESS_TOKEN not found (.env, or ELYON_DOTENV=<path to .env>)');
   return env.SUPABASE_ACCESS_TOKEN;

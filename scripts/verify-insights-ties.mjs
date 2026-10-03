@@ -54,9 +54,10 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const REF = 'bmfxhgznttcnnlqloqzp';            // Macedonia — the ONLY project this script queries
-const FORBIDDEN_REF = 'sxymaloycddnoxudxaqp';  // live Bulgaria — never
-const API = `https://api.supabase.com/v1/projects/${REF}/database/query`;
+// The target comes from scripts/lib/target.mjs (03.10.2026, the move to the new project): config.toml, or
+// ELYON_TARGET_REF during the move; Bulgaria and retired refs are refused there. 24 verify scripts import
+// runSql from here, so they all follow the same target.
+import { REF, TARGET, QUERY_URL as API, FORBIDDEN_REFS, targetEnv } from './lib/target.mjs';
 const EXIT = { OK: 0, FAIL: 1, ERROR: 2 };
 const COHORT_SIG = 'public.insights_cohort(timestamptz,timestamptz,timestamptz,timestamptz,text[],boolean)';
 /** research-cohort-numbers.md, 22–28.09.2026 at 28.09 01:40 (before §3's test-phone and
@@ -74,18 +75,12 @@ const scrub = (s) => (TOKEN ? String(s).split(TOKEN).join('***') : String(s));
 function loadToken() {
   const toml = readFileSync(join(ROOT, 'supabase', 'config.toml'), 'utf8');
   const projectId = toml.match(/^\s*project_id\s*=\s*"([^"]+)"/m)?.[1];
-  if (projectId !== REF) throw new Refusal(`supabase/config.toml project_id = "${projectId}", expected "${REF}" (Macedonia)`);
-  let envText = '';
-  try { envText = readFileSync(join(ROOT, '.env'), 'utf8'); } catch { /* fall through to the missing-token refusal */ }
-  const env = {};
-  for (const line of envText.split(/\r?\n/)) {
-    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*"?([^"]*)"?\s*$/);
-    if (m) env[m[1]] = m[2];
-  }
+  if (projectId !== REF && !TARGET.overridden) throw new Refusal(`supabase/config.toml project_id = "${projectId}", expected "${REF}" (Macedonia)`);
+  const env = targetEnv();   // .env (+ the _NEW keys under the override)
   for (const k of ['SUPABASE_URL', 'VITE_SUPABASE_URL', 'VITE_SUPABASE_PROJECT_ID']) {
-    if (env[k]?.includes(FORBIDDEN_REF)) throw new Refusal(`.env ${k} points at LIVE BULGARIA — fix the workspace first`);
+    if (FORBIDDEN_REFS.some((f) => env[k]?.includes(f))) throw new Refusal(`.env ${k} points at a forbidden project — fix the workspace first`);
   }
-  if (!env.SUPABASE_ACCESS_TOKEN) throw new Refusal('SUPABASE_ACCESS_TOKEN not found in .env');
+  if (!env.SUPABASE_ACCESS_TOKEN) throw new Refusal(`SUPABASE_ACCESS_TOKEN${TARGET.overridden ? '_NEW' : ''} not found in .env`);
   return env.SUPABASE_ACCESS_TOKEN;
 }
 

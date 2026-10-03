@@ -27,8 +27,10 @@ import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-const EXPECTED_REF = 'bmfxhgznttcnnlqloqzp';   // Macedonia
-const FORBIDDEN_REF = 'sxymaloycddnoxudxaqp';  // live Bulgaria — never a target
+// The target ref comes from scripts/lib/target.mjs (03.10.2026, the move to the new project): config.toml, or
+// ELYON_TARGET_REF when a script is aimed at the other Macedonian project during the move. Bulgaria is
+// refused there at import time; a retired ref too.
+import { TARGET, REF as EXPECTED_REF, BG_REF as FORBIDDEN_REF, KNOWN_MK_REFS, FORBIDDEN_REFS, targetEnv } from './lib/target.mjs';
 const EXPECTED_VERCEL = 'elyon-natura';  // renamed from elyon-macedonia 2026-08-01
 const EXPECTED_VERCEL_PROJECT = 'prj_cwxmm4jb74hUHmAb6YzbUG7PuDy3';
 // The elyoncoding Pro team "elyon-s-projects" since 02.10.2026 — the BG elyoncrm lives on another team.
@@ -54,11 +56,13 @@ function readEnv() {
 // 1 — supabase/config.toml is what `--linked` resolves to.
 const toml = readFileSync(join(root, 'supabase', 'config.toml'), 'utf8');
 const projectId = toml.match(/^\s*project_id\s*=\s*"([^"]+)"/m)?.[1];
-if (projectId !== EXPECTED_REF) fail(`supabase/config.toml project_id = "${projectId}", expected "${EXPECTED_REF}"`);
-ok(`config.toml → ${projectId}`);
+if (FORBIDDEN_REFS.includes(projectId) || !KNOWN_MK_REFS.includes(projectId))
+  fail(`supabase/config.toml project_id = "${projectId}" is not a Macedonian project`);
+if (!TARGET.overridden && projectId !== EXPECTED_REF) fail(`supabase/config.toml project_id = "${projectId}", expected "${EXPECTED_REF}"`);
+ok(`config.toml → ${projectId}${TARGET.overridden ? `  (target overridden → ${EXPECTED_REF})` : ''}`);
 
-// 2 — .env must agree, or a script reading it will diverge from the CLI.
-const env = readEnv();
+// 2 — .env must agree, or a script reading it will diverge from the CLI. (With the override, the _NEW keys.)
+const env = TARGET.overridden ? targetEnv() : readEnv();
 if (env.VITE_SUPABASE_PROJECT_ID && env.VITE_SUPABASE_PROJECT_ID !== EXPECTED_REF)
   fail(`.env VITE_SUPABASE_PROJECT_ID = "${env.VITE_SUPABASE_PROJECT_ID}", expected "${EXPECTED_REF}"`);
 for (const k of ['SUPABASE_URL', 'VITE_SUPABASE_URL']) {

@@ -28,7 +28,9 @@ import { join, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const EXPECTED_REF = 'bmfxhgznttcnnlqloqzp';
+// The target comes from scripts/lib/target.mjs (03.10.2026): config.toml, or ELYON_TARGET_REF during the move
+// to the new project. Bulgaria and retired refs are refused there; the token follows the target.
+import { TARGET, REF as EXPECTED_REF, FORBIDDEN_REFS, accessToken } from './lib/target.mjs';
 
 const args = process.argv.slice(2);
 const dryRun = args.includes('--dry-run');
@@ -40,15 +42,11 @@ const fail = (m) => { console.error(`\x1b[31m✗ ${m}\x1b[0m`); process.exit(1);
 // Guard: never let this run against Bulgaria.
 const toml = readFileSync(join(root, 'supabase', 'config.toml'), 'utf8');
 const ref = toml.match(/^\s*project_id\s*=\s*"([^"]+)"/m)?.[1];
-if (ref !== EXPECTED_REF) fail(`config.toml project_id = "${ref}", expected "${EXPECTED_REF}"`);
+if (FORBIDDEN_REFS.includes(ref)) fail(`config.toml project_id = "${ref}" is forbidden`);
+if (ref !== EXPECTED_REF && !TARGET.overridden) fail(`config.toml project_id = "${ref}", expected "${EXPECTED_REF}"`);
+if (TARGET.overridden) console.log(`· applying to the OVERRIDDEN target ${EXPECTED_REF} (config.toml = ${ref})`);
 
-const env = { ...process.env };
-for (const line of readFileSync(join(root, '.env'), 'utf8').split(/\r?\n/)) {
-  const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*"?([^"]*)"?\s*$/);
-  if (m && !env[m[1]]) env[m[1]] = m[2];
-}
-const token = env.SUPABASE_ACCESS_TOKEN;
-if (!token) fail('SUPABASE_ACCESS_TOKEN missing');
+const token = accessToken();
 
 async function sql(query) {
   const res = await fetch(`https://api.supabase.com/v1/projects/${EXPECTED_REF}/database/query`, {
