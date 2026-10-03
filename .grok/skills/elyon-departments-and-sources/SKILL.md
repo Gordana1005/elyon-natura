@@ -40,7 +40,7 @@ learned the folder law too (`mayReviveWith`, below). CLAUDE.md carries the law i
 | # | key (cohort source) | UI label (mk) | What it is | Stored as (`sale_source/sale_source_detail`) | MEX profile · series |
 |---|---|---|---|---|---|
 | 1 | `altercpa` | **Affiliate – Lead in** | New affiliate leads: AlterCPA leads that were pending and then decided (bridge + history), and collabBox 10111 "Нарачка LEADS" | `altercpa/bridge` · `altercpa/history` · `altercpa/collabbox_leads` · `affiliate/partner` | BIO NATURAL, 9110 |
-| 2 | `elyon_crm` | **Affiliate – Lead out** | Re-sale to affiliate customers: every sale made in our CRM that ships on BIO NATURAL (or has no parcel yet), and collabBox 10114 "LEADS-OUT" | `elyon_crm/prediction_list` · `elyon_crm/direct` · `elyon_crm/collabbox_leads_out` (+ `elyon_crm/disposition` rows, which are never sales) | BIO NATURAL, 9103 (any BIO NATURAL series for a CRM sale) |
+| 2 | `elyon_crm` | **Affiliate – Lead out** | Re-sale to affiliate customers: every sale made in our CRM that ships on BIO NATURAL (or has no parcel yet), and collabBox 10114 "LEADS-OUT" | `elyon_crm/prediction_list` · `elyon_crm/direct` · `elyon_crm/collabbox_leads_out` · `elyon_crm/collabbox_leads_late` (a LATE 10111 made a new order, 03.10.2026 — never a lead) (+ `elyon_crm/disposition` rows, which are never sales) | BIO NATURAL, 9103 (any BIO NATURAL series for a CRM sale) |
 | 3 | `teleshop_out` | **Телешоп – Lead out** | collabBox 10050 "Нарачка out" — teleshop's own repeat customers, including teleshop-out calls to customers who first came from affiliate (the folder decides); plus a CRM-made sale shipped on NATURA outside 9100 / 9108 / 1300 (§3b) | `collabbox/teleshop_out` (legacy stored values `elyon_crm/collabbox_out`, `altercpa/team_collabbox_out` map here too) | NATURA, 9102 |
 | 4 | `teleshop_other` | **Телешоп – Lead in** | collabBox 10036 "Нарачка in" — the TV lead-in; plus everything the rule cannot place | `collabbox/teleshop`, and any `legacy/*`, `collabbox/leads`, `collabbox/leads_out`, a bare series, NULL | NATURA, 9100 |
 | 5 | `social` | **Социјални мрежи** | collabBox 10106 "Нарачка Социјални Мрежи" and 10055 "Нарачка С. Мрежи-Продавница" | `collabbox/social` · `collabbox/1300` | NATURA, 9108 / 1300 |
@@ -457,7 +457,12 @@ parcel** (`mayReviveWith(order, parcel)`):
 | any other order (a CRM sale) | a series **9103** parcel (LEADS-OUT) |
 
 A teleshop (9102 / 9100), social (9108 / 1300) or web (`NTMK…` / `M…`) parcel on the same phone is
-another department's sale and never revives the dead order. Open and settled orders are not
+another department's sale and never revives the dead order. **Since 03.10.2026 (v19) a late parcel never revives or advances
+the old order either** (`mayDriveStatus` → the SQL `late_sale_case_of`: a cancel / trash more than 10 days old, an approval or
+an unproven "paid" whose sale is more than 10 days old — counter `late_sale_held`); the link stays, the collabBox writer makes
+the new order. **The 5-day collabBox cancel** (reason other + "Нема внесено порачка во Collab", any source) comes back on its own
+parcel within the 10 days like `no_parcel_7d` — rule C on tracking / phone_cod, and the upsell revive on its own folder's BIO
+NATURAL parcel (an AlterCPA lead 9110, any other sale 9103). Open and settled orders are not
 affected — the usual rules decide (`match.test.ts`). The narrow `upsell_revive` (a lone
 `no_parcel_7d` AlterCPA cancel + a BIO NATURAL 9110 parcel with COD > 0) is unchanged.
 
@@ -491,6 +496,24 @@ into an order (COD 0 → replacement), a label stuck at MEX 8 for > 14 days. Dry
 106 never cancelled, 21 restored cancels) + 7 listed; September −10 / +10. Undo:
 `node scripts/repair-folder-decides.mjs --rollback <run> [--apply]` (it deletes the made order — NOT
 rollback-repair.mjs, which refuses the key). Proof: `node scripts/verify-folder-orders.mjs` (A1, C1, L1).
+
+## A late document / parcel is a NEW order — the author's team decides (owner 03.10.2026 "ДА")
+
+"тоа мора да биде нов ордер … во друг однос, тоа е Out нарачка"; "многу е битно агентот што ги потврдил подоцна од кој тим е".
+A collabBox sales document or MEX parcel for an existing order counts for that order only while the lead is open (case 1 →
+Тим Маџари In) or ≤ 10 days after its cancel / trash (case 2 → revived on the booking day, `sale_day_revive`). Anything
+later, or after the order's own sale (an approval / unproven "paid" older than 10 days, or an order that already shipped its
+own parcel), is case 3: a NEW order made by the collabBox writer, credited to the document's author, and its department is
+`order_dept_by_team` on a NON-lead source — a late 10111 is stored `elyon_crm / collabbox_leads_late` (the mapping files it
+as Affiliate – Lead out, the team rule moves it to the author's team: Маџари → Тим Маџари Out, Тим Центар Out → Тим Центар Out,
+Менаџмент → management); 10114 / 10050 / 10036 / 10106 keep their folder's source and the team decides as for any sale. The old
+order goes back to what it was before (an unproven courier status is a system cancel — `20260947002030`). One definition
+`late_sale_classify`; the writer, `collabbox_credit_order`, `sale_day_revive_plan` (case 1 / 2 only) and mex-reconcile
+(`mayDriveStatus` + `late_sale_case_of`: a late parcel never revives / advances the old order, the link stays for the writer)
+follow it; `link_lead_parcels_plan` (order created −10 d … +1 d) and `leads_parcel_orders_plan` (no order holds the parcel)
+cannot attach a case-3 parcel — windows checked, unchanged. Dry run 03.10 (`80ac53b3`, 685 units): affiliate:in authors 554 /
+1,56 М ден → Тим Маџари Out · teleshop:out 95 / 206k → Тим Центар Out · Менаџмент 32 / 73k · teleshop:in 2 · legacy 2. Full
+detail: `elyon-collabbox-sync` "A late document for an existing order".
 
 ## Where the department is shown (29.09)
 

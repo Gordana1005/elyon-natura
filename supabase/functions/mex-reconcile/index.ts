@@ -74,7 +74,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   COD_TOLERANCE_MKD, DAY, DELIVERY_MKD, MKD_PER_EUR, atMexGate, dedupeShipments, hasSaleValue,
-  isNegativeCod, isRegisterOnlyRun, mexDate, mkE164, parseCod, pickCandidate,
+  isNegativeCod, isRegisterOnlyRun, mayDriveStatus, mexDate, mkE164, parseCod, pickCandidate,
   rememberedLinkMethod, resolveHolder, shipGate, skopjeYmd, targetFor,
 } from "./match.ts";
 import type { LinkMethod, MexShipment, OrderRow } from "./match.ts";
@@ -89,7 +89,9 @@ const REGISTER_BATCH = 500;        // mex_upsert_parcels takes ≤ 500 rows per 
 const KINDS = ["rolling", "backfill", "manual", "register"];
 // What matching reads, on remembered holders and fresh candidates alike. One
 // literal on purpose: supabase-js types a select from its literal string.
-const ORDER_COLS = "id, status, price, created_at, mex_tracking_id, customer_phone, product_name, source_type, external_source, cancellation_reason, mex_sent_at";
+const ORDER_COLS = "id, status, price, created_at, mex_tracking_id, customer_phone, product_name, source_type, external_source, cancellation_reason, mex_sent_at, "
+  // the late-sale rule (owner 03.10.2026, match.ts lateSaleCase / mayDriveStatus)
+  + "cancellation_reason_notes, cancelled_at, trashed_at, updated_at, confirmed_at, sold_at, paid_basis";
 
 /** A fetched shipment tagged with the account whose list it came from. */
 type FetchedShipment = MexShipment & { account: string };
@@ -360,6 +362,21 @@ serve(async (req: Request) => {
             if (exp > 0 && Math.abs(cod - exp) > COD_TOLERANCE_MKD
               && Math.abs(cod - exp - DELIVERY_MKD) > COD_TOLERANCE_MKD) bump("cod_mismatch");
           }
+        }
+
+        // THE LATE-SALE RULE (owner 03.10.2026 "ДА"): a parcel more than 10 days after the order's cancel / trash,
+        // or after its own sale that never shipped, is a NEW order on the booking day — never a revive. The link
+        // stays: the collabBox writer releases this order and makes the new one when it applies the parcel's
+        // document (collabbox_apply_one, 20260947002010). match.ts mayDriveStatus is the cheap test on the row;
+        // the SQL definition (late_sale_case_of: order_history, the AlterCPA ledger, a postponed delivery) decides.
+        // An RPC error falls back to the old behaviour (counted), never to a guess.
+        if (!mayDriveStatus(order, mexDate(s.created_at))) {
+          const { data: lateCase, error: lateErr } = await admin.rpc("late_sale_case_of", {
+            p_order: order.id, p_tracking: s.tracking_id,
+          });
+          if (lateErr) bump("late_sale_check_failed");
+          else if (["dead_late", "stale", "second_sale"].includes(String(lateCase))) { bump("late_sale_held"); continue; }
+          else bump("late_sale_cleared_by_sql");
         }
 
         // MEX 8 "Shipment created" = за пакување (owner 30.09.2026): the parcel exists but no

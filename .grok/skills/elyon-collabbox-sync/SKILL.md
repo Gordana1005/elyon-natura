@@ -263,6 +263,49 @@ confirmed" line predates this 29.09 change; the function body is the law.)
   below) is what credits them. Checked 29.09: every priced LEADS / LEADS-OUT order has a person
   (2.397 / 3.351); the 120 without one are 0 ден replacement rows.
 
+### A late document for an existing order — a NEW order (03.10.2026)
+
+**A LATE document is a NEW order (owner 03.10.2026 "ДА"; `20260947002000` / `2010` / `2020` / `2030`).** A sales document
+(or its parcel) that arrives for an EXISTING order is that order's sale only when the lead was still open (case 1) or the order
+was cancelled / trashed ≤ 10 days before it (case 2). Otherwise — more than 10 days after the cancel / trash (`dead_late`),
+after the order's own sale that never shipped (`stale`: an approval / an AlterCPA "paid" older than 10 days at the arrival;
+a delivery the customer POSTPONED — `sale_delivery_postponed_note`, ≤ 45 days — stays its own), or after the order already
+shipped its own earlier parcel (`second_sale`) — the document becomes a NEW order. One definition: `late_sale_classify(order,
+tracking)` / `late_sale_case_of` (arrival = the earliest of the document's sale time, its booking and the parcel's MEX
+creation; the cancel moment = the last `order_history` move into cancelled / trashed, else the AlterCPA ledger's cancel /
+trash, else `cancelled_at` / `trashed_at`, else `updated_at` (when ≤ the arrival), else `created_at`; the sale moment =
+the `sale_day_revive` ledger's `old_sold_at`, else the earliest of `sold_at` / the approval / `confirmed_at`, else
+`created_at`; `app_settings.late_sale_new_order.days` = 10).
+- **In the writer:** branch D (10111 credit) and branch E's holder check (10114 credit, 10036 / 10050 / 10106 conflict) test
+  the holder; a case-3 holder is not in the way — the document goes through branch E's own gates (lines, value, COD, web
+  claim, a parcel older than the document, komitent, phone, test phone, the twin rule) and, right before the INSERT in the
+  same sub-block, `late_sale_release()` puts the old order back and frees the parcel; `late_sale_attach_new()` names the
+  new order in the ledger `late_sale_moves` and notes both orders. Ledger row: outcome `created`, `related_order_id` = the
+  old order, credit `late_sale_new_order`, flag `late_sale:<case>`.
+- **The new order** = branch E's shape: credited to the document's author (`collabbox_author_identity` — who entered it so it
+  went to MEX), created / confirmed / sold at the booking (`collabbox_sale_at`), status from MEX (2 paid · 7 returned · 8
+  confirmed · else shipped; a document with no parcel never becomes an order — every case-3 unit holds one), the parcel
+  linked `collabbox_import`. A late **10111** is stored `elyon_crm / collabbox_leads_late` (explicit sale_source: never a
+  lead) so `order_dept_by_team` decides by the author's LINE team (Маџари → Тим Маџари Out, Тим Центар Out authors → Тим
+  Центар Out, Менаџмент → management); 10114 / 10050 / 10036 / 10106 keep their folder's source.
+- **The old order is released** (`late_sale_release`): status = its status at the arrival (a second sale → its own earlier
+  parcel back on it, with that parcel's MEX status); a cancel / trash keeps its own reason if the parcel never wiped it, else
+  reason from the actor (`no-parcel-7d` → no_parcel_7d; else other + note) / trash → not_reachable (owner 27.09); an
+  UNPROVEN courier status (an AlterCPA / import "paid" / "shipped" with no parcel of its own) is cancelled by the SYSTEM
+  (other + note, dated by its sale moment — `20260947002030`, the folder-decides precedent: restored literally it would count
+  again as paid_unproven while its parcel counts on the new order); the parcel's `mex_*` / paid / returned / shipped stamps
+  cleared; the cod-price repair's price back when it priced it from THIS parcel; `sold_at` back from the sale_day_revive
+  ledger (that move closed); `sold_*` cleared when THIS document's author was stamped on it by its credit (never for a
+  second sale). Never a person's cancel; nothing is sent to AlterCPA.
+- **Switch** `app_settings.late_sale_new_order.mode`: `report` (seeded) — the writer only flags `late_sale_pending:<case>`
+  and credits as before · `apply` — the writer splits by itself (set by the history repair's apply) · a payload
+  `late_sale_force: true` (the repair) applies whatever the switch says. `collabbox_credit_order` never stamps a case-3
+  holder in apply mode (verdict `late_sale`).
+- **History:** `scripts/repair-late-sale-new-order.mjs` (dry run → `--apply --run <id>` in the quiet window → `--rollback
+  <id> [--apply]` = `late_sale_undo(<the apply's collabBox run>)`). Dry run 03.10 `80ac53b3`: 738 case-3 units (394
+  dead_late · 273 stale · 69 second_sale; 1,98 М ден), 685 move, 53 listed (31 parcels with no sales document, 12 twins,
+  6 value 0, 3 named by two orders, 1 do-not-ship). Proof: `node scripts/verify-late-sale-new-order.mjs [--list]` (W1, L1–L4, F1).
+
 ### Crediting an EXISTING order — `collabbox_credit_order()`
 
 Write-once `sold_*`: NULL → value only. Verdicts: `stamped` · `stamped_no_person` ·
@@ -276,7 +319,8 @@ into another Skopje month than its cohort day (AlterCPA decision, confirmed_at, 
 the cohort day. Before 03.10 a dead lead credited across a month boundary kept its old lead day
 (ORD-88154: lead 12.08, cancelled 13.08, LEADS booked 01.09 → counted 12.08). The orders it had
 already stamped — and every other revival (mex-reconcile, the link repairs, the stamping cron) —
-are re-timed by `sale_day_revive_apply()` (see `elyon-presence-and-leaderboard` §3).
+are re-timed by `sale_day_revive_apply()` (see `elyon-presence-and-leaderboard` §3) — case 1 / 2 only since `20260947002000`:
+a case-3 holder is never stamped in apply mode (verdict `late_sale`) and becomes a new order (above).
 
 ## The booking day — `booked_at` (owner 01.10.2026; `20260944000500` / `20260944000600`)
 

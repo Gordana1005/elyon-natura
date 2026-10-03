@@ -315,6 +315,11 @@ matches). Deliberately NOT `confirmed_at` — altercpa-sync's untouched guard re
   10114 LEADS-OUT document on the order holding its parcel (`collabbox_credit_order()`, write-once,
   never over another decider — `elyon-collabbox-sync`); `scripts/backfill-sellers-collabbox.mjs`
   did the same for history (run `5b29ca75`, 506 sales).
+- **Since `20260947002000` / `2020` (owner 03.10.2026) the revive plan moves case 1 / 2 only** (`late_sale_case_of` = open /
+  dead_recent): the `stale` basis is gone and a dead order revived more than 10 days after its cancel / trash is never
+  re-timed — it becomes a NEW order (`elyon-collabbox-sync` "A late document for an existing order"). The 252 'stale' moves of
+  run 9d5d3e36 were undone on 03.10; its 381 case-3 'dead' moves are re-done by `scripts/repair-late-sale-new-order.mjs`
+  (the release closes the move).
 - **A revived DEAD order counts on the BOOKING day (owner 03.10.2026 "ДА"; `20260947001800` / `1801` /
   `1810`).** The one sanctioned mover of a SET `sold_at` is `sale_day_revive_apply(p_dry, p_scope, p_since,
   p_limit, p_actor)` over ONE plan, `sale_day_revive_plan()`: a stamped sale holding a parcel whose
