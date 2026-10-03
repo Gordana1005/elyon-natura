@@ -267,6 +267,25 @@ target **explicitly** and verify it before running:
   beats CRM status.** Value = parcel COD (`formatDenari`, already denari), else price × 61.5
   (`formatMoney`); web = shop total. The leads funnel and MEX cash-flow are separate, labelled
   figures. MEX alone decides paid/returned; AlterCPA decides only confirmed-or-dead.
+- **REAL TIME, then 10 DAYS (owner, 03.10.2026; `20260947001850` / `1851`, `cohort_unshipped_since()`).** Owner:
+  "реал-тајм да се гледат сите нарачки … без разлика дали ги има или нема во collab, но после 10 дена се одзимат …
+  тие што не се доставени и тие што не се пуштени никогаш; return-от се брои како return." Every sale counts at once
+  (AlterCPA approvals with no document / parcel too). A 10111 LEADS booking counts at once on its booking day (Тим
+  Маџари In, its author) when the customer's phone is known and it is not the copy of a living Тим Маџари In sale on
+  that phone (−30 d … +1 d, amount ignored) — a phoneless LEADS document waits for its parcel (the backtest
+  double-counted 236 / 767k без телефон). After 10 Skopje days a sale MEX never took stops counting EVERYWHERE (TV,
+  Табла, Insights, Операции, /orders drills) — (a) a booking with no parcel, (b) any sale with no MEX parcel, (c) a
+  parcel still at MEX 8; counting only, the order is never cancelled by this. A parcel in transit / problem keeps
+  counting until MEX says paid / returned (owner: "ДА ТАКА НЕКА БИДИ"); returns stay returns (the monthly bonus
+  return-% cut). A MEX-only parcel counts on its collabBox document's booking day. **Komitent phones:** the
+  collabBox card lookup (read-only search, the operators' "Барај") was fixed and only the MISSING phones were loaded
+  from the 01.10 register (`collabbox_customers.source = 'register_20261001'`, 12.473; owner: "само тоа што
+  недостасува", never the whole register). **A revived dead order counts on the reviving document's BOOKING day**
+  (`20260947001800`–`1810`, `sale_day_revive_*`, cron every 15 min, whole 2026; undo `sale_day_revive_undo(run[,
+  actor, basis])`). **A late document / parcel is a NEW order (owner 03.10 "ДА"):** lead still open → Lead in;
+  cancelled / trashed ≤ 10 days before → that order's own sale (revived, booking day); otherwise (> 10 days, or the
+  old order already sold) → a NEW order on the booking day, the seller's team decides (Маџари people → Тим Маџари
+  Out), the old order untouched.
 - **The no-parcel rule is 10 DAYS, in APPLY mode (owner, 28.09; `20260938000000`,
   `app_settings.no_parcel_rule.days = 10` — was 7 until 28.09).** An AlterCPA approval with no MEX
   parcel 10 days later is cancelled nightly at 21:10 Skopje (reason code stays `no_parcel_7d`); a
@@ -283,7 +302,7 @@ target **explicitly** and verify it before running:
   trashed AS A DUPLICATE (`duplicate_order`, the bridge's "duplicate — …" trash note, the mirror's trashed reason 7 —
   never free text) and an AlterCPA lead created after the parcel's collabBox booking (`collabbox_sale_at`; a date-only
   import by Skopje day) are dropped. One definition: `link_lead_parcels_plan()`; cron `link-lead-parcels` 21:02 Skopje
-  (switch `app_settings.link_lead_parcels`, seeded `report`); backfill `scripts/repair-link-lead-parcels.mjs`;
+  (switch `app_settings.link_lead_parcels`, now `apply`); backfill `scripts/repair-link-lead-parcels.mjs`;
   every run undone by `scripts/rollback-repair.mjs --run <id>`; proof `node scripts/verify-parcel-link-rules.mjs`.
   Old September `credit_pending` LEADS documents: `scripts/collabbox-recredit.mjs`. See `docs/ALTERCPA-BRIDGE.md`.
 - **A LEADS document becomes an order when MEX delivered or returned its parcel (owner, 01.10.2026 —
@@ -294,7 +313,7 @@ target **explicitly** and verify it before running:
   document. Never a twin: the phone + date linker has no row for it, no living Affiliate sale on the phone
   (−30 d … +1 d), the writer's twin rule does not fit. In transit = not yet. One definition
   `leads_parcel_orders_plan()`; cron `leads-parcel-orders` 21:06 Skopje (switch `app_settings.leads_parcel_orders`,
-  seeded `report`); backfill `scripts/repair-leads-parcel-orders.mjs`; undo its own `--rollback <run>`.
+  now `apply`); backfill `scripts/repair-leads-parcel-orders.mjs`; undo its own `--rollback <run>`.
 - **The collabBox folder decides — ALL cases (owner, 01.10.2026: "Yes, the collabBox folder decides"):** an
   AlterCPA order holding a NATURA 9102 / 9100 / 9108 / 1300 parcel loses it to its collabBox document, which
   becomes its own Телешоп / Социјални order credited to the author; the AlterCPA order goes back to its
@@ -339,8 +358,9 @@ target **explicitly** and verify it before running:
 - **A collabBox sale counts on the day the operator BOOKED it (owner, 01.10; `20260944000500`/`0600`)**:
   collabBox dates a document on its DISPATCH day; `collabbox_documents.booked_at` (+ basis seen /
   sequence / doc, decided once) and THE sale time `collabbox_sale_at(doc_at, booked_at)` feed the board,
-  the cohort, Операции and the orders the sync makes (sold / confirmed / created). Closed months never
-  move (`collabbox_booking_day_since()` = 01.10.2026 — September only with the owner). The frequent pass
+  the cohort, Операции and the orders the sync makes (sold / confirmed / created). The booking day applies to the
+  whole ledger (`collabbox_booking_day_since()` = 01.03.2026 since `20260944000610` / `0620`, the owner's 01.10
+  evening ruling "тоа што е направено вчера си останува во вчерашниот ден"). The frequent pass
   reads the documents dated up to 14 days ahead; a booking stays a booking until an ORDER holds its
   parcel. History: `scripts/backfill-collabbox-booked-at.mjs` (dry run → owner → `--apply`); check
   `node scripts/verify-booking-day.mjs`. See `elyon-collabbox-sync` "The booking day".
