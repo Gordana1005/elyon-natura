@@ -371,6 +371,22 @@ target **explicitly** and verify it before running:
   register knows unlinked (link them, never flip — the return would count twice), 3 held by another order. The parcel
   is named in the order's note and the ledger; it is NOT linked (the register has no row for it). Undo:
   `node scripts/rollback-repair.mjs --run 7d891eeb-8f19-4832-a169-e40410831774 --apply`.
+- **History: paid with NO proof → cancelled (owner's rule "платена + нема MEX + нема collabBox = откажана"; 04.10.2026
+  00:00; `scripts/repair-history-cancels.mjs`, run `646b716e-d962-4b58-abf6-a965293a3c6c`).** 3.870 orders up to
+  01.08.2026: 3.138 no MEX parcel and no collabBox document on the phone or the name (reason `other`), 284 whose
+  customer's parcel sits on another order more than 3 days away (`other`), 209 duplicates of the order that holds the
+  parcel (`duplicate_order`), 162 labels MEX never picked up; and 77 "duplicates" that have a document of their own
+  another courier carried — judged by its flag (53 proven, 24 returned). Every cancel is a SYSTEM cancel dated on the
+  order's own day (never today: the 14-day Current Cancels pen), `sold_*` untouched. **A history rule decided by the
+  owner is applied, not asked again** (owner 03.10 night: "зошто чекаат моја одлука?") — dry run, checks, apply, report
+  with the undo. Undo: `node scripts/rollback-repair.mjs --run 646b716e-d962-4b58-abf6-a965293a3c6c --apply`.
+- **The phone + date linker ran over the WHOLE register (04.10.2026 00:18; run `aafb8c4f-836c-492f-ba14-baa60b56ef25`,
+  `link_lead_parcels(true, 330, …)`):** 1.146 orphan 9110 / 9103 parcels linked — 417 cancelled / trashed → paid, 205 →
+  returned, 379 paid orders got their MEX proof, 140 paid → returned; 299 stay on its manual list. The plan for 330 days
+  takes ~3 minutes: the Management API gateway cuts a request at ~100 s (Cloudflare 524), so plan and apply went through
+  psql (`exports/db-move/…/pgpass.conf`), the dry-run row recorded from the saved plan. The nightly cron keeps its 75
+  days. **The live `mex_parcels` register is NOT complete:** ~4.000 parcels of dead leads (and the whole history before
+  10.11.2025) are only in the audit's MEX dump — the linker cannot see them until the register is backfilled.
 - **Test phones 070123456 / 23123123** are never in any report (owner, 28.09): their CRM orders are
   deleted (snapshot first); their web orders and MEX parcels stay in the shop/register but are
   excluded from every figure.

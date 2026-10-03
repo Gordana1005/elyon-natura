@@ -64,8 +64,13 @@ export async function resolveMode({ forceInline = false } = {}) {
     mode: s?.live && !forceInline ? 'rpc' : 'inline' };
 }
 
+/** Beyond the cron's window the plan outlasts the role's statement timeout — lift it for that one transaction. */
+const longPlan = (days) => (Number(days) > DEFAULT_DAYS ? "set local statement_timeout = '15min'; " : '');
+
 export async function loadPlan({ mode, fileText, days }) {
-  const [row] = await sqlRead(mode === 'rpc' ? rpcPlanSql(days) : inlinePlanSql(fileText, days));
+  // a look-back over the whole register (--days 330, 04.10.2026) plans for ~3 minutes: lift the statement timeout for
+  // this one transaction (SET LOCAL — the Management API runs the request as one implicit transaction)
+  const [row] = await sqlRead(`${longPlan(days)}${mode === 'rpc' ? rpcPlanSql(days) : inlinePlanSql(fileText, days)}`);
   const plan = planOf(row);
   if (!plan || !Array.isArray(plan.link)) die('the plan came back empty — check the migration body.');
   return plan;
@@ -128,7 +133,7 @@ async function main() {
     }
     ok(`hash matches the dry run (${plan.hash.slice(0, 12)}…) — ${plan.counts.link} links`);
     const actor = await resolveActor(args.actor || 'mile@elyon.com');
-    const [res] = await sql(`select public.link_lead_parcels(true, ${days}, ${qUuid(args.run)}, ${q(plan.hash)}) as res`);
+    const [res] = await sql(`${longPlan(days)}select public.link_lead_parcels(true, ${days}, ${qUuid(args.run)}, ${q(plan.hash)}) as res`);
     const out = typeof res?.res === 'string' ? JSON.parse(res.res) : res?.res;
     if (!out?.ok) die(`link_lead_parcels did not answer ok: ${JSON.stringify(out).slice(0, 500)}`);
     const payload = { script: 'repair-link-lead-parcels.mjs', days, applied: out.applied, moved: out.moved,
