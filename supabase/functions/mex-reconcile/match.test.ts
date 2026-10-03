@@ -326,7 +326,8 @@ describe("small helpers", () => {
 // with a COD that is not the CRM price (an upsell at AlterCPA). npCancel is the
 // shape apply_no_parcel_rule leaves behind, sold 12 days before the parcel.
 const npCancel = (o: Partial<OrderRow> = {}) => order({
-  status: "cancelled", cancellation_reason: "no_parcel_7d", created_at: daysBefore(12), ...o,
+  // cancelled by the rule 2 days before the parcel (cancelled_at is stamped by trg_orders_set_cancelled_at)
+  status: "cancelled", cancellation_reason: "no_parcel_7d", created_at: daysBefore(12), cancelled_at: daysBefore(2), ...o,
 });
 const LEADS: ParcelRef = { account: "bio_natural", tracking_id: "002-9110-158456/2026" };
 const UPSELL_COD = 3000;   // two packages at the door; the CRM still says one × 1.500 ден
@@ -391,7 +392,8 @@ describe("pickCandidate — the upsell revive (owner rule 2026-09-28)", () => {
   });
 
   it("uses the matcher's window, both edges included", () => {
-    const early = npCancel({ created_at: daysBefore(75) });
+    // created 75 days back, cancelled by the rule 5 days back: inside the 10 days after the cancel (owner 03.10.2026)
+    const early = npCancel({ created_at: daysBefore(75), cancelled_at: daysBefore(5) });
     expect(pickCandidate([early], UPSELL_COD, SHIP_CREATED, LEADS)).toEqual({ order: early, method: "upsell_revive" });
     const late = npCancel({ created_at: daysBefore(-3) });
     expect(pickCandidate([late], UPSELL_COD, SHIP_CREATED, LEADS)).toEqual({ order: late, method: "upsell_revive" });
@@ -525,5 +527,85 @@ describe("shipGate — the upsell revive", () => {
     for (const status of ["trashed", "paid", "returned", "delivered", "shipped"]) {
       expect(shipGate(npCancel({ status }), "upsell_revive")).toBeNull();
     }
+  });
+});
+
+// ── the late-sale rule (owner 03.10.2026 "ДА"; SQL twin late_sale_classify, 20260947002000) ──
+import { LATE_SALE_DAYS, NOT_IN_COLLAB_NOTE, isLateSale, isNotInCollabCancel, lateSaleCase, mayDriveStatus } from "./match.ts";
+
+const collabCancel = (o: Partial<OrderRow> = {}) => order({
+  status: "cancelled", cancellation_reason: "other", cancellation_reason_notes: NOT_IN_COLLAB_NOTE,
+  source_type: "manual", external_source: null, cancelled_at: daysBefore(3), ...o,
+});
+const LEADS_OUT: ParcelRef = { account: "bio_natural", tracking_id: "002-9103-158456/2026" };
+
+describe("lateSaleCase — a parcel more than 10 days after the cancel / the sale is a NEW order", () => {
+  it("an open lead is the lead's sale, whatever its age", () => {
+    for (const status of ["pending", "take", "call_again"]) {
+      expect(lateSaleCase(order({ status, created_at: daysBefore(60) }), SHIP_CREATED)).toBe("open");
+    }
+  });
+  it("a cancel / trash: 10 days from the cancel moment (cancelled_at / trashed_at, else updated_at, else created_at)", () => {
+    expect(lateSaleCase(order({ status: "cancelled", created_at: daysBefore(40), cancelled_at: daysBefore(9) }), SHIP_CREATED)).toBe("dead_recent");
+    expect(lateSaleCase(order({ status: "cancelled", created_at: daysBefore(40), cancelled_at: daysBefore(LATE_SALE_DAYS) }), SHIP_CREATED)).toBe("dead_recent");
+    expect(lateSaleCase(order({ status: "cancelled", created_at: daysBefore(40), cancelled_at: daysBefore(11) }), SHIP_CREATED)).toBe("dead_late");
+    expect(lateSaleCase(order({ status: "trashed", created_at: daysBefore(40), trashed_at: daysBefore(12) }), SHIP_CREATED)).toBe("dead_late");
+    expect(lateSaleCase(order({ status: "trashed", created_at: daysBefore(40), updated_at: daysBefore(2) }), SHIP_CREATED)).toBe("dead_recent");
+    expect(lateSaleCase(order({ status: "cancelled", created_at: daysBefore(30) }), SHIP_CREATED)).toBe("dead_late");
+  });
+  it("a sale: 10 days from its sale moment (the earliest of sold_at / confirmed_at, else created_at)", () => {
+    expect(lateSaleCase(order({ status: "confirmed", created_at: daysBefore(8) }), SHIP_CREATED)).toBe("own");
+    expect(lateSaleCase(order({ status: "confirmed", created_at: daysBefore(20), confirmed_at: daysBefore(20), sold_at: daysBefore(2) }), SHIP_CREATED)).toBe("stale");
+    expect(lateSaleCase(order({ status: "paid", created_at: daysBefore(49) }), SHIP_CREATED)).toBe("stale");   // ORD-77284: 14.07 → 01.09
+  });
+  it("no parcel time → no verdict", () => {
+    expect(lateSaleCase(order({ status: "cancelled", created_at: daysBefore(90) }), null)).toBeNull();
+    expect(isLateSale(order({ status: "cancelled", created_at: daysBefore(90) }), null)).toBe(false);
+  });
+});
+
+describe("mayDriveStatus — a late parcel never revives / advances the old order", () => {
+  it("holds a late cancel / trash, a stale approval and an unproven stale paid", () => {
+    expect(mayDriveStatus(order({ status: "cancelled", created_at: daysBefore(40), cancelled_at: daysBefore(20) }), SHIP_CREATED)).toBe(false);
+    expect(mayDriveStatus(order({ status: "trashed", created_at: daysBefore(40), trashed_at: daysBefore(20) }), SHIP_CREATED)).toBe(false);
+    expect(mayDriveStatus(order({ status: "confirmed", created_at: daysBefore(20) }), SHIP_CREATED)).toBe(false);
+    expect(mayDriveStatus(order({ status: "paid", created_at: daysBefore(20), paid_basis: "unproven" }), SHIP_CREATED)).toBe(false);
+  });
+  it("lets case 1 / 2 and a status the courier already drove follow MEX", () => {
+    expect(mayDriveStatus(order({ status: "cancelled", created_at: daysBefore(40), cancelled_at: daysBefore(3) }), SHIP_CREATED)).toBe(true);
+    expect(mayDriveStatus(order({ status: "pending", created_at: daysBefore(40) }), SHIP_CREATED)).toBe(true);
+    expect(mayDriveStatus(order({ status: "confirmed", created_at: daysBefore(4) }), SHIP_CREATED)).toBe(true);
+    for (const status of ["shipped", "returned"]) expect(mayDriveStatus(order({ status, created_at: daysBefore(40) }), SHIP_CREATED)).toBe(true);
+    expect(mayDriveStatus(order({ status: "paid", created_at: daysBefore(40), paid_basis: "mex" }), SHIP_CREATED)).toBe(true);
+  });
+});
+
+describe("the 5-day collabBox cancel comes back like no_parcel_7d (owner 03.10.2026)", () => {
+  it("is recognised by reason other + the exact note, any source", () => {
+    expect(isNotInCollabCancel(collabCancel())).toBe(true);
+    expect(isNotInCollabCancel(collabCancel({ cancellation_reason_notes: `  ${NOT_IN_COLLAB_NOTE} ` }))).toBe(true);
+    expect(isNotInCollabCancel(collabCancel({ cancellation_reason_notes: "клиентот се откажа" }))).toBe(false);
+    expect(isNotInCollabCancel(collabCancel({ cancellation_reason: "changed_mind" }))).toBe(false);
+    expect(isNotInCollabCancel(collabCancel({ status: "trashed" }))).toBe(false);
+  });
+  it("rule C on its own parcel for a CRM sale too (tracking / phone_cod)", () => {
+    expect(shipGate(collabCancel(), "tracking")).toBe("rule_c");
+    expect(shipGate(collabCancel(), "phone_cod")).toBe("rule_c");
+    expect(shipGate(collabCancel(), "phone_single")).toBeNull();
+  });
+  it("the upsell revive: a CRM sale on its LEADS-OUT 9103 parcel, an AlterCPA one on 9110 — within 10 days only", () => {
+    const crm = collabCancel();
+    expect(pickCandidate([crm], UPSELL_COD, SHIP_CREATED, LEADS_OUT)).toEqual({ order: crm, method: "upsell_revive" });
+    expect(pickCandidate([crm], UPSELL_COD, SHIP_CREATED, LEADS)).toEqual({ skip: "single_not_open" });
+    const acpa = collabCancel({ source_type: "altercpa", external_source: "altercpa" });
+    expect(pickCandidate([acpa], UPSELL_COD, SHIP_CREATED, LEADS)).toEqual({ order: acpa, method: "upsell_revive" });
+    expect(shipGate(acpa, "upsell_revive")).toBe("rule_c");
+    const late = collabCancel({ created_at: daysBefore(30), cancelled_at: daysBefore(15) });
+    expect(pickCandidate([late], UPSELL_COD, SHIP_CREATED, LEADS_OUT)).toEqual({ skip: "single_not_open" });
+    expect(mayDriveStatus(late, SHIP_CREATED)).toBe(false);
+  });
+  it("a no_parcel_7d cancel more than 10 days old is no upsell revive either", () => {
+    const old = npCancel({ created_at: daysBefore(40), cancelled_at: daysBefore(25) });
+    expect(pickCandidate([old], UPSELL_COD, SHIP_CREATED, LEADS)).toEqual({ skip: "single_not_open" });
   });
 });

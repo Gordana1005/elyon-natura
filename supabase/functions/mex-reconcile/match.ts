@@ -66,6 +66,14 @@ export interface OrderRow {
   cancellation_reason?: string | null;
   /** When the parcel was created at MEX (20260943001200); stamped at MEX 8 if still NULL. */
   mex_sent_at?: string | null;
+  // ── the late-sale rule (owner 03.10.2026, 20260947002000) ──
+  cancellation_reason_notes?: string | null;
+  cancelled_at?: string | null;
+  trashed_at?: string | null;
+  updated_at?: string | null;
+  confirmed_at?: string | null;
+  sold_at?: string | null;
+  paid_basis?: string | null;
 }
 
 /** Europe/Skopje wall clock minus UTC at an instant (+1 h winter, +2 h summer). */
@@ -199,6 +207,80 @@ export function isNoParcelCancel(
   return o.status === "cancelled" && o.cancellation_reason === "no_parcel_7d" && isAlterCpaOrder(o);
 }
 
+/** The 5-day collabBox entry rule's system cancel (20260947001900): reason 'other' + this note, any source. */
+export const NOT_IN_COLLAB_NOTE = "Нема внесено порачка во Collab";
+export function isNotInCollabCancel(
+  o: Pick<OrderRow, "status" | "cancellation_reason" | "cancellation_reason_notes">,
+): boolean {
+  return o.status === "cancelled" && o.cancellation_reason === "other"
+    && String(o.cancellation_reason_notes ?? "").trim() === NOT_IN_COLLAB_NOTE;
+}
+
+/** Our own "no parcel yet" system cancels — the 10-day no-parcel rule (AlterCPA) and the 5-day collabBox
+ * entry rule (every source): not the customer's decision, only a parcel not seen yet. */
+export function isNoShipSystemCancel(o: OrderRow): boolean {
+  return isNoParcelCancel(o) || isNotInCollabCancel(o);
+}
+
+/**
+ * THE LATE-SALE RULE (owner 03.10.2026 "ДА"; SQL: late_sale_classify, 20260947002000). A parcel for an
+ * EXISTING order is that order's sale only when
+ *   - the lead is still open (pending / take / call_again)                  → 'open'
+ *   - it was cancelled / trashed ≤ 10 days before the parcel                → 'dead_recent'
+ *   - it is a sale (an approval …) whose sale moment is ≤ 10 days before it → 'own'
+ * otherwise it is a NEW order on the booking day ('dead_late' / 'stale'): this function never revives or
+ * advances such an order — it may still be linked, so the collabBox writer knows which order the parcel was
+ * "for" and makes the new order (collabbox_apply_one releases the old one). The cancel moment here is the
+ * row's cancelled_at / trashed_at (stamped live by the triggers), else updated_at, else created_at; the SQL
+ * twin reads order_history first (history imports carry no cancelled_at).
+ */
+export const LATE_SALE_DAYS = 10;
+export type LateSaleCase = "open" | "dead_recent" | "dead_late" | "own" | "stale" | null;
+const ms = (v: string | null | undefined): number | null => {
+  if (!v) return null;
+  const t = new Date(v).getTime();
+  return Number.isFinite(t) ? t : null;
+};
+export function lateSaleCase(o: OrderRow, parcelCreated: Date | null): LateSaleCase {
+  if (!parcelCreated) return null;
+  const at = parcelCreated.getTime();
+  if (o.status === "pending" || o.status === "take" || o.status === "call_again") return "open";
+  if (o.status === "cancelled" || o.status === "trashed") {
+    const dead = ms(o.status === "cancelled" ? o.cancelled_at : o.trashed_at) ?? ms(o.updated_at) ?? ms(o.created_at);
+    return dead !== null && at - dead > LATE_SALE_DAYS * DAY ? "dead_late" : "dead_recent";
+  }
+  if (["confirmed", "shipped", "delivered", "paid", "returned"].includes(o.status)) {
+    const marks = [ms(o.sold_at), ms(o.confirmed_at)].filter((x): x is number => x !== null);
+    const sale = marks.length ? Math.min(...marks) : ms(o.created_at);
+    return sale !== null && at - sale > LATE_SALE_DAYS * DAY ? "stale" : "own";
+  }
+  return null;
+}
+export const isLateSale = (o: OrderRow, parcelCreated: Date | null): boolean => {
+  const c = lateSaleCase(o, parcelCreated);
+  return c === "dead_late" || c === "stale";
+};
+
+/**
+ * May this parcel change the order's STATUS? false = a late sale (above) the parcel has not driven yet:
+ *   a cancel / trash more than 10 days old, an approval ('confirmed') or an unproven "paid" / "delivered"
+ *   (no MEX basis) whose sale moment is more than 10 days old. A status the courier already drove
+ *   (shipped / returned / paid on a MEX basis) keeps following MEX — history links are repaired by
+ *   scripts/repair-late-sale-new-order.mjs, forward ones by the collabBox writer.
+ */
+export function mayDriveStatus(o: OrderRow, parcelCreated: Date | null): boolean {
+  const c = lateSaleCase(o, parcelCreated);
+  if (c === "dead_late") return false;
+  if (c === "stale" && (o.status === "confirmed"
+    || ((o.status === "paid" || o.status === "delivered") && o.paid_basis !== "mex"))) return false;
+  return true;
+}
+
+/** BIO NATURAL 9103 — LEADS-OUT, what a CRM / LEADS-OUT sale ships on. */
+export function isLeadsOutParcel(p: ParcelRef | null | undefined): boolean {
+  return p?.account === "bio_natural" && mexSeries(p.tracking_id) === "9103";
+}
+
 /** What the upsell revive needs to know about a parcel: the account whose
  * list it came from, and its tracking id (for the series). */
 export interface ParcelRef {
@@ -278,7 +360,11 @@ export function pickCandidate(
   if (real.length === 1) {
     const only = real[0];
     if (SINGLE_FALLBACK_STATUSES.has(only.status)) return { order: only, method: "phone_single" };
-    if (cod > 0 && isLeadsParcel(parcel) && isNoParcelCancel(only)) return { order: only, method: "upsell_revive" };
+    // the upsell revive (owner 28.09; widened 03.10.2026): our own no-ship cancel — the 10-day no-parcel rule or
+    // the 5-day collabBox rule — on its OWN folder's BIO NATURAL parcel (an AlterCPA lead 9110, any other sale
+    // 9103), within 10 days of that cancel (after them a parcel is a NEW order, never a revive)
+    if (cod > 0 && isNoShipSystemCancel(only) && (isAlterCpaOrder(only) ? isLeadsParcel(parcel) : isLeadsOutParcel(parcel))
+        && !isLateSale(only, created)) return { order: only, method: "upsell_revive" };
     return { skip: "single_not_open" };
   }
   return { skip: "ambiguous" };
@@ -317,8 +403,10 @@ export function rememberedLinkMethod(o: Pick<OrderRow, "external_source">): "col
  * May a parcel at the courier move this order to `shipped`?
  *   'open'   — pending/take/call_again/confirmed: forward-only progress.
  *   'rule_c' — MEX outranks AlterCPA: an AlterCPA cancel/trash (or our own
- *              'no_parcel_7d' cancel) whose parcel then turns up at MEX did
- *              ship. Strong links only ('tracking', 'phone_cod'); never on a
+ *              'no_parcel_7d' cancel, or — 03.10.2026, any source — the 5-day
+ *              collabBox cancel "Нема внесено порачка во Collab") whose parcel
+ *              then turns up at MEX did ship. The caller first asks
+ *              mayDriveStatus: after 10 days it is a NEW order, never a revive. Strong links only ('tracking', 'phone_cod'); never on a
  *              'phone_single' guess. An 'upsell_revive' link counts only for
  *              the order it exists for: our no_parcel_7d cancel of an
  *              AlterCPA sale (isNoParcelCancel).
@@ -328,10 +416,10 @@ export function shipGate(o: OrderRow, method: LinkMethod): "open" | "rule_c" | n
   if (OPEN_FOR_SHIP.has(o.status)) return "open";
   if ((o.status === "cancelled" || o.status === "trashed")
     && (method === "tracking" || method === "phone_cod")
-    && (isAlterCpaOrder(o) || o.cancellation_reason === "no_parcel_7d")) {
+    && (isAlterCpaOrder(o) || o.cancellation_reason === "no_parcel_7d" || isNotInCollabCancel(o))) {
     return "rule_c";
   }
-  if (method === "upsell_revive" && isNoParcelCancel(o)) return "rule_c";
+  if (method === "upsell_revive" && isNoShipSystemCancel(o)) return "rule_c";
   return null;
 }
 
