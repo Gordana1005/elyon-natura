@@ -437,6 +437,19 @@ target **explicitly** and verify it before running:
   **1.410 with no courier trace at all → cancelled as "booked, never shipped"** (run
   `7797f847-a144-4ed1-8553-3ad7099f4a05`, `repair-history-cancels.mjs --input doc-no-parcel`; 62 % were Skopje
   customers of Feb–May 2023 — the owner ruled them unpaid). Still not in the CRM: the parcels with no order at all.
+- **The history is CLOSED as far as evidence goes (04.10.2026 08:00) — the state and the hand-over for Salesforce.**
+  Last three steps: `mex_history_lead_apply(…, 'pre9110')` (migration `20260948000230`, run
+  `b75353ec-6895-47e0-a91e-a9723a690f54`): 908 AlterCPA orders of May–June 2025 already paid / returned got the
+  parcel that went out under a teleshop number before the 9110 series — proof only, never a revival;
+  `repair-history-cancels.mjs --input trace` (run `667128e6-e023-4bb3-8444-b728728e867b`): 1.373 paid orders with
+  nothing in their own window whose every trace within ±45 days is another order's → cancelled; the 19 Jon Express
+  orders the late-sale repair released → paid / returned by their flag (run `34077dc9-e62c-444c-9557-ac068b6640c2`).
+  **Paid orders now: 266.449 = 232.961 holding the MEX parcel that proves them + 31.149 proven by the courier flag +
+  2.339 with no proof (0,9 %).** Not in the CRM at all: 189.242 MEX parcels with no order (140.282 of 2020–01.2023,
+  48.228 of 02.2023–08.2026) — listed, never loaded. The package for the Salesforce migration:
+  `scripts/history/export_clean_handover.py` → `D:\naturatherapy\_salesforce-plan\07-data-backups-PRIVATE\2026-10-04\
+  naturall-crm-clean\` (private) + `D:\naturatherapy\NATURALL-CRM-CLEAN-DATA-HANDOVER.md` (what was repaired, how to
+  read the proof, what is open). The whole method: `.grok/skills/elyon-history-truth`.
 - **Test phones 070123456 / 23123123** are never in any report (owner, 28.09): their CRM orders are
   deleted (snapshot first); their web orders and MEX parcels stay in the shop/register but are
   excluded from every figure.
@@ -604,6 +617,7 @@ before non-trivial work on money, phones, warehouse, stock, shops, Sigma, webhoo
 - `elyon-departments-and-sources` — The six departments (collabBox folder + MEX profile), `cohort_order_source`, the parcel split, `sale_source_reclass` and its rollbacks; since 02.10 the SELLER'S LINE TEAM decides first (a lead is always Affiliate – Lead in, Менаџмент never decides — `order_dept_by_team`), the product line only picks the account of a CRM push. Law for anything that says where a sale belongs.
 - `elyon-collabbox-sync` — The live collabBox reader of the teleshop documents: folders/types and roles, the document ledger, orders only once the MEX parcel exists, seller credit, the 15-minute + nightly crons, one run at a time. (The shops' tills are a separate reader — `elyon-shops`.)
 - `elyon-call-scripts` — Targeted call scripts (02.10): one script per list group (+ products), the matcher shared with the UI, the variables (segments, never HTML), the audited writers + versions (admins delete), RLS published-only for agents, the `call_scripts.mode` switch (off), GET /calls/scripts, coverage, `verify-call-scripts`.
+- `elyon-history-truth` — How every HISTORIC order is proven (03–04.10.2026): a linked MEX parcel (`paid_basis mex`), collabBox's courier flag on the days Kolporter / Eko / Jon carried (`operator_ruling`), or none; the full MEX register in `mex_history_stage`, history parcels only ever inserted ALREADY LINKED (`history_run`), the generated history linker (`mex_history_lead_plan` / `_apply`, modes lead / pre9110, `enable_nestloop = off`), the cancel rules for paid orders with no proof, the after-repair passes, psql for anything over 100 s, the Salesforce hand-over.
 - `elyon-products-catalogue` — Product kinds (product / bundle / gift / other) and brand lines (Natura Therapy / Bio Natural / Ad Astra / Dr.Becker → the MEX profile), the web-catalogue rule, the audited writers behind guard triggers, the machine-text cleanup, /products (the Рецепт drawer and "Набавна (Сигма)" for owners — only an approved recipe moves stock and cost), and the catalogue scripts.
 
 New skills should be added to `.grok/skills/` whenever you find yourself re-explaining the same
