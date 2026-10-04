@@ -14,6 +14,12 @@
  *                          entry, still no proof of its own → cancelled like no_proof_cancel.
  *   label_only_cancel      SET_CANCELLED_LABEL_ONLY — the parcel never left MEX status 8 (a label MEX never picked
  *                          up, checked months later) → cancelled.
+ *   never_shipped_cancel   (--input doc-no-parcel, 04.10.2026) paid, a collabBox document, NO MEX parcel under its
+ *                          number in a month MEX carried ≥ 90 % of the folder, and collabBox itself holds no courier
+ *                          flag for it (or only "Shipment created") while the other documents of that day have theirs
+ *                          → booked, never shipped → cancelled. The hand-over's question 4; decided by the flags
+ *                          (scripts/history/doc_no_parcel_build.py). A delivered / returned flag goes through
+ *                          repair-courier-outcomes.mjs --input doc-no-parcel instead.
  * and, because a "duplicate" that has a document of its own which ANOTHER courier carried is a sale of its own
  * (two documents, two parcels), judged by collabBox's courier flag exactly like scripts/repair-courier-outcomes.mjs:
  *   dup_own_doc_proven     Delivered → stays paid, paid_basis operator_ruling
@@ -112,6 +118,17 @@ export function classify(r, o, { twin = null, reg = null, payout = new Set() } =
     };
   }
 
+  if (v === 'DOC_NEVER_SHIPPED') {
+    if (o.mex_tracking_id) return { skip: 'holds_mex_parcel' };
+    if (o.paid_basis === 'mex' || o.paid_basis === BASIS) return { skip: `has_basis_${o.paid_basis}` };
+    const what = r.doc_trace === 'label only' ? 'само етикета (Shipment created), MEX не ја подигна' : 'нема MEX пратка и нема статус од курир';
+    const note = `collabBox ${r.own_doc}: книжена, никогаш испратена — ${what}; системско откажување. ${AUDIT}.`;
+    return {
+      rule: 'never_shipped_cancel', target: 'cancelled', ref: r.own_doc, set: cancelSet(o, 'other', note), history: { from: o.status, to: 'cancelled' }, note,
+      evidence: { verdict: 'REVIEW_DOC_NO_PARCEL_MEX_PERIOD', doc: r.own_doc, trace: r.doc_trace, basis_before: o.paid_basis ?? null },
+    };
+  }
+
   if (v === 'SET_CANCELLED_LABEL_ONLY') {
     if (r.rescue_kind) return { skip: 'delivered_later' };
     if (r.mex_status !== 'Shipment created') return { skip: 'not_a_label' };
@@ -140,13 +157,18 @@ async function loadOrders(ids) {
 }
 
 async function main() {
-  const args = parseArgs(process.argv.slice(2), { flags: ['apply', 'outside-quiet-window'], values: ['run', 'actor', 'chunk'] });
+  const args = parseArgs(process.argv.slice(2), { flags: ['apply', 'outside-quiet-window'], values: ['run', 'actor', 'chunk', 'input'] });
   mkGuard();
   await assertRemoteIsMk();
   await requireRepairSchema({ forApply: !!args.apply, needReason: 'duplicate_order' });
   await requireKeepUpdatedAt({ forApply: !!args.apply });
-  if (!existsSync(INPUT)) die(`input not found: ${INPUT} — run: python scripts/history/history_cancels_build.py`);
-  const input = parseCsv(readFileSync(INPUT, 'utf8'));
+  if (args.input && args.input !== 'doc-no-parcel') die('--input: only doc-no-parcel is known');
+  const NEVER = join(ROOT, 'exports', 'repairs', 'doc-no-parcel', 'never-shipped.csv');
+  const path = args.input ? NEVER : INPUT;
+  if (!existsSync(path)) die(`input not found: ${path} — run: python scripts/history/${args.input ? 'doc_no_parcel_build.py' : 'history_cancels_build.py'}`);
+  const input = parseCsv(readFileSync(path, 'utf8')).map((r) => (args.input ? {
+    ...r, audit_verdict: 'DOC_NEVER_SHIPPED', own_doc: r.doc, doc_trace: r.trace, tracking: '', duplicate_of: '', own_doc_flag: '', rescue_kind: '',
+  } : r));
   const ids = [...new Set(input.map((r) => r.order_id))];
   if (ids.length !== input.length) die('the input names an order twice — rebuild it.');
   ok(`input: ${input.length.toLocaleString('de-DE')} orders (no proof / duplicate / label only)`);
@@ -207,16 +229,17 @@ async function main() {
     input: input.length, planned: plan.length, skipped: input.length - plan.length,
     rules: Object.fromEntries(Object.entries(by).map(([k, b]) => [k, { orders: b.orders, eur: Math.round(b.eur) }])),
     left_alone: why, trash: { permanent: falls.permanent, parked: falls.parked },
+    ...(args.input ? { options: { input: args.input } } : {}),
   };
   if (!args.apply) {
     const file = writeCsv(`${KEY}-${fileStamp()}.csv`, csv);
     const run = await recordDryRun({ key: KEY, lines, summary });
     console.log(`\n${green('DRY RUN')} — nothing was written to orders.\n  CSV: ${file}\n  run: ${bold(run.id)}  (hash ${run.hash.slice(0, 12)}…)`);
-    console.log(`  apply: node scripts/repair-history-cancels.mjs --apply --run ${run.id}`);
+    console.log(`  apply: node scripts/repair-history-cancels.mjs --apply --run ${run.id}${args.input ? ` --input ${args.input}` : ''}`);
     return;
   }
 
-  const { done } = await verifyRunForApply({ key: KEY, runId: args.run, lines });
+  const { done } = await verifyRunForApply({ key: KEY, runId: args.run, lines, options: args.input ? { input: args.input } : null });
   requireQuietWindow({ override: !!args['outside-quiet-window'] });
   await requireNoSegmentRecompute('start the apply');
   const actor = await resolveActor(args.actor || 'mile@elyon.com');

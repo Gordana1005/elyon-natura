@@ -31,6 +31,8 @@
  *
  *   node scripts/repair-courier-outcomes.mjs                                  # dry run → CSV + a data_repair_runs id
  *   node scripts/repair-courier-outcomes.mjs --apply --run <id> [--actor mile@elyon.com] [--chunk 200]
+ *   --input doc-no-parcel   the same rules for the documents of a MEX month that have NO MEX parcel under their number
+ *                           (scripts/history/doc_no_parcel_build.py — collabBox's flag is the only courier record)
  *   undo:  node scripts/rollback-repair.mjs --run <id> [--apply]
  *
  * Writes go through the repair kit (≤ 200 orders per transaction, elyon.bulk_repair + keep_updated_at, ledger
@@ -48,7 +50,9 @@ import {
 } from './lib/repair-kit.mjs';
 
 export const KEY = 'courier-outcomes';
-const INPUT_DIR = join(ROOT, 'exports', 'repairs', 'courier-outcomes');
+const INPUT_ROOT = join(ROOT, 'exports', 'repairs');
+/** The builder's folder under exports/repairs: courier-outcomes (other couriers' days) or doc-no-parcel (--input). */
+const INPUT_NAMES = new Set(['courier-outcomes', 'doc-no-parcel']);
 const AUDIT = 'Историска ревизија 03.10.2026';
 /** The owner's ruling of 03.10.2026: the collabBox courier flag proves these parcels. */
 export const BASIS = 'operator_ruling';
@@ -209,12 +213,15 @@ async function loadSiblings(phones) {
 
 // ─── main ───────────────────────────────────────────────────────────────────
 async function main() {
-  const args = parseArgs(process.argv.slice(2), { flags: ['apply', 'outside-quiet-window'], values: ['run', 'actor', 'chunk'] });
+  const args = parseArgs(process.argv.slice(2), { flags: ['apply', 'outside-quiet-window'], values: ['run', 'actor', 'chunk', 'input'] });
   mkGuard();
   await assertRemoteIsMk();
   await requireRepairSchema({ forApply: !!args.apply });
   await requireKeepUpdatedAt({ forApply: !!args.apply });
 
+  const inputName = args.input || 'courier-outcomes';
+  if (!INPUT_NAMES.has(inputName)) die(`--input must be one of: ${[...INPUT_NAMES].join(', ')}`);
+  const INPUT_DIR = join(INPUT_ROOT, inputName);
   const inputPath = join(INPUT_DIR, 'input.csv');
   const ownedPath = join(INPUT_DIR, 'owned-orders.csv');
   if (!existsSync(inputPath) || !existsSync(ownedPath)) die(`input not found in ${INPUT_DIR} — run: python scripts/history/courier_outcomes_build.py`);
@@ -286,18 +293,19 @@ async function main() {
     input: input.length, planned: plan.length, skipped: skipped.length,
     rules: Object.fromEntries(Object.entries(by).map(([k, b]) => [k, { orders: b.orders, eur: Math.round(b.eur) }])),
     left_alone: why, trash: { permanent: falls.permanent, parked: falls.parked, released: trash.released.length }, basis: BASIS,
+    options: { input: inputName },
   };
 
   if (!args.apply) {
     const file = writeCsv(`${KEY}-${fileStamp()}.csv`, csv);
     const run = await recordDryRun({ key: KEY, lines, summary });
     console.log(`\n${green('DRY RUN')} — nothing was written to orders.\n  CSV: ${file}\n  run: ${bold(run.id)}  (hash ${run.hash.slice(0, 12)}…)`);
-    console.log(`  apply: node scripts/repair-courier-outcomes.mjs --apply --run ${run.id}`);
+    console.log(`  apply: node scripts/repair-courier-outcomes.mjs --apply --run ${run.id}${args.input ? ` --input ${inputName}` : ''}`);
     return;
   }
 
   // ── apply
-  const { done } = await verifyRunForApply({ key: KEY, runId: args.run, lines });
+  const { done } = await verifyRunForApply({ key: KEY, runId: args.run, lines, options: args.input ? { input: inputName } : null });
   requireQuietWindow({ override: !!args['outside-quiet-window'] });
   await requireNoSegmentRecompute('start the apply');
   const actor = await resolveActor(args.actor || 'mile@elyon.com');
