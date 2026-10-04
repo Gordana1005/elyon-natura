@@ -125,6 +125,15 @@ async function main() {
     `${l5.length} relinked parcels: each on the customer's own lead (named once, linked in the register, a lead stays Тим Маџари In, never late for it), the old order released`,
     bad5.slice(0, 30));
 
+  // ── L6 — a released holder never loses its OWN earlier parcel (scripts/repair-late-sale-prior-parcel.mjs) ──
+  const l6 = await runSql(`select o.display_id, o.status::text as status, m.tracking_id, m.status_id
+    from public.late_sale_moves l join public.orders o on o.id = l.order_id join public.mex_parcels m on m.order_id = o.id
+   where l.undone_at is null and o.status::text in ('cancelled', 'trashed') and o.mex_tracking_id is null
+     and not exists (select 1 from public.orders n where n.mex_tracking_id = m.tracking_id)`);
+  add('L6', l6.length ? 'FAIL' : 'PASS',
+    `${l6.length} released holders are dead and name nothing while the register links an earlier parcel of their own to them` +
+    (l6.length ? ' — run scripts/repair-late-sale-prior-parcel.mjs' : ''), l6.slice(0, 30));
+
   // ── F1 ──
   const [f1] = await runSql(`select count(*)::int as n from public.collabbox_documents
      where updated_at > now() - interval '14 days' and exists (select 1 from unnest(flags) f where f like 'late_sale_pending:%')`);

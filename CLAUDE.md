@@ -308,7 +308,11 @@ target **explicitly** and verify it before running:
   `late_sale_pending:<case>` and waits for `node scripts/repair-late-sale-relink.mjs` (dry run → `--apply --run`),
   then `repair-late-sale-new-order.mjs --hold <the holders with a candidate>` for the rest. **Not automatic yet:**
   no cron runs the relink, and mex-reconcile still attaches a late parcel to the older order — run the two scripts
-  when `verify-late-sale-new-order.mjs` L1 lists new units (L5 checks the relinks). Undo: `repair-late-sale-new-order.mjs
+  when `verify-late-sale-new-order.mjs` L1 lists new units (L5 checks the relinks). **Known gap in
+  `late_sale_release()`:** a holder that was cancelled / trashed at the arrival but had shipped an EARLIER parcel of
+  its own is released naming nothing while the register still links that parcel to it — check L6 fails, and
+  `scripts/repair-late-sale-prior-parcel.mjs` gives the parcel back (MEX 7 → returned, 2 → paid, 8 → named only; 5
+  orders on 04.10, run `c2d292a4…`, undo `rollback-repair.mjs --run`). Undo: `repair-late-sale-new-order.mjs
   --rollback <run>` / `repair-late-sale-relink.mjs --rollback <run>`.
 - **The no-parcel rule is 10 DAYS, in APPLY mode (owner, 28.09; `20260938000000`,
   `app_settings.no_parcel_rule.days = 10` — was 7 until 28.09).** An AlterCPA approval with no MEX
