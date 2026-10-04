@@ -387,6 +387,21 @@ target **explicitly** and verify it before running:
   psql (`exports/db-move/…/pgpass.conf`), the dry-run row recorded from the saved plan. The nightly cron keeps its 75
   days. **The live `mex_parcels` register is NOT complete:** ~4.000 parcels of dead leads (and the whole history before
   10.11.2025) are only in the audit's MEX dump — the linker cannot see them until the register is backfilled.
+- **The MEX register's HISTORY, phase 1 (04.10.2026 06:35; migration `20260948000200`, run
+  `dd935dad-1ca9-4c30-9991-2c1fc9353e72`):** the whole MEX dump (453.204 parcels since 18.03.2020) sits in the private
+  `mex_history_stage` (parsed with the live sync's `mex_parse_ts` / `mex_parse_cod`; loader
+  `scripts/history/mex_history_stage_load.py`). **Only parcels an order OWNS BY NUMBER entered `mex_parcels`, each
+  ALREADY LINKED** (`history_run` = the run, `link_method = 'collabbox_import'`, `raw` NULL), in the same transaction as
+  the ONE update of its order: 176.523 paid × MEX 2 (COD > 0) got the seven `mex_*` facts and `paid_basis = 'mex'`,
+  20.137 returned × MEX 7 hold their parcel (3 price-0 replacements were unlinked again — a price-0 order never takes
+  a history parcel, `…0210`). The standing COD rule then re-priced 824 linked orders whose COD differs from the CRM
+  price (`repair-cod-price.mjs`, run `2e319fd4-96f7-41e9-a6a4-3ec2e1050bde`). Status, `sold_*`, price and `updated_at` were never touched; the bucket goes
+  `paid_legacy` → `paid`, the value becomes the COD (equal for 99,5 %), a cash day appears (the cash clock and Наплата
+  (MEX) now show history). **No unlinked history row exists — never insert one without teaching the readers first**
+  (`insights_sale_rows` `mo`, `insights_overview` `mf`, `insights_cash_rows`, `leaderboard_web_live`,
+  `collabbox_feed_state`, `web_phone_link_candidates` would count it as a MEX-only sale or pair it by phone). Plan +
+  ledger `mex_history_links`; undo `call public.mex_history_link_undo('<run>')` (psql — the Management API gateway cuts
+  at ~100 s). Phase 2 (not done): the dead leads' parcels by phone + date, the parcels with no order at all.
 - **Test phones 070123456 / 23123123** are never in any report (owner, 28.09): their CRM orders are
   deleted (snapshot first); their web orders and MEX parcels stay in the shop/register but are
   excluded from every figure.
