@@ -52,7 +52,7 @@ import {
 export const KEY = 'courier-outcomes';
 const INPUT_ROOT = join(ROOT, 'exports', 'repairs');
 /** The builder's folder under exports/repairs: courier-outcomes (other couriers' days) or doc-no-parcel (--input). */
-const INPUT_NAMES = new Set(['courier-outcomes', 'doc-no-parcel']);
+const INPUT_NAMES = new Set(['courier-outcomes', 'doc-no-parcel', 'jon-express-late-sale']);
 const AUDIT = 'Историска ревизија 03.10.2026';
 /** The owner's ruling of 03.10.2026: the collabBox courier flag proves these parcels. */
 export const BASIS = 'operator_ruling';

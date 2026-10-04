@@ -1,0 +1,451 @@
+-- 20260948000230_mex_history_lead_links_modes.sql
+-- mex_history_lead_plan / mex_history_lead_apply gain a MODE (04.10.2026) — the functions of 20260948000220 regenerated
+-- by scripts/history/gen_history_lead_links_migration.mjs from the same live bodies (plan b10edcd117de60bc11056a14be971a29, apply
+-- d2c70e3321bbafd94a45f348442f6aa2); the rules stay the live linker's.
+--   'lead'     (default) the 9110 / 9103 parcels of mex_history_stage — unchanged, run 4984cd76 of 04.10.2026.
+--   'pre9110'  the lead parcels of the time BEFORE the 9110 series (it began on 19.06.2025): the AlterCPA sales were
+--              dispatched under teleshop numbers (9100 / 9102 / НАА). The folder of such a parcel is unknown, so this
+--              mode only PROVES an AlterCPA order that is already paid or returned on the same phone (−10 d … +1 d,
+--              unique both ways, ≤ 72 h or the manual list) — it never revives a cancelled / trashed lead.
+-- Run through psql with:  set enable_nestloop = off; set work_mem = '96MB';   (the planner under-estimates the parcels)
+--   select public.mex_history_lead_plan('pre9110');
+--   select public.mex_history_lead_apply(true, '<dry-run id>', '<hash>', 'pre9110');
+
+DROP FUNCTION IF EXISTS public.mex_history_lead_apply(boolean, uuid, text);
+DROP FUNCTION IF EXISTS public.mex_history_lead_plan();
+
+CREATE OR REPLACE FUNCTION public.mex_history_lead_plan(p_mode text DEFAULT 'lead')
+ RETURNS jsonb
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+WITH prm AS MATERIALIZED (
+  SELECT 0 AS days,                                   -- the whole history: no look-back window
+         coalesce($1::text, 'lead') AS mode,          -- 'lead' = the 9110 / 9103 parcels · 'pre9110' = the lead parcels before the 9110 series
+         now() AS at,
+         72 AS product_hours,                         -- rule 4: a parcel this long after the order must carry its product
+         public.report_excluded_phone8s() AS ex8
+),
+-- rule 1: an orphan BIO NATURAL lead parcel (9110 Нарачка LEADS / 9103 LEADS-OUT, or BIO NATURAL with no series)
+pr AS MATERIALIZED (
+  SELECT p.tracking_id, p.account, p.series, p.status_id, p.status_name, p.cod_mkd, p.phone8,
+         p.created_at_mex, p.delivered_at, p.returned_at, p.last_update_at
+    FROM (SELECT s.tracking_id, s.account,
+                 CASE WHEN s.tracking_id ~ '^[0-9]{3}-[0-9]{4}-' THEN split_part(s.tracking_id, '-', 2) END AS series,
+                 s.status_id, s.status_name, s.cod_mkd, s.phone8, s.created_at_mex,
+                 CASE WHEN s.status_id = 2 THEN s.last_update_at END AS delivered_at,
+                 CASE WHEN s.status_id = 7 THEN s.last_update_at END AS returned_at,
+                 s.last_update_at
+            FROM public.mex_history_stage s
+           WHERE s.status_id IN (2, 7)                 -- a FINAL parcel only: delivered or returned
+             AND s.created_at_mex IS NOT NULL AND s.last_update_at IS NOT NULL
+             AND NOT EXISTS (SELECT 1 FROM public.mex_parcels mp WHERE mp.tracking_id = s.tracking_id)
+             AND NOT EXISTS (SELECT 1 FROM public.orders n WHERE n.external_order_id = s.tracking_id)) p, prm
+   WHERE coalesce(p.cod_mkd, 0) > 0
+     AND p.phone8 ~ '^[0-9]{8}$'
+     AND (   (prm.mode = 'lead'    AND p.series IN ('9110', '9103'))
+          -- before the 9110 series began (19.06.2025) the AlterCPA sales were dispatched under teleshop numbers
+          OR (prm.mode = 'pre9110' AND (p.series IN ('9100', '9102') OR p.tracking_id ~ '^[0-9]{3}-НАА-')
+                                   AND p.created_at_mex < timestamptz '2025-06-19 00:00:00+02'))
+     AND NOT (p.phone8 = ANY (prm.ex8))
+     AND NOT EXISTS (SELECT 1 FROM public.orders n WHERE n.mex_tracking_id = p.tracking_id)
+),
+-- rule 2: a candidate order — same last 8 digits (the idx_orders_phone_last8 expression), created from 10 days
+-- before to 1 day after the parcel, holding no parcel, a real priced sale, not a /calls disposition, not a duplicate
+cand AS MATERIALIZED (
+  SELECT pr.tracking_id, o.id AS order_id, o.display_id, o.status::text AS status, o.sale_source, o.source_type,
+         o.created_at AS order_at, o.product_name, o.paid_basis,
+         round((extract(epoch FROM pr.created_at_mex - o.created_at) / 3600.0)::numeric, 1) AS hours
+    FROM pr
+    JOIN public.orders o
+      ON right(regexp_replace(o.customer_phone, '[^0-9]', '', 'g'), 8) = pr.phone8
+     AND o.created_at BETWEEN pr.created_at_mex - interval '10 days' AND pr.created_at_mex + interval '1 day'
+   WHERE o.mex_tracking_id IS NULL
+     AND coalesce(o.price, 0) > 0
+     AND NOT public.is_synthetic_product_name(o.product_name)
+     AND o.sale_source_detail IS DISTINCT FROM 'disposition'
+     AND o.status::text IN ('pending', 'call_again', 'confirmed', 'paid', 'shipped', 'returned', 'cancelled', 'trashed')
+     AND ((SELECT mode FROM prm) = 'lead' OR (o.sale_source = 'altercpa' AND o.status::text IN ('paid', 'returned')))
+),
+-- rule 2b (owner 01.10.2026, 20260944000980): a candidate that cannot be the parcel's sale is dropped BEFORE the
+-- uniqueness check — the order was decided as a DUPLICATE (the CRM's / the bridge's / the mirror's own mark, never
+-- free text), or it is an AlterCPA lead that came into existence after the parcel was booked in collabBox
+cx AS MATERIALIZED (
+  SELECT c.tracking_id, c.order_id,
+         CASE WHEN c.status IN ('cancelled', 'trashed')
+                   AND (   (c.status = 'cancelled' AND o.cancellation_reason = 'duplicate_order')
+                        OR (c.status = 'trashed' AND o.trash_reason = 'duplicate_order')
+                        OR (c.status = 'trashed' AND o.trash_reason = 'other'
+                            AND o.trash_reason_notes ~* '^duplicate( —|$)')
+                        OR EXISTS (SELECT 1 FROM public.altercpa_leads l
+                                    WHERE l.order_id = c.order_id AND l.decision = 'trashed' AND l.reason = 7))
+              THEN 'duplicate'
+              WHEN bk.at IS NOT NULL
+                   AND (o.sale_source_detail IN ('bridge', 'history') OR la.n > 0)
+                   AND CASE WHEN o.sale_source_detail = 'history'
+                                 OR (o.created_at AT TIME ZONE 'Europe/Skopje')::time = time '14:00:00'
+                            THEN (least(o.created_at, la.lead_at) AT TIME ZONE 'Europe/Skopje')::date
+                                 > (bk.at AT TIME ZONE 'Europe/Skopje')::date
+                            ELSE least(o.created_at, la.lead_at) > bk.at END
+              THEN 'after_booking' END AS excluded
+    FROM cand c
+    JOIN public.orders o ON o.id = c.order_id
+    LEFT JOIN LATERAL (SELECT min(l.created_remote) AS lead_at, count(*) AS n FROM public.altercpa_leads l
+                        WHERE l.order_id = c.order_id) la ON true
+    LEFT JOIN LATERAL (SELECT public.collabbox_sale_at(d.doc_at, d.booked_at) AS at FROM public.collabbox_documents d
+                        WHERE d.doc_number = c.tracking_id AND d.vanished_at IS NULL AND d.doc_at IS NOT NULL
+                        LIMIT 1) bk ON true
+),
+ck AS MATERIALIZED (   -- the candidates rule 3 counts: every candidate rule 2b kept
+  SELECT c.* FROM cand c
+   WHERE NOT EXISTS (SELECT 1 FROM cx WHERE cx.tracking_id = c.tracking_id AND cx.order_id = c.order_id
+                                        AND cx.excluded IS NOT NULL)
+),
+pc AS (SELECT c.tracking_id, count(*)::int AS n FROM ck c GROUP BY 1),
+oc AS (SELECT c.order_id, count(*)::int AS n FROM ck c GROUP BY 1),
+-- rule 3: unique both ways
+uq AS MATERIALIZED (
+  SELECT c.* FROM ck c
+    JOIN pc ON pc.tracking_id = c.tracking_id
+    JOIN oc ON oc.order_id = c.order_id
+   WHERE pc.n = 1 AND oc.n = 1
+),
+-- rule 4 (only a pair whose parcel came more than 72 h after the order): every text the rule compares,
+-- folded below by ONE expression — the order's product parts word by word (orders.product_name split on
+-- , + ; and every order_items line), the collabBox document's goods lines (name + product_name), the stop words
+txt AS (
+  SELECT 'o'::text AS kind, u.order_id::text AS ref, pt.part_no AS part, w.word_no AS word, w.w AS raw
+    FROM uq u
+    CROSS JOIN prm
+    CROSS JOIN LATERAL (
+      SELECT row_number() OVER (ORDER BY s.part) AS part_no, s.part
+        FROM (SELECT btrim(x) AS part FROM regexp_split_to_table(coalesce(u.product_name, ''), '[,+;]') AS x
+              UNION
+              SELECT btrim(i.product_name) FROM public.order_items i WHERE i.order_id = u.order_id) s
+       WHERE coalesce(s.part, '') <> '') pt
+    CROSS JOIN LATERAL regexp_split_to_table(pt.part, '[^[:alpha:]]+') WITH ORDINALITY AS w(w, word_no)
+   WHERE u.hours > prm.product_hours
+  UNION ALL
+  SELECT 'l', u.tracking_id, l.line_no::int, 0, coalesce(l.e ->> 'name', '') || ' ' || coalesce(l.e ->> 'product_name', '')
+    FROM uq u
+    CROSS JOIN prm
+    JOIN public.collabbox_documents d ON d.doc_number = u.tracking_id
+    CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(d.payload -> 'lines') = 'array'
+                                                 THEN d.payload -> 'lines' ELSE '[]'::jsonb END) WITH ORDINALITY AS l(e, line_no)
+   WHERE u.hours > prm.product_hours
+     AND coalesce(l.e ->> 'role', 'goods') = 'goods'
+  UNION ALL
+  SELECT 's', s.w, 0, 0, s.w
+    FROM unnest(ARRAY['bionatural', 'bio', 'natural', 'natura', 'naturatherapy', 'therapy', 'terapija', 'tab', 'tabs',
+                      'tablet', 'tablets', 'tableti', 'tableta', 'tbl', 'cps', 'caps', 'kaps', 'capsule', 'capsules',
+                      'kapsuli', 'kapsula', 'forte', 'complex', 'kompleks', 'gel', 'krem', 'krema', 'cream', 'plus',
+                      'max', 'extra', 'ekstra', 'premium', 'becker', 'set', 'paket', 'pack', 'mast', 'sirup', 'syrup',
+                      'kapki', 'drops', 'sprej', 'spray', 'ampuli', 'original', 'new', 'nov', 'nova', 'kom', 'komada',
+                      'kutija', 'kutii', 'box', 'dostava', 'delivery']) AS s(w)
+),
+-- THE fold: Macedonian Cyrillic → Latin (public.mk_geo_norm: digraphs, accents), letters only, then the same
+-- spelling bridges on both sides (c/q → k, w → v, y → i, x → ks) and doubled letters collapsed
+fold AS (
+  SELECT t.kind, t.ref, t.part, t.word,
+         regexp_replace(replace(translate(regexp_replace(public.mk_geo_norm(t.raw), '[^a-z]', '', 'g'),
+                                          'cqwy', 'kkvi'), 'x', 'ks'), '(.)\1+', '\1', 'g') AS k
+    FROM txt t
+),
+stop AS (SELECT DISTINCT f.k FROM fold f WHERE f.kind = 's'),
+lines AS (
+  SELECT f.ref AS tracking_id, string_agg(f.k, '' ORDER BY f.part) AS txt
+    FROM fold f WHERE f.kind = 'l' GROUP BY f.ref
+),
+parts AS (   -- an order part's key words: ≥ 3 letters, not a stop word
+  SELECT f.ref AS order_id, f.part, array_agg(f.k ORDER BY f.word) AS keys
+    FROM fold f
+   WHERE f.kind = 'o' AND length(f.k) >= 3 AND NOT EXISTS (SELECT 1 FROM stop s WHERE s.k = f.k)
+   GROUP BY f.ref, f.part
+),
+prod AS (
+  SELECT u.tracking_id,
+         (SELECT l.txt FROM lines l WHERE l.tracking_id = u.tracking_id) AS line_txt,
+         EXISTS (SELECT 1 FROM parts p WHERE p.order_id = u.order_id::text
+                    AND length(array_to_string(p.keys, '')) >= 4) AS has_key,
+         EXISTS (SELECT 1 FROM parts p, lines l
+                  WHERE p.order_id = u.order_id::text AND l.tracking_id = u.tracking_id
+                    AND length(array_to_string(p.keys, '')) >= 4
+                    AND NOT EXISTS (SELECT 1 FROM unnest(p.keys) kw WHERE position(kw IN l.txt) = 0)) AS matches
+    FROM uq u, prm
+   WHERE u.hours > prm.product_hours
+),
+dec AS (
+  SELECT u.*, pr.account, pr.series, pr.status_id, pr.status_name, pr.cod_mkd, pr.created_at_mex,
+         pr.delivered_at, pr.returned_at, pr.last_update_at,
+         CASE WHEN u.hours <= (SELECT product_hours FROM prm) THEN NULL
+              WHEN pd.line_txt IS NULL OR pd.line_txt = '' OR NOT pd.has_key THEN 'product_unknown'
+              WHEN NOT pd.matches THEN 'product_differs' END AS product_fail,
+         EXISTS (SELECT 1 FROM public.agent_payout_items ap WHERE ap.order_id = u.order_id) AS in_payout,
+         EXISTS (SELECT 1 FROM public.affiliate_leads al WHERE al.order_id = u.order_id) AS affiliate_lead
+    FROM uq u
+    JOIN pr ON pr.tracking_id = u.tracking_id
+    LEFT JOIN prod pd ON pd.tracking_id = u.tracking_id
+),
+lk AS (   -- the links, and the status each order takes from MEX
+  SELECT d.*,
+         CASE WHEN d.hours <= (SELECT product_hours FROM prm) THEN 'phone_date' ELSE 'phone_date_product' END AS kind,
+         CASE WHEN d.status_id = 2 THEN CASE WHEN d.status = 'paid'
+                                             THEN CASE WHEN d.paid_basis = 'mex' THEN NULL ELSE 'basis' END
+                                             ELSE 'paid' END
+              WHEN d.status_id = 7 THEN CASE WHEN d.status = 'returned' THEN NULL ELSE 'returned' END
+              WHEN d.status_id = 8 THEN NULL     -- label only (MEX 8 = за пакување): linked, the status waits for the pickup
+              ELSE CASE WHEN d.status = 'shipped' THEN NULL ELSE 'shipped' END END AS target
+    FROM dec d
+   WHERE d.product_fail IS NULL AND NOT d.in_payout AND NOT d.affiliate_lead
+),
+lk2 AS (   -- the plan line the hash covers: order:LL_kind:status>target:tracking
+  SELECT l.*, l.order_id::text || ':LL_' || l.kind || ':' || l.status || '>' || coalesce(l.target, '=') || ':' || l.tracking_id AS line
+    FROM lk l
+),
+mn AS (   -- every parcel with a candidate that is not linked, and why (a parcel rule 2b emptied stays listed)
+  SELECT p.tracking_id, pr.series, pr.status_id, pr.status_name, pr.cod_mkd, pr.created_at_mex,
+         CASE WHEN pc.n IS NULL THEN 'only_excluded_candidates'
+              WHEN pc.n > 1 THEN 'ambiguous_orders'
+              WHEN oc.n > 1 THEN 'order_fits_other_parcels'
+              WHEN d.in_payout THEN 'in_payout'
+              WHEN d.affiliate_lead THEN 'affiliate_lead'
+              ELSE d.product_fail END AS reason,
+         (SELECT jsonb_agg(jsonb_build_object('order_id', c.order_id, 'display_id', c.display_id, 'status', c.status,
+                                              'sale_source', c.sale_source, 'hours', c.hours, 'product', c.product_name,
+                                              'excluded', x.excluded)
+                           ORDER BY c.order_at)
+            FROM cand c JOIN cx x ON x.tracking_id = c.tracking_id AND x.order_id = c.order_id
+           WHERE c.tracking_id = p.tracking_id) AS orders
+    FROM (SELECT DISTINCT c.tracking_id FROM cand c) p
+    JOIN pr ON pr.tracking_id = p.tracking_id
+    LEFT JOIN pc ON pc.tracking_id = p.tracking_id
+    LEFT JOIN ck c1 ON c1.tracking_id = p.tracking_id AND pc.n = 1
+    LEFT JOIN oc ON oc.order_id = c1.order_id
+    LEFT JOIN dec d ON d.tracking_id = p.tracking_id
+   WHERE NOT EXISTS (SELECT 1 FROM lk2 x WHERE x.tracking_id = p.tracking_id)
+)
+SELECT jsonb_build_object(
+  'rule', 'link-lead-parcels v2 (owner 01.10.2026): phone8 + created −10 d … +1 d, duplicates and AlterCPA leads created after the collabBox booking dropped, unique both ways, product by name after 72 h',
+  'days', (SELECT days FROM prm),
+  'at', (SELECT at FROM prm),
+  'hash', encode(sha256(convert_to(coalesce((SELECT string_agg(x.line, E'\n' ORDER BY x.line COLLATE "C") FROM lk2 x), ''), 'UTF8')), 'hex'),
+  'counts', jsonb_build_object(
+     'parcels', (SELECT count(*) FROM pr),
+     'with_candidates', (SELECT count(DISTINCT c.tracking_id) FROM cand c),
+     'pairs', (SELECT count(*) FROM cand),
+     'excluded', (SELECT count(*) FROM cx WHERE cx.excluded IS NOT NULL),
+     'excluded_by_reason', (SELECT coalesce(jsonb_object_agg(z.k, z.n), '{}'::jsonb)
+                              FROM (SELECT excluded AS k, count(*) AS n FROM cx WHERE excluded IS NOT NULL GROUP BY 1) z),
+     'unique', (SELECT count(*) FROM uq),
+     'link', (SELECT count(*) FROM lk2),
+     'link_cod_mkd', (SELECT coalesce(sum(cod_mkd), 0) FROM lk2),
+     'manual', (SELECT count(*) FROM mn),
+     'by_kind', (SELECT coalesce(jsonb_object_agg(z.k, z.n), '{}'::jsonb) FROM (SELECT kind AS k, count(*) AS n FROM lk2 GROUP BY 1) z),
+     'by_move', (SELECT coalesce(jsonb_object_agg(z.k, z.n), '{}'::jsonb)
+                   FROM (SELECT status || '>' || coalesce(target, '=') AS k, count(*) AS n FROM lk2 GROUP BY 1) z),
+     'by_mex_status', (SELECT coalesce(jsonb_object_agg(z.k, z.n), '{}'::jsonb)
+                         FROM (SELECT coalesce(status_id::text, '?') AS k, count(*) AS n FROM lk2 GROUP BY 1) z),
+     'manual_by_reason', (SELECT coalesce(jsonb_object_agg(z.k, z.n), '{}'::jsonb) FROM (SELECT reason AS k, count(*) AS n FROM mn GROUP BY 1) z)),
+  'link', (SELECT coalesce(jsonb_agg(jsonb_build_object(
+              'tracking_id', x.tracking_id, 'order_id', x.order_id, 'display_id', x.display_id, 'status', x.status,
+              'target', x.target, 'kind', x.kind, 'hours', x.hours, 'sale_source', x.sale_source, 'product', x.product_name,
+              'account', x.account, 'series', x.series, 'mex_status_id', x.status_id, 'mex_status_name', x.status_name,
+              'cod_mkd', x.cod_mkd, 'created_at_mex', x.created_at_mex, 'delivered_at', x.delivered_at,
+              'returned_at', x.returned_at, 'last_update_at', x.last_update_at, 'order_at', x.order_at, 'line', x.line)
+            ORDER BY x.created_at_mex, x.tracking_id), '[]'::jsonb) FROM lk2 x),
+  'manual', (SELECT coalesce(jsonb_agg(jsonb_build_object(
+              'tracking_id', m.tracking_id, 'series', m.series, 'mex_status_id', m.status_id, 'mex_status_name', m.status_name,
+              'cod_mkd', m.cod_mkd, 'created_at_mex', m.created_at_mex, 'reason', m.reason, 'orders', m.orders)
+            ORDER BY m.created_at_mex, m.tracking_id), '[]'::jsonb) FROM mn m))
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.mex_history_lead_apply(p_apply boolean DEFAULT false, p_run uuid DEFAULT NULL::uuid, p_expect_hash text DEFAULT NULL::text, p_mode text DEFAULT 'lead')
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+ SET "TimeZone" TO 'UTC'
+AS $function$
+DECLARE
+  c_key     CONSTANT text := 'mex-history-lead-links';
+  c_actor   CONSTANT text := 'System (mex-history-lead-links)';
+  _plan     jsonb;
+  _hash     text;
+  _trigger  text := coalesce(nullif(current_setting('elyon.link_trigger', true), ''), 'manual');
+  _today    date := (now() AT TIME ZONE 'Europe/Skopje')::date;
+  _run      uuid;
+  _rr       public.data_repair_runs%ROWTYPE;
+  _it       jsonb;
+  _oid      uuid;
+  _tr       text;
+  _target   text;
+  _o        public.orders%ROWTYPE;
+  _p        public.mex_parcels%ROWTYPE;
+  _row      bigint;
+  _res      text;
+  _move     text;
+  _applied  integer := 0;
+  _moved    integer := 0;
+  _skipped  jsonb := '[]'::jsonb;
+BEGIN
+  _plan := public.mex_history_lead_plan(p_mode);
+  IF NOT coalesce(p_apply, false) THEN
+    RETURN _plan;
+  END IF;
+  IF current_setting('transaction_read_only') = 'on' THEN
+    RAISE EXCEPTION 'link_lead_parcels: apply needs a read-write session — call it with p_apply => false here'
+      USING ERRCODE = '25006';
+  END IF;
+  IF NOT pg_try_advisory_xact_lock(hashtext('public.link_lead_parcels')) THEN   -- the same lock as the live linker: never both at once
+    RAISE EXCEPTION 'link_lead_parcels: another apply holds the run lock' USING ERRCODE = '55P03';
+  END IF;
+  _hash := _plan ->> 'hash';
+  IF p_expect_hash IS NOT NULL AND p_expect_hash IS DISTINCT FROM _hash THEN
+    RAISE EXCEPTION 'link_lead_parcels: the plan changed since it was reviewed (hash % ≠ %) — dry-run again',
+      left(_hash, 12), left(p_expect_hash, 12) USING ERRCODE = '40001';
+  END IF;
+
+  IF p_run IS NOT NULL THEN
+    SELECT * INTO _rr FROM public.data_repair_runs WHERE id = p_run FOR UPDATE;
+    IF NOT FOUND OR _rr.key IS DISTINCT FROM c_key OR NOT _rr.dry_run OR _rr.applied_at IS NOT NULL THEN
+      RAISE EXCEPTION 'link_lead_parcels: run % is not an unapplied % dry run', p_run, c_key USING ERRCODE = '22023';
+    END IF;
+    IF _rr.candidate_hash IS DISTINCT FROM _hash THEN
+      RAISE EXCEPTION 'link_lead_parcels: the plan changed since dry run % (hash % ≠ %) — dry-run again',
+        p_run, left(_hash, 12), left(coalesce(_rr.candidate_hash, ''), 12) USING ERRCODE = '40001';
+    END IF;
+    _run := p_run;
+  ELSE
+    INSERT INTO public.data_repair_runs (key, dry_run, candidate_hash, summary)
+    VALUES (c_key, false, _hash, jsonb_build_object('trigger', _trigger, 'run_day', _today, 'days', _plan -> 'days', 'source', 'mex_history_stage', 'mode', p_mode,
+                                                    'counts', _plan -> 'counts', 'manual', _plan -> 'manual'))
+    RETURNING id INTO _run;
+  END IF;
+
+  PERFORM set_config('elyon.bulk_repair', 'on', true);       -- no paid / returned bells for a batch of links
+  PERFORM set_config('elyon.keep_updated_at', 'on', true);   -- /call-agains reads orders.updated_at as the last call
+
+  FOR _it IN SELECT e FROM jsonb_array_elements(_plan -> 'link') AS e LOOP
+    _oid    := (_it ->> 'order_id')::uuid;
+    _tr     := _it ->> 'tracking_id';
+    _target := _it ->> 'target';
+    BEGIN
+      SELECT * INTO _o FROM public.orders WHERE id = _oid FOR UPDATE;
+      IF _o.id IS NULL
+         OR _o.status::text IS DISTINCT FROM (_it ->> 'status')
+         OR _o.mex_tracking_id IS NOT NULL
+         OR EXISTS (SELECT 1 FROM public.mex_parcels x WHERE x.tracking_id = _tr)
+         OR NOT EXISTS (SELECT 1 FROM public.mex_history_stage s WHERE s.tracking_id = _tr)
+         OR EXISTS (SELECT 1 FROM public.orders x WHERE x.mex_tracking_id = _tr) THEN
+        _moved := _moved + 1;
+        _skipped := _skipped || jsonb_build_array(jsonb_build_object(
+                      'tracking_id', _tr, 'display_id', _it ->> 'display_id', 'why', 'moved since the plan'));
+        CONTINUE;
+      END IF;
+
+      -- the parcel enters the register from the stage only now that the order is proven untouched; mex_link_parcel
+      -- links it a few statements below, and a failure of this pair rolls the insert back with it
+      INSERT INTO public.mex_parcels (
+        tracking_id, account, status_id, status_name, cod_mkd,
+        receiver_name, receiver_city, receiver_phone_raw, phone8, sender_reference,
+        created_at_mex, last_update_at, delivered_at, returned_at, first_seen_at, last_seen_at, history_run)
+      SELECT s.tracking_id, s.account, s.status_id, s.status_name, s.cod_mkd,
+             s.receiver_name, s.receiver_city, s.receiver_phone_raw, s.phone8, s.sender_reference,
+             s.created_at_mex, s.last_update_at,
+             CASE WHEN s.status_id = 2 THEN s.last_update_at END,
+             CASE WHEN s.status_id = 7 THEN s.last_update_at END, s.dump_at, s.dump_at, _run
+        FROM public.mex_history_stage s WHERE s.tracking_id = _tr;
+      SELECT * INTO _p FROM public.mex_parcels WHERE tracking_id = _tr FOR UPDATE;
+
+      INSERT INTO public.data_repair_rows (run_id, order_id, rule, before, evidence)
+      VALUES (_run, _oid, 'LL_' || (_it ->> 'kind'), public.link_lead_parcels_snapshot(_oid, _tr),
+              jsonb_build_object('key', c_key, 'order', _it ->> 'display_id', 'tracking', _tr, 'kind', _it ->> 'kind',
+                                 'hours', _it -> 'hours', 'target', _target, 'parcel_status', _p.status_id,
+                                 'cod_mkd', _p.cod_mkd, 'trigger', _trigger, 'line', _it ->> 'line', 'unit', 'll:' || _tr))
+      RETURNING id INTO _row;
+
+      -- MEX decides (the repair-kit's mexStatusSet): disposition fields cleared as mex-reconcile clears them
+      IF _target = 'paid' THEN
+        UPDATE public.orders
+           SET status = 'paid', paid_at = coalesce(_p.delivered_at, _p.last_update_at, _p.created_at_mex, now()),
+               returned_at = NULL, paid_basis = 'mex',
+               cancellation_reason = NULL, cancellation_reason_notes = NULL, cancelled_at = NULL,
+               trash_reason = NULL, trash_reason_notes = NULL, trashed_at = NULL
+         WHERE id = _oid;
+      ELSIF _target = 'returned' THEN
+        UPDATE public.orders
+           SET status = 'returned', returned_at = coalesce(_p.returned_at, _p.last_update_at, now()),
+               paid_at = NULL, paid_basis = NULL,
+               cancellation_reason = NULL, cancellation_reason_notes = NULL, cancelled_at = NULL,
+               trash_reason = NULL, trash_reason_notes = NULL, trashed_at = NULL
+         WHERE id = _oid;
+      ELSIF _target = 'shipped' THEN
+        UPDATE public.orders
+           SET status = 'shipped', shipped_at = coalesce(_p.created_at_mex, now()),
+               paid_at = NULL, paid_basis = NULL,
+               cancellation_reason = NULL, cancellation_reason_notes = NULL, cancelled_at = NULL,
+               trash_reason = NULL, trash_reason_notes = NULL, trashed_at = NULL
+         WHERE id = _oid;
+      ELSIF _target = 'basis' THEN
+        UPDATE public.orders SET paid_basis = 'mex' WHERE id = _oid;
+      END IF;
+
+      _res := public.mex_link_parcel(_tr, _oid, 'repair', false);
+      IF _res IS DISTINCT FROM 'linked' AND _res IS DISTINCT FROM 'already' THEN
+        RAISE EXCEPTION 'mex_link_parcel % → %', _tr, coalesce(_res, 'null');
+      END IF;
+
+      IF _target IN ('paid', 'returned', 'shipped') THEN
+        INSERT INTO public.order_history (order_id, from_status, to_status, changed_by, changed_by_name)
+        VALUES (_oid, _o.status, _target::public.order_status, NULL, c_actor);
+      END IF;
+
+      _move := CASE WHEN _target IN ('paid', 'returned', 'shipped')
+                    THEN format('The status follows MEX: %s → %s.', _o.status, _target)
+                    WHEN _target = 'basis' THEN 'The order was already paid; MEX now proves it (paid basis mex).'
+                    WHEN _p.status_id = 8 THEN 'The parcel is at MEX 8 (за пакување): the status waits for the courier''s pickup.'
+                    ELSE format('The status (%s) already matches MEX.', _o.status) END;
+      INSERT INTO public.order_notes (order_id, text, author_id, author_name)
+      VALUES (_oid,
+              format('MEX parcel %s (%s, %s, COD %s ден, created %s) linked by the phone + date rule (owner 01.10.2026): '
+                     || 'the same customer by the last 8 digits, this order created %s, %s h before the parcel — the only '
+                     || 'order that fits the parcel, and it fits no other parcel%s. %s Nothing was sent to AlterCPA. '
+                     || 'The parcel comes from the full MEX register of 03.10.2026. Run %s (undo: scripts/rollback-repair.mjs --run %s, then delete the run''s unlinked history rows).',
+                     _tr, coalesce(_p.account, '?'), trim(coalesce(_p.status_id::text, '?') || ' ' || coalesce(_p.status_name, '')),
+                     replace(to_char(_p.cod_mkd, 'FM999,999,990'), ',', '.'),
+                     to_char(_p.created_at_mex AT TIME ZONE 'Europe/Skopje', 'DD.MM.YYYY HH24:MI'),
+                     to_char(_o.created_at AT TIME ZONE 'Europe/Skopje', 'DD.MM.YYYY HH24:MI'),
+                     _it ->> 'hours',
+                     CASE WHEN _it ->> 'kind' = 'phone_date_product'
+                          THEN '; more than 72 h apart, so the product was checked by name: collabBox document ' || _tr || ' carries it'
+                          ELSE '' END,
+                     _move, left(_run::text, 8), _run),
+              NULL, c_actor);
+
+      UPDATE public.data_repair_rows SET after = public.link_lead_parcels_snapshot(_oid, _tr) WHERE id = _row;
+      _applied := _applied + 1;
+    EXCEPTION WHEN OTHERS THEN
+      _skipped := _skipped || jsonb_build_array(jsonb_build_object(
+                    'tracking_id', _tr, 'display_id', _it ->> 'display_id', 'why', left(SQLERRM, 300)));
+    END;
+  END LOOP;
+
+  UPDATE public.data_repair_runs
+     SET applied_at = now(),
+         summary = coalesce(summary, '{}'::jsonb) || jsonb_build_object('apply', jsonb_build_object(
+                     'trigger', _trigger, 'run_day', _today, 'applied', _applied, 'moved', _moved,
+                     'skipped', _skipped, 'at', now()))
+   WHERE id = _run;
+
+  RETURN jsonb_build_object('ok', true, 'run_id', _run, 'hash', _hash, 'trigger', _trigger, 'days', _plan -> 'days',
+                            'counts', _plan -> 'counts', 'applied', _applied, 'moved', _moved, 'skipped', _skipped);
+END;
+$function$
+;
+
+REVOKE ALL ON FUNCTION public.mex_history_lead_plan(text)                        FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.mex_history_lead_apply(boolean, uuid, text, text)  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.mex_history_lead_plan(text)                       TO service_role;
+GRANT EXECUTE ON FUNCTION public.mex_history_lead_apply(boolean, uuid, text, text) TO service_role;

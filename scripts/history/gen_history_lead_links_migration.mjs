@@ -22,7 +22,7 @@ import { createHash } from 'node:crypto';
 import { managementSql } from '../lib/target.mjs';
 import { ROOT } from '../lib/repair-kit.mjs';
 
-const OUT = join(ROOT, 'supabase', 'migrations', '20260948000220_mex_history_lead_links.sql');
+const OUT = join(ROOT, 'supabase', 'migrations', '20260948000230_mex_history_lead_links_modes.sql');
 const md5 = (s) => createHash('md5').update(String(s).replace(/\r/g, '')).digest('hex');
 const def = async (sig) => (await managementSql(`select pg_get_functiondef('${sig}'::regprocedure) as d`, { readOnly: true }))[0].d.replace(/\r/g, '');
 function swap(text, from, to, what) {
@@ -37,8 +37,9 @@ const livePlanMd5 = md5(plan), liveApplyMd5 = md5(apply);
 
 // ── the plan ───────────────────────────────────────────────────────────────────────────────────────────────────
 plan = swap(plan, 'CREATE OR REPLACE FUNCTION public.link_lead_parcels_plan(p_days integer DEFAULT 75)',
-  'CREATE OR REPLACE FUNCTION public.mex_history_lead_plan()', 'plan signature');
-plan = swap(plan, 'SELECT greatest(1, least(coalesce($1::integer, 75), 400)) AS days,', 'SELECT 0 AS days,                                   -- the whole history: no look-back window', 'plan days');
+  "CREATE OR REPLACE FUNCTION public.mex_history_lead_plan(p_mode text DEFAULT 'lead')", 'plan signature');
+plan = swap(plan, 'SELECT greatest(1, least(coalesce($1::integer, 75), 400)) AS days,', `SELECT 0 AS days,                                   -- the whole history: no look-back window
+         coalesce($1::text, 'lead') AS mode,          -- 'lead' = the 9110 / 9103 parcels · 'pre9110' = the lead parcels before the 9110 series`, 'plan days');
 plan = swap(plan, `    FROM public.mex_parcels p, prm
    WHERE p.order_id IS NULL
      AND coalesce(p.cod_mkd, 0) > 0
@@ -60,17 +61,27 @@ plan = swap(plan, `    FROM public.mex_parcels p, prm
              AND NOT EXISTS (SELECT 1 FROM public.orders n WHERE n.external_order_id = s.tracking_id)) p, prm
    WHERE coalesce(p.cod_mkd, 0) > 0
      AND p.phone8 ~ '^[0-9]{8}$'
-     AND p.series IN ('9110', '9103')
+     AND (   (prm.mode = 'lead'    AND p.series IN ('9110', '9103'))
+          -- before the 9110 series began (19.06.2025) the AlterCPA sales were dispatched under teleshop numbers
+          OR (prm.mode = 'pre9110' AND (p.series IN ('9100', '9102') OR p.tracking_id ~ '^[0-9]{3}-НАА-')
+                                   AND p.created_at_mex < timestamptz '2025-06-19 00:00:00+02'))
      AND NOT (p.phone8 = ANY (prm.ex8))
      AND NOT EXISTS (SELECT 1 FROM public.orders n WHERE n.mex_tracking_id = p.tracking_id)`, 'plan parcel source');
+// 'pre9110': the parcel's folder is unknown, so it may only PROVE an AlterCPA sale that is already paid / returned —
+// it never revives a dead lead (a dead order is revived only by its own folder's parcel)
+plan = swap(plan, `     AND o.sale_source_detail IS DISTINCT FROM 'disposition'
+     AND o.status::text IN ('pending', 'call_again', 'confirmed', 'paid', 'shipped', 'returned', 'cancelled', 'trashed')`,
+`     AND o.sale_source_detail IS DISTINCT FROM 'disposition'
+     AND o.status::text IN ('pending', 'call_again', 'confirmed', 'paid', 'shipped', 'returned', 'cancelled', 'trashed')
+     AND ((SELECT mode FROM prm) = 'lead' OR (o.sale_source = 'altercpa' AND o.status::text IN ('paid', 'returned')))`, 'plan candidate scope');
 // the plan's 'rule' label stays the live one: the rules ARE the live ones (the run's key names the source)
 
 // ── the apply ──────────────────────────────────────────────────────────────────────────────────────────────────
 apply = swap(apply, 'CREATE OR REPLACE FUNCTION public.link_lead_parcels(p_apply boolean DEFAULT false, p_days integer DEFAULT 75, p_run uuid DEFAULT NULL::uuid, p_expect_hash text DEFAULT NULL::text)',
-  'CREATE OR REPLACE FUNCTION public.mex_history_lead_apply(p_apply boolean DEFAULT false, p_run uuid DEFAULT NULL::uuid, p_expect_hash text DEFAULT NULL::text)', 'apply signature');
+  "CREATE OR REPLACE FUNCTION public.mex_history_lead_apply(p_apply boolean DEFAULT false, p_run uuid DEFAULT NULL::uuid, p_expect_hash text DEFAULT NULL::text, p_mode text DEFAULT 'lead')", 'apply signature');
 apply = swap(apply, `c_key     CONSTANT text := 'link-lead-parcels';`, `c_key     CONSTANT text := 'mex-history-lead-links';`, 'apply key');
 apply = swap(apply, `c_actor   CONSTANT text := 'System (link-lead-parcels)';`, `c_actor   CONSTANT text := 'System (mex-history-lead-links)';`, 'apply actor');
-apply = swap(apply, '_plan := public.link_lead_parcels_plan(p_days);', '_plan := public.mex_history_lead_plan();', 'apply plan call');
+apply = swap(apply, '_plan := public.link_lead_parcels_plan(p_days);', '_plan := public.mex_history_lead_plan(p_mode);', 'apply plan call');
 apply = swap(apply, `IF NOT pg_try_advisory_xact_lock(hashtext('public.link_lead_parcels')) THEN`, `IF NOT pg_try_advisory_xact_lock(hashtext('public.link_lead_parcels')) THEN   -- the same lock as the live linker: never both at once`, 'apply lock');
 apply = swap(apply, `      SELECT * INTO _o FROM public.orders WHERE id = _oid FOR UPDATE;
       SELECT * INTO _p FROM public.mex_parcels WHERE tracking_id = _tr FOR UPDATE;
@@ -105,37 +116,33 @@ apply = swap(apply, `      INSERT INTO public.data_repair_rows (run_id, order_id
       INSERT INTO public.data_repair_rows (run_id, order_id, rule, before, evidence)
       VALUES (_run, _oid, 'LL_' || (_it ->> 'kind'), public.link_lead_parcels_snapshot(_oid, _tr),`, 'apply parcel insert');
 apply = swap(apply, `VALUES (c_key, false, _hash, jsonb_build_object('trigger', _trigger, 'run_day', _today, 'days', _plan -> 'days',`,
-  `VALUES (c_key, false, _hash, jsonb_build_object('trigger', _trigger, 'run_day', _today, 'days', _plan -> 'days', 'source', 'mex_history_stage',`, 'apply run summary');
+  `VALUES (c_key, false, _hash, jsonb_build_object('trigger', _trigger, 'run_day', _today, 'days', _plan -> 'days', 'source', 'mex_history_stage', 'mode', p_mode,`, 'apply run summary');
 apply = swap(apply, `'Run %s (undo: scripts/rollback-repair.mjs --run %s).',`, `'The parcel comes from the full MEX register of 03.10.2026. Run %s (undo: scripts/rollback-repair.mjs --run %s, then delete the run''s unlinked history rows).',`, 'apply note');
 
-const sql = `-- 20260948000220_mex_history_lead_links.sql
--- The phone + date law on the HISTORY parcels (owner law 01.10.2026; owner 04.10.2026: "заврши сè, базата да е чиста").
---
--- The live linker (public.link_lead_parcels_plan / link_lead_parcels, cron 21:02) only sees the unlinked rows of
--- mex_parcels of the last 75 days, and the live register is incomplete: about 4.200 cancelled / trashed leads have a
--- delivered or returned 9110 parcel that exists only in the full MEX register (mex_history_stage). These two functions
--- are the LIVE bodies (md5 of the sources they were generated from: plan ${livePlanMd5}, apply ${liveApplyMd5}) with
--- the parcel source swapped for the stage — generated by scripts/history/gen_history_lead_links_migration.mjs, never
--- written by hand, so the rules are the cron's own:
---   a 9110 / 9103 parcel at MEX 2 / 7, COD > 0, that the register does not hold and no order names → the ONE order on
---   its last-8 phone created −10 d … +1 d that holds no parcel, is a real priced sale, not a disposition and not a
---   duplicate, and fits no other such parcel; more than 72 h apart the collabBox document must carry the product by
---   name (no document in the ledger → the manual list). The order then follows MEX: 2 → paid (basis mex), 7 → returned.
--- The parcel row is inserted from the stage (history_run = the run) only for a pair that is applied, and linked by
--- mex_link_parcel in the same sub-transaction — no unlinked history row is ever left behind.
--- One transaction for the whole apply (as the live function): run it through psql, the Management API gateway cuts a
--- request at ~100 s.   select public.mex_history_lead_apply(true, '<dry-run id>', '<hash>');
--- Undo: node scripts/rollback-repair.mjs --run <id> --apply, then
---       delete from public.mex_parcels where history_run = '<id>' and order_id is null;
+const sql = `-- 20260948000230_mex_history_lead_links_modes.sql
+-- mex_history_lead_plan / mex_history_lead_apply gain a MODE (04.10.2026) — the functions of 20260948000220 regenerated
+-- by scripts/history/gen_history_lead_links_migration.mjs from the same live bodies (plan ${livePlanMd5}, apply
+-- ${liveApplyMd5}); the rules stay the live linker's.
+--   'lead'     (default) the 9110 / 9103 parcels of mex_history_stage — unchanged, run 4984cd76 of 04.10.2026.
+--   'pre9110'  the lead parcels of the time BEFORE the 9110 series (it began on 19.06.2025): the AlterCPA sales were
+--              dispatched under teleshop numbers (9100 / 9102 / НАА). The folder of such a parcel is unknown, so this
+--              mode only PROVES an AlterCPA order that is already paid or returned on the same phone (−10 d … +1 d,
+--              unique both ways, ≤ 72 h or the manual list) — it never revives a cancelled / trashed lead.
+-- Run through psql with:  set enable_nestloop = off; set work_mem = '96MB';   (the planner under-estimates the parcels)
+--   select public.mex_history_lead_plan('pre9110');
+--   select public.mex_history_lead_apply(true, '<dry-run id>', '<hash>', 'pre9110');
+
+DROP FUNCTION IF EXISTS public.mex_history_lead_apply(boolean, uuid, text);
+DROP FUNCTION IF EXISTS public.mex_history_lead_plan();
 
 ${plan};
 
 ${apply};
 
-REVOKE ALL ON FUNCTION public.mex_history_lead_plan()                      FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.mex_history_lead_apply(boolean, uuid, text)  FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.mex_history_lead_plan()                     TO service_role;
-GRANT EXECUTE ON FUNCTION public.mex_history_lead_apply(boolean, uuid, text) TO service_role;
+REVOKE ALL ON FUNCTION public.mex_history_lead_plan(text)                        FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.mex_history_lead_apply(boolean, uuid, text, text)  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.mex_history_lead_plan(text)                       TO service_role;
+GRANT EXECUTE ON FUNCTION public.mex_history_lead_apply(boolean, uuid, text, text) TO service_role;
 `;
 writeFileSync(OUT, sql.replace(/\r/g, ''), 'utf8');
 console.log(`written ${OUT} (${sql.length} chars) — plan md5 ${livePlanMd5}, apply md5 ${liveApplyMd5}`);

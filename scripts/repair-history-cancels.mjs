@@ -14,6 +14,10 @@
  *                          entry, still no proof of its own → cancelled like no_proof_cancel.
  *   label_only_cancel      SET_CANCELLED_LABEL_ONLY — the parcel never left MEX status 8 (a label MEX never picked
  *                          up, checked months later) → cancelled.
+ *   no_proof_cancel_trace  (--input trace, 04.10.2026) paid, nothing in its own window, and every parcel / document on the
+ *                          phone within ±45 days is owned by ANOTHER order of the customer (or is a web parcel) →
+ *                          no shipment of its own → cancelled. An unclaimed parcel / document within ±45 days is left
+ *                          alone (possibly its own late shipment). scripts/history/trace_outside_window_build.py.
  *   never_shipped_cancel   (--input doc-no-parcel, 04.10.2026) paid, a collabBox document, NO MEX parcel under its
  *                          number in a month MEX carried ≥ 90 % of the folder, and collabBox itself holds no courier
  *                          flag for it (or only "Shipment created") while the other documents of that day have theirs
@@ -118,6 +122,17 @@ export function classify(r, o, { twin = null, reg = null, payout = new Set() } =
     };
   }
 
+  if (v === 'TRACE_OTHER_ORDER') {
+    if (o.mex_tracking_id) return { skip: 'holds_mex_parcel' };
+    if (PROVEN.has(o.paid_basis)) return { skip: `has_basis_${o.paid_basis}` };
+    if (!["another order's", 'web parcel only', 'nothing now'].includes(r.trace)) return { skip: `trace_${String(r.trace).replace(/\W+/g, '_')}` };
+    const note = `Нема своја MEX пратка ни порачка во Collab — трагите на телефонот во ±45 дена се на други нарачки на клиентот; системско откажување. ${AUDIT}.`;
+    return {
+      rule: 'no_proof_cancel_trace', target: 'cancelled', ref: '', set: cancelSet(o, 'other', note), history: { from: o.status, to: 'cancelled' }, note,
+      evidence: { verdict: 'REVIEW_TRACE_OUTSIDE_WINDOW', trace: r.trace },
+    };
+  }
+
   if (v === 'DOC_NEVER_SHIPPED') {
     if (o.mex_tracking_id) return { skip: 'holds_mex_parcel' };
     if (o.paid_basis === 'mex' || o.paid_basis === BASIS) return { skip: `has_basis_${o.paid_basis}` };
@@ -162,13 +177,17 @@ async function main() {
   await assertRemoteIsMk();
   await requireRepairSchema({ forApply: !!args.apply, needReason: 'duplicate_order' });
   await requireKeepUpdatedAt({ forApply: !!args.apply });
-  if (args.input && args.input !== 'doc-no-parcel') die('--input: only doc-no-parcel is known');
-  const NEVER = join(ROOT, 'exports', 'repairs', 'doc-no-parcel', 'never-shipped.csv');
-  const path = args.input ? NEVER : INPUT;
-  if (!existsSync(path)) die(`input not found: ${path} — run: python scripts/history/${args.input ? 'doc_no_parcel_build.py' : 'history_cancels_build.py'}`);
-  const input = parseCsv(readFileSync(path, 'utf8')).map((r) => (args.input ? {
-    ...r, audit_verdict: 'DOC_NEVER_SHIPPED', own_doc: r.doc, doc_trace: r.trace, tracking: '', duplicate_of: '', own_doc_flag: '', rescue_kind: '',
-  } : r));
+  const INPUTS = {
+    'doc-no-parcel': { path: join(ROOT, 'exports', 'repairs', 'doc-no-parcel', 'never-shipped.csv'), builder: 'doc_no_parcel_build.py',
+      map: (r) => ({ ...r, audit_verdict: 'DOC_NEVER_SHIPPED', own_doc: r.doc, doc_trace: r.trace, tracking: '', duplicate_of: '', own_doc_flag: '', rescue_kind: '' }) },
+    trace: { path: join(ROOT, 'exports', 'repairs', 'history-cancels', 'trace-outside-window.csv'), builder: 'trace_outside_window_build.py',
+      map: (r) => ({ ...r, audit_verdict: 'TRACE_OTHER_ORDER', tracking: '', duplicate_of: '', own_doc: '', own_doc_flag: '', rescue_kind: '' }) },
+  };
+  if (args.input && !INPUTS[args.input]) die(`--input: one of ${Object.keys(INPUTS).join(', ')}`);
+  const src = args.input ? INPUTS[args.input] : { path: INPUT, builder: 'history_cancels_build.py', map: (r) => r };
+  const path = src.path;
+  if (!existsSync(path)) die(`input not found: ${path} — run: python scripts/history/${src.builder}`);
+  const input = parseCsv(readFileSync(path, 'utf8')).map(src.map);
   const ids = [...new Set(input.map((r) => r.order_id))];
   if (ids.length !== input.length) die('the input names an order twice — rebuild it.');
   ok(`input: ${input.length.toLocaleString('de-DE')} orders (no proof / duplicate / label only)`);
