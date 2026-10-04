@@ -291,6 +291,25 @@ target **explicitly** and verify it before running:
   cancelled / trashed ≤ 10 days before → that order's own sale (revived, booking day); otherwise (> 10 days, or the
   old order already sold) → a NEW order on the booking day, the seller's team decides (Маџари people → Тим Маџари
   Out), the old order untouched.
+- **Late sales — the history is APPLIED and the rule is LIVE (owner, 04.10.2026 07:26 "run everything right now";
+  `20260948000300` / `0310` / `0320`).** The classification looks at the order that HOLDS the late parcel; before a
+  NEW order is made, the same customer's OTHER leads are asked first: where the phone + date linker's own rules
+  (`link_lead_parcels_plan` — created −10 d … +1 d around the parcel, no parcel, 2b exclusions, unique both ways,
+  product by name after 72 h) pick ONE lead, the parcel is THAT lead's sale (revived, Тим Маџари In) — never a new
+  Тим Маџари Out order. `late_sale_relink()` = `late_sale_release()` of the holder + the lead takes the parcel as the
+  linker writes a link + the live writer re-credits the document; ledger `late_sale_moves.relink_*` (`new_order_id`
+  stays NULL — `late_sale_undo` deletes a split's new order, a relink is undone only by `late_sale_relink_undo`).
+  History: 551 late sales → new orders (runs `9becbd14…`, `7e938c06…`: Тим Маџари Out 426 · Тим Центар Out 93 ·
+  Менаџмент 30 · Тим Центар In 2), 117 parcels → their own lead (run `92e559cb…`: 82 cancelled → paid, 25 → returned),
+  19 Jon Express old orders then paid / returned by their courier flag (run `34077dc9…`); 73 stay for a person
+  (`exports/neworder/late-sale-za-rachna-proverka-2026-10-04.csv`: no collabBox document 27, several possible leads
+  25, …). **Forward:** `app_settings.late_sale_new_order.mode = 'apply'` since 04.10 07:48 — the writer splits a late
+  holder only when `late_sale_lead_candidates(holder, tracking) = 0`; with a candidate the document is flagged
+  `late_sale_pending:<case>` and waits for `node scripts/repair-late-sale-relink.mjs` (dry run → `--apply --run`),
+  then `repair-late-sale-new-order.mjs --hold <the holders with a candidate>` for the rest. **Not automatic yet:**
+  no cron runs the relink, and mex-reconcile still attaches a late parcel to the older order — run the two scripts
+  when `verify-late-sale-new-order.mjs` L1 lists new units (L5 checks the relinks). Undo: `repair-late-sale-new-order.mjs
+  --rollback <run>` / `repair-late-sale-relink.mjs --rollback <run>`.
 - **The no-parcel rule is 10 DAYS, in APPLY mode (owner, 28.09; `20260938000000`,
   `app_settings.no_parcel_rule.days = 10` — was 7 until 28.09).** An AlterCPA approval with no MEX
   parcel 10 days later is cancelled nightly at 21:10 Skopje (reason code stays `no_parcel_7d`); a

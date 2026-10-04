@@ -108,6 +108,23 @@ async function main() {
     (l4.length ? ` — released as ${Object.entries(l4.reduce((m, r) => ({ ...m, [r.released]: (m[r.released] || 0) + 1 }), {})).map(([k, v]) => `${k} ${v}`).join(', ')}` : ''),
     [...holds, ...(list ? moved : [])].slice(0, 40));
 
+  // ── L5 — the relinks (20260948000300): the late parcel went to the customer's own lead, not to a new order ──
+  const l5 = await runSql(`select l.display_id, l.relink_display_id, l.tracking,
+      o.mex_tracking_id is not distinct from l.tracking as holder_still_holds,
+      n.mex_tracking_id is not distinct from l.tracking as lead_holds,
+      (select m.order_id = l.relink_order_id from public.mex_parcels m where m.tracking_id = l.tracking) as register_ok,
+      (select count(*) from public.orders x where x.mex_tracking_id = l.tracking)::int as namers,
+      n.sale_source = 'altercpa' as lead_is_lead,
+      public.cohort_order_source(n.sale_source, n.sale_source_detail, n.mex_tracking_id, n.dept_override) as dept,
+      public.late_sale_case_of(n.id, l.tracking) as lead_case
+    from public.late_sale_moves l join public.orders o on o.id = l.order_id join public.orders n on n.id = l.relink_order_id
+   where l.undone_at is null and l.relink_order_id is not null`);
+  const bad5 = l5.filter((r) => r.holder_still_holds || !r.lead_holds || !r.register_ok || r.namers !== 1
+    || (r.lead_is_lead && r.dept !== 'altercpa') || ['dead_late', 'stale', 'second_sale'].includes(r.lead_case));
+  add('L5', bad5.length ? 'FAIL' : (l5.length ? 'PASS' : 'INFO'),
+    `${l5.length} relinked parcels: each on the customer's own lead (named once, linked in the register, a lead stays Тим Маџари In, never late for it), the old order released`,
+    bad5.slice(0, 30));
+
   // ── F1 ──
   const [f1] = await runSql(`select count(*)::int as n from public.collabbox_documents
      where updated_at > now() - interval '14 days' and exists (select 1 from unnest(flags) f where f like 'late_sale_pending:%')`);
