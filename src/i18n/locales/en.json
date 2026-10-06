@@ -145,6 +145,7 @@
     "insights": "Insights",
     "operations": "Operations",
     "shops": "Shops",
+    "loyalty": "Loyalty",
     "orders": "Orders",
     "inboundLeads": "Inbound Leads",
     "assigner": "Assigner",
@@ -177,6 +178,38 @@
       "productsAds": "Products & Ads"
     },
     "altercpa": "Affiliates (AlterCPA)"
+  },
+  "loyalty": {
+    "intro": "Sure points from delivered Team Centar Out parcels since 2026, NaturaTherapy products only.",
+    "summary": "{{customers}} customers · {{points}} points from {{orders}} parcels",
+    "badge": "also in the shop",
+    "hint": "This phone also has a shop profile. The points stay only here, so they cannot be spent twice.",
+    "search": "Name, phone or order",
+    "empty": "No customers for this search.",
+    "missing": "This customer has no sure points.",
+    "noAccess": "Owners, administrators and managers can see loyalty.",
+    "noAccessDesc": "Ask an owner if you need this page.",
+    "detailTitle": "The customer's parcels",
+    "close": "Close",
+    "col": {
+      "customer": "Customer",
+      "phone": "Phone",
+      "points": "Points",
+      "orders": "Parcels",
+      "shop": "Shop",
+      "day": "Day",
+      "order": "Order",
+      "nt": "NaturaTherapy"
+    },
+    "tile": {
+      "customers": "Customers",
+      "points": "Points",
+      "orders": "Parcels",
+      "onShop": "Also in the shop"
+    },
+    "page": "Page {{page}} of {{pages}}",
+    "prev": "Previous",
+    "next": "Next"
   },
   "titles": {
     "myPerformance": "My Performance",

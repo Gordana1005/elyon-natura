@@ -145,6 +145,7 @@
     "insights": "Vështrime",
     "operations": "Operacionet",
     "shops": "Dyqanet",
+    "loyalty": "Besnikëria",
     "orders": "Porositë",
     "inboundLeads": "Lead-et hyrëse",
     "assigner": "Caktuesi",
@@ -177,6 +178,38 @@
       "productsAds": "Produkte & Reklama"
     },
     "altercpa": "Afiliatët (AlterCPA)"
+  },
+  "loyalty": {
+    "intro": "Pikë të sigurta nga dërgesat e dorëzuara të Ekipit Qendra Out, nga 2026, vetëm produkte NaturaTherapy.",
+    "summary": "{{customers}} klientë · {{points}} pikë nga {{orders}} dërgesa",
+    "badge": "edhe në dyqan",
+    "hint": "Ky telefon ka profil edhe në dyqan. Pikët mbeten vetëm këtu, që të mos shpenzohen dy herë.",
+    "search": "Emër, telefon ose porosi",
+    "empty": "Nuk ka klientë për këtë kërkim.",
+    "missing": "Ky klient nuk ka pikë të sigurta.",
+    "noAccess": "Besnikërinë e shohin pronarët, administratorët dhe menaxherët.",
+    "noAccessDesc": "Kërkoni qasje te një pronar.",
+    "detailTitle": "Dërgesat e klientit",
+    "close": "Mbyll",
+    "col": {
+      "customer": "Klienti",
+      "phone": "Telefoni",
+      "points": "Pikët",
+      "orders": "Dërgesat",
+      "shop": "Dyqani",
+      "day": "Dita",
+      "order": "Porosia",
+      "nt": "NaturaTherapy"
+    },
+    "tile": {
+      "customers": "Klientë",
+      "points": "Pikë",
+      "orders": "Dërgesa",
+      "onShop": "Edhe në dyqan"
+    },
+    "page": "Faqja {{page}} nga {{pages}}",
+    "prev": "E mëparshmja",
+    "next": "Tjetra"
   },
   "titles": {
     "myPerformance": "Performanca ime",

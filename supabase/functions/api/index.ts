@@ -123,6 +123,9 @@ import * as ST from "./skopjeTime.ts";
 // /shops — Продавници (owner 02.10.2026, docs/SHOPS.md): the routes, `at` / window params, owner / counts
 // access and the *_mkd strip (pure, shops.test.ts); the reports are migration 20260946000200.
 import * as SHOPS from "./shops.ts";
+// /loyalty — Лојалност (owner 06.10.2026): sure Тим Центар Out points. Pure route + access
+// in loyalty.ts (loyalty.test.ts); the ledger is migration 20261006120000.
+import * as LOYALTY from "./loyalty.ts";
 // Targeted call scripts (owner 02.10.2026, docs/CALL-SCRIPTS.md): the pure matcher shared with the UI
 // (groups, tiers, substitution, lint — callScriptMatch.test.ts) and the api helpers (parsers, the call
 // context, privacy, coverage, the library — callScriptsAdmin.test.ts). Writers: migration 20260947000100.
@@ -19937,6 +19940,25 @@ async function handleRequest(req: Request): Promise<Response> {
       // a revenue viewer (administrator) keeps the sales, loses every cost / margin key.
       if (shAccess === "owner" && !(await canSeeMargins(user.id))) return json(ALV.stripShopsMargins(shBody));
       return json(shBody);
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // GET /api/loyalty · /api/loyalty/phone/:phone8 — Лојалност
+    // (owner 06.10.2026; SQL 20261006120000; pure half loyalty.ts)
+    //   owner / admin / manager → the point numbers (managers included)
+    //   everyone else           → 403
+    // A phone that is not 8 digits, or that has no sure grant, is 404.
+    // ══════════════════════════════════════════════════════════════
+    if (req.method === "GET" && segments[0] === "loyalty") {
+      const lyAccess = LOYALTY.loyaltyAccess(await isBusinessOwner(user.id), isAdminOrManager);
+      if (lyAccess === "forbidden") return json({ error: "Forbidden" }, 403);
+      const lyRoute = LOYALTY.parseLoyaltyRoute(path, url.searchParams);
+      if (!lyRoute.ok) return json({ error: lyRoute.error }, lyRoute.status);
+      const lyCall = LOYALTY.loyaltyRpc(lyRoute.route);
+      const { data: lyData, error: lyErr } = await adminClient.rpc(lyCall.fn, lyCall.args);
+      if (lyErr) return json({ error: `${lyCall.fn}: ${sanitizeDbError(lyErr)}` }, 500);
+      if (lyData == null) return json({ error: "Not found" }, 404);
+      return json(lyData);
     }
 
     // ══════════════════════════════════════════════════════════════

@@ -49,6 +49,9 @@ const AlterCpaPage = lazy(() => import("./pages/AlterCpaPage"));
 // Продавници (owner 02.10.2026, docs/SHOPS.md): owners + managers + admins; the page itself
 // decides (useShopsAccess) — no module key, the api refuses everyone else.
 const ShopsPage = lazy(() => import("./pages/ShopsPage"));
+// Лојалност (owner 06.10.2026): owners + managers + admins; the page decides
+// (useLoyaltyAccess) — no module key, the api refuses everyone else.
+const LoyaltyPage = lazy(() => import("./pages/LoyaltyPage"));
 // Affiliate (webmaster) portal — the only pages an 'affiliate' login can see.
 const AffiliateDashboardPage = lazy(() => import("./pages/AffiliateDashboardPage"));
 const AffiliateOffersCataloguePage = lazy(() => import("./pages/AffiliateOffersCataloguePage"));
@@ -150,6 +153,7 @@ const App = () => (
                 <Route path="/insights" element={<ProtectedRoute moduleKey="insights" moduleKeysAny={["performance", "agent_activity", "call_activity"]} allowBusinessOwner><ManagementInsightsPage /></ProtectedRoute>} />
                 <Route path="/operations" element={<ProtectedRoute moduleKey="operations"><OperationsPage /></ProtectedRoute>} />
                 <Route path="/shops" element={<ProtectedRoute><ShopsPage /></ProtectedRoute>} />
+                <Route path="/loyalty" element={<ProtectedRoute><LoyaltyPage /></ProtectedRoute>} />
                 <Route path="/lead-distribution" element={<ProtectedRoute moduleKey="lead_distribution"><LeadDistributionPage /></ProtectedRoute>} />
                 <Route path="/calls" element={<ProtectedRoute moduleKey="calls"><CallsPage /></ProtectedRoute>} />
                 {/* Recordings merged into Call History (2026-06). Keep the old path working. */}

@@ -7,7 +7,7 @@ import { usePermissions, useInsightsAccess } from '@/contexts/PermissionsContext
 // Phosphor (owner, 02.10.2026 — "better icons"): duotone at rest, filled on the page you are on.
 import {
   AddressBookIcon, ArrowsSplitIcon, CalendarCheckIcon, CaretDownIcon, ChartLineUpIcon, ClockCounterClockwiseIcon,
-  GearSixIcon, HandshakeIcon, HeadsetIcon, HeartbeatIcon, LightningIcon, ListChecksIcon, MegaphoneIcon,
+  GearSixIcon, HandshakeIcon, HeadsetIcon, HeartbeatIcon, LightningIcon, ListChecksIcon, MedalIcon, MegaphoneIcon,
   NotePencilIcon, PackageIcon, PhoneOutgoingIcon, PlugsIcon, PulseIcon, ScrollIcon, ShoppingBagOpenIcon,
   SidebarSimpleIcon, SquaresFourIcon, StorefrontIcon, UsersThreeIcon, WarehouseIcon, XIcon,
 } from '@phosphor-icons/react';
@@ -20,6 +20,7 @@ import { PresenceHeaderButton } from '@/components/presence/PresenceHeaderButton
 import { PBX_CONFIG } from '@/lib/voip/pbxConfig';
 import { navItemActive } from '@/lib/navActive';
 import { useShopsAccess } from '@/components/shops/useShopsAccess';
+import { useLoyaltyAccess } from '@/components/loyalty/useLoyaltyAccess';
 import { BRAND, BRAND_LOGO } from '@/lib/brand';
 
 interface NavItem {
@@ -80,6 +81,8 @@ const sections: NavSection[] = [
       { titleKey: 'nav.operations', path: '/operations', icon: PulseIcon, moduleKey: 'operations' },
       // Продавници (owner 02.10.2026): owners + managers + admins — decided by useShopsAccess() below.
       { titleKey: 'nav.shops', path: '/shops', icon: StorefrontIcon, moduleKey: 'shops' },
+      // Лојалност (owner 06.10.2026): the same circle. useLoyaltyAccess() below — not a module key.
+      { titleKey: 'nav.loyalty', path: '/loyalty', icon: MedalIcon, moduleKey: 'loyalty' },
     ],
   },
   {
@@ -143,6 +146,7 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?:
   const { canAccessModule } = usePermissions();
   const insightsAccess = useInsightsAccess();
   const shopsAccess = useShopsAccess();
+  const loyaltyAccess = useLoyaltyAccess();
 
   const isMobile = useIsMobile();
   // a tablet (768–1023 px) starts with the icon rail, so the page keeps its width; the user can expand it
@@ -176,6 +180,7 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?:
         if (item.path === '/insights') return insightsAccess.any;
         // Shops: owners see money, managers the same pages counted; nobody else (the api refuses them).
         if (item.path === '/shops') return shopsAccess.any;
+        if (item.path === '/loyalty') return loyaltyAccess.any;
         return canAccessModule(item.moduleKey) ||
           (item.moduleKeysAny?.some(k => canAccessModule(k)) ?? false);
       });
