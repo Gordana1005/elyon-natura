@@ -48,6 +48,7 @@ import { AddressFields } from '@/components/address/AddressFields';
 import { useAddressResolution, EMPTY_ADDRESS, type AddressDraft } from '@/components/address/useAddressResolution';
 import { CancellationReasonPicker } from '@/components/CancellationReasonPicker';
 import { OrderOriginPanel } from '@/components/OrderOriginPanel';
+import { HeldBadge } from '@/components/orders/OrdersList';
 import { TrashReasonPicker } from '@/components/TrashReasonPicker';
 import { isCancelSelectionValid } from '@/lib/cancellationReasons';
 import { isTrashSelectionValid } from '@/lib/trashReasons';
@@ -1286,6 +1287,10 @@ export function OrderModal({ open, onClose, data, contextType, readOnly = false 
             </section>
 
             {/* F) Origin & proof — admin / manager (GET /orders/:id origin) */}
+            {/* the approval hold (owner 15.10.2026): this approval counts nowhere until MEX / collabBox shows it */}
+            {!isLead && fullOrderData?.count_held_since && !fullOrderData?.mex_tracking_id && (
+              <div><HeldBadge o={fullOrderData} /></div>
+            )}
             {!isLead && <OrderOriginPanel origin={fullOrderData?.origin} status={fullOrderData?.status} />}
 
             {/* Notes */}

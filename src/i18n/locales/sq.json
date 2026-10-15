@@ -2748,6 +2748,10 @@
       "provisional": "(përkohësisht)",
       "provisionalTitle": "Departamenti është i përkohshëm — e vendos profili MEX i pakos pasi shitja të regjistrohet në collabBox."
     },
+    "held": {
+      "label": "Nuk llogaritet — pret MEX / Collab",
+      "title": "Miratim që nuk llogaritet në asnjë raport (TV, Paneli, Insights, bonusi) derisa MEX të marrë pakon ose shitja të regjistrohet në collabBox. Nëse nuk regjistrohet brenda 5 ditëve, sistemi e anulon."
+    },
     "quick": {
       "label": "Pamje e shpejtë",
       "all": "Të gjitha",

@@ -441,6 +441,9 @@ export interface CohortExceptions {
    *  — no parcel (to pack, or shipped in the CRM only) or a parcel still at MEX 8 — is in no bucket.
    *  Absent = an older database that does not send it (the buckets are then the old ones). */
   expire_before?: string;
+  /** 20261016150000: orders.count_held_since exists — a held approval (Dragana / Nina, owner 15.10.2026) is in
+   *  no bucket. Absent = an older database without the column. */
+  count_hold?: boolean;
 }
 
 /** insights_cohort_order_exceptions(p_from, p_to_end) → validated lists, or
@@ -473,6 +476,7 @@ export function parseCohortExceptions(raw: unknown): CohortExceptions | null {
     if (typeof r.expire_before !== "string" || Number.isNaN(Date.parse(r.expire_before))) return null;
     out.expire_before = new Date(Date.parse(r.expire_before)).toISOString();
   }
+  if (r.count_hold === true) out.count_hold = true;
   return out;
 }
 
@@ -569,6 +573,9 @@ export interface CohortOrdersFilter {
   or: string[];
   /** Orders never in the list (`id=not.in.(…)`, supabase-js `.not("id", "in", …)`). */
   notIds: string[];
+  /** Only orders with `count_held_since IS NULL` (supabase-js `.is("count_held_since", null)`) — the approval
+   *  hold (20261016150000); set only when the database sends count_hold. */
+  heldNull?: true;
 }
 
 /** supabase-js sends the whole filter in the URL; past ~8 KB the gateway refuses
@@ -609,5 +616,8 @@ export function cohortOrdersFilter(
   const buckets = cohortBucketOrFilter(keys, ex.web_claimed, fresh);
   if (buckets) or.push(buckets);
   if (window) or.push(cohortSaleWindowOrFilter(window.fromIso, window.toEndIso, ex.ledger));
-  return { or, notIds: ex.test_orders.filter((x) => UUID_RE.test(x)) };
+  const out: CohortOrdersFilter = { or, notIds: ex.test_orders.filter((x) => UUID_RE.test(x)) };
+  // the approval hold (owner 15.10.2026): a held approval counts in no bucket
+  if (ex.count_hold) out.heldNull = true;
+  return out;
 }

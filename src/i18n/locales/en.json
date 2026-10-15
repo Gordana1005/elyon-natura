@@ -2748,6 +2748,10 @@
       "provisional": "(provisional)",
       "provisionalTitle": "The department is provisional — the MEX profile of the parcel decides it once the sale is entered in collabBox."
     },
+    "held": {
+      "label": "Not counted — waiting for MEX / Collab",
+      "title": "An approval that counts in no report (TV, Dashboard, Insights, bonus) until MEX takes the parcel or the sale is entered in collabBox. If it is not entered within 5 days, the system cancels it."
+    },
     "quick": {
       "label": "Quick view",
       "all": "All",

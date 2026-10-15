@@ -389,6 +389,18 @@ Alerts v2 (`20260944000300`, applied in the quiet window): the per-10-leads / pe
 triggers are dropped; one hourly `altercpa_guarantee_sweep()` sends a digest at 18:xx, "unreachable"
 12–20 h, the day's close at 21:xx and the settled verdict at 10:xx — see `elyon-notifications`.
 
+### The approval hold — guarantee approvals never count as sales (owner 15.10.2026, `20261016150000`)
+The guarantee pushes some operators to approve leads that are no sale: on 16.09–15.10 Nina (#3917) approved 86 % and
+Dragana (#3117) 87 % of what they decided; of their approvals older than 10 days 69 % never reached MEX and ~20 % were
+paid (the other operators: 6 % / 70 %). So an approval by an operator in `app_settings.approval_hold.altercpa_users`
+(owner key) sets `orders.count_held_since` (trigger `trg_altercpa_leads_approval_hold`) and `insights_sale_rows` leaves
+the order out of EVERY report while it holds no MEX parcel. Released: a MEX parcel at once (`tg_orders_count_hold_clear`),
+collabBox / MEX evidence (`sale_collab_evidence` minus `postponed`) within 5 min (`approval_hold_refresh`, cron
+`approval-hold-refresh`; once released, never held again — `approval_hold_released`). Not touched: the guarantee
+(it reads `altercpa_leads` decisions — the approvals still count there, that is AlterCPA's contract), the work ledger,
+the order. The cancel is the 5-day collabBox entry rule. Add / remove an operator = edit the setting's array, then
+`select public.approval_hold_refresh()`. Proof: `node scripts/verify-approval-hold.mjs` (A1–A5 + the 30-day fate).
+
 ## Traps
 
 - **Outcome timestamps must come from THEIR clock** (`o.paid`, `o.done`), not `now()`. The

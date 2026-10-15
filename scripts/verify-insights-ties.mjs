@@ -253,6 +253,7 @@ export function drillPredicateParts(IC, { keys, cohortSources = [], saleSources 
   if (saleSources.length) parts.push(`${alias}.sale_source IN (${saleSources.map(quote).join(', ')})`);
   if (detail) parts.push(`${alias}.sale_source_detail = ${quote(detail)}`);
   if (f.notIds.length) parts.push(`${alias}.id::text NOT IN (${f.notIds.map(quote).join(', ')})`);
+  if (f.heldNull) parts.push(`${alias}.count_held_since IS NULL`);   // the approval hold (20261016150000)
   return parts;
 }
 export const drillPredicateSql = (IC, opts, alias = 'o') => drillPredicateParts(IC, opts, alias).join('\n  AND ');

@@ -75,6 +75,9 @@ export interface ApiOrder {
   /** The 2-day collabBox entry rule (owner 02.10.2026, crm_sale_collab_states): present only on a
    *  confirmed CRM sale (prediction_list | direct) without a MEX parcel. */
   collab?: OrderCollab | null;
+  /** The approval hold (owner 15.10.2026, 20261016150000): set = an AlterCPA approval of a held operator that counts
+   *  in no report until MEX or collabBox shows it. */
+  count_held_since?: string | null;
 }
 
 /** GET /orders `collab`: the sale's collabBox document (null = not entered yet), its sale day, the day

@@ -145,8 +145,9 @@ function OrdersTable(p: OrdersListProps) {
                     <StatusBadge status={o.status} order={o} className="max-w-full whitespace-normal" />
                     <div className="mt-1 2xl:hidden"><MexBadge o={o} withTracking /></div>
                     <div className="2xl:hidden"><CollabBadge o={o} block /></div>
+                    <div className="2xl:hidden"><HeldBadge o={o} block /></div>
                   </td>
-                  <td className="hidden px-2 py-2.5 2xl:table-cell"><MexBadge o={o} withTracking /><div><CollabBadge o={o} block /></div></td>
+                  <td className="hidden px-2 py-2.5 2xl:table-cell"><MexBadge o={o} withTracking /><div><CollabBadge o={o} block /></div><div><HeldBadge o={o} block /></div></td>
                   <td className="hidden break-words px-2 py-2.5 text-xs 2xl:table-cell"><OperatorCell o={o} /></td>
                   <td className="py-2 pr-2" onClick={(e) => e.stopPropagation()}><RowMenu o={o} actions={p.actions(o)} /></td>
                 </tr>
@@ -207,6 +208,7 @@ function OrderCard({ o, ...p }: OrdersListProps & { o: ApiOrder }) {
           <div className="flex min-w-0 flex-wrap items-center gap-1.5">
             <MexBadge o={o} withTracking inline />
             <CollabBadge o={o} />
+            <HeldBadge o={o} />
             <ViewAndDup o={o} p={p} />
           </div>
       </div>
@@ -299,6 +301,27 @@ export function DeptLine({ o, compact }: {
           </span>
         )}
       </span>
+    </span>
+  );
+}
+
+/**
+ * The approval hold (owner 15.10.2026, 20261016150000): an AlterCPA approval of a held operator (Dragana / Nina)
+ * counts in no report until MEX takes the parcel or collabBox shows the sale — grey "Не се брои — чека MEX /
+ * Collab". Nothing once a parcel exists (the hold ends with it).
+ */
+export function HeldBadge({ o, block }: { o: Pick<ApiOrder, 'count_held_since' | 'mex_tracking_id'>; block?: boolean }) {
+  const { t } = useTranslation();
+  if (!o.count_held_since || o.mex_tracking_id) return null;
+  return (
+    <span
+      className={cn(
+        'inline-flex max-w-full items-start gap-1 rounded-md border border-slate-400/40 bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium leading-tight text-slate-700 dark:bg-slate-500/15 dark:text-slate-300',
+        block && 'mt-1',
+      )}
+      title={t('ordersList.held.title')} data-testid="count-held">
+      {!block && <CircleAlert className="mt-px h-3 w-3 shrink-0" aria-hidden />}
+      <span className="min-w-0 break-words">{t('ordersList.held.label')}</span>
     </span>
   );
 }

@@ -387,6 +387,18 @@ target **explicitly** and verify it before running:
   rule (21:10) is unchanged. A CRM sale cancelled by it is not revived to shipped by mex-reconcile (rule C is AlterCPA /
   `no_parcel_7d` only). Check: `node scripts/verify-collab-entry-rule.mjs --list [--backtest FROM TO]`. See
   `elyon-departments-and-sources` §3c.
+- **THE APPROVAL HOLD — Dragana's and Nina's AlterCPA approvals count only once MEX or collabBox shows them (owner,
+  15.10.2026; `20261016150000` / `0100`).** They approve 86–87 % of their leads to keep the 30 % guarantee (others 20–45
+  %); of their approvals older than 10 days 69 % never reached MEX and ~20 % were paid (others 6 % / 70 %). An approval by
+  an operator in `app_settings.approval_hold.altercpa_users` (owner key; `3117` Dragana, `3917` Nina) sets
+  `orders.count_held_since` at once (trigger on `altercpa_leads`) and the order counts in NO report (`insights_sale_rows`:
+  TV, Табла / Insights, Операции, Мој учинок, bonus; the /orders drills via `count_hold` → `count_held_since IS NULL`)
+  while it holds no MEX parcel. A MEX parcel releases it at once (`tg_orders_count_hold_clear`); collabBox / MEX
+  evidence (`sale_collab_evidence`: parcel · pushed · in_collab · in_collab_amount · needs_linking — never `postponed`)
+  releases it for good within 5 min (`approval_hold_refresh`, cron `approval-hold-refresh`, memory
+  `approval_hold_released`, ledger `approval_hold_log`); then MEX decides like any sale. The cancel after 5 days is the
+  existing collabBox entry rule (21:20). The AlterCPA guarantee and the work ledger are untouched. Off: `enabled = false`
+  + `select approval_hold_refresh()`. Check: `node scripts/verify-approval-hold.mjs [--list]`.
 - **Денари everywhere (owner, 28.09):** every staff-facing amount — screens, charts, exports,
   notifications — is shown in денари. The only EUR on screen is the foreign affiliate payout above.
 - **COD ≠ CRM price → MEX is right** (owner): the CRM price follows the parcel COD, except when COD =

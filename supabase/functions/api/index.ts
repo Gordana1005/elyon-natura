@@ -6627,6 +6627,7 @@ async function handleRequest(req: Request): Promise<Response> {
         }
         for (const expr of cf.or) query = query.or(expr);
         if (cf.notIds.length) query = query.not("id", "in", `(${cf.notIds.join(",")})`);
+        if (cf.heldNull) query = query.is("count_held_since", null);
       } else if (ovSoldFrom && ovSoldTo) {
         query = query.or(OV.soldWindowOrFilter(OV.skopjeMidnightIso(ovSoldFrom), OV.skopjeDayEndIso(ovSoldTo)));
       }

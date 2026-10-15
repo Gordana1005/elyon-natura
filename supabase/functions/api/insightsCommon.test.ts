@@ -394,6 +394,17 @@ describe("exceptions payload", () => {
     expect(parseCohortExceptions({ web_claimed: [], ledger: [], expire_before: "soon" })).toBeNull();
     expect(parseCohortExceptions({ web_claimed: [], ledger: [], expire_before: 5 })).toBeNull();
   });
+
+  it("the approval hold (20261016150000): count_hold → the drill keeps count_held_since IS NULL only", () => {
+    const base = { web_claimed: [], ledger: [], excluded_phone8s: [], test_orders: [] };
+    const held = parseCohortExceptions({ ...base, count_hold: true });
+    expect(held?.count_hold).toBe(true);
+    expect(parseCohortExceptions({ ...base, count_hold: "yes" })).toEqual(base);
+    expect(cohortOrdersFilter(["to_pack"], held!, null).heldNull).toBe(true);
+    expect(cohortOrdersFilter(["to_pack"], base, null)).not.toHaveProperty("heldNull");
+    // the or-clauses do not change: the hold is its own filter
+    expect(cohortOrdersFilter(["to_pack"], held!, null).or).toEqual(cohortOrdersFilter(["to_pack"], base, null).or);
+  });
 });
 
 describe("the verify script translates the twin to SQL faithfully", () => {
