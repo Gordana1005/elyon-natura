@@ -8815,7 +8815,41 @@
           "new": "first purchase — no earlier contact"
         },
         "orders_one": "order",
-        "orders_other": "orders"
+        "orders_other": "orders",
+        "drill": {
+          "open": "See the orders",
+          "subtitle": "every sale behind this figure — CRM orders, collabBox documents and MEX parcels",
+          "search": "Search: name, phone, number, seller, product",
+          "export": "CSV",
+          "empty": "No sales match.",
+          "loadFailed": "The list could not be loaded.",
+          "truncated": "Showing the first 5,000 — shorten the period.",
+          "more": "Show {{n}} more ({{left}} left)",
+          "firstNone": "no earlier contact",
+          "kind": {
+            "order": "CRM order",
+            "booking": "collabBox — awaiting parcel",
+            "mex": "MEX parcel, no order",
+            "web": "Web order"
+          },
+          "firstSrc": {
+            "lead": "Affiliate lead",
+            "order": "order",
+            "parcel": "MEX parcel",
+            "doc": "collabBox document",
+            "web": "web order"
+          },
+          "cols": {
+            "date": "Date",
+            "number": "Number",
+            "customer": "Customer",
+            "seller": "Seller",
+            "products": "Products",
+            "status": "Status",
+            "value": "Amount",
+            "first": "First contact"
+          }
+        }
       }
     },
     "clock": {

@@ -168,7 +168,7 @@ function SourceCard({ row, grand, money, range, f }: {
       </header>
 
       {/* Teleshop Out / Affiliate Out: the orders by the customer base they came from — first, big (owner 15.10.2026). */}
-      <CohortOrigins row={row} money={money} f={f} />
+      <CohortOrigins row={row} money={money} range={range} f={f} />
 
       <div className="mt-2.5">
         <CohortBar variant="bar" total={row.total} buckets={row.buckets} money={money} rows={[row]} range={range}

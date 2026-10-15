@@ -8815,7 +8815,41 @@
           "new": "blerja e parë — pa kontakt të mëparshëm"
         },
         "orders_one": "porosi",
-        "orders_other": "porosi"
+        "orders_other": "porosi",
+        "drill": {
+          "open": "Shiko porositë",
+          "subtitle": "çdo shitje pas kësaj shifre — porosi CRM, dokumente collabBox dhe dërgesa MEX",
+          "search": "Kërko: emër, telefon, numër, shitës, produkt",
+          "export": "CSV",
+          "empty": "Asnjë shitje.",
+          "loadFailed": "Lista nuk u ngarkua.",
+          "truncated": "Shfaqen 5.000 të parat — shkurtoje periudhën.",
+          "more": "Shfaq edhe {{n}} (mbeten {{left}})",
+          "firstNone": "pa kontakt të mëparshëm",
+          "kind": {
+            "order": "Porosi CRM",
+            "booking": "collabBox — pret dërgesën",
+            "mex": "Dërgesë MEX pa porosi",
+            "web": "Porosi online"
+          },
+          "firstSrc": {
+            "lead": "lid Affiliate",
+            "order": "porosi",
+            "parcel": "dërgesë MEX",
+            "doc": "dokument collabBox",
+            "web": "porosi online"
+          },
+          "cols": {
+            "date": "Data",
+            "number": "Numri",
+            "customer": "Blerësi",
+            "seller": "Shitësi",
+            "products": "Produktet",
+            "status": "Statusi",
+            "value": "Shuma",
+            "first": "Kontakti i parë"
+          }
+        }
       }
     },
     "clock": {
