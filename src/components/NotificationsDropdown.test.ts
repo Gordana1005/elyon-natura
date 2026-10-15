@@ -36,6 +36,18 @@ describe('localizeNotification — денари in the bell', () => {
     expect(out).toEqual({ title: 'Order paid', message: 'Something else' });
   });
 
+  it('order_returned: the new meta in денари, and the old English-only rows are translated too', () => {
+    const fresh = localizeNotification(row({
+      type: 'order_returned', title: 'Order returned', message: 'Order ORD-2 (Иво) was marked Returned.',
+      meta: { i18n: 'notif.orderReturned', order: 'ORD-2', customer: 'Иво', amountMkd: 1950, recipient: 'admin' },
+    }));
+    expect(fresh).toEqual({ title: 'Нарачката е вратена', message: 'Нарачката ORD-2 (Иво) е вратена — 1.950 ден.' });
+    const legacy = localizeNotification(row({
+      type: 'order_returned', title: 'Order returned', message: 'Order ORD-3 (Ana (Bitola)) was marked Returned.',
+    }));
+    expect(legacy).toEqual({ title: 'Нарачката е вратена', message: 'Нарачката ORD-3 (Ana (Bitola)) е вратена.' });
+  });
+
   it('unpaid digest: MEX age from 36 h; the old BigArena syncAgeHours is ignored', () => {
     const base = { i18n: 'notif.unpaidDigest', total: 3, new: 1, days: 3, oldestOrder: 'ORD-9', oldestDays: 7 };
     const stale = localizeNotification(row({ type: 'unpaid_digest', meta: { ...base, mexSyncAgeHours: 40 } }));

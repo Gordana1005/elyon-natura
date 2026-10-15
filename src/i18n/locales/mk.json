@@ -2266,6 +2266,61 @@
       "title": "Внесете ја нарачката во collabBox",
       "body": "Нарачката {{order}} ({{customer}}) уште не е во collabBox. Ако не се внесе, утре во {{hour}} се откажува."
     },
+    "filters": {
+      "all": "Сите",
+      "important": "Важно",
+      "orders": "Нарачки",
+      "affiliate": "Affiliate",
+      "team": "Тим",
+      "system": "Систем"
+    },
+    "important": "Важно",
+    "today": "Денес",
+    "yesterday": "Вчера",
+    "seeAll": "Види ги сите ({{count}})",
+    "hide": "Скриј",
+    "more": "Уште ({{count}})",
+    "markStackRead": "Означи прочитано",
+    "newCount_one": "{{count}} ново",
+    "newCount_other": "{{count}} нови",
+    "pinnedMore_one": "+ уште {{count}} важно",
+    "pinnedMore_other": "+ уште {{count}} важни",
+    "openAll": "Сите известувања",
+    "loadError": "Известувањата не можеа да се вчитаат.",
+    "pageTitle": "Известувања",
+    "pageEmpty": "Нема известувања во овој период",
+    "pageHint": "Платените, вратените, неподигнатите пратки, доделувањата и неактивноста се собрани во едно поле по ден; сите други известувања се прикажани поединечно.",
+    "loadMore": "Вчитај уште",
+    "period": {
+      "today": "Денес",
+      "week": "Последни 7 дена",
+      "month": "Овој месец"
+    },
+    "stack": {
+      "order_paid": "Платени нарачки",
+      "order_returned": "Вратени нарачки",
+      "shipped_unpaid": "Неподигнати пратки",
+      "assignment": "Доделувања",
+      "inactivity": "Без активност"
+    },
+    "orderReturned": {
+      "title": "Нарачката е вратена",
+      "body": "Нарачката {{order}} ({{customer}}) е вратена — {{amount}}."
+    },
+    "orderReturnedLegacy": {
+      "title": "Нарачката е вратена",
+      "body": "Нарачката {{order}} ({{customer}}) е вратена."
+    },
+    "toastPaidMany": {
+      "title_one": "+{{count}} платена нарачка",
+      "title_other": "+{{count}} платени нарачки",
+      "body": "Вкупно {{amount}}."
+    },
+    "toastReturnedMany": {
+      "title_one": "{{count}} вратена нарачка",
+      "title_other": "{{count}} вратени нарачки",
+      "body": "Вкупно {{amount}}."
+    },
     "hrLeave": {
       "requested": {
         "title": "Барање за отсуство",

@@ -53,6 +53,8 @@ const ShopsPage = lazy(() => import("./pages/ShopsPage"));
 // Лојалност (owner 06.10.2026): owners + managers + admins; the page decides
 // (useLoyaltyAccess) — no module key, the api refuses everyone else.
 const LoyaltyPage = lazy(() => import("./pages/LoyaltyPage"));
+// Сите известувања (owner 15.10.2026): every signed-in staff login, own rows only (RLS).
+const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
 // Affiliate (webmaster) portal — the only pages an 'affiliate' login can see.
 const AffiliateDashboardPage = lazy(() => import("./pages/AffiliateDashboardPage"));
 const AffiliateOffersCataloguePage = lazy(() => import("./pages/AffiliateOffersCataloguePage"));
@@ -156,6 +158,7 @@ const App = () => (
                 <Route path="/operations" element={<ProtectedRoute moduleKey="operations"><OperationsPage /></ProtectedRoute>} />
                 <Route path="/shops" element={<ProtectedRoute><ShopsPage /></ProtectedRoute>} />
                 <Route path="/loyalty" element={<ProtectedRoute><LoyaltyPage /></ProtectedRoute>} />
+                <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
                 <Route path="/lead-distribution" element={<ProtectedRoute moduleKey="lead_distribution"><LeadDistributionPage /></ProtectedRoute>} />
                 <Route path="/calls" element={<ProtectedRoute moduleKey="calls"><CallsPage /></ProtectedRoute>} />
                 {/* Recordings merged into Call History (2026-06). Keep the old path working. */}

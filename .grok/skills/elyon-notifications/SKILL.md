@@ -5,13 +5,41 @@ description: Use when adding, changing, or debugging ANY in-app notification in 
 
 # Elyon Notifications — the bell, and everything that writes to it
 
-One table (`public.notifications`), one UI ([src/components/NotificationsDropdown.tsx](../../../src/components/NotificationsDropdown.tsx)),
-and two kinds of producer: the **database** (triggers and pg_cron jobs) and the **api edge
-function** (`notifyUsers()`, `supabase/functions/api/index.ts` ~19026 — best-effort, never
-fails the request). Nothing in the frontend sends a notification in production — the only
-browser insert is the Settings DEV test panel, which writes to the caller's OWN bell
-(`SettingsPage.tsx` `sendTestNotification`). A notification can therefore never be missed
-because a browser tab was closed.
+One table (`public.notifications`), one UI — the bell
+([src/components/NotificationsDropdown.tsx](../../../src/components/NotificationsDropdown.tsx)) and its full-history page
+`/notifications` ([src/pages/NotificationsPage.tsx](../../../src/pages/NotificationsPage.tsx)), both built from
+`src/components/notifications/` + `src/lib/notifications/` — and two kinds of producer: the **database** (triggers
+and pg_cron jobs) and the **api edge function** (`notifyUsers()`, `supabase/functions/api/index.ts` ~22419 —
+best-effort, never fails the request). Nothing in the frontend sends a notification (the old Settings DEV test
+panel is gone). A notification can therefore never be missed because a browser tab was closed.
+
+## The stacked bell (owner, 15.10.2026 — `20261015130000`)
+
+Owner: "по цел ден гледаме само платени и вратени порачки … гаранциите неможам да ги најдам." An admin gets
+~490 `order_paid` / `order_returned` rows a day (every paid order of the company), and the bell used to show the
+newest 50 rows — so the guarantee / collab / shifts bells fell out within minutes. Now:
+
+- **ONE registry** — [src/lib/notifications/registry.ts](../../../src/lib/notifications/registry.ts) `NOTIF_TYPES`:
+  per type the icon, tone, toast level, **category** (Нарачки · Affiliate · Тим · Систем), **stack** and
+  **important**. A new type is added there and nowhere else (it replaced the five per-type maps).
+- **Stacked** (one card per type per Skopje day, "Платени нарачки · 48 · 93.600 ден." + the newest names,
+  "Види ги сите (48)" opens the rows 20 at a time, "Означи прочитано" for the card): `order_paid`,
+  `order_returned`, `shipped_unpaid`, `assignment`, `inactivity`. A stack of one is shown as its row.
+- **Important** (pinned on top as "Важно" while unread, never stacked): `altercpa_rate_below`, `not_in_collab`,
+  `shifts_runway`, `low_stock`. Every other type is its own row.
+- The non-stacked rows are **fetched apart** from the stacks (`type not in STACK_TYPES`), so a flood of paid
+  orders can never push them out. Chips: Сите · Важно · Нарачки · Affiliate · Тим · Систем.
+- `notifications_overview(stack_types, from, to)` (SECURITY INVOKER, own rows) = unread per type over ALL
+  history + the stacks of the window. The bell shows 7 Skopje days; `/notifications` any period.
+- **Read = `is_read` OR `created_at <= notification_read_marks.read_before`.** "Означи ги сите" =
+  `notifications_mark_all_read()` moves the person's watermark — it never UPDATEs the rows (an admin has
+  ~20.000 unread; each update would be a Realtime change). A card = `notifications_mark_read(type, from, to)`
+  (one type, one day). One row = a plain update by id.
+- **The badge** counts each unread non-stacked row + ONE per stack with something unread.
+- **Realtime: INSERT only**, the refetch is debounced 1 s (a burst of 400 paid rows = one refetch).
+- **Toasts for paid / returned: the sale's owner only** (`meta.recipient = 'owner'`; the admins' copy is
+  `'admin'` and never pops). A burst (> 3 in 1,5 s) is ONE summary toast "+N платени нарачки — вкупно X ден."
+  ([notificationToasts.tsx](../../../src/components/notifications/notificationToasts.tsx)).
 
 ## The table
 
@@ -28,16 +56,17 @@ because a browser tab was closed.
   migration file**, before claiming any RLS hole here.
 - `type` is free text — no CHECK constraint (verified live 2026-09-27, 20260935000200 header), so
   a new type needs no constraint change.
-- The bell loads the newest 50 rows, polls every 30 s **and** subscribes to realtime changes on
-  the user's own rows (any event → refetch; only an INSERT pops a toast).
+- Indexes: `(user_id)`, `(user_id, is_read)`, `(user_id, created_at DESC)` (20261015130000).
+- The bell polls every 60 s **and** subscribes to Realtime INSERTs on the user's own rows (see the
+  stacked bell above).
 
 ## The live types
 
 | type | Producer | Goes to |
 |---|---|---|
 | `missed_call` | trigger on `missed_calls` (20260604130000 / 20260614120000) | last agent who called that number + all admins |
-| `order_returned` | trigger on `orders` status → `returned` (re-emitted 20260934000200) | sale owner + all admins |
-| `order_paid` | trigger on `orders` status → `paid` (20260604140000, re-emitted 20260934000200, денари + meta 20260940000400) | sale owner + all admins |
+| `order_returned` | trigger on `orders` status → `returned` (re-emitted 20260934000200; meta `notif.orderReturned` + recipient 20261015130000) | sale owner + all admins |
+| `order_paid` | trigger on `orders` status → `paid` (20260604140000, re-emitted 20260934000200, денари + meta 20260940000400, `meta.recipient` 20261015130000) | sale owner + all admins |
 | `low_stock` | trigger on `products.stock_quantity` **downward crossing** | admins + warehouse |
 | `shipped_unpaid` | `notify_unpaid_shipped_orders()` job (20260905000100) | sale owner only |
 | `unpaid_digest` | same job, once after the loop (MEX age since 20260940000400) | one per active admin per day |
@@ -48,19 +77,19 @@ because a browser tab was closed.
 | `affiliate_lead` | api `notifyUsers()` on `POST /cpa/lead` (`meta notif.affiliateLead`) | all admins |
 | `not_in_collab` | `apply_collab_entry_rule()` (cron `collab-entry-rule`, 21:20 Skopje; 5 days, every sale — `20260947001900`): the sale was not entered in collabBox and was cancelled (`meta notif.notInCollab`: order, customer, days). None for a sale older than `silent_after_days` (14) | the SELLER (`sales_people.user_id` of `sold_by_person_id`), else the confirmer, else the assignee |
 | `not_in_collab_warning` | the same run, the evening before (age = days − 1): it is cancelled tomorrow at 21:20 (`meta notif.notInCollabWarning`: order, customer, hour, days); once per order | same as above |
+| `shifts_runway` | `shifts_runway_alert()` (cron `shifts-runway-alert`, 17:05 Skopje; 20260943000100), `meta notif.shiftsRunway` | DISTINCT active admins + managers, once a day |
 
-**UI maps.** A type needs **five** entries in `NotificationsDropdown.tsx`: `typeIcons`,
-`typeColors`, `getUnreadMoodClass`, `getUnreadTitleClass`, `toastSeverity`. Miss one and the row
-renders with the grey default. `inactivity`, `altercpa_rate` (sky), `altercpa_rate_below`
-(amber, warning toast) and `affiliate_lead` (violet) have all five (2026-09-28); `assignment` has
-only an icon and a colour.
+**UI.** A type needs ONE entry in `NOTIF_TYPES` (registry.ts) — icon, tone, toast, category, stack /
+important. An unknown type renders with the grey default under Систем.
 
 **Money in a bell is денари** (owner, 2026-09-28). `order_paid` (20260940000400) writes
 `message` "… was paid — 2.490 ден." and `meta {i18n:'notif.orderPaid', order, customer,
-amountMkd}`; `localizeNotification()` turns `amountMkd` into `{{amount}}` with `formatDenari`
-(never ×61.5 again). The 65k rows written before it (meta NULL, `€NN.NN`) are parsed by
-`legacyOrderPaidMeta()` and re-rendered through the same key with `formatMoney` — their stored
-English is never shown. `order_returned` still carries no `meta` (English only).
+amountMkd}`; `localizeNotification()` (`src/lib/notifications/localize.ts`) turns `amountMkd` into
+`{{amount}}` with `formatDenari` (never ×61.5 again). The 65k rows written before it (meta NULL, `€NN.NN`)
+are parsed by the legacy reader and re-rendered through the same key with `formatMoney` — their stored
+English is never shown. `order_returned` carries the same meta since 20261015130000
+(`notif.orderReturned`); older returned rows are read into `notif.orderReturnedLegacy` (no amount).
+A stack shows its денари sum only when every row of it carries `amountMkd` — never a partial sum.
 
 ## Rule 1 — the owner of a sale is the CONFIRMER
 
@@ -93,10 +122,13 @@ dead BigArena sentence, no longer rendered), `notif.orderPaid`, `notif.affiliate
 `notif.callAgainsAssigned`, `notif.leadsAssigned`, `notif.ordersAssigned`, `notif.orderAssigned`,
 `notif.predictionLeadsAssigned`, `notif.altercpaRate{Leads,Confirms,BelowDay,BelowFinal}` (old rows),
 `notif.altercpaGuarantee{Digest,Unreachable,Close,Final}` (20260944000300),
-`notif.inactivity`, `notif.inactivitySelf`.
+`notif.inactivity`, `notif.inactivitySelf`, `notif.shiftsRunway`, `notif.notInCollab{,Warning}`,
+`notif.orderReturned` / `notif.orderReturnedLegacy` (20261015130000). The bell's own words: `notif.filters.*`,
+`notif.stack.<type>` (a stacked type needs one), `notif.toastPaidMany` / `toastReturnedMany`, `notif.period.*`.
+`missed_call` and `low_stock` still carry no `meta` (English only).
 
-⚠️ Inside `renderNotificationToast` and the custom toast components, `t` is the **sonner toast
-instance**, not the translator. Use `i18n.t` there. This has bitten us before.
+⚠️ Inside `showNotificationToast` and the custom toast components, `t` is the **sonner toast
+instance** (an id), not the translator. Use `i18n.t` there. This has bitten us before.
 
 ## Rule 3 — triggers swallow, jobs don't
 
@@ -171,7 +203,7 @@ Full engine: `elyon-presence-and-leaderboard`. What the bell needs to know:
   subjectId, day}`) and one per recipient (`meta {i18n:'notif.inactivity', name, minutes,
   subjectId, day}`), never the person twice. Default recipients `"owners"` =
   `business_owners` ∪ every ACTIVE admin (20260939000500).
-- **Self copy → one sticky toast**, not a normal one: `renderNotificationToast` calls
+- **Self copy → one sticky toast**, not a normal one: `showNotificationToast` calls
   `showIdleSelfToast()` (`src/lib/presence/ui.ts`, id `presence-idle-self`,
   `duration: Infinity`) — the same id the activity beat already used in the tab that sent it,
   so sonner replaces instead of stacking and every other open tab still shows it.
@@ -208,8 +240,8 @@ stops double-sends.
 
 ## Debugging checklist
 
-1. Nothing arrived → is the row in `notifications` at all? If yes it's a UI/type-map problem; if
-   no it's the producer.
+1. Nothing arrived → is the row in `notifications` at all? If yes it's a UI/registry problem (or the row
+   is older than the person's `notification_read_marks.read_before` and counts as read); if no it's the producer.
 2. Wrong agent → check `confirmed_by_agent_id` vs `assigned_agent_id` on that order.
 3. English text in a Macedonian (or other) UI → `meta` is NULL, or the key is missing in that
    locale file.

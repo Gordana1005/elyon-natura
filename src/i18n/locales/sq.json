@@ -2310,6 +2310,61 @@
       "title": "Regjistroni porosinë në collabBox",
       "body": "Porosia {{order}} ({{customer}}) ende nuk është në collabBox. Nëse nuk regjistrohet, nesër në {{hour}} anulohet."
     },
+    "filters": {
+      "all": "Të gjitha",
+      "important": "Të rëndësishme",
+      "orders": "Porositë",
+      "affiliate": "Affiliate",
+      "team": "Ekipi",
+      "system": "Sistemi"
+    },
+    "important": "Të rëndësishme",
+    "today": "Sot",
+    "yesterday": "Dje",
+    "seeAll": "Shiko të gjitha ({{count}})",
+    "hide": "Fshih",
+    "more": "Më shumë ({{count}})",
+    "markStackRead": "Shëno si të lexuara",
+    "newCount_one": "{{count}} e re",
+    "newCount_other": "{{count}} të reja",
+    "pinnedMore_one": "+ edhe {{count}} e rëndësishme",
+    "pinnedMore_other": "+ edhe {{count}} të rëndësishme",
+    "openAll": "Të gjitha njoftimet",
+    "loadError": "Njoftimet nuk mund të ngarkoheshin.",
+    "pageTitle": "Njoftimet",
+    "pageEmpty": "Nuk ka njoftime në këtë periudhë",
+    "pageHint": "Të paguarat, të kthyerat, dërgesat e pamarra, caktimet dhe pasiviteti janë mbledhur në një kartë në ditë; të gjitha njoftimet e tjera shfaqen veç e veç.",
+    "loadMore": "Ngarko më shumë",
+    "period": {
+      "today": "Sot",
+      "week": "7 ditët e fundit",
+      "month": "Ky muaj"
+    },
+    "stack": {
+      "order_paid": "Porosi të paguara",
+      "order_returned": "Porosi të kthyera",
+      "shipped_unpaid": "Dërgesa të pamarra",
+      "assignment": "Caktime",
+      "inactivity": "Pa aktivitet"
+    },
+    "orderReturned": {
+      "title": "Porosia u kthye",
+      "body": "Porosia {{order}} ({{customer}}) u kthye — {{amount}}."
+    },
+    "orderReturnedLegacy": {
+      "title": "Porosia u kthye",
+      "body": "Porosia {{order}} ({{customer}}) u kthye."
+    },
+    "toastPaidMany": {
+      "title_one": "+{{count}} porosi e paguar",
+      "title_other": "+{{count}} porosi të paguara",
+      "body": "Gjithsej {{amount}}."
+    },
+    "toastReturnedMany": {
+      "title_one": "{{count}} porosi e kthyer",
+      "title_other": "{{count}} porosi të kthyera",
+      "body": "Gjithsej {{amount}}."
+    },
     "hrLeave": {
       "requested": {
         "title": "Kërkesë për mungesë",

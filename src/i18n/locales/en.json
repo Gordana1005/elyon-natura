@@ -2310,6 +2310,61 @@
       "title": "Enter the order in collabBox",
       "body": "Order {{order}} ({{customer}}) is not in collabBox yet. If it is still not entered, it is cancelled tomorrow at {{hour}}."
     },
+    "filters": {
+      "all": "All",
+      "important": "Important",
+      "orders": "Orders",
+      "affiliate": "Affiliate",
+      "team": "Team",
+      "system": "System"
+    },
+    "important": "Important",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "seeAll": "See all ({{count}})",
+    "hide": "Hide",
+    "more": "More ({{count}})",
+    "markStackRead": "Mark as read",
+    "newCount_one": "{{count}} new",
+    "newCount_other": "{{count}} new",
+    "pinnedMore_one": "+ {{count}} more important",
+    "pinnedMore_other": "+ {{count}} more important",
+    "openAll": "All notifications",
+    "loadError": "The notifications could not be loaded.",
+    "pageTitle": "Notifications",
+    "pageEmpty": "No notifications in this period",
+    "pageHint": "Paid, returned, uncollected parcels, assignments and inactivity are gathered into one card per day; every other notification is shown on its own.",
+    "loadMore": "Load more",
+    "period": {
+      "today": "Today",
+      "week": "Last 7 days",
+      "month": "This month"
+    },
+    "stack": {
+      "order_paid": "Paid orders",
+      "order_returned": "Returned orders",
+      "shipped_unpaid": "Uncollected parcels",
+      "assignment": "Assignments",
+      "inactivity": "Inactivity"
+    },
+    "orderReturned": {
+      "title": "Order returned",
+      "body": "Order {{order}} ({{customer}}) was returned — {{amount}}."
+    },
+    "orderReturnedLegacy": {
+      "title": "Order returned",
+      "body": "Order {{order}} ({{customer}}) was marked Returned."
+    },
+    "toastPaidMany": {
+      "title_one": "+{{count}} paid order",
+      "title_other": "+{{count}} paid orders",
+      "body": "{{amount}} in total."
+    },
+    "toastReturnedMany": {
+      "title_one": "{{count}} returned order",
+      "title_other": "{{count}} returned orders",
+      "body": "{{amount}} in total."
+    },
     "hrLeave": {
       "requested": {
         "title": "Leave request",
