@@ -6,33 +6,36 @@ const state = (qs = '') => readListParams(new URLSearchParams(qs));
 const admin = { drill: false, isAgent: false };
 
 describe('bookingsApply — where the collabBox bookings belong', () => {
-  it('"Нарачки" and "Сите" — never leads, cancels or trash', () => {
-    expect(bookingsApply(state(), 'orders', admin)).toBe(true);
-    expect(bookingsApply(state(), 'all', admin)).toBe(true);
-    for (const v of ['leads', 'cancelled', 'trashed'] as const) expect(bookingsApply(state(), v, admin)).toBe(false);
+  it('every status, Нарачки or Потврдена — never leads, cancels, trash or a parcel status', () => {
+    expect(bookingsApply(state(), admin)).toBe(true);
+    expect(bookingsApply(state('view=orders'), admin)).toBe(true);
+    expect(bookingsApply(state('st=confirmed.no_parcel'), admin)).toBe(true);
+    for (const qs of ['view=leads', 'st=cancelled', 'st=trashed', 'st=paid', 'st=shipped.courier']) {
+      expect(bookingsApply(state(qs), admin), qs).toBe(false);
+    }
   });
   it('the period, department, seller and search apply to a booking', () => {
-    expect(bookingsApply(state('range=week&dept=teleshop_out&seller=11111111-1111-4111-8111-111111111111&search=070123456'), 'orders', admin)).toBe(true);
+    expect(bookingsApply(state('range=week&dept=teleshop_out&seller=11111111-1111-4111-8111-111111111111&search=070123456'), admin)).toBe(true);
   });
   it('a filter a booking cannot have hides the section', () => {
-    expect(bookingsApply(state('mex=courier'), 'orders', admin)).toBe(false);
-    expect(bookingsApply(state('mex=courier,no_parcel'), 'orders', admin)).toBe(true);
-    expect(bookingsApply(state('source=altercpa'), 'orders', admin)).toBe(false);
-    expect(bookingsApply(state('agent=none'), 'orders', admin)).toBe(false);
-    expect(bookingsApply(state('pmin=1000'), 'orders', admin)).toBe(false);
-    expect(bookingsApply(state('wm=3225'), 'orders', admin)).toBe(false);
-    expect(bookingsApply(state(), 'orders', { drill: true, isAgent: false })).toBe(false);
+    expect(bookingsApply(state('mex=courier'), admin)).toBe(false);
+    expect(bookingsApply(state('mex=courier,no_parcel'), admin)).toBe(true);
+    expect(bookingsApply(state('source=altercpa'), admin)).toBe(false);
+    expect(bookingsApply(state('agent=none'), admin)).toBe(false);
+    expect(bookingsApply(state('pmin=1000'), admin)).toBe(false);
+    expect(bookingsApply(state('wm=3225'), admin)).toBe(false);
+    expect(bookingsApply(state(), { drill: true, isAgent: false })).toBe(false);
   });
   it('"my orders": an admin who switches it on means assigned to them; an agent always sees their own (the api scopes)', () => {
-    expect(bookingsApply(state('mine=1'), 'orders', admin)).toBe(false);
-    expect(bookingsApply(state(), 'orders', { drill: false, isAgent: true })).toBe(true);
+    expect(bookingsApply(state('mine=1'), admin)).toBe(false);
+    expect(bookingsApply(state(), { drill: false, isAgent: true })).toBe(true);
   });
 });
 
 describe('toBookingsParams', () => {
   it('keeps only the period, department, seller and search', () => {
     expect(toBookingsParams({
-      view: 'orders', day_from: '2026-10-02', day_to: '2026-10-02', dept: 'teleshop_out', seller: 's', search: '070',
+      view: 'all', state: 'paid', day_from: '2026-10-02', day_to: '2026-10-02', dept: 'teleshop_out', seller: 's', search: '070',
       mex: 'no_parcel', agent_id: 'a', price_min: 1,
     })).toEqual({ day_from: '2026-10-02', day_to: '2026-10-02', dept: 'teleshop_out', seller: 's', search: '070' });
     expect(toBookingsParams({ view: 'all' })).toEqual({});

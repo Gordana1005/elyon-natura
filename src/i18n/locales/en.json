@@ -2519,7 +2519,8 @@
     "period": {
       "label": "Period",
       "all": "All dates",
-      "hint": "Skopje days · each order by its own date: a sale by its sale day, a cancel by the cancel, a trash by the trash, a lead by its arrival"
+      "hint": "Skopje days · each order by its own date: a sale by its sale day, a cancel by the cancel, a trash by the trash, a lead by its arrival",
+      "yesterday": "Yesterday"
     },
     "dept": {
       "label": "Department",
@@ -2577,7 +2578,9 @@
       "reset": "Reset",
       "clear": "Clear filters",
       "active": "Active filters",
-      "remove": "Remove this filter"
+      "remove": "Remove this filter",
+      "cpa": "CPA partners",
+      "sheetHint": "Pick the filters and press \"Apply\"."
     },
     "col": {
       "order": "Order",
@@ -2633,7 +2636,7 @@
       "chip": "+{{count}} in collabBox",
       "chipTitle": "{{count}} sales are entered in collabBox and waiting for a MEX parcel — not orders yet",
       "clamped": "collabBox entries are shown for the last {{days}} days at most.",
-      "empty": "No orders for these filters, but {{count}} sales are entered in collabBox and waiting for a MEX parcel — see below.",
+      "empty": "No orders for these filters, but {{count}} sales are entered in collabBox and waiting for a MEX parcel — open the \"Entered in collabBox\" section above.",
       "showAll": "Show all ({{count}})",
       "showLess": "Show less",
       "loadError": "The collabBox entries could not be loaded.",
@@ -2647,7 +2650,9 @@
         "seller": "Seller",
         "value": "Amount",
         "doc": "Document"
-      }
+      },
+      "show": "Show",
+      "hide": "Hide"
     },
     "collab": {
       "in": "In collabBox",
@@ -2658,6 +2663,37 @@
       "cancelsTitle": "If it is not entered in collabBox, the system cancels it on {{day}} at {{time}} and the seller is notified.",
       "provisional": "(provisional)",
       "provisionalTitle": "The department is provisional — the MEX profile of the parcel decides it once the sale is entered in collabBox."
+    },
+    "quick": {
+      "label": "Quick view",
+      "all": "All",
+      "orders": "Orders",
+      "leads": "Open leads",
+      "cancelled": "Cancelled",
+      "trashed": "Trash",
+      "returned": "Returned",
+      "allHint": "Every status",
+      "ordersHint": "Confirmed, shipped, paid and returned — cancels and trash never count as orders",
+      "leadsHint": "Pending, in progress, call again and duplicates",
+      "cancelledHint": "Cancelled — dated by the day they were cancelled",
+      "trashedHint": "In the trash — dated by the day they were trashed",
+      "returnedHint": "Returned — MEX brought the parcel back (MEX 7)"
+    },
+    "status": {
+      "label": "Status",
+      "all": "All statuses",
+      "n": "{{count}} statuses",
+      "hint": "Pick one or more. Under Confirmed and Shipped are the MEX parts — the same as on the Dashboard.",
+      "sub": {
+        "no_parcel": "In the warehouse to pack",
+        "packed": "Packed (MEX label)",
+        "courier": "With the courier",
+        "problem": "Problem with the courier",
+        "no_parcelHint": "Confirmed, MEX has no parcel yet",
+        "packedHint": "MEX 8 — the label exists, MEX has not picked the parcel up yet",
+        "courierHint": "MEX 1 Out for delivery · 4 Picked up · 10 In transit",
+        "problemHint": "MEX 3 Problematic · 9 Delivery attempted · 13 Refused — a refused parcel travels back and becomes \"Returned\" once MEX books it (MEX 7)"
+      }
     }
   },
   "ordersPage": {

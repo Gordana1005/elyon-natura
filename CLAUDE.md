@@ -567,10 +567,19 @@ target **explicitly** and verify it before running:
   пристап · Правила · Систем · Напредно · Лично); modules / role permissions / privacy via `PUT /api/settings/*`
   (admins); the browser write policies are dropped, and `app_settings` / `courier_rates` writes are admin-only. The
   MEX courier rate is saveable (owners). See `elyon-security` §11.
-- **TODAY is the default period (owner, 01.10):** Insights (Табла included) and /orders open on today, with ← / →
+- **TODAY is the default period for Insights (owner, 01.10):** Insights (Табла included) opens on today, with ← / →
   stepping a day (a longer period by its own length; → stops at today) — one `stepRange` + `PeriodStepper`.
-  /orders opens on the "Нарачки" chip (Нарачки · Отворени лидови · Откажани · Во корпа · Сите), filters in the URL
-  (department, seller, MEX status), Skopje days, phone search by the last 8 digits.
+- **/orders opens on EVERY status and EVERY date, 20 a page (owner, 15.10.2026 — replaces "today + Нарачки").** One
+  toolbar (`components/orders/OrdersFilters.tsx`, after the owner's screenshot): search · ONE **"Филтри"** panel
+  (popover md+, sheet on a phone: Статус · Оддел · Извор · Продавач · Доделена на + Мои нарачки · Цена · CPA) · a
+  quick-view strip (Сите · Нарачки · Отворени лидови · Откажани · Корпа · Вратени) · the period (Сите датуми · Денес
+  with ‹ › · Последни 7 дена · Овој месец · Прилагодено). **"Status is status" — MEX lives INSIDE the status** (no MEX
+  pills): `?st=` / api `state=` (`STATE_KEYS`, ordersList.ts ↔ `src/lib/ordersList/statusModel.ts`) = every status +
+  the MEX parts of the only two statuses where MEX adds anything, in Табла's words: Потврдена ↳ Во магацин за пакување
+  (no parcel) · ↳ Спакувано (MEX 8); Испратена ↳ Кај курирот (1/4/10) · ↳ Проблем кај курирот (3/9/13 — 13 "Одбиена"
+  is not a return until MEX 7). Panel counts = `GET /orders/state-counts`, asked only while the panel is open. Old
+  `?view=` / `?mex=` links still work (read, never written). The collabBox bookings bar sits under the toolbar,
+  CLOSED by default (remembered per browser). Skopje days, phone search by the last 8 digits.
 - **Terminology (owner, 30.09 / 01.10):** in Macedonian prediction = **"предикција" / "предикциски"** — never
   "прогноза"; a leads team or queue = **"лидови"** — never "на чекање" / "пендинзи"; **"На чекање" is ONLY the order
   status `pending`**. `grep -c рогноз src/i18n/locales/mk.json` must be 0. See `elyon-i18n`.

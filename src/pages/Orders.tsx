@@ -16,11 +16,11 @@ import { formatDate, formatDayDmy } from '@/i18n/dates';
 import { apiErrorText } from '@/i18n/apiErrors';
 import { planExportWindow, clampPageRange, estimateExportRows } from '@/lib/exportPageRange';
 import {
-  Download, Filter, Search, Loader2, CalendarIcon, X, Plus, History, Lock, Copy, CopyPlus, Package, Send,
-  ChevronDown, ChevronLeft, ChevronRight, ListCollapse, Truck, Trash2, Ban,
+  Download, Search, Loader2, CalendarIcon, X, Plus, History, Lock, Copy, CopyPlus, Package, Send,
+  ListCollapse, Truck, Trash2, Ban,
 } from 'lucide-react';
 import {
-  apiGetOrders, apiGetOrderViewCounts, apiGetOrderSellers, apiGetOrderBookings, apiGetAgents, apiGetProducts, apiBulkStatusUpdate,
+  apiGetOrders, apiGetOrderStateCounts, apiGetOrderSellers, apiGetOrderBookings, apiGetAgents, apiGetProducts, apiBulkStatusUpdate,
   apiBulkDisposition, apiDuplicateOrder, apiPushOrderAltercpa, apiGetAppSettings, apiGetCpaAttributionDimensions,
   type AltercpaPushPreview, type CpaAttributionDimensions, type TrashReason, type CancellationReason,
 } from '@/lib/api';
@@ -40,8 +40,8 @@ import { toCsv, downloadCsv } from '@/lib/csv';
 import { buildMexImportColumns } from '@/lib/mexImportCsv';
 import { validateOrderForFulfilment } from '@/lib/fulfilmentValidation';
 import { FulfilmentValidationDialog, type InvalidOrder } from '@/components/FulfilmentValidationDialog';
-import { useQuery } from '@tanstack/react-query';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { useIsMobile, useMaxWidth } from '@/hooks/use-mobile';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/contexts/PermissionsContext';
 import { OrderModal, OrderModalData } from '@/components/OrderModal';
@@ -55,17 +55,20 @@ import { EmptyState } from '@/components/EmptyState';
 import { parseDrillParams, DRILL_LABEL_PARAM } from '@/components/insights/overview/model';
 import { OrdersDrillBanner } from '@/components/insights/overview/OrdersDrillBanner';
 import { OVERVIEW_COLOR_VARS } from '@/components/insights/overview/palette';
-import { periodText, skopjeToday, stepRange } from '@/components/insights/shared/period';
+import { periodText, skopjeToday } from '@/components/insights/shared/period';
 import { skopjeTodayLocal } from '@/lib/skopjeTime';
 import { ResponsivePager } from '@/components/assigner/parts';
 import {
-  activeFilterCount, clearDrillParams, clearListParams, effectiveRange, effectiveView, phoneLast8, readListParams,
+  activeFilterCount, clearDrillParams, clearListParams, effectiveRange, hasAnyFilter, PANEL_RESET, phoneLast8, readListParams,
   toApiParams, writeListParams, type ListPatch,
 } from '@/lib/ordersList/listParams';
 import { fmtCount, skopjeDayTime } from '@/lib/ordersList/rowModel';
-import { OrderViewChips, OrdersFilterFields, ActiveFilterChips, type FilterSources } from '@/components/orders/OrdersFilters';
+import {
+  FilterTokens, FiltersButton, FiltersPanel, FiltersPanelFields, PeriodPick, QuickViews, type FilterSources,
+} from '@/components/orders/OrdersFilters';
+import { statusPickLabel } from '@/lib/ordersList/statusModel';
 import { OrdersList, MexBadge, DeptLine, type RowAction } from '@/components/orders/OrdersList';
-import { OrdersBookings, BOOKINGS_SECTION_ID } from '@/components/orders/OrdersBookings';
+import { OrdersBookings } from '@/components/orders/OrdersBookings';
 import { bookingsApply, toBookingsParams } from '@/lib/ordersList/bookings';
 import { useActiveViews } from '@/components/orders/useActiveViews';
 import type { ApiOrder } from '@/components/orders/types';
@@ -134,14 +137,15 @@ function orderToModalData(order: ApiOrder): OrderModalData {
 /**
  * Нарачки — every order, in the Insights look (Phase 11 A, 01.10.2026).
  *
- * Opens on "Нарачки" (confirmed · packed · shipped · paid · returned) for
- * TODAY (Skopje), with ← / → by day (owner 01.10.2026); leads, cancels and trash are their own chips, each with
- * its count, and "Сите" is their sum. Everything that narrows the list lives in
- * the URL (lib/ordersList/listParams.ts) and is applied by the api
- * (supabase/functions/api/ordersList.ts): department, seller, MEX status,
- * source, assignee, price, CPA provenance, the period. A phone in the search
- * box matches by its last 8 digits. An Insights drill-down or a ?search= link
- * lists every status and date unless the URL says otherwise.
+ * Opens on EVERY status and EVERY date, 20 a page (owner 15.10.2026). The toolbar
+ * (components/orders/OrdersFilters.tsx, after the owner's screenshot): the search,
+ * ONE "Филтри" panel (status — with the MEX parts of Потврдена / Испратена —,
+ * department, source, seller, assignee, price, CPA), a quick-view strip (Сите ·
+ * Нарачки · Отворени лидови · Откажани · Корпа · Вратени) and the period (Денес
+ * with ‹ ›, 7 дена, месец, прилагодено). Everything that narrows the list lives
+ * in the URL (lib/ordersList/listParams.ts) and is applied by the api
+ * (supabase/functions/api/ordersList.ts). A phone in the search box matches by
+ * its last 8 digits. The collabBox bookings sit under the toolbar, closed.
  *
  * A table from md (columns join as the screen widens), compact cards below; a
  * row opens the order. Bulk trash / cancel, the CPA push, the MEX import CSV
@@ -169,9 +173,7 @@ export default function Orders() {
   const drillLabel = searchParams.get(DRILL_LABEL_PARAM);
   const state = useMemo(() => readListParams(searchParams), [searchParams]);
   const today = skopjeToday();
-  const ctx = useMemo(() => ({ drill: !!drill }), [drill]);
-  const view = effectiveView(state, ctx);
-  const period = effectiveRange(state, today, ctx);
+  const period = effectiveRange(state, today);
   const page = state.page;
   const patch = useCallback(
     (p: ListPatch) => setSearchParams((prev) => writeListParams(prev, p), { replace: true }),
@@ -200,8 +202,8 @@ export default function Orders() {
   const searchFor = (text: string) => { writtenSearch.current = text.trim(); setSearchText(text); patch({ search: text }); };
 
   const apiParams = useMemo(
-    () => toApiParams(state, { ...ctx, today, isAgent, userId: user?.id }),
-    [state, ctx, today, isAgent, user?.id],
+    () => toApiParams(state, { today, isAgent, userId: user?.id }),
+    [state, today, isAgent, user?.id],
   );
   const listKey = JSON.stringify(apiParams) + drillKey;
 
@@ -228,6 +230,8 @@ export default function Orders() {
   const [historyOrder, setHistoryOrder] = useState<{ phone: string; name: string } | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const isMobile = useIsMobile();
+  // Below 1536 px the search shares its row with four buttons: the short hint fits, the long one is cut.
+  const narrowSearch = useMaxWidth(1535);
 
   // Expandable rows state - supports multiple rows open at once
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -420,18 +424,12 @@ export default function Orders() {
   }, [listKey, page]);
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
-  // One count per status chip, for the same filters (the chips' numbers).
-  const { data: countsData, refetch: refetchCounts } = useQuery({
-    queryKey: ['orders-view-counts', listKey],
-    queryFn: () => apiGetOrderViewCounts({ ...apiParams, drill: drill ?? undefined }),
-    staleTime: 30_000,
-  });
-
   // The collabBox bookings (owner 02.10.2026): sales booked in collabBox whose MEX parcel does not
   // exist yet — counted by the Overview and the TV board, orders only once MEX creates the parcel.
-  // Shown beside "Нарачки" / "Сите" for the same period / department / seller / search; a filter a
-  // booking cannot have (MEX status, source, assignee, price, CPA, a drill) hides them.
-  const showBookings = bookingsApply(state, view, { drill: !!drill, isAgent });
+  // Shown (closed, owner 15.10.2026) for every status or a pick with Потврдена, for the same period /
+  // department / seller / search; a filter a booking cannot have (source, assignee, price, CPA, an old
+  // MEX link, a drill) hides them.
+  const showBookings = bookingsApply(state, { drill: !!drill, isAgent });
   const bookingsParams = useMemo(() => toBookingsParams(apiParams), [apiParams]);
   const { data: bookingsData, isError: bookingsError, refetch: refetchBookings } = useQuery({
     queryKey: ['orders-bookings', JSON.stringify(bookingsParams)],
@@ -440,10 +438,8 @@ export default function Orders() {
     staleTime: 30_000,
   });
   const bookingsTotal = showBookings ? bookingsData?.total ?? 0 : 0;
-  const jumpToBookings = () =>
-    document.getElementById(BOOKINGS_SECTION_ID)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-  const refresh = () => { fetchOrders(); refetchCounts(); if (showBookings) refetchBookings(); };
+  const refresh = () => { fetchOrders(); if (showBookings) refetchBookings(); };
 
   // "Who is viewing" — one request for the whole page.
   const views = useActiveViews(useMemo(() => orders.map((o) => o.customer_phone), [orders]));
@@ -520,7 +516,7 @@ export default function Orders() {
   }, [exportScope, exportPageFrom, exportPageTo, total, totalPages]);
 
   const filterCount = activeFilterCount(state, isAgent);
-  const hasActiveFilters = !!drill || !!state.search.trim() || state.view != null || filterCount > 0;
+  const hasActiveFilters = !!drill || hasAnyFilter(state, isAgent);
   const clearAllFilters = () => {
     writtenSearch.current = '';
     setSearchText('');
@@ -1042,10 +1038,24 @@ export default function Orders() {
   const openSheet = () => { setDraftSp(new URLSearchParams(searchParams)); setSheetOpen(true); };
   const draft = useMemo(() => readListParams(draftSp), [draftSp]);
   const applySheet = () => { setSearchParams(writeListParams(draftSp, { page: 1 }), { replace: true }); setSheetOpen(false); };
-  const resetSheet = () => setDraftSp((prev) => writeListParams(prev, {
-    range: null, depts: [], seller: null, mex: [], sources: [], agent: null, mine: null,
-    priceMin: null, priceMax: null, wm: null, offer: null, stream: null,
-  }));
+  const resetSheet = () => setDraftSp((prev) => writeListParams(prev, PANEL_RESET));
+
+  // The md+ "Филтри" popover (live). Below md the same fields sit in the sheet (a draft).
+  const [panelOpen, setPanelOpen] = useState(false);
+  // The panel's numbers — one per status key, for the filters being edited — asked only while it is open.
+  const countsFor = sheetOpen ? draft : state;
+  const stateCountsParams = useMemo(() => {
+    const { state: _pick, ...rest } = toApiParams(countsFor, { today, isAgent, userId: user?.id });
+    return { ...rest, drill: drill ?? undefined };
+  }, [countsFor, today, isAgent, user?.id, drill]);
+  const { data: stateCountsData, isFetching: stateCountsLoading } = useQuery({
+    queryKey: ['orders-state-counts', JSON.stringify(stateCountsParams)],
+    queryFn: () => apiGetOrderStateCounts(stateCountsParams),
+    enabled: panelOpen || sheetOpen,
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
+  });
+  const stateCounts = stateCountsData?.counts;
 
   const filterSrc: FilterSources = {
     isAdmin, isAgent,
@@ -1055,11 +1065,7 @@ export default function Orders() {
     webmasterNames,
   };
 
-  const counts = countsData?.counts;
   const periodLabel = period.days ? periodText(period.days) : t('ordersList.period.all');
-  const periodPresetLabel = period.preset === 'all' ? t('ordersList.period.all') : t(`insights.common.period.${period.preset}`);
-  const stepPeriod = (next: { preset: string; range: { from: string; to: string } }) =>
-    patch(next.preset === 'today' ? { range: null } : { range: 'custom', from: next.range.from, to: next.range.to });
   const firstRow = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const lastRow = Math.min(total, page * PAGE_SIZE);
   const searchIsPhone = !!phoneLast8(searchText);
@@ -1194,7 +1200,7 @@ export default function Orders() {
         <div className="rounded-md border bg-muted/30 p-2 text-[11px]">
           <span className="text-muted-foreground">{t('ordersPage.exportDateRange')}: </span>
           <span className="font-medium tabular-nums">{periodLabel}</span>
-          <span className="text-muted-foreground"> · {t(`ordersList.view.${view}`)}</span>
+          <span className="text-muted-foreground"> · {statusPickLabel(t, state.states)}</span>
         </div>
         <div className="grid grid-cols-2 gap-1">
           <Button variant={exportScope === 'all' ? 'default' : 'outline'} size="sm" className="h-8 text-xs" onClick={() => setExportScope('all')}>{t('ordersPage.exportAllPages')}</Button>
@@ -1231,16 +1237,16 @@ export default function Orders() {
         {drill && <OrdersDrillBanner drill={drill} label={drillLabel} onClear={clearDrill} />}
 
         {/* ── the toolbar ─────────────────────────────────────────────── */}
-        <section role="search" aria-label={t('ordersList.search.label')} className="min-w-0 space-y-3 rounded-xl border bg-card/80 p-3 shadow-sm">
+        <section role="search" aria-label={t('ordersList.search.label')} className="min-w-0 space-y-2.5 rounded-xl border bg-card/80 p-3 shadow-sm">
           <div className="flex flex-wrap items-center gap-2">
-            <div className="relative min-w-0 basis-full md:flex-1 md:basis-auto lg:max-w-xl">
+            <div className="relative min-w-0 basis-full md:flex-1 md:basis-auto">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
               <input
                 type="search"
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Escape' && searchText) { e.preventDefault(); searchFor(''); } }}
-                placeholder={isMobile ? t('ordersList.search.short') : t('ordersList.search.placeholder')}
+                placeholder={isMobile || narrowSearch ? t('ordersList.search.short') : t('ordersList.search.placeholder')}
                 aria-label={t('ordersList.search.label')}
                 autoComplete="off"
                 spellCheck={false}
@@ -1259,10 +1265,10 @@ export default function Orders() {
               )}
             </div>
             <div className="flex min-w-0 flex-1 items-center justify-end gap-2 md:flex-none">
-              <Button variant="outline" size="sm" className="mr-auto h-9 gap-1.5 rounded-lg text-sm xl:hidden" onClick={openSheet}>
-                <Filter className="h-3.5 w-3.5" aria-hidden /> {t('ordersList.filters.open')}
-                {filterCount > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">{filterCount}</span>}
-              </Button>
+              {isMobile
+                ? <FiltersButton count={filterCount} onClick={openSheet} className="mr-auto" />
+                : <FiltersPanel value={state} onChange={patch} src={filterSrc} counts={stateCounts} countsLoading={stateCountsLoading}
+                    count={filterCount} open={panelOpen} onOpenChange={setPanelOpen} />}
               {csvButton}
               {exportButton}
               <Button onClick={() => setShowCreateModal(true)} size="sm" className="h-9 gap-1.5 rounded-lg text-sm" aria-label={t('common.createOrder')}>
@@ -1272,43 +1278,31 @@ export default function Orders() {
           </div>
           {searchIsPhone && <p className="text-[11px] text-muted-foreground">{t('ordersList.search.phone')}</p>}
 
-          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-            <OrderViewChips view={view} counts={counts} onChange={(v) => patch({ view: v })}
-              bookings={bookingsTotal} onBookings={jumpToBookings} />
-            <div className="flex items-center gap-3">
-              <span className="text-xs tabular-nums text-muted-foreground" aria-live="polite" data-testid="orders-shown">
+          {/* Сите · Нарачки · Отворени лидови · Откажани · Корпа · Вратени — and the period, ‹ Денес › */}
+          <div className="flex flex-wrap items-center gap-2">
+            <QuickViews states={state.states} onChange={(states) => patch({ states })} className="w-full sm:w-auto" />
+            <div className="ml-auto flex max-w-full shrink-0 items-center justify-between gap-x-3 max-sm:w-full">
+              <PeriodPick value={state} onChange={patch} today={today} />
+              <span className="whitespace-nowrap text-xs tabular-nums text-muted-foreground" aria-live="polite" data-testid="orders-shown">
                 {t('ordersList.range', { from: fmtCount(firstRow), to: fmtCount(lastRow), total: fmtCount(total) })}
               </span>
-              {hasActiveFilters && (
-                <button type="button" onClick={clearAllFilters}
-                  className="inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 text-xs font-medium text-muted-foreground hover:bg-muted lg:h-8">
-                  <X className="h-3.5 w-3.5" aria-hidden />{t('ordersList.filters.clear')}
-                </button>
-              )}
             </div>
           </div>
 
-          {/* xl+: every filter in view. Below xl (phones, tablets, a 1024 laptop with the sidebar open): a summary + the sheet. */}
-          <div className="hidden xl:block">
-            <OrdersFilterFields value={state} onChange={patch} today={today} drill={!!drill} src={filterSrc} layout="inline" />
-          </div>
-          <div className="space-y-2 xl:hidden">
-            {/* ← day → right here on a phone (owner 01.10.2026); the rest of the filters live in the sheet. */}
-            <div className="flex items-center gap-1.5">
-              {period.days && <PhoneDayArrow dir={-1} days={period.days} today={today} onStep={stepPeriod} />}
-              <button type="button" onClick={openSheet} className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-lg border bg-background px-3 py-2 text-left text-xs">
-                <span className="min-w-0 truncate">
-                  <span className="text-muted-foreground">{t('ordersList.period.label')}: </span>
-                  <span className="font-medium">{periodPresetLabel}</span>
-                  {period.days && <span className="tabular-nums text-muted-foreground"> · {periodLabel}</span>}
-                </span>
-                <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+          {/* What the panel filters, each removable, and "Исчисти" (only when something is set). */}
+          {hasActiveFilters && (
+            <div className="flex flex-wrap items-center gap-2">
+              <FilterTokens value={state} onChange={patch} src={filterSrc} />
+              <button type="button" onClick={clearAllFilters} data-testid="clear-filters"
+                className="ml-auto inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 text-xs font-medium text-muted-foreground hover:bg-muted lg:h-8">
+                <X className="h-3.5 w-3.5" aria-hidden />{t('ordersList.filters.clear')}
               </button>
-              {period.days && <PhoneDayArrow dir={1} days={period.days} today={today} onStep={stepPeriod} />}
             </div>
-            <ActiveFilterChips value={state} onChange={patch} src={filterSrc} />
-          </div>
+          )}
         </section>
+
+        {/* ── collabBox bookings: sales waiting for their MEX parcel (closed by default) ── */}
+        {showBookings && <OrdersBookings data={bookingsData} error={bookingsError} />}
 
         {/* ── the selection ───────────────────────────────────────────── */}
         {selectedExport.size > 0 && (
@@ -1357,7 +1351,7 @@ export default function Orders() {
             title={t('ordersPage.noOrdersFound')}
             description={bookingsTotal > 0
               ? t('ordersList.bookings.empty', { count: bookingsTotal })
-              : hasActiveFilters || view !== 'all' || period.days ? t('ordersList.emptyHint') : t('ordersPage.ordersAppearHere')}
+              : hasActiveFilters ? t('ordersList.emptyHint') : t('ordersPage.ordersAppearHere')}
             size="sm"
             action={hasActiveFilters ? <Button variant="outline" size="sm" onClick={clearAllFilters}>{t('ordersPage.clearFilters')}</Button> : undefined}
           />
@@ -1390,22 +1384,20 @@ export default function Orders() {
           </div>
         )}
 
-        {/* ── collabBox bookings: sales waiting for their MEX parcel ─────── */}
-        {showBookings && <OrdersBookings data={bookingsData} error={bookingsError} />}
       </div>
 
-      {/* Filters — phone sheet: a draft of every filter; "Примени" writes it. */}
+      {/* Filters — phone sheet: the panel's fields as a draft; "Примени" writes it. */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent side="bottom" className={cn('flex max-h-[90dvh] flex-col gap-0 p-0', OVERVIEW_COLOR_VARS)}>
           <SheetHeader className="border-b px-4 py-3 text-left">
             <SheetTitle>{t('ordersList.filters.title')}</SheetTitle>
-            <SheetDescription className="text-xs">{t('ordersList.period.hint')}</SheetDescription>
+            <SheetDescription className="text-xs">{t('ordersList.filters.sheetHint')}</SheetDescription>
           </SheetHeader>
           <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-            <OrdersFilterFields
+            <FiltersPanelFields
               value={draft}
               onChange={(p) => setDraftSp((prev) => writeListParams(prev, p))}
-              today={today} drill={!!drill} src={filterSrc} layout="sheet"
+              src={filterSrc} counts={stateCounts} countsLoading={stateCountsLoading}
             />
           </div>
           <div className="flex gap-2 border-t px-4 py-3">
@@ -1602,23 +1594,5 @@ export default function Orders() {
         onExportValid={handleExportValidOnly}
       />
     </AppLayout>
-  );
-}
-
-/** One ← / → of the phone period row (the same step as the period's arrows, see stepRange). */
-function PhoneDayArrow({ dir, days, today, onStep }: {
-  dir: -1 | 1; days: { from: string; to: string }; today: string;
-  onStep: (next: { preset: string; range: { from: string; to: string } }) => void;
-}) {
-  const { t } = useTranslation();
-  const next = stepRange(days, dir, today);
-  const oneDay = days.from === days.to;
-  const label = t(dir < 0 ? (oneDay ? 'insights.common.period.prevDay' : 'insights.common.period.prevPeriod') : (oneDay ? 'insights.common.period.nextDay' : 'insights.common.period.nextPeriod'));
-  const Icon = dir < 0 ? ChevronLeft : ChevronRight;
-  return (
-    <button type="button" disabled={!next} onClick={() => next && onStep(next)} aria-label={label} title={label}
-      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border bg-background disabled:opacity-40">
-      <Icon className="h-4 w-4" aria-hidden />
-    </button>
   );
 }

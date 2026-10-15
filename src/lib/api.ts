@@ -430,6 +430,9 @@ export interface OrdersQueryParams {
   ready_only?: boolean; lead_only?: boolean; from?: string; to?: string;
   price_min?: number; price_max?: number; page?: number; limit?: number; drill?: OrdersDrillParams;
   view?: string; day_from?: string; day_to?: string; dept?: string; seller?: string; mex?: string;
+  /** The status pick (owner 15.10.2026): csv of the api's STATE_KEYS — every status + the MEX parts of
+   *  Потврдена / Испратена. Goes with view=all. */
+  state?: string;
 }
 export const apiGetOrders = (params?: OrdersQueryParams) => apiFetch(`orders?${ordersQuery(params).toString()}`);
 /** One count per status chip for the same filters (all = the sum of the four). */
@@ -438,6 +441,13 @@ export const apiGetOrderViewCounts = (params?: OrdersQueryParams): Promise<{ cou
   const sp = ordersQuery(params);
   for (const k of ['view', 'page', 'limit']) sp.delete(k);
   return apiFetch(`orders/view-counts?${sp.toString()}`);
+};
+/** One count per status-pick key (the "Филтри" panel), for the same filters; null = that count failed. */
+export type OrderStateCounts = Record<string, number | null>;
+export const apiGetOrderStateCounts = (params?: OrdersQueryParams): Promise<{ counts: OrderStateCounts }> => {
+  const sp = ordersQuery(params);
+  for (const k of ['view', 'state', 'page', 'limit']) sp.delete(k);
+  return apiFetch(`orders/state-counts?${sp.toString()}`);
 };
 /** The /orders seller filter: every sales person, active first (admin / manager / warehouse). */
 export const apiGetOrderSellers = (): Promise<{ sellers: { id: string; name: string; active: boolean }[] }> =>
@@ -512,7 +522,7 @@ function ordersQuery(params?: OrdersQueryParams): URLSearchParams {
   if (params?.to) sp.set('to', params.to);
   if (params?.price_min != null) sp.set('price_min', String(params.price_min));
   if (params?.price_max != null) sp.set('price_max', String(params.price_max));
-  for (const k of ['view', 'day_from', 'day_to', 'dept', 'seller', 'mex'] as const) {
+  for (const k of ['view', 'state', 'day_from', 'day_to', 'dept', 'seller', 'mex'] as const) {
     const v = params?.[k];
     if (v) sp.set(k, v);
   }

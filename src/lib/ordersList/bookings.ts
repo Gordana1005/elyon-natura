@@ -13,7 +13,8 @@
  */
 import type { OrderBookingsParams } from '@/lib/api';
 import type { OrderCollab } from '@/components/orders/types';
-import type { ApiListParams, ListView, OrdersListState } from './listParams';
+import type { ApiListParams, OrdersListState } from './listParams';
+import { pickHoldsBookings } from './statusModel';
 
 /** How many bookings the section shows before "Прикажи ги сите". */
 export const BOOKINGS_PREVIEW_ROWS = 20;
@@ -21,13 +22,16 @@ export const BOOKINGS_PREVIEW_ROWS = 20;
 /** When the nightly rule cancels (apply_collab_entry_rule: hour 21, at :20 Skopje). */
 export const COLLAB_RULE_TIME = '21:20';
 
+/** The browser remembers whether the section is open (owner 15.10.2026: closed by default). */
+export const BOOKINGS_OPEN_KEY = 'orders.bookings.open';
+
 /** Does the bookings section belong to the list as it is filtered? */
 export function bookingsApply(
   s: OrdersListState,
-  view: ListView,
   ctx: { drill: boolean; isAgent: boolean },
 ): boolean {
-  if (view !== 'orders' && view !== 'all') return false;
+  // every status, or a pick that can hold a sale with no parcel yet (Потврдена / Во магацин за пакување)
+  if (!pickHoldsBookings(s.states)) return false;
   if (ctx.drill) return false;
   if (s.mex.length && !s.mex.includes('no_parcel')) return false; // a booking has no parcel
   if (s.sources.length) return false;                              // nor an intake source_type

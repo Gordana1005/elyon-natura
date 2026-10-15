@@ -2,11 +2,15 @@
  * /orders (Нарачки) — the list's state, kept in the URL (Phase 11 A).
  *
  *   ?search=…            name / order no. / product; a phone matches by its last 8 digits
- *   ?view=orders|leads|cancelled|trashed|all      the status chips (default: orders)
- *   ?range=today|week|month|year|all|custom (+ from=YYYY-MM-DD&to=…)   Skopje days (default: today)
- *   ?dept=a,b            the six departments (cohort_order_source keys)
+ *   ?st=a,b              the status pick (statusModel.ts STATE_KEYS: every status + the MEX parts of
+ *                        Потврдена / Испратена); none = every status (the default, owner 15.10.2026)
+ *   ?view=orders|leads|cancelled|trashed|all      the old status chips — still READ (old links) into
+ *                        the pick, never written any more
+ *   ?range=today|week|month|year|all|custom (+ from=YYYY-MM-DD&to=…)   Skopje days (default: all dates,
+ *                        owner 15.10.2026 — it was today since 01.10)
+ *   ?dept=a,b            the seven departments (cohort_order_source keys)
  *   ?seller=<uuid>       sales_people.id — who is credited with the sale
- *   ?mex=a,b             MEX groups: at_mex · courier · delivered · returned · rejected · no_parcel
+ *   ?mex=a,b             MEX groups (the old MEX pills) — still read (old links), shown as a token only
  *   ?source=a,b          altercpa · import · manual (the only source_type values in MK)
  *   ?agent=<uuid>|none   the assigned agent
  *   ?mine=1|0            "my orders" (agents: always on)
@@ -14,22 +18,25 @@
  *   ?wm / ?offer / ?stream   CPA provenance (admin / manager)
  *   ?page=N
  *
- * An Insights drill-down (?cohort_bucket=…&sold_from=… etc., ORDERS_DRILL_KEYS)
- * and a ?search= link define their own set: with either, the chips default to
- * "Сите" and the period to "all dates", so the link lists exactly what it
- * promised. An explicit chip or period in the URL always wins.
+ * The list opens on every status and every date (owner 15.10.2026), so an Insights
+ * drill-down (?cohort_bucket=…&sold_from=… etc., ORDERS_DRILL_KEYS) or a ?search=
+ * link lists exactly what it promised. An explicit pick or period in the URL wins.
  *
  * Pure (no React): listParams.test.ts covers it.
  */
 import { ORDERS_DRILL_KEYS } from '@/lib/api';
 import { addDays, isYmd, MAX_SPAN_DAYS, presetRange, type DayRange } from '@/components/insights/shared/period';
 import { denToEur } from '@/lib/currency';
+import { LEGACY_VIEW_STATES, normalizeStates, quickViewOf, STATE_KEYS, type StateKey } from './statusModel';
 
+/** The old status chips — only READ now (?view= in a link from before 15.10.2026). */
 export const LIST_VIEWS = ['orders', 'leads', 'cancelled', 'trashed', 'all'] as const;
 export type ListView = (typeof LIST_VIEWS)[number];
 
 export const LIST_RANGES = ['today', 'week', 'month', 'year', 'all', 'custom'] as const;
 export type ListRange = (typeof LIST_RANGES)[number];
+/** What the period dropdown offers (owner 15.10.2026); 'year' stays readable for old links. */
+export const MENU_RANGES: readonly ListRange[] = ['all', 'today', 'week', 'month', 'custom'];
 
 /** The departments, in the owner's order (insights/overview/palette SOURCE_ORDER) — Менаџмент
  *  last (owner 02.10.2026, 20260947001000: a Менаџмент person's sales, apart from every team). */
@@ -47,8 +54,9 @@ export const LIST_SOURCES = ['altercpa', 'import', 'manual'] as const;
 
 export interface OrdersListState {
   search: string;
-  /** null = not in the URL → the default (see effectiveView). */
-  view: ListView | null;
+  /** The status pick, normalized; [] = every status (the default). */
+  states: StateKey[];
+  /** null = not in the URL → all dates (the default). */
   range: ListRange | null;
   from: string | null;
   to: string | null;
@@ -71,7 +79,7 @@ export interface OrdersListState {
 
 /** Every URL key the list owns (the drill keys are the Insights links'). */
 export const LIST_PARAM_KEYS = [
-  'search', 'view', 'range', 'from', 'to', 'dept', 'seller', 'mex', 'source', 'agent', 'mine',
+  'search', 'st', 'view', 'range', 'from', 'to', 'dept', 'seller', 'mex', 'source', 'agent', 'mine',
   'pmin', 'pmax', 'wm', 'offer', 'stream', 'page',
 ] as const;
 
@@ -99,9 +107,11 @@ export function readListParams(sp: URLSearchParams): OrdersListState {
   const agent = sp.get('agent');
   const seller = sp.get('seller');
   const mine = sp.get('mine');
+  const st = csvOf(sp.get('st'), STATE_KEYS);
+  const legacyView = oneOf(sp.get('view'), LIST_VIEWS);
   return {
     search: sp.get('search') ?? '',
-    view: oneOf(sp.get('view'), LIST_VIEWS),
+    states: normalizeStates(st.length ? st : legacyView ? LEGACY_VIEW_STATES[legacyView] : []),
     range,
     from: isYmd(from) ? from : null,
     to: isYmd(to) ? to : null,
@@ -131,7 +141,11 @@ export function writeListParams(sp: URLSearchParams, patch: ListPatch): URLSearc
   const set = (k: string, v: string | null | undefined) => (v ? out.set(k, v) : out.delete(k));
   const has = (k: keyof ListPatch) => Object.prototype.hasOwnProperty.call(patch, k);
   if (has('search')) set('search', (patch.search ?? '').trim() ? patch.search! : null);
-  if (has('view')) set('view', patch.view ?? null);
+  if (has('states')) {
+    const n = normalizeStates(patch.states ?? []);
+    set('st', n.length ? n.join(',') : null);
+    out.delete('view'); // the old chip param never outlives a pick
+  }
   if (has('range')) {
     set('range', patch.range ?? null);
     if (patch.range !== 'custom') { out.delete('from'); out.delete('to'); }
@@ -169,22 +183,10 @@ export function clearDrillParams(sp: URLSearchParams): URLSearchParams {
   return out;
 }
 
-export interface ListContext {
-  /** An Insights drill-down is in the URL. */
-  drill: boolean;
-}
-
-/** A link that defines its own set (a drill, a search) lists every status. */
-const opensEverything = (s: OrdersListState, ctx: ListContext) => ctx.drill || s.search.trim() !== '';
-
-export function effectiveView(s: OrdersListState, ctx: ListContext): ListView {
-  return s.view ?? (opensEverything(s, ctx) ? 'all' : 'orders');
-}
-
 /** The period the list is showing: a preset and its Skopje days (null = all dates). */
-export function effectiveRange(s: OrdersListState, today: string, ctx: ListContext): { preset: ListRange; days: DayRange | null } {
-  // today by default (owner 01.10.2026), with ← / → to step day by day
-  const preset: ListRange = s.range ?? (opensEverything(s, ctx) ? 'all' : 'today');
+export function effectiveRange(s: OrdersListState, today: string): { preset: ListRange; days: DayRange | null } {
+  // every date by default (owner 15.10.2026); Денес with ‹ › steps day by day
+  const preset: ListRange = s.range ?? 'all';
   if (preset === 'all') return { preset, days: null };
   if (preset === 'custom') {
     // an open end is allowed here (from only / to only), unlike the Insights period
@@ -197,16 +199,26 @@ export function effectiveRange(s: OrdersListState, today: string, ctx: ListConte
 /** "My orders" as it applies: agents always, everyone else when switched on. */
 export const effectiveMine = (s: OrdersListState, isAgent: boolean) => isAgent || s.mine === true;
 
-/** How many filters are set beyond the defaults (the phone "Филтри" badge). */
+/** A status pick the quick-view strip cannot show (it then lives in the panel and the tokens). */
+export const customStatePick = (s: Pick<OrdersListState, 'states'>) => s.states.length > 0 && quickViewOf(s.states) == null;
+
+/** How many "Филтри" panel filters are set (its badge). The strip and the period show their own. */
 export function activeFilterCount(s: OrdersListState, isAgent: boolean): number {
   return [
-    s.range != null, s.depts.length > 0, !!s.seller, s.mex.length > 0, s.sources.length > 0, !!s.agent,
+    customStatePick(s), s.depts.length > 0, !!s.seller, s.mex.length > 0, s.sources.length > 0, !!s.agent,
     !isAgent && s.mine === true, s.priceMin != null || s.priceMax != null, !!s.wm, !!s.offer, !!s.stream,
   ].filter(Boolean).length;
 }
 
+/** Anything narrows the list beyond every status + every date (the "Исчисти" button). */
+export function hasAnyFilter(s: OrdersListState, isAgent: boolean): boolean {
+  return s.states.length > 0 || s.range != null || !!s.search.trim() || activeFilterCount(s, isAgent) > 0;
+}
+
 export interface ApiListParams {
-  view: ListView;
+  /** Always 'all': the status pick goes as `state` (the api's ordersList.ts). */
+  view: 'all';
+  state?: string;
   search?: string;
   day_from?: string;
   day_to?: string;
@@ -229,16 +241,18 @@ export interface ApiListParams {
  */
 export function toApiParams(
   s: OrdersListState,
-  ctx: ListContext & { today: string; isAgent: boolean; userId?: string | null },
+  ctx: { today: string; isAgent: boolean; userId?: string | null },
 ): ApiListParams {
-  const { days } = effectiveRange(s, ctx.today, ctx);
+  const { days } = effectiveRange(s, ctx.today);
+  const states = normalizeStates(s.states);
   const search = s.search.trim();
   // An agent's search is global (RLS still decides what they may see); otherwise
   // "my orders" wins over the agent picker.
   const mine = effectiveMine(s, ctx.isAgent) && !(ctx.isAgent && search);
   const agent = mine && ctx.userId ? ctx.userId : s.agent ?? undefined;
   return {
-    view: effectiveView(s, ctx),
+    view: 'all',
+    ...(states.length ? { state: states.join(',') } : {}),
     ...(search ? { search } : {}),
     ...(days ? { day_from: days.from, day_to: days.to } : {}),
     ...(s.depts.length ? { dept: s.depts.join(',') } : {}),
@@ -269,3 +283,9 @@ export function mexGroupOf(statusId: number | null | undefined, trackingId: stri
   for (const [g, ids] of Object.entries(MEX_GROUP_IDS)) if (ids.includes(Number(statusId))) return g as MexGroupKey;
   return null;
 }
+
+/** The panel filters reset by "Исчисти филтри" in the panel / "Ресетирај" in the sheet (not the period). */
+export const PANEL_RESET: ListPatch = {
+  states: [], depts: [], seller: null, mex: [], sources: [], agent: null, mine: null,
+  priceMin: null, priceMax: null, wm: null, offer: null, stream: null,
+};

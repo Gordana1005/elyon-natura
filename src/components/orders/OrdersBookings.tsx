@@ -1,18 +1,26 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ClipboardList } from 'lucide-react';
+import { ChevronDown, ClipboardList } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDenari } from '@/lib/currency';
 import { sourceColorVar } from '@/components/insights/overview/palette';
 import { departmentLabel } from '@/lib/orderSource';
 import { fmtCount, skopjeDayTime } from '@/lib/ordersList/rowModel';
-import { BOOKINGS_PREVIEW_ROWS, ddMm } from '@/lib/ordersList/bookings';
+import { BOOKINGS_OPEN_KEY, BOOKINGS_PREVIEW_ROWS, ddMm } from '@/lib/ordersList/bookings';
 import { skopjeYmd } from '@/lib/skopjeTime';
 import type { OrderBooking, OrderBookingsResponse } from '@/lib/api';
 import { DeptLine } from './OrdersList';
 
-/** The section's anchor (the "+N во collabBox" chip jumps here). */
+/** The section's id (its body is `${id}-body`). */
 export const BOOKINGS_SECTION_ID = 'orders-bookings';
+
+/** Open or closed, per browser (closed by default — owner 15.10.2026). Storage may be blocked. */
+function readOpen(): boolean {
+  try { return window.localStorage.getItem(BOOKINGS_OPEN_KEY) === '1'; } catch { return false; }
+}
+function writeOpen(open: boolean) {
+  try { window.localStorage.setItem(BOOKINGS_OPEN_KEY, open ? '1' : '0'); } catch { /* the choice just is not remembered */ }
+}
 
 /**
  * "Внесено во collabBox — чека MEX пратка" (owner, Mile, 02.10.2026: "Треба да се гледат да").
@@ -23,58 +31,79 @@ export const BOOKINGS_SECTION_ID = 'orders-bookings';
  * "Телешоп – Lead out · today" read 0 while the board showed the sales. Read-only — a booking
  * has no order to open; it becomes one when MEX creates the parcel.
  *
- * A compact table from md (columns join as the screen widens: the seller at lg, the folder and
- * the document at xl — before that they sit under the customer / the department), cards below
- * md; the first BOOKINGS_PREVIEW_ROWS, then "Прикажи ги сите". Nothing at all when there are none.
+ * Sits right under the toolbar as ONE line, CLOSED by default (owner, 15.10.2026: "it takes too much
+ * place … we need to have an option do we want to see that or not"): the title and the total; a click
+ * opens it, and the browser remembers the choice.
+ *
+ * Open: the count per department, then a compact table from md (columns join as the screen widens:
+ * the seller at lg, the folder and the document at xl — before that they sit under the customer / the
+ * department), cards below md; the first BOOKINGS_PREVIEW_ROWS, then "Прикажи ги сите". Nothing at all
+ * when there are none.
  */
 export function OrdersBookings({ data, error }: { data: OrderBookingsResponse | undefined; error?: boolean }) {
   const { t } = useTranslation();
+  const [open, setOpen] = useState(readOpen);
   const [all, setAll] = useState(false);
   if (error) {
     return <p className="px-1 text-[11px] text-muted-foreground" data-testid="bookings-error">{t('ordersList.bookings.loadError')}</p>;
   }
   if (!data || data.total === 0) return null;
+  const toggle = () => setOpen((o) => { writeOpen(!o); return !o; });
   const rows = all ? data.rows : data.rows.slice(0, BOOKINGS_PREVIEW_ROWS);
   const more = data.rows.length > BOOKINGS_PREVIEW_ROWS;
+  const bodyId = `${BOOKINGS_SECTION_ID}-body`;
   return (
     <section id={BOOKINGS_SECTION_ID} aria-labelledby={`${BOOKINGS_SECTION_ID}-title`} data-testid="bookings-section"
       className="min-w-0 scroll-mt-3 overflow-hidden rounded-xl border border-amber-600/25 bg-card shadow-sm">
-      <header className="space-y-2 border-b bg-amber-50/60 px-3 py-2.5 dark:bg-amber-500/10 md:px-4">
-        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+      <h2 id={`${BOOKINGS_SECTION_ID}-title`} className="m-0">
+        <button type="button" onClick={toggle} aria-expanded={open} aria-controls={bodyId} data-testid="bookings-toggle"
+          className={cn(
+            'flex w-full min-w-0 items-center gap-2 bg-amber-50/60 px-3 py-2 text-left transition-colors hover:bg-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring dark:bg-amber-500/10 dark:hover:bg-amber-500/15 md:px-4',
+            open && 'border-b',
+          )}>
           <ClipboardList className="h-4 w-4 shrink-0 text-amber-700 dark:text-amber-400" aria-hidden />
-          <h2 id={`${BOOKINGS_SECTION_ID}-title`} className="min-w-0 break-words text-sm font-semibold leading-snug">
-            {t('ordersList.bookings.title')}
-          </h2>
-          <span className="rounded-full bg-amber-600/15 px-2 py-0.5 text-xs font-semibold tabular-nums text-amber-900 dark:text-amber-300" data-testid="bookings-total">
+          <span className="min-w-0 break-words text-sm font-semibold leading-snug">{t('ordersList.bookings.title')}</span>
+          <span className="shrink-0 rounded-full bg-amber-600/15 px-2 py-0.5 text-xs font-semibold tabular-nums text-amber-900 dark:text-amber-300" data-testid="bookings-total">
             {fmtCount(data.total)}
           </span>
-        </div>
-        <ul className="flex flex-wrap gap-1.5" aria-label={t('ordersList.bookings.col.department')}>
-          {Object.entries(data.by_department).map(([dept, n]) => (
-            <li key={dept} className="inline-flex max-w-full items-center gap-1.5 rounded-full border bg-card px-2 py-0.5 text-xs">
-              <span className="h-[3px] w-3 shrink-0 rounded-full" style={{ background: sourceColorVar(dept) }} aria-hidden />
-              <span className="min-w-0 break-words leading-tight">{departmentLabel(t, dept) ?? dept}</span>
-              <span className="font-semibold tabular-nums">{fmtCount(n)}</span>
-            </li>
-          ))}
-        </ul>
-        <p className="text-[11px] leading-snug text-muted-foreground">
-          {t('ordersList.bookings.hint')}
-          {data.clamped && <> {t('ordersList.bookings.clamped', { days: data.lookback_days })}</>}
-        </p>
-      </header>
+          <span className="ml-auto inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary">
+            <span className="hidden sm:inline">{open ? t('ordersList.bookings.hide') : t('ordersList.bookings.show')}</span>
+            <ChevronDown className={cn('h-4 w-4 transition-transform', open && 'rotate-180')} aria-hidden />
+          </span>
+        </button>
+      </h2>
 
-      <BookingsTable rows={rows} />
-      <ul className="divide-y md:hidden" aria-label={t('ordersList.bookings.title')}>
-        {rows.map((b) => <BookingCard key={b.doc_number} b={b} />)}
-      </ul>
+      {open && (
+        <div id={bodyId}>
+          <div className="space-y-2 border-b bg-amber-50/30 px-3 py-2.5 dark:bg-amber-500/5 md:px-4">
+            <ul className="flex min-w-0 flex-wrap gap-1.5" aria-label={t('ordersList.bookings.col.department')}>
+              {Object.entries(data.by_department).map(([dept, n]) => (
+                <li key={dept} className="inline-flex max-w-full items-center gap-1.5 rounded-full border bg-card px-2 py-0.5 text-xs">
+                  <span className="h-[3px] w-3 shrink-0 rounded-full" style={{ background: sourceColorVar(dept) }} aria-hidden />
+                  <span className="min-w-0 break-words leading-tight">{departmentLabel(t, dept) ?? dept}</span>
+                  <span className="font-semibold tabular-nums">{fmtCount(n)}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="text-[11px] leading-snug text-muted-foreground">
+              {t('ordersList.bookings.hint')}
+              {data.clamped && <> {t('ordersList.bookings.clamped', { days: data.lookback_days })}</>}
+            </p>
+          </div>
 
-      {more && (
-        <div className="border-t px-3 py-2 text-center">
-          <button type="button" onClick={() => setAll((v) => !v)} data-testid="bookings-more"
-            className="inline-flex min-h-9 items-center rounded-lg px-3 text-xs font-medium text-primary hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:min-h-8">
-            {all ? t('ordersList.bookings.showLess') : t('ordersList.bookings.showAll', { count: data.rows.length })}
-          </button>
+          <BookingsTable rows={rows} />
+          <ul className="divide-y md:hidden" aria-label={t('ordersList.bookings.title')}>
+            {rows.map((b) => <BookingCard key={b.doc_number} b={b} />)}
+          </ul>
+
+          {more && (
+            <div className="border-t px-3 py-2 text-center">
+              <button type="button" onClick={() => setAll((v) => !v)} data-testid="bookings-more"
+                className="inline-flex min-h-9 items-center rounded-lg px-3 text-xs font-medium text-primary hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:min-h-8">
+                {all ? t('ordersList.bookings.showLess') : t('ordersList.bookings.showAll', { count: data.rows.length })}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </section>

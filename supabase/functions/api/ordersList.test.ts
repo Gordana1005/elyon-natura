@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   activeViewsByPhone, anyStatusDayOr, applyOps, baseOps, COUNTED_VIEWS, dayWindow, filterRecorder, isNarrowed,
   LEAD_STATUSES, MEX_GROUP_KEYS, mexGroupOf, mexGroupsOr, NOT_DISPOSITION, orderSpec, parseOrdersListParams,
-  parsePhonesParam, parseSearch, phoneLast8, SALE_STATUSES, saleClockOr, searchOps, viewCounts, viewOps, viewStatuses,
+  parsePhonesParam, parseSearch, phoneLast8, SALE_NOT_DISPOSITION, SALE_STATUSES, saleClockOr, searchOps, STATE_KEYS,
+  stateCountParams, stateOps, stateViews, normalizeStates, viewCounts, viewOps, viewStatuses,
   type Op, type OrdersListParams,
 } from "./ordersList.ts";
 import { COHORT_SOURCE_TERM } from "./insightsCommon.ts";
@@ -121,7 +122,7 @@ describe("parseOrdersListParams", () => {
       view: "orders", statuses: ["confirmed", "paid"], dayFrom: "2026-09-22", dayTo: "2026-09-28",
       departments: ["altercpa", "social"], sellerId: "11111111-1111-4111-8111-111111111111",
       mexGroups: ["courier", "no_parcel"], sources: ["manual"], agent: { kind: "none" },
-      search: { kind: "phone", last8: "70123456" },
+      search: { kind: "phone", last8: "70123456" }, states: [],
     });
     expect(isNarrowed(p)).toBe(true);
     expect(isNarrowed(params(""))).toBe(false);
@@ -132,6 +133,7 @@ describe("parseOrdersListParams", () => {
     for (const bad of [
       "view=sales", "status=shipped,lost", "day_from=2026-09-31", "day_from=28.09.2026", "day_from=2026-09-29&day_to=2026-09-28",
       "dept=collabbox", "seller=anna", "mex=packed", "source=opencart", "source=monadon_legacy", "agent_id=me",
+      "state=lost", "state=confirmed.shipped", "view=orders&state=paid", "view=leads&state=pending",
     ]) {
       expect(parseOrdersListParams(new URLSearchParams(bad)).ok, bad).toBe(false);
     }
@@ -190,7 +192,8 @@ describe("views — the status chips", () => {
     expect(viewStatuses({ statuses: null }, "leads")).toEqual(["pending", "take", "call_again", "duplicated"]);
     expect(viewOps(params(""), "cancelled")).toEqual([{ m: "eq", col: "status", v: "cancelled" }]);
     expect(viewOps(params(""), "trashed")).toEqual([{ m: "eq", col: "status", v: "trashed" }]);
-    expect(viewOps(params(""), "all")).toEqual([]);
+    // "Сите": never a disposition record under a sale status (as the Нарачки view), so it is their sum
+    expect(viewOps(params(""), "all")).toEqual([{ m: "or", v: SALE_NOT_DISPOSITION }]);
     expect(viewOps(params(""), null)).toEqual([]);
   });
 
@@ -213,14 +216,12 @@ describe("views — the status chips", () => {
         for (const v of hits) counts[v]++;
         if (passes(ops.all, r)) {
           all++;
-          // … and in exactly one when "all" takes it, unless it is a 0 ден disposition sale
-          if (!hits.length) {
-            expect(r.sale_source_detail, JSON.stringify(r)).toBe("disposition");
-            dispositionSales++;
-          }
+          // … and in exactly one when "all" takes it (a 0 ден disposition sale is in neither)
+          if (!hits.length) dispositionSales++;
         }
       }
-      expect(viewCounts(counts).all, qs).toBe(all - dispositionSales);
+      expect(dispositionSales, qs).toBe(0);
+      expect(viewCounts(counts).all, qs).toBe(all);
       expect(counts.orders + counts.leads + counts.cancelled + counts.trashed, qs).toBeGreaterThan(0);
     }
   }, 60_000);
@@ -316,6 +317,99 @@ describe("department · seller · MEX · source", () => {
     expect(mexGroupOf(13, "x")).toBe("rejected");
     expect(mexGroupOf(null, null)).toBe("no_parcel");
     expect(mexGroupOf(99, "x")).toBeNull();
+  });
+});
+
+describe("the status pick — every status + the MEX parts of Потврдена / Испратена (owner 15.10.2026)", () => {
+  // every status × every parcel state × disposition or not × the four instants
+  function* stateGrid(): Generator<Row> {
+    let n = 0;
+    const statuses = [...SALE_STATUSES, ...LEAD_STATUSES, "cancelled", "trashed"];
+    const parcels: [string | null, number | null][] = [[null, null], ["t", 8], ["t", 1], ["t", 4], ["t", 10], ["t", 3], ["t", 9], ["t", 13], ["t", 2], ["t", 7], ["t", null]];
+    for (const status of statuses)
+    for (const [mex_tracking_id, mex_status_id] of parcels)
+    for (const sale_source_detail of [null, "disposition"])
+    for (const at of [IN, OUT]) {
+      yield {
+        id: `s${n++}`, status, mex_tracking_id, mex_status_id, sale_source_detail,
+        created_at: at, sold_at: SALE_STATUSES.includes(status as never) ? at : null, confirmed_at: null,
+        cancelled_at: status === "cancelled" ? at : null, trashed_at: status === "trashed" ? at : null,
+      };
+    }
+  }
+  const SROWS = [...stateGrid()];
+  const isSale = (r: Row) => (SALE_STATUSES as readonly unknown[]).includes(r.status);
+  /** What each key MEANS, written out plainly (the oracle). */
+  const means = (k: string, r: Row): boolean => {
+    if (isSale(r) && r.sale_source_detail === "disposition") return false; // never under a sale status
+    const [status, part] = k.split(".");
+    if (r.status !== status) return false;
+    if (!part) return true;
+    const id = r.mex_status_id as number | null;
+    if (part === "no_parcel") return r.mex_tracking_id == null;
+    if (part === "packed") return id === 8;
+    if (part === "courier") return [1, 4, 10].includes(id as number);
+    if (part === "problem") return [3, 9, 13].includes(id as number); // 13 "Одбиена" is a problem, not yet a return
+    throw new Error(k);
+  };
+  const pickOps = (qs: string) => viewOps(params(`view=all&${qs}`), "all");
+
+  it("reads the pick in the list's order and drops a child its parent covers", () => {
+    expect(params("state=paid,confirmed.no_parcel").states).toEqual(["confirmed.no_parcel", "paid"]);
+    expect(params("view=all&state=cancelled").states).toEqual(["cancelled"]);
+    expect(normalizeStates(["confirmed.packed", "confirmed", "shipped.problem"])).toEqual(["confirmed", "shipped.problem"]);
+    expect(stateOps(["confirmed", "confirmed.packed"])).toEqual([{ m: "eq", col: "status", v: "confirmed" }]);
+    expect(stateOps(["paid", "returned"])).toEqual([{ m: "in", col: "status", v: ["paid", "returned"] }]);
+    expect(stateOps(["paid", "confirmed.no_parcel"])).toEqual([{ m: "or", v: "status.eq.paid,and(status.eq.confirmed,mex_tracking_id.is.null)" }]);
+    // every status picked = no filter (and not "narrowed")
+    const every = STATE_KEYS.filter((k) => !k.includes("."));
+    expect(stateOps(every)).toEqual([]);
+    expect(isNarrowed(params(`state=${every.join(",")}`))).toBe(false);
+    expect(isNarrowed(params("state=paid"))).toBe(true);
+    expect(stateCountParams(params("view=all&state=paid&dept=social"), "returned")).toMatchObject({ view: "all", states: ["returned"], departments: ["social"] });
+  });
+
+  it("each key lists exactly what it means — MEX 13 under the problem, never under Вратена", () => {
+    for (const k of STATE_KEYS) {
+      const ops = pickOps(`state=${k}`);
+      for (const r of SROWS) expect(passes(ops, r), `${k} ${JSON.stringify(r)}`).toBe(means(k, r));
+    }
+    // two keys at once = either
+    const ops = pickOps("state=paid,shipped.problem");
+    for (const r of SROWS) expect(passes(ops, r), JSON.stringify(r)).toBe(means("paid", r) || means("shipped.problem", r));
+  });
+
+  it("the plain statuses partition the list: the panel's counts add up to it, with and without a window", () => {
+    const plain = STATE_KEYS.filter((k) => !k.includes("."));
+    for (const qs of ["", "day_from=2026-09-22&day_to=2026-09-28"]) {
+      const all = viewOps(params(`view=all&${qs}`), "all");
+      const each = plain.map((k) => viewOps(stateCountParams(params(`view=all&${qs}`), k), "all"));
+      for (const r of [...SROWS, ...ROWS]) {
+        const hits = each.filter((ops) => passes(ops, r)).length;
+        expect(hits, `${qs} ${JSON.stringify(r)}`).toBe(passes(all, r) ? 1 : 0);
+      }
+    }
+  }, 60_000);
+
+  it("the window dates each row by its own clock; one family → its plain range, its sort", () => {
+    const qs = "day_from=2026-09-22&day_to=2026-09-28";
+    const mixed = pickOps(`${qs}&state=paid,cancelled`);
+    expect(passes(mixed, { status: "paid", sold_at: IN, created_at: OUT, sale_source_detail: null })).toBe(true);
+    expect(passes(mixed, { status: "paid", sold_at: OUT, created_at: IN, sale_source_detail: null })).toBe(false);
+    expect(passes(mixed, { status: "cancelled", cancelled_at: IN, created_at: OUT })).toBe(true);
+    expect(passes(mixed, { status: "cancelled", cancelled_at: OUT, created_at: IN })).toBe(false);
+    expect(stateViews(["paid", "cancelled", "confirmed.packed"])).toEqual(["orders", "cancelled"]);
+    // a pick in one family uses that view's plain range filters (index-friendly)
+    expect(pickOps(`${qs}&state=cancelled`)).toContainEqual({ m: "gte", col: "cancelled_at", v: "2026-09-21T22:00:00.000Z" });
+    expect(orderSpec(params(`view=all&${qs}&state=paid,shipped.courier`), "all")[0]).toEqual({ col: "sold_at", ascending: false, nullsFirst: false });
+    expect(orderSpec(params(`view=all&${qs}&state=trashed`), "all")[0].col).toBe("trashed_at");
+    expect(orderSpec(params(`view=all&${qs}&state=paid,cancelled`), "all")).toEqual([{ col: "created_at", ascending: false }]);
+    expect(orderSpec(params("view=all&state=paid"), "all")).toEqual([{ col: "created_at", ascending: false }]);
+  });
+
+  it("a view chip ignores a pick (old callers); view-counts stay as they were", () => {
+    const p = { ...params(""), states: ["paid" as const] };
+    expect(viewOps(p, "cancelled")).toEqual([{ m: "eq", col: "status", v: "cancelled" }]);
   });
 });
 

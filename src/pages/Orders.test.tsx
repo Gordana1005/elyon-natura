@@ -5,10 +5,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import i18n from '@/i18n';
 import { addDays, skopjeToday } from '@/components/insights/shared/period';
 
-// /orders (Phase 11 A): the default "Нарачки" chip with counts, every filter in
-// the URL, the Insights drill-down honoured, the phone Filters sheet, the card
-// layout below md and a row that opens the order. The network is mocked; the
-// layout, the order windows and the Supabase client are stubs.
+// /orders: every status and every date by default (owner 15.10.2026), the quick
+// views, the period ‹ ›, ONE "Филтри" panel (status with the MEX parts, department,
+// seller …), every filter in the URL, the Insights drill-down honoured, the phone
+// sheet, the card layout below md, the collabBox bookings bar (closed) and a row
+// that opens the order. The network is mocked; the layout, the order windows and
+// the Supabase client are stubs.
 
 vi.mock('@/integrations/supabase/client', () => {
   const chain: Record<string, unknown> = {};
@@ -40,7 +42,7 @@ const api = vi.hoisted(() => ({
 vi.mock('@/lib/api', async (orig) => ({
   ...(await orig<typeof import('@/lib/api')>()),
   apiGetOrders: (...a: unknown[]) => api.orders(...a),
-  apiGetOrderViewCounts: (...a: unknown[]) => api.counts(...a),
+  apiGetOrderStateCounts: (...a: unknown[]) => api.counts(...a),
   apiGetActiveViews: (...a: unknown[]) => api.views(...a),
   apiGetOrderBookings: (...a: unknown[]) => api.bookings(...a),
   apiGetOrderSellers: async () => ({ sellers: [{ id: '11111111-1111-4111-8111-111111111111', name: 'Александра Чима', active: true }] }),
@@ -55,7 +57,7 @@ beforeAll(async () => {
   globalThis.ResizeObserver ??= class { observe() {} unobserve() {} disconnect() {} } as unknown as typeof ResizeObserver;
   await i18n.changeLanguage('mk');
 });
-afterEach(() => { vi.clearAllMocks(); });
+afterEach(() => { vi.clearAllMocks(); window.localStorage.clear(); });
 
 const { default: Orders } = await import('./Orders');
 
@@ -107,7 +109,7 @@ function renderAt(url = '/orders', opts: { orders?: unknown[]; bookings?: unknow
   const orders = opts.orders ?? ORDERS;
   api.orders.mockResolvedValue({ orders: structuredClone(orders), total: orders.length });
   api.bookings.mockResolvedValue(structuredClone(opts.bookings ?? BOOKINGS));
-  api.counts.mockResolvedValue({ counts: { orders: 1400, leads: 63, cancelled: 1021, trashed: 543, all: 3027 } });
+  api.counts.mockResolvedValue({ counts: { pending: 134, take: 0, call_again: 269, duplicated: 17, confirmed: 526, 'confirmed.no_parcel': 305, 'confirmed.packed': 221, shipped: 1028, 'shipped.courier': 655, 'shipped.problem': 213, delivered: 0, paid: 269011, returned: 36612, cancelled: 39416, trashed: 20751 } });
   api.views.mockResolvedValue({ views: { 75111222: { agent_id: 'u-other', agent_name: 'Ана', opened_at: '2026-10-01T08:00:00Z', expires_at: '2026-10-01T08:02:00Z' } } });
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -122,23 +124,29 @@ function renderAt(url = '/orders', opts: { orders?: unknown[]; bookings?: unknow
 
 const t = (k: string, o?: Record<string, unknown>) => i18n.t(k, o) as string;
 const lastOrdersCall = () => api.orders.mock.calls[api.orders.mock.calls.length - 1][0];
-const chips = () => screen.getByRole('group', { name: t('ordersList.view.label') });
-const chip = (key: string) => within(chips()).getByRole('button', { name: new RegExp(`^${t(`ordersList.view.${key}`)}`) });
+const quick = (key: string) => within(screen.getByTestId('quick-views')).getByRole('button', { name: new RegExp(`^${t(`ordersList.quick.${key}`)}`) });
 const ready = () => screen.findAllByTestId('order-row', {}, { timeout: 10_000 });
+const param = (k: string) => new URLSearchParams(location).get(k);
+async function openPanel() {
+  fireEvent.click(screen.getByTestId('filters-button'));
+  return within(await screen.findByTestId('filters-panel'));
+}
 
-describe('/orders — Нарачки by default', { timeout: 30_000 }, () => {
-  it('opens on the "Нарачки" chip, for today (Skopje), with a count on every chip', async () => {
+describe('/orders — every order by default (owner 15.10.2026)', { timeout: 30_000 }, () => {
+  it('opens on every status and every date, 20 a page; the panel counts are asked only when it opens', async () => {
     renderAt();
     await ready();
-    const today = skopjeToday();
-    expect(lastOrdersCall()).toMatchObject({ view: 'orders', day_from: today, day_to: today, page: 1, limit: 20 });
+    expect(lastOrdersCall()).toMatchObject({ view: 'all', page: 1, limit: 20 });
+    expect(lastOrdersCall().state).toBeUndefined();
+    expect(lastOrdersCall().day_from).toBeUndefined();
     expect(lastOrdersCall().drill).toBeUndefined();
-    expect(chip('orders')).toHaveAttribute('aria-pressed', 'true');
-    expect(chip('cancelled')).toHaveAttribute('aria-pressed', 'false');
-    await waitFor(() => expect(screen.getByTestId('view-count-orders').textContent).toBe('1.400'));
-    expect(screen.getByTestId('view-count-all').textContent).toBe('3.027');
-    // the counts ask for the same filters, without the chip
-    expect(api.counts.mock.calls[0][0]).toMatchObject({ day_from: today, day_to: today });
+    expect(quick('all')).toHaveAttribute('aria-pressed', 'true');
+    expect(quick('orders')).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByTestId('period-pick')).toHaveTextContent(t('ordersList.period.all'));
+    // no status pills, no MEX / source pills, no counts request on load
+    expect(screen.queryByRole('group', { name: t('ordersList.mex.label') })).toBeNull();
+    expect(screen.queryByTestId('filter-status')).toBeNull();
+    expect(api.counts).not.toHaveBeenCalled();
     // "who is viewing": ONE request for the page, both phones
     expect(api.views).toHaveBeenCalledTimes(1);
     expect(api.views.mock.calls[0][0]).toEqual(['70123456', '75111222']);
@@ -177,38 +185,90 @@ describe('/orders — Нарачки by default', { timeout: 30_000 }, () => {
 });
 
 describe('/orders — the filters live in the URL', { timeout: 30_000 }, () => {
-  it('a chip, a department, a MEX group and a seller go to the URL and to the api', async () => {
+  it('a quick view and the period ‹ › go to the URL and to the api', async () => {
     renderAt();
     await ready();
-    fireEvent.click(chip('cancelled'));
-    await waitFor(() => expect(new URLSearchParams(location).get('view')).toBe('cancelled'));
-    await waitFor(() => expect(lastOrdersCall().view).toBe('cancelled'));
+    fireEvent.click(quick('cancelled'));
+    await waitFor(() => expect(param('st')).toBe('cancelled'));
+    await waitFor(() => expect(lastOrdersCall()).toMatchObject({ view: 'all', state: 'cancelled' }));
+    fireEvent.click(quick('all'));
+    await waitFor(() => expect(param('st')).toBeNull());
 
-    const dept = screen.getAllByRole('group', { name: t('ordersList.dept.label') })[0];
-    fireEvent.click(within(dept).getByRole('button', { name: new RegExp(t('insights.common.source.social')) }));
-    await waitFor(() => expect(new URLSearchParams(location).get('dept')).toBe('social'));
-    await waitFor(() => expect(lastOrdersCall().dept).toBe('social'));
-
-    const mex = screen.getAllByRole('group', { name: t('ordersList.mex.label') })[0];
-    fireEvent.click(within(mex).getByRole('button', { name: t('ordersList.mex.courier') }));
-    await waitFor(() => expect(new URLSearchParams(location).get('mex')).toBe('courier'));
-    await waitFor(() => expect(lastOrdersCall().mex).toBe('courier'));
-
-    fireEvent.click(screen.getAllByRole('button', { name: t('ordersList.seller.label') })[0]);
-    fireEvent.click(await screen.findByRole('button', { name: 'Александра Чима' }));
-    await waitFor(() => expect(new URLSearchParams(location).get('seller')).toBe('11111111-1111-4111-8111-111111111111'));
-    await waitFor(() => expect(lastOrdersCall().seller).toBe('11111111-1111-4111-8111-111111111111'));
+    const today = skopjeToday();
+    fireEvent.click(screen.getByTestId('period-pick'));
+    fireEvent.click(await screen.findByRole('radio', { name: t('insights.common.period.today') }));
+    await waitFor(() => expect(param('range')).toBe('today'));
+    await waitFor(() => expect(lastOrdersCall()).toMatchObject({ day_from: today, day_to: today }));
+    // ‹ = yesterday, › = today again (never past it)
+    expect(screen.getByRole('button', { name: t('insights.common.period.nextDay') })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: t('insights.common.period.prevDay') }));
+    const yesterday = addDays(today, -1);
+    await waitFor(() => expect(lastOrdersCall()).toMatchObject({ day_from: yesterday, day_to: yesterday }));
+    expect(screen.getByTestId('period-pick')).toHaveTextContent(t('ordersList.period.yesterday'));
+    fireEvent.click(screen.getByRole('button', { name: t('insights.common.period.nextDay') }));
+    await waitFor(() => expect(param('range')).toBe('today'));
   });
 
-  it('Менаџмент is the last department chip (owner 02.10.2026) and goes to the URL and the api', async () => {
+  it('the "Филтри" panel: a status with its MEX part, a department and a seller — with the counts', async () => {
     renderAt();
     await ready();
-    const dept = screen.getAllByRole('group', { name: t('ordersList.dept.label') })[0];
-    const names = within(dept).getAllByRole('button').map((b) => b.textContent ?? '');
+    const panel = await openPanel();
+    // the counts: the same filters, without the pick
+    await waitFor(() => expect(api.counts).toHaveBeenCalledTimes(1));
+    expect(api.counts.mock.calls[0][0].state).toBeUndefined();
+    await waitFor(() => expect(panel.getByTestId('state-paid')).toHaveTextContent('269.011'));
+    expect(panel.getByTestId('state-shipped.problem')).toHaveTextContent(t('ordersList.status.sub.problem'));
+    // nobody is "Во обработка" / "Испорачана" in MK: those rows stay out
+    expect(panel.queryByTestId('state-take')).toBeNull();
+    expect(panel.queryByTestId('state-delivered')).toBeNull();
+
+    fireEvent.click(panel.getByTestId('state-confirmed.no_parcel'));
+    await waitFor(() => expect(param('st')).toBe('confirmed.no_parcel'));
+    await waitFor(() => expect(lastOrdersCall()).toMatchObject({ view: 'all', state: 'confirmed.no_parcel' }));
+    expect(panel.getByTestId('state-confirmed.no_parcel')).toHaveAttribute('aria-checked', 'true');
+    // a parent ticks its MEX parts; un-ticking one keeps the other
+    fireEvent.click(panel.getByTestId('state-shipped'));
+    await waitFor(() => expect(param('st')).toBe('confirmed.no_parcel,shipped'));
+    expect(panel.getByTestId('state-shipped.courier')).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(panel.getByTestId('state-shipped.courier'));
+    await waitFor(() => expect(param('st')).toBe('confirmed.no_parcel,shipped.problem'));
+    // a pick the strip cannot show: no quick view lit, a token per key, the badge counts it
+    expect(quick('all')).toHaveAttribute('aria-pressed', 'false');
+    const tokens = within(screen.getByTestId('filter-tokens'));
+    expect(tokens.getByText(`${t('status.confirmed')} · ${t('ordersList.status.sub.no_parcel')}`)).toBeInTheDocument();
+    expect(screen.getByTestId('filters-button')).toHaveTextContent('1');
+
+    const dept = within(panel.getByTestId('filter-dept'));
+    fireEvent.click(dept.getByRole('checkbox', { name: new RegExp(t('insights.common.source.social')) }));
+    await waitFor(() => expect(param('dept')).toBe('social'));
+    await waitFor(() => expect(lastOrdersCall().dept).toBe('social'));
+
+    const seller = within(panel.getByTestId('filter-seller'));
+    fireEvent.click(seller.getByRole('radio', { name: /Александра Чима/ }));
+    await waitFor(() => expect(param('seller')).toBe('11111111-1111-4111-8111-111111111111'));
+    await waitFor(() => expect(lastOrdersCall().seller).toBe('11111111-1111-4111-8111-111111111111'));
+
+    const source = within(panel.getByTestId('filter-source'));
+    fireEvent.click(source.getByRole('radio', { name: t('ordersPage.sourceAltercpa') }));
+    await waitFor(() => expect(lastOrdersCall().source).toBe('altercpa'));
+
+    // "Исчисти филтри" in the panel clears the panel's filters
+    fireEvent.click(panel.getByRole('button', { name: t('ordersList.filters.clear') }));
+    await waitFor(() => expect(param('st')).toBeNull());
+    expect(param('dept')).toBeNull();
+    expect(param('seller')).toBeNull();
+  });
+
+  it('Менаџмент is the last department (owner 02.10.2026) and goes to the URL and the api', async () => {
+    renderAt();
+    await ready();
+    const panel = await openPanel();
+    const dept = within(panel.getByTestId('filter-dept'));
+    const names = dept.getAllByRole('checkbox').map((b) => b.textContent ?? '');
     const mgmt = names.findIndex((n) => n.includes(t('insights.common.source.management')));
-    expect(mgmt).toBeGreaterThan(names.findIndex((n) => n.includes(t('insights.common.source.web'))));
-    fireEvent.click(within(dept).getByRole('button', { name: new RegExp(t('insights.common.source.management')) }));
-    await waitFor(() => expect(new URLSearchParams(location).get('dept')).toBe('management'));
+    expect(mgmt).toBe(names.length - 1);
+    fireEvent.click(dept.getByRole('checkbox', { name: new RegExp(t('insights.common.source.management')) }));
+    await waitFor(() => expect(param('dept')).toBe('management'));
     await waitFor(() => expect(lastOrdersCall().dept).toBe('management'));
   });
 
@@ -224,11 +284,18 @@ describe('/orders — the filters live in the URL', { timeout: 30_000 }, () => {
     expect(lastOrdersCall().day_from).toBeUndefined();
   });
 
-  it('opens with the filters of the URL', async () => {
+  it('opens with the filters of the URL — an old ?view= link still means what it said', async () => {
     renderAt('/orders?view=leads&range=custom&from=2026-09-01&to=2026-09-15&dept=altercpa&source=altercpa&agent=none');
     await ready();
-    expect(lastOrdersCall()).toMatchObject({ view: 'leads', day_from: '2026-09-01', day_to: '2026-09-15', dept: 'altercpa', source: 'altercpa', agent_id: 'none' });
-    expect(chip('leads')).toHaveAttribute('aria-pressed', 'true');
+    expect(lastOrdersCall()).toMatchObject({
+      view: 'all', state: 'pending,take,call_again,duplicated', day_from: '2026-09-01', day_to: '2026-09-15',
+      dept: 'altercpa', source: 'altercpa', agent_id: 'none',
+    });
+    expect(quick('leads')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('period-pick')).toHaveTextContent('01.09 – 15.09.2026');
+    const tokens = within(screen.getByTestId('filter-tokens'));
+    expect(tokens.getByText(t('ordersList.agent.chip', { name: t('ordersList.agent.none') }))).toBeInTheDocument();
+    expect(screen.getByTestId('filters-button')).toHaveTextContent('3'); // department, source, agent
   });
 
   it('an Insights drill-down link is honoured: its own set, every status, every date', async () => {
@@ -237,8 +304,9 @@ describe('/orders — the filters live in the URL', { timeout: 30_000 }, () => {
     const call = lastOrdersCall();
     expect(call.drill).toEqual({ cohort_bucket: 'paid', cohort_source: 'social', sold_from: '2026-09-22', sold_to: '2026-09-28' });
     expect(call.view).toBe('all');
+    expect(call.state).toBeUndefined();
     expect(call.day_from).toBeUndefined();
-    expect(chip('all')).toHaveAttribute('aria-pressed', 'true');
+    expect(quick('all')).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('status')).toHaveTextContent('Social');
   });
 });
@@ -260,24 +328,33 @@ describe('/orders — phones and small screens', { timeout: 30_000 }, () => {
     expect(within(cards[1]).getByText(t('ordersList.mex.noParcelShort'))).toBeInTheDocument();
   });
 
-  it('the Filters sheet edits a draft; "Примени" writes it to the URL', async () => {
-    renderAt();
-    await ready();
-    fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${t('ordersList.filters.open')}`) }));
-    const sheet = await screen.findByRole('dialog');
-    fireEvent.click(within(sheet).getByRole('button', { name: t('ordersList.mex.at_mex') }));
-    fireEvent.click(within(sheet).getByRole('button', { name: new RegExp(t('insights.common.source.teleshop_out')) }));
-    expect(new URLSearchParams(location).get('mex')).toBeNull(); // not before "Примени"
-    fireEvent.click(within(sheet).getByRole('button', { name: t('ordersList.filters.apply') }));
-    await waitFor(() => expect(new URLSearchParams(location).get('mex')).toBe('at_mex'));
-    expect(new URLSearchParams(location).get('dept')).toBe('teleshop_out');
-    await waitFor(() => expect(lastOrdersCall()).toMatchObject({ mex: 'at_mex', dept: 'teleshop_out' }));
+  it('on a phone the "Филтри" button opens the sheet: a draft; "Примени" writes it to the URL', async () => {
+    const width = window.innerWidth;
+    window.innerWidth = 390;
+    try {
+      renderAt();
+      await ready();
+      fireEvent.click(screen.getByTestId('filters-button'));
+      const sheet = within(await screen.findByRole('dialog'));
+      expect(screen.queryByTestId('filters-panel')).toBeNull();
+      await waitFor(() => expect(api.counts).toHaveBeenCalled());
+      fireEvent.click(sheet.getByTestId('state-confirmed.packed'));
+      fireEvent.click(sheet.getByRole('checkbox', { name: new RegExp(t('insights.common.source.teleshop_out')) }));
+      expect(param('st')).toBeNull(); // not before "Примени"
+      fireEvent.click(sheet.getByRole('button', { name: t('ordersList.filters.apply') }));
+      await waitFor(() => expect(param('st')).toBe('confirmed.packed'));
+      expect(param('dept')).toBe('teleshop_out');
+      await waitFor(() => expect(lastOrdersCall()).toMatchObject({ state: 'confirmed.packed', dept: 'teleshop_out' }));
+    } finally {
+      window.innerWidth = width;
+    }
   });
 
-  it('speaks Macedonian: no English or Bulgarian leftovers', async () => {
+  it('speaks Macedonian: no English or Bulgarian leftovers — the panel too', async () => {
     const { container } = renderAt();
     await ready();
-    const text = container.textContent ?? '';
+    await openPanel();
+    const text = (container.textContent ?? '') + (screen.getByTestId('filters-panel').textContent ?? '');
     expect(text).not.toMatch(/⟪/);
     expect(text).not.toMatch(/\b(Status|Assignee|Details|Hide details|Export CSV|Any date|days|To:|Filters|Orders|Search)\b/);
     expect(text).not.toMatch(/Speedy|Econt|MONADLIST/);
@@ -285,20 +362,26 @@ describe('/orders — phones and small screens', { timeout: 30_000 }, () => {
   });
 });
 
-describe('/orders — collabBox bookings and the 2-day entry rule (owner 02.10.2026)', { timeout: 30_000 }, () => {
-  it('shows the bookings beside the orders: a badge next to "Нарачки" and the section, for the same filters', async () => {
-    renderAt('/orders?dept=teleshop_out,teleshop_other');
-    await ready();
-    const today = skopjeToday();
+describe('/orders — collabBox bookings and the collabBox entry rule (owner 02.10.2026)', { timeout: 30_000 }, () => {
+  it('the bookings sit under the toolbar, CLOSED; a click opens them and the browser remembers (owner 15.10.2026)', async () => {
+    const view = renderAt('/orders?dept=teleshop_out,teleshop_other');
+    const [firstRow] = await ready();
     await waitFor(() => expect(api.bookings).toHaveBeenCalled());
-    expect(api.bookings.mock.calls[0][0]).toEqual({ day_from: today, day_to: today, dept: 'teleshop_out,teleshop_other' });
-    // the chip's own count stays real orders only; the bookings sit beside it
-    await waitFor(() => expect(screen.getByTestId('view-count-orders').textContent).toBe('1.400'));
-    expect(await screen.findByTestId('bookings-chip')).toHaveTextContent(t('ordersList.bookings.chip', { count: 2 }));
+    // every date by default: only the department goes along
+    expect(api.bookings.mock.calls[0][0]).toEqual({ dept: 'teleshop_out,teleshop_other' });
     const section = await screen.findByTestId('bookings-section');
+    // above the list, one line, closed
+    expect(section.compareDocumentPosition(firstRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     const s = within(section);
-    expect(s.getByRole('heading', { name: t('ordersList.bookings.title') })).toBeInTheDocument();
+    const toggle = s.getByTestId('bookings-toggle');
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(s.getByRole('heading', { name: new RegExp(t('ordersList.bookings.title')) })).toBeInTheDocument();
     expect(s.getByTestId('bookings-total')).toHaveTextContent('2');
+    expect(s.queryAllByTestId('booking-row')).toHaveLength(0);
+    expect(screen.queryByTestId('bookings-chip')).toBeNull();
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
     expect(s.getAllByTestId('booking-row')).toHaveLength(2);
     expect(s.getAllByTestId('booking-card')).toHaveLength(2);
     expect(s.getAllByText('Павица Богданов').length).toBeGreaterThan(0);
@@ -309,6 +392,13 @@ describe('/orders — collabBox bookings and the 2-day entry rule (owner 02.10.2
     // read-only: a booking is not an order to open
     fireEvent.click(s.getAllByTestId('booking-row')[0]);
     expect(screen.queryByTestId('order-modal')).toBeNull();
+    expect(window.localStorage.getItem('orders.bookings.open')).toBe('1');
+
+    // the next visit opens it as it was left
+    view.unmount();
+    renderAt('/orders?dept=teleshop_out');
+    await ready();
+    expect(await screen.findByTestId('bookings-toggle')).toHaveAttribute('aria-expanded', 'true');
   });
 
   it('0 orders for a filter but bookings → the empty state says why', async () => {
@@ -317,23 +407,28 @@ describe('/orders — collabBox bookings and the 2-day entry rule (owner 02.10.2
     expect(await screen.findByTestId('bookings-section')).toBeInTheDocument();
   });
 
-  it('a filter a booking cannot have (a MEX status) and the leads chip leave them out; none → nothing', async () => {
-    renderAt('/orders?mex=courier');
+  it('a status or a filter a booking cannot have leaves them out; Нарачки brings them back', async () => {
+    const first = renderAt('/orders?mex=courier');
     await ready();
     expect(api.bookings).not.toHaveBeenCalled();
     expect(screen.queryByTestId('bookings-section')).toBeNull();
-    expect(screen.queryByTestId('bookings-chip')).toBeNull();
-    fireEvent.click(chip('all'));
-    await waitFor(() => expect(lastOrdersCall().view).toBe('all'));
+    // an old MEX link still filters — shown as a token
+    expect(within(screen.getByTestId('filter-tokens')).getByText(`MEX: ${t('ordersList.mex.courier')}`)).toBeInTheDocument();
+    first.unmount();
+
+    renderAt('/orders?st=paid');
+    await ready();
     expect(api.bookings).not.toHaveBeenCalled();
+    fireEvent.click(quick('orders'));
+    await waitFor(() => expect(api.bookings).toHaveBeenCalled());
+    expect(await screen.findByTestId('bookings-section')).toBeInTheDocument();
   });
 
-  it('no bookings → no section and no badge', async () => {
+  it('no bookings → no section', async () => {
     renderAt('/orders', { bookings: { ...BOOKINGS, rows: [], total: 0, by_department: {} } });
     await ready();
     await waitFor(() => expect(api.bookings).toHaveBeenCalled());
     expect(screen.queryByTestId('bookings-section')).toBeNull();
-    expect(screen.queryByTestId('bookings-chip')).toBeNull();
   });
 
   it('a CRM sale: green "Во collabBox", or amber "Не е во collabBox" (+ the cancel day in apply mode) and a provisional department', async () => {

@@ -24,6 +24,11 @@
 //             delivered 2 · returned 7 · rejected 13 · no_parcel).
 //   source    csv of the real source_type values (altercpa · import · manual).
 //   agent_id  a uuid, or `none` (unassigned).
+//   state     csv of STATE_KEYS — the status filter (owner 15.10.2026: "status is
+//             status"): every order status, plus the MEX parcel sub-states inside
+//             Потврдена and Испратена, the only two statuses where MEX adds
+//             anything (the Overview cohort's parts: Во магацин за пакување ·
+//             Спакувано · Кај курирот · проблем). With view=all (or no view).
 //   search    a phone (≥ 8 digits, any spacing) matches by its LAST 8 digits;
 //             a MEX tracking id matches exactly; anything else is the old
 //             substring search over id / name / phone / product.
@@ -70,6 +75,29 @@ export const LIST_SOURCE_TYPES = ["altercpa", "import", "manual"] as const;
 
 /** Never a real order: the 0 ден records a call outcome leaves behind. */
 export const NOT_DISPOSITION = "or(sale_source_detail.is.null,sale_source_detail.neq.disposition)";
+/** "Сите" / a status pick: a disposition record never shows under a SALE status (it does under a
+ *  cancel / trash, as in those views) — so the list is exactly the sum of the four views. */
+export const SALE_NOT_DISPOSITION =
+  `status.not.in.(${SALE_STATUSES.join(",")}),sale_source_detail.is.null,sale_source_detail.neq.disposition`;
+
+/** The status filter's vocabulary (owner 15.10.2026): every order status, in the list's order, plus
+ *  the MEX sub-states of Потврдена and Испратена (`<status>.<part>`). A parent covers its children. */
+export const STATE_KEYS = [
+  "pending", "take", "call_again", "duplicated",
+  "confirmed", "confirmed.no_parcel", "confirmed.packed",
+  "shipped", "shipped.courier", "shipped.problem",
+  "delivered", "paid", "returned", "cancelled", "trashed",
+] as const;
+export type StateKey = (typeof STATE_KEYS)[number];
+/** The sub-states, as PostgREST terms. MEX 8 = the label exists, not picked up (за пакување, never
+ *  shipped); 1 · 4 · 10 = with the courier; 3 · 9 · 13 = a problem, 13 "Одбиена" included — the
+ *  customer refused, the parcel is on its way back and becomes MEX 7 (returned) when MEX books it. */
+export const STATE_SUB_TERMS: Record<Extract<StateKey, `${string}.${string}`>, string> = {
+  "confirmed.no_parcel": "and(status.eq.confirmed,mex_tracking_id.is.null)",
+  "confirmed.packed": "and(status.eq.confirmed,mex_status_id.eq.8)",
+  "shipped.courier": "and(status.eq.shipped,mex_status_id.in.(1,4,10))",
+  "shipped.problem": "and(status.eq.shipped,mex_status_id.in.(3,9,13))",
+};
 
 /** A MEX tracking id as the courier writes it: 002-9103-123456/2026. */
 const TRACKING_RE = /^\d{3}-\d{4}-\d{1,9}\/\d{4}$/;
@@ -126,6 +154,8 @@ export interface OrdersListParams {
   sources: string[];
   agent: { kind: "id"; id: string } | { kind: "none" } | null;
   search: SearchSpec | null;
+  /** The status filter (STATE_KEYS); [] = every status. Only with view all / none. */
+  states: StateKey[];
 }
 
 export type ParseResult = { ok: true; value: OrdersListParams } | { ok: false; error: string };
@@ -183,6 +213,11 @@ export function parseOrdersListParams(sp: URLSearchParams): ParseResult {
     else return { ok: false, error: "Invalid agent_id" };
   }
 
+  const state = csv(sp.get("state"), STATE_KEYS);
+  if (!state.ok) return { ok: false, error: `Invalid state: ${state.bad}` };
+  // A status pick is its own status filter: next to a view chip it would silently narrow twice.
+  if (state.values.length && view && view !== "all") return { ok: false, error: "state goes with view=all only" };
+
   return {
     ok: true,
     value: {
@@ -193,6 +228,7 @@ export function parseOrdersListParams(sp: URLSearchParams): ParseResult {
       sources: src.values,
       agent,
       search: parseSearch(sp.get("search")),
+      states: STATE_KEYS.filter((k) => state.values.includes(k)),
     },
   };
 }
@@ -201,8 +237,47 @@ export function parseOrdersListParams(sp: URLSearchParams): ParseResult {
 export function isNarrowed(p: OrdersListParams): boolean {
   return Boolean(
     (p.view && p.view !== "all") || p.statuses?.length || p.dayFrom || p.dayTo || p.departments.length ||
-    p.sellerId || p.mexGroups.length || p.sources.length || p.agent || p.search,
+    p.sellerId || p.mexGroups.length || p.sources.length || p.agent || p.search || stateOps(p.states).length,
   );
+}
+
+// ── the status pick ─────────────────────────────────────────────────────────
+
+const statusOfState = (k: string) => k.split(".")[0];
+
+/** The pick in STATE_KEYS order, unknown keys dropped, a child dropped when its parent is picked. */
+export function normalizeStates(states: readonly string[]): StateKey[] {
+  const set = new Set(states);
+  return STATE_KEYS.filter((k) => set.has(k) && !(k.includes(".") && set.has(statusOfState(k))));
+}
+
+/** The pick as builder calls: plain statuses → one eq / in (index-friendly); with a sub-state →
+ *  ONE `or` of the plain statuses and the sub-state terms. Every status picked = no filter. */
+export function stateOps(states: readonly string[]): Op[] {
+  const set = normalizeStates(states);
+  const plain = set.filter((k) => !k.includes("."));
+  const subs = set.filter((k): k is keyof typeof STATE_SUB_TERMS => k.includes("."));
+  if (!subs.length) {
+    if (!plain.length || plain.length >= ALL_STATUSES.length) return [];
+    return [plain.length === 1 ? { m: "eq", col: "status", v: plain[0] } : { m: "in", col: "status", v: plain }];
+  }
+  const parts: string[] = [];
+  if (plain.length) parts.push(plain.length === 1 ? `status.eq.${plain[0]}` : `status.in.(${plain.join(",")})`);
+  for (const k of subs) parts.push(STATE_SUB_TERMS[k]);
+  return [{ m: "or", v: parts.join(",") }];
+}
+
+/** The views (status families) a pick touches, in COUNTED_VIEWS order. */
+export function stateViews(states: readonly string[]): CountedView[] {
+  const statuses = new Set(normalizeStates(states).map(statusOfState));
+  return COUNTED_VIEWS.filter((v) => VIEW_STATUSES[v].some((s) => statuses.has(s)));
+}
+
+/** The one view a narrowing pick lies wholly in (its clock dates and sorts the list), else null. */
+function singleStateView(states: readonly string[]): CountedView | null {
+  if (!stateOps(states).length) return null;
+  const views = stateViews(states);
+  return views.length === 1 ? views[0] : null;
 }
 
 // ── the builder calls ───────────────────────────────────────────────────────
@@ -290,9 +365,9 @@ function viewDayTerm(view: CountedView, fromIso: string | null, toIso: string | 
   }
 }
 
-/** The window over EVERY status: each row by its own status's clock. */
-export function anyStatusDayOr(fromIso: string | null, toIso: string | null): string {
-  return COUNTED_VIEWS.map((v) => {
+/** The window over EVERY status (or the families a pick touches): each row by its own status's clock. */
+export function anyStatusDayOr(fromIso: string | null, toIso: string | null, views: readonly CountedView[] = COUNTED_VIEWS): string {
+  return views.map((v) => {
     const st = VIEW_STATUSES[v];
     const guard = st.length === 1 ? `status.eq.${st[0]}` : `status.in.(${st.join(",")})`;
     return `and(${guard},${viewDayTerm(v, fromIso, toIso)})`;
@@ -357,17 +432,24 @@ export function viewStatuses(p: Pick<OrdersListParams, "statuses">, view: OrderV
   return own ?? (p.statuses ? [...p.statuses] : null);
 }
 
-/** The filters that DO depend on the status chip: the statuses, "never a
- *  disposition record" for Нарачки, and the day window on the view's clock. */
+/** The filters that DO depend on the status chip / pick: the statuses, "never a
+ *  disposition record" under a sale status, and the day window on each row's clock. */
 export function viewOps(p: OrdersListParams, view: OrderView | null): Op[] {
   const ops: Op[] = [];
   const st = viewStatuses(p, view);
   if (st) ops.push(st.length === 1 ? { m: "eq", col: "status", v: st[0] } : { m: "in", col: "status", v: st });
   if (view === "orders") ops.push({ m: "or", v: NOT_DISPOSITION });
+  if (view === "all") ops.push({ m: "or", v: SALE_NOT_DISPOSITION });
+  // The status pick (view all / none only — parseOrdersListParams refuses it beside a chip).
+  const pick = view && view !== "all" ? [] : stateOps(p.states ?? []);
+  ops.push(...pick);
   if (p.dayFrom || p.dayTo) {
     const { fromIso, toIso } = dayWindow(p);
-    if (view && view !== "all") {
-      const term = viewDayTerm(view, fromIso, toIso);
+    const own = view && view !== "all" ? view : singleStateView(p.states ?? []);
+    if (pick.length && !own) {
+      ops.push({ m: "or", v: anyStatusDayOr(fromIso, toIso, stateViews(p.states)) });
+    } else if (own) {
+      const term = viewDayTerm(own, fromIso, toIso);
       // A single `and(…)` term is a plain AND of filters; an `or(…)` term is ONE or-group.
       if (term.startsWith("or(")) ops.push({ m: "or", v: term.slice(3, -1) });
       else for (const part of term.slice(4, -1).split(",")) ops.push(rangeOp(part));
@@ -386,15 +468,23 @@ function rangeOp(part: string): Op {
 }
 
 /** Newest first by the date the list shows: with a day window, a view's own
- *  clock (a sale → its sale day, a cancel → cancelled_at …); otherwise, and
- *  for leads / "all", created_at (the index keeps a whole-history page fast). */
+ *  clock (a sale → its sale day, a cancel → cancelled_at …) — also for a status
+ *  pick that lies wholly in one view; otherwise, and for leads / a mixed pick,
+ *  created_at (the index keeps a whole-history page fast). */
 export function orderSpec(p: OrdersListParams, view: OrderView | null): { col: string; ascending: boolean; nullsFirst?: boolean }[] {
   const windowed = Boolean(p.dayFrom || p.dayTo);
   const created = { col: "created_at", ascending: false };
-  if (windowed && view === "orders") return [{ col: "sold_at", ascending: false, nullsFirst: false }, created];
-  if (windowed && view === "cancelled") return [{ col: "cancelled_at", ascending: false, nullsFirst: false }, created];
-  if (windowed && view === "trashed") return [{ col: "trashed_at", ascending: false, nullsFirst: false }, created];
+  const own = view && view !== "all" ? view : singleStateView(p.states ?? []);
+  if (windowed && own === "orders") return [{ col: "sold_at", ascending: false, nullsFirst: false }, created];
+  if (windowed && own === "cancelled") return [{ col: "cancelled_at", ascending: false, nullsFirst: false }, created];
+  if (windowed && own === "trashed") return [{ col: "trashed_at", ascending: false, nullsFirst: false }, created];
   return [created];
+}
+
+/** GET /orders/state-counts: one count per STATE_KEYS key, for the same filters as the list
+ *  (each key counted as if it were the only pick — the panel's numbers). null = that count failed. */
+export function stateCountParams(p: OrdersListParams, key: StateKey): OrdersListParams {
+  return { ...p, view: "all", states: [key] };
 }
 
 /** The four counts → the five chips ("all" = their sum; null when one failed). */

@@ -6411,8 +6411,12 @@ async function handleRequest(req: Request): Promise<Response> {
     // GET /api/orders
     // GET /api/orders/view-counts — the same filters, answered as one count per
     // status chip (orders · leads · cancelled · trashed; all = their sum).
-    if (req.method === "GET" && (path === "orders" || path === "orders/view-counts")) {
+    // GET /api/orders/state-counts — the same filters, one count per status-pick key
+    // (OL.STATE_KEYS: every status + the MEX sub-states; owner 15.10.2026) — the
+    // /orders "Филтри" panel asks for it when it opens.
+    if (req.method === "GET" && (path === "orders" || path === "orders/view-counts" || path === "orders/state-counts")) {
       const countsOnly = path === "orders/view-counts";
+      const stateCountsOnly = path === "orders/state-counts";
       // The list's own filters (ordersList.ts, Phase 11 A): view, Skopje days,
       // department, seller, MEX group, validated status / source / agent, and the
       // last-8 phone search. Malformed → 400, never a silently wider list.
@@ -6698,6 +6702,16 @@ async function handleRequest(req: Request): Promise<Response> {
           return [v, cErr ? null : (n ?? 0)] as const;
         }));
         return json({ counts: OL.viewCounts(Object.fromEntries(res) as Record<OL.CountedView, number | null>) });
+      }
+      if (stateCountsOnly) {
+        const res = await Promise.all(OL.STATE_KEYS.map(async (k) => {
+          const kp = OL.stateCountParams(ol, k);
+          const cq = OL.applyOps(client.from("orders").select("id", { count: "exact", head: true }), [...listOps, ...OL.viewOps(kp, "all")]);
+          const { count: n, error: cErr } = await cq;
+          if (cErr) console.error(`orders/state-counts ${k}:`, cErr.message);
+          return [k, cErr ? null : (n ?? 0)] as const;
+        }));
+        return json({ counts: Object.fromEntries(res) });
       }
       let pageQuery: any = OL.applyOps(
         client.from("orders").select("*, order_items(id, product_id, product_name, quantity, price_per_unit, total_price)",
@@ -7773,7 +7787,7 @@ async function handleRequest(req: Request): Promise<Response> {
     }
 
     // GET /api/orders/:id
-    const reservedOrderPaths = ["stats", "assigned", "unassigned-pending", "open-lead", "bulk-assign", "bulk-unassign", "bulk-status-update", "bulk-disposition", "bigarena-sync", "view-counts", "sellers", "bookings"];
+    const reservedOrderPaths = ["stats", "assigned", "unassigned-pending", "open-lead", "bulk-assign", "bulk-unassign", "bulk-status-update", "bulk-disposition", "bigarena-sync", "view-counts", "state-counts", "sellers", "bookings"];
     if (req.method === "GET" && segments[0] === "orders" && segments.length === 2 && !reservedOrderPaths.includes(segments[1])) {
       const orderId = segments[1];
       let { data: order, error } = await supabase

@@ -2519,7 +2519,8 @@
     "period": {
       "label": "Periudha",
       "all": "Të gjitha datat",
-      "hint": "Ditë sipas orës së Shkupit · çdo porosi sipas datës së vet: shitja sipas ditës së shitjes, anulimi sipas anulimit, koshi sipas hedhjes, lead-i sipas mbërritjes"
+      "hint": "Ditë sipas orës së Shkupit · çdo porosi sipas datës së vet: shitja sipas ditës së shitjes, anulimi sipas anulimit, koshi sipas hedhjes, lead-i sipas mbërritjes",
+      "yesterday": "Dje"
     },
     "dept": {
       "label": "Departamenti",
@@ -2577,7 +2578,9 @@
       "reset": "Rivendos",
       "clear": "Pastro filtrat",
       "active": "Filtrat aktivë",
-      "remove": "Hiq këtë filtër"
+      "remove": "Hiq këtë filtër",
+      "cpa": "Partnerët CPA",
+      "sheetHint": "Zgjidhni filtrat dhe shtypni „Zbato“."
     },
     "col": {
       "order": "Porosia",
@@ -2633,7 +2636,7 @@
       "chip": "+{{count}} në collabBox",
       "chipTitle": "{{count}} shitje janë regjistruar në collabBox dhe presin pako MEX — ende nuk janë porosi",
       "clamped": "Regjistrimet e collabBox shfaqen për më së shumti {{days}} ditët e fundit.",
-      "empty": "Nuk ka porosi për këta filtra, por {{count}} shitje janë regjistruar në collabBox dhe presin pako MEX — shih më poshtë.",
+      "empty": "Nuk ka porosi për këta filtra, por {{count}} shitje janë regjistruar në collabBox dhe presin pako MEX — hapni pjesën „Regjistruar në collabBox“ më lart.",
       "showAll": "Shfaq të gjitha ({{count}})",
       "showLess": "Shfaq më pak",
       "loadError": "Regjistrimet e collabBox nuk u ngarkuan.",
@@ -2647,7 +2650,9 @@
         "seller": "Shitësi",
         "value": "Shuma",
         "doc": "Dokumenti"
-      }
+      },
+      "show": "Shfaq",
+      "hide": "Fshih"
     },
     "collab": {
       "in": "Në collabBox",
@@ -2658,6 +2663,37 @@
       "cancelsTitle": "Nëse nuk regjistrohet në collabBox, sistemi e anulon më {{day}} në {{time}} dhe shitësi njoftohet.",
       "provisional": "(përkohësisht)",
       "provisionalTitle": "Departamenti është i përkohshëm — e vendos profili MEX i pakos pasi shitja të regjistrohet në collabBox."
+    },
+    "quick": {
+      "label": "Pamje e shpejtë",
+      "all": "Të gjitha",
+      "orders": "Porositë",
+      "leads": "Lead-e të hapura",
+      "cancelled": "Të anuluara",
+      "trashed": "Koshi",
+      "returned": "Të kthyera",
+      "allHint": "Çdo status",
+      "ordersHint": "Të konfirmuara, të dërguara, të paguara dhe të kthyera — anulimet dhe koshi nuk janë kurrë porosi",
+      "leadsHint": "Në pritje, në përpunim, telefonatë e përsëritur dhe dublikata",
+      "cancelledHint": "Të anuluara — sipas ditës së anulimit",
+      "trashedHint": "Në kosh — sipas ditës kur u hodhën",
+      "returnedHint": "Të kthyera — MEX e ktheu pakon (MEX 7)"
+    },
+    "status": {
+      "label": "Statusi",
+      "all": "Të gjitha statuset",
+      "n": "{{count}} statuse",
+      "hint": "Zgjidhni një ose më shumë. Nën të Konfirmuar dhe të Dërguar janë pjesët nga MEX — njësoj si në Paneli.",
+      "sub": {
+        "no_parcel": "Në magazinë për paketim",
+        "packed": "E paketuar (etiketë MEX)",
+        "courier": "Te korrieri",
+        "problem": "Problem te korrieri",
+        "no_parcelHint": "E konfirmuar, MEX ende nuk ka pako",
+        "packedHint": "MEX 8 — etiketa është krijuar, MEX ende nuk e ka marrë pakon",
+        "courierHint": "MEX 1 Në dorëzim · 4 E marrë · 10 Në tranzit",
+        "problemHint": "MEX 3 Problematike · 9 Përpjekje për dorëzim · 13 E refuzuar — pakoja e refuzuar kthehet dhe bëhet „E kthyer“ kur MEX e regjistron (MEX 7)"
+      }
     }
   },
   "ordersPage": {
