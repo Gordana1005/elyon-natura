@@ -21,7 +21,8 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const BASE = 'http://146.255.89.49:8081/naturatherapy/';
+// the office's collabBox since the move of 13.10.2026 (146.255.89.49 before); COLLABBOX_BASE overrides it
+const BASE = process.env.COLLABBOX_BASE || 'http://62.162.124.54:8081/naturatherapy/';
 const args = process.argv.slice(2);
 const opt = (k, d) => (args.includes(k) ? args[args.indexOf(k) + 1] : d);
 const OUT = opt('--out', join(ROOT, 'exports', 'collabbox', 'delivery-attrs'));

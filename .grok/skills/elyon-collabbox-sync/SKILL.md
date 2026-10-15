@@ -32,7 +32,13 @@ refreshed at least every 15 minutes; MEX stays the final proof").
 ## What collabBox is — and is not
 
 - The teleshop / office ERP of Accent Computers, one Tomcat web app over **plain HTTP** (base URL
-  in `client.ts` `COLLABBOX_BASE`), one login (VAULT §7), no API. Everything is a server-rendered
+  in `client.ts` `COLLABBOX_BASE`), one login (VAULT §7), no API. **It runs in Natura's office**, so an
+  office move changes its address: on 13.10.2026 ~16:38 146.255.89.49 → **62.162.124.54:8081** (both readers
+  failed until 15.10 11:26; MEX's status push to collabBox broke the same minute). Next time: test the new
+  address read-only, then set the function secret **`COLLABBOX_BASE`** (both readers read it — no deploy)
+  and run a manual catch-up of the missed days (`{mode:'manual', from, to, ahead_days:14}`, ≤ 14 days) +
+  the shops reader's manual parts; re-check the 21:20 "Нема внесено порачка во Collab" cancels of the
+  outage days (the rule kept running blind). Everything is a server-rendered
   HTML form; the protocol was reverse-engineered on 28.09 (`scripts/collabbox-fetch.mjs` header,
   PROTOCOL §0–§4).
 - A document's **DocNumber IS the MEX tracking id** of its parcel (`002-9102-177237/2026`), and its

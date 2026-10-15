@@ -3,7 +3,9 @@
  * request shapes the sync uses (isAllowed); everything else — saving a search, the discount action
  * form, creating documents, e-mailing an export, the Excel exports — is refused before it is sent.
  *
- * Plain HTTP to http://146.255.89.49:8081/naturatherapy/ (Tomcat), one JSESSIONID cookie, UTF-8.
+ * Plain HTTP to http://62.162.124.54:8081/naturatherapy/ (Tomcat), one JSESSIONID cookie, UTF-8 — the
+ * office's address since the move of 13.10.2026 (146.255.89.49 before); the function secret
+ * COLLABBOX_BASE overrides it, so the next move is a secret, not a deploy.
  * Strictly sequential, a pause between requests, a hard request cap per run, one re-login when the
  * server answers with its login redirect. Credentials come from the caller (COLLABBOX_USER /
  * COLLABBOX_PASS function secrets) and are never logged; session ids are redacted from every line.
@@ -17,7 +19,14 @@ import {
 } from "./collabbox.ts";
 import type { HeadersPage, ItemRow, KomitentRow } from "./collabbox.ts";
 
-export const COLLABBOX_BASE = "http://146.255.89.49:8081/naturatherapy/";
+export const COLLABBOX_BASE = "http://62.162.124.54:8081/naturatherapy/";
+
+/** The COLLABBOX_BASE secret when it is an http(s) URL (a trailing slash added), else the constant. */
+export function collabboxBase(fromEnv: string | null | undefined): string {
+  const v = (fromEnv ?? "").trim();
+  if (!/^https?:\/\/[^\s/]+\/\S*$/.test(v + "/")) return COLLABBOX_BASE;
+  return v.endsWith("/") ? v : v + "/";
+}
 
 export interface ResponseLike {
   status: number;

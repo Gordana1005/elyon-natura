@@ -30,11 +30,12 @@
  * app_settings.shops_reader.enabled is false (the SQL invoker checks it first, this function again).
  *
  * Secrets: COLLABBOX_USER / COLLABBOX_PASS (the collabBox login — VAULT §7, never logged), COLLABBOX_SYNC_SECRET,
- * SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY. All already set for collabbox-sync — nothing new.
+ * SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY. All already set for collabbox-sync — nothing new. The optional
+ * COLLABBOX_BASE (the server's address when it moves again) is shared with collabbox-sync too.
  * Migrations: 20260946000100 (tables + writers), 0200 (reports), 0300 (switch + cron).
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { RequestCapError, ShopsClient } from "./client.ts";
+import { RequestCapError, ShopsClient, collabboxBase } from "./client.ts";
 import type { FetchLike } from "./client.ts";
 import * as S from "./shops.ts";
 
@@ -418,6 +419,7 @@ Deno.serve(async (req: Request) => {
     admin, req: r, runId, startedMs: Date.now(), shops, settings, warnings: [], stats: {}, today,
     client: new ShopsClient({
       fetch: fetch as unknown as FetchLike, user, pass, pauseMs: PAUSE_MS, maxRequests: cap,
+      base: collabboxBase(Deno.env.get("COLLABBOX_BASE")),
       log: (line) => console.log(`collabbox-shops ${r.mode}: ${S.redact(line)}`),
     }),
   };

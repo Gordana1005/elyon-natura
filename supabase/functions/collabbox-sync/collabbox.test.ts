@@ -9,7 +9,7 @@ import {
   summarizeResults, toDmy,
 } from "./collabbox.ts";
 import type { HeaderRow, ItemRow, KomitentRow, SyncDoc } from "./collabbox.ts";
-import { CollabboxClient, CollabboxError, RequestCapError, isAllowed, splitSetCookie } from "./client.ts";
+import { COLLABBOX_BASE, CollabboxClient, CollabboxError, RequestCapError, collabboxBase, isAllowed, splitSetCookie } from "./client.ts";
 import type { FetchLike, ResponseLike } from "./client.ts";
 
 // ── synthetic fixtures, shaped like the live pages (names, phones and numbers are invented) ──
@@ -560,7 +560,7 @@ type Handler = (method: string, path: string, body: string | undefined, cookie: 
 function fakeFetch(handler: Handler) {
   const calls: { method: string; path: string; body?: string; cookie?: string }[] = [];
   const f: FetchLike = async (url, init) => {
-    const path = url.replace("http://146.255.89.49:8081/naturatherapy/", "");
+    const path = url.replace(COLLABBOX_BASE, "");
     calls.push({ method: init.method, path, body: init.body, cookie: init.headers.Cookie });
     const r = handler(init.method, path, init.body, init.headers.Cookie);
     const res: ResponseLike = {
@@ -692,5 +692,16 @@ describe("CollabboxClient", () => {
       `JSESSIONID=${SESSION}; Path=/naturatherapy; HttpOnly`, "other=1; Path=/",
     ]);
     expect(splitSetCookie(null)).toEqual([]);
+  });
+});
+
+describe("collabboxBase — the COLLABBOX_BASE secret (office move 13.10.2026)", () => {
+  it("uses the secret when it is an http(s) URL, adding the trailing slash", () => {
+    expect(collabboxBase("http://10.0.0.1:8081/naturatherapy/")).toBe("http://10.0.0.1:8081/naturatherapy/");
+    expect(collabboxBase(" http://10.0.0.1:8081/naturatherapy ")).toBe("http://10.0.0.1:8081/naturatherapy/");
+  });
+  it("falls back to the constant when unset or not a URL", () => {
+    expect(COLLABBOX_BASE).toBe("http://62.162.124.54:8081/naturatherapy/");
+    for (const v of [undefined, null, "", "  ", "62.162.124.54:8081", "ftp://x/"]) expect(collabboxBase(v)).toBe(COLLABBOX_BASE);
   });
 });

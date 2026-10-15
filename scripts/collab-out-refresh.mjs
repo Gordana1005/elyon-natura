@@ -39,7 +39,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const BASE = 'http://146.255.89.49:8081/naturatherapy/';
+// the office's collabBox since the move of 13.10.2026 (146.255.89.49 before); COLLABBOX_BASE overrides it
+const BASE = process.env.COLLABBOX_BASE || 'http://62.162.124.54:8081/naturatherapy/';
 const argv = process.argv.slice(2);
 const cmd = argv[0];
 const arg = (name, def) => {

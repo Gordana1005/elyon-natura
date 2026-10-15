@@ -17,7 +17,15 @@ import {
 } from "./shops.ts";
 import type { DocHeadersPage, ItemsOptions, LinesPage, PeriodPage, StockPage, TkPage } from "./shops.ts";
 
-export const COLLABBOX_BASE = "http://146.255.89.49:8081/naturatherapy/";
+/** The office's address since the move of 13.10.2026 (146.255.89.49 before); the COLLABBOX_BASE secret overrides it. */
+export const COLLABBOX_BASE = "http://62.162.124.54:8081/naturatherapy/";
+
+/** The COLLABBOX_BASE secret when it is an http(s) URL (a trailing slash added), else the constant. */
+export function collabboxBase(fromEnv: string | null | undefined): string {
+  const v = (fromEnv ?? "").trim();
+  if (!/^https?:\/\/[^\s/]+\/\S*$/.test(v + "/")) return COLLABBOX_BASE;
+  return v.endsWith("/") ? v : v + "/";
+}
 /** The politeness floor: never two requests closer than this (docs/SHOPS.md). */
 export const MIN_PAUSE_MS = 1_500;
 

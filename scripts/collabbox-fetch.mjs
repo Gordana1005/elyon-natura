@@ -28,7 +28,7 @@
  * VAULT §7.1 — nothing here uses DWR. The results are SERVER-RENDERED into the POST response;
  * `collectGridIds()/getFirstGrid()` in xGrid.js only scans the DOM for keyboard navigation.)
  *
- * §0 Transport. http://146.255.89.49:8081/naturatherapy/  — plain HTTP, Apache Tomcat (Java),
+ * §0 Transport. http://62.162.124.54:8081/naturatherapy/ (146.255.89.49 until the office move of 13.10.2026) — plain HTTP, Apache Tomcat (Java),
  *    UTF-8 everywhere (Content-Type text/html;charset=UTF-8; forms are posted as
  *    application/x-www-form-urlencoded, UTF-8 percent-encoded, Cyrillic included).
  *    No HTTP basic auth, no CSRF token, no Referer/Origin check. State = one cookie:
@@ -96,7 +96,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { read as readXls, utils as xlsUtils } from 'xlsx';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const BASE = 'http://146.255.89.49:8081/naturatherapy/';
+// the office's collabBox since the move of 13.10.2026 (146.255.89.49 before); COLLABBOX_BASE overrides it
+const BASE = process.env.COLLABBOX_BASE || 'http://62.162.124.54:8081/naturatherapy/';
 
 // ── args ─────────────────────────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
@@ -521,7 +522,7 @@ async function main() {
   const file = join(OUT, `collabbox_${FROM}_${TO}_${stamp}.json`);
   const result = {
     meta: {
-      source: 'collabBox (Accent Computers) http://146.255.89.49:8081/naturatherapy',
+      source: `collabBox (Accent Computers) ${BASE.replace(/\/$/, '')}`,
       from: FROM, to: TO, timezone: 'Europe/Skopje (wall clock, no offset)', currencyNote: 'amounts as shown in collabBox (МКД)',
       types, itemsMode: ITEMS_MODE, chunkDays: CHUNK_DAYS, fetchedAt: started.toISOString(),
       finishedAt: new Date().toISOString(), requests, readOnly: true,

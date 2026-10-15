@@ -36,14 +36,15 @@
  * LIVE — today's headers of 10036 · 10050 · 10111 · 10114 · 10106 → public.collabbox_record_booked()
  *   ('booked' ledger rows; ≤ 10 requests); public.collabbox_booked_today() serves the leaderboard.
  *
- * Secrets: COLLABBOX_USER / COLLABBOX_PASS (the collabBox login; VAULT §7 — never logged),
+ * Secrets: COLLABBOX_USER / COLLABBOX_PASS (the collabBox login; VAULT §7 — never logged), COLLABBOX_BASE
+ * (optional — the server's address when it moves again; client.ts has the default),
  * COLLABBOX_SYNC_SECRET (this header; the same value lives in Vault as collabbox_sync_secret for
  * pg_cron). Fails closed when any is unset. The run log is public.collabbox_sync_runs; freshness is
  * public.collabbox_feed_state(). Migration: supabase/migrations/20260942000900_collabbox_nightly_sync.sql.
  * Runbook: docs/handoff/2026-09-28/collabbox-pipeline.md §8.
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { CollabboxClient, RequestCapError } from "./client.ts";
+import { CollabboxClient, RequestCapError, collabboxBase } from "./client.ts";
 import type { FetchLike } from "./client.ts";
 import {
   LIVE_TYPES, NIGHTLY_TYPES, aheadRange, bookedHeader, buildCatalogue, buildDocuments, chunk, dayRange, isOrderRole,
@@ -391,6 +392,7 @@ Deno.serve(async (req: Request) => {
     admin, req: r, runId, startedMs, budgetMs: r.background ? BUDGET_BACKGROUND_MS : BUDGET_SYNC_MS, warnings: [],
     client: new CollabboxClient({
       fetch: fetch as unknown as FetchLike, user, pass, pauseMs: PAUSE_MS,
+      base: collabboxBase(Deno.env.get("COLLABBOX_BASE")),
       maxRequests: kind === "live" ? MAX_REQUESTS_LIVE : MAX_REQUESTS_FULL,
       log: (line) => console.log(`collabbox-sync ${kind}: ${redact(line)}`),
     }),
