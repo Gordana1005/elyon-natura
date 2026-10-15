@@ -41,17 +41,19 @@ describe('ranges (Skopje days — the shared /insights period, ../shared/period)
     const sp = new URLSearchParams('tab=overview');
     const written = writeOverviewParams(sp, {
       preset: 'custom', range: { from: '2026-09-01', to: '2026-09-10' }, compare: false,
-      sources: ['altercpa', 'web'], teams: ['crm_prediction'],
+      sources: ['altercpa', 'web'], teams: ['crm_prediction'], shops: true,
     });
     expect(written.get('tab')).toBe('overview');
     expect(parseOverviewParams(written, today)).toEqual({
       preset: 'custom', range: { from: '2026-09-01', to: '2026-09-10' }, compare: false,
-      sources: ['altercpa', 'web'], teams: ['crm_prediction'],
+      sources: ['altercpa', 'web'], teams: ['crm_prediction'], shops: true,
     });
+    expect(written.get('shops')).toBe('1');                     // the shops are never a cohort `src`
+    expect(written.get('src')).toBe('altercpa,web');
     // defaults stay out of the URL
-    const reset = writeOverviewParams(written, { preset: 'today', range: presetRange('today', today), compare: true, sources: [], teams: [] });
+    const reset = writeOverviewParams(written, { preset: 'today', range: presetRange('today', today), compare: true, sources: [], teams: [], shops: false });
     expect(reset.toString()).toBe('tab=overview');
-    expect(parseOverviewParams(reset, today)).toMatchObject({ preset: 'today', compare: true, sources: [], teams: [] });
+    expect(parseOverviewParams(reset, today)).toMatchObject({ preset: 'today', compare: true, sources: [], teams: [], shops: false });
   });
   it('ignores unknown sources in the URL', () => {
     expect(parseOverviewParams(new URLSearchParams('src=altercpa,bogus'), today).sources).toEqual(['altercpa']);

@@ -8846,7 +8846,8 @@
       "units_one": "{{n}} unit",
       "units_other": "{{n}} units",
       "groupTotal": "Total sales in the period: call centre {{cc}} + shops {{shops}} =",
-      "loadFailed": "The shops could not be loaded — try again later."
+      "loadFailed": "The shops could not be loaded — try again later.",
+      "groupTotalSelected": "Total sales in the period: the selected departments {{cc}} + shops {{shops}} ="
     }
   },
   "customer360": {

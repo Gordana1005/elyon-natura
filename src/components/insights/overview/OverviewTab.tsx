@@ -27,6 +27,7 @@ import { CohortBar } from '../shared/CohortBar';
 import { LeadsInCard } from '../shared/CohortSecondary';
 import { CohortSources } from './CohortSources';
 import { ShopsOverviewCard } from './ShopsOverviewCard';
+import ShopsTab from '../shops/ShopsTab';
 import { QualityRail } from '../shared/QualityRail';
 import { LoadError } from '../shared/LoadError';
 import { cohortDrill, cohortView, stripCohortMoney } from '../shared/cohortModel';
@@ -84,6 +85,9 @@ export default function OverviewTab() {
   const chips = useMemo(() => parseOverviewParams(sp, period.today), [sp, period.today]);
   const loginScope = useDeptScope();
   const showShops = useShopsInInsights();
+  // The Продавници chip alone (owner 15.10.2026: "само Продавниците — да се гледаат само тие"): the
+  // shops' own view, and no call-centre query is made for it.
+  const shopsOnly = showShops && chips.shops && chips.sources.length === 0 && chips.teams.length === 0;
   const setFilters = useCallback(
     (next: Partial<OverviewFilters>) => setSp((prev) => writeOverviewParams(prev, next), { replace: true }),
     [setSp],
@@ -111,6 +115,7 @@ export default function OverviewTab() {
     staleTime: 5 * 60_000,
     placeholderData: keepPreviousData,
     retry: 0,
+    enabled: !shopsOnly,
   });
   const data = q.data;
 
@@ -127,7 +132,8 @@ export default function OverviewTab() {
     preset: period.preset, range: period.range, compare: period.compare,
     sources: scope ? chips.sources.filter((k) => scope.includes(k)) : chips.sources,
     teams: chips.teams,
-  }), [period.preset, period.range, period.compare, chips.sources, chips.teams, scope]);
+    shops: chips.shops,
+  }), [period.preset, period.range, period.compare, chips.sources, chips.teams, chips.shops, scope]);
 
   // The teams are the Agents tab's (GET /insights/agents): the SAME query key as
   // AgentsTab, so the two share one cache entry and show the same numbers.
@@ -148,6 +154,7 @@ export default function OverviewTab() {
     staleTime: 5 * 60_000,
     placeholderData: keepPreviousData,
     retry: 0,
+    enabled: !shopsOnly,
   });
 
   // The top products are the Sales tab's (GET /insights/sales?part=detail): the SAME
@@ -166,6 +173,7 @@ export default function OverviewTab() {
     staleTime: 5 * 60_000,
     placeholderData: keepPreviousData,
     retry: 0,
+    enabled: !shopsOnly,
   });
 
   // Which departments are in view: null = every department (no chip on).
@@ -220,9 +228,11 @@ export default function OverviewTab() {
         </p>
       )}
 
-      <FilterBar filters={filters} onChange={setFilters} teams={teamChips} f={f} sourceKeys={scope ?? SOURCE_ORDER} />
+      <FilterBar filters={filters} onChange={setFilters} teams={teamChips} f={f} sourceKeys={scope ?? SOURCE_ORDER} shopsChip={showShops} />
 
-      {!data ? (
+      {shopsOnly ? (
+        <ShopsTab />
+      ) : !data ? (
         q.isError ? (
           <EmptyState
             icon={<AlertTriangle className="h-5 w-5" />}
@@ -266,12 +276,14 @@ export default function OverviewTab() {
               />
               {/* Per department: cards on the same cohort (the table twin is one toggle away). */}
               <CohortSources rows={cv.rows} total={cv.total} leadsTotal={cv.leads_in} money={cohortMoney} range={filters.range} f={f} />
-              {/* The shops are no department: shown with the whole business only, never filtered. */}
-              {showShops && !cv.filtered && !filters.teams.length && !fixture && (
+              {/* The shops are no department: beside the whole business, or beside the chosen
+                  departments when the Продавници chip is on — never inside their total. */}
+              {showShops && !fixture && (filters.shops || (!cv.filtered && !filters.teams.length)) && (
                 <ShopsOverviewCard
                   range={filters.range}
                   today={period.today}
                   callCentreMkd={cohortMoney ? cv.total.value_mkd : null}
+                  selected={cv.filtered}
                 />
               )}
               <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,0.9fr)]">

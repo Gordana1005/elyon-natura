@@ -24,12 +24,14 @@ const TOP_N = 3;
  * shops api refuses; money only when its key arrived (the api strips it per access level).
  */
 export function ShopsOverviewCard({
-  range, today, callCentreMkd,
+  range, today, callCentreMkd, selected = false,
 }: {
   range: DayRange;
   today: string;
   /** The call centre's sales in the period (the cohort total, денари) — null without money. */
   callCentreMkd: number | null;
+  /** The call-centre figure is only the chosen departments (a department chip is on). */
+  selected?: boolean;
 }) {
   const f = useShopsFormat();
   const { t } = f;
@@ -120,7 +122,7 @@ export function ShopsOverviewCard({
 
       {group != null && (
         <p className="mt-3 rounded-lg bg-muted/40 px-3 py-2 text-xs text-muted-foreground" data-testid="ov-shops-group">
-          {t('overview.shops.groupTotal', { cc: f.den(callCentreMkd), shops: f.den(sales) })}{' '}
+          {t(selected ? 'overview.shops.groupTotalSelected' : 'overview.shops.groupTotal', { cc: f.den(callCentreMkd), shops: f.den(sales) })}{' '}
           <b className="font-semibold tabular-nums text-foreground">{f.den(group)}</b>
         </p>
       )}

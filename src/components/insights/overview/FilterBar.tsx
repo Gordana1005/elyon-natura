@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react';
+import { Check, Store } from 'lucide-react';
 import type { OverviewSourceKey } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { SOURCE_ORDER, sourceColorVar } from './palette';
@@ -16,13 +16,15 @@ const chipOff = 'bg-card text-foreground hover:bg-muted';
  * their own (access levels, 20260947001600), so no chip offers a department they cannot see.
  */
 export function FilterBar({
-  filters, onChange, teams, f, sourceKeys = SOURCE_ORDER,
+  filters, onChange, teams, f, sourceKeys = SOURCE_ORDER, shopsChip = false,
 }: {
   filters: OverviewFilters;
   onChange: (next: Partial<OverviewFilters>) => void;
   teams: { key: string; name: string }[];
   f: OverviewFormat;
   sourceKeys?: readonly OverviewSourceKey[];
+  /** Offer the Продавници chip (the /shops circle, owner 15.10.2026) — never a department. */
+  shopsChip?: boolean;
 }) {
   const { t } = f;
   const toggleIn = <T extends string>(list: T[], v: T): T[] => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
@@ -43,8 +45,16 @@ export function FilterBar({
               </button>
             );
           })}
-          {filters.sources.length > 0 && (
-            <button type="button" onClick={() => onChange({ sources: [] })} className="text-xs text-muted-foreground underline-offset-2 hover:underline">
+          {shopsChip && (
+            <button type="button" aria-pressed={filters.shops} onClick={() => onChange({ shops: !filters.shops })}
+              className={cn(chip, filters.shops ? 'border-foreground/60 bg-muted' : chipOff)}>
+              <Store className="h-3 w-3 text-muted-foreground" aria-hidden />
+              {t('overview.shops.title')}
+              {filters.shops && <Check className="h-3 w-3" aria-hidden />}
+            </button>
+          )}
+          {(filters.sources.length > 0 || filters.shops) && (
+            <button type="button" onClick={() => onChange({ sources: [], shops: false })} className="text-xs text-muted-foreground underline-offset-2 hover:underline">
               {t('overview.allSources')}
             </button>
           )}

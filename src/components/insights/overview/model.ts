@@ -32,6 +32,9 @@ export interface OverviewFilters {
   sources: OverviewSourceKey[];
   /** Empty = every team. team_key values. */
   teams: string[];
+  /** The Продавници chip (owner 15.10.2026, URL `shops=1`): alone = the shops only; with departments = those
+   *  departments + the shops beside them. The shops are never a cohort source — never in `sources`. */
+  shops: boolean;
 }
 
 /** Reads the Overview's state out of the /insights URL (shareable, survives reload). */
@@ -40,7 +43,7 @@ export function parseOverviewParams(sp: URLSearchParams, today: string): Overvie
   const sources = (sp.get('src') ?? '').split(',').filter((s): s is OverviewSourceKey =>
     (SOURCE_ORDER as string[]).includes(s));
   const teams = (sp.get('team') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
-  return { ...period, sources, teams };
+  return { ...period, sources, teams, shops: sp.get('shops') === '1' };
 }
 
 /** Writes the Overview's state back, keeping every other param (the tab). */
@@ -53,6 +56,7 @@ export function writeOverviewParams(sp: URLSearchParams, f: Partial<OverviewFilt
   const set = (k: string, v: string | null) => (v ? next.set(k, v) : next.delete(k));
   if (f.sources !== undefined) set('src', f.sources.length ? f.sources.join(',') : null);
   if (f.teams !== undefined) set('team', f.teams.length ? f.teams.join(',') : null);
+  if (f.shops !== undefined) set('shops', f.shops ? '1' : null);
   return next;
 }
 

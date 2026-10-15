@@ -8846,7 +8846,8 @@
       "units_one": "{{n}} copë",
       "units_other": "{{n}} copë",
       "groupTotal": "Shitjet gjithsej në periudhë: qendra e thirrjeve {{cc}} + dyqanet {{shops}} =",
-      "loadFailed": "Dyqanet nuk u ngarkuan — provo përsëri më vonë."
+      "loadFailed": "Dyqanet nuk u ngarkuan — provo përsëri më vonë.",
+      "groupTotalSelected": "Shitjet gjithsej në periudhë: departamentet e zgjedhura {{cc}} + dyqanet {{shops}} ="
     }
   },
   "customer360": {
