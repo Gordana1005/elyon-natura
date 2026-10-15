@@ -316,6 +316,25 @@ export function useMyAccessLabelInput(): { loading: boolean; level: AccessLevel 
   return { loading: ctx.loading, level: ctx.accessLevel, deptScope: ctx.deptScope };
 }
 
+/** Продавници in Insights (owner 15.10.2026: the shops belong in Insights too) — the /shops
+ *  circle (useShopsAccess: revenue viewers with money, admins / managers counted; the api strips
+ *  money per access level and refuses everyone else), inside the Insights module switch. */
+function shopsInInsights(
+  insightsOn: boolean, canSeeBusiness: boolean,
+  user: { isAdmin?: boolean; isManager?: boolean; isExternalAffiliate?: boolean } | null | undefined,
+): boolean {
+  return insightsOn && !user?.isExternalAffiliate && (canSeeBusiness || !!(user?.isAdmin || user?.isManager));
+}
+
+/** The Overview's shops card: the same rule as the Продавници tab, and false outside the provider
+ *  (a report tab under test) — never throws. Display only; the shops api enforces. */
+export function useShopsInInsights(): boolean {
+  const ctx = useContext(PermissionsContext);
+  const { user } = useAuth();
+  if (!ctx) return false;
+  return shopsInInsights(ctx.isModuleEnabled('insights'), ctx.canSeeBusiness, user);
+}
+
 /** Which parts of /insights the current login may open (access levels, 20260947001600).
  *  - `business` — the MARGIN tabs (Pure Profit, Margin Lab; any profit tab): canSeeMargins
  *    only (super_admin / owner / finance). Administrators and dept_admins never.
@@ -328,6 +347,8 @@ export function useMyAccessLabelInput(): { loading: boolean; level: AccessLevel 
  *    Every tab renders money from the payload's meta.money; this flag is for the UI around it
  *    (a money column's header, an export button) before or without a payload.
  *  - `deptScope` — a dept_admin's departments (null for everyone else).
+ *  - `shops` — Продавници (the tab and the Overview's shops card): the /shops circle
+ *    (useShopsAccess) within the Insights module; money follows the shops payload.
  *  The operational tabs keep their module rules. ManagementInsightsPage and the sidebar both
  *  read this, so the two can never disagree; the server enforces the same split (GET
  *  /insights/profit is margins-only, /insights/mex-cash 403s anyone without a scope, and every
@@ -359,8 +380,9 @@ export function useInsightsAccess() {
   // Settings → Role Permissions.
   const calls = canAccessModule('call_activity');
   const money = canSeeBusiness || deptAdmin;
+  const shops = shopsInInsights(insightsOn, canSeeBusiness, user);
   return {
-    business, mexCash, overview, agents, payout, calls, money, deptScope,
-    any: business || mexCash || overview || agents || payout || calls,
+    business, mexCash, overview, agents, payout, calls, money, deptScope, shops,
+    any: business || mexCash || overview || agents || payout || calls || shops,
   };
 }

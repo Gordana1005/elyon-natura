@@ -198,6 +198,19 @@ target **explicitly** and verify it before running:
   `elyon_crm`, `teleshop_out`, `teleshop_other`), list names and URLs never change; `sales_teams.name` renamed (audited).
   "Affiliate / Афилијат / Партнер" for the AlterCPA CPA partners (webmasters, payouts, guarantee) is a different thing
   and stays. Where older text below says Телешоп / Affiliate (– Lead in/out), read the new names.
+- **The buyers' ORIGIN ≠ the department (owner, 15.10.2026; `20261015120000` / `0100`).** Тим Центар Out works the
+  whole base, so its card (and its mirror Тим Маџари Out) splits its sales by where each BUYER first came from:
+  **Bio Natural** (first trace an affiliate / Тим Маџари lead — AlterCPA lead, LEADS / LEADS-OUT document, 9110 / 9103
+  or BIO NATURAL parcel, a CRM sale on BIO NATURAL) · **Natura Therapy / Ad Astra** (teleshop / social sales, NATURA
+  series parcels and MEX's pre-2023 "M…" ids, Нарачка in / out / social documents; the web shop counted inside it) ·
+  **new** (nothing more than 1 h before the sale). One table `customer_origin` (per last-8 phone, the earliest trace per
+  side; `customer_origin_rows()` is THE definition; 15-min incremental + 05:15 Skopje full, `customer_origin_refresh`),
+  read through `customer_origin_at_sale()` inside `insights_cohort` (`by_source[].origins` / `.accounts` — the
+  department's own rows, Σ = its total). The SERIES decides a parcel before the account (9110 / 9103 went out on NATURA
+  until 02.04.2026); an order by its raw record (`customer_origin_order_side`: lead / CRM profile / folder — NEVER
+  `dept_override`, never the seller's team). The product brand cannot split it (42 % of the orders carry no branded
+  line); the post alone is wrong for ~14 % (shown under it). Sept 2026 Тим Центар Out: Bio Natural 742 (22 %) ·
+  Natura 2.538 (76 %) · new 74. Origin never moves a sale's department. Check: `node scripts/verify-customer-origin.mjs`.
 - **Sale sources are the SIX DEPARTMENTS (owner law, 28–29.09.2026, whole history)** — the raw record: the
   collabBox FOLDER (document type) and the MEX profile, never the system an order was made in ("no need to mention
   Elyon-CRM or AlterCPA anymore"); since 02.10 the SELLER'S TEAM decides first (above). Cohort keys,
@@ -242,12 +255,18 @@ target **explicitly** and verify it before running:
   - Every order shows its department and seller: `order_departments(ids)` (the Orders list) and
     `order_origin(id)` (the order window's "Origin and proof": MEX profile, status, COD, receiver,
     collabBox document, AlterCPA decision). Display only — `confirmed_by_*` stay untouched.
-- **One calculation everywhere (owner, 29.09):** Табла for admins IS the Insights Overview; Операции
+- **One calculation everywhere (owner, 29.09):** an admin's Табла (`/`) OPENS Insights → Преглед (owner 15.10.2026,
+  "една страница": `Dashboard.tsx` redirects with the period kept, the menu shows Извештаи alone; agents and managers
+  keep their own "Мој учинок" Табла); Операции
   counts today from `insights_cohort` (the Skopje day) + `leaderboard_day_v2`; the TV leaderboard is
   `leaderboard_day_v2` (one row per agent split by department, managers shown not ranked, no bonus).
   Never add a figure that counts orders another way — read the cohort.
 - **The Overview / Табла is the CALL CENTRE; MEX cash has its own tab (owner, 02.10.2026; `20260947001300`).**
-  Order: the sales made in the period → Кој колку продал → Најпродавани производи → leads → teams → departments.
+  Order (owner 15.10.2026: "битно е кој оддел колку има направено"): the sales made in the period → **the departments**
+  (compact cards, two to a row from xl, In next to Out) → **Продавници** (a card of its own, never in the call centre's
+  total or its parts; owners also see "кол-центар + продавници = вкупно") → Кој колку продал · Најпродавани производи ·
+  leads → teams. The shops also have their own tab, **Insights → Продавници** (the /shops Денес / Период view itself,
+  the /shops access and money rules).
   "Прилив од MEX" (cash on the MEX delivery day) is NOT on the Overview, Prediction lists or Операции — it read
   as money received that day, while MEX pays out later in lumps. It lives on **Insights → Наплата (MEX)**
   (`insights_mex_cash`: per day × account, returns, MEX's half-month settlement periods 1–15 / 16–end — its fee
@@ -551,7 +570,8 @@ target **explicitly** and verify it before running:
   lines and trade-book corrections (ПОЕН-350 at a huge negative price after a count) are never goods; a 10005 count
   difference **plus = shortage**; top sellers = shelf goods only (`…0400`). Natura's own margin on goods to the shops
   ≈ 30 % (Sigma list 07); the TV re-invoicing to Stores (≈ 1,6 М ден a month) is shown apart. Group cost = Stock v2's
-  Sigma cost, NULL until every unit is costed. See `elyon-shops`.
+  Sigma cost, NULL until every unit is costed. **Since 15.10.2026 also in Insights:** the tab Продавници and the
+  Overview's shops card (both read GET shops/day | shops/period — no second count). See `elyon-shops`.
 - **Targeted call scripts (owner, 02.10.2026; `20260947000100`, `docs/CALL-SCRIPTS.md`) — built, NOT live.** One script
   per LIST GROUP (lead_new / lead_callback by the lead's status; newcomers · d21 · d57 · m4_6 · m6_12 · y1_2 · y2plus ·
   cancels · never_converted · trash by the list NAME — `groupOfListName` only reads it, never renames a list; Current

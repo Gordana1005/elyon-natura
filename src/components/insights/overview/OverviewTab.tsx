@@ -6,7 +6,7 @@ import { apiGetInsightsOverview, type OverviewResponse } from '@/lib/api';
 import { apiGetInsightsAgents, type PeopleResponse } from '@/lib/insightsApi/agents';
 import { apiGetInsightsSales, type SalesDetail } from '@/lib/insightsApi/sales';
 import { useAuth } from '@/contexts/AuthContext';
-import { useDeptScope } from '@/contexts/PermissionsContext';
+import { useDeptScope, useShopsInInsights } from '@/contexts/PermissionsContext';
 import { scopedKeys } from '@/lib/access';
 import { apiErrorText } from '@/i18n/apiErrors';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,7 @@ import { useInsightsFormat } from '../shared/useInsightsFormat';
 import { CohortBar } from '../shared/CohortBar';
 import { LeadsInCard } from '../shared/CohortSecondary';
 import { CohortSources } from './CohortSources';
+import { ShopsOverviewCard } from './ShopsOverviewCard';
 import { QualityRail } from '../shared/QualityRail';
 import { LoadError } from '../shared/LoadError';
 import { cohortDrill, cohortView, stripCohortMoney } from '../shared/cohortModel';
@@ -51,9 +52,11 @@ const stripMoneyKeys = <T,>(v: T): T => {
 };
 
 /**
- * The connected Overview (Insights → Overview, and the admins' Табла): the call
- * centre on THE sale cohort (owner 02.10.2026) — the sales made in the period,
- * who sold them, which products, the leads, then the teams and the departments.
+ * The connected Overview (Insights → Преглед; an admin's Табла opens it since
+ * 15.10.2026): the call centre on THE sale cohort — the sales made in the period,
+ * then WHICH DEPARTMENT made them (owner 15.10.2026: "битно е кој оддел колку има
+ * направено", two departments side by side), the 22 shops apart (never in the call
+ * centre's total), who sold, which products, the leads, and the teams last.
  * MEX's cash on the delivery-day clock is NOT here (it read as money received
  * the same day, while MEX pays out in lumps): Insights → Наплата (MEX) has it.
  * Owners get money (meta.money); admins/managers get the same page counted,
@@ -80,6 +83,7 @@ export default function OverviewTab() {
   const period = useInsightsPeriod();
   const chips = useMemo(() => parseOverviewParams(sp, period.today), [sp, period.today]);
   const loginScope = useDeptScope();
+  const showShops = useShopsInInsights();
   const setFilters = useCallback(
     (next: Partial<OverviewFilters>) => setSp((prev) => writeOverviewParams(prev, next), { replace: true }),
     [setSp],
@@ -245,12 +249,11 @@ export default function OverviewTab() {
           )}
           <FreshnessStrip feeds={data.freshness ?? []} attention={data.attention ?? []} asOf={skopjeHm(data.meta.generated_at) || null} f={f} />
           {cohort && cv ? (
-            // The call centre first (owner 02.10.2026): this period's sales and
-            // where each one is now — the parts add up to the total — then who
-            // sold them, what was sold and the leads that came in. MEX's cash
-            // (the delivery-day clock) is not on this page: it lives on its own
-            // tab, Insights → Наплата (MEX), next to MEX's payouts.
-            <div className="space-y-4">
+            // The call centre first: this period's sales and where each one is now — the parts
+            // add up to the total — then each department's share of them (owner 15.10.2026: the
+            // departments right under the sales, two to a row), then the shops apart. MEX's cash
+            // (the delivery-day clock) is not on this page: Insights → Наплата (MEX) has it.
+            <div className="space-y-6">
               <CohortBar
                 title={t('overview.cohort.title', { period: f.period(filters.range.from, filters.range.to) })}
                 total={cv.total} buckets={cv.buckets} outside={cv.outside} money={cohortMoney}
@@ -261,6 +264,16 @@ export default function OverviewTab() {
                 note={cv.filtered ? t('insights.common.cohort.filtered') : null}
                 f={f}
               />
+              {/* Per department: cards on the same cohort (the table twin is one toggle away). */}
+              <CohortSources rows={cv.rows} total={cv.total} leadsTotal={cv.leads_in} money={cohortMoney} range={filters.range} f={f} />
+              {/* The shops are no department: shown with the whole business only, never filtered. */}
+              {showShops && !cv.filtered && !filters.teams.length && !fixture && (
+                <ShopsOverviewCard
+                  range={filters.range}
+                  today={period.today}
+                  callCentreMkd={cohortMoney ? cv.total.value_mkd : null}
+                />
+              )}
               <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,0.9fr)]">
                 <TopSellersCard q={agentsQ} teamKeys={filters.teams} sources={sourcesInView} f={f} />
                 <TopProductsCard q={productsQ} sources={sourcesInView} f={f} />
@@ -274,10 +287,6 @@ export default function OverviewTab() {
             <LoadError text={t('overview.cohort.loadFailed')} onRetry={() => { void q.refetch(); }} />
           )}
           <TeamsBoard q={agentsQ} teamKeys={filters.teams} range={filters.range} canTvLink={!!(user?.isAdmin || user?.isManager)} f={f} />
-          {/* Per department: cards on the same cohort (the table twin is one toggle away). */}
-          {cohort && cv && (
-            <CohortSources rows={cv.rows} total={cv.total} leadsTotal={cv.leads_in} money={cohortMoney} range={filters.range} f={f} />
-          )}
           {/* The drill-down table (DrillPivot.tsx) is not drawn: it counts orders by
               created day on CRM status in EUR, "no" calls as orders, and misses web and
               MEX-only sales. It waits for a rebuild on the cohort (insights_sale_rows). */}

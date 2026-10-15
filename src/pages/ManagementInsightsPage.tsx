@@ -16,6 +16,7 @@ import StockTab from '@/components/insights/stock/StockTab';
 import ReturnsTab from '@/components/insights/returns/ReturnsTab';
 import MexCashTab from '@/components/insights/mexcash/MexCashTab';
 import CallActivityTab from '@/components/insights/calls/CallActivityTab';
+import ShopsTab from '@/components/insights/shops/ShopsTab';
 import { InsightsFilterBar } from '@/components/insights/shared/InsightsFilterBar';
 import { switchTabParams } from '@/components/insights/shared/period';
 import { DeptScopeBadge } from '@/components/access/DeptScopeBadge';
@@ -35,6 +36,9 @@ const TAB_DEFS = [
   // Sales brings its own data (GET /insights/sales) and money gate
   // (meta.money): owners see денари, admins/managers the same page counted.
   { value: 'sales', labelKey: 'insights.tabSales', need: 'overview' },
+  // Продавници (owner 15.10.2026): the 22 shops over the same period — the /shops Денес / Период
+  // view itself; who sees money is the shops api's (owners all, administrators sales, managers counts).
+  { value: 'shops', labelKey: 'insights.tabShops', need: 'shops' },
   // Наплата (MEX) (owner 02.10.2026): what MEX collected per delivery day, account and
   // settlement period — off the Overview, where it read as money received that day.
   // The whole tab = can_see_mex_cash() (= can_see_margins since 20260947001600); a
@@ -58,7 +62,7 @@ const TAB_DEFS = [
 // useInsightsPeriod — shared by every tab through the URL, so a tab switch
 // keeps it). Payout still brings its own period controls (deferred), so the
 // shared bar is not shown there — it would not drive it.
-const PERIOD_TABS = new Set<string>(['overview', 'pure-profit', 'margin-lab', 'call-activity', 'prediction-lists', 'sales', 'mex-cash', 'agents', 'stock', 'returns']);
+const PERIOD_TABS = new Set<string>(['overview', 'pure-profit', 'margin-lab', 'call-activity', 'prediction-lists', 'sales', 'shops', 'mex-cash', 'agents', 'stock', 'returns']);
 
 export default function ManagementInsightsPage() {
   const { t } = useTranslation();
@@ -96,7 +100,8 @@ export default function ManagementInsightsPage() {
         {/* A tab switch keeps the shared period (and drops the old tab's own filters). */}
         <Tabs value={activeTab} onValueChange={(v) => setSearchParams(switchTabParams(searchParams, v))}>
           <div className="flex flex-wrap items-center gap-2">
-            <TabsList className="h-auto">
+            {/* 12 tabs since Продавници (15.10.2026): a phone scrolls the row, a desktop wraps it — never a hidden tab. */}
+            <TabsList className="h-auto lg:flex-wrap lg:overflow-visible">
               {tabs.map(tab => <TabsTrigger key={tab.value} value={tab.value}>{t(tab.labelKey)}</TabsTrigger>)}
             </TabsList>
             {/* A dept_admin's money is their departments only — say which, next to the tabs. */}
@@ -113,6 +118,9 @@ export default function ManagementInsightsPage() {
           )}
           {access.overview && (
             <TabsContent value="sales" className="mt-4"><SalesTab /></TabsContent>
+          )}
+          {access.shops && (
+            <TabsContent value="shops" className="mt-4"><ShopsTab /></TabsContent>
           )}
           {access.mexCash && (
             <TabsContent value="mex-cash" className="mt-4"><MexCashTab /></TabsContent>

@@ -146,6 +146,13 @@ Writers (SECURITY DEFINER, idempotent — a document's lines are replaced as a w
 - **/shops "Продавници"** (menu; Insights style; cards below md; tabs Денес / Период · Продавници · Продавница · Залиха
   низ продавници · Испорачано од Натура · Здравје); money renders only when its key is present; the freshness line
   "сметки пред N мин · залиха од 23:30".
+- **In Insights too (owner 15.10.2026: "продавниците се изоставени од извештаи"):** the tab **Insights → Продавници**
+  (`src/components/insights/shops/ShopsTab.tsx` = the /shops `DayTab` itself over the Insights period; shown to
+  `useInsightsAccess().shops` = the /shops circle inside the Insights module) and the Overview card
+  **Продавници** right under the departments (`overview/ShopsOverviewCard.tsx`: sales, receipts, average receipt,
+  open shops, the top 3; for owners "кол-центар X + продавници Y = Z"). Both read GET shops/day | shops/period with
+  the same query key — no second count. The shops are NEVER a cohort department and never enter the call centre's
+  total or its parts (a receipt has no parcel); the card hides under a department / team chip and on a 403.
 
 ## 7. Checks
 

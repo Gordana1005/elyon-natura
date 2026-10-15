@@ -181,6 +181,9 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?:
         // Shops: owners see money, managers the same pages counted; nobody else (the api refuses them).
         if (item.path === '/shops') return shopsAccess.any;
         if (item.path === '/loyalty') return loyaltyAccess.any;
+        // Табла (owner 15.10.2026, "една страница"): an admin's / redirects to Insights → Преглед,
+        // so the menu offers Извештаи alone; everyone else keeps their own Табла ("Мој учинок").
+        if (item.path === '/' && user?.isAdmin) return false;
         return canAccessModule(item.moduleKey) ||
           (item.moduleKeysAny?.some(k => canAccessModule(k)) ?? false);
       });

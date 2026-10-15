@@ -6,8 +6,6 @@ import i18n from '@/i18n';
 import { AppLayout } from '@/layouts/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiGetDashboardStats, apiGetRecentActivity, apiGetMyDayWork } from '@/lib/api';
-import { InsightsFilterBar } from '@/components/insights/shared/InsightsFilterBar';
-import OverviewTab from '@/components/insights/overview/OverviewTab';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,7 +24,7 @@ import {
 import { MyOrdersSection } from '@/components/dashboard/MyOrdersSection';
 import { MyDayWorkTable } from '@/components/dashboard/MyDayWorkTable';
 import { formatDate } from '@/i18n/dates';
-import { Link } from 'react-router-dom';
+import { Link, Navigate, useLocation } from 'react-router-dom';
 import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   Area, AreaChart,
@@ -310,6 +308,7 @@ export default function Dashboard() {
   const { t } = useTranslation(); // subscribes status labels to language switches
   const { user } = useAuth();
   const isAdmin = user?.isAdmin;
+  const location = useLocation();
   const [agentPeriod, setAgentPeriod] = useState<'today' | 'month' | 'start' | 'custom'>('today');
   // Day browsing (◀ ▶): a Skopje day string (the variable keeps its old name).
   // The agent's "today" is the Skopje calendar day, matching the window the API
@@ -772,17 +771,9 @@ export default function Dashboard() {
     );
   }
 
-  // ── Admins: the Dashboard IS the Overview (owner, 29.09.2026: "Табла, Insights and Operations
-  // synchronised — one calculation"). The old CEO tiles counted CRM statuses by created day (a UTC
-  // day), called shipped + paid "revenue" and credited the assigned agent; the Overview is the
-  // cohort — sale day, the six departments, MEX first — the same numbers as Insights → Преглед,
-  // with its own period bar and every number opening exactly its orders.
-  return (
-    <AppLayout title={t('nav.dashboard')}>
-      <div className="space-y-5">
-        <InsightsFilterBar />
-        <OverviewTab />
-      </div>
-    </AppLayout>
-  );
+  // ── Admins: one page (owner 15.10.2026: "Табла и Извештаи го покажуваат истото"). Since
+  // 29.09 an admin's Табла rendered Insights → Преглед itself; now / opens that page, with the
+  // period carried over (range / from / to live in the URL on both), and the menu shows Извештаи
+  // alone. Agents and managers keep their own Табла above.
+  return <Navigate to={{ pathname: '/insights', search: location.search }} replace />;
 }

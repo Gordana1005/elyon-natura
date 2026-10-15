@@ -230,6 +230,9 @@ export const COHORT_NON_MONEY_KEYS: ReadonlySet<string> = new Set([
   // parcel does not exist yet, 20260942001900 — never an order, never in a /orders list) ·
   // awaiting (web orders the shop has not confirmed yet, counted in to_pack, 20260942001965)
   "key", "count", "orders", "web", "mex_only", "booked", "awaiting", "drill", "splits", "kind",
+  // by_source origins / accounts (20261015120100): the buyers' origin (bio_natural | natura | new,
+  // with web / mixed / no_phone counts) and the MEX profile — counts for everyone, денари for owners
+  "origins", "accounts", "mixed", "no_phone",
   // leads_in
   "came_in", "became_sales", "cancelled", "trashed", "open", "conversion", "other", "disposition",
   // cash_flow (counts only)

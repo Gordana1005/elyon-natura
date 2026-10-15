@@ -6587,6 +6587,11 @@
         "labelHint": "The parcel exists at MEX, the courier has not picked it up yet (MEX 8)."
       },
       "naturaIncludesWeb": "NATURA also ships the Web shop’s parcels — NATURA’s figures include the web orders."
+    },
+    "tabShops": "Shops",
+    "shopsTab": {
+      "note": "The 22 shops of NATURA THERAPY STORES — till receipts (collabBox), VAT included, by Skopje days. Not part of the call centre figure.",
+      "openShops": "Stock, deliveries and health — on Shops"
     }
   },
   "agentsTab": {
@@ -8687,9 +8692,32 @@
         "bookedNote_one": "{{n}} of them is booked in collabBox and still waits for its MEX parcel — it becomes an order when the parcel is created.",
         "bookedNote_other": "{{n}} of them are booked in collabBox and still wait for their MEX parcel — they become orders when the parcel is created.",
         "webAwaitingLine_one": "incl. {{n}} awaiting the shop's confirmation",
-        "webAwaitingLine_other": "incl. {{n}} awaiting the shop's confirmation"
+        "webAwaitingLine_other": "incl. {{n}} awaiting the shop's confirmation",
+        "outsideShort": "outside the total"
       },
-      "loadFailed": "The period's sales could not be computed, so they are not shown. Try again."
+      "loadFailed": "The period's sales could not be computed, so they are not shown. Try again.",
+      "origin": {
+        "title": "Where the buyers come from",
+        "basis": "by first contact",
+        "hint": "Each buyer by their FIRST contact with us: a Team Madžari lead (Bio Natural — AlterCPA, LEADS, parcels 9110 / 9103) or a Natura Therapy / Ad Astra buyer (teleshop, social media, the web shop). Buyer = the last 8 digits of the phone. It never changes the sale's department.",
+        "key": {
+          "bio_natural": "Bio Natural — came as Team Madžari leads",
+          "natura": "Natura Therapy / Ad Astra — Team Centar buyers",
+          "new": "New buyers — first purchase"
+        },
+        "web_one": "of them {{n}} first through the web shop",
+        "web_other": "of them {{n}} first through the web shop",
+        "noPhone_one": "of them {{n}} without a phone",
+        "noPhone_other": "of them {{n}} without a phone",
+        "mixed_one": "{{n}} buyer bought from both teams — the first contact decides",
+        "mixed_other": "{{n}} buyers bought from both teams — the first contact decides",
+        "accountsTitle": "Shipped via",
+        "account": {
+          "natura": "NATURA",
+          "bio_natural": "BIO NATURAL",
+          "none": "no parcel yet"
+        }
+      }
     },
     "clock": {
       "placed": "Counted by the day the order was placed (Skopje time)"
@@ -8720,6 +8748,17 @@
         "footer_other": "{{units}} packages · {{products}} products",
         "all": "All products"
       }
+    },
+    "shops": {
+      "title": "Shops",
+      "subtitle": "Till receipts of the 22 shops, VAT included — apart from the call centre",
+      "open": "All shops",
+      "top": "Top sellers",
+      "empty": "No receipts in this period.",
+      "units_one": "{{n}} unit",
+      "units_other": "{{n}} units",
+      "groupTotal": "Total sales in the period: call centre {{cc}} + shops {{shops}} =",
+      "loadFailed": "The shops could not be loaded — try again later."
     }
   },
   "customer360": {

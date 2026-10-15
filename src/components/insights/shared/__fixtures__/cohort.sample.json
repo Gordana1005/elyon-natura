@@ -428,6 +428,49 @@
           "drill": "/orders?cohort_bucket=total&cohort_source=elyon_crm&sale_source_detail=direct&sold_from=2026-09-22&sold_to=2026-09-28"
         }
       ],
+      "origins": [
+        {
+          "key": "bio_natural",
+          "count": 98,
+          "value_mkd": 270402,
+          "web": 0,
+          "mixed": 9,
+          "no_phone": 0
+        },
+        {
+          "key": "natura",
+          "count": 41,
+          "value_mkd": 112300,
+          "web": 0,
+          "mixed": 9,
+          "no_phone": 0
+        },
+        {
+          "key": "new",
+          "count": 3,
+          "value_mkd": 8100,
+          "web": 0,
+          "mixed": 0,
+          "no_phone": 1
+        }
+      ],
+      "accounts": [
+        {
+          "key": "natura",
+          "count": 2,
+          "value_mkd": 5200
+        },
+        {
+          "key": "bio_natural",
+          "count": 87,
+          "value_mkd": 240912
+        },
+        {
+          "key": "none",
+          "count": 53,
+          "value_mkd": 144690
+        }
+      ],
       "leads_in": {
         "came_in": 1780,
         "became_sales": 142,
@@ -568,6 +611,49 @@
           "count": 40,
           "value_mkd": 89900,
           "drill": null
+        }
+      ],
+      "origins": [
+        {
+          "key": "bio_natural",
+          "count": 9,
+          "value_mkd": 21300,
+          "web": 0,
+          "mixed": 4,
+          "no_phone": 0
+        },
+        {
+          "key": "natura",
+          "count": 29,
+          "value_mkd": 64400,
+          "web": 1,
+          "mixed": 3,
+          "no_phone": 0
+        },
+        {
+          "key": "new",
+          "count": 2,
+          "value_mkd": 4200,
+          "web": 0,
+          "mixed": 0,
+          "no_phone": 0
+        }
+      ],
+      "accounts": [
+        {
+          "key": "natura",
+          "count": 31,
+          "value_mkd": 69800
+        },
+        {
+          "key": "bio_natural",
+          "count": 9,
+          "value_mkd": 20100
+        },
+        {
+          "key": "none",
+          "count": 0,
+          "value_mkd": 0
         }
       ],
       "leads_in": {

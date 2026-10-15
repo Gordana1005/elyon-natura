@@ -20,12 +20,12 @@ export function whyNoLink(f: InsightsFormat, d: { href: string | null; blocked: 
 }
 
 /**
- * One cohort part in a source card: dot + icon + label, the count (a link only
- * when it is all orders), its share of the source's sales, денари for owners,
- * the "N во Нарачки" link to its order part when it is only partly orders, and
- * an optional line.
+ * One cohort part in a department card, as a row of a small table (owner 15.10.2026: two
+ * departments side by side, "поедноставно"): dot + icon + label · the count (a link only when it
+ * is all orders) · its share of the department's sales · денари for owners. Under it, when there
+ * is one, the "N во Нарачки" link to its order part and the part's own line (problem, booked …).
  */
-export function CohortTile({
+export function CohortPartRow({
   k, part, share, drill, money, sourceName, f, children,
 }: {
   k: CohortBucketKey;
@@ -40,39 +40,46 @@ export function CohortTile({
   const Icon = COHORT_ICON[k];
   const label = f.bucketLabel(k);
   const alert = k === 'paid_unproven' && part.count > 0;
+  const ordersPart = <OrdersPartLink drill={drill} label={`${sourceName} · ${label}`} f={f} />;
   return (
     <li
       className={cn(
-        'flex min-w-0 flex-col gap-0.5 rounded-lg border px-2.5 py-2',
-        part.count === 0 && 'opacity-60',
-        alert && 'border-red-300 bg-red-50/60 dark:border-red-900 dark:bg-red-950/30',
+        'min-w-0 rounded-md px-2 py-1',
+        part.count === 0 && 'opacity-55',
+        alert && 'bg-red-50/70 dark:bg-red-950/30',
       )}
     >
-      <span className="flex items-center gap-1.5 text-[11px] font-medium leading-tight text-muted-foreground">
-        <span
-          className={cn('h-2 w-2 shrink-0 rounded-full', COHORT_TONE[k])}
-          style={COHORT_HATCH[k] ? { backgroundImage: COHORT_HATCH[k] } : undefined}
-          aria-hidden
-        />
-        <Icon className="h-3 w-3 shrink-0" aria-hidden />
-        <span className="truncate" title={label}>{label}</span>
-      </span>
-      <span className="flex flex-wrap items-baseline gap-x-1.5">
+      <div className="flex min-w-0 items-baseline gap-2">
+        <span className="flex min-w-0 flex-1 items-baseline gap-1.5 text-xs leading-tight text-muted-foreground">
+          <span
+            className={cn('h-2 w-2 shrink-0 translate-y-[-1px] rounded-full', COHORT_TONE[k])}
+            style={COHORT_HATCH[k] ? { backgroundImage: COHORT_HATCH[k] } : undefined}
+            aria-hidden
+          />
+          <Icon className="h-3 w-3 shrink-0 translate-y-[1px]" aria-hidden />
+          <span className="min-w-0 break-words" title={label}>{label}</span>
+        </span>
         <DrillLink
           href={drill.href}
           title={whyNoLink(f, drill)}
           ariaLabel={`${sourceName} · ${label}: ${f.int(part.count)}`}
-          className={cn('text-lg font-semibold tabular-nums', TILE_TEXT[k] ?? 'text-card-foreground')}
+          className={cn('shrink-0 text-sm font-semibold tabular-nums', TILE_TEXT[k] ?? 'text-card-foreground')}
         >
           {f.int(part.count)}
         </DrillLink>
-        <span className="text-[11px] tabular-nums text-muted-foreground">{share}</span>
-      </span>
-      {money && (
-        <span className="truncate text-xs tabular-nums text-muted-foreground">{part.value_mkd != null ? f.den(part.value_mkd) : '—'}</span>
+        <span className="w-9 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">{share}</span>
+        {money && (
+          <span className="w-[5.75rem] shrink-0 text-right text-xs tabular-nums text-muted-foreground sm:w-28">
+            {part.value_mkd != null ? f.den(part.value_mkd) : '—'}
+          </span>
+        )}
+      </div>
+      {(children || (drill.ordersHref && drill.orders > 0)) && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 pl-[1.375rem]">
+          {ordersPart}
+          {children}
+        </div>
       )}
-      <OrdersPartLink drill={drill} label={`${sourceName} · ${label}`} f={f} />
-      {children}
     </li>
   );
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { AlertTriangle, Hourglass, Info, LayoutGrid, Table2, Truck } from 'lucide-react';
+import { AlertTriangle, Clock3, Hourglass, Info, LayoutGrid, Table2, Truck } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { dropEmptyManagement, type CohortLeadsIn, type CohortSourceRow } from '../shared/cohortTypes';
 import {
@@ -15,7 +16,8 @@ import type { DayRange } from '../shared/period';
 import type { InsightsFormat } from '../shared/useInsightsFormat';
 import { DrillLink } from './DrillLink';
 import { sourceColorVar } from './palette';
-import { CohortTile, whyNoLink } from './CohortTiles';
+import { CohortPartRow, whyNoLink } from './CohortTiles';
+import { CohortOrigins } from './CohortOrigins';
 import { hasLeadFunnel, splitDrill, tileBuckets, tilePart, webAwaitingCount, workedOf } from './cohortOverview';
 
 type SourcesView = 'cards' | 'table';
@@ -56,8 +58,11 @@ export function CohortSources({
   const { t } = f;
   // Менаџмент is written apart only when it has something (owner 02.10.2026: "ако има нешто")
   const rows = dropEmptyManagement(allRows, cohortRowEmpty);
-  const [view, setView] = useState<SourcesView>(readView);
+  const [chosen, setView] = useState<SourcesView>(readView);
   const pick = (v: SourcesView) => { setView(v); writeView(v); };
+  // Below md the table would scroll sideways (UI law): a phone always gets the cards.
+  const isMobile = useIsMobile();
+  const view: SourcesView = isMobile ? 'cards' : chosen;
 
   return (
     <section aria-labelledby="ov-sources-title" className="space-y-3">
@@ -69,7 +74,7 @@ export function CohortSources({
           <p className="text-xs text-muted-foreground">{t('overview.cohort.sources.subtitle')}</p>
           <ClockCaption clock="sale" className="mt-0.5" />
         </div>
-        <div role="group" aria-label={t('overview.cohort.sources.viewLabel')} className="inline-flex rounded-lg border bg-card p-0.5">
+        <div role="group" aria-label={t('overview.cohort.sources.viewLabel')} className="hidden rounded-lg border bg-card p-0.5 md:inline-flex">
           {(['cards', 'table'] as const).map((v) => {
             const Icon = v === 'cards' ? LayoutGrid : Table2;
             return (
@@ -96,7 +101,10 @@ export function CohortSources({
       ) : rows.length === 0 ? (
         <p className="rounded-xl border bg-card p-6 text-center text-sm text-muted-foreground">{t('overview.cohort.sources.empty')}</p>
       ) : (
-        rows.map((r) => <SourceCard key={r.key} row={r} grand={total} money={money} range={range} f={f} />)
+        // Two departments side by side from xl (owner 15.10.2026), In next to Out of the same team.
+        <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+          {rows.map((r) => <SourceCard key={r.key} row={r} grand={total} money={money} range={range} f={f} />)}
+        </div>
       )}
     </section>
   );
@@ -118,20 +126,33 @@ function SourceCard({ row, grand, money, range, f }: {
   // web orders still waiting for the shop's confirmation — counted, "to pack" (20260942001965)
   const webAwaiting = isWeb ? webAwaitingCount(row) : 0;
   const leads = row.leads_in;
-  // Телешоп (Lead in and Lead out) and Social media have no lead funnel (hasLeadFunnel).
+  // Тим Центар (In and Out), Social media and Менаџмент have no lead funnel (hasLeadFunnel).
   const noFunnel = !hasLeadFunnel(row.key);
   const splits = row.splits ?? [];
   // A split's words come from the shared vocabulary (insights.common.split.*);
   // a key it does not know yet (a new collabBox series) shows as sent.
   const splitLabel = (k: string) => f.splitLabel(k);
+  const notes = [
+    // the web card may hold the shop's parcels with no order too (NTMK… / M…, owner 28.09)
+    isWeb ? t('overview.cohort.sources.webNote') : null,
+    mexOnly > 0 ? t('overview.cohort.sources.mexOnlyNote', { n: f.int(mexOnly), count: mexOnly }) : null,
+    booked > 0 ? t('overview.cohort.sources.bookedNote', { n: f.int(booked), count: booked }) : null,
+  ].filter(Boolean).join(' ');
 
   return (
-    <article aria-labelledby={`ov-src-${row.key}`} className="rounded-xl border bg-card p-4 shadow-sm sm:p-5">
-      {/* The source's cohort total: sales made in the period · денари (owners). */}
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
-          <span className="h-[3px] w-4 shrink-0 translate-y-[-3px] rounded-full" style={{ background: sourceColorVar(row.key) }} aria-hidden />
-          <h3 id={`ov-src-${row.key}`} className="font-semibold">{name}</h3>
+    <article aria-labelledby={`ov-src-${row.key}`} className="flex min-w-0 flex-col rounded-xl border bg-card p-4 shadow-sm">
+      {/* The department's cohort total: sales made in the period · денари (owners) · its share of all. */}
+      <header className="min-w-0">
+        <div className="flex items-baseline justify-between gap-3">
+          <div className="flex min-w-0 items-baseline gap-2">
+            <span className="h-[3px] w-4 shrink-0 translate-y-[-3px] rounded-full" style={{ background: sourceColorVar(row.key) }} aria-hidden />
+            <h3 id={`ov-src-${row.key}`} className="font-semibold leading-tight">{name}</h3>
+          </div>
+          <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+            {t('overview.cohort.sources.shareOfAll', { pct: f.share(total.count, grand.count) })}
+          </span>
+        </div>
+        <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 pl-6">
           <DrillLink
             href={rowDrill.href}
             title={whyNoLink(f, rowDrill)}
@@ -144,24 +165,21 @@ function SourceCard({ row, grand, money, range, f }: {
           </DrillLink>
           <OrdersPartLink drill={rowDrill} label={name} f={f} />
         </div>
-        <span className="text-[11px] tabular-nums text-muted-foreground">
-          {t('overview.cohort.sources.shareOfAll', { pct: f.share(total.count, grand.count) })}
-        </span>
-      </div>
+      </header>
 
-      <div className="mt-3">
+      <div className="mt-2.5">
         <CohortBar variant="bar" total={row.total} buckets={row.buckets} money={money} rows={[row]} range={range}
           barLabel={`${name} — ${t('insights.common.cohort.barLabel')}`} f={f} />
       </div>
 
-      {/* The header's parts, for this source — they add up to the card's total. */}
-      <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:auto-cols-fr lg:grid-flow-col lg:grid-cols-none">
+      {/* The header's parts, for this department — they add up to the card's total. */}
+      <ul className="mt-2 space-y-px">
         {tileKeys(parts).map((k) => {
           const p = tilePart(parts, k);
           const problem = parts.courier_problem;
           const problemDrill = cohortDrill([row], 'courier_problem', range);
           return (
-            <CohortTile
+            <CohortPartRow
               key={k}
               k={k}
               part={p}
@@ -190,13 +208,16 @@ function SourceCard({ row, grand, money, range, f }: {
                   </DrillLink>
                 </span>
               )}
-            </CohortTile>
+            </CohortPartRow>
           );
         })}
       </ul>
 
-      {/* Outside this source's total: cancelled (red) / trashed (grey) after the sale · replacements (only when there are any). */}
-      <ul className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground" aria-label={t('insights.common.outside.title')}>
+      {/* Outside this department's total: cancelled (red) / trashed (grey) after the sale · replacements (only when there are any). */}
+      <ul
+        className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t pt-2 text-xs text-muted-foreground"
+        aria-label={t('insights.common.outside.title')}
+      >
         {(['cancelled_after_sale', 'trashed_after_sale', 'replacement'] as const)
           .filter((k) => k !== 'replacement' || outs[k].count > 0)
           .map((k) => {
@@ -219,47 +240,57 @@ function SourceCard({ row, grand, money, range, f }: {
               </li>
             );
           })}
-        <li className="text-[11px]">{t('overview.cohort.sources.outsideNote')}</li>
+        <li className="inline-flex items-center gap-1 text-[11px]" title={t('overview.cohort.sources.outsideNote')}>
+          <Info className="h-3 w-3 shrink-0" aria-hidden />{t('overview.cohort.sources.outsideShort')}
+        </li>
       </ul>
 
-      {/* This source's leads, on their own clock — decisions, not sales. */}
-      <div className="mt-3 rounded-lg bg-muted/40 px-3 py-2">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-          <h4 className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('overview.cohort.sources.leadsTitle')}</h4>
-          <ClockCaption clock="created" />
-        </div>
+      {/* Тим Центар Out / Тим Маџари Out: the same sales by where each buyer first came from (15.10.2026). */}
+      <CohortOrigins row={row} money={money} f={f} />
+
+      {/* This department's leads, on their own clock (the day the lead came in) — decisions, not sales. */}
+      <div className="mt-2 rounded-lg bg-muted/40 px-2.5 py-1.5">
         {noFunnel ? (
-          <p className="mt-1 text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             {t(row.key === 'social' ? 'overview.cohort.leads.noFunnelSocial'
               : row.key === 'management' ? 'overview.cohort.leads.noFunnelManagement' : 'overview.cohort.leads.noFunnel')}
           </p>
-        ) : leads && leads.came_in > 0 ? (
-          <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-            <LeadStat label={t('overview.cohort.leads.cameIn')} value={f.int(leads.came_in)} />
-            <LeadStat label={t('overview.cohort.leads.worked')} value={f.int(workedOf(leads))} />
-            <LeadStat label={t('insights.common.leads.became_sales')} value={f.int(leads.became_sales)} dot={COHORT_TONE.paid} />
-            <LeadStat
-              label={t('overview.cohort.leads.conversion')}
-              value={f.pct(leads.conversion ?? (leads.came_in > 0 ? leads.became_sales / leads.came_in : null))}
-            />
-            <LeadStat label={t('insights.common.leads.cancelled')} value={f.int(leads.cancelled)} dot={OUTSIDE_TONE.cancelled_after_sale} />
-            <LeadStat label={t('insights.common.leads.trashed')} value={f.int(leads.trashed)} dot={OUTSIDE_TONE.trashed} />
-            <LeadStat label={t('insights.common.leads.open')} value={f.int(leads.open)} dot={OPEN_DOT} />
-            {(leads.other ?? 0) > 0 && <LeadStat label={t('insights.common.leads.other')} value={f.int(leads.other)} />}
-          </ul>
         ) : (
-          <p className="mt-1 text-xs text-muted-foreground">{t('overview.cohort.leads.none')}</p>
+          <ul className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+            <li title={t('insights.common.clock.counted', { clocks: t('insights.common.clock.created') })}>
+              <h4 className="inline-flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide">
+                <Clock3 className="h-3 w-3 shrink-0" aria-hidden />{t('overview.cohort.sources.leadsTitle')}
+              </h4>
+            </li>
+            {leads && leads.came_in > 0 ? (
+              <>
+                <LeadStat label={t('overview.cohort.leads.cameIn')} value={f.int(leads.came_in)} />
+                <LeadStat label={t('overview.cohort.leads.worked')} value={f.int(workedOf(leads))} />
+                <LeadStat label={t('insights.common.leads.became_sales')} value={f.int(leads.became_sales)} dot={COHORT_TONE.paid} />
+                <LeadStat
+                  label={t('overview.cohort.leads.conversion')}
+                  value={f.pct(leads.conversion ?? (leads.came_in > 0 ? leads.became_sales / leads.came_in : null))}
+                />
+                <LeadStat label={t('insights.common.leads.cancelled')} value={f.int(leads.cancelled)} dot={OUTSIDE_TONE.cancelled_after_sale} />
+                <LeadStat label={t('insights.common.leads.trashed')} value={f.int(leads.trashed)} dot={OUTSIDE_TONE.trashed} />
+                <LeadStat label={t('insights.common.leads.open')} value={f.int(leads.open)} dot={OPEN_DOT} />
+                {(leads.other ?? 0) > 0 && <LeadStat label={t('insights.common.leads.other')} value={f.int(leads.other)} />}
+              </>
+            ) : (
+              <li>{t('overview.cohort.leads.none')}</li>
+            )}
+          </ul>
         )}
         {/* The CRM's "no" calls are decisions too (Обработени), never sales. */}
         {(leads?.disposition ?? 0) > 0 && (
-          <p className="mt-1 text-[11px] text-muted-foreground">
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
             {t('insights.common.leads.dispositionNote', { n: f.int(leads!.disposition), count: leads!.disposition })}
           </p>
         )}
       </div>
 
       {splits.length > 0 && (
-        <ul className="mt-3 flex flex-wrap gap-1.5" aria-label={t('overview.cohort.sources.splits')}>
+        <ul className="mt-2 flex flex-wrap gap-1.5" aria-label={t('overview.cohort.sources.splits')}>
           {splits.map((sp) => {
             const d = splitDrill(row, sp, range);
             const mex = isMexOnlySplit(sp);
@@ -288,17 +319,10 @@ function SourceCard({ row, grand, money, range, f }: {
         </ul>
       )}
 
-      {(isWeb || mexOnly > 0 || booked > 0) && (
+      {notes && (
         <p className="mt-2 flex items-start gap-1 text-[11px] leading-snug text-muted-foreground">
           <Info className="mt-px h-3 w-3 shrink-0" aria-hidden />
-          <span>
-            {/* the web card may hold the shop's parcels with no order too (NTMK… / M…, owner 28.09) */}
-            {[
-              isWeb ? t('overview.cohort.sources.webNote') : null,
-              mexOnly > 0 ? t('overview.cohort.sources.mexOnlyNote', { n: f.int(mexOnly), count: mexOnly }) : null,
-              booked > 0 ? t('overview.cohort.sources.bookedNote', { n: f.int(booked), count: booked }) : null,
-            ].filter(Boolean).join(' ')}
-          </span>
+          <span>{notes}</span>
         </p>
       )}
     </article>

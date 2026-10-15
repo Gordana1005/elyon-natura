@@ -142,6 +142,27 @@ export interface CohortLeadsIn {
 
 export type CohortTotal = { count: number } & CohortMoney & CohortComposition;
 
+/** The buyers' origin inside a department (20261015120100): where each sale's customer FIRST came
+ *  from — bio_natural (an affiliate / Тим Маџари lead), natura (Natura Therapy / Ad Astra: teleshop,
+ *  social; `web` of them first through the web shop), new (nothing before the sale; `no_phone` of them
+ *  have no phone). `mixed` = buyers with history on both sides (the first contact decides). The three
+ *  add up to the department's total; value_mkd for owners only. */
+export type CohortOriginKey = 'bio_natural' | 'natura' | 'new';
+export interface CohortOrigin {
+  key: CohortOriginKey | string;
+  count: number;
+  value_mkd?: number;
+  web?: number;
+  mixed?: number;
+  no_phone?: number;
+}
+/** The MEX profile a department's sales went out on: natura | bio_natural | none (no parcel yet). */
+export interface CohortAccount {
+  key: 'natura' | 'bio_natural' | 'none' | string;
+  count: number;
+  value_mkd?: number;
+}
+
 export interface CohortSourceRow {
   key: CohortSourceKey;
   total: CohortTotal;
@@ -149,6 +170,9 @@ export interface CohortSourceRow {
   outside: CohortOutside[];
   splits: CohortSplit[];
   leads_in: CohortLeadsIn;
+  /** null / absent before customer_origin's first fill, or from an older api — nothing is shown then. */
+  origins?: CohortOrigin[] | null;
+  accounts?: CohortAccount[] | null;
 }
 
 /** A department row with nothing in it — all orders, no sale, no lead. */

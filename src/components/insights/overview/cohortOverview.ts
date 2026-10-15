@@ -30,7 +30,10 @@
  *          /orders (they become orders when the parcel is created)
  * Anything else renders with its label (or raw key) and no link.
  */
-import { COHORT_SOURCE_PARAM, COHORT_SOURCES, type CohortBucketKey, type CohortSourceRow, type CohortSplit } from '../shared/cohortTypes';
+import {
+  COHORT_SOURCE_PARAM, COHORT_SOURCES,
+  type CohortAccount, type CohortBucketKey, type CohortOrigin, type CohortSourceRow, type CohortSplit,
+} from '../shared/cohortTypes';
 import {
   COHORT_DRILL_PARAM, isBookingSplit, isMexOnlySplit, ordersSupportsCohortDrill, sumParts, type DrillBlock, type Part,
 } from '../shared/cohortModel';
@@ -99,4 +102,33 @@ export function splitDrill(
   sp.set('sold_from', range.from);
   sp.set('sold_to', range.to);
   return { href: `/orders?${sp.toString()}`, blocked: null };
+}
+
+/**
+ * The departments whose card says where their buyers came from (owner 15.10.2026: Тим Центар Out
+ * works the whole base — how many of its sales are Bio Natural customers that first came as Тим
+ * Маџари leads, how many Natura Therapy / Ad Astra ones; Тим Маџари Out is its mirror). An In
+ * department's lead IS its sale, so it has no origin to tell.
+ */
+export const ORIGIN_SOURCES: readonly string[] = ['teleshop_out', 'elyon_crm'];
+export const ORIGIN_KEYS = ['bio_natural', 'natura', 'new'] as const;
+export const ACCOUNT_KEYS = ['natura', 'bio_natural', 'none'] as const;
+
+/** The origin parts of a department card, in display order (zeros filled) — null when the
+ *  department tells none, the payload has none (before the first fill / an older api) or all are 0. */
+export function originParts(row: Pick<CohortSourceRow, 'key' | 'origins'>): CohortOrigin[] | null {
+  if (!ORIGIN_SOURCES.includes(row.key) || !Array.isArray(row.origins)) return null;
+  const parts = ORIGIN_KEYS.map((k) => row.origins!.find((o) => o.key === k) ?? { key: k, count: 0 });
+  return parts.some((p) => num(p.count) > 0) ? parts.map((p) => ({ ...p, count: num(p.count) })) : null;
+}
+
+/** The MEX profiles the department's sales went out on, in display order — only those above 0;
+ *  null when the payload has none. */
+export function accountParts(row: Pick<CohortSourceRow, 'accounts'>): CohortAccount[] | null {
+  if (!Array.isArray(row.accounts)) return null;
+  const parts = ACCOUNT_KEYS
+    .map((k) => row.accounts!.find((a) => a.key === k) ?? { key: k, count: 0 })
+    .map((a) => ({ ...a, count: num(a.count) }))
+    .filter((a) => a.count > 0);
+  return parts.length ? parts : null;
 }

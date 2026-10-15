@@ -515,6 +515,31 @@ cannot attach a case-3 parcel — windows checked, unchanged. Dry run 03.10 (`80
 1,56 М ден → Тим Маџари Out · teleshop:out 95 / 206k → Тим Центар Out · Менаџмент 32 / 73k · teleshop:in 2 · legacy 2. Full
 detail: `elyon-collabbox-sync` "A late document for an existing order".
 
+## The buyers' ORIGIN is not a department (owner 15.10.2026; `20261015120000` / `0100`)
+
+Owner: Тим Центар Out works the whole base — "колку од тие продажби доаѓаат од претходно што се биле лидови од
+Affiliate (Bio Natural), а колку од Teleshop (Natura Therapy / Ad Astra)". The answer is a fact about the CUSTOMER,
+kept apart from the department:
+
+- `public.customer_origin` (per last-8 phone; test phones never): the earliest trace per side — **affiliate**
+  (AlterCPA lead · an order with sale_source altercpa, any status, its created_at · a CRM-made sale on BIO NATURAL ·
+  a collabBox LEADS / LEADS-OUT order · a parcel of series 9110 / 9103 or on BIO NATURAL · a 10111 / 10114 document),
+  **natura** (every other sale · NATURA-series parcels and MEX's pre-2023 "M…" ids · 10036 / 10050 / 10106 / 10055
+  documents), **web** (web_orders · NTMK / "M…" from 2023). `customer_origin_rows(p_phones)` is THE definition;
+  `customer_origin_refresh(false)` every 15 min (:09 …) recomputes the touched phones exactly,
+  `customer_origin_refresh(true)` at 05:15 Skopje rebuilds all (~25 s, 168.612 phones on 15.10).
+- The sides are decided by the RAW record: a parcel by its SERIES before its account (9110 / 9103 went out on NATURA
+  until 02.04.2026); an order by `customer_origin_order_side` (lead → CRM profile → `cohort_order_source` 3-arg, the
+  folder) — **never `dept_override`, never the seller's team**, or a buyer's origin would follow whoever sold to them
+  later. The product brand cannot decide it (42 % of orders carry no branded line); the MEX profile of the SALE is
+  shown next to it because it differs for ~14 %.
+- `insights_cohort` `by_source[].origins` = `customer_origin_at_sale(...)` over the department's own in-total rows
+  (bio_natural | natura | new — web / mixed / no_phone counted inside) and `.accounts` (natura | bio_natural | none);
+  each list adds up to the department total (the migration's self-check, `verify-customer-origin` O3). NULL until
+  the first full fill. The Overview shows it on Тим Центар Out and Тим Маџари Out only (`ORIGIN_SOURCES`) — an In
+  department's lead IS its sale. Sept 2026 Тим Центар Out: Bio Natural 742 · Natura 2.538 (68 web-first) · new 74.
+- An origin never moves a sale's department, its seller or its bonus.
+
 ## Where the department is shown (29.09)
 
 The three order surfaces below call THE department, `cohort_order_source(sale_source, detail,

@@ -6587,6 +6587,11 @@
         "labelHint": "Pakoja ekziston te MEX, korrieri ende nuk e ka marrë (MEX 8)."
       },
       "naturaIncludesWeb": "NATURA dërgon edhe pakot e Dyqanit online — shifrat e NATURA përfshijnë edhe porositë nga ueb-i."
+    },
+    "tabShops": "Dyqanet",
+    "shopsTab": {
+      "note": "22 dyqanet e NATURA THERAPY STORES — kuponët e arkave (collabBox), me TVSH, sipas ditëve të Shkupit. Nuk janë pjesë e shifrës së qendrës së thirrjeve.",
+      "openShops": "Stoku, dërgesat dhe shëndeti — te Dyqanet"
     }
   },
   "agentsTab": {
@@ -8687,9 +8692,32 @@
         "bookedNote_one": "Prej tyre {{n}} është regjistruar në collabBox dhe ende pret pakon MEX — bëhet porosi kur krijohet pakoja.",
         "bookedNote_other": "Prej tyre {{n}} janë regjistruar në collabBox dhe ende presin pakon MEX — bëhen porosi kur krijohet pakoja.",
         "webAwaitingLine_one": "prej tyre {{n}} pret konfirmimin e dyqanit",
-        "webAwaitingLine_other": "prej tyre {{n}} presin konfirmimin e dyqanit"
+        "webAwaitingLine_other": "prej tyre {{n}} presin konfirmimin e dyqanit",
+        "outsideShort": "jashtë totalit"
       },
-      "loadFailed": "Shitjet e periudhës nuk mund të llogariteshin, prandaj nuk shfaqen. Provoni përsëri."
+      "loadFailed": "Shitjet e periudhës nuk mund të llogariteshin, prandaj nuk shfaqen. Provoni përsëri.",
+      "origin": {
+        "title": "Nga vijnë blerësit",
+        "basis": "sipas kontaktit të parë",
+        "hint": "Çdo blerës sipas kontaktit të tij të PARË me ne: lid i Ekipit Madžari (Bio Natural — AlterCPA, LEADS, dërgesa 9110 / 9103) ose blerës i Natura Therapy / Ad Astra (teleshop, rrjetet sociale, dyqani online). Blerësi = 8 shifrat e fundit të telefonit. Nuk e ndryshon departamentin e shitjes.",
+        "key": {
+          "bio_natural": "Bio Natural — erdhën si lidë të Ekipit Madžari",
+          "natura": "Natura Therapy / Ad Astra — blerës të Ekipit Centar",
+          "new": "Blerës të rinj — blerja e parë"
+        },
+        "web_one": "prej tyre {{n}} së pari përmes dyqanit online",
+        "web_other": "prej tyre {{n}} së pari përmes dyqanit online",
+        "noPhone_one": "prej tyre {{n}} pa telefon",
+        "noPhone_other": "prej tyre {{n}} pa telefon",
+        "mixed_one": "{{n}} blerës bleu te të dy ekipet — vendos kontakti i parë",
+        "mixed_other": "{{n}} blerës blenë te të dy ekipet — vendos kontakti i parë",
+        "accountsTitle": "Dërguar përmes",
+        "account": {
+          "natura": "NATURA",
+          "bio_natural": "BIO NATURAL",
+          "none": "ende pa dërgesë"
+        }
+      }
     },
     "clock": {
       "placed": "Numëruar sipas ditës kur është bërë porosia (ora e Shkupit)"
@@ -8720,6 +8748,17 @@
         "footer_other": "{{units}} pako · {{products}} produkte",
         "all": "Të gjitha produktet"
       }
+    },
+    "shops": {
+      "title": "Dyqanet",
+      "subtitle": "Kuponët e arkave të 22 dyqaneve, me TVSH — veçmas nga qendra e thirrjeve",
+      "open": "Të gjitha dyqanet",
+      "top": "Shitën më shumë",
+      "empty": "Nuk ka kuponë në këtë periudhë.",
+      "units_one": "{{n}} copë",
+      "units_other": "{{n}} copë",
+      "groupTotal": "Shitjet gjithsej në periudhë: qendra e thirrjeve {{cc}} + dyqanet {{shops}} =",
+      "loadFailed": "Dyqanet nuk u ngarkuan — provo përsëri më vonë."
     }
   },
   "customer360": {

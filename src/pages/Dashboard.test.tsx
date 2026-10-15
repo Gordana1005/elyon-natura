@@ -1,17 +1,20 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import i18n from '@/i18n';
 
 // "My performance" (/ for a non-admin) under the access levels (20260947001600): a manager
 // whose payload says money: false sees no money tile — never "0 ден"; a dept_admin's carries
 // dept_scope (a "Тим Центар" badge beside the period) and no payout_earned (no payout tile).
-const h = vi.hoisted(() => ({ stats: vi.fn() }));
+const h = vi.hoisted(() => ({
+  stats: vi.fn(),
+  user: { id: 'u-man', isAdmin: false, isManager: true, roles: ['manager'] } as Record<string, unknown>,
+}));
 const channel = { on: () => channel, subscribe: () => channel };
 vi.mock('@/integrations/supabase/client', () => ({ supabase: { channel: () => channel, removeChannel: () => {} } }));
 vi.mock('@/contexts/AuthContext', () => ({
-  useAuth: () => ({ user: { id: 'u-man', isAdmin: false, isManager: true, roles: ['manager'] } }),
+  useAuth: () => ({ user: h.user }),
 }));
 vi.mock('@/layouts/AppLayout', () => ({
   AppLayout: ({ title, children }: { title: string; children: React.ReactNode }) => <div><h1>{title}</h1>{children}</div>,
@@ -73,5 +76,34 @@ describe('My performance — money by access level', { timeout: 30_000 }, () => 
     expect(await screen.findByText(t('dashboard.payoutEarned'), {}, { timeout: 10_000 })).toBeInTheDocument();
     expect(screen.getByText(t('dashboard.paidRevenue'))).toBeInTheDocument();
     expect(screen.queryByTestId('dept-scope-badge')).toBeNull();
+  });
+});
+
+describe('Табла for an admin — one page (owner 15.10.2026)', { timeout: 30_000 }, () => {
+  function Where() {
+    const loc = useLocation();
+    return <p data-testid="where">{`${loc.pathname}${loc.search}`}</p>;
+  }
+  it('opens Insights → Преглед with the period kept, never fetching the agent page', async () => {
+    const before = h.user;
+    h.user = { id: 'u-adm', isAdmin: true, isManager: false, roles: ['admin'] };
+    try {
+      h.stats.mockClear();
+      const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      render(
+        <QueryClientProvider client={qc}>
+          <MemoryRouter initialEntries={['/?range=custom&from=2026-09-01&to=2026-09-30']}>
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/insights" element={<Where />} />
+            </Routes>
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+      expect(await screen.findByTestId('where')).toHaveTextContent('/insights?range=custom&from=2026-09-01&to=2026-09-30');
+      expect(h.stats).not.toHaveBeenCalled();
+    } finally {
+      h.user = before;
+    }
   });
 });
