@@ -515,6 +515,12 @@ cannot attach a case-3 parcel — windows checked, unchanged. Dry run 03.10 (`80
 1,56 М ден → Тим Маџари Out · teleshop:out 95 / 206k → Тим Центар Out · Менаџмент 32 / 73k · teleshop:in 2 · legacy 2. Full
 detail: `elyon-collabbox-sync` "A late document for an existing order".
 
+## Names since 15.10.2026: Affiliate In / Out · Teleshop In / Out (`20261016140000`)
+
+Owner 15.10.2026: "веќе нема Маџари, Центар" — the departments are **Affiliate In · Affiliate Out · Teleshop Out ·
+Teleshop In**, the teams **Affiliate** / **Teleshop** (`sales_teams.name`, audited). Display only; every key stays.
+Wherever this skill still says Тим Маџари / Тим Центар, read Affiliate / Teleshop.
+
 ## The buyers' ORIGIN is not a department (owner 15.10.2026; `20261015120000` / `0100`)
 
 Owner: Тим Центар Out works the whole base — "колку од тие продажби доаѓаат од претходно што се биле лидови од

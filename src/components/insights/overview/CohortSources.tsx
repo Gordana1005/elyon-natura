@@ -167,6 +167,9 @@ function SourceCard({ row, grand, money, range, f }: {
         </div>
       </header>
 
+      {/* Teleshop Out / Affiliate Out: the orders by the customer base they came from — first, big (owner 15.10.2026). */}
+      <CohortOrigins row={row} money={money} f={f} />
+
       <div className="mt-2.5">
         <CohortBar variant="bar" total={row.total} buckets={row.buckets} money={money} rows={[row]} range={range}
           barLabel={`${name} — ${t('insights.common.cohort.barLabel')}`} f={f} />
@@ -244,9 +247,6 @@ function SourceCard({ row, grand, money, range, f }: {
           <Info className="h-3 w-3 shrink-0" aria-hidden />{t('overview.cohort.sources.outsideShort')}
         </li>
       </ul>
-
-      {/* Тим Центар Out / Тим Маџари Out: the same sales by where each buyer first came from (15.10.2026). */}
-      <CohortOrigins row={row} money={money} f={f} />
 
       {/* This department's leads, on their own clock (the day the lead came in) — decisions, not sales. */}
       <div className="mt-2 rounded-lg bg-muted/40 px-2.5 py-1.5">

@@ -50,9 +50,9 @@ describe("validateAccessPut — access_write's refusals, before the SQL", () => 
     expect(normalizeDepts(["altercpa", "bogus"])).toEqual({ depts: ["altercpa"], unknown: ["bogus"] });
   });
 
-  it("accepts a dept_admin with Тим Центар's three departments", () => {
-    const r = validateAccessPut({ level: "dept_admin", departments: ["social", "teleshop_other", "teleshop_out"], note: " Тим Центар " }, STAFF);
-    expect(r).toEqual({ ok: true, value: { level: "dept_admin", departments: ["teleshop_out", "teleshop_other", "social"], note: "Тим Центар" } });
+  it("accepts a dept_admin with Teleshop's three departments", () => {
+    const r = validateAccessPut({ level: "dept_admin", departments: ["social", "teleshop_other", "teleshop_out"], note: " Teleshop " }, STAFF);
+    expect(r).toEqual({ ok: true, value: { level: "dept_admin", departments: ["teleshop_out", "teleshop_other", "social"], note: "Teleshop" } });
   });
 
   it("note: omitted = keep (undefined), null = clear, too long refused", () => {
@@ -135,7 +135,7 @@ describe("shapeAccessPeople — the GET list", () => {
     access: [
       { user_id: "u-mile", level: "super_admin", note: null, updated_at: "2026-10-02T18:00:00Z", updated_by: "u-mile" },
       { user_id: "u-nina", level: "administrator", note: null, updated_at: "2026-10-02T18:00:00Z", updated_by: "u-mile" },
-      { user_id: "u-teo", level: "dept_admin", note: "Тим Центар", updated_at: "2026-10-02T18:00:00Z", updated_by: "u-gone" },
+      { user_id: "u-teo", level: "dept_admin", note: "Teleshop", updated_at: "2026-10-02T18:00:00Z", updated_by: "u-gone" },
       { user_id: "u-old", level: "super_admin", note: null, updated_at: null, updated_by: null },
     ],
     departments: [
@@ -157,7 +157,7 @@ describe("shapeAccessPeople — the GET list", () => {
     expect(by["u-mile"]).toMatchObject({ level: "super_admin", explicit: true, updated_by_name: "Mile Stoev" });
     expect(by["u-boss"]).toMatchObject({ level: "owner", explicit: false, note: null, updated_at: null });
     expect(by["u-agent"]).toMatchObject({ level: "operator", explicit: false });
-    expect(by["u-teo"]).toMatchObject({ level: "dept_admin", departments: ["teleshop_out", "social"], note: "Тим Центар", updated_by_name: null });
+    expect(by["u-teo"]).toMatchObject({ level: "dept_admin", departments: ["teleshop_out", "social"], note: "Teleshop", updated_by_name: null });
   });
 
   it("flags the last active super admin (an inactive super admin does not count)", () => {

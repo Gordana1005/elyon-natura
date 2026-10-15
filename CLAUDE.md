@@ -191,15 +191,16 @@ target **explicitly** and verify it before running:
   `leaderboard_day_v2`. 3.130 orders moved (Sept: 760 Affiliate – Lead out → Телешоп – Lead out, 2,11 М ден), each in
   `dept_by_team_backfill` (old → new). The raw `sale_source` / detail (folder, list, intake) never change. Proof:
   `node scripts/verify-teams.mjs` T3.
-- **NAMES: Тим Центар / Тим Маџари (owner, 02.10.2026)** — Телешоп → **Тим Центар**, Affiliate → **Тим Маџари**, ALWAYS
-  with "Тим" ("Тим Маџари, Тим Центар, никогаш само центар или маџари"); departments **Тим Маџари In · Тим Маџари Out ·
-  Тим Центар Out · Тим Центар In** · Социјални мрежи · Веб-продавница; lanes **In / Out / Социјални мрежи** (en "Team
-  Centar / Team Madžari", sq "Ekipi …", bg "Екип …"). DISPLAY ONLY — keys (`teleshop`, `affiliate`, `altercpa`,
-  `elyon_crm`, `teleshop_out`, `teleshop_other`), list names and URLs never change; `sales_teams.name` renamed (audited).
-  "Affiliate / Афилијат / Партнер" for the AlterCPA CPA partners (webmasters, payouts, guarantee) is a different thing
-  and stays. Where older text below says Телешоп / Affiliate (– Lead in/out), read the new names.
-- **The buyers' ORIGIN ≠ the department (owner, 15.10.2026; `20261015120000` / `0100`).** Тим Центар Out works the
-  whole base, so its card (and its mirror Тим Маџари Out) splits its sales by where each BUYER first came from:
+- **NAMES: Affiliate / Teleshop (owner, 15.10.2026 — replaces the 02.10 "Тим Маџари / Тим Центар"; `20261016140000`).**
+  Owner: "веќе нема Маџари, Центар … Сите се на иста локација … менуваме имиња секаде". Departments **Affiliate In ·
+  Affiliate Out · Teleshop Out · Teleshop In** · Социјални мрежи · Веб-продавница · Менаџмент; the teams **Affiliate** /
+  **Teleshop** (`sales_teams.name`, audited `sales_team.rename`), the same Latin words in mk / sq / en. NEVER write
+  "Маџари" or "Центар" for a team again. DISPLAY ONLY — keys (`teleshop`, `affiliate`, `altercpa`, `elyon_crm`,
+  `teleshop_out`, `teleshop_other`), list names and URLs never change. "Affiliate / Афилијат / Партнер" also still names
+  the AlterCPA CPA partners (webmasters, payouts, guarantee). Where older text below says Тим Маџари / Тим Центар or
+  Телешоп / Affiliate (– Lead in/out), read Affiliate / Teleshop In / Out.
+- **The buyers' ORIGIN ≠ the department (owner, 15.10.2026; `20261015120000` / `0100`).** Teleshop Out works the
+  whole base, so its card (and its mirror Affiliate Out) shows FIRST, in two big tiles, where each BUYER first came from:
   **Bio Natural** (first trace an affiliate / Тим Маџари lead — AlterCPA lead, LEADS / LEADS-OUT document, 9110 / 9103
   or BIO NATURAL parcel, a CRM sale on BIO NATURAL) · **Natura Therapy / Ad Astra** (teleshop / social sales, NATURA
   series parcels and MEX's pre-2023 "M…" ids, Нарачка in / out / social documents; the web shop counted inside it) ·
@@ -209,7 +210,7 @@ target **explicitly** and verify it before running:
   department's own rows, Σ = its total). The SERIES decides a parcel before the account (9110 / 9103 went out on NATURA
   until 02.04.2026); an order by its raw record (`customer_origin_order_side`: lead / CRM profile / folder — NEVER
   `dept_override`, never the seller's team). The product brand cannot split it (42 % of the orders carry no branded
-  line); the post alone is wrong for ~14 % (shown under it). Sept 2026 Тим Центар Out: Bio Natural 742 (22 %) ·
+  line); the post alone is wrong for ~14 % (shown under it). Sept 2026 Teleshop Out: Bio Natural 742 (22 %) ·
   Natura 2.538 (76 %) · new 74. Origin never moves a sale's department. Check: `node scripts/verify-customer-origin.mjs`.
 - **Sale sources are the SIX DEPARTMENTS (owner law, 28–29.09.2026, whole history)** — the raw record: the
   collabBox FOLDER (document type) and the MEX profile, never the system an order was made in ("no need to mention

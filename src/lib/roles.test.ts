@@ -17,12 +17,12 @@ describe('the role label in the top bar — the access level first (owner 03.10.
     expect(accessLevelLabel('dept_admin', [])).toBe('Администратор на оддел');
   });
 
-  it('a department admin carries the team: always "Тим Центар" / "Тим Маџари", never bare', () => {
-    expect(accessLevelLabel('dept_admin', CENTAR)).toBe('Администратор на оддел · Тим Центар');
-    expect(accessLevelLabel('dept_admin', MADZARI)).toBe('Администратор на оддел · Тим Маџари');
-    expect(accessLevelLabel('dept_admin', ['teleshop_out'])).toBe('Администратор на оддел · Тим Центар');
+  it('a department admin carries the team: always "Teleshop" / "Affiliate", never bare', () => {
+    expect(accessLevelLabel('dept_admin', CENTAR)).toBe('Администратор на оддел · Teleshop');
+    expect(accessLevelLabel('dept_admin', MADZARI)).toBe('Администратор на оддел · Affiliate');
+    expect(accessLevelLabel('dept_admin', ['teleshop_out'])).toBe('Администратор на оддел · Teleshop');
     // not one team's departments → their names
-    expect(accessLevelLabel('dept_admin', ['altercpa', 'web'])).toBe('Администратор на оддел · Тим Маџари In · Веб-продавница');
+    expect(accessLevelLabel('dept_admin', ['altercpa', 'web'])).toBe('Администратор на оддел · Affiliate In · Веб-продавница');
   });
 
   it('the other levels (and none) give no level label', () => {
@@ -39,7 +39,7 @@ describe('the role label in the top bar — the access level first (owner 03.10.
   });
 
   it('a manager who is a department admin shows the level; a team lead keeps the role label', () => {
-    expect(friendlyRoleLabel(['manager', 'pending_agent'], { level: 'dept_admin', deptScope: MADZARI })).toBe('Администратор на оддел · Тим Маџари');
+    expect(friendlyRoleLabel(['manager', 'pending_agent'], { level: 'dept_admin', deptScope: MADZARI })).toBe('Администратор на оддел · Affiliate');
     expect(friendlyRoleLabel(['manager', 'pending_agent'], { level: 'team_lead', deptScope: null })).toBe('Агент за повици + Менаџер');
     expect(friendlyRoleLabel(['manager'], { level: 'finance', deptScope: null })).toBe('Финансиски');
     expect(friendlyRoleLabel(['pending_agent', 'prediction_agent'], { level: 'operator', deptScope: null })).toBe('Агент за повици');
@@ -60,8 +60,8 @@ describe('the role label in the top bar — the access level first (owner 03.10.
     await i18n.changeLanguage('en');
     expect(NAMED_ACCESS_LEVELS.map((lv) => accessLevelName(lv)))
       .toEqual(['Super Admin', 'Owner', 'Finance', 'Administrator', 'Department admin']);
-    expect(accessLevelLabel('dept_admin', CENTAR)).toBe('Department admin · Team Centar');
+    expect(accessLevelLabel('dept_admin', CENTAR)).toBe('Department admin · Teleshop');
     await i18n.changeLanguage('sq');
-    expect(accessLevelLabel('dept_admin', MADZARI)).toBe('Administrator departamenti · Ekipi Madžari');
+    expect(accessLevelLabel('dept_admin', MADZARI)).toBe('Administrator departamenti · Affiliate');
   });
 });

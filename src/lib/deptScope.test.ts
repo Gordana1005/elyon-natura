@@ -3,12 +3,12 @@ import i18n from '@/i18n';
 import { scopeTeam, scopeTeamLabel } from './deptScope';
 
 // A dept_admin's money scope (access levels, 20260947001600): the badge says whose departments
-// the figures are — Тим Центар / Тим Маџари (always with "Тим"), else the departments by name.
+// the figures are — Teleshop / Affiliate (always with "Тим"), else the departments by name.
 beforeAll(async () => { await i18n.changeLanguage('mk'); });
 const t = i18n.t.bind(i18n);
 
 describe('scopeTeam', () => {
-  it('Тим Центар = any of its three departments, Тим Маџари = any of its two', () => {
+  it('Teleshop = any of its three departments, Affiliate = any of its two', () => {
     expect(scopeTeam(['teleshop_out', 'teleshop_other', 'social'])).toBe('teleshop');
     expect(scopeTeam(['teleshop_out'])).toBe('teleshop');
     expect(scopeTeam(['social', 'teleshop_other'])).toBe('teleshop');
@@ -28,8 +28,8 @@ describe('scopeTeam', () => {
 
 describe('scopeTeamLabel', () => {
   it('names the team, always with "Тим"', () => {
-    expect(scopeTeamLabel(['teleshop_out', 'teleshop_other', 'social'], t)).toBe('Тим Центар');
-    expect(scopeTeamLabel(['altercpa', 'elyon_crm'], t)).toBe('Тим Маџари');
+    expect(scopeTeamLabel(['teleshop_out', 'teleshop_other', 'social'], t)).toBe('Teleshop');
+    expect(scopeTeamLabel(['altercpa', 'elyon_crm'], t)).toBe('Affiliate');
   });
   it('otherwise joins the department names; an unknown key stays as it is', () => {
     expect(scopeTeamLabel(['altercpa', 'teleshop_out'], t))
@@ -43,9 +43,9 @@ describe('scopeTeamLabel', () => {
   });
   it('speaks every shipped language', async () => {
     await i18n.changeLanguage('en');
-    expect(scopeTeamLabel(['altercpa'], t)).toBe('Team Madžari');
+    expect(scopeTeamLabel(['altercpa'], t)).toBe('Affiliate');
     await i18n.changeLanguage('sq');
-    expect(scopeTeamLabel(['social'], t)).toBe('Ekipi Centar');
+    expect(scopeTeamLabel(['social'], t)).toBe('Teleshop');
     await i18n.changeLanguage('mk');
   });
 });

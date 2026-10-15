@@ -5,13 +5,13 @@ import {
 } from './levelsModel';
 
 const teo: AccessPersonLike = {
-  user_id: 't', level: 'dept_admin', explicit: true, departments: ['social', 'teleshop_out', 'teleshop_other'], note: 'Тим Центар',
+  user_id: 't', level: 'dept_admin', explicit: true, departments: ['social', 'teleshop_out', 'teleshop_other'], note: 'Teleshop',
 };
 const mile: AccessPersonLike = { user_id: 'm', level: 'super_admin', explicit: true, departments: [], note: null, last_super_admin: true };
 const unmanaged: AccessPersonLike = { user_id: 'u', level: 'team_lead', explicit: false, departments: [], note: null };
 
 describe('departments', () => {
-  it('groups: Тим Центар · Тим Маџари · Веб · Менаџмент, every department once', () => {
+  it('groups: Teleshop · Affiliate · Веб · Менаџмент, every department once', () => {
     expect(DEPT_GROUPS.map((g) => g.id)).toEqual(['centar', 'madzari', 'web', 'management']);
     expect(DEPT_GROUPS.flatMap((g) => g.keys).sort())
       .toEqual(['altercpa', 'elyon_crm', 'management', 'social', 'teleshop_other', 'teleshop_out', 'web']);
@@ -47,9 +47,9 @@ describe('departments', () => {
 describe('the edit draft', () => {
   it('starts from the person; unchanged means nothing to save', () => {
     const d = draftOf(teo);
-    expect(d).toEqual({ level: 'dept_admin', departments: ['teleshop_out', 'teleshop_other', 'social'], note: 'Тим Центар' });
+    expect(d).toEqual({ level: 'dept_admin', departments: ['teleshop_out', 'teleshop_other', 'social'], note: 'Teleshop' });
     expect(draftChanged(teo, d)).toBe(false);
-    expect(draftChanged(teo, { ...d, note: ' Тим Центар ' })).toBe(false);
+    expect(draftChanged(teo, { ...d, note: ' Teleshop ' })).toBe(false);
     expect(draftChanged(teo, { ...d, departments: ['teleshop_out'] })).toBe(true);
     expect(draftChanged(teo, { ...d, level: 'administrator' })).toBe(true);
   });

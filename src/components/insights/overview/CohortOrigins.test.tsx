@@ -10,7 +10,7 @@ import cohortSample from '../shared/__fixtures__/cohort.sample.json';
 import { CohortSources } from './CohortSources';
 import { accountParts, originParts } from './cohortOverview';
 
-// "Од каде се купувачите" (owner 15.10.2026): Тим Центар Out's (and Тим Маџари Out's) sales by where
+// "Од каде се купувачите" (owner 15.10.2026): Teleshop Out's (and Affiliate Out's) sales by where
 // each buyer FIRST came from — Bio Natural lead / Natura Therapy–Ad Astra / new — adding up to the
 // card's total, and the MEX profile they went out on. Never on an In department; nothing at all
 // before customer_origin's first fill (origins null) or from an older api.
@@ -48,16 +48,24 @@ describe('the model', () => {
 });
 
 describe('the card', () => {
-  it('owner: Тим Центар Out shows the three origins with денари and the post', () => {
+  it('owner: Teleshop Out shows the three origins with денари and the post', () => {
     render(<MemoryRouter><Cards rows={rows()} /></MemoryRouter>);
     const block = within(card('teleshop_out')).getByTestId('origin-teleshop_out');
-    expect(within(block).getByText(t('overview.cohort.origin.key.bio_natural'))).toBeInTheDocument();
-    expect(within(block).getByText(t('overview.cohort.origin.key.natura'))).toBeInTheDocument();
-    expect(within(block).getByText(formatDenari(64400))).toBeInTheDocument();
+    const bio = within(block).getByTestId('origin-tile-bio_natural');
+    const nat = within(block).getByTestId('origin-tile-natura');
+    expect(within(bio).getByText(t('overview.cohort.origin.key.bio_natural'))).toBeInTheDocument();
+    expect(within(bio).getByText('9')).toBeInTheDocument();
+    expect(within(bio).getByText(formatDenari(21300))).toBeInTheDocument();
+    expect(within(nat).getByText(t('overview.cohort.origin.key.natura'))).toBeInTheDocument();
+    expect(within(nat).getByText('29')).toBeInTheDocument();
+    expect(within(nat).getByText(formatDenari(64400))).toBeInTheDocument();
     expect(within(block).getByText(t('overview.cohort.origin.web', { n: '1', count: 1 }))).toBeInTheDocument();
     expect(within(block).getByTestId('accounts-teleshop_out').textContent).toBe(`${t('overview.cohort.origin.accountsTitle')}: NATURA 31 · BIO NATURAL 9`);
+    // the block sits at the TOP of the card, before the parts
+    const art = card('teleshop_out');
+    expect(art.innerHTML.indexOf('origin-teleshop_out')).toBeLessThan(art.innerHTML.indexOf(t('insights.common.bucket.paid')));
     expect(within(block).getByText(t('overview.cohort.origin.mixed', { n: '7', count: 7 }))).toBeInTheDocument();
-    // Тим Маџари Out is the mirror; an In department tells none
+    // Affiliate Out is the mirror; an In department tells none
     expect(within(card('elyon_crm')).getByTestId('origin-elyon_crm')).toBeInTheDocument();
     expect(within(card('altercpa')).queryByTestId('origin-altercpa')).toBeNull();
     expect(within(card('teleshop_other')).queryByTestId('origin-teleshop_other')).toBeNull();

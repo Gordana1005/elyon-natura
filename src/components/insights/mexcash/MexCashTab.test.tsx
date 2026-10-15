@@ -93,7 +93,7 @@ describe('Наплата (MEX)', () => {
     expect(within(section).getAllByText(formatDenari(h0.natura.cod_mkd + h0.bio_natural.cod_mkd)).length).toBeGreaterThan(0);
   }, 30_000);
 
-  it('a dept_admin of Тим Центар: NATURA only, with the web-shop note; no BIO NATURAL anywhere', async () => {
+  it('a dept_admin of Teleshop: NATURA only, with the web-shop note; no BIO NATURAL anywhere', async () => {
     renderTab(onlyAccount('natura', 'natura_includes_web'));
     expect(await screen.findByText(i18n.t('insights.mexCash.naturaIncludesWeb'), {}, { timeout: 10_000 })).toBeInTheDocument();
     expect(screen.queryAllByText(i18n.t('insights.mexCash.account.bio_natural'))).toHaveLength(0);
@@ -106,7 +106,7 @@ describe('Наплата (MEX)', () => {
     expect(within(now).getAllByText(formatDenari(sample.now.natura.courier_cod_mkd)).length).toBeGreaterThan(0);
   }, 30_000);
 
-  it('a dept_admin of Тим Маџари: BIO NATURAL only, no web-shop note', async () => {
+  it('a dept_admin of Affiliate: BIO NATURAL only, no web-shop note', async () => {
     renderTab(onlyAccount('bio_natural', null));
     const label = await screen.findAllByText(i18n.t('insights.mexCash.account.bio_natural'), {}, { timeout: 10_000 });
     expect(label.length).toBeGreaterThan(0);

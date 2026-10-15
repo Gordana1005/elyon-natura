@@ -42,7 +42,7 @@ beforeEach(async () => {
       person({ user_id: 'u-me', full_name: 'Me Test', level: 'super_admin', last_super_admin: true }),
       person({ user_id: 'u-nina', full_name: 'Nina Test', level: 'administrator' }),
       person({ user_id: 'u-teo', full_name: 'Teo Test', roles: ['manager', 'pending_agent'], level: 'dept_admin',
-        departments: ['teleshop_out', 'teleshop_other', 'social'], note: 'Тим Центар' }),
+        departments: ['teleshop_out', 'teleshop_other', 'social'], note: 'Teleshop' }),
       person({ user_id: 'u-ana', full_name: 'Ana Test', roles: ['pending_agent'], level: 'operator', explicit: false, updated_at: null, updated_by_name: null }),
     ],
   };
@@ -55,7 +55,7 @@ describe('Settings → Пристап и улоги', () => {
     renderIt();
     expect((await screen.findAllByText('Teo Test')).length).toBeGreaterThan(0);
     expect(screen.getAllByText('Администратор на оддел').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Тим Центар Out').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Teleshop Out').length).toBeGreaterThan(0);
     expect(screen.getAllByText(i18n.t('settingsPage.levels.byRule')).length).toBeGreaterThan(0);
     expect(screen.getAllByText(i18n.t('settingsPage.levels.lastSuperAdminBadge')).length).toBeGreaterThan(0);
     // the legend: one line per level
@@ -87,7 +87,7 @@ describe('Settings → Пристап и улоги', () => {
     const dlg = await screen.findByRole('dialog');
     const save = within(dlg).getByRole('button', { name: i18n.t('common.save') });
     const centar = within(dlg).getByRole('checkbox', { name: i18n.t('insights.agents.team.byKey.teleshop') });
-    fireEvent.click(centar); // the whole Тим Центар off
+    fireEvent.click(centar); // the whole Teleshop off
     expect(within(dlg).getByRole('alert')).toHaveTextContent(i18n.t('settingsPage.err.dept_required'));
     expect(save).toBeDisabled();
     fireEvent.click(within(dlg).getByRole('checkbox', { name: i18n.t('insights.common.source.social') }));

@@ -32,11 +32,11 @@ describe('teams = business lines — the client helpers', () => {
   });
   it("names team + lane in the owner's words (mk) — never 'На чекање' / 'Прогнози'", () => {
     const t = i18n.t.bind(i18n);
-    expect(teamLaneLabel(t, 'teleshop', 'out', 'Тим Центар')).toBe('Тим Центар Out');
-    expect(teamLaneLabel(t, 'teleshop', 'in', 'Тим Центар')).toBe('Тим Центар In');
-    expect(teamLaneLabel(t, 'teleshop', 'social', 'Тим Центар')).toBe('Социјални мрежи');
-    expect(teamLaneLabel(t, 'affiliate', 'in', 'Тим Маџари')).toBe('Тим Маџари In');
-    expect(teamLaneLabel(t, 'affiliate', 'out', 'Тим Маџари')).toBe('Тим Маџари Out');
+    expect(teamLaneLabel(t, 'teleshop', 'out', 'Teleshop')).toBe('Teleshop Out');
+    expect(teamLaneLabel(t, 'teleshop', 'in', 'Teleshop')).toBe('Teleshop In');
+    expect(teamLaneLabel(t, 'teleshop', 'social', 'Teleshop')).toBe('Социјални мрежи');
+    expect(teamLaneLabel(t, 'affiliate', 'in', 'Affiliate')).toBe('Affiliate In');
+    expect(teamLaneLabel(t, 'affiliate', 'out', 'Affiliate')).toBe('Affiliate Out');
     expect(teamLaneLabel(t, 'management', null, 'Менаџмент')).toBe('Менаџмент');
     expect(teamLaneLabel(t, 'webshop', 'in', 'Webshop')).toBe('Webshop · In');   // a line with no translation yet
     expect(laneLabel(t, 'out')).toBe('Out');

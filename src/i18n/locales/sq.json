@@ -4281,8 +4281,8 @@
       },
       "feedDesc": {
         "altercpa": "Pasqyra e lead-eve — lead-e të reja çdo 2 min, rezultatet çdo 5 min (07:00–20:55)",
-        "mex_bio_natural": "Pakot e Ekipit Madžari (In dhe Out) — çdo 15 min, 06:00–23:00",
-        "mex_natura": "Pakot e Ekipit Centar, rrjeteve sociale dhe uebit — çdo 15 min, 06:00–23:00",
+        "mex_bio_natural": "Pakot e Affiliate (In dhe Out) — çdo 15 min, 06:00–23:00",
+        "mex_natura": "Pakot e Teleshop, rrjeteve sociale dhe uebit — çdo 15 min, 06:00–23:00",
         "web": "Porositë e naturatherapy.mk — çdo 15 min",
         "collabbox": "Dokumentet e collabBox — kalim i plotë çdo 15 min (07:00–23:00) dhe natën në 00:00 (3 ditët e fundit)",
         "no_parcel_rule": "Shitje AlterCPA pa pako MEX pas {{days}} ditësh — çdo ditë në {{hour}}:10"
@@ -4803,7 +4803,7 @@
       },
       "list": {
         "title": "Kthimet sipas listës së parashikimit",
-        "sub": "Shitjet Ekipi Madžari Out nga listat",
+        "sub": "Shitjet Affiliate Out nga listat",
         "empty": "Nuk ka shitje nga listat në këtë periudhë."
       },
       "dow": {
@@ -4833,7 +4833,7 @@
         "title": "Sipas llogarisë MEX",
         "sub": "Llogaria nga e cila u dërgua pakoja",
         "bio_natural": "BIO NATURAL (Elyon)",
-        "natura": "NATURA (Ekipi Centar, rrjete, web)",
+        "natura": "NATURA (Teleshop, rrjete, web)",
         "none": "Pa pako"
       },
       "reasons": {
@@ -5174,15 +5174,15 @@
         "series": {
           "s9110": "9110 LEADS",
           "s9103": "9103 LEADS-OUT",
-          "s9100": "9100 Ekipi Centar In",
-          "s9102": "9102 Ekipi Centar Out",
+          "s9100": "9100 Teleshop In",
+          "s9102": "9102 Teleshop Out",
           "s9108": "9108 Rrjete sociale",
           "ntmk": "NTMK — dyqani në web",
           "m": "M… — dyqani i vjetër / tjetër",
           "other": "Tjetër",
           "none": "Ende pa dërgesë"
         },
-        "note": "Shiriti tregon cilat burime dërgojnë përmes secilës seri. Burimi është i porosisë — përveç një shitjeje nga CRM me dërgesë NATURA (9102 / 9100 / 9108): ajo numërohet te Ekipi Centar ose Rrjetet sociale."
+        "note": "Shiriti tregon cilat burime dërgojnë përmes secilës seri. Burimi është i porosisë — përveç një shitjeje nga CRM me dërgesë NATURA (9102 / 9100 / 9108): ajo numërohet te Teleshop ose Rrjetet sociale."
       },
       "quality": {
         "title": "Mbulimi i tabelave",
@@ -5216,10 +5216,10 @@
       "cohort": {
         "title": "Shitur nga listat e parashikimit · {{period}}",
         "titleNoMoney": "Shitjet nga listat e parashikimit · {{period}}",
-        "tie": "= Përmbledhja · Ekipi Madžari Out · Listat e parashikimit: {{n}} · {{value}}",
-        "tieNoMoney": "= Përmbledhja · Ekipi Madžari Out · Listat e parashikimit: {{n}}",
-        "tieDepts": "= Përmbledhja · Listat e parashikimit në të gjitha departamentet: Ekipi Madžari Out {{n}} · {{value}} + departamentet e tjera {{m}} · {{rest}}",
-        "tieDeptsNoMoney": "= Përmbledhja · Listat e parashikimit në të gjitha departamentet: Ekipi Madžari Out {{n}} + departamentet e tjera {{m}}"
+        "tie": "= Përmbledhja · Affiliate Out · Listat e parashikimit: {{n}} · {{value}}",
+        "tieNoMoney": "= Përmbledhja · Affiliate Out · Listat e parashikimit: {{n}}",
+        "tieDepts": "= Përmbledhja · Listat e parashikimit në të gjitha departamentet: Affiliate Out {{n}} · {{value}} + departamentet e tjera {{m}} · {{rest}}",
+        "tieDeptsNoMoney": "= Përmbledhja · Listat e parashikimit në të gjitha departamentet: Affiliate Out {{n}} + departamentet e tjera {{m}}"
       },
       "kpi": {
         "title": "Shifrat kryesore të listave",
@@ -5354,11 +5354,11 @@
           "lists": "Σ {{n}} lista",
           "notRecorded": "Lista nuk është regjistruar (një dublikatë që e humbi listën)",
           "slice": "= Të gjitha shitjet nga listat e parashikimit",
-          "tieOk": "= Përmbledhja · Ekipi Madžari Out · Listat e parashikimit",
+          "tieOk": "= Përmbledhja · Affiliate Out · Listat e parashikimit",
           "tieBad": "Nuk përputhet me totalin — ju lutemi raportojeni",
-          "other": "Ekipi Madžari Out · {{split}} (pa listë)",
-          "elyon": "= Ekipi Madžari Out gjithsej",
-          "elyonHint": "Karta Ekipi Madžari Out e Përmbledhjes: çdo shitje Ekipi Madžari Out, me ose pa listë."
+          "other": "Affiliate Out · {{split}} (pa listë)",
+          "elyon": "= Affiliate Out gjithsej",
+          "elyonHint": "Karta Affiliate Out e Përmbledhjes: çdo shitje Affiliate Out, me ose pa listë."
         }
       },
       "detail": {
@@ -5497,12 +5497,12 @@
         "loading": "Po ngarkohet"
       },
       "source": {
-        "altercpa": "Ekipi Madžari In",
-        "elyon_crm": "Ekipi Madžari Out",
-        "teleshop_out": "Ekipi Centar Out",
+        "altercpa": "Affiliate In",
+        "elyon_crm": "Affiliate Out",
+        "teleshop_out": "Teleshop Out",
         "web": "Dyqani online",
         "social": "Rrjetet sociale",
-        "teleshopOther": "Ekipi Centar In",
+        "teleshopOther": "Teleshop In",
         "management": "Menaxhmenti"
       },
       "bucket": {
@@ -5527,7 +5527,7 @@
         "collabbox_out": "Porosi out (collabBox)",
         "teleshop_out": "Porosi out (collabBox)",
         "collabbox_leads_out": "LEADS-OUT (collabBox)",
-        "mex_teleshop": "Ekipi Centar (MEX)",
+        "mex_teleshop": "Teleshop (MEX)",
         "mex_social": "Rrjete sociale (MEX)",
         "mex_leads": "Pako të palidhura (LEADS)",
         "mex_leads_out": "Pako të palidhura (LEADS-OUT)",
@@ -5543,7 +5543,7 @@
         "team_collabbox_out": "Porosi out nga agjentët e ekipit Në pritje",
         "team_collabbox_leads_out": "LEADS-OUT nga agjentët e ekipit Në pritje",
         "collabbox_leads": "LEADS (collabBox)",
-        "teleshop": "Ekipi Centar",
+        "teleshop": "Teleshop",
         "social": "Rrjete sociale",
         "leads": "LEADS (9110)",
         "leads_out": "LEADS-OUT (9103)",
@@ -5813,7 +5813,7 @@
       "team": {
         "management": "Menaxhmenti",
         "unassigned": "Ende pa ekip",
-        "teleshop": "Ekipi Centar"
+        "teleshop": "Teleshop"
       },
       "kpi": {
         "prevBeforeLedger": "Periudha e krahasimit arrin deri në fillimin e regjistrit të punës ({{date}}): është e paplotë, prandaj ndryshimet e zmadhojnë rritjen.",
@@ -5886,8 +5886,8 @@
         "people": "punuan {{active}} nga {{n}} persona",
         "onlineNow": "{{n}} online",
         "noTeamKind": "Ende pa u vendosur në ekip (Cilësimet → Ekipet)",
-        "teleshopKind": "Ekipi Centar · collabBox",
-        "teleshopNote": "Ende nuk ka Ekipi Centar: shitësit e collabBox janë persona me shitje të atribuuara por pa ekip, prandaj shfaqen te „Ende pa ekip“. Ata telefonojnë jashtë CRM, kështu këtu nuk kanë vendime as kohë.",
+        "teleshopKind": "Teleshop · collabBox",
+        "teleshopNote": "Ende nuk ka Teleshop: shitësit e collabBox janë persona me shitje të atribuuara por pa ekip, prandaj shfaqen te „Ende pa ekip“. Ata telefonojnë jashtë CRM, kështu këtu nuk kanë vendime as kohë.",
         "m": {
           "sale": "Vendime shitjeje",
           "conversion": "Konvertimi",
@@ -5919,7 +5919,7 @@
         "hideIdle": "Fshih ata pa aktivitet",
         "manager": "menax.",
         "noLogin": "pa hyrje në CRM",
-        "noLoginHint": "Pa hyrje në CRM: vendos në panelin e AlterCPA ose shet përmes collabBox (Ekipi Centar), kështu nuk ka kohë në CRM.",
+        "noLoginHint": "Pa hyrje në CRM: vendos në panelin e AlterCPA ose shet përmes collabBox (Teleshop), kështu nuk ka kohë në CRM.",
         "viaTitle": "CRM {{crm}} · AlterCPA {{acpa}}",
         "creditedOpen": "Hapi këto shitje te Porositë",
         "days_one": "{{n}} ditë",
@@ -6103,14 +6103,14 @@
       },
       "team": {
         "byKey": {
-          "altercpa_leads": "Ekipi Madžari (ekip i vjetër)",
-          "crm_prediction": "Ekipi Centar (ekip i vjetër)",
+          "altercpa_leads": "Affiliate (ekip i vjetër)",
+          "crm_prediction": "Teleshop (ekip i vjetër)",
           "management": "Menaxhmenti",
           "social": "Rrjetet sociale / collabBox",
-          "teleshop": "Ekipi Centar",
+          "teleshop": "Teleshop",
           "none": "Pa ekip",
-          "affiliate": "Ekipi Madžari",
-          "teleshop_unassigned": "Ekipi Centar · pa ekip",
+          "affiliate": "Affiliate",
+          "teleshop_unassigned": "Teleshop · pa ekip",
           "social_unassigned": "Rrjetet sociale · pa ekip"
         }
       },
@@ -6126,15 +6126,15 @@
         "noLinkGroup": "Ky grup nuk është ekip në Cilësimet — nuk ka listë te Porositë sipas ekipit.",
         "partOfPerson": "Një pjesë e shitjeve të këtij personi janë në ekip tjetër — hapni personin.",
         "mode": {
-          "pending": "Lead-e nga AlterCPA (Ekipi Madžari In)",
+          "pending": "Lead-e nga AlterCPA (Affiliate In)",
           "prediction": "Thirrje nga listat e parashikimit",
           "none": "Shfaqet, nuk renditet"
         },
         "kind": {
           "social": "Autorë në collabBox të shitjeve nga rrjetet sociale jashtë ekipit",
-          "teleshop": "Autorë në collabBox të shitjeve të Ekipit Centar (In dhe Out) jashtë ekipit",
+          "teleshop": "Autorë në collabBox të shitjeve të Teleshop (In dhe Out) jashtë ekipit",
           "none": "Aktivitet i personave jashtë ekipit",
-          "teleshop_unassigned": "Autorë në collabBox të shitjeve të Ekipit Centar (In dhe Out) jashtë ekipit",
+          "teleshop_unassigned": "Autorë në collabBox të shitjeve të Teleshop (In dhe Out) jashtë ekipit",
           "social_unassigned": "Autorë në collabBox të shitjeve nga rrjetet sociale jashtë ekipit"
         }
       },
@@ -6169,7 +6169,7 @@
         "sales": "Shitje",
         "salesHint": "Shitje që i atribuohen personit, sipas ditës së shitjes — njësoj si Pasqyra",
         "sources": "Burimet",
-        "sourcesHint": "Ekipi Madžari In · Ekipi Madžari Out · Ekipi Centar Out · Ekipi Centar In · Rrjetet sociale · Dyqani online · Menaxhmenti",
+        "sourcesHint": "Affiliate In · Affiliate Out · Teleshop Out · Teleshop In · Rrjetet sociale · Dyqani online · Menaxhmenti",
         "paid": "Paguar",
         "paidHint": "MEX e dorëzoi pakon dhe e arkëtoi",
         "paidShare": "Paguar",
@@ -6434,15 +6434,15 @@
         "vatUnclassified": "prej saj e paklasifikuar (me {{pct}})"
       },
       "aff": {
-        "title": "Ekipi Madžari In sipas uebmasterit",
-        "subtitle": "Nën kolonën Ekipi Madžari In — rreshtat mblidhen në të.",
+        "title": "Affiliate In sipas uebmasterit",
+        "subtitle": "Nën kolonën Affiliate In — rreshtat mblidhen në të.",
         "partner": "Uebmasteri",
         "sales": "Shitje",
         "collected": "Të arkëtuara",
         "parcels": "Dërgesa",
         "returnRate": "Norma e kthimit",
         "net": "Fitimi para kostos së lead-eve",
-        "sum": "Gjithsej Ekipi Madžari In",
+        "sum": "Gjithsej Affiliate In",
         "none": "Pa uebmaster në regjistër",
         "unnamed": "WM {{id}}",
         "openN": "{{n}} të hapura",
@@ -6526,7 +6526,7 @@
           "unproven_paid": "CRM thotë e paguar, por asnjë dërgesë MEX e dorëzuar nuk e provon — jashtë fitimit.",
           "non_product_lines": "Pikët e besnikërisë, tarifat e dërgesës, shënimet dhe fletushkat nuk numërohen si paketa. Një alias produkti i shqyrtuar e ndryshon këtë.",
           "orders_without_lines": "Vlera e tyre bartet nga produkti i vetë porosisë.",
-          "lead_cost_missing": "Fitimi i Ekipi Madžari In është para asaj që kushtojnë lead-et: ende nuk ka çmim për lead.",
+          "lead_cost_missing": "Fitimi i Affiliate In është para asaj që kushtojnë lead-et: ende nuk ka çmim për lead.",
           "return_fee_unconfirmed": "Tarifat e MEX japin 0 për një kthim. Konfirmoni nëse MEX e faturon dërgesën për dërgesat e kthyera.",
           "vat_unclassified": "Llogariten me 5% (norma e suplementeve): dërgesa MEX me përmbajtje të panjohur, rreshta pa produkt, produkte pa normë. Vendosni normën te Produktet.",
           "vat_flat_default": "Baza e të dhënave ende nuk kthen norma sipas produktit, prandaj çdo shitje llogaritet me 5%."
@@ -6537,7 +6537,7 @@
         "summaryHint": "Çdo rresht sipas burimit, për shitjet në periudhë dhe për paratë që mbërritën",
         "products": "Produktet",
         "productsHint": "Fitimi sipas produktit, mbulimi me çmim dhe kthimet",
-        "affiliates": "Uebmasterët e Ekipi Madžari In",
+        "affiliates": "Uebmasterët e Affiliate In",
         "affiliatesHint": "Fitimi sipas uebmasterit para kostos së lead-eve"
       },
       "cache": {
@@ -6632,8 +6632,8 @@
       "account": {
         "natura": "NATURA",
         "bio_natural": "BIO NATURAL",
-        "naturaHint": "Ekipi Centar · rrjetet sociale · ueb",
-        "bio_naturalHint": "Ekipi Madžari In dhe Out"
+        "naturaHint": "Teleshop · rrjetet sociale · ueb",
+        "bio_naturalHint": "Affiliate In dhe Out"
       },
       "parcelsN_one": "{{n}} pako",
       "parcelsN_other": "{{n}} pako",
@@ -6912,12 +6912,12 @@
       "h": "{{h}} orë"
     },
     "team": {
-      "altercpa_leads": "Ekipi Madžari In",
-      "affiliate_leads": "Ekipi Madžari In",
-      "affiliate_prediction": "Ekipi Madžari Out",
-      "teleshop_leads": "Ekipi Centar In",
-      "teleshop_prediction": "Ekipi Centar Out",
-      "crm_prediction": "Ekipi Centar Out",
+      "altercpa_leads": "Affiliate In",
+      "affiliate_leads": "Affiliate In",
+      "affiliate_prediction": "Affiliate Out",
+      "teleshop_leads": "Teleshop In",
+      "teleshop_prediction": "Teleshop Out",
+      "crm_prediction": "Teleshop Out",
       "social": "Rrjetet sociale",
       "management": "Menaxhmenti",
       "none": "Pa ekip"
@@ -7803,14 +7803,14 @@
     "targetEarners": "e marrin {{n}} anëtarë të ekipit me shitje",
     "reversedHint": "Të kthyera ose të anuluara pas shitjes — nuk numërohen",
     "team": {
-      "crm_prediction": "Ekipi Centar (ekip i vjetër)",
-      "altercpa_leads": "Ekipi Madžari (ekip i vjetër)",
+      "crm_prediction": "Teleshop (ekip i vjetër)",
+      "altercpa_leads": "Affiliate (ekip i vjetër)",
       "management": "Menaxhmenti",
-      "teleshop": "Ekipi Centar",
-      "affiliate": "Ekipi Madžari"
+      "teleshop": "Teleshop",
+      "affiliate": "Affiliate"
     },
     "alias": {
-      "altercpa_leads": "Ekipi Madžari In · lidhje e vjetër",
+      "altercpa_leads": "Affiliate In · lidhje e vjetër",
       "crm_prediction": "Parashikim · të gjitha linjat"
     },
     "web": {
@@ -7861,19 +7861,19 @@
     "filterTeams": "Ekipet",
     "allTeams": "Të gjitha ekipet",
     "dept": {
-      "altercpa": "Ekipi Madžari In",
-      "elyon_crm": "Ekipi Madžari Out",
-      "teleshop_out": "Ekipi Centar Out",
-      "teleshopOther": "Ekipi Centar In",
+      "altercpa": "Affiliate In",
+      "elyon_crm": "Affiliate Out",
+      "teleshop_out": "Teleshop Out",
+      "teleshopOther": "Teleshop In",
       "social": "Rrjetet sociale",
       "web": "Dyqani online",
       "management": "Menaxhmenti"
     },
     "deptShort": {
-      "altercpa": "Ekipi Madžari In",
-      "elyon_crm": "Ekipi Madžari Out",
-      "teleshop_out": "Ekipi Centar Out",
-      "teleshopOther": "Ekipi Centar In",
+      "altercpa": "Affiliate In",
+      "elyon_crm": "Affiliate Out",
+      "teleshop_out": "Teleshop Out",
+      "teleshopOther": "Teleshop In",
       "social": "Sociale",
       "web": "Web",
       "management": "Menaxhmenti"
@@ -8310,11 +8310,11 @@
       "social": "Rrjetet sociale"
     },
     "label": {
-      "teleshop_in": "Ekipi Centar In",
-      "teleshop_out": "Ekipi Centar Out",
+      "teleshop_in": "Teleshop In",
+      "teleshop_out": "Teleshop Out",
       "teleshop_social": "Rrjetet sociale",
-      "affiliate_in": "Ekipi Madžari In",
-      "affiliate_out": "Ekipi Madžari Out"
+      "affiliate_in": "Affiliate In",
+      "affiliate_out": "Affiliate Out"
     },
     "allLanes": "Të gjitha",
     "filterLanes": "Etiketat në {{team}}",
@@ -8325,11 +8325,11 @@
       "lane": "Etiketa",
       "laneOf": "Etiketa e {{team}} nga {{from}}",
       "laneSaved": "Etiketa u ruajt",
-      "legacyHint": "Ekip i vjetër: prano propozimin ose zhvendose personin te Ekipi Centar / Ekipi Madžari."
+      "legacyHint": "Ekip i vjetër: prano propozimin ose zhvendose personin te Teleshop / Affiliate."
     },
     "proposal": {
       "title": "Propozim: ekipet janë linja biznesi",
-      "desc": "Ekipi Centar dërgon me NATURA (In · Out · Rrjetet sociale), Ekipi Madžari me BIO NATURAL (In · Out), Menaxhmenti nuk renditet. Propozimi vjen nga shitjet e secilit person sipas departamentit në {{days}} ditët e fundit (nën 5 shitje: e gjithë historia). Një rresht i pranuar ndryshon ekipin dhe etiketën e TË GJITHA anëtarësimeve të personit, për të gjithë historinë — departamenti i shitjeve nuk ndryshon.",
+      "desc": "Teleshop dërgon me NATURA (In · Out · Rrjetet sociale), Affiliate me BIO NATURAL (In · Out), Menaxhmenti nuk renditet. Propozimi vjen nga shitjet e secilit person sipas departamentit në {{days}} ditët e fundit (nën 5 shitje: e gjithë historia). Një rresht i pranuar ndryshon ekipin dhe etiketën e TË GJITHA anëtarësimeve të personit, për të gjithë historinë — departamenti i shitjeve nuk ndryshon.",
       "show": "Shfaq propozimin",
       "hide": "Fshih",
       "refresh": "Rifresko propozimin",
@@ -8385,7 +8385,7 @@
     "err": {
       "invalid_rows": "Një rresht nuk është i saktë (ose propozimi ndryshoi) — rifresko dhe provo përsëri.",
       "multiple_lines": "Ky person ka anëtarësime në dy linja — ndryshoji një nga një te dritarja e personit.",
-      "legacy_team": "Një ekip i vjetër nuk zgjidhet më — zgjidh Ekipi Centar, Ekipi Madžari ose Menaxhmentin.",
+      "legacy_team": "Një ekip i vjetër nuk zgjidhet më — zgjidh Teleshop, Affiliate ose Menaxhmentin.",
       "lane_required": "Zgjidh etiketën: lead-e, parashikim ose Rrjetet sociale.",
       "lane_not_allowed": "Kjo etiketë nuk ekziston në ekipin e zgjedhur.",
       "bad_lane": "Etiketë e panjohur.",
@@ -8556,17 +8556,17 @@
       "of": "{{a}} nga {{b}}"
     },
     "source": {
-      "altercpa": "Ekipi Madžari In",
-      "elyon_crm": "Ekipi Madžari Out",
-      "teleshop_out": "Ekipi Centar Out",
+      "altercpa": "Affiliate In",
+      "elyon_crm": "Affiliate Out",
+      "teleshop_out": "Teleshop Out",
       "web": "Dyqani online",
       "social": "Rrjetet sociale",
-      "teleshopOther": "Ekipi Centar In",
+      "teleshopOther": "Teleshop In",
       "management": "Menaxhmenti"
     },
     "saleSource": {
-      "altercpa": "Ekipi Madžari In",
-      "elyon_crm": "Ekipi Madžari Out",
+      "altercpa": "Affiliate In",
+      "elyon_crm": "Affiliate Out",
       "collabbox": "collabBox",
       "web": "Web",
       "affiliate": "Afiliat",
@@ -8587,7 +8587,7 @@
       "team_collabbox_out": "Porosi out nga agjentët e ekipit Në pritje",
       "team_collabbox_leads_out": "LEADS-OUT nga agjentët e ekipit Në pritje",
       "disposition": "Rezultate thirrjesh",
-      "teleshop": "Ekipi Centar",
+      "teleshop": "Teleshop",
       "social": "Rrjete sociale",
       "mex_only_unlinked": "Vetëm në MEX, pa porosi",
       "shop": "Dyqani",
@@ -8643,8 +8643,8 @@
       "onlineNow": "{{n}} online tani",
       "peopleOnline": "{{n}} persona · {{online}} online",
       "mode": {
-        "pending": "Në pritje · Ekipi Madžari In",
-        "prediction": "Parashikim · Ekipi Madžari Out",
+        "pending": "Në pritje · Affiliate In",
+        "prediction": "Parashikim · Affiliate Out",
         "management": "Menaxhmenti",
         "unassigned": "Ende pa ekip"
       },
@@ -8752,9 +8752,9 @@
         "cameIn": "Erdhën",
         "worked": "Të përpunuara",
         "conversion": "Konvertimi",
-        "noFunnel": "Ekipi Centar nuk ka lide: çdo dokument i collabBox është tashmë shitje.",
+        "noFunnel": "Teleshop nuk ka lide: çdo dokument i collabBox është tashmë shitje.",
         "noFunnelSocial": "Rrjetet sociale nuk kanë lide: çdo dokument i collabBox është tashmë shitje.",
-        "noFunnelManagement": "Menaxhmenti nuk ka lide: lidi mbetet gjithmonë te Ekipi Madžari In — këtu janë vetëm shitjet e njerëzve të Menaxhmentit.",
+        "noFunnelManagement": "Menaxhmenti nuk ka lide: lidi mbetet gjithmonë te Affiliate In — këtu janë vetëm shitjet e njerëzve të Menaxhmentit.",
         "none": "Asnjë lid në periudhë"
       },
       "sources": {
@@ -8785,26 +8785,33 @@
       },
       "loadFailed": "Shitjet e periudhës nuk mund të llogariteshin, prandaj nuk shfaqen. Provoni përsëri.",
       "origin": {
-        "title": "Nga vijnë blerësit",
+        "title": "Nga cila bazë vijnë porositë",
         "basis": "sipas kontaktit të parë",
-        "hint": "Çdo blerës sipas kontaktit të tij të PARË me ne: lid i Ekipit Madžari (Bio Natural — AlterCPA, LEADS, dërgesa 9110 / 9103) ose blerës i Natura Therapy / Ad Astra (teleshop, rrjetet sociale, dyqani online). Blerësi = 8 shifrat e fundit të telefonit. Nuk e ndryshon departamentin e shitjes.",
+        "hint": "Çdo porosi sipas kontaktit të PARË të blerësit me ne: baza Bio Natural = erdhi si lid i Affiliate (AlterCPA, LEADS, dërgesa 9110 / 9103); baza Natura Therapy = bleu Natura Therapy / Ad Astra përmes Teleshop, rrjeteve sociale ose dyqanit online. Blerësi = 8 shifrat e fundit të telefonit. Nuk e ndryshon departamentin e shitjes.",
         "key": {
-          "bio_natural": "Bio Natural — erdhën si lidë të Ekipit Madžari",
-          "natura": "Natura Therapy / Ad Astra — blerës të Ekipit Centar",
-          "new": "Blerës të rinj — blerja e parë"
+          "bio_natural": "Baza Bio Natural",
+          "natura": "Baza Natura Therapy",
+          "new": "Blerës të rinj"
         },
         "web_one": "prej tyre {{n}} së pari përmes dyqanit online",
         "web_other": "prej tyre {{n}} së pari përmes dyqanit online",
         "noPhone_one": "prej tyre {{n}} pa telefon",
         "noPhone_other": "prej tyre {{n}} pa telefon",
-        "mixed_one": "{{n}} blerës bleu te të dy ekipet — vendos kontakti i parë",
-        "mixed_other": "{{n}} blerës blenë te të dy ekipet — vendos kontakti i parë",
+        "mixed_one": "{{n}} blerës bleu edhe te Affiliate edhe te Teleshop — vendos kontakti i parë",
+        "mixed_other": "{{n}} blerës blenë edhe te Affiliate edhe te Teleshop — vendos kontakti i parë",
         "accountsTitle": "Dërguar përmes",
         "account": {
           "natura": "NATURA",
           "bio_natural": "BIO NATURAL",
           "none": "ende pa dërgesë"
-        }
+        },
+        "sub": {
+          "bio_natural": "klientë që erdhën përmes Affiliate",
+          "natura": "klientë të Teleshop (Natura Therapy / Ad Astra)",
+          "new": "blerja e parë — pa kontakt të mëparshëm"
+        },
+        "orders_one": "porosi",
+        "orders_other": "porosi"
       }
     },
     "clock": {
@@ -8924,7 +8931,7 @@
     "leadNotImported": "Nuk u bë kurrë porosi në CRM.",
     "parcelOtherPhone": "Lidhur me një porosi nën një telefon tjetër:",
     "mexOnly": "Vetëm në MEX — pa porosi CRM apo online",
-    "mexOnlyHint": "Asnjë porosi CRM apo e dyqanit online nuk përputhet me këtë dërgesë: shitje që ekziston vetëm në MEX (Ekipi Centar, rrjete sociale, …).",
+    "mexOnlyHint": "Asnjë porosi CRM apo e dyqanit online nuk përputhet me këtë dërgesë: shitje që ekziston vetëm në MEX (Teleshop, rrjete sociale, …).",
     "callTimingHint": "Koha e regjistruar nga agjenti ndërsa telefonia është e fikur — nuk provon se klienti u përgjigj.",
     "duration": "{{duration}} (sipas agjentit)",
     "noteOn": "te {{id}}",
@@ -8956,7 +8963,7 @@
       "affiliate": "Partner",
       "legacy": "Sistem i vjetër",
       "collabbox": "collabBox",
-      "teleshop": "Ekipi Centar",
+      "teleshop": "Teleshop",
       "social": "Rrjete sociale",
       "leads": "LEADS",
       "leads_out": "LEADS-OUT",
@@ -10060,7 +10067,7 @@
       "owner": "Gjithçka, njësoj si Super Admin — pa ndryshuar nivelet.",
       "finance": "Gjithçka: të gjitha porositë dhe marzhet, si pronari.",
       "administrator": "Të ardhurat dhe kthimet e gjithë kompanisë — pa marzhe, çmime blerjeje, fitim neto dhe arkëtime MEX.",
-      "dept_admin": "Të ardhurat, arkëtimet dhe kthimet vetëm të departamenteve të veta (Ekipi Centar ose Ekipi Madžari).",
+      "dept_admin": "Të ardhurat, arkëtimet dhe kthimet vetëm të departamenteve të veta (Teleshop ose Affiliate).",
       "team_lead": "Pa paratë e kompanisë — vetëm numra. Faqet i vendosin rolet.",
       "operator": "Pa paratë e kompanisë — vetëm shitjet e veta dhe numrat.",
       "warehouse": "Pa paratë e kompanisë — depoja dhe dërgesat.",
@@ -10361,8 +10368,8 @@
       "shop": "Dyqani {{name}}",
       "shopUnnamed": "Dyqanet",
       "team": {
-        "teleshop": "Ekipi Centar",
-        "affiliate": "Ekipi Maxhari",
+        "teleshop": "Teleshop",
+        "affiliate": "Affiliate",
         "management": "Menaxhmenti",
         "none": "Pa ekip"
       }

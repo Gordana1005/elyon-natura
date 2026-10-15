@@ -58,8 +58,8 @@ vi.mock('@/lib/api', async (orig) => ({
   apiGetLeaderboardAdmin: vi.fn(async () => ({ mode: 'prediction', roster_date: '', roster: [], rules: [],
     tokens: [{ id: 't1', label: 'Office TV', token: 'tok123', is_active: true, created_at: '2026-06-30T10:00:00Z' }] })),
   apiGetSalesTeams: vi.fn(async () => ({ today: '2026-10-01', accounts: [], people: [], logins: [], teams: [
-    { key: 'teleshop', name: 'Тим Центар', leaderboard_mode: 'prediction', kind: 'line', sort_order: 10 },
-    { key: 'affiliate', name: 'Тим Маџари', leaderboard_mode: 'pending', kind: 'line', sort_order: 20 },
+    { key: 'teleshop', name: 'Teleshop', leaderboard_mode: 'prediction', kind: 'line', sort_order: 10 },
+    { key: 'affiliate', name: 'Affiliate', leaderboard_mode: 'pending', kind: 'line', sort_order: 20 },
     { key: 'crm_prediction', name: 'Prediction — ElyonCRM', leaderboard_mode: 'prediction', kind: 'legacy', sort_order: 41 },
     { key: 'management', name: 'Management', leaderboard_mode: null, kind: 'management', sort_order: 90 },
   ] })),

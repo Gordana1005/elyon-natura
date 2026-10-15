@@ -6,7 +6,7 @@ import i18n from '@/i18n';
 
 // "My performance" (/ for a non-admin) under the access levels (20260947001600): a manager
 // whose payload says money: false sees no money tile — never "0 ден"; a dept_admin's carries
-// dept_scope (a "Тим Центар" badge beside the period) and no payout_earned (no payout tile).
+// dept_scope (a "Teleshop" badge beside the period) and no payout_earned (no payout tile).
 const h = vi.hoisted(() => ({
   stats: vi.fn(),
   user: { id: 'u-man', isAdmin: false, isManager: true, roles: ['manager'] } as Record<string, unknown>,
@@ -65,7 +65,7 @@ describe('My performance — money by access level', { timeout: 30_000 }, () => 
 
   it('a dept_admin: the team badge beside the period, revenue shown, no payout tile', async () => {
     renderWith({ ...base, money: true, dept_scope: ['teleshop_out', 'teleshop_other', 'social'], paid_revenue: 100, total_value: 300 });
-    expect(await screen.findByTestId('dept-scope-badge', {}, { timeout: 10_000 })).toHaveTextContent('Тим Центар');
+    expect(await screen.findByTestId('dept-scope-badge', {}, { timeout: 10_000 })).toHaveTextContent('Teleshop');
     expect(screen.getByText(t('dashboard.paidRevenue'))).toBeInTheDocument();
     expect(screen.getByText(t('dashboard.revenueConfirmed'))).toBeInTheDocument();
     expect(screen.queryByText(t('dashboard.payoutEarned'))).toBeNull();
