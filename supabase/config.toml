@@ -20,6 +20,12 @@ verify_jwt = false
 [functions.web-sync]
 verify_jwt = false
 
+# Web page (20261016130000, owner 15.10.2026): Meta ad spend + names + customers from the shop's
+# read-only export (crm_export.mk_ad_spend / mk_ad_entities / mk_customers), the same reader role and
+# the same x-web-sync-secret header (fails closed) — never writes to the shop.
+[functions.web-ads-sync]
+verify_jwt = false
+
 # collabBox nightly sync + live bookings (20260942000900): pg_cron caller, x-collabbox-sync-secret
 # header checked in code (fails closed when COLLABBOX_SYNC_SECRET is unset). Reads collabBox
 # read-only (COLLABBOX_USER / COLLABBOX_PASS) - never writes to it.

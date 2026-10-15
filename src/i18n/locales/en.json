@@ -175,10 +175,12 @@
       "sales": "Sales",
       "warehouse": "Warehouse",
       "team": "Team",
-      "productsAds": "Products & Ads"
+      "productsAds": "Products & Ads",
+      "web": "Web"
     },
     "altercpa": "Affiliates (AlterCPA)",
-    "hr": "Human resources"
+    "hr": "Human resources",
+    "web": "Web shop"
   },
   "loyalty": {
     "intro": "Sure points from delivered Team Centar Out parcels since 2026, NaturaTherapy products only.",
@@ -10498,6 +10500,166 @@
       "moved": "Moved from",
       "scope": "Applies to",
       "verified": "Date checked"
+    }
+  },
+  "webPage": {
+    "title": "Web shop",
+    "subtitle": "naturatherapy.mk in one place: sales, ads, profit and customers. The same calculations as Insights.",
+    "loadFailed": "Could not load.",
+    "empty": "No data for the period.",
+    "tabs": {
+      "overview": "Overview",
+      "ads": "Ads",
+      "profit": "Profit",
+      "customers": "Customers"
+    },
+    "overview": {
+      "sold": "Sold on the web · {{period}}",
+      "aov": "Average basket",
+      "paidShare": "Paid",
+      "returnedShare": "Returned",
+      "cardUnpaid": "Failed card payments",
+      "cancelled": "Cancelled",
+      "lostNote": "Failed card payments and cancelled orders are not sales — shown apart (by the day they were created).",
+      "daily": "Sales per day",
+      "channels": "Where the orders come from",
+      "channelsNote": "The last click before the order (within 30 days), as the shop records it. The sum = the sales above.",
+      "products": "Top products",
+      "payment": "Payment",
+      "coupons": "Coupons",
+      "noCoupons": "No coupons used.",
+      "cities": "Cities"
+    },
+    "channel": {
+      "organic_search": "Search (Google…)",
+      "paid_social": "Paid ads (Meta)",
+      "organic_social": "Social (organic)",
+      "direct": "Direct",
+      "referral": "Referral",
+      "paid_search": "Paid search",
+      "email": "E-mail",
+      "unknown": "Unknown",
+      "mex_only": "Parcel with no web order"
+    },
+    "group": {
+      "paid": "Paid ads",
+      "organic": "Organic (search, social)",
+      "direct": "Direct",
+      "referral": "Referrals",
+      "email": "E-mail",
+      "mex_only": "No order",
+      "other": "Other"
+    },
+    "col": {
+      "channel": "Channel",
+      "orders": "Orders",
+      "value": "Value",
+      "paid": "Paid",
+      "returned": "Returned",
+      "product": "Product",
+      "qty": "Units",
+      "method": "Method",
+      "coupon": "Coupon",
+      "city": "City",
+      "campaign": "Campaign"
+    },
+    "payment": {
+      "COD": "Cash on delivery",
+      "CARD": "Card",
+      "unknown": "Unknown"
+    },
+    "ads": {
+      "marginsOnly": "Ads (spend, ROAS) are for the owners and finance only.",
+      "floorNote": "Spend counts from {{date}} — since then the ad links carry the campaign, so they can be matched to orders.",
+      "spend": "Ad spend",
+      "chatSpend": "+ {{v}} on chat ads (apart)",
+      "roas": "ROAS",
+      "roasSub": "sold {{v}}",
+      "paidRoas": "Paid ROAS",
+      "paidRoasSub": "MEX paid {{v}}",
+      "cpo": "Cost per order",
+      "ordersSub": "{{n}} orders from ads",
+      "metaVsOurs": "Meta / real",
+      "metaVsOursSub": "Meta's purchases / our orders",
+      "clicks": "Clicks",
+      "clicksSub": "CTR {{ctr}} · per click {{cpc}}",
+      "daily": "Spend and ad sales per day",
+      "dailyNote": "Bars = sold from paid ads, line = spend.",
+      "psValue": "Sold from ads",
+      "campaigns": "Campaigns",
+      "campaignsNote": "An order is matched to its campaign by the id in the link. \"Paid ROAS\" = only what MEX paid. Colour: green ≥ 2.5 · amber ≥ 1.5 · red below.",
+      "noCampaigns": "No campaigns with spend or orders in the period.",
+      "unnamed": "Campaign {{id}}",
+      "status": {
+        "ACTIVE": "active",
+        "PAUSED": "paused",
+        "ARCHIVED": "archived",
+        "DELETED": "deleted",
+        "CAMPAIGN_PAUSED": "paused",
+        "ADSET_PAUSED": "paused"
+      },
+      "roasShort": "ROAS",
+      "paidRoasShort": "Paid",
+      "cpoShort": "Per order",
+      "metaShort": "Meta purch.",
+      "footer": "The shop pulls Meta's data hourly; the CRM reads it hourly (last: {{synced}}). Spend is in {{currency}}, converted to denars at that day's NBRM rate."
+    },
+    "profit": {
+      "none": "No web sales in the period.",
+      "net": "Net profit (web)",
+      "margin": "margin {{m}}",
+      "afterAds": "After ads",
+      "afterAdsSub": "after {{v}} of ads",
+      "poas": "POAS (estimate)",
+      "poasSub": "profit from ads ÷ spend",
+      "perSale": "Profit per sale",
+      "sales": "{{n}} sales",
+      "waterfall": "From revenue to profit",
+      "waterfallNote": "The web row of the Insights profit calculation (Sigma cost, VAT per product, courier, returns). Ads are taken off on top.",
+      "line": {
+        "revenue": "Revenue",
+        "vat": "VAT",
+        "cogs": "Cost of goods",
+        "courier": "Courier",
+        "returns": "Returns",
+        "net": "Net profit",
+        "ads": "Ads (Meta)",
+        "afterAds": "After ads"
+      },
+      "coverage": "The cost is known for {{pct}} of the revenue — the rest is estimated."
+    },
+    "customers": {
+      "total": "Web customers",
+      "withEmail": "With an e-mail",
+      "optedIn": "Opted in to offers",
+      "repeat": "Bought 2+ times",
+      "points": "With loyalty points",
+      "pointsSub": "{{n}} points in all",
+      "segments": "Segments for campaigns",
+      "segmentsNote": "The last purchase anywhere — web or the call centre (by phone). Counts only; names and e-mails are never shown.",
+      "segment": "Segment",
+      "count": "Count",
+      "withEmailShort": "With e-mail",
+      "recency": {
+        "d0_20": "Bought in the last 20 days",
+        "d21_57": "21–57 days since the last purchase",
+        "d58_120": "2–4 months",
+        "d121_365": "4–12 months",
+        "d365_plus": "Over a year",
+        "never": "Never bought (accounts / newsletter)"
+      },
+      "use": {
+        "d0_20": "Leave them alone — they just bought",
+        "d21_57": "Reorder reminder",
+        "d58_120": "A come-back offer",
+        "d121_365": "Win back",
+        "d365_plus": "A fresh introduction",
+        "never": "First purchase — a welcome discount"
+      },
+      "cities": "Cities",
+      "campaigns": "E-mail campaigns",
+      "campaignsText": "Sending will go through Brevo — prepared, not switched on yet. The segments above are the basis: reorder reminders, win-back, loyalty points.",
+      "footer": "The shop's customers refresh hourly (last: {{synced}})."
     }
   }
 }

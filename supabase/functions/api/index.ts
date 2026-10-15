@@ -79,6 +79,9 @@ import * as SH from "./shifts.ts";
 // HR — Човечки ресурси (owner 15.10.2026, migration 20261016120000): the vocabularies, the body
 // parsers, who sees which dossier fields, the shapes behind hr/* (pure, hr.test.ts).
 import * as HR from "./hr.ts";
+// The Web page (naturatherapy.mk, owner 15.10.2026; migrations 20261016130000 / 0100): the page
+// shape, the ad metrics and the money wall (pure, web.test.ts).
+import * as WEB from "./web.ts";
 // Личен дневник (plan Фаза 6, migration 20260944000400): who reads / writes, the body
 // parsers, search escaping, snippets, reorder, the versioned autosave and the shapes
 // behind personal-notes/* (pure, unit-tested in personalNotes.test.ts).
@@ -15575,6 +15578,33 @@ async function handleRequest(req: Request): Promise<Response> {
       }
 
       return pnFail("not_found");
+    }
+
+    // ============================================================
+    // WEB — the naturatherapy.mk page (owner 15.10.2026; migrations 20261016130000 / 0100, web.ts).
+    // ONE calculation: web_page() reads the cohort's own web rows (insights_sale_rows source web), so
+    // every total ties to Insights; the page's own totals come from GET /insights/cohort?source=web
+    // and its profit from GET /insights/profit (the web row). Access: the module `web` + company-wide
+    // revenue (can_see_revenue); the Meta SPEND and its ratios only with can_see_margins.
+    // ============================================================
+    if (segments[0] === "web" && (path === "web/page" || path === "web/customers")) {
+      if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);
+      if (!canViewModule("web") || !(await isBusinessOwner(user.id))) {
+        return json({ error: isAdminOrManager ? "owners_only" : "Forbidden" }, 403);
+      }
+      if (path === "web/page") {
+        const wWin = IC.insightsWindows(url.searchParams.get("from"), url.searchParams.get("to"), false);
+        if ("error" in wWin) return json({ error: wWin.error }, 400);
+        const [margins, page] = await Promise.all([
+          canSeeMargins(user.id),
+          adminClient.rpc("web_page", { p_from: wWin.fromIso, p_to_end: wWin.toEndIso }),
+        ]);
+        if (page.error) return json({ error: `web_page: ${sanitizeDbError(page.error)}` }, 500);
+        return json(WEB.shapeWebPage(page.data, margins));
+      }
+      const { data, error } = await adminClient.rpc("web_customers_summary");
+      if (error) return json({ error: `web_customers_summary: ${sanitizeDbError(error)}` }, 500);
+      return json(WEB.shapeCustomers(data));
     }
 
     // ============================================================

@@ -206,3 +206,23 @@ mirrored, so `collected_mkd` is GROSS; the block reports `partially_refunded_cou
 - Widening the order-number pattern in only one of `web-sync` / `web_order_number_ok()`.
 - Changing `web_order_outcome()` without the shop's `order-outcome.ts` (C14 in
   `scripts/verify-attribution.mjs` checks the block against the shop's own classifier).
+
+## The Web page, ad spend and customers (owner 15.10.2026)
+
+- **Export approval 2:** `crm_export` now holds SEVEN functions. The new three are:
+  - `mk_ad_spend(from, to)`: the shop's own `MetaAdSpend`, per day × ad, ≤ 801 days.
+  - `mk_ad_entities()`: campaign and ad names.
+  - `mk_customers(updated_after, after_id, limit)`: e-mail, phone, first name, city, orders, spent, `marketingOptIn`, has_account and loyalty. Never a last name, address, note or the password hash.
+
+  `scripts/apply-shop-crm-export.mjs` guards exactly these seven (`EXPORT_FUNCTIONS`, `SHOP_TABLES`) and proves them as the reader. On 15.10 the reader proof returned 38.364 spend rows from 01.2025, 111 names and 16.961 customers, of which 16.913 have an e-mail.
+- **`web-ads-sync`** is a separate function from `web-sync`, which carries the live orders and is never touched for this.
+  - It uses the same secret, the same reader role and the same TLS and role guard.
+  - Spend is REPLACED per ≤ 31-day window (`web_ad_spend_replace`), because Meta revises recent days. Customers are incremental by `(updatedAt, id)` with a 10-minute overlap. Every feed run is logged in `web_feed_runs`.
+  - Cron: `web-ads-sync` runs hourly at :23 for the last 4 days. `web-ads-sync-nightly` runs at 02:41 UTC for 35 days.
+  - Backfill: POST `{since: "2025-01-01", customers_full: true}`. It took 21 s on 15.10.
+- **`/web`** has the tabs Преглед · Реклами · Профит · Купувачи.
+  - **Totals:** never a second count. Преглед reads `insights/cohort?source=web`, Профит reads the web row of `insights/profit`, and `web_page()` splits the cohort's own web rows.
+  - **ROAS:** paid-social cohort value ÷ site spend, counted from `app_settings.web_ads.floor_day` (2026-09-11).
+  - **Campaign match:** utm_campaign holds the Meta campaign ID (`{{campaign.id}}`), which is matched against `web_ad_entities.id`.
+  - **Money wall:** spend and ratios are for `can_see_margins` only. `shapeWebPage(…, false)` drops the keys entirely, it does not zero them.
+- **Never** send a browser customer names or e-mails. `web_customers_summary()` returns counts only. E-mail sending (Brevo) is prepared but **not active** until the owner says so.

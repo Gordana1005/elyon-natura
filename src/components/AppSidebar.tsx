@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions, useInsightsAccess } from '@/contexts/PermissionsContext';
 // Phosphor (owner, 02.10.2026 — "better icons"): duotone at rest, filled on the page you are on.
 import {
-  AddressBookIcon, ArrowsSplitIcon, CalendarCheckIcon, IdentificationBadgeIcon, CaretDownIcon, ChartLineUpIcon, ClockCounterClockwiseIcon,
+  AddressBookIcon, ArrowsSplitIcon, CalendarCheckIcon, IdentificationBadgeIcon, GlobeIcon, CaretDownIcon, ChartLineUpIcon, ClockCounterClockwiseIcon,
   GearSixIcon, HandshakeIcon, HeadsetIcon, HeartbeatIcon, LightningIcon, ListChecksIcon, MedalIcon, MegaphoneIcon,
   NotePencilIcon, PackageIcon, PhoneOutgoingIcon, PlugsIcon, PulseIcon, ScrollIcon, ShoppingBagOpenIcon,
   SidebarSimpleIcon, SquaresFourIcon, StorefrontIcon, UsersThreeIcon, WarehouseIcon, XIcon,
@@ -21,6 +21,7 @@ import { PBX_CONFIG } from '@/lib/voip/pbxConfig';
 import { navItemActive } from '@/lib/navActive';
 import { useShopsAccess } from '@/components/shops/useShopsAccess';
 import { useLoyaltyAccess } from '@/components/loyalty/useLoyaltyAccess';
+import { useWebAccess } from '@/components/web/useWebAccess';
 import { BRAND, BRAND_LOGO } from '@/lib/brand';
 
 interface NavItem {
@@ -83,6 +84,13 @@ const sections: NavSection[] = [
       { titleKey: 'nav.shops', path: '/shops', icon: StorefrontIcon, moduleKey: 'shops' },
       // Лојалност (owner 06.10.2026): the same circle. useLoyaltyAccess() below — not a module key.
       { titleKey: 'nav.loyalty', path: '/loyalty', icon: MedalIcon, moduleKey: 'loyalty' },
+    ],
+  },
+  {
+    // Веб (owner 15.10.2026): the naturatherapy.mk page — revenue viewers; useWebAccess() below.
+    labelKey: 'nav.sections.web',
+    items: [
+      { titleKey: 'nav.web', path: '/web', icon: GlobeIcon, moduleKey: 'web' },
     ],
   },
   {
@@ -149,6 +157,7 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?:
   const insightsAccess = useInsightsAccess();
   const shopsAccess = useShopsAccess();
   const loyaltyAccess = useLoyaltyAccess();
+  const webAccess = useWebAccess();
 
   const isMobile = useIsMobile();
   // a tablet (768–1023 px) starts with the icon rail, so the page keeps its width; the user can expand it
@@ -183,6 +192,7 @@ export function AppSidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?:
         // Shops: owners see money, managers the same pages counted; nobody else (the api refuses them).
         if (item.path === '/shops') return shopsAccess.any;
         if (item.path === '/loyalty') return loyaltyAccess.any;
+        if (item.path === '/web') return webAccess.any;
         // Табла (owner 15.10.2026, "една страница"): an admin's / redirects to Insights → Преглед,
         // so the menu offers Извештаи alone; everyone else keeps their own Табла ("Мој учинок").
         if (item.path === '/' && user?.isAdmin) return false;

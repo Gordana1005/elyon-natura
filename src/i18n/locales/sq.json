@@ -175,10 +175,12 @@
       "sales": "Shitjet",
       "warehouse": "Depoja",
       "team": "Ekipi",
-      "productsAds": "Produkte & Reklama"
+      "productsAds": "Produkte & Reklama",
+      "web": "Uebi"
     },
     "altercpa": "Afiliatët (AlterCPA)",
-    "hr": "Burimet njerëzore"
+    "hr": "Burimet njerëzore",
+    "web": "Dyqani në internet"
   },
   "loyalty": {
     "intro": "Pikë të sigurta nga dërgesat e dorëzuara të Ekipit Qendra Out, nga 2026, vetëm produkte NaturaTherapy.",
@@ -10498,6 +10500,166 @@
       "moved": "Zhvendosur nga",
       "scope": "Për kë vlen",
       "verified": "Data është kontrolluar"
+    }
+  },
+  "webPage": {
+    "title": "Dyqani në internet",
+    "subtitle": "naturatherapy.mk në një vend: shitje, reklama, fitim dhe blerës. Të njëjtat llogaritje si te Raportet.",
+    "loadFailed": "Nuk u ngarkua.",
+    "empty": "Nuk ka të dhëna për periudhën.",
+    "tabs": {
+      "overview": "Përmbledhje",
+      "ads": "Reklamat",
+      "profit": "Fitimi",
+      "customers": "Blerësit"
+    },
+    "overview": {
+      "sold": "Shitur në internet · {{period}}",
+      "aov": "Shporta mesatare",
+      "paidShare": "Të paguara",
+      "returnedShare": "Të kthyera",
+      "cardUnpaid": "Karta të dështuara",
+      "cancelled": "Të anuluara",
+      "lostNote": "Pagesat e dështuara me kartë dhe të anuluarat nuk janë shitje — tregohen veçmas (sipas ditës së krijimit).",
+      "daily": "Shitjet sipas ditës",
+      "channels": "Nga vijnë porositë",
+      "channelsNote": "Klikimi i fundit para porosisë (brenda 30 ditëve), siç e regjistron dyqani. Shuma = shitjet më sipër.",
+      "products": "Produktet më të shitura",
+      "payment": "Pagesa",
+      "coupons": "Kuponat",
+      "noCoupons": "Nuk ka kuponë të përdorur.",
+      "cities": "Qytetet"
+    },
+    "channel": {
+      "organic_search": "Kërkim (Google…)",
+      "paid_social": "Reklama me pagesë (Meta)",
+      "organic_social": "Rrjete sociale (falas)",
+      "direct": "Direkt",
+      "referral": "Nga një faqe tjetër",
+      "paid_search": "Kërkim me pagesë",
+      "email": "E-mail",
+      "unknown": "E panjohur",
+      "mex_only": "Pako pa porosi në internet"
+    },
+    "group": {
+      "paid": "Reklama me pagesë",
+      "organic": "Falas (kërkim, rrjete)",
+      "direct": "Direkt",
+      "referral": "Referime",
+      "email": "E-mail",
+      "mex_only": "Pa porosi",
+      "other": "Tjetër"
+    },
+    "col": {
+      "channel": "Kanali",
+      "orders": "Porosi",
+      "value": "Vlera",
+      "paid": "Paguar",
+      "returned": "Kthyer",
+      "product": "Produkti",
+      "qty": "Copë",
+      "method": "Mënyra",
+      "coupon": "Kuponi",
+      "city": "Qyteti",
+      "campaign": "Fushata"
+    },
+    "payment": {
+      "COD": "Me para në dorë",
+      "CARD": "Kartë",
+      "unknown": "E panjohur"
+    },
+    "ads": {
+      "marginsOnly": "Reklamat (shpenzimi, ROAS) i shohin vetëm pronarët dhe financat.",
+      "floorNote": "Shpenzimi numërohet nga {{date}} — që atëherë lidhjet e reklamave mbajnë fushatën, kështu që përputhen me porositë.",
+      "spend": "Shpenzimi për reklama",
+      "chatSpend": "+ {{v}} për reklama chat (veçmas)",
+      "roas": "ROAS",
+      "roasSub": "shitur {{v}}",
+      "paidRoas": "ROAS e paguar",
+      "paidRoasSub": "MEX pagoi {{v}}",
+      "cpo": "Kosto për porosi",
+      "ordersSub": "{{n}} porosi nga reklamat",
+      "metaVsOurs": "Meta / reale",
+      "metaVsOursSub": "blerje sipas Meta / porositë tona",
+      "clicks": "Klikime",
+      "clicksSub": "CTR {{ctr}} · klik {{cpc}}",
+      "daily": "Shpenzimi dhe shitjet nga reklamat sipas ditës",
+      "dailyNote": "Shtyllat = shitur nga reklamat, vija = shpenzimi.",
+      "psValue": "Shitur nga reklamat",
+      "campaigns": "Fushatat",
+      "campaignsNote": "Porosia përputhet me fushatën sipas ID-së në lidhje. \"ROAS e paguar\" = vetëm ajo që pagoi MEX. Ngjyra: jeshile ≥ 2,5 · e verdhë ≥ 1,5 · e kuqe më poshtë.",
+      "noCampaigns": "Nuk ka fushata me shpenzim ose porosi në periudhë.",
+      "unnamed": "Fushata {{id}}",
+      "status": {
+        "ACTIVE": "aktive",
+        "PAUSED": "pushuar",
+        "ARCHIVED": "arkivuar",
+        "DELETED": "fshirë",
+        "CAMPAIGN_PAUSED": "pushuar",
+        "ADSET_PAUSED": "pushuar"
+      },
+      "roasShort": "ROAS",
+      "paidRoasShort": "Paguar",
+      "cpoShort": "Për porosi",
+      "metaShort": "Meta bl.",
+      "footer": "Të dhënat e Meta i merr dyqani çdo orë; CRM i lexon çdo orë (e fundit: {{synced}}). Shpenzimi është në {{currency}}, i kthyer në denarë me kursin e BPRM për atë ditë."
+    },
+    "profit": {
+      "none": "Nuk ka shitje në internet në periudhë.",
+      "net": "Fitimi neto (internet)",
+      "margin": "marzhë {{m}}",
+      "afterAds": "Pas reklamave",
+      "afterAdsSub": "pasi zbriten {{v}} reklama",
+      "poas": "POAS (vlerësim)",
+      "poasSub": "fitimi nga reklamat ÷ shpenzim",
+      "perSale": "Fitimi për shitje",
+      "sales": "{{n}} shitje",
+      "waterfall": "Nga të ardhurat te fitimi",
+      "waterfallNote": "Rreshti i internetit nga llogaritja e fitimit te Raportet (kosto nga Sigma, TVSH për produkt, dërgesa, kthime). Reklamat zbriten më pas.",
+      "line": {
+        "revenue": "Të ardhurat",
+        "vat": "TVSH",
+        "cogs": "Kostoja e mallit",
+        "courier": "Dërgesa",
+        "returns": "Kthimet",
+        "net": "Fitimi neto",
+        "ads": "Reklamat (Meta)",
+        "afterAds": "Pas reklamave"
+      },
+      "coverage": "Kostoja dihet për {{pct}} të të ardhurave — pjesa tjetër është vlerësim."
+    },
+    "customers": {
+      "total": "Blerës në internet",
+      "withEmail": "Me e-mail",
+      "optedIn": "Lejuan oferta",
+      "repeat": "Blenë 2+ herë",
+      "points": "Me pikë besnikërie",
+      "pointsSub": "gjithsej {{n}} pikë",
+      "segments": "Segmente për fushata",
+      "segmentsNote": "Blerja e fundit kudo — në internet ose në qendër thirrjesh (sipas telefonit). Vetëm numra; emrat dhe e-mail-et nuk shfaqen.",
+      "segment": "Segmenti",
+      "count": "Numri",
+      "withEmailShort": "Me e-mail",
+      "recency": {
+        "d0_20": "Blenë në 20 ditët e fundit",
+        "d21_57": "21–57 ditë nga blerja e fundit",
+        "d58_120": "2–4 muaj",
+        "d121_365": "4–12 muaj",
+        "d365_plus": "Më shumë se një vit",
+        "never": "Pa blerje (të regjistruar / buletin)"
+      },
+      "use": {
+        "d0_20": "Mos u shkruaj tani — sapo blenë",
+        "d21_57": "Kujtesë për porosi të përsëritur",
+        "d58_120": "Ofertë për t'u kthyer",
+        "d121_365": "Rikthimi i blerësve të vjetër",
+        "d365_plus": "Mesazh i ri njohjeje",
+        "never": "Blerja e parë — zbritje mirëseardhjeje"
+      },
+      "cities": "Qytetet",
+      "campaigns": "Fushata me e-mail",
+      "campaignsText": "Dërgimi do të bëhet përmes Brevo — i përgatitur, ende jo i aktivizuar. Segmentet më sipër janë baza: kujtesë për porosi, rikthim i blerësve, pikë besnikërie.",
+      "footer": "Blerësit nga dyqani përditësohen çdo orë (e fundit: {{synced}})."
     }
   }
 }

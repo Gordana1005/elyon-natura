@@ -485,6 +485,22 @@ target **explicitly** and verify it before running:
   `card_unpaid` never counts, `cancelled` is shown apart. The TV board's web view (`leaderboard_web_live`) = the
   cohort's web part on every day since 01.01.2026 — the days 30.07–03.09.2026 (the old shop was never migrated)
   come from the MEX-only web parcels. See `elyon-web-shop-bridge`.
+- **The Web page `/web` (owner 15.10.2026: "посебен пејџ за ВЕБ … во извештаи пресметките"; `20261016130000` /
+  `0100`, api `web.ts`, function `web-ads-sync`).** Its own menu section "Веб": Преглед · Реклами · Профит · Купувачи.
+  ONE calculation: the totals are `GET /insights/cohort?source=web`, the profit is the web row of `GET /insights/profit`,
+  the breakdowns come from `web_page()` over the SAME rows (`insights_sale_rows` source web, in_total) — channels,
+  Meta campaigns, daily, coupons, cities (`mk_city_key`), payment, products; cancelled + failed card checkouts apart.
+  The shop's read-only export got THREE more functions (owner approval 2, 15.10; legal signed off by his lawyer):
+  `crm_export.mk_ad_spend` (the shop's own hourly Meta spend, NBRM-converted), `mk_ad_entities` (campaign / ad names),
+  `mk_customers` (e-mail, phone, first name, city, orders, spent, marketing flag, has_account, loyalty — never a last
+  name, address, note or the hash); `apply-shop-crm-export.mjs` guards exactly seven. `web-ads-sync` mirrors them
+  hourly (:23, last 4 days) + nightly 02:41 UTC (35 days) into `web_ad_spend` / `web_ad_entities` / `web_customers`
+  (RLS, no policy). ROAS = paid-social sales value ÷ site-purpose spend of the same Skopje days from
+  `app_settings.web_ads.floor_day` (2026-09-11, the ad links' campaign tags); "платено ROAS" = what MEX paid; an order
+  matches its campaign by the Meta campaign id in utm_campaign; chat-ad spend shown apart. POAS = an ESTIMATE (the
+  web margin × the paid-social share ÷ spend). Access: the page = can_see_revenue + module `web`; spend / ROAS /
+  profit = can_see_margins (the keys are ABSENT otherwise); customers only as COUNTS (recency segments by the last
+  purchase anywhere on the phone) — never names or e-mails to a browser. E-mail sending: Brevo prepared, NOT active.
 - **A collabBox sale counts on the day the operator BOOKED it (owner, 01.10; `20260944000500`/`0600`)**:
   collabBox dates a document on its DISPATCH day; `collabbox_documents.booked_at` (+ basis seen /
   sequence / doc, decided once) and THE sale time `collabbox_sale_at(doc_at, booked_at)` feed the board,

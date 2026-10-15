@@ -114,6 +114,7 @@ export const MODULE_ROUTE_MAP: Record<string, string> = {
   shifts: '/shifts',
   my_shifts: '/my-shifts',
   hr: '/hr',
+  web: '/web',
   call_scripts: '/call-scripts',
   call_history: '/call-history',
   calls: '/calls',

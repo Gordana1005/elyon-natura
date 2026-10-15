@@ -25,11 +25,24 @@
 -- functions to any table or column). No shop code, settings, tenants, rows,
 -- indexes or deploys change.
 --
+-- APPROVAL 2 (Mile, 2026-10-15 — the Web page: ROAS / POAS and e-mail outreach, legal sign-off
+-- done by the owner's lawyer): three more read-only functions of the same kind —
+--   crm_export.mk_ad_spend(p_from, p_to)   the shop's own Meta spend rows (MetaAdSpend) of
+--                                          tenant 2, per day x ad, in the account currency + the
+--                                          day's NBRM rate the shop stored (spend x fx = MKD)
+--   crm_export.mk_ad_entities()            Meta campaign / ad names + status (MetaAdEntity)
+--   crm_export.mk_customers(p_updated_after, p_after_id, p_limit)
+--                                          tenant-2 customers by (updatedAt, id): e-mail, phone,
+--                                          first name, city, order count / spent, the marketing
+--                                          flag, whether an account exists (never the hash),
+--                                          loyalty balance
+-- Still no table privilege for the reader, still no dependency on any shop column.
+--
 -- WHY A SEPARATE SCHEMA: the shop manages `public` with `prisma db push`,
 -- which drops objects in `public` it does not know about. It never looks at
 -- other schemas, so crm_export survives every shop deploy.
 --
--- The export (all STABLE, SECURITY DEFINER, owned by the applying role,
+-- The export (seven functions; all STABLE, SECURITY DEFINER, owned by the applying role,
 -- search_path pinned to pg_catalog, pg_temp, TimeZone pinned to UTC so the
 -- UTC conversions stay exact even if the shop later moves a column to
 -- timestamptz; every shop table fully qualified):
@@ -43,19 +56,22 @@
 --        the lines of those ids THAT BELONG TO TENANT 2 (other ids: nothing)
 --   crm_export.mk_orders_summary()
 --        tenant-2 order count and newest updatedAt (the sync's probe)
--- Page size is clamped to 1..2000; the id list to 2000 ids.
+--   crm_export.mk_ad_spend / mk_ad_entities / mk_customers  (APPROVAL 2, above)
+-- Page size is clamped to 1..2000; the id list to 2000 ids; an ad-spend window to 801 days.
 --
 -- Tenant: resolved by SLUG ('naturatherapy-mk') through public."Tenant" on
 -- every call — never by number. A renamed slug makes every call RAISE.
 --
--- Columns: the minimum the CRM's web block needs. No names, e-mail, address,
--- comment, payment refs, attribution JSON or customer ids. phone is included
--- on purpose: the CRM stores it as E.164 + last-8 for customer matching.
+-- Columns: the minimum the CRM's web block needs. The ORDER functions carry no names, e-mail,
+-- address, comment, payment refs, attribution JSON or customer ids. phone is included on
+-- purpose: the CRM stores it as E.164 + last-8 for customer matching. mk_customers (APPROVAL 2)
+-- carries e-mail + first name for the owner-approved outreach — never a last name, address,
+-- note, tags or the password hash.
 -- Timestamps: the shop stores UTC in timestamp(3) WITHOUT time zone (its own
 -- panel reads them AT TIME ZONE 'UTC'), exported as timestamptz.
 --
 -- The role: LOGIN, no inheritance, no memberships, read-only by default, 30 s
--- statement timeout, 3 connections; USAGE on crm_export + EXECUTE on the four
+-- statement timeout, 3 connections; USAGE on crm_export + EXECUTE on the seven
 -- functions — no table privilege anywhere.
 --
 -- Idempotent: safe to re-run. Functions are dropped and recreated (grants
@@ -99,7 +115,7 @@ $pre$;
 CREATE SCHEMA IF NOT EXISTS crm_export;
 REVOKE ALL ON SCHEMA crm_export FROM PUBLIC;
 COMMENT ON SCHEMA crm_export IS
-  'Read-only export of naturatherapy.mk (tenant slug naturatherapy-mk) orders for the Elyon CRM. Owner-approved 2026-09-27. Late-bound PL/pgSQL functions only: no dependency on any shop column. Outside public so prisma db push never sees it. Reader: elyon_crm_reader (EXECUTE on the four functions only). Rollback: DROP SCHEMA crm_export CASCADE; DROP ROLE elyon_crm_reader.';
+  'Read-only export of naturatherapy.mk (tenant slug naturatherapy-mk) orders for the Elyon CRM. Owner-approved 2026-09-27 + 2026-10-15 (Meta ad spend, customers). Late-bound PL/pgSQL functions only: no dependency on any shop column. Outside public so prisma db push never sees it. Reader: elyon_crm_reader (EXECUTE on the seven functions only). Rollback: DROP SCHEMA crm_export CASCADE; DROP ROLE elyon_crm_reader.';
 
 -- ── 2. The role (password is set by the apply script as a SCRAM verifier) ──
 DO $role$
@@ -118,7 +134,7 @@ ALTER ROLE elyon_crm_reader SET default_transaction_read_only = on;
 ALTER ROLE elyon_crm_reader SET statement_timeout = '30s';
 ALTER ROLE elyon_crm_reader SET idle_in_transaction_session_timeout = '60s';
 COMMENT ON ROLE elyon_crm_reader IS
-  'Elyon CRM web-sync reader (owner-approved 2026-09-27): USAGE on crm_export + EXECUTE on its four read-only functions. No table privilege anywhere. Read-only, 30 s timeout, 3 connections.';
+  'Elyon CRM web-sync reader (owner-approved 2026-09-27 + 2026-10-15): USAGE on crm_export + EXECUTE on its seven read-only functions. No table privilege anywhere. Read-only, 30 s timeout, 3 connections.';
 
 -- ── 3. The export ───────────────────────────────────────────────────────────
 -- An earlier draft used views; if that draft was ever applied, remove them so
@@ -131,6 +147,9 @@ DROP FUNCTION IF EXISTS crm_export.mk_orders(timestamptz, integer, integer);
 DROP FUNCTION IF EXISTS crm_export.mk_orders_by_id(integer, integer);
 DROP FUNCTION IF EXISTS crm_export.mk_order_items(integer[]);
 DROP FUNCTION IF EXISTS crm_export.mk_orders_summary();
+DROP FUNCTION IF EXISTS crm_export.mk_ad_spend(date, date);
+DROP FUNCTION IF EXISTS crm_export.mk_ad_entities();
+DROP FUNCTION IF EXISTS crm_export.mk_customers(timestamptz, integer, integer);
 
 -- Incremental feed: tenant-2 orders strictly after (p_updated_after,
 -- p_after_id) in (updatedAt, id) order. NULL p_updated_after = from the start.
@@ -348,6 +367,147 @@ BEGIN
 END
 $fn$;
 
+-- APPROVAL 2 (2026-10-15). The shop's own Meta spend rows of tenant 2 for [p_from, p_to]
+-- (inclusive days, at most 801): spend in the ad-account currency and the day's NBRM rate the
+-- shop stored (spend x fx_rate = denars). purpose: site | messaging.
+CREATE FUNCTION crm_export.mk_ad_spend(p_from date, p_to date)
+RETURNS TABLE (
+  tenant_slug    text,
+  day            date,
+  ad_id          text,
+  adset_id       text,
+  campaign_id    text,
+  account_id     text,
+  purpose        text,
+  currency       text,
+  spend          numeric,
+  fx_rate        numeric,
+  impressions    integer,
+  link_clicks    integer,
+  meta_purchases integer,
+  fetched_at     timestamptz)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+SET TimeZone = 'UTC'
+AS $fn$
+#variable_conflict use_column
+DECLARE
+  _tid integer;
+BEGIN
+  IF p_from IS NULL OR p_to IS NULL OR p_to < p_from OR p_to - p_from > 800 THEN
+    RAISE EXCEPTION 'crm_export.mk_ad_spend: bad window (at most 801 days)';
+  END IF;
+  SELECT t.id INTO _tid FROM public."Tenant" t WHERE t.slug = 'naturatherapy-mk';
+  IF _tid IS NULL THEN
+    RAISE EXCEPTION 'crm_export: tenant naturatherapy-mk not found';
+  END IF;
+  RETURN QUERY
+  SELECT t.slug::text, s.day::date, s."adId"::text, s."adsetId"::text, s."campaignId"::text,
+         s."accountId"::text, s.purpose::text, s.currency::text,
+         s.spend::numeric, s."fxRate"::numeric,
+         s.impressions::integer, s."linkClicks"::integer, s."metaPurchases"::integer,
+         (s."fetchedAt" AT TIME ZONE 'UTC')::timestamptz
+  FROM public."MetaAdSpend" s
+  JOIN public."Tenant" t ON t.id = s."tenantId"
+  WHERE s."tenantId" = _tid
+    AND t.slug = 'naturatherapy-mk'
+    AND s.day BETWEEN p_from AND p_to
+  ORDER BY s.day, s."adId";
+END
+$fn$;
+
+-- APPROVAL 2. Meta campaign / ad names and status of tenant 2 (the ids in mk_ad_spend and in
+-- the orders' campaign column).
+CREATE FUNCTION crm_export.mk_ad_entities()
+RETURNS TABLE (
+  tenant_slug text,
+  id          text,
+  kind        text,
+  name        text,
+  status      text,
+  account_id  text,
+  fetched_at  timestamptz)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+SET TimeZone = 'UTC'
+AS $fn$
+#variable_conflict use_column
+DECLARE
+  _tid integer;
+BEGIN
+  SELECT t.id INTO _tid FROM public."Tenant" t WHERE t.slug = 'naturatherapy-mk';
+  IF _tid IS NULL THEN
+    RAISE EXCEPTION 'crm_export: tenant naturatherapy-mk not found';
+  END IF;
+  RETURN QUERY
+  SELECT t.slug::text, e.id::text, e.kind::text, e.name::text, e.status::text, e."accountId"::text,
+         (e."fetchedAt" AT TIME ZONE 'UTC')::timestamptz
+  FROM public."MetaAdEntity" e
+  JOIN public."Tenant" t ON t.id = e."tenantId"
+  WHERE e."tenantId" = _tid
+    AND t.slug = 'naturatherapy-mk'
+  ORDER BY e.kind, e.id;
+END
+$fn$;
+
+-- APPROVAL 2. Tenant-2 customers strictly after (p_updated_after, p_after_id) in (updatedAt, id)
+-- order: e-mail and first name for the owner-approved outreach; never a last name, address,
+-- note, tags or the password hash (has_account only says whether one exists).
+CREATE FUNCTION crm_export.mk_customers(
+  p_updated_after timestamptz,
+  p_after_id      integer,
+  p_limit         integer)
+RETURNS TABLE (
+  shop_customer_id integer,
+  tenant_slug      text,
+  email            text,
+  phone            text,
+  first_name       text,
+  city             text,
+  orders_count     integer,
+  total_spent      numeric,
+  marketing_opt_in boolean,
+  has_account      boolean,
+  loyalty_balance  integer,
+  created_at       timestamptz,
+  updated_at       timestamptz)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+SET TimeZone = 'UTC'
+AS $fn$
+#variable_conflict use_column
+DECLARE
+  _tid   integer;
+  _after timestamp := coalesce(p_updated_after, '-infinity'::timestamptz) AT TIME ZONE 'UTC';
+  _id    integer   := coalesce(p_after_id, 0);
+  _lim   integer   := least(greatest(coalesce(p_limit, 500), 1), 2000);
+BEGIN
+  SELECT t.id INTO _tid FROM public."Tenant" t WHERE t.slug = 'naturatherapy-mk';
+  IF _tid IS NULL THEN
+    RAISE EXCEPTION 'crm_export: tenant naturatherapy-mk not found';
+  END IF;
+  RETURN QUERY
+  SELECT c.id::integer, t.slug::text, c.email::text, c.phone::text, c."firstName"::text, c.city::text,
+         c."ordersCount"::integer, c."totalSpent"::numeric, c."marketingOptIn"::boolean,
+         (c."passwordHash" IS NOT NULL)::boolean, c."loyaltyBalance"::integer,
+         (c."createdAt" AT TIME ZONE 'UTC')::timestamptz,
+         (c."updatedAt" AT TIME ZONE 'UTC')::timestamptz
+  FROM public."Customer" c
+  JOIN public."Tenant" t ON t.id = c."tenantId"
+  WHERE c."tenantId" = _tid
+    AND t.slug = 'naturatherapy-mk'
+    AND (c."updatedAt", c.id) > (_after, _id)
+  ORDER BY c."updatedAt", c.id
+  LIMIT _lim;
+END
+$fn$;
+
 COMMENT ON FUNCTION crm_export.mk_orders(timestamptz, integer, integer) IS
   'naturatherapy.mk (tenant slug naturatherapy-mk) orders after (p_updated_after, p_after_id) in (updatedAt, id) order, max 2000. Read-only, late-bound (no dependency on shop columns). Timestamps UTC timestamptz; money in the order currency (MKD).';
 COMMENT ON FUNCTION crm_export.mk_orders_by_id(integer, integer) IS
@@ -356,6 +516,12 @@ COMMENT ON FUNCTION crm_export.mk_order_items(integer[]) IS
   'Lines of the given naturatherapy.mk orders (ids of any other tenant return nothing), max 2000 ids. Read-only, late-bound. kind = SALE | GIFT.';
 COMMENT ON FUNCTION crm_export.mk_orders_summary() IS
   'naturatherapy.mk order count and newest updatedAt (UTC). Read-only, late-bound.';
+COMMENT ON FUNCTION crm_export.mk_ad_spend(date, date) IS
+  'naturatherapy.mk Meta ad spend per day x ad for [p_from, p_to] (at most 801 days): account currency + the shop''s NBRM fx rate. Read-only, late-bound. Owner-approved 2026-10-15.';
+COMMENT ON FUNCTION crm_export.mk_ad_entities() IS
+  'naturatherapy.mk Meta campaign / ad names and status. Read-only, late-bound. Owner-approved 2026-10-15.';
+COMMENT ON FUNCTION crm_export.mk_customers(timestamptz, integer, integer) IS
+  'naturatherapy.mk customers after (p_updated_after, p_after_id) in (updatedAt, id) order, max 2000: e-mail, phone, first name, city, orders, spent, marketing flag, has_account, loyalty balance. Never a last name, address, note or the password hash. Read-only, late-bound. Owner-approved 2026-10-15.';
 
 -- ── 4. Grants: EXECUTE for the reader, nobody else ──────────────────────────
 -- New functions are executable by PUBLIC by default; take that away, and
@@ -369,7 +535,10 @@ BEGIN
       'crm_export.mk_orders(timestamptz, integer, integer)',
       'crm_export.mk_orders_by_id(integer, integer)',
       'crm_export.mk_order_items(integer[])',
-      'crm_export.mk_orders_summary()'] LOOP
+      'crm_export.mk_orders_summary()',
+      'crm_export.mk_ad_spend(date, date)',
+      'crm_export.mk_ad_entities()',
+      'crm_export.mk_customers(timestamptz, integer, integer)'] LOOP
     EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC', _f);
     FOR _who IN
       SELECT DISTINCT r.rolname
@@ -390,7 +559,10 @@ GRANT EXECUTE ON FUNCTION
   crm_export.mk_orders(timestamptz, integer, integer),
   crm_export.mk_orders_by_id(integer, integer),
   crm_export.mk_order_items(integer[]),
-  crm_export.mk_orders_summary()
+  crm_export.mk_orders_summary(),
+  crm_export.mk_ad_spend(date, date),
+  crm_export.mk_ad_entities(),
+  crm_export.mk_customers(timestamptz, integer, integer)
   TO elyon_crm_reader;
 
 -- ── 5. Self-test (negative). Any failure raises → the whole file rolls back.
@@ -401,7 +573,10 @@ DECLARE
       'crm_export.mk_orders(timestamptz, integer, integer)'::regprocedure::oid,
       'crm_export.mk_orders_by_id(integer, integer)'::regprocedure::oid,
       'crm_export.mk_order_items(integer[])'::regprocedure::oid,
-      'crm_export.mk_orders_summary()'::regprocedure::oid];
+      'crm_export.mk_orders_summary()'::regprocedure::oid,
+      'crm_export.mk_ad_spend(date, date)'::regprocedure::oid,
+      'crm_export.mk_ad_entities()'::regprocedure::oid,
+      'crm_export.mk_customers(timestamptz, integer, integer)'::regprocedure::oid];
   _bad      text;
   _n        bigint;
   _m        bigint;
@@ -464,17 +639,17 @@ BEGIN
     RAISE NOTICE 'selftest: note — platform PUBLIC grants (not ours) let any login read: %', _bad;
   END IF;
 
-  -- 5.3 crm_export: USAGE, no CREATE; EXECUTE on exactly the four functions;
+  -- 5.3 crm_export: USAGE, no CREATE; EXECUTE on exactly the seven functions;
   -- nobody else (PUBLIC included) may execute them; no other function grant
   -- anywhere names the reader.
   IF NOT has_schema_privilege('elyon_crm_reader', 'crm_export', 'USAGE')
      OR has_schema_privilege('elyon_crm_reader', 'crm_export', 'CREATE') THEN
     RAISE EXCEPTION 'selftest: crm_export schema privileges are wrong for the reader';
   END IF;
-  IF (SELECT count(*) FROM pg_proc p WHERE p.pronamespace = 'crm_export'::regnamespace) <> 4
+  IF (SELECT count(*) FROM pg_proc p WHERE p.pronamespace = 'crm_export'::regnamespace) <> 7
      OR EXISTS (SELECT 1 FROM unnest(_funcs) f(oid)
                 WHERE NOT has_function_privilege('elyon_crm_reader', f.oid, 'EXECUTE')) THEN
-    RAISE EXCEPTION 'selftest: the reader must execute exactly the four export functions';
+    RAISE EXCEPTION 'selftest: the reader must execute exactly the seven export functions';
   END IF;
   SELECT string_agg(DISTINCT coalesce(r.rolname, 'PUBLIC'), ', ') INTO _bad
   FROM pg_proc p
@@ -540,6 +715,22 @@ BEGIN
      AND EXISTS (SELECT 1 FROM crm_export.mk_order_items(_other)) THEN
     RAISE EXCEPTION 'selftest: mk_order_items returned lines of another tenant';
   END IF;
+  -- APPROVAL 2: ad spend, entities and customers never return another tenant, and the first
+  -- customer page holds exactly tenant 2's customers.
+  SELECT count(*) INTO _n FROM crm_export.mk_ad_spend(current_date - 800, current_date)
+   WHERE tenant_slug IS DISTINCT FROM 'naturatherapy-mk';
+  IF _n <> 0 THEN RAISE EXCEPTION 'selftest: mk_ad_spend returned % foreign rows', _n; END IF;
+  SELECT count(*) INTO _n FROM crm_export.mk_ad_entities() WHERE tenant_slug IS DISTINCT FROM 'naturatherapy-mk';
+  IF _n <> 0 THEN RAISE EXCEPTION 'selftest: mk_ad_entities returned % foreign rows', _n; END IF;
+  SELECT count(*) FILTER (WHERE tenant_slug IS DISTINCT FROM 'naturatherapy-mk'), count(*)
+    INTO _n, _m FROM crm_export.mk_customers(NULL, 0, 2000);
+  IF _n <> 0 THEN RAISE EXCEPTION 'selftest: mk_customers returned % foreign rows', _n; END IF;
+  IF _m <> least(2000, (SELECT count(*) FROM public."Customer" WHERE "tenantId" = _mk)) THEN
+    RAISE EXCEPTION 'selftest: mk_customers first page has % rows, tenant 2 has % customers',
+      _m, (SELECT count(*) FROM public."Customer" WHERE "tenantId" = _mk);
+  END IF;
+  SELECT count(*) INTO _m FROM public."Order" WHERE "tenantId" = _mk;
+
   RAISE NOTICE 'selftest: tenant 2 exports % orders; % orders of other tenants are excluded',
     _m, (SELECT count(*) FROM public."Order" WHERE "tenantId" <> _mk);
 

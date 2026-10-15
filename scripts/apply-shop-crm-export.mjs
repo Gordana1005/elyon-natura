@@ -5,10 +5,11 @@
  *
  * 🛑 The shop (Supabase kctgthpoeysmhmkrnkil) is a LIVE multi-tenant platform
  *    (BG, MK, AL, GR share one production DB). Owner rule 2026-09-27: nothing
- *    on it changes except schema crm_export (four read-only, late-bound
- *    PL/pgSQL functions over tenant 2 — no views, so NO dependency on any shop
- *    column: a shop schema change can only make our call fail, never block the
- *    shop's deploy) and the login role elyon_crm_reader (EXECUTE on those
+ *    on it changes except schema crm_export (seven read-only, late-bound
+ *    PL/pgSQL functions over tenant 2 — orders + lines (27.09), Meta ad spend,
+ *    ad names and customers (owner 15.10.2026) — no views, so NO dependency on
+ *    any shop column: a shop schema change can only make our call fail, never
+ *    block the shop's deploy) and the login role elyon_crm_reader (EXECUTE on those
  *    functions only, no table privilege anywhere). This script enforces that —
  *    statically on the SQL file and again at runtime by diffing the catalog
  *    inside the transaction, rolling back on ANY other change.
@@ -189,10 +190,11 @@ function writeVault8({ url, syncSecret, rotated, readerDisplay }) {
   const block = [
     VAULT_BEGIN,
     '## §8 naturatherapy.mk web shop — read-only CRM export (shop DB kctgthpoeysmhmkrnkil)',
-    '- Owner approval 2026-09-27 (the ONLY change allowed on the live shop): schema `crm_export`',
-    '  (4 late-bound read-only functions over tenant slug `naturatherapy-mk`: mk_orders, mk_orders_by_id,',
-    '  mk_order_items, mk_orders_summary — NO dependency on shop columns) + login role `elyon_crm_reader`',
-    '  (USAGE on crm_export, EXECUTE on those 4 only, no table privilege, read-only, 30 s timeout,',
+    '- Owner approval 2026-09-27 + 2026-10-15 (the ONLY change allowed on the live shop): schema `crm_export`',
+    '  (7 late-bound read-only functions over tenant slug `naturatherapy-mk`: mk_orders, mk_orders_by_id,',
+    '  mk_order_items, mk_orders_summary, mk_ad_spend, mk_ad_entities, mk_customers — NO dependency on shop',
+    '  columns) + login role `elyon_crm_reader`',
+    '  (USAGE on crm_export, EXECUTE on those 7 only, no table privilege, read-only, 30 s timeout,',
     '  3 connections). DDL: `supabase/shop-side/crm_export_tenant2.sql` (rollback block in its header).',
     `- Last applied: ${new Date().toISOString()} by scripts/apply-shop-crm-export.mjs` +
       ` (password ${rotated ? 'generated/rotated' : 'kept'}); reader = ${readerDisplay}`,
@@ -284,9 +286,11 @@ function stripPlpgsql(src) {
 
 const norm = (s) => s.replace(/\s+/g, ' ').trim();
 
-// The export is FOUR late-bound PL/pgSQL functions — never a view or table
-// (a view pins the shop columns it selects; see the SQL file's header).
-const EXPORT_FUNCTIONS = ['crm_export.mk_orders', 'crm_export.mk_orders_by_id', 'crm_export.mk_order_items', 'crm_export.mk_orders_summary'];
+// The export is SEVEN late-bound PL/pgSQL functions — never a view or table
+// (a view pins the shop columns it selects; see the SQL file's header). The last three:
+// owner 15.10.2026 (Meta ad spend + names, customers for the outreach).
+const EXPORT_FUNCTIONS = ['crm_export.mk_orders', 'crm_export.mk_orders_by_id', 'crm_export.mk_order_items', 'crm_export.mk_orders_summary',
+  'crm_export.mk_ad_spend', 'crm_export.mk_ad_entities', 'crm_export.mk_customers'];
 const FN_SIG = String.raw`crm_export\.[a-z_]+\([a-z\[\], ]*\)`;
 const TOP_LEVEL_ALLOWED = [
   /^BEGIN$/i,
@@ -302,7 +306,7 @@ const TOP_LEVEL_ALLOWED = [
 ];
 // Exactly how every export function must be declared.
 const FN_OPTIONS = "LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = pg_catalog, pg_temp SET TimeZone = 'UTC'";
-const SHOP_TABLES = /^public\."(Order|OrderItem|Tenant)"$/;
+const SHOP_TABLES = /^public\."(Order|OrderItem|Tenant|MetaAdSpend|MetaAdEntity|Customer)"$/;
 const DANGEROUS_WORDS = /\b(INSERT\s+INTO|UPDATE\s+[\w."]+\s+SET|DELETE\s+FROM|TRUNCATE|MERGE\s+INTO|COPY\s|DROP\s|ALTER\s|GRANT\s|REVOKE\s|COMMENT\s+ON|SECURITY\s+LABEL|REASSIGN|VACUUM|CLUSTER|REINDEX|LOCK\s+TABLE|CALL\s|DBLINK|PG_TERMINATE_BACKEND|PG_CANCEL_BACKEND|SET_CONFIG|LO_IMPORT|LO_EXPORT|PG_READ_FILE|COPY_TO)/i;
 const DYNAMIC_ALLOWED = new Set(['REVOKE ALL ON FUNCTION %s FROM PUBLIC', 'REVOKE ALL ON FUNCTION %s FROM %I']);
 // A literal that STARTS a statement (verb + more text). A bare privilege name
@@ -355,7 +359,7 @@ function staticGuard(sql) {
       const stmtWord = /\b(EXECUTE|CREATE|PERFORM|SET|RESET|COPY|NOTIFY)\b/i.exec(c);
       if (stmtWord) problems.push(`${where}: function body uses ${stmtWord[1]} (read-only static SQL only)`);
       for (const fm of c.matchAll(/\b(FROM|JOIN)\s+(\S+)/gi)) {
-        if (!SHOP_TABLES.test(fm[2])) problems.push(`${where}: reads "${fm[2]}" — only public."Order"/"OrderItem"/"Tenant", fully qualified`);
+        if (!SHOP_TABLES.test(fm[2])) problems.push(`${where}: reads "${fm[2]}" — only public."Order"/"OrderItem"/"Tenant"/"MetaAdSpend"/"MetaAdEntity"/"Customer", fully qualified`);
       }
       for (const lit of literals) {
         if (DYNAMIC_VERB.test(lit)) problems.push(`${where}: SQL-looking literal "${lit.slice(0, 50)}"`);
@@ -507,6 +511,8 @@ async function proveReader(pg, readerUrl) {
     await expectDenied('SELECT public."OrderItem"', 'SELECT 1 FROM public."OrderItem" LIMIT 1');
     await expectDenied('SELECT public."Tenant"', 'SELECT 1 FROM public."Tenant" LIMIT 1');
     await expectDenied('SELECT public."Customer"', 'SELECT 1 FROM public."Customer" LIMIT 1');
+    await expectDenied('SELECT public."MetaAdSpend"', 'SELECT 1 FROM public."MetaAdSpend" LIMIT 1');
+    await expectDenied('SELECT public."MetaAdEntity"', 'SELECT 1 FROM public."MetaAdEntity" LIMIT 1');
     // A write attempt that can never persist: inside a transaction that is
     // always rolled back, even if (wrongly) the CREATE were allowed.
     try {
@@ -561,6 +567,27 @@ async function proveReader(pg, readerUrl) {
     results.push([leaked === 0, `mk_order_items(ids 1…2000): ${probe.length} lines back, ${leaked} not tenant 2's`]);
     results.push([o.n > 0 && sum.n === o.n, `export: ${o.n} orders (summary ${sum.n}; ${o.legacy} OC-… legacy, ${o.native} NTMK… native, ${o.other} other numbers, ${o.nonMkd} not MKD), ${o.first} → ${o.last}, last update ${o.lastUpd} Skopje`]);
     results.push([true, `export: ${lines} order lines`]);
+
+    // The 15.10.2026 functions, as the reader: ad spend / names / customers never return another
+    // tenant, and the customer sweep reaches its end.
+    const ads = (await client.query(`SELECT count(*)::int AS n, count(*) FILTER (WHERE tenant_slug IS DISTINCT FROM '${TENANT_SLUG}')::int AS f,
+        min(day)::text AS d0, max(day)::text AS d1, count(DISTINCT campaign_id)::int AS camps
+      FROM crm_export.mk_ad_spend(current_date - 800, current_date)`)).rows[0];
+    const ents = (await client.query(`SELECT count(*)::int AS n, count(*) FILTER (WHERE tenant_slug IS DISTINCT FROM '${TENANT_SLUG}')::int AS f
+      FROM crm_export.mk_ad_entities()`)).rows[0];
+    let cust = 0, custForeign = 0, withEmail = 0;
+    for (let ts = null, id = 0, guard = 0; guard < 200; guard++) {
+      const { rows } = await client.query(`SELECT shop_customer_id, tenant_slug, email IS NOT NULL AS e,
+          to_char(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS u
+        FROM crm_export.mk_customers($1::timestamptz, $2::int, 2000)`, [ts, id]);
+      for (const r of rows) { cust++; if (r.tenant_slug !== TENANT_SLUG) custForeign++; if (r.e) withEmail++; }
+      if (rows.length < 2000) break;
+      ts = rows[rows.length - 1].u; id = rows[rows.length - 1].shop_customer_id;
+    }
+    results.push([ads.f === 0 && ents.f === 0 && custForeign === 0,
+      `foreign-tenant rows: ad spend ${ads.f}, ad names ${ents.f}, customers ${custForeign}`]);
+    results.push([true, `ad spend: ${ads.n} day x ad rows, ${ads.camps} campaigns, ${ads.d0 ?? '—'} → ${ads.d1 ?? '—'}; ad names ${ents.n}`]);
+    results.push([true, `customers: ${cust} (${withEmail} with an e-mail)`]);
     if (o.other > 0) info(`NOTE: ${o.other} tenant-2 orders have a number that is neither OC-… nor NTMK… — web-sync will not mirror them (warning, see its header)`);
   } finally {
     await client.end().catch(() => {});
@@ -630,7 +657,7 @@ async function modeDryOrApply(apply) {
     ok('runtime guard: nothing outside crm_export and the reader role changed, no row was written');
     await client.query('COMMIT');
     committed = true;
-    ok('committed: schema crm_export (4 read-only functions, no dependency on shop columns), role elyon_crm_reader (password set as SCRAM verifier)');
+    ok('committed: schema crm_export (7 read-only functions, no dependency on shop columns), role elyon_crm_reader (password set as SCRAM verifier)');
   } catch (e) {
     if (!committed) await client.query('ROLLBACK').catch(() => {});
     await client.end().catch(() => {});

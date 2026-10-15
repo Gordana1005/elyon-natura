@@ -30,6 +30,7 @@ const ProductsPage = lazy(() => import("./pages/ProductsPage"));
 const AssignerPage = lazy(() => import("./pages/AssignerPage"));
 const ShiftsPage = lazy(() => import("./pages/ShiftsPage"));
 const HrPage = lazy(() => import("./pages/HrPage"));
+const WebPage = lazy(() => import("./pages/WebPage"));
 const CallScriptsPage = lazy(() => import("./pages/CallScriptsPage"));
 const CallHistoryPage = lazy(() => import("./pages/CallHistoryPage"));
 const WarehousePage = lazy(() => import("./pages/WarehousePage"));
@@ -138,6 +139,7 @@ const App = () => (
                 <Route path="/shifts" element={<ProtectedRoute moduleKey="shifts" moduleKeysAny={["my_shifts"]}><ShiftsPage /></ProtectedRoute>} />
                 <Route path="/my-shifts" element={<Navigate to="/shifts" replace />} />
                 <Route path="/hr" element={<ProtectedRoute moduleKey="hr"><HrPage /></ProtectedRoute>} />
+                <Route path="/web" element={<ProtectedRoute moduleKey="web"><WebPage /></ProtectedRoute>} />
                 <Route path="/call-scripts" element={<ProtectedRoute moduleKey="call_scripts"><CallScriptsPage /></ProtectedRoute>} />
                 <Route path="/call-history" element={<ProtectedRoute moduleKey="call_history"><CallHistoryPage /></ProtectedRoute>} />
                 <Route path="/warehouse" element={<ProtectedRoute moduleKey="warehouse"><WarehousePage /></ProtectedRoute>} />
