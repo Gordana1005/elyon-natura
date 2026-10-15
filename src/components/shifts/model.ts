@@ -95,6 +95,8 @@ const TONES = [
 ] as const;
 export const NEUTRAL_TONE = 'bg-slate-100 border-slate-300 text-slate-900 dark:bg-slate-500/20 dark:border-slate-400/50 dark:text-slate-100';
 export const OFF_TONE = 'border-dashed border-border bg-transparent text-muted-foreground';
+/** An approved HR absence (О / Б / П …) — 20261016120000. */
+export const ABSENCE_TONE = 'border-violet-300 bg-violet-50 text-violet-800 dark:border-violet-400/50 dark:bg-violet-500/20 dark:text-violet-100';
 
 /** Brush key → tone, stable in the brushes' order. */
 export function toneMap(brushes: Brush[]): Map<string, string> {

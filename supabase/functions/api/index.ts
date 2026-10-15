@@ -76,6 +76,9 @@ import * as VT from "./vatRates.ts";
 // The one "Смени" page (plan Фаза 8, migrations 20260943001000–1100): the login gate's decision,
 // cell validation / diffing, the runway summary and the response shapes (pure, shifts.test.ts).
 import * as SH from "./shifts.ts";
+// HR — Човечки ресурси (owner 15.10.2026, migration 20261016120000): the vocabularies, the body
+// parsers, who sees which dossier fields, the shapes behind hr/* (pure, hr.test.ts).
+import * as HR from "./hr.ts";
 // Личен дневник (plan Фаза 6, migration 20260944000400): who reads / writes, the body
 // parsers, search escaping, snippets, reorder, the versioned autosave and the shapes
 // behind personal-notes/* (pure, unit-tested in personalNotes.test.ts).
@@ -15575,6 +15578,283 @@ async function handleRequest(req: Request): Promise<Response> {
     }
 
     // ============================================================
+    // HR — Човечки ресурси (owner 15.10.2026; migration 20261016120000, hr.ts).
+    // Every employee (call centre, shops, warehouse, office) — an employee is not a login. Leave:
+    // the team approves, then a manager; the SQL writers decide the capacity, refuse overlaps, take
+    // the shifts off the absence's days and audit. Here: who sees which employees and fields —
+    //   seeAll = the dossier viewers (super_admin / owner / finance) + the manager step
+    //            (hr_can_decide_final: administrator / owner / super_admin / app_settings.hr);
+    //   team   = a dept_admin's team(s) and anyone who names them as approver — absences, no dossier;
+    //   self   = one's own row, balance and requests.
+    // The dossier keys are ABSENT for everyone but super_admin / owner / finance (and one's own).
+    // ============================================================
+    if (segments[0] === "hr") {
+      if (!canViewModule("hr")) return json({ error: "Forbidden" }, 403);
+      const hrFail = (error: any) => { const m = HR.rpcErrorStatus(error); return json({ error: m.error }, m.status); };
+      const hrBad = (detail: string) => json({ error: `hr.invalid: ${detail}` }, 400);
+      const today = SH.skopjeNow().date;
+      const [full, finalRes, level, empRes] = await Promise.all([
+        canSeeMargins(user.id),
+        adminClient.rpc("hr_can_decide_final", { p_uid: user.id }),
+        accessLevelOf(user.id),
+        adminClient.from("hr_employees").select("*").order("full_name"),
+      ]);
+      if (empRes.error) return json({ error: sanitizeDbError(empRes.error) }, 400);
+      const final = finalRes.data === true;
+      const superAdmin = level === "super_admin";
+      const seeAll = full || final;
+      const teams = level === "dept_admin"
+        ? HR.teamsOfDepartments(await accessRpc("dept_scope", user.id, [] as ALV.DeptKey[], ALV.parseDeptScope))
+        : [];
+      const allEmployees = (empRes.data || []) as any[];
+      const self = allEmployees.find((e) => e.user_id === user.id) ?? null;
+      const teamVisible = (e: any) => HR.inTeamScope(e, { userId: user.id, teams });
+      const visible = (e: any) => seeAll || e.user_id === user.id || teamVisible(e);
+      const isTeamLead = teams.length > 0 || allEmployees.some((e) => e.approver_id === user.id);
+      const employees = allEmployees.filter(visible);
+      const empById = new Map(allEmployees.map((e) => [e.id, e]));
+      const viewOf = (e: any): HR.DossierView => (full ? "full" : e.user_id === user.id ? "self" : "none");
+      const access: HR.HrAccess = { full, final, team: isTeamLead, seeAll, hasSelf: !!self };
+
+      const namesOf = async (ids: (string | null | undefined)[]) => {
+        const uniq = [...new Set(ids.filter(Boolean))] as string[];
+        const m = new Map<string, string>();
+        if (uniq.length) {
+          const { data } = await adminClient.from("profiles").select("user_id, full_name").in("user_id", uniq);
+          for (const p of (data || []) as any[]) m.set(p.user_id, p.full_name);
+        }
+        return m;
+      };
+      const decorate = (rows: any[], names: Map<string, string>): HR.HrRequest[] => rows.map(({ removed_shifts, ...r }) => {
+        const e = empById.get(r.employee_id);
+        return HR.decorateRequest({
+          ...r,
+          employee_name: e?.full_name ?? "", employee_user_id: e?.user_id ?? null,
+          requested_by_name: r.requested_by ? names.get(r.requested_by) ?? null : null,
+          team_by_name: r.team_by ? names.get(r.team_by) ?? null : null,
+          decided_by_name: r.decided_by ? names.get(r.decided_by) ?? null : null,
+          removed_shifts_count: Array.isArray(removed_shifts) ? removed_shifts.length : 0,
+        }, { userId: user.id, final, superAdmin, teamScope: !!e && teamVisible(e), today });
+      });
+      const ddmm = (d: string) => `${d.slice(8, 10)}.${d.slice(5, 7)}`;
+      // The bell: English in the row, meta.i18n for the reader's language (notif.hrLeave*).
+      const notifyHr = async (ids: unknown, kind: string, req: any) => {
+        const list = Array.isArray(ids) ? (ids as string[]) : [];
+        if (!list.length || !req) return;
+        const toApprovers = kind === "requested" || kind === "teamApproved";
+        const vars = { name: req.employee_name, from: ddmm(req.date_from), to: ddmm(req.date_to), days: Number(req.days), typeKey: req.type };
+        const english: Record<string, string> = {
+          requested: "Leave request", teamApproved: "Leave approved by the team", approved: "Your leave is approved",
+          rejected: "Your leave was rejected", cancelled: "Your leave was cancelled", recorded: "An absence was recorded for you",
+        };
+        await notifyUsers(adminClient, list, {
+          type: "hr_leave",
+          title: english[kind] ?? "Leave",
+          message: `${vars.name}: ${vars.from} – ${vars.to} (${vars.days})`,
+          link: toApprovers ? "/hr?tab=requests" : "/hr",
+          meta: { i18n: `notif.hrLeave.${kind}`, ...vars },
+        });
+      };
+
+      // GET /api/hr/me?year — the caller's own: dossier row, balance, requests, the year's holidays.
+      if (req.method === "GET" && path === "hr/me") {
+        const year = HR.parseYear(url.searchParams.get("year"), today);
+        const [bal, reqs, hol] = await Promise.all([
+          self ? adminClient.rpc("hr_balance", { p_emp: self.id, p_year: year }) : Promise.resolve({ data: null, error: null }),
+          self ? adminClient.from("hr_leave_requests").select("*").eq("employee_id", self.id)
+                   .order("date_from", { ascending: false }).limit(100)
+               : Promise.resolve({ data: [], error: null }),
+          adminClient.from("hr_holidays").select("*").gte("date", `${year}-01-01`).lte("date", `${year + 1}-01-31`).order("date"),
+        ]);
+        if ((bal as any).error) return hrFail((bal as any).error);
+        const rows = ((reqs as any).data || []) as any[];
+        const names = await namesOf(rows.flatMap((r) => [r.requested_by, r.team_by, r.decided_by]));
+        const me: HR.HrMe = {
+          access, year, today,
+          employee: self ? HR.stripEmployee(self, viewOf(self)) as HR.HrEmployee : null,
+          balance: HR.shapeBalance((bal as any).data),
+          requests: decorate(rows, names),
+          holidays: ((hol.data || []) as any[]) as HR.HrHoliday[],
+        };
+        return json(me);
+      }
+
+      // GET /api/hr/calendar?from&to — the people in the caller's scope, their absences (open +
+      // approved) and the holidays. Default: this Skopje month.
+      if (req.method === "GET" && path === "hr/calendar") {
+        if (!seeAll && !isTeamLead) return json({ error: "Forbidden" }, 403);
+        const range = SH.parseRange(url.searchParams.get("from"), url.searchParams.get("to"), SH.monthBounds(today), HR.MAX_CALENDAR_DAYS);
+        if (!range.ok) return hrBad(range.error);
+        const { data, error } = await adminClient.rpc("hr_calendar", {
+          p_from: range.from, p_to: range.to, p_emp_ids: seeAll ? null : employees.map((e) => e.id),
+        });
+        if (error) return hrFail(error);
+        return json(data as HR.HrCalendar);
+      }
+
+      // GET /api/hr/requests?status=open|all&year&employee_id — the requests in the caller's scope.
+      if (req.method === "GET" && path === "hr/requests") {
+        const status = url.searchParams.get("status") === "all" ? "all" : "open";
+        const year = HR.parseYear(url.searchParams.get("year"), today);
+        const empFilter = url.searchParams.get("employee_id");
+        if (empFilter && !SH.isUuid(empFilter)) return hrBad("employee_id must be a uuid");
+        const ids = employees.map((e) => e.id).filter((id) => !empFilter || id === empFilter);
+        if (!ids.length) return json({ requests: [] });
+        let q = adminClient.from("hr_leave_requests").select("*").in("employee_id", ids);
+        if (status === "open") q = q.in("status", HR.OPEN_STATUSES as unknown as string[]);
+        else q = q.lte("date_from", `${year}-12-31`).gte("date_to", `${year}-01-01`);
+        const { data, error } = await q.order("date_from", { ascending: status === "open" }).limit(1000);
+        if (error) return json({ error: sanitizeDbError(error) }, 400);
+        const rows = (data || []) as any[];
+        const names = await namesOf(rows.flatMap((r) => [r.requested_by, r.team_by, r.decided_by]));
+        return json({ requests: decorate(rows, names) });
+      }
+
+      // POST /api/hr/requests {employee_id?, type, date_from, date_to?, note?, doc_ref?, record?} —
+      // for oneself (no employee_id), or by a manager for anyone in scope. record=true (HR enters
+      // it as approved: a sick note, shop staff) only at the manager step.
+      if (req.method === "POST" && path === "hr/requests") {
+        if (!checkUserRateLimit(user.id, "hr.request", 20)) return json({ error: "Too many requests" }, 429);
+        let raw: unknown;
+        try { raw = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
+        const parsed = HR.parseLeaveRequestBody(raw);
+        if (!parsed.ok) return hrBad(parsed.error);
+        const b = parsed.body;
+        const empId = b.employee_id ?? self?.id ?? null;
+        if (!empId) return json({ error: "hr.no_employee" }, 404);
+        const emp = empById.get(empId);
+        if (!emp || !visible(emp)) return json({ error: "hr.not_found" }, 404);
+        if (emp.user_id !== user.id && !final) return json({ error: "hr.forbidden: only a manager enters leave for someone else" }, 403);
+        if (b.record && !final) return json({ error: "hr.forbidden: only a manager records an absence" }, 403);
+        const { data, error } = await adminClient.rpc("hr_leave_request", {
+          p_actor: user.id, p_employee: empId, p_type: b.type, p_from: b.date_from, p_to: b.date_to,
+          p_note: b.note, p_doc_ref: b.doc_ref, p_record: b.record,
+        });
+        if (error) return hrFail(error);
+        const out = data as any;
+        await notifyHr(out?.notify, out?.stage === "approved" ? "recorded" : "requested", out?.request);
+        return json(out);
+      }
+
+      // POST /api/hr/requests/:id/decide {decision: approve|reject, note?}
+      if (req.method === "POST" && segments[1] === "requests" && segments.length === 4 && SH.isUuid(segments[2]) && segments[3] === "decide") {
+        if (!checkUserRateLimit(user.id, "hr.decide", 60)) return json({ error: "Too many requests" }, 429);
+        let raw: unknown;
+        try { raw = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
+        const parsed = HR.parseDecideBody(raw);
+        if (!parsed.ok) return hrBad(parsed.error);
+        const { data, error } = await adminClient.rpc("hr_leave_decide", {
+          p_actor: user.id, p_id: segments[2], p_decision: parsed.decision, p_note: parsed.note,
+        });
+        if (error) return hrFail(error);
+        const out = data as any;
+        const kind = out?.stage === "pending_manager" ? "teamApproved" : out?.stage === "approved" ? "approved" : "rejected";
+        await notifyHr(out?.notify, kind, out?.request);
+        return json(out);
+      }
+
+      // POST /api/hr/requests/:id/cancel {note?}
+      if (req.method === "POST" && segments[1] === "requests" && segments.length === 4 && SH.isUuid(segments[2]) && segments[3] === "cancel") {
+        if (!checkUserRateLimit(user.id, "hr.decide", 60)) return json({ error: "Too many requests" }, 429);
+        let raw: unknown = {};
+        try { raw = await req.json(); } catch { raw = {}; }
+        const { note } = HR.parseNoteBody(raw);
+        const { data, error } = await adminClient.rpc("hr_leave_cancel", { p_actor: user.id, p_id: segments[2], p_note: note });
+        if (error) return hrFail(error);
+        const out = data as any;
+        await notifyHr(out?.notify, "cancelled", out?.request);
+        return json(out);
+      }
+
+      // GET /api/hr/employees?status=active|all — the people in scope; the dossier only for full.
+      if (req.method === "GET" && path === "hr/employees") {
+        const all = url.searchParams.get("status") === "all";
+        const rows = employees.filter((e) => all || e.status === "active");
+        let logins: { user_id: string; name: string }[] | undefined;
+        if (full) {
+          const { data } = await adminClient.from("profiles").select("user_id, full_name").eq("is_active", true).order("full_name");
+          logins = ((data || []) as any[]).map((p) => ({ user_id: p.user_id, name: p.full_name }));
+        }
+        return json({ employees: rows.map((e) => HR.stripEmployee(e, viewOf(e))), logins, access });
+      }
+
+      // POST /api/hr/employees · PATCH /api/hr/employees/:id — the dossier (super_admin / owner / finance).
+      if ((req.method === "POST" && path === "hr/employees")
+          || (req.method === "PATCH" && segments[1] === "employees" && segments.length === 3 && SH.isUuid(segments[2]))) {
+        if (!full) return json({ error: "Forbidden" }, 403);
+        if (!checkUserRateLimit(user.id, "hr.employee", 60)) return json({ error: "Too many requests" }, 429);
+        let raw: unknown;
+        try { raw = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
+        const creating = req.method === "POST";
+        const parsed = HR.parseEmployeeBody(raw, creating);
+        if (!parsed.ok) return hrBad(parsed.error);
+        const { data, error } = await adminClient.rpc("hr_employee_save", {
+          p_actor: user.id, p_id: creating ? null : segments[2], p_data: parsed.data,
+        });
+        if (error) return hrFail(error);
+        const { data: row } = await adminClient.from("hr_employees").select("*").eq("id", (data as any).id).single();
+        return json({ ...(data as any), employee: row });
+      }
+
+      // GET /api/hr/balances?year — the annual-leave balance of everyone in scope.
+      if (req.method === "GET" && path === "hr/balances") {
+        if (!seeAll && !isTeamLead) return json({ error: "Forbidden" }, 403);
+        const year = HR.parseYear(url.searchParams.get("year"), today);
+        const { data, error } = await adminClient.rpc("hr_balances", {
+          p_year: year, p_emp_ids: seeAll ? null : employees.map((e) => e.id),
+        });
+        if (error) return hrFail(error);
+        return json({ year, balances: ((data || []) as unknown[]).map(HR.shapeBalance).filter(Boolean) });
+      }
+
+      // PUT /api/hr/entitlements {employee_id, year, base_days (null = default), extra_days, carry_days, note}
+      if (req.method === "PUT" && path === "hr/entitlements") {
+        if (!full) return json({ error: "Forbidden" }, 403);
+        let raw: unknown;
+        try { raw = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
+        const p = HR.parseEntitlementBody(raw);
+        if (!p.ok) return hrBad(p.error);
+        const { data, error } = await adminClient.rpc("hr_entitlement_set", {
+          p_actor: user.id, p_emp: p.employee_id, p_year: p.year, p_base: p.base_days,
+          p_extra: p.extra_days, p_carry: p.carry_days, p_note: p.note,
+        });
+        if (error) return hrFail(error);
+        return json({ balance: HR.shapeBalance(data) });
+      }
+
+      // GET /api/hr/holidays?year · POST /api/hr/holidays · PATCH|DELETE /api/hr/holidays/:id
+      if (req.method === "GET" && path === "hr/holidays") {
+        const year = HR.parseYear(url.searchParams.get("year"), today);
+        const { data, error } = await adminClient.from("hr_holidays").select("*")
+          .gte("date", `${year}-01-01`).lte("date", `${year}-12-31`).order("date");
+        if (error) return json({ error: sanitizeDbError(error) }, 400);
+        return json({ year, holidays: data || [], can_edit: seeAll });
+      }
+      if ((req.method === "POST" && path === "hr/holidays")
+          || (req.method === "PATCH" && segments[1] === "holidays" && segments.length === 3 && SH.isUuid(segments[2]))) {
+        if (!seeAll) return json({ error: "Forbidden" }, 403);
+        let raw: unknown;
+        try { raw = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
+        const p = HR.parseHolidayBody(raw);
+        if (!p.ok) return hrBad(p.error);
+        const { data, error } = await adminClient.rpc("hr_holiday_save", {
+          p_actor: user.id, p_id: req.method === "PATCH" ? segments[2] : null, p_date: p.date, p_name: p.name,
+          p_scope: p.scope, p_moved_from: p.moved_from, p_verified: p.verified, p_note: p.note,
+        });
+        if (error) return hrFail(error);
+        return json({ holiday: data });
+      }
+      if (req.method === "DELETE" && segments[1] === "holidays" && segments.length === 3 && SH.isUuid(segments[2])) {
+        if (!seeAll) return json({ error: "Forbidden" }, 403);
+        const { data, error } = await adminClient.rpc("hr_holiday_delete", { p_actor: user.id, p_id: segments[2] });
+        if (error) return hrFail(error);
+        return json(data);
+      }
+
+      return json({ error: "hr.not_found" }, 404);
+    }
+
+    // ============================================================
     // SHIFTS — the one "Смени" page (plan Фаза 8, owner 30.09.2026).
     // shifts.ts is the pure half (validation, the gate's decision, shapes); the
     // RPCs are in 20260943001100_shifts_rpcs.sql. A shift is the LOGIN GATE:
@@ -15973,6 +16253,21 @@ async function handleRequest(req: Request): Promise<Response> {
           allowed: true, shift_id: decision.shift.id, shift_date: decision.shift.date,
           shift_start_time: decision.start, shift_end_time: decision.end,
           user_name: userName, role: primaryRole, logged,
+        });
+      }
+
+      // An approved HR absence today (20261016120000): the refusal says so — "on leave until …".
+      // Only the wording changes: the person had no shift on that day anyway (approval removes it).
+      const { data: absence } = await adminClient.rpc("hr_absence_on", { p_user: user.id, p_day: today });
+      if (absence && typeof absence === "object") {
+        const a = absence as { type?: string; date_to?: string };
+        await adminClient.from("blocked_login_attempts").insert({
+          user_id: user.id, user_name: userName, role: primaryRole, reason: `On approved leave (${a.type}) until ${a.date_to}`,
+        });
+        return json({
+          allowed: false, code: "on_leave", windows: [], next_shift: null,
+          leave: { type: a.type ?? null, until: a.date_to ?? null },
+          message: `Login not allowed. You are on approved leave until ${a.date_to}.`,
         });
       }
 

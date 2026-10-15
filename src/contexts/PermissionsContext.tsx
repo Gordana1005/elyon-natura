@@ -113,6 +113,7 @@ export const MODULE_ROUTE_MAP: Record<string, string> = {
   agent_activity: '/agent-activity',
   shifts: '/shifts',
   my_shifts: '/my-shifts',
+  hr: '/hr',
   call_scripts: '/call-scripts',
   call_history: '/call-history',
   calls: '/calls',

@@ -77,6 +77,7 @@ const grid: ShiftsGrid = {
   cells: [{ user_id: A, date: monday, shift_id: S1, start: '07:00', end: '21:00', name: 'Октомври', template_id: null }],
   templates: [{ id: T1, name: 'Smena 1', start: '07:30', end: '14:30' }],
   windows: [{ start: '07:00', end: '21:00', name: 'Октомври', count: 1000 }],
+  absences: [],
 };
 
 describe('agent view', () => {
@@ -156,6 +157,17 @@ describe('manager view', () => {
     fireEvent.click(container.querySelector('[data-brush="w:07:00-21:00"]')!);
     fireEvent.click(gridEl.querySelector(`[data-cell-key="${A}|${monday}"]`)!);
     expect(screen.queryByRole('button', { name: /Зачувај/ })).toBeNull();
+  });
+
+  it('an approved HR absence shows its letter and takes no brush', async () => {
+    who.manager = true;
+    api.runway.mockResolvedValue({ level: 'ok', today, warn_days: 5, agents: 2, ends_on: '2026-10-31', blocked_from: null, days_left: null, count: 0, people: [] });
+    const wednesday = addDaysYmd(monday, 2);
+    api.grid.mockResolvedValue({ ...grid, absences: [{ user_id: B, date: wednesday, type: 'annual', letter: 'О', request_id: S1 }] });
+    renderPage();
+    const gridEl = await screen.findByTestId('shift-grid');
+    expect(gridEl.querySelector('[data-absence="annual"]')).toHaveTextContent('О');
+    expect(gridEl.querySelector(`[data-cell-key="${B}|${wednesday}"]`)).toBeNull();
   });
 
   it('rolls the month over: preview first, then apply after the confirm', async () => {

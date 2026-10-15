@@ -14,7 +14,7 @@ import { Chip, LABEL } from '@/components/assigner/parts';
 import { userMatchesQuery } from '@/lib/users/filterUsers';
 import {
   addDaysYmd, apiCopyShifts, apiGetShiftsGrid, apiSetShiftCells, cellKey, diffCells, isoDow, skopjeNow,
-  stagedFromInput, type GridCell, type GridPerson, type ShiftCellInput, type StagedCell,
+  stagedFromInput, type GridAbsence, type GridCell, type GridPerson, type ShiftCellInput, type StagedCell,
 } from '@/lib/shiftsApi';
 import {
   EMPTY_STAGING, TEAM_ORDER, baselineCells, brushToStaged, buildBrushes, stagingReducer, stepAnchor, toneMap, viewDays,
@@ -83,6 +83,12 @@ export function ScheduleTab({ onRoll }: { onRoll: () => void }) {
     for (const c of grid.data?.cells ?? []) m.set(cellKey(c.user_id, c.date), c);
     return m;
   }, [grid.data]);
+  // approved HR absences (О / Б / П …): shown, never painted — the server would skip them anyway
+  const absences = useMemo(() => {
+    const m = new Map<string, GridAbsence>();
+    for (const a of grid.data?.absences ?? []) m.set(cellKey(a.user_id, a.date), a);
+    return m;
+  }, [grid.data]);
   const brushOf = useCallback((key: string | null): Brush | null => {
     if (!key) return null;
     if (key === 'off') return { key: 'off', kind: 'off' };
@@ -91,8 +97,9 @@ export function ScheduleTab({ onRoll }: { onRoll: () => void }) {
   const brush = brushOf(brushKey);
 
   const paint = useCallback((entries: [string, StagedCell][]) => {
-    if (entries.length) dispatch({ type: 'paint', entries, stored });
-  }, [stored]);
+    const free = entries.filter(([k]) => !absences.has(k));
+    if (free.length) dispatch({ type: 'paint', entries: free, stored });
+  }, [stored, absences]);
   const needBrush = useCallback(() => toast({ title: t('shiftsPage.grid.needBrush') }), [toast, t]);
   const onPaintCell = useCallback((key: string) => {
     if (!brush) { needBrush(); return; }
@@ -134,7 +141,11 @@ export function ScheduleTab({ onRoll }: { onRoll: () => void }) {
     onSuccess: (r) => {
       dispatch({ type: 'reset' });
       setLastUndo(r.undo?.length ? r.undo : null);
-      toast({ title: r.changed ? t('shiftsPage.grid.saved', { count: r.changed }) : t('shiftsPage.grid.savedNothing') });
+      const skipped = r.skipped_absence?.length ?? 0;
+      toast({
+        title: r.changed ? t('shiftsPage.grid.saved', { count: r.changed }) : t('shiftsPage.grid.savedNothing'),
+        description: skipped ? t('shiftsPage.grid.skippedAbsence', { count: skipped }) : undefined,
+      });
       invalidate();
     },
     onError: (e) => toast({ title: t('common.error'), description: shiftErrorText(e), variant: 'destructive' }),
@@ -229,10 +240,10 @@ export function ScheduleTab({ onRoll }: { onRoll: () => void }) {
         <>
           <div className="hidden md:block">
             <ShiftGrid view={view} days={days} today={today} groups={groups} stored={stored} staged={staging.staged}
-              tones={tones} brushActive={!!brush} onPaint={onPaintCell} onRowWeekdays={onRowWeekdays} onRowClear={onRowClear} />
+              tones={tones} absences={absences} brushActive={!!brush} onPaint={onPaintCell} onRowWeekdays={onRowWeekdays} onRowClear={onRowClear} />
           </div>
           <ShiftDayList days={days} today={today} day={phoneDay} onDay={setPhoneDay} groups={groups}
-            stored={stored} staged={staging.staged} tones={tones} brushes={brushes}
+            stored={stored} staged={staging.staged} tones={tones} absences={absences} brushes={brushes}
             onSet={(key, bk) => { const b = brushOf(bk); if (b) paint([[key, brushToStaged(b)]]); }} />
         </>
       )}

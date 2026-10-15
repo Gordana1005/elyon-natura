@@ -177,7 +177,8 @@
       "team": "Team",
       "productsAds": "Products & Ads"
     },
-    "altercpa": "Affiliates (AlterCPA)"
+    "altercpa": "Affiliates (AlterCPA)",
+    "hr": "Human resources"
   },
   "loyalty": {
     "intro": "Sure points from delivered Team Centar Out parcels since 2026, NaturaTherapy products only.",
@@ -2308,6 +2309,32 @@
     "notInCollabWarning": {
       "title": "Enter the order in collabBox",
       "body": "Order {{order}} ({{customer}}) is not in collabBox yet. If it is still not entered, it is cancelled tomorrow at {{hour}}."
+    },
+    "hrLeave": {
+      "requested": {
+        "title": "Leave request",
+        "body": "{{name}}: {{from}} – {{to}} ({{days}} days) — awaiting a decision."
+      },
+      "teamApproved": {
+        "title": "Approved by the team",
+        "body": "{{name}}: {{from}} – {{to}} ({{days}} days) — awaiting a manager."
+      },
+      "approved": {
+        "title": "Your leave is approved",
+        "body": "{{from}} – {{to}} ({{days}} days). Your shifts on those days were removed."
+      },
+      "rejected": {
+        "title": "Your leave was rejected",
+        "body": "{{from}} – {{to}} — see the reason in Human resources."
+      },
+      "cancelled": {
+        "title": "Your leave was cancelled",
+        "body": "{{from}} – {{to}} ({{days}} days)."
+      },
+      "recorded": {
+        "title": "An absence was recorded for you",
+        "body": "{{from}} – {{to}} ({{days}} days)."
+      }
     }
   },
   "bigArenaStock": {
@@ -6911,7 +6938,10 @@
       "day": "Day",
       "people_one": "{{count}} agent",
       "people_other": "{{count}} agents",
-      "loadFailed": "The schedule could not be loaded."
+      "loadFailed": "The schedule could not be loaded.",
+      "absenceTitle": "{{name}} · {{date}} · {{type}} — no shift",
+      "skippedAbsence_one": "{{count}} day not saved: the employee is on approved leave.",
+      "skippedAbsence_other": "{{count}} days not saved: the employees are on approved leave."
     },
     "templates": {
       "title": "Shift templates",
@@ -7034,7 +7064,8 @@
       "no_shift_today": "You have no shift today.",
       "zero_shift": "You have no active shift today.",
       "outside_hours": "Your shift today is {{windows}} — it is outside that time now.",
-      "next": "Next shift: {{date}} from {{start}}."
+      "next": "Next shift: {{date}} from {{start}}.",
+      "on_leave": "You are on approved leave ({{type}}) until {{until}} — logging in is off."
     }
   },
   "shifts": {
@@ -10112,6 +10143,306 @@
       "empty": "No bonuses this month.",
       "total": "Final total {{final}} (daily {{days}})",
       "row": "daily {{days}} · returns {{ret}} · −{{cut}}% →"
+    }
+  },
+  "hrPage": {
+    "title": "Human resources",
+    "subtitle": "Your annual leave, requests and holidays.",
+    "subtitleLead": "Who is away when, requests to approve, leave balances and holidays.",
+    "loadFailed": "Could not load.",
+    "tabs": {
+      "my": "Mine",
+      "overview": "Overview",
+      "calendar": "Calendar",
+      "requests": "Requests",
+      "balances": "Balances",
+      "employees": "Employees",
+      "holidays": "Holidays"
+    },
+    "types": {
+      "annual": "Annual leave",
+      "sick": "Sick leave",
+      "personal_paid": "Paid leave",
+      "unpaid": "Unpaid leave",
+      "maternity": "Maternity leave",
+      "business_trip": "Business trip",
+      "comp_day": "Day off (overtime)",
+      "other": "Other absence"
+    },
+    "typeHint": {
+      "annual": "Working days count (no weekends or holidays). The first part is at least 12 days in the year.",
+      "sick": "Every calendar day counts. The company pays the first 30 days, the Health Fund (FZOM) from day 31. Enter the doctor's note number.",
+      "personal_paid": "Wedding, birth, a death in the family… up to 7 days a year.",
+      "unpaid": "No pay — by agreement with the company.",
+      "maternity": "Calendar days count (9 months).",
+      "business_trip": "Working away from the workplace.",
+      "comp_day": "A day off for overtime already worked.",
+      "other": "Any other justified absence — describe it in the note."
+    },
+    "status": {
+      "pending_team": "Waiting for the team",
+      "pending_manager": "Waiting for a manager",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "cancelled": "Cancelled"
+    },
+    "calendars": {
+      "all": "Everyone",
+      "orthodox": "Orthodox",
+      "muslim": "Muslim",
+      "catholic": "Catholic",
+      "jewish": "Jewish",
+      "albanian": "Albanian",
+      "turkish": "Turkish",
+      "roma": "Roma",
+      "vlach": "Vlach",
+      "serbian": "Serbian",
+      "bosniak": "Bosniak"
+    },
+    "months": {
+      "1": "January",
+      "2": "February",
+      "3": "March",
+      "4": "April",
+      "5": "May",
+      "6": "June",
+      "7": "July",
+      "8": "August",
+      "9": "September",
+      "10": "October",
+      "11": "November",
+      "12": "December"
+    },
+    "errors": {
+      "invalid": "Invalid: {{detail}}",
+      "conflict": "Overlaps another absence: {{detail}}",
+      "forbidden": "Not allowed: {{detail}}",
+      "not_found": "Not found.",
+      "no_employee": "You have no HR record — ask your manager.",
+      "failed": "Failed. Please try again."
+    },
+    "request": {
+      "title": "Request time off",
+      "titleFor": "Enter an absence",
+      "descSelf": "The request goes to your team first, then to a manager.",
+      "descManager": "Enter an absence for an employee. Tick \"approved\" and it applies at once.",
+      "person": "Employee",
+      "pickPerson": "Pick an employee",
+      "type": "Type",
+      "from": "From",
+      "to": "To",
+      "badRange": "\"To\" is before \"from\".",
+      "calendarDays": "{{n}} calendar days",
+      "workingDays": "{{n}} working days (no weekends or holidays)",
+      "docRef": "Doctor's note number",
+      "note": "Note",
+      "record": "Record as already approved",
+      "recordHint": "For sick leave with a note, or staff without a login (shops, warehouse).",
+      "send": "Send request",
+      "saveRecord": "Save",
+      "sent": "Request sent.",
+      "recorded": "Absence recorded.",
+      "shiftsRemoved_one": "{{count}} shift on those days was removed.",
+      "shiftsRemoved_other": "{{count}} shifts on those days were removed."
+    },
+    "list": {
+      "days": "{{n}} days",
+      "doc": "note {{ref}}",
+      "asked": "Asked: {{who}}, {{at}}",
+      "team": "Team: approved by {{who}}",
+      "approvedBy": "Approved by {{who}}",
+      "rejectedBy": "Rejected by {{who}}",
+      "cancelNote": "Cancelled: {{note}}"
+    },
+    "actions": {
+      "approve": "Approve",
+      "approveTeam": "Approve (team)",
+      "reject": "Reject",
+      "cancel": "Cancel it",
+      "approvedToast": "Approved.",
+      "teamApprovedToast": "Approved by the team — now with a manager.",
+      "rejectedToast": "Rejected.",
+      "cancelledToast": "Cancelled.",
+      "cancelledRestored_one": "Cancelled — {{count}} shift restored.",
+      "cancelledRestored_other": "Cancelled — {{count}} shifts restored.",
+      "rejectTitle": "Reject the request",
+      "cancelTitle": "Cancel the absence",
+      "noteRequired": "Reason (required, at least 3 characters)",
+      "noteOptional": "Reason (optional)"
+    },
+    "my": {
+      "noEmployee": "You have no HR record yet. Ask your manager.",
+      "balanceTitle": "Annual leave {{year}}",
+      "daysLeft": "days left",
+      "request": "Request time off",
+      "requests": "My requests",
+      "noRequests": "No requests yet.",
+      "sickTitle": "Sick leave this year",
+      "sickSplit": "{{er}} days the company · {{fz}} days the Health Fund",
+      "nextHolidays": "Next holidays",
+      "noHolidays": "No holidays entered."
+    },
+    "balance": {
+      "entitled": "Entitled",
+      "used": "Used",
+      "planned": "Planned",
+      "pending": "Awaiting approval",
+      "remaining": "Left",
+      "sick": "Sick (company / fund)"
+    },
+    "warn": {
+      "carryExpiring": "{{n}} days from last year expire on {{date}} — use them by then.",
+      "carryExpiringShort": "{{n}} d. expire {{date}}",
+      "firstPart": "The first part of the leave (at least 12 working days in one go) has not been taken this year.",
+      "firstPartShort": "no 12-day first part",
+      "personalOver": "Paid leave this year: {{n}} days (the law: up to 7).",
+      "personalOverShort": "paid {{n}} d. > 7",
+      "carryInfo": "{{n}} days carried over from last year (valid until {{date}})."
+    },
+    "groups": {
+      "shop": "Shop {{name}}",
+      "shopUnnamed": "Shops",
+      "team": {
+        "teleshop": "Team Centar",
+        "affiliate": "Team Madžari",
+        "management": "Management",
+        "none": "No team"
+      }
+    },
+    "workplace": {
+      "call_centre": "Call centre",
+      "shop": "Shop",
+      "warehouse": "Warehouse",
+      "office": "Office",
+      "field": "Field"
+    },
+    "calendar": {
+      "prev": "Previous month",
+      "next": "Next month",
+      "thisMonth": "This month",
+      "search": "Search an employee",
+      "groups": "Groups",
+      "person": "Employee",
+      "busy": "· {{n}} away on {{date}}",
+      "empty": "No employees to show.",
+      "nobodyAway": "Nobody is away this month.",
+      "legendPending": "awaiting approval",
+      "legendHoliday": "holiday"
+    },
+    "overview": {
+      "awayToday": "Away today",
+      "next14": "Absences in 14 days",
+      "waiting": "Waiting for you",
+      "awayTodayTitle": "Away today · {{date}}",
+      "allIn": "Everyone is in.",
+      "soonTitle": "The next 2 weeks",
+      "nothingSoon": "No absences planned.",
+      "dueTitle": "Contracts and probation ending (30 days)",
+      "nothingDue": "Nothing ends soon.",
+      "due": {
+        "contract": "contract ends {{date}}",
+        "probation": "probation ends {{date}}"
+      },
+      "openRequests_one": "{{count}} request awaits a decision",
+      "openRequests_other": "{{count}} requests await a decision"
+    },
+    "requests": {
+      "filter": "Filter",
+      "open": "Awaiting a decision",
+      "all": "All in {{year}}",
+      "enter": "Enter an absence",
+      "noneOpen": "No requests waiting.",
+      "none": "No requests."
+    },
+    "balances": {
+      "prevYear": "Previous year",
+      "nextYear": "Next year",
+      "firstYearHint": "2026 is HR's first year: leave taken before the system is not in it — set the right or enter the old absences.",
+      "empty": "No balances.",
+      "edit": "Edit the right — {{name}}",
+      "cardLine": "Entitled {{entitled}} · used {{used}} · planned {{planned}} · waiting {{pending}}",
+      "setRight": "Set the right",
+      "breakdown": "Base {{base}} + extra {{extra}} + carried {{carry}}",
+      "saved": "Right saved.",
+      "dialogTitle": "{{name}} — annual leave {{year}}",
+      "dialogDesc": "Days in halves. \"Carried\" is valid until 30.06. Without a value the default applies (20 + extra).",
+      "field": {
+        "base": "Base",
+        "extra": "Extra",
+        "carry": "Carried"
+      },
+      "reset": "Back to default"
+    },
+    "employees": {
+      "add": "Add employee",
+      "showLeft": "Show former ({{n}})",
+      "hint": "Every employee — also those without a CRM login (shops, warehouse). Only the owners and finance see personal data.",
+      "empty": "No employees.",
+      "noLogin": "no login",
+      "contractUntil": "contract until {{date}}",
+      "probationUntil": "probation until {{date}}",
+      "left": "left {{date}}",
+      "saved": "Record saved.",
+      "dialogDesc": "Every change is logged (who and when, never the personal values).",
+      "sectionWork": "Work",
+      "sectionContract": "Contract and leave",
+      "sectionDays": "Work days and holidays",
+      "sectionPersonal": "Personal data",
+      "daysHint": "Leave days are counted from these. State holidays apply to everyone; religious ones only to the chosen.",
+      "status": {
+        "active": "Active",
+        "left": "Left"
+      }
+    },
+    "field": {
+      "full_name": "Full name",
+      "position": "Position",
+      "workplace": "Workplace",
+      "shop_name": "Shop",
+      "team_key": "Team",
+      "company": "Company",
+      "user_id": "CRM login",
+      "approver_id": "First approver",
+      "status": "Status",
+      "left_at": "Date left",
+      "hire_date": "Hire date",
+      "contract_type": "Contract type",
+      "contract_end": "Contract until",
+      "probation_end": "Probation until",
+      "prior_service_months": "Prior service (months)",
+      "extra_leave_days": "Extra leave days",
+      "extra_leave_reason": "Reason for the extra days",
+      "work_days": "Work days",
+      "holiday_calendars": "Holidays",
+      "phone": "Phone",
+      "email": "E-mail",
+      "birth_date": "Date of birth",
+      "emergency_contact": "Emergency contact",
+      "address": "Address",
+      "notes": "Notes (HR only)"
+    },
+    "contract": {
+      "indefinite": "Indefinite",
+      "fixed": "Fixed term",
+      "part_time": "Part-time",
+      "seasonal": "Seasonal",
+      "student": "Student",
+      "other": "Other"
+    },
+    "holidays": {
+      "add": "Add holiday",
+      "deleted": "Holiday deleted.",
+      "empty": "No holidays for {{year}}.",
+      "movedFrom": "moved from {{date}}",
+      "unverified": "Computed date — check it against the government calendar.",
+      "confirmDelete": "Delete \"{{name}}\"?",
+      "saved": "Holiday saved.",
+      "dialogDesc": "A state holiday on a Sunday moves to the Monday — enter the Monday with \"moved from\".",
+      "name": "Name",
+      "date": "Date",
+      "moved": "Moved from",
+      "scope": "Applies to",
+      "verified": "Date checked"
     }
   }
 }

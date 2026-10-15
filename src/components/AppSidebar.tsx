@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions, useInsightsAccess } from '@/contexts/PermissionsContext';
 // Phosphor (owner, 02.10.2026 — "better icons"): duotone at rest, filled on the page you are on.
 import {
-  AddressBookIcon, ArrowsSplitIcon, CalendarCheckIcon, CaretDownIcon, ChartLineUpIcon, ClockCounterClockwiseIcon,
+  AddressBookIcon, ArrowsSplitIcon, CalendarCheckIcon, IdentificationBadgeIcon, CaretDownIcon, ChartLineUpIcon, ClockCounterClockwiseIcon,
   GearSixIcon, HandshakeIcon, HeadsetIcon, HeartbeatIcon, LightningIcon, ListChecksIcon, MedalIcon, MegaphoneIcon,
   NotePencilIcon, PackageIcon, PhoneOutgoingIcon, PlugsIcon, PulseIcon, ScrollIcon, ShoppingBagOpenIcon,
   SidebarSimpleIcon, SquaresFourIcon, StorefrontIcon, UsersThreeIcon, WarehouseIcon, XIcon,
@@ -106,6 +106,8 @@ const sections: NavSection[] = [
       // Performance → Insights "Agents" tab; Agent Activity → Insights "Call Activity" tab.
       // One "Смени" page (owner 30.09): agents see their own shifts, admins/managers the tools too.
       { titleKey: 'nav.shiftsManagement', path: '/shifts', icon: CalendarCheckIcon, moduleKey: 'shifts', moduleKeysAny: ['my_shifts'] },
+      // Човечки ресурси (owner 15.10.2026): everyone on staff — their own leave; leads / managers more (the api decides).
+      { titleKey: 'nav.hr', path: '/hr', icon: IdentificationBadgeIcon, moduleKey: 'hr' },
       { titleKey: 'nav.callSupportCenter', path: '/call-scripts', icon: ScrollIcon, moduleKey: 'call_scripts' },
       { titleKey: 'nav.callHistory', path: '/call-history', icon: ClockCounterClockwiseIcon, moduleKey: 'call_history' },
     ],

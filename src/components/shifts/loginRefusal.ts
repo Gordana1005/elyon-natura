@@ -8,6 +8,12 @@ import type { ShiftLoginCheck } from '@/lib/shiftsApi';
  */
 export function shiftRefusalText(t: TFunction, check: ShiftLoginCheck): string {
   if (!check.code) return check.message || t('login.outsideShift');
+  if (check.code === 'on_leave') {
+    return t('shiftsPage.login.on_leave', {
+      type: check.leave?.type ? t(`hrPage.types.${check.leave.type}`) : '',
+      until: check.leave?.until ? formatDmy(check.leave.until) : '—',
+    });
+  }
   const base = t(`shiftsPage.login.${check.code}`, { windows: (check.windows ?? []).join(', ') });
   const next = check.next_shift
     ? ` ${t('shiftsPage.login.next', { date: formatDmy(check.next_shift.date).slice(0, 5), start: check.next_shift.start })}`

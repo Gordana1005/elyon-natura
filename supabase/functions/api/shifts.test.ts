@@ -226,6 +226,9 @@ describe("response shapes", () => {
     expect(g.people[0]).not.toHaveProperty("extra");
     expect(g.cells[0].start).toBe("07:00");
     expect(g.windows[0].count).toBe(12);
+    expect(g.absences).toEqual([]);
+    const h = shapeGrid({ absences: [{ user_id: U1, date: "2026-10-19", type: "annual", letter: "О", request_id: S1, x: 1 }] });
+    expect(h.absences).toEqual([{ user_id: U1, date: "2026-10-19", type: "annual", letter: "О", request_id: S1 }]);
   });
 
   it("login activity: unknown status / reason codes are coerced", () => {

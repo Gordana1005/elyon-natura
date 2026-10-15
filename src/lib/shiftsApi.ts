@@ -32,6 +32,8 @@ export interface SetCellsResult {
   cells: SetCellsChange[];
   /** The same POST with these cells reverts the save. */
   undo: ShiftCellInput[];
+  /** Person-days left untouched: an approved HR absence that day (20261016120000). */
+  skipped_absence?: { user_id: string; date: string; type: string; request_id: string }[];
 }
 export const apiSetShiftCells = (cells: ShiftCellInput[]): Promise<SetCellsResult> =>
   apiFetch('shifts/cells', { method: 'POST', body: JSON.stringify({ cells }) });
@@ -104,8 +106,10 @@ export interface ShiftLoginCheck {
   shift_date?: string;
   shift_start_time?: string;
   shift_end_time?: string;
-  code?: 'no_assignment' | 'no_shift_today' | 'zero_shift' | 'outside_hours';
+  code?: 'no_assignment' | 'no_shift_today' | 'zero_shift' | 'outside_hours' | 'on_leave';
   windows?: string[];
+  /** code on_leave: the approved HR absence (20261016120000). */
+  leave?: { type: string | null; until: string | null } | null;
   next_shift?: { date: string; start: string; end: string } | null;
   message?: string;
 }

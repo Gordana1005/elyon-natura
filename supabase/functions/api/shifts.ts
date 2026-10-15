@@ -418,9 +418,12 @@ export interface GridPerson {
 }
 export interface GridTemplate { id: string; name: string; start: string; end: string }
 export interface GridWindow { start: string; end: string; name: string | null; count: number }
+/** An approved HR absence on a person-day (20261016120000): the grid shows its letter, no shift goes on it. */
+export interface GridAbsence { user_id: string; date: string; type: string; letter: string; request_id: string }
 export interface ShiftsGrid {
   from: string; to: string; today: string;
   people: GridPerson[]; cells: GridCell[]; templates: GridTemplate[]; windows: GridWindow[];
+  absences: GridAbsence[];
 }
 
 export function shapeGrid(rpc: unknown): ShiftsGrid {
@@ -443,6 +446,10 @@ export function shapeGrid(rpc: unknown): ShiftsGrid {
     })),
     windows: arr(r.windows).map((w) => ({
       start: hm(String(w.start ?? "")), end: hm(String(w.end ?? "")), name: str(w.name), count: num(w.count),
+    })),
+    absences: arr(r.absences).map((a) => ({
+      user_id: String(a.user_id), date: String(a.date), type: String(a.type ?? ""), letter: String(a.letter ?? ""),
+      request_id: String(a.request_id ?? ""),
     })),
   };
 }

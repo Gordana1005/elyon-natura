@@ -5,8 +5,8 @@ import {
   Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle,
 } from '@/components/ui/sheet';
 import { formatDmy } from '@/components/insights/shared/period';
-import { cellKey, isoDow, type GridCell, type GridPerson, type StagedCell } from '@/lib/shiftsApi';
-import { NEUTRAL_TONE, OFF_TONE, shownCell, shownKey, type Brush } from './model';
+import { cellKey, isoDow, type GridAbsence, type GridCell, type GridPerson, type StagedCell } from '@/lib/shiftsApi';
+import { ABSENCE_TONE, NEUTRAL_TONE, OFF_TONE, shownCell, shownKey, type Brush } from './model';
 import type { PersonGroup } from './ShiftGrid';
 import { BrushChips } from './BrushChips';
 
@@ -16,7 +16,7 @@ import { BrushChips } from './BrushChips';
  * stages that person-day (saved with the same [Зачувај (N)] as the grid).
  */
 export function ShiftDayList({
-  days, today, day, onDay, groups, stored, staged, tones, brushes, onSet,
+  days, today, day, onDay, groups, stored, staged, tones, absences, brushes, onSet,
 }: {
   days: string[];
   today: string;
@@ -26,6 +26,8 @@ export function ShiftDayList({
   stored: ReadonlyMap<string, GridCell>;
   staged: ReadonlyMap<string, StagedCell>;
   tones: ReadonlyMap<string, string>;
+  /** Approved HR absences by cellKey — shown, never picked. */
+  absences: ReadonlyMap<string, GridAbsence>;
   brushes: Brush[];
   onSet: (key: string, brushKey: string) => void;
 }) {
@@ -61,6 +63,20 @@ export function ShiftDayList({
           <ul className="space-y-1.5">
             {g.people.map((p) => {
               const key = cellKey(p.user_id, day);
+              const abs = absences.get(key);
+              if (abs) {
+                return (
+                  <li key={p.user_id}>
+                    <div data-person={p.user_id} data-absence={abs.type}
+                      className="flex min-h-11 w-full items-center justify-between gap-3 rounded-lg border bg-card px-3 py-2 shadow-sm">
+                      <span className="min-w-0 truncate text-sm font-medium">{p.name}</span>
+                      <span className={cn('shrink-0 rounded-md border px-2 py-1 text-xs font-medium', ABSENCE_TONE)}>
+                        {abs.letter} · {t(`hrPage.types.${abs.type}`)}
+                      </span>
+                    </div>
+                  </li>
+                );
+              }
               const shown = shownCell(stored.get(key), staged.get(key));
               const isStaged = staged.has(key);
               const tone = shown.kind === 'off' ? OFF_TONE : tones.get(shownKey(shown)) ?? NEUTRAL_TONE;

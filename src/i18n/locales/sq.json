@@ -177,7 +177,8 @@
       "team": "Ekipi",
       "productsAds": "Produkte & Reklama"
     },
-    "altercpa": "Afiliatët (AlterCPA)"
+    "altercpa": "Afiliatët (AlterCPA)",
+    "hr": "Burimet njerëzore"
   },
   "loyalty": {
     "intro": "Pikë të sigurta nga dërgesat e dorëzuara të Ekipit Qendra Out, nga 2026, vetëm produkte NaturaTherapy.",
@@ -2308,6 +2309,32 @@
     "notInCollabWarning": {
       "title": "Regjistroni porosinë në collabBox",
       "body": "Porosia {{order}} ({{customer}}) ende nuk është në collabBox. Nëse nuk regjistrohet, nesër në {{hour}} anulohet."
+    },
+    "hrLeave": {
+      "requested": {
+        "title": "Kërkesë për mungesë",
+        "body": "{{name}}: {{from}} – {{to}} ({{days}} ditë) — pret vendim."
+      },
+      "teamApproved": {
+        "title": "Miratuar nga ekipi",
+        "body": "{{name}}: {{from}} – {{to}} ({{days}} ditë) — pret vendimin e menaxherit."
+      },
+      "approved": {
+        "title": "Mungesa u miratua",
+        "body": "{{from}} – {{to}} ({{days}} ditë). Turnet në ato ditë u hoqën."
+      },
+      "rejected": {
+        "title": "Mungesa u refuzua",
+        "body": "{{from}} – {{to}} — shihni arsyen te Burimet njerëzore."
+      },
+      "cancelled": {
+        "title": "Mungesa u anulua",
+        "body": "{{from}} – {{to}} ({{days}} ditë)."
+      },
+      "recorded": {
+        "title": "U regjistrua mungesë për ju",
+        "body": "{{from}} – {{to}} ({{days}} ditë)."
+      }
     }
   },
   "bigArenaStock": {
@@ -6911,7 +6938,10 @@
       "day": "Dita",
       "people_one": "{{count}} agjent",
       "people_other": "{{count}} agjentë",
-      "loadFailed": "Orari nuk u ngarkua."
+      "loadFailed": "Orari nuk u ngarkua.",
+      "absenceTitle": "{{name}} · {{date}} · {{type}} — pa turn",
+      "skippedAbsence_one": "{{count}} ditë nuk u ruajt: punonjësi është në mungesë të miratuar.",
+      "skippedAbsence_other": "{{count}} ditë nuk u ruajtën: punonjësit janë në mungesë të miratuar."
     },
     "templates": {
       "title": "Shabllonet e turneve",
@@ -7034,7 +7064,8 @@
       "no_shift_today": "Sot nuk keni turn.",
       "zero_shift": "Sot nuk keni turn aktiv.",
       "outside_hours": "Turni juaj sot është {{windows}} — tani jeni jashtë tij.",
-      "next": "Turni i ardhshëm: {{date}} nga {{start}}."
+      "next": "Turni i ardhshëm: {{date}} nga {{start}}.",
+      "on_leave": "Jeni në mungesë të miratuar ({{type}}) deri më {{until}} — hyrja është e mbyllur."
     }
   },
   "shifts": {
@@ -10112,6 +10143,306 @@
       "empty": "Nuk ka bonuse këtë muaj.",
       "total": "Gjithsej përfundimtare {{final}} (ditore {{days}})",
       "row": "ditore {{days}} · kthime {{ret}} · −{{cut}}% →"
+    }
+  },
+  "hrPage": {
+    "title": "Burimet njerëzore",
+    "subtitle": "Pushimi yt vjetor, kërkesat dhe festat.",
+    "subtitleLead": "Kush mungon kur, kërkesat për miratim, bilancet e pushimit dhe festat.",
+    "loadFailed": "Nuk u ngarkua.",
+    "tabs": {
+      "my": "Imja",
+      "overview": "Përmbledhje",
+      "calendar": "Kalendari",
+      "requests": "Kërkesat",
+      "balances": "Bilancet",
+      "employees": "Punonjësit",
+      "holidays": "Festat"
+    },
+    "types": {
+      "annual": "Pushim vjetor",
+      "sick": "Pushim mjekësor",
+      "personal_paid": "Leje me pagesë",
+      "unpaid": "Leje pa pagesë",
+      "maternity": "Leje lindjeje",
+      "business_trip": "Udhëtim zyrtar",
+      "comp_day": "Ditë e lirë (orë shtesë)",
+      "other": "Mungesë tjetër"
+    },
+    "typeHint": {
+      "annual": "Numërohen ditët e punës (pa fundjavë dhe festa). Pjesa e parë të paktën 12 ditë në vit.",
+      "sick": "Numërohen të gjitha ditët kalendarike. 30 ditët e para i paguan firma, nga dita e 31-të FSSHM. Shënoni numrin e raportit.",
+      "personal_paid": "Martesë, lindje, vdekje në familje… deri në 7 ditë në vit.",
+      "unpaid": "Pa pagë — me marrëveshje me firmën.",
+      "maternity": "Numërohen ditët kalendarike (9 muaj).",
+      "business_trip": "Punë jashtë vendit të punës.",
+      "comp_day": "Ditë e lirë për orë shtesë të punuara.",
+      "other": "Çdo mungesë tjetër e arsyetuar — përshkruajeni në shënim."
+    },
+    "status": {
+      "pending_team": "Pret ekipin",
+      "pending_manager": "Pret menaxherin",
+      "approved": "Miratuar",
+      "rejected": "Refuzuar",
+      "cancelled": "Anuluar"
+    },
+    "calendars": {
+      "all": "Të gjithë",
+      "orthodox": "Ortodoksë",
+      "muslim": "Myslimanë",
+      "catholic": "Katolikë",
+      "jewish": "Hebrenj",
+      "albanian": "Shqiptarë",
+      "turkish": "Turq",
+      "roma": "Romë",
+      "vlach": "Vllehë",
+      "serbian": "Serbë",
+      "bosniak": "Boshnjakë"
+    },
+    "months": {
+      "1": "Janar",
+      "2": "Shkurt",
+      "3": "Mars",
+      "4": "Prill",
+      "5": "Maj",
+      "6": "Qershor",
+      "7": "Korrik",
+      "8": "Gusht",
+      "9": "Shtator",
+      "10": "Tetor",
+      "11": "Nëntor",
+      "12": "Dhjetor"
+    },
+    "errors": {
+      "invalid": "E pavlefshme: {{detail}}",
+      "conflict": "Mbivendoset me një mungesë tjetër: {{detail}}",
+      "forbidden": "Nuk keni leje: {{detail}}",
+      "not_found": "Nuk u gjet.",
+      "no_employee": "Nuk keni dosje në HR — kontaktoni menaxherin.",
+      "failed": "Dështoi. Provoni përsëri."
+    },
+    "request": {
+      "title": "Kërko mungesë",
+      "titleFor": "Regjistro mungesë",
+      "descSelf": "Kërkesa shkon së pari te ekipi, pastaj te menaxheri.",
+      "descManager": "Regjistroni mungesë për një punonjës. Nëse shënoni \"miratuar\", vlen menjëherë.",
+      "person": "Punonjësi",
+      "pickPerson": "Zgjidh punonjësin",
+      "type": "Lloji",
+      "from": "Nga",
+      "to": "Deri",
+      "badRange": "Data \"deri\" është para \"nga\".",
+      "calendarDays": "{{n}} ditë kalendarike",
+      "workingDays": "{{n}} ditë pune (pa fundjava dhe festa)",
+      "docRef": "Numri i raportit mjekësor",
+      "note": "Shënim",
+      "record": "Regjistro si të miratuar",
+      "recordHint": "Për pushim mjekësor me raport ose punonjës pa llogari (dyqane, magazinë).",
+      "send": "Dërgo kërkesën",
+      "saveRecord": "Ruaj",
+      "sent": "Kërkesa u dërgua.",
+      "recorded": "Mungesa u regjistrua.",
+      "shiftsRemoved_one": "U hoq {{count}} turn në ato ditë.",
+      "shiftsRemoved_other": "U hoqën {{count}} turne në ato ditë."
+    },
+    "list": {
+      "days": "{{n}} ditë",
+      "doc": "raporti {{ref}}",
+      "asked": "Kërkuar: {{who}}, {{at}}",
+      "team": "Ekipi: miratuar nga {{who}}",
+      "approvedBy": "Miratuar nga {{who}}",
+      "rejectedBy": "Refuzuar nga {{who}}",
+      "cancelNote": "Anuluar: {{note}}"
+    },
+    "actions": {
+      "approve": "Mirato",
+      "approveTeam": "Mirato (ekipi)",
+      "reject": "Refuzo",
+      "cancel": "Anuloje",
+      "approvedToast": "U miratua.",
+      "teamApprovedToast": "Miratuar nga ekipi — shkon te menaxheri.",
+      "rejectedToast": "U refuzua.",
+      "cancelledToast": "U anulua.",
+      "cancelledRestored_one": "U anulua — u rikthye {{count}} turn.",
+      "cancelledRestored_other": "U anulua — u rikthyen {{count}} turne.",
+      "rejectTitle": "Refuzo kërkesën",
+      "cancelTitle": "Anulo mungesën",
+      "noteRequired": "Arsyeja (e detyrueshme, të paktën 3 shkronja)",
+      "noteOptional": "Arsyeja (opsionale)"
+    },
+    "my": {
+      "noEmployee": "Ende nuk keni dosje në HR. Kontaktoni menaxherin.",
+      "balanceTitle": "Pushimi vjetor {{year}}",
+      "daysLeft": "ditë të mbetura",
+      "request": "Kërko mungesë",
+      "requests": "Kërkesat e mia",
+      "noRequests": "Nuk keni kërkesa.",
+      "sickTitle": "Pushim mjekësor këtë vit",
+      "sickSplit": "{{er}} ditë firma · {{fz}} ditë FSSHM",
+      "nextHolidays": "Festat e ardhshme",
+      "noHolidays": "Nuk ka festa të regjistruara."
+    },
+    "balance": {
+      "entitled": "E drejta",
+      "used": "Përdorur",
+      "planned": "Planifikuar",
+      "pending": "Pret miratim",
+      "remaining": "Mbetur",
+      "sick": "Pushim mjekësor (firma / FSSHM)"
+    },
+    "warn": {
+      "carryExpiring": "{{n}} ditë nga viti i kaluar skadojnë më {{date}} — përdorini deri atëherë.",
+      "carryExpiringShort": "{{n}} ditë skadojnë {{date}}",
+      "firstPart": "Pjesa e parë e pushimit (të paktën 12 ditë pune rresht) ende nuk është marrë këtë vit.",
+      "firstPartShort": "pa pjesën e parë prej 12 ditësh",
+      "personalOver": "Leje me pagesë këtë vit: {{n}} ditë (ligji: deri në 7).",
+      "personalOverShort": "me pagesë {{n}} ditë > 7",
+      "carryInfo": "U bartën {{n}} ditë nga viti i kaluar (vlejnë deri më {{date}})."
+    },
+    "groups": {
+      "shop": "Dyqani {{name}}",
+      "shopUnnamed": "Dyqanet",
+      "team": {
+        "teleshop": "Ekipi Centar",
+        "affiliate": "Ekipi Maxhari",
+        "management": "Menaxhmenti",
+        "none": "Pa ekip"
+      }
+    },
+    "workplace": {
+      "call_centre": "Qendra e thirrjeve",
+      "shop": "Dyqan",
+      "warehouse": "Magazina",
+      "office": "Zyra",
+      "field": "Terren"
+    },
+    "calendar": {
+      "prev": "Muaji i kaluar",
+      "next": "Muaji tjetër",
+      "thisMonth": "Ky muaj",
+      "search": "Kërko punonjës",
+      "groups": "Grupet",
+      "person": "Punonjësi",
+      "busy": "· {{n}} mungojnë më {{date}}",
+      "empty": "Nuk ka punonjës për të shfaqur.",
+      "nobodyAway": "Askush nuk mungon këtë muaj.",
+      "legendPending": "pret miratim",
+      "legendHoliday": "festë"
+    },
+    "overview": {
+      "awayToday": "Mungojnë sot",
+      "next14": "Mungesa në 14 ditë",
+      "waiting": "Presin vendimin tënd",
+      "awayTodayTitle": "Mungojnë sot · {{date}}",
+      "allIn": "Të gjithë janë në punë.",
+      "soonTitle": "2 javët e ardhshme",
+      "nothingSoon": "Nuk ka mungesa të planifikuara.",
+      "dueTitle": "Kontrata dhe prova që skadojnë (30 ditë)",
+      "nothingDue": "Asgjë nuk skadon së shpejti.",
+      "due": {
+        "contract": "kontrata skadon {{date}}",
+        "probation": "prova përfundon {{date}}"
+      },
+      "openRequests_one": "{{count}} kërkesë pret vendim",
+      "openRequests_other": "{{count}} kërkesa presin vendim"
+    },
+    "requests": {
+      "filter": "Filtri",
+      "open": "Presin vendim",
+      "all": "Të gjitha në {{year}}",
+      "enter": "Regjistro mungesë",
+      "noneOpen": "Nuk ka kërkesa në pritje.",
+      "none": "Nuk ka kërkesa."
+    },
+    "balances": {
+      "prevYear": "Viti i kaluar",
+      "nextYear": "Viti tjetër",
+      "firstYearHint": "2026 është viti i parë i HR: pushimi i marrë para sistemit nuk është regjistruar — vendosni të drejtën ose mungesat e vjetra.",
+      "empty": "Nuk ka bilance.",
+      "edit": "Ndrysho të drejtën — {{name}}",
+      "cardLine": "E drejta {{entitled}} · përdorur {{used}} · planifikuar {{planned}} · pret {{pending}}",
+      "setRight": "Vendos të drejtën",
+      "breakdown": "Bazë {{base}} + shtesë {{extra}} + bartur {{carry}}",
+      "saved": "E drejta u ruajt.",
+      "dialogTitle": "{{name}} — pushimi vjetor {{year}}",
+      "dialogDesc": "Ditët në gjysma. \"Bartur\" vlen deri më 30.06. Pa vendosje vlen llogaritja (20 + shtesë).",
+      "field": {
+        "base": "Bazë",
+        "extra": "Shtesë",
+        "carry": "Bartur"
+      },
+      "reset": "Kthe në llogaritje"
+    },
+    "employees": {
+      "add": "Shto punonjës",
+      "showLeft": "Shfaq të larguarit ({{n}})",
+      "hint": "Të gjithë punonjësit — edhe ata pa llogari në CRM (dyqane, magazinë). Të dhënat personale i shohin vetëm pronarët dhe financat.",
+      "empty": "Nuk ka punonjës.",
+      "noLogin": "pa llogari",
+      "contractUntil": "kontratë deri më {{date}}",
+      "probationUntil": "provë deri më {{date}}",
+      "left": "u largua {{date}}",
+      "saved": "Dosja u ruajt.",
+      "dialogDesc": "Çdo ndryshim regjistrohet (kush dhe kur, pa vlerat personale).",
+      "sectionWork": "Puna",
+      "sectionContract": "Kontrata dhe pushimi",
+      "sectionDays": "Ditët e punës dhe festat",
+      "sectionPersonal": "Të dhëna personale",
+      "daysHint": "Prej tyre numërohen ditët e pushimit. Festat shtetërore vlejnë për të gjithë; ato fetare vetëm për të zgjedhurit.",
+      "status": {
+        "active": "Aktiv",
+        "left": "I larguar"
+      }
+    },
+    "field": {
+      "full_name": "Emri dhe mbiemri",
+      "position": "Pozita",
+      "workplace": "Vendi i punës",
+      "shop_name": "Dyqani",
+      "team_key": "Ekipi",
+      "company": "Firma",
+      "user_id": "Llogaria në CRM",
+      "approver_id": "Miratuesi i parë",
+      "status": "Statusi",
+      "left_at": "Data e largimit",
+      "hire_date": "Data e punësimit",
+      "contract_type": "Lloji i kontratës",
+      "contract_end": "Kontrata deri",
+      "probation_end": "Prova deri",
+      "prior_service_months": "Përvoja para nesh (muaj)",
+      "extra_leave_days": "Ditë shtesë pushimi",
+      "extra_leave_reason": "Arsyeja e ditëve shtesë",
+      "work_days": "Ditët e punës",
+      "holiday_calendars": "Festat",
+      "phone": "Telefoni",
+      "email": "E-mail",
+      "birth_date": "Data e lindjes",
+      "emergency_contact": "Kontakt urgjent",
+      "address": "Adresa",
+      "notes": "Shënime (vetëm HR)"
+    },
+    "contract": {
+      "indefinite": "Kohë e pacaktuar",
+      "fixed": "Kohë e caktuar",
+      "part_time": "Kohë e pjesshme",
+      "seasonal": "Punë sezonale",
+      "student": "Kontratë studentore",
+      "other": "Tjetër"
+    },
+    "holidays": {
+      "add": "Shto festë",
+      "deleted": "Festa u fshi.",
+      "empty": "Nuk ka festa për {{year}}.",
+      "movedFrom": "zhvendosur nga {{date}}",
+      "unverified": "Data është llogaritur — kontrolloni me kalendarin e qeverisë.",
+      "confirmDelete": "Të fshihet \"{{name}}\"?",
+      "saved": "Festa u ruajt.",
+      "dialogDesc": "Festa shtetërore e dielë zhvendoset të hënën — vendosni të hënën me \"zhvendosur nga\".",
+      "name": "Emri",
+      "date": "Data",
+      "moved": "Zhvendosur nga",
+      "scope": "Për kë vlen",
+      "verified": "Data është kontrolluar"
     }
   }
 }

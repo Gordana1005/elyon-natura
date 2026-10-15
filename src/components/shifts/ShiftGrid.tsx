@@ -7,8 +7,8 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { formatDmy } from '@/components/insights/shared/period';
-import { cellKey, isoDow, type GridCell, type GridPerson, type StagedCell } from '@/lib/shiftsApi';
-import { NEUTRAL_TONE, OFF_TONE, shortWindow, shownCell, shownKey, type GridView } from './model';
+import { cellKey, isoDow, type GridAbsence, type GridCell, type GridPerson, type StagedCell } from '@/lib/shiftsApi';
+import { ABSENCE_TONE, NEUTRAL_TONE, OFF_TONE, shortWindow, shownCell, shownKey, type GridView } from './model';
 
 export interface PersonGroup { key: string; label: string; people: GridPerson[] }
 
@@ -17,9 +17,10 @@ export interface PersonGroup { key: string; label: string; people: GridPerson[] 
  * Pointer down on a cell paints it with the brush; keep the button down and move to paint
  * more (mouse or touch — the cell under the pointer is looked up, so a drag across a row or
  * down a column works). The grid scrolls sideways inside its own card, never the page.
+ * A day of an approved HR absence (О / Б / П …, 20261016120000) shows its letter and takes no brush.
  */
 export function ShiftGrid({
-  view, days, today, groups, stored, staged, tones, brushActive, onPaint, onRowWeekdays, onRowClear,
+  view, days, today, groups, stored, staged, tones, absences, brushActive, onPaint, onRowWeekdays, onRowClear,
 }: {
   view: GridView;
   days: string[];
@@ -28,6 +29,8 @@ export function ShiftGrid({
   stored: ReadonlyMap<string, GridCell>;
   staged: ReadonlyMap<string, StagedCell>;
   tones: ReadonlyMap<string, string>;
+  /** Approved HR absences by cellKey. */
+  absences: ReadonlyMap<string, GridAbsence>;
   /** A brush is selected: a touch drag paints instead of scrolling. */
   brushActive: boolean;
   onPaint: (key: string) => void;
@@ -102,7 +105,7 @@ export function ShiftGrid({
         <tbody>
           {groups.map((g) => (
             <GroupRows key={g.key} group={g} days={days} today={today} month={month}
-              stored={stored} staged={staged} tones={tones} valueText={valueText}
+              stored={stored} staged={staged} tones={tones} absences={absences} valueText={valueText}
               onCellPointerDown={onCellPointerDown} onKeyPaint={onPaint}
               onRowWeekdays={onRowWeekdays} onRowClear={onRowClear} />
           ))}
@@ -113,10 +116,11 @@ export function ShiftGrid({
 }
 
 function GroupRows({
-  group, days, today, month, stored, staged, tones, valueText, onCellPointerDown, onKeyPaint, onRowWeekdays, onRowClear,
+  group, days, today, month, stored, staged, tones, absences, valueText, onCellPointerDown, onKeyPaint, onRowWeekdays, onRowClear,
 }: {
   group: PersonGroup; days: string[]; today: string; month: boolean;
   stored: ReadonlyMap<string, GridCell>; staged: ReadonlyMap<string, StagedCell>; tones: ReadonlyMap<string, string>;
+  absences: ReadonlyMap<string, GridAbsence>;
   valueText: (key: string) => string;
   onCellPointerDown: (e: ReactPointerEvent<HTMLButtonElement>, key: string) => void;
   onKeyPaint: (key: string) => void;
@@ -161,6 +165,19 @@ function GroupRows({
           </th>
           {days.map((d) => {
             const key = cellKey(p.user_id, d);
+            const abs = absences.get(key);
+            if (abs) {
+              const absLabel = t('shiftsPage.grid.absenceTitle', { name: p.name, date: formatDmy(d), type: t(`hrPage.types.${abs.type}`) });
+              return (
+                <td key={d} className={cn('border-b', month ? 'px-px py-0.5' : 'p-0.5', d === today && 'bg-primary/5')}>
+                  <div role="img" aria-label={absLabel} title={absLabel} data-absence={abs.type}
+                    className={cn('flex w-full select-none items-center justify-center rounded-md border font-semibold leading-none',
+                      month ? 'h-8 text-[10px]' : 'h-9 text-[11px]', ABSENCE_TONE)}>
+                    {abs.letter}
+                  </div>
+                </td>
+              );
+            }
             const shown = shownCell(stored.get(key), staged.get(key));
             const isStaged = staged.has(key);
             const tone = shown.kind === 'off' ? OFF_TONE : tones.get(shownKey(shown)) ?? NEUTRAL_TONE;

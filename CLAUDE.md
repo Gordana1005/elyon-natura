@@ -509,6 +509,23 @@ target **explicitly** and verify it before running:
   `shifts_roll_forward` (Смени → "Пренеси го месецот": preview → owner sees the list → apply). One "Смени" page
   (`/shifts`; `/my-shifts` redirects), one shift per person per day (`20260943001000`), login history survives a
   deleted shift. Check: `node scripts/verify-shifts.mjs`. See `elyon-presence-and-leaderboard` §1b.
+- **HR — Човечки ресурси, Фаза 1 LIVE (owner 15.10.2026; `20261016120000`, `/hr`, api `hr.ts`).** EVERY employee
+  (call centre, the 22 shops, warehouse, office) has a dossier `hr_employees` — an employee is NOT a login (`user_id`
+  optional; shop staff are added in /hr). Leave: `pending_team` (the employee's `approver_id`, else the dept_admins of
+  their team) → `pending_manager` (`hr_can_decide_final`: administrator / owner / super_admin, or
+  `app_settings.hr.final_approvers`) → approved; a super admin decides at any stage, nobody their own; a rejection
+  needs a note. The dossier (personal data, contract) only super_admin / owner / finance — the api strips the keys.
+  **Approving takes the person's shifts off those days** (kept in `removed_shifts`, a cancel before the day puts them
+  back); no shift can go on an approved-absence day (`shifts_set_cells` skips + reports, trigger
+  `trg_shift_assignments_zz_hr_absence` skips any other insert); the grid shows О / Б / П …; `check-login` answers
+  `on_leave`; `shifts_runway` counts an absence as covered. Law defaults (the accountant confirms; all editable): 20
+  days (+ `extra_leave_days`), 2/month in the first 6 months, carry usable until 30.06 (automatic only from 2028 or when
+  HR set last year's right — 2026 holds no pre-HR leave), first part ≥ 12 days (warning), sick days 1–30 of a spell =
+  employer, 31+ = ФЗОМ (computed), paid personal leave > 7 = warning, the work week per person (default Mon–Fri — the
+  shift roster is a login window, not the work days), holidays per calendar (`hr_holidays`; a Sunday state day stored
+  on its Monday; `verified = false` = a computed date HR must confirm). Writers only `hr_leave_request / _decide /
+  _cancel`, `hr_employee_save`, `hr_entitlement_set`, `hr_holiday_save / _delete` (audited `hr.*`). Check:
+  `node scripts/verify-hr.mjs` (H1–H6). Next after HR: Viber / SMS messages (owner). See `elyon-hr`.
 - **Teams are BUSINESS LINES (owner, 30.09, whole history; `20260943000900`/`0950`):** **Телешоп** (ships via NATURA;
   lanes in / out / social), **Affiliate** (ships via BIO NATURAL; lanes in / out), **Менаџмент** (shown, never
   ranked). Labels: Телешоп лидови · Телешоп предикција · Социјални мрежи · Affiliate лидови · Affiliate предикција.
@@ -649,6 +666,7 @@ before non-trivial work on money, phones, warehouse, stock, shops, Sigma, webhoo
 - `elyon-customer360-and-integrations` — Customer 360 (`customer_timeline`, last-8 matching, money stripped for non-owners) and Settings → Integrations health (freshness thresholds kept in step with the Overview, the 7-day rule's owner switch).
 - `elyon-departments-and-sources` — The six departments (collabBox folder + MEX profile), `cohort_order_source`, the parcel split, `sale_source_reclass` and its rollbacks; since 02.10 the SELLER'S LINE TEAM decides first (a lead is always Affiliate – Lead in, Менаџмент never decides — `order_dept_by_team`), the product line only picks the account of a CRM push. Law for anything that says where a sale belongs.
 - `elyon-collabbox-sync` — The live collabBox reader of the teleshop documents: folders/types and roles, the document ledger, orders only once the MEX parcel exists, seller credit, the 15-minute + nightly crons, one run at a time. (The shops' tills are a separate reader — `elyon-shops`.)
+- `elyon-hr` — HR / Човечки ресурси (15.10.2026): the dossier for every employee (logins optional), the leave stages and who decides, the dossier wall (super_admin / owner / finance), the law defaults (20 days, 30.06 carry, 12-day first part, sick 30 employer / ФЗОМ), holidays per calendar, the shift link (approval removes shifts, no shift on an absence, `on_leave` at login), `verify-hr`.
 - `elyon-call-scripts` — Targeted call scripts (02.10): one script per list group (+ products), the matcher shared with the UI, the variables (segments, never HTML), the audited writers + versions (admins delete), RLS published-only for agents, the `call_scripts.mode` switch (off), GET /calls/scripts, coverage, `verify-call-scripts`.
 - `elyon-history-truth` — How every HISTORIC order is proven (03–04.10.2026): a linked MEX parcel (`paid_basis mex`), collabBox's courier flag on the days Kolporter / Eko / Jon carried (`operator_ruling`), or none; the full MEX register in `mex_history_stage`, history parcels only ever inserted ALREADY LINKED (`history_run`), the generated history linker (`mex_history_lead_plan` / `_apply`, modes lead / pre9110, `enable_nestloop = off`), the cancel rules for paid orders with no proof, the after-repair passes, psql for anything over 100 s, the Salesforce hand-over.
 - `elyon-products-catalogue` — Product kinds (product / bundle / gift / other) and brand lines (Natura Therapy / Bio Natural / Ad Astra / Dr.Becker → the MEX profile), the web-catalogue rule, the audited writers behind guard triggers, the machine-text cleanup, /products (the Рецепт drawer and "Набавна (Сигма)" for owners — only an approved recipe moves stock and cost), and the catalogue scripts.
