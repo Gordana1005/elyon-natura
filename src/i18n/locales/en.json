@@ -186,7 +186,7 @@
     "intro": "Sure points from delivered Teleshop Out parcels since 01.03.2026, NaturaTherapy products only.",
     "summary": "{{customers}} customers · {{points}} points from {{orders}} parcels",
     "badge": "also in the shop",
-    "hint": "This phone also has a shop profile. The points stay only here, so they cannot be spent twice.",
+    "hint": "This phone also has a web shop profile. CRM points and web points are kept apart — never added up or moved.",
     "search": "Name, phone or order",
     "empty": "No customers for this search.",
     "missing": "This customer has no sure points.",
@@ -199,10 +199,13 @@
       "phone": "Phone",
       "points": "Points",
       "orders": "Parcels",
-      "shop": "Shop",
+      "shop": "Web",
       "day": "Day",
       "order": "Order",
-      "nt": "NaturaTherapy"
+      "nt": "NaturaTherapy",
+      "web": "Web points",
+      "webOrders": "Web orders",
+      "crm": "CRM points"
     },
     "tile": {
       "customers": "Customers",
@@ -212,7 +215,22 @@
     },
     "page": "Page {{page}} of {{pages}}",
     "prev": "Previous",
-    "next": "Next"
+    "next": "Next",
+    "tab": {
+      "crm": "CRM points",
+      "web": "Web points"
+    },
+    "webIntro": "Points from the naturatherapy.mk web shop — its own balance, refreshed every hour. Shown only: never added to the CRM points and never changed from here.",
+    "webSearch": "Name, phone or city",
+    "webSummary": "{{customers}} customers · {{points}} web points",
+    "webTile": {
+      "customers": "Customers with web points",
+      "points": "Web points",
+      "withCrm": "Also have CRM points",
+      "synced": "Refreshed"
+    },
+    "webLine": "{{points}} web points · {{orders}} web orders",
+    "noCrm": "No CRM points — no delivered Teleshop Out parcel since 01.03.2026."
   },
   "titles": {
     "myPerformance": "My Performance",

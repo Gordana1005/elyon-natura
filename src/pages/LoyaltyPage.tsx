@@ -7,26 +7,33 @@ import { AppLayout } from '@/layouts/AppLayout';
 import { EmptyState } from '@/components/EmptyState';
 import { LoadError } from '@/components/insights/shared/LoadError';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { dm, useOverviewFormat } from '@/components/insights/overview/useOverviewFormat';
 import { useLoyaltyAccess } from '@/components/loyalty/useLoyaltyAccess';
 import {
-  apiGetLoyaltyPage, apiGetLoyaltyPhone, isPhone8,
-  type LoyaltyPhone, type LoyaltyRow,
+  apiGetLoyaltyPage, apiGetLoyaltyPhone, apiGetLoyaltyWebPage, isPhone8,
+  type LoyaltyPhone, type LoyaltyRow, type LoyaltyWebRow,
 } from '@/lib/loyaltyApi';
+import { formatSkopje } from '@/lib/skopjeTime';
 import { apiErrorText } from '@/i18n/apiErrors';
 import { cn } from '@/lib/utils';
 
+type LoyaltyTab = 'crm' | 'web';
+
 /**
- * /loyalty "Лојалност": sure points for delivered Тим Центар Out parcels since 2026,
- * NaturaTherapy lines only. Owners, admins and managers. A phone that also has a
- * shop profile is badged — the points stay in this ledger. Insights card language,
- * a table from md and cards below it.
+ * /loyalty "Лојалност", two tabs (owner 20.10.2026: "се да биде од едно место"):
+ *  - CRM поени: sure points for delivered Teleshop Out parcels from 01.03.2026,
+ *    NaturaTherapy lines only (migrations 20261006120000 / 20261020120000).
+ *  - Веб поени (?tab=web): the naturatherapy.mk shop's own balance, mirrored hourly
+ *    (20261020130000). Shown next to the CRM points, never added to them.
+ * Owners, admins and managers. Insights card language, a table from md and cards below it.
  */
 export default function LoyaltyPage() {
   const { t } = useTranslation();
   const f = useOverviewFormat();
   const access = useLoyaltyAccess();
   const [sp, setSp] = useSearchParams();
+  const tab: LoyaltyTab = sp.get('tab') === 'web' ? 'web' : 'crm';
   const qParam = (sp.get('q') ?? '').replace(/\s+/g, ' ').trim().slice(0, 80);
   const page = Math.max(1, Number(sp.get('page')) || 1);
   const phone = sp.get('phone');
@@ -35,7 +42,15 @@ export default function LoyaltyPage() {
   const list = useQuery({
     queryKey: ['loyalty', 'page', qParam, page],
     queryFn: ({ signal }) => apiGetLoyaltyPage(qParam, page, signal),
-    enabled: access.any,
+    enabled: access.any && tab === 'crm',
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
+  });
+
+  const web = useQuery({
+    queryKey: ['loyalty', 'web', qParam, page],
+    queryFn: ({ signal }) => apiGetLoyaltyWebPage(qParam, page, signal),
+    enabled: access.any && tab === 'web',
     placeholderData: keepPreviousData,
     staleTime: 30_000,
   });
@@ -57,14 +72,27 @@ export default function LoyaltyPage() {
 
   const summary = list.data?.summary;
   const rows = list.data?.rows ?? [];
-  const total = list.data?.total ?? 0;
-  const size = list.data?.size ?? 50;
+  const webSummary = web.data?.summary;
+  const webRows = web.data?.rows ?? [];
+  const active = tab === 'web' ? web : list;
+  const total = active.data?.total ?? 0;
+  const size = active.data?.size ?? 50;
   const pages = Math.max(1, Math.ceil(total / size));
 
-  const open = (row: LoyaltyRow) => {
+  const open = (p8: string) => {
     setSp((prev) => {
       const n = new URLSearchParams(prev);
-      n.set('phone', row.phone8);
+      n.set('phone', p8);
+      return n;
+    });
+  };
+  const switchTab = (next: string) => {
+    setSp((prev) => {
+      const n = new URLSearchParams(prev);
+      if (next === 'web') n.set('tab', 'web');
+      else n.delete('tab');
+      n.delete('q');
+      n.delete('page');
       return n;
     });
   };
@@ -87,23 +115,48 @@ export default function LoyaltyPage() {
   return (
     <AppLayout title={t('nav.loyalty')}>
       <div className="mx-auto min-w-0 max-w-[1680px] space-y-4">
-        <p className="text-sm text-muted-foreground">{t('loyalty.intro')}</p>
+        <Tabs value={tab} onValueChange={switchTab}>
+          <TabsList className="w-full justify-start sm:w-auto">
+            <TabsTrigger value="crm">{t('loyalty.tab.crm')}</TabsTrigger>
+            <TabsTrigger value="web">{t('loyalty.tab.web')}</TabsTrigger>
+          </TabsList>
+        </Tabs>
 
-        <ul
-          className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4"
-          aria-label={summary ? t('loyalty.summary', {
-            customers: f.int(summary.customers),
-            points: f.int(summary.points),
-            orders: f.int(summary.orders),
-          }) : t('nav.loyalty')}
-        >
-          <Kpi label={t('loyalty.tile.customers')} value={summary ? f.int(summary.customers) : '—'} />
-          <Kpi label={t('loyalty.tile.points')} value={summary ? f.int(summary.points) : '—'} />
-          <Kpi label={t('loyalty.tile.orders')} value={summary ? f.int(summary.orders) : '—'} />
-          <Kpi label={t('loyalty.tile.onShop')} value={summary ? f.int(summary.on_shop) : '—'} />
-        </ul>
+        <p className="text-sm text-muted-foreground">{t(tab === 'web' ? 'loyalty.webIntro' : 'loyalty.intro')}</p>
 
-        <SearchBox value={qParam} />
+        {tab === 'web' ? (
+          <ul
+            className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4"
+            aria-label={webSummary ? t('loyalty.webSummary', {
+              customers: f.int(webSummary.customers),
+              points: f.int(webSummary.points),
+            }) : t('loyalty.tab.web')}
+          >
+            <Kpi label={t('loyalty.webTile.customers')} value={webSummary ? f.int(webSummary.customers) : '—'} />
+            <Kpi label={t('loyalty.webTile.points')} value={webSummary ? f.int(webSummary.points) : '—'} />
+            <Kpi label={t('loyalty.webTile.withCrm')} value={webSummary ? f.int(webSummary.with_crm) : '—'} />
+            <Kpi
+              label={t('loyalty.webTile.synced')}
+              value={webSummary?.synced_at ? formatSkopje(webSummary.synced_at, 'dd.MM. HH:mm') : '—'}
+            />
+          </ul>
+        ) : (
+          <ul
+            className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4"
+            aria-label={summary ? t('loyalty.summary', {
+              customers: f.int(summary.customers),
+              points: f.int(summary.points),
+              orders: f.int(summary.orders),
+            }) : t('nav.loyalty')}
+          >
+            <Kpi label={t('loyalty.tile.customers')} value={summary ? f.int(summary.customers) : '—'} />
+            <Kpi label={t('loyalty.tile.points')} value={summary ? f.int(summary.points) : '—'} />
+            <Kpi label={t('loyalty.tile.orders')} value={summary ? f.int(summary.orders) : '—'} />
+            <Kpi label={t('loyalty.tile.onShop')} value={summary ? f.int(summary.on_shop) : '—'} />
+          </ul>
+        )}
+
+        <SearchBox key={tab} value={qParam} placeholder={t(tab === 'web' ? 'loyalty.webSearch' : 'loyalty.search')} />
 
         {phone8 && (
           <Detail
@@ -116,16 +169,18 @@ export default function LoyaltyPage() {
           />
         )}
 
-        {list.isLoading && !list.data ? (
+        {active.isLoading && !active.data ? (
           <div className="flex justify-center py-12" role="status">
             <span className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" aria-hidden />
           </div>
-        ) : list.isError ? (
-          <LoadError text={errorText(list.error, (key) => t(key))} onRetry={() => void list.refetch()} />
-        ) : rows.length === 0 ? (
+        ) : active.isError ? (
+          <LoadError text={errorText(active.error, (key) => t(key))} onRetry={() => void active.refetch()} />
+        ) : (tab === 'web' ? webRows.length : rows.length) === 0 ? (
           <EmptyState icon={<Medal className="h-5 w-5" />} title={t('loyalty.empty')} size="sm" />
+        ) : tab === 'web' ? (
+          <WebList rows={webRows} onOpen={open} active={phone8} f={f} />
         ) : (
-          <CustomerList rows={rows} onOpen={open} active={phone8} f={f} />
+          <CustomerList rows={rows} onOpen={(r) => open(r.phone8)} active={phone8} f={f} />
         )}
 
         {total > size && (
@@ -151,8 +206,7 @@ function Kpi({ label, value }: { label: string; value: string }) {
   );
 }
 
-function SearchBox({ value }: { value: string }) {
-  const { t } = useTranslation();
+function SearchBox({ value, placeholder }: { value: string; placeholder: string }) {
   const [, setSp] = useSearchParams();
   const [draft, setDraft] = useState(value);
   useEffect(() => { setDraft(value); }, [value]);
@@ -175,16 +229,18 @@ function SearchBox({ value }: { value: string }) {
     <input
       value={draft}
       onChange={(e) => setDraft(e.target.value)}
-      placeholder={t('loyalty.search')}
-      aria-label={t('loyalty.search')}
+      placeholder={placeholder}
+      aria-label={placeholder}
       maxLength={80}
       className="min-h-9 w-full min-w-0 rounded-md border bg-background px-3 text-sm sm:max-w-sm"
     />
   );
 }
 
-function ShopBadge({ profiles }: { profiles: number }) {
+/** The web side of a CRM row: the shop's points when there are any, else the profile badge. */
+function ShopBadge({ profiles, points = 0 }: { profiles: number; points?: number }) {
   const { t } = useTranslation();
+  const f = useOverviewFormat();
   if (profiles <= 0) return <span className="text-muted-foreground">—</span>;
   return (
     <span
@@ -192,8 +248,100 @@ function ShopBadge({ profiles }: { profiles: number }) {
       title={t('loyalty.hint')}
     >
       <Store className="h-3 w-3 shrink-0" aria-hidden />
-      <span className="truncate">{t('loyalty.badge')}</span>
+      <span className="truncate tabular-nums">
+        {points > 0 ? `${f.int(points)} ${t('loyalty.col.web').toLowerCase()}` : t('loyalty.badge')}
+      </span>
     </span>
+  );
+}
+
+function WebList({
+  rows, onOpen, active, f,
+}: {
+  rows: LoyaltyWebRow[];
+  onOpen: (phone8: string) => void;
+  active: string | null;
+  f: ReturnType<typeof useOverviewFormat>;
+}) {
+  const { t } = f;
+  const crm = (n: number) => (n > 0 ? f.int(n) : '—');
+  return (
+    <>
+      <div className="hidden min-w-0 rounded-xl border bg-card shadow-sm md:block">
+        <table className="w-full text-sm">
+          <caption className="sr-only">{t('loyalty.tab.web')}</caption>
+          <thead>
+            <tr className="border-b bg-muted/50 text-left text-[11px] uppercase tracking-wide text-muted-foreground">
+              <th scope="col" className="px-3 py-2 font-medium">{t('loyalty.col.customer')}</th>
+              <th scope="col" className="px-2 py-2 font-medium">{t('loyalty.col.phone')}</th>
+              <th scope="col" className="px-2 py-2 text-right font-medium">{t('loyalty.col.web')}</th>
+              <th scope="col" className="px-2 py-2 text-right font-medium">{t('loyalty.col.webOrders')}</th>
+              <th scope="col" className="px-3 py-2 text-right font-medium">{t('loyalty.col.crm')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const p8 = r.phone8;
+              return (
+                <tr
+                  key={r.key}
+                  className={cn(
+                    'border-b last:border-0',
+                    p8 && 'cursor-pointer hover:bg-muted/40',
+                    p8 && active === p8 && 'bg-muted/60',
+                  )}
+                  onClick={p8 ? () => onOpen(p8) : undefined}
+                >
+                  <th scope="row" className="px-3 py-2 text-left font-medium">
+                    {p8 ? (
+                      <button type="button" className="block max-w-full text-left" onClick={() => onOpen(p8)}>
+                        <span className="block truncate">{r.name || '—'}</span>
+                        {r.city && <span className="block truncate text-xs font-normal text-muted-foreground">{r.city}</span>}
+                      </button>
+                    ) : (
+                      <>
+                        <span className="block truncate">{r.name || '—'}</span>
+                        {r.city && <span className="block truncate text-xs font-normal text-muted-foreground">{r.city}</span>}
+                      </>
+                    )}
+                  </th>
+                  <td className="whitespace-nowrap px-2 py-2 tabular-nums">{r.phone || '—'}</td>
+                  <td className="whitespace-nowrap px-2 py-2 text-right font-semibold tabular-nums">{f.int(r.points)}</td>
+                  <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums text-muted-foreground">{f.int(r.orders)}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-muted-foreground">{crm(r.crm_points)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <ul className="grid grid-cols-1 gap-2 md:hidden">
+        {rows.map((r) => {
+          const p8 = r.phone8;
+          const body = (
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="truncate font-medium">{r.name || '—'}</div>
+                <div className="truncate text-xs text-muted-foreground">{[r.phone, r.city].filter(Boolean).join(' · ') || '—'}</div>
+              </div>
+              <div className="shrink-0 text-right">
+                <div className="text-base font-semibold tabular-nums">{f.int(r.points)}</div>
+                <div className="text-xs tabular-nums text-muted-foreground">{t('loyalty.col.webOrders')} {f.int(r.orders)}</div>
+                {r.crm_points > 0 && (
+                  <div className="text-xs tabular-nums text-muted-foreground">{t('loyalty.col.crm')} {f.int(r.crm_points)}</div>
+                )}
+              </div>
+            </div>
+          );
+          const cls = cn('w-full min-w-0 rounded-xl border bg-card p-3 text-left shadow-sm', p8 && active === p8 && 'border-primary');
+          return (
+            <li key={r.key} className="min-w-0">
+              {p8 ? <button type="button" onClick={() => onOpen(p8)} className={cls}>{body}</button> : <div className={cls}>{body}</div>}
+            </li>
+          );
+        })}
+      </ul>
+    </>
   );
 }
 
@@ -236,15 +384,15 @@ function CustomerList({
                 <td className="whitespace-nowrap px-2 py-2 tabular-nums">{r.phone || '—'}</td>
                 <td className="whitespace-nowrap px-2 py-2 text-right font-semibold tabular-nums">{f.int(r.points)}</td>
                 <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums text-muted-foreground">{f.int(r.orders)}</td>
-                <td className="px-3 py-2"><ShopBadge profiles={r.shop_profiles} /></td>
+                <td className="px-3 py-2"><ShopBadge profiles={r.shop_profiles} points={r.web_points} /></td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <ul className="grid gap-2 md:hidden">
+      <ul className="grid grid-cols-1 gap-2 md:hidden">
         {rows.map((r) => (
-          <li key={r.phone8}>
+          <li key={r.phone8} className="min-w-0">
             <button
               type="button"
               onClick={() => onOpen(r)}
@@ -263,7 +411,7 @@ function CustomerList({
                   <div className="text-xs tabular-nums text-muted-foreground">{t('loyalty.col.orders')} {f.int(r.orders)}</div>
                 </div>
               </div>
-              {r.shop_profiles > 0 && <div className="mt-2"><ShopBadge profiles={r.shop_profiles} /></div>}
+              {r.shop_profiles > 0 && <div className="mt-2"><ShopBadge profiles={r.shop_profiles} points={r.web_points} /></div>}
             </button>
           </li>
         ))}
@@ -313,12 +461,20 @@ function Detail({
             <span><span className="font-semibold">{f.int(data.points)}</span> <span className="text-muted-foreground">{t('loyalty.tile.points')}</span></span>
             <span className="text-muted-foreground">{t('loyalty.col.orders')} {f.int(data.orders)}</span>
             <span className="text-muted-foreground">{f.den(data.nt_mkd)}</span>
-            {data.shop_profiles > 0 && <ShopBadge profiles={data.shop_profiles} />}
+            {data.shop_profiles > 0 && data.web_points <= 0 && <ShopBadge profiles={data.shop_profiles} />}
           </div>
+          {data.web_points > 0 && (
+            <p className="flex items-center gap-1.5 text-sm tabular-nums">
+              <Store className="h-3.5 w-3.5 shrink-0 text-amber-700 dark:text-amber-300" aria-hidden />
+              {t('loyalty.webLine', { points: f.int(data.web_points), orders: f.int(data.web_orders) })}
+            </p>
+          )}
           {data.shop_profiles > 0 && (
             <p className="text-xs text-muted-foreground">{t('loyalty.hint')}</p>
           )}
-          <GrantTable grants={data.grants} f={f} />
+          {data.grants.length === 0
+            ? <p className="text-sm text-muted-foreground">{t('loyalty.noCrm')}</p>
+            : <GrantTable grants={data.grants} f={f} />}
         </>
       ) : null}
     </section>

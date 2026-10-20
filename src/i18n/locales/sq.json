@@ -186,7 +186,7 @@
     "intro": "Pikë të sigurta nga dërgesat e dorëzuara të Teleshop Out, nga 01.03.2026, vetëm produkte NaturaTherapy.",
     "summary": "{{customers}} klientë · {{points}} pikë nga {{orders}} dërgesa",
     "badge": "edhe në dyqan",
-    "hint": "Ky telefon ka profil edhe në dyqan. Pikët mbeten vetëm këtu, që të mos shpenzohen dy herë.",
+    "hint": "Ky telefon ka profil edhe në dyqanin online. Pikët CRM dhe pikët web mbahen veç — nuk mblidhen dhe nuk transferohen.",
     "search": "Emër, telefon ose porosi",
     "empty": "Nuk ka klientë për këtë kërkim.",
     "missing": "Ky klient nuk ka pikë të sigurta.",
@@ -199,10 +199,13 @@
       "phone": "Telefoni",
       "points": "Pikët",
       "orders": "Dërgesat",
-      "shop": "Dyqani",
+      "shop": "Web",
       "day": "Dita",
       "order": "Porosia",
-      "nt": "NaturaTherapy"
+      "nt": "NaturaTherapy",
+      "web": "Pikë web",
+      "webOrders": "Porosi web",
+      "crm": "Pikë CRM"
     },
     "tile": {
       "customers": "Klientë",
@@ -212,7 +215,22 @@
     },
     "page": "Faqja {{page}} nga {{pages}}",
     "prev": "E mëparshmja",
-    "next": "Tjetra"
+    "next": "Tjetra",
+    "tab": {
+      "crm": "Pikë CRM",
+      "web": "Pikë web"
+    },
+    "webIntro": "Pikë nga dyqani online naturatherapy.mk — bilanci i tij, i rifreskuar çdo orë. Vetëm shfaqen: nuk mblidhen me pikët CRM dhe nuk ndryshohen nga këtu.",
+    "webSearch": "Emri, telefoni ose qyteti",
+    "webSummary": "{{customers}} blerës · {{points}} pikë web",
+    "webTile": {
+      "customers": "Blerës me pikë web",
+      "points": "Pikë web",
+      "withCrm": "Kanë edhe pikë CRM",
+      "synced": "Rifreskuar"
+    },
+    "webLine": "{{points}} pikë web · {{orders}} porosi web",
+    "noCrm": "Pa pikë CRM — asnjë dërgesë e dorëzuar Teleshop Out nga 01.03.2026."
   },
   "titles": {
     "myPerformance": "Performanca ime",

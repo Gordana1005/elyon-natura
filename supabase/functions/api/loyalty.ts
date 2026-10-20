@@ -5,6 +5,8 @@
 // loyalty.test.ts against this file in Node, and index.ts imports it as LOYALTY.
 //
 //   GET loyalty?q=&page=&size=          → loyalty_page
+//   GET loyalty/web?q=&page=&size=      → loyalty_web_page (the shop's own points,
+//                                         20261020130000 — shown, never added up)
 //   GET loyalty/phone/:phone8           → loyalty_phone   (404 unless 8 digits)
 //
 // Access: business owners, admins and managers. Managers SEE the point numbers
@@ -22,6 +24,7 @@ export function loyaltyAccess(isOwner: boolean, isAdminOrManager: boolean): Loya
 
 export type LoyaltyRoute =
   | { kind: "page"; q: string; page: number; size: number }
+  | { kind: "web"; q: string; page: number; size: number }
   | { kind: "phone"; phone8: string };
 
 export type RouteResult = { ok: true; route: LoyaltyRoute } | { ok: false; status: number; error: string };
@@ -44,12 +47,12 @@ function clampInt(raw: string | null, fallback: number, min: number, max: number
 export function parseLoyaltyRoute(path: string, params: URLSearchParams): RouteResult {
   const parts = path.split("/").filter(Boolean);
   if (parts[0] !== "loyalty") return { ok: false, status: 404, error: "Not found" };
-  if (parts.length === 1) {
+  if (parts.length === 1 || (parts.length === 2 && parts[1] === "web")) {
     const q = (params.get("q") ?? "").replace(/\s+/g, " ").trim().slice(0, 80);
     return {
       ok: true,
       route: {
-        kind: "page",
+        kind: parts.length === 1 ? "page" : "web",
         q,
         page: clampInt(params.get("page"), 1, 1, 100000),
         size: clampInt(params.get("size"), 50, 1, 100),
@@ -65,6 +68,9 @@ export function parseLoyaltyRoute(path: string, params: URLSearchParams): RouteR
 export function loyaltyRpc(route: LoyaltyRoute): { fn: string; args: Record<string, unknown> } {
   if (route.kind === "page") {
     return { fn: "loyalty_page", args: { p_q: route.q, p_page: route.page, p_size: route.size } };
+  }
+  if (route.kind === "web") {
+    return { fn: "loyalty_web_page", args: { p_q: route.q, p_page: route.page, p_size: route.size } };
   }
   return { fn: "loyalty_phone", args: { p_phone8: route.phone8 } };
 }

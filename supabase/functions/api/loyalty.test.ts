@@ -38,6 +38,13 @@ describe("parseLoyaltyRoute", () => {
     });
   });
 
+  it("routes the web tab with the same search and paging rules", () => {
+    expect(parseLoyaltyRoute("loyalty/web", q("q=%20ана%20&page=2&size=500"))).toEqual({
+      ok: true, route: { kind: "web", q: "ана", page: 2, size: 100 },
+    });
+    expect(parseLoyaltyRoute("loyalty/web/x", q(""))).toMatchObject({ ok: false, status: 404 });
+  });
+
   it("accepts an 8-digit phone and refuses anything else", () => {
     expect(parseLoyaltyRoute("loyalty/phone/07123456", q(""))).toEqual({
       ok: true, route: { kind: "phone", phone8: "07123456" },
@@ -53,6 +60,9 @@ describe("loyaltyRpc", () => {
   it("names the page and phone functions", () => {
     expect(loyaltyRpc({ kind: "page", q: "ана", page: 2, size: 50 })).toEqual({
       fn: "loyalty_page", args: { p_q: "ана", p_page: 2, p_size: 50 },
+    });
+    expect(loyaltyRpc({ kind: "web", q: "", page: 1, size: 50 })).toEqual({
+      fn: "loyalty_web_page", args: { p_q: "", p_page: 1, p_size: 50 },
     });
     expect(loyaltyRpc({ kind: "phone", phone8: "07123456" })).toEqual({
       fn: "loyalty_phone", args: { p_phone8: "07123456" },
