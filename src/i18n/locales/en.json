@@ -183,7 +183,7 @@
     "web": "Web shop"
   },
   "loyalty": {
-    "intro": "Sure points from delivered Teleshop Out parcels since 2026, NaturaTherapy products only.",
+    "intro": "Sure points from delivered Teleshop Out parcels since 01.03.2026, NaturaTherapy products only.",
     "summary": "{{customers}} customers · {{points}} points from {{orders}} parcels",
     "badge": "also in the shop",
     "hint": "This phone also has a shop profile. The points stay only here, so they cannot be spent twice.",
