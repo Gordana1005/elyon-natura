@@ -19,9 +19,14 @@ import { affiliateLabel } from '@/lib/orderSource';
 import { useWebmasterNames } from '@/hooks/useWebmasterNames';
 import { usePermissions } from '@/contexts/PermissionsContext';
 import { cn } from '@/lib/utils';
+import { PeriodStepper } from '@/components/insights/shared/PeriodStepper';
+import { DmyDateInput } from '@/components/insights/shared/DmyDateInput';
+import { addDays, skopjeToday, type DayRange } from '@/components/insights/shared/period';
 
 /** AlterCPA `phase` — their outcome field. 1-5, and the only one worth reading. */
 const PHASES = [1, 2, 3, 4, 5] as const;
+/** The period chips (owner 20.10.2026): the whole history stays the default. */
+const PERIODS = ['all', 'today', '7', '30'] as const;
 const SKIPS = ['none', 'not_pending', 'geo_not_callable', 'unmapped_offer', 'test_order', 'no_phone', 'no_fx_rate'] as const;
 
 const phaseBadge: Record<number, string> = {
@@ -63,22 +68,35 @@ export function MirrorTab({ defaultGeo = 'MK' }: { defaultGeo?: string } = {}) {
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
   const limit = 30;
+  // The arrival period (Skopje days, by created_remote) — null = every date. It narrows the
+  // country tiles, the totals and the list together; the api pins bare days to Skopje.
+  const today = skopjeToday();
+  const [range, setRangeState] = useState<DayRange | null>(null);
+  const setRange = (r: DayRange | null) => { setRangeState(r); setPage(1); };
+  const periodRange = (p: (typeof PERIODS)[number]): DayRange | null =>
+    p === 'all' ? null : p === 'today' ? { from: today, to: today } : { from: addDays(today, -(Number(p) - 1)), to: today };
+  const activePeriod = PERIODS.find((p) => {
+    const r = periodRange(p);
+    return r === null ? range === null : !!range && r.from === range.from && r.to === range.to;
+  });
 
   const { data: accounts = [] } = useQuery({ queryKey: ['altercpa-accounts'], queryFn: apiGetAlterCpaAccounts });
   const accountId = fAccount === 'all' ? undefined : fAccount;
 
   const { data: summary } = useQuery({
-    queryKey: ['altercpa-summary', fAccount],
-    queryFn: () => apiGetAlterCpaSummary({ account_id: accountId }),
+    queryKey: ['altercpa-summary', fAccount, range?.from, range?.to],
+    queryFn: () => apiGetAlterCpaSummary({ account_id: accountId, from: range?.from, to: range?.to }),
   });
 
   const { data, isLoading } = useQuery({
-    queryKey: ['altercpa-leads', fAccount, fGeo, fPhase, fSkip, q, page],
+    queryKey: ['altercpa-leads', fAccount, fGeo, fPhase, fSkip, q, range?.from, range?.to, page],
     queryFn: () => apiGetAlterCpaLeads({
       account_id: accountId,
       geo: fGeo === 'all' ? undefined : fGeo,
       phase: fPhase === 'all' ? undefined : Number(fPhase),
       skip: fSkip === 'all' ? undefined : fSkip,
+      from: range?.from,
+      to: range?.to,
       q: q.trim() || undefined,
       page, limit,
     }),
@@ -87,12 +105,38 @@ export function MirrorTab({ defaultGeo = 'MK' }: { defaultGeo?: string } = {}) {
   const rows = data?.rows || [];
   const total = data?.total || 0;
   const pages = Math.max(1, Math.ceil(total / limit));
-  const geos = summary?.geos || [];
+  // A period can hold no lead from the chosen country — keep its tile (at 0) so the choice stays visible.
+  const summaryGeos = summary?.geos || [];
+  const geos = fGeo !== 'all' && summary && !summaryGeos.some((g) => g.geo === fGeo)
+    ? [...summaryGeos, { geo: fGeo, leads: 0, mirrored: 0, approved: 0, currencies: null, revenue_eur: 0 }]
+    : summaryGeos;
 
   const resetPage = <T,>(setter: (v: T) => void) => (v: T) => { setter(v); setPage(1); };
 
   return (
     <div className="space-y-4">
+      {/* The period (owner 20.10.2026): by the lead's arrival, Skopje days; tiles + list follow it. */}
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="flex flex-wrap gap-1" role="group" aria-label={t('altercpaGuarantee.rates.period')}>
+          {PERIODS.map((p) => (
+            <button key={p} type="button" onClick={() => setRange(periodRange(p))} aria-pressed={activePeriod === p}
+              className={cn('min-h-8 rounded-full border px-3 text-xs font-medium transition-colors hover:bg-muted',
+                activePeriod === p && 'border-primary bg-primary/10 text-primary')}>
+              {p === 'all' ? t('ordersList.period.all')
+                : p === 'today' ? t('insights.common.period.today')
+                : t('altercpaGuarantee.rates.presetDays', { n: Number(p) })}
+            </button>
+          ))}
+        </div>
+        {range && <PeriodStepper range={range} today={today} onStep={(n) => setRange(n.range)} testId="mirror-period" />}
+        <DmyDateInput
+          value={range && range.from === range.to ? range.from : null}
+          onChange={(d) => { if (d) setRange({ from: d, to: d }); }}
+          label={t('stock2.common.pickDay')}
+          max={today}
+        />
+      </div>
+
       {/* Rollups. "Ledger only" is the honest name for mirrored-not-called. */}
       {summary && (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
@@ -109,7 +153,7 @@ export function MirrorTab({ defaultGeo = 'MK' }: { defaultGeo?: string } = {}) {
           each tab shows both numbers: how many leads arrived, and how many
           actually entered the calling pipeline. A country with leads but zero
           called is not broken — it is the mirror-only design working. */}
-      {geos.length > 0 && (
+      {summary && (
         <div className="flex flex-wrap items-stretch gap-2 border-b pb-3">
           <button
             onClick={() => { setFGeo('all'); setPage(1); }}

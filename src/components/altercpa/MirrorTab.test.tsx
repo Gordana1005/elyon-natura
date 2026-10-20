@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import i18n from '@/i18n';
@@ -47,6 +47,23 @@ describe('MirrorTab', { timeout: 30_000 }, () => {
     wrap();
     await waitFor(() => expect(h.leads).toHaveBeenCalled());
     expect(h.leads.mock.calls[0][0]).toMatchObject({ geo: 'MK' });
+  });
+
+  it('opens on every date; a period chip narrows the tiles and the list to Skopje days', async () => {
+    h.owner = false;
+    const { apiGetAlterCpaSummary } = await import('@/lib/api');
+    const summary = vi.mocked(apiGetAlterCpaSummary);
+    summary.mockClear();
+    wrap();
+    await waitFor(() => expect(h.leads).toHaveBeenCalled());
+    expect(h.leads.mock.calls[0][0]).toMatchObject({ from: undefined, to: undefined });
+    expect(summary.mock.calls[0][0]).toMatchObject({ from: undefined, to: undefined });
+
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('insights.common.period.today') }));
+    const { skopjeToday } = await import('@/components/insights/shared/period');
+    const today = skopjeToday();
+    await waitFor(() => expect(h.leads).toHaveBeenLastCalledWith(expect.objectContaining({ from: today, to: today, geo: 'MK', page: 1 })));
+    await waitFor(() => expect(summary).toHaveBeenLastCalledWith(expect.objectContaining({ from: today, to: today })));
   });
 
   it('a non-owner (manager) sees no price column', async () => {
