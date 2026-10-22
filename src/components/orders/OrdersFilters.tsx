@@ -12,6 +12,8 @@ import { addDays, periodText, stepRange } from '@/components/insights/shared/per
 import { OVERVIEW_COLOR_VARS, sourceColorVar } from '@/components/insights/overview/palette';
 import { departmentLabel, affiliateLabel, sourceLabel, type WebmasterNames } from '@/lib/orderSource';
 import type { CpaAttributionDimensions, OrderStateCounts } from '@/lib/api';
+import type { ProductIndexRow } from '@/lib/callScriptsTypes';
+import { pickedNames, ProductMultiPick } from '@/components/products/ProductMultiPick';
 import type { OrderStatus } from '@/types';
 import { fmtCount } from '@/lib/ordersList/rowModel';
 import {
@@ -25,8 +27,8 @@ import {
 
 /**
  * /orders — the filters (owner, Mile, 15.10.2026, after his screenshot): a quick-view strip, the
- * period with ‹ ›, and ONE "Филтри" panel (status · department · source · seller · agent · price ·
- * CPA) instead of five rows of pills. The panel is a popover from md and the bottom sheet on a phone
+ * period with ‹ ›, and ONE "Филтри" panel (status · department · source · seller · product · agent ·
+ * price · CPA) instead of five rows of pills. The panel is a popover from md and the bottom sheet on a phone
  * (Orders.tsx); FiltersPanelFields is the same in both.
  */
 
@@ -336,6 +338,8 @@ export interface FilterSources {
   isAdmin: boolean;
   isAgent: boolean;
   sellers?: { id: string; name: string; active: boolean }[];
+  /** The catalogue for the product filter (admin / manager — toFilterProducts of GET /products). */
+  products?: ProductIndexRow[];
   agents?: { user_id: string; full_name: string }[];
   cpa?: CpaAttributionDimensions;
   webmasterNames?: WebmasterNames;
@@ -444,6 +448,15 @@ export function FiltersPanelFields({ value, onChange, src, counts, countsLoading
         <Section title={t('ordersList.seller.label')} testId="filter-seller">
           <PickList value={value.seller} options={sellerOptions} onChange={(v) => onChange({ seller: v })} allLabel={t('ordersList.seller.all')}
             searchPlaceholder={t('ordersList.seller.search')} emptyText={t('ordersList.seller.empty')} initials />
+        </Section>
+      )}
+
+      {/* the orders holding one of the products in their lines (owner 22.10.2026: "одбереме Urofix") */}
+      {src.isAdmin && src.products && src.products.length > 0 && (
+        <Section title={t('ordersList.product.label')} testId="filter-product"
+          action={value.prods.length > 0 && <button type="button" className={sectionReset} onClick={() => onChange({ prods: [] })}>{t('ordersList.product.all')}</button>}>
+          <ProductMultiPick products={src.products} value={value.prods} onChange={(ids) => onChange({ prods: ids })} />
+          <p className="px-1 text-[11px] leading-snug text-muted-foreground">{t('ordersList.product.hint')}</p>
         </Section>
       )}
 
@@ -577,6 +590,14 @@ export function FilterTokens({ value, onChange, src }: { value: OrdersListState;
   if (value.seller) {
     const name = src.sellers?.find((s) => s.id === value.seller)?.name ?? '…';
     chips.push({ key: 'seller', label: t('ordersList.seller.chip', { name }), clear: { seller: null } });
+  }
+  if (value.prods.length) {
+    const products = src.products ?? [];
+    const familyOf = (id: string) => products.find((p) => p.id === id)?.family ?? id;
+    for (const p of pickedNames(value.prods, products)) {
+      const fam = familyOf(p.id);
+      chips.push({ key: `p-${p.id}`, label: t('ordersList.product.chip', { name: p.name }), clear: { prods: value.prods.filter((x) => familyOf(x) !== fam) } });
+    }
   }
   if (value.agent) {
     const name = value.agent === 'none' ? t('ordersList.agent.none') : src.agents?.find((a) => a.user_id === value.agent)?.full_name ?? '…';

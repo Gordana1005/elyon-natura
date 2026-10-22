@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   ASSIGNER_DEPARTMENTS, AUDIT_IDS_CAP, assignerBroadcastBody, distributeAudit, distributeNotifications,
   distributeRpcArgs, distributeRpcError, parseCallAgainsQuery, parseDepartmentsParam, parseDistributeBody,
-  parseOrderParam, phone8, shapeBoard, shapeCallAgainItem, shapeDistribute, shapeLists,
+  parseOrderParam, parseProductIdsParam, parseProductScope, phone8, shapeBoard, shapeCallAgainItem, shapeDistribute,
+  shapeLists,
 } from "./assigner.ts";
 
 const A1 = "11111111-1111-4111-8111-111111111111";
@@ -43,6 +44,7 @@ describe("parseDistributeBody", () => {
     expect(r.args).toEqual({
       kind: "list", list_id: LIST, departments: ["altercpa", "teleshop_out"], order: "newest", count: 100,
       split: "total", agent_ids: [A1, A2, A3], include_assigned: false, dry_run: false, source: "all",
+      product_ids: null, product_scope: "ever",
     });
   });
   it("dry_run defaults to TRUE — nothing is written unless the caller says false", () => {
@@ -101,8 +103,40 @@ describe("parseDistributeBody", () => {
     expect(distributeRpcArgs(r.args, "Mile Stoev")).toEqual({
       p_kind: "call_agains", p_list_id: null, p_departments: null, p_order: "newest", p_count: null,
       p_split: "per_agent", p_agent_ids: [A1, A2, A3], p_include_assigned: false, p_dry_run: false,
-      p_source: "order", p_actor_name: "Mile Stoev",
+      p_source: "order", p_actor_name: "Mile Stoev", p_product_ids: null, p_product_scope: "ever",
     });
+  });
+  it("the product filter: lists only, uuids (lower case, distinct), a scope", () => {
+    const P1 = "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA";
+    const r = parseDistributeBody({ ...base, product_ids: [P1, P1.toLowerCase(), ""], product_scope: "last" });
+    expect(r.ok && r.args.product_ids).toEqual([P1.toLowerCase()]);
+    expect(r.ok && r.args.product_scope).toBe("last");
+    expect(r.ok && distributeRpcArgs(r.args, null)).toMatchObject({ p_product_ids: [P1.toLowerCase()], p_product_scope: "last" });
+    expect(parseDistributeBody({ ...base, product_ids: [] })).toMatchObject({ ok: true, args: { product_ids: null } });
+    expect(parseDistributeBody({ ...base, kind: "pendings", product_ids: [P1] })).toEqual({ ok: false, error: "the product filter is for lists only" });
+    expect(parseDistributeBody({ ...base, product_ids: ["urofix"] })).toEqual({ ok: false, error: "invalid products" });
+    expect(parseDistributeBody({ ...base, product_ids: P1 })).toEqual({ ok: false, error: "product_ids must be an array" });
+    expect(parseDistributeBody({ ...base, product_ids: [P1], product_scope: "always" })).toEqual({ ok: false, error: "invalid product_scope" });
+  });
+});
+
+describe("product params (GET /segments/:id, GET /assigner/lists)", () => {
+  const P1 = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const P2 = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  it("csv of uuids → distinct lower case; missing / empty = every customer", () => {
+    expect(parseProductIdsParam(`${P2.toUpperCase()},${P1}, ${P2}`)).toEqual({ ok: true, productIds: [P2, P1] });
+    expect(parseProductIdsParam(null)).toEqual({ ok: true, productIds: null });
+    expect(parseProductIdsParam(" ")).toEqual({ ok: true, productIds: null });
+  });
+  it("anything malformed or too many is a 400, never a wider list", () => {
+    expect(parseProductIdsParam("urofix")).toEqual({ ok: false, error: "invalid products" });
+    const many = Array.from({ length: 51 }, (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`).join(",");
+    expect(parseProductIdsParam(many)).toEqual({ ok: false, error: "too many products" });
+  });
+  it("scope: ever (default) | last", () => {
+    expect(parseProductScope(null)).toEqual({ ok: true, scope: "ever" });
+    expect(parseProductScope("LAST")).toEqual({ ok: true, scope: "last" });
+    expect(parseProductScope("x")).toEqual({ ok: false, error: "invalid product_scope" });
   });
 });
 
@@ -271,6 +305,20 @@ describe("shapeLists", () => {
   it("departments null = all", () => {
     expect(shapeLists({ ...rpcLists, departments: null }).departments).toBe(null);
     expect(shapeLists({}).lists).toEqual([]);
+  });
+  it("whole_assigned (what \"Одземи ги сите\" frees) and the product filter echoed", () => {
+    const P1 = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const out = shapeLists({
+      ...rpcLists, products: [P1, "junk"], product_scope: "last",
+      lists: [{ ...rpcLists.lists[0], whole_assigned: 512 }],
+    });
+    expect(out.lists[0].whole_assigned).toBe(512);
+    expect(out.products).toEqual([P1]);
+    expect(out.product_scope).toBe("last");
+    // an older function (no whole_assigned): the list's own assigned
+    expect(shapeLists(rpcLists).lists[0].whole_assigned).toBe(197);
+    expect(shapeLists(rpcLists).products).toBe(null);
+    expect(shapeLists(rpcLists).product_scope).toBe(null);
   });
 });
 

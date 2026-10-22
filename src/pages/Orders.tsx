@@ -69,6 +69,7 @@ import {
 import { statusPickLabel } from '@/lib/ordersList/statusModel';
 import { OrdersList, MexBadge, DeptLine, type RowAction } from '@/components/orders/OrdersList';
 import { OrdersBookings } from '@/components/orders/OrdersBookings';
+import { toFilterProducts } from '@/components/products/ProductMultiPick';
 import { bookingsApply, toBookingsParams } from '@/lib/ordersList/bookings';
 import { useActiveViews } from '@/components/orders/useActiveViews';
 import type { ApiOrder } from '@/components/orders/types';
@@ -1057,9 +1058,11 @@ export default function Orders() {
   });
   const stateCounts = stateCountsData?.counts;
 
+  const filterProducts = useMemo(() => toFilterProducts(productsData), [productsData]);
   const filterSrc: FilterSources = {
     isAdmin, isAgent,
     sellers: sellersData?.sellers,
+    products: filterProducts,
     agents: agentsData as any,
     cpa: cpaDimensions,
     webmasterNames,

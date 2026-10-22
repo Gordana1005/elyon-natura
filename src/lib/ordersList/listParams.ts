@@ -10,6 +10,8 @@
  *                        owner 15.10.2026 — it was today since 01.10)
  *   ?dept=a,b            the seven departments (cohort_order_source keys)
  *   ?seller=<uuid>       sales_people.id — who is credited with the sale
+ *   ?prod=<uuid>,…       catalogue products — the orders holding one of them (admin / manager; api
+ *                        `products`, owner 22.10.2026). Not `product`: that is the Insights drill key.
  *   ?mex=a,b             MEX groups (the old MEX pills) — still read (old links), shown as a token only
  *   ?source=a,b          altercpa · import · manual (the only source_type values in MK)
  *   ?agent=<uuid>|none   the assigned agent
@@ -62,6 +64,8 @@ export interface OrdersListState {
   to: string | null;
   depts: string[];
   seller: string | null;
+  /** Catalogue product ids (lower case); [] = every order. */
+  prods: string[];
   mex: MexGroupKey[];
   sources: string[];
   /** uuid | 'none' */
@@ -79,11 +83,17 @@ export interface OrdersListState {
 
 /** Every URL key the list owns (the drill keys are the Insights links'). */
 export const LIST_PARAM_KEYS = [
-  'search', 'st', 'view', 'range', 'from', 'to', 'dept', 'seller', 'mex', 'source', 'agent', 'mine',
+  'search', 'st', 'view', 'range', 'from', 'to', 'dept', 'seller', 'prod', 'mex', 'source', 'agent', 'mine',
   'pmin', 'pmax', 'wm', 'offer', 'stream', 'page',
 ] as const;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** The api's MAX_PRODUCTS (ordersList.ts). */
+export const MAX_FILTER_PRODUCTS = 50;
+/** `?prod=` → distinct lower-case uuids (anything else dropped), at most MAX_FILTER_PRODUCTS. */
+const productIdsOf = (raw: string | null): string[] =>
+  [...new Set((raw ?? '').split(',').map((s) => s.trim().toLowerCase()).filter((s) => UUID_RE.test(s)))]
+    .slice(0, MAX_FILTER_PRODUCTS);
 const csvOf = <T extends string>(raw: string | null, allowed: readonly T[]): T[] =>
   [...new Set((raw ?? '').split(',').map((s) => s.trim()).filter((s): s is T => (allowed as readonly string[]).includes(s)))];
 const oneOf = <T extends string>(raw: string | null, allowed: readonly T[]): T | null =>
@@ -117,6 +127,7 @@ export function readListParams(sp: URLSearchParams): OrdersListState {
     to: isYmd(to) ? to : null,
     depts: csvOf(sp.get('dept'), LIST_DEPARTMENTS),
     seller: seller && UUID_RE.test(seller) ? seller : null,
+    prods: productIdsOf(sp.get('prod')),
     mex: csvOf(sp.get('mex'), MEX_GROUP_KEYS),
     sources: csvOf(sp.get('source'), LIST_SOURCES),
     agent: agent === 'none' || (agent && UUID_RE.test(agent)) ? agent : null,
@@ -154,6 +165,7 @@ export function writeListParams(sp: URLSearchParams, patch: ListPatch): URLSearc
   if (has('to')) set('to', patch.to ?? null);
   if (has('depts')) set('dept', patch.depts?.length ? patch.depts.join(',') : null);
   if (has('seller')) set('seller', patch.seller ?? null);
+  if (has('prods')) set('prod', patch.prods?.length ? patch.prods.join(',') : null);
   if (has('mex')) set('mex', patch.mex?.length ? patch.mex.join(',') : null);
   if (has('sources')) set('source', patch.sources?.length ? patch.sources.join(',') : null);
   if (has('agent')) set('agent', patch.agent ?? null);
@@ -205,7 +217,7 @@ export const customStatePick = (s: Pick<OrdersListState, 'states'>) => s.states.
 /** How many "Филтри" panel filters are set (its badge). The strip and the period show their own. */
 export function activeFilterCount(s: OrdersListState, isAgent: boolean): number {
   return [
-    customStatePick(s), s.depts.length > 0, !!s.seller, s.mex.length > 0, s.sources.length > 0, !!s.agent,
+    customStatePick(s), s.depts.length > 0, !!s.seller, s.prods.length > 0, s.mex.length > 0, s.sources.length > 0, !!s.agent,
     !isAgent && s.mine === true, s.priceMin != null || s.priceMax != null, !!s.wm, !!s.offer, !!s.stream,
   ].filter(Boolean).length;
 }
@@ -224,6 +236,8 @@ export interface ApiListParams {
   day_to?: string;
   dept?: string;
   seller?: string;
+  /** csv of catalogue product ids */
+  products?: string;
   mex?: string;
   source?: string;
   agent_id?: string;
@@ -257,6 +271,7 @@ export function toApiParams(
     ...(days ? { day_from: days.from, day_to: days.to } : {}),
     ...(s.depts.length ? { dept: s.depts.join(',') } : {}),
     ...(s.seller ? { seller: s.seller } : {}),
+    ...(s.prods.length ? { products: s.prods.join(',') } : {}),
     ...(s.mex.length ? { mex: s.mex.join(',') } : {}),
     ...(s.sources.length ? { source: s.sources.join(',') } : {}),
     ...(agent ? { agent_id: agent } : {}),
@@ -286,6 +301,6 @@ export function mexGroupOf(statusId: number | null | undefined, trackingId: stri
 
 /** The panel filters reset by "Исчисти филтри" in the panel / "Ресетирај" in the sheet (not the period). */
 export const PANEL_RESET: ListPatch = {
-  states: [], depts: [], seller: null, mex: [], sources: [], agent: null, mine: null,
+  states: [], depts: [], seller: null, prods: [], mex: [], sources: [], agent: null, mine: null,
   priceMin: null, priceMax: null, wm: null, offer: null, stream: null,
 };

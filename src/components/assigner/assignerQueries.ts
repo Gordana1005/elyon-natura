@@ -1,6 +1,8 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { apiGetCallAgains, apiGetUnassignedPending } from '@/lib/api';
-import { apiGetAssignerBoard, apiGetAssignerLists, type CallAgainSource } from '@/lib/assignerApi';
+import {
+  apiGetAssignerBoard, apiGetAssignerLists, productFilterOn, type AssignerProductFilter, type CallAgainSource,
+} from '@/lib/assignerApi';
 
 /**
  * Every query the Assigner reads, in one place, so the page (tab counts), the
@@ -8,7 +10,8 @@ import { apiGetAssignerBoard, apiGetAssignerLists, type CallAgainSource } from '
  */
 export const ASSIGNER_KEYS = {
   board: ['assigner-board'] as const,
-  lists: (departments: string[]) => ['assigner-lists', departments] as const,
+  lists: (departments: string[], products?: AssignerProductFilter | null) =>
+    ['assigner-lists', departments, productFilterOn(products) ? products : null] as const,
   pendings: (order: 'newest' | 'oldest', departments: string[]) => ['unassigned-pending', order, departments] as const,
   callAgains: (f: CallAgainsFilters, departments: string[], page: number) =>
     ['assigner-call-agains', { ...f, departments, page }] as const,
@@ -36,9 +39,9 @@ export const boardQuery = () => ({
 });
 
 /** ~170 ms on the server: NOT on the 5 s beat — the broadcast, every action and a 45 s poll refresh it. */
-export const listsQuery = (departments: string[]) => ({
-  queryKey: ASSIGNER_KEYS.lists(departments),
-  queryFn: ({ signal }: { signal: AbortSignal }) => apiGetAssignerLists(departments, signal),
+export const listsQuery = (departments: string[], products?: AssignerProductFilter | null) => ({
+  queryKey: ASSIGNER_KEYS.lists(departments, products),
+  queryFn: ({ signal }: { signal: AbortSignal }) => apiGetAssignerLists(departments, signal, products),
   refetchInterval: 45_000,
   refetchIntervalInBackground: false,
   refetchOnWindowFocus: true,

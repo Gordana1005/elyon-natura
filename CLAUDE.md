@@ -646,6 +646,13 @@ target **explicitly** and verify it before running:
   is not a return until MEX 7). Panel counts = `GET /orders/state-counts`, asked only while the panel is open. Old
   `?view=` / `?mex=` links still work (read, never written). The collabBox bookings bar sits under the toolbar,
   CLOSED by default (remembered per browser). Skopje days, phone search by the last 8 digits.
+- **BY PRODUCT (owner 22.10.2026; `20261022120000` / `0100`).** /orders → Филтри → **Производ** (`?prod=` → api
+  `products`, admins / managers) lists every order whose LINES hold the product (gifts too); the Assigner shows what the
+  "Последна нарачка" order held (`last_order_items`, the "Производи" column / card chips) and filters its lists, cards and
+  distribution by product — **Купил некогаш** (a real order holding it as a purchase) | **Во последната нарачка**.
+  ONE source: `order_products` (from `order_items`: product_id, else a reviewed alias; kept by triggers + the 04:40
+  pass) — never `orders.product_id` / `product_name`. Checks: `verify-order-products.mjs`, `verify-assigner.mjs` P5 / M1.
+  See `elyon-products-catalogue` §9, `elyon-assigner`.
 - **Terminology (owner, 30.09 / 01.10):** in Macedonian prediction = **"предикција" / "предикциски"** — never
   "прогноза"; a leads team or queue = **"лидови"** — never "на чекање" / "пендинзи"; **"На чекање" is ONLY the order
   status `pending`**. `grep -c рогноз src/i18n/locales/mk.json` must be 0. See `elyon-i18n`.

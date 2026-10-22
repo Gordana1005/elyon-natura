@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   activeFilterCount, clearDrillParams, clearListParams, customStatePick, effectiveRange, hasAnyFilter, mexGroupOf, phoneLast8,
-  readListParams, toApiParams, writeListParams,
+  PANEL_RESET, readListParams, toApiParams, writeListParams,
 } from './listParams';
 import { phoneLast8 as apiPhoneLast8, STATE_KEYS as API_STATE_KEYS } from '../../../supabase/functions/api/ordersList';
 import { STATE_KEYS } from './statusModel';
@@ -110,6 +110,26 @@ describe('the api parameters', () => {
     expect(customStatePick(readListParams(sp('st=confirmed.no_parcel')))).toBe(true);
     expect(activeFilterCount(readListParams(sp('mine=1')), true)).toBe(0);
     expect(hasAnyFilter(readListParams(sp('range=today')), false)).toBe(true);
+  });
+});
+
+describe('the product filter (owner 22.10.2026)', () => {
+  const P1 = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  const P2 = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+  const ctx = { today: TODAY, isAgent: false, userId: 'me' };
+  it('?prod= ⇄ prods (distinct, lower case, uuids only) → the api\'s `products`', () => {
+    const s = readListParams(sp(`prod=${P2.toUpperCase()},urofix,${P1},${P2}`));
+    expect(s.prods).toEqual([P2, P1]);
+    expect(toApiParams(s, ctx).products).toBe(`${P2},${P1}`);
+    expect(toApiParams(readListParams(sp('')), ctx).products).toBeUndefined();
+    expect(writeListParams(sp('page=4'), { prods: [P1] }).toString()).toBe(`prod=${P1}`);
+    expect(writeListParams(sp(`prod=${P1}`), { prods: [] }).has('prod')).toBe(false);
+  });
+  it('never the Insights drill key `product`; a panel filter (badge, reset, Исчисти)', () => {
+    expect(readListParams(sp('product=Urofix')).prods).toEqual([]);
+    expect(activeFilterCount(readListParams(sp(`prod=${P1},${P2}`)), false)).toBe(1);
+    expect(writeListParams(sp(`prod=${P1}&dept=web`), PANEL_RESET).toString()).toBe('');
+    expect(clearListParams(sp(`prod=${P1}&product=Urofix`)).toString()).toBe('');
   });
 });
 

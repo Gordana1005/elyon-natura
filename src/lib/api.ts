@@ -430,6 +430,8 @@ export interface OrdersQueryParams {
   ready_only?: boolean; lead_only?: boolean; from?: string; to?: string;
   price_min?: number; price_max?: number; page?: number; limit?: number; drill?: OrdersDrillParams;
   view?: string; day_from?: string; day_to?: string; dept?: string; seller?: string; mex?: string;
+  /** csv of catalogue product ids — the orders holding one of them (admin / manager, owner 22.10.2026). */
+  products?: string;
   /** The status pick (owner 15.10.2026): csv of the api's STATE_KEYS — every status + the MEX parts of
    *  Потврдена / Испратена. Goes with view=all. */
   state?: string;
@@ -522,7 +524,7 @@ function ordersQuery(params?: OrdersQueryParams): URLSearchParams {
   if (params?.to) sp.set('to', params.to);
   if (params?.price_min != null) sp.set('price_min', String(params.price_min));
   if (params?.price_max != null) sp.set('price_max', String(params.price_max));
-  for (const k of ['view', 'state', 'day_from', 'day_to', 'dept', 'seller', 'mex'] as const) {
+  for (const k of ['view', 'state', 'day_from', 'day_to', 'dept', 'seller', 'products', 'mex'] as const) {
     const v = params?.[k];
     if (v) sp.set(k, v);
   }
@@ -2905,7 +2907,11 @@ export const apiGetCourierOfficeByCode = (courier: 'speedy' | 'econt' | 'mex', c
 
 // Segments (rule-driven prediction lists)
 export const apiGetSegments = () => apiFetch('segments');
-export const apiGetSegment = (id: string, params?: { page?: number; limit?: number; assigned?: string; completed?: string; departments?: string[] }) => {
+export const apiGetSegment = (id: string, params?: {
+  page?: number; limit?: number; assigned?: string; completed?: string; departments?: string[];
+  /** The Assigner's product filter: the customers who bought one of them ('ever') or whose last order holds one ('last'). */
+  products?: string[]; productScope?: 'ever' | 'last';
+}) => {
   const sp = new URLSearchParams();
   if (params?.page) sp.set('page', String(params.page));
   if (params?.limit) sp.set('limit', String(params.limit));
@@ -2913,6 +2919,10 @@ export const apiGetSegment = (id: string, params?: { page?: number; limit?: numb
   if (params?.completed) sp.set('completed', params.completed);
   // the buyer's department (the Assigner's chips); the members then carry `department`
   if (params?.departments?.length) sp.set('departments', params.departments.join(','));
+  if (params?.products?.length) {
+    sp.set('products', params.products.join(','));
+    sp.set('product_scope', params.productScope ?? 'ever');
+  }
   const qs = sp.toString();
   return apiFetch(`segments/${id}${qs ? `?${qs}` : ''}`);
 };

@@ -49,12 +49,14 @@ refreshed every 10 min (cron `customer-departments-refresh`) + nightly full (`cu
   members), `list_open` / `list_parked` / `list_assigned`, `worked_today`; totals. ~14 ms — polled every 5 s.
 - `assigner_lists(departments)` (`…1957`) — per list total / distributable / assigned / done / open for the chosen
   departments + `by_department` for all seven keys (Σ = the list). ~170 ms — refetch ≥ 30 s, on broadcasts, after actions.
-- `assigner_list_members(list, departments, assigned, completed, limit, offset)` (`…1963`) — the member page with the
-  buyer department (PostgREST cannot join the cache).
+- `assigner_list_members(list, departments, assigned, completed, limit, offset, product_ids, product_scope)`
+  (`…1963` + `20260943001900` last_seller + `20261022120100`) — the member page with the buyer department (PostgREST
+  cannot join the cache), `last_seller`, the product filter and `last_order_items` (below).
 - `assigner_distribute(kind, list, departments, order, count, split, agents, include_assigned, dry_run, source,
-  actor)` (`…1960`) — lists / pendings (lead sources only) / call-agains picked ON THE SERVER, `FOR UPDATE SKIP
-  LOCKED`, only the assignment triple (+ `assigned_by`) moves, orders keep `updated_at` (keep_updated_at), refuses
-  random outside lists, static/inactive lists, inactive agents.
+  actor, product_ids, product_scope)` (`…1960` + `20261022120100`) — lists / pendings (lead sources only) /
+  call-agains picked ON THE SERVER, `FOR UPDATE SKIP LOCKED`, only the assignment triple (+ `assigned_by`) moves,
+  orders keep `updated_at` (keep_updated_at), refuses random outside lists, static/inactive lists, inactive agents,
+  and a product filter outside lists.
 - `assigner_call_agains(source, agent, departments, order, limit, offset)` (`…1962`) — true totals; the call-again
   expiry now runs by cron every 5 min (`call-again-expiry`), not on every GET.
 - `agent_workloads().orders_open` = lead sources only (one load definition, `…1950`).
@@ -75,6 +77,39 @@ totals, department coverage). Tests: `src/lib/assigner/*.test.ts`, `AgentBoard.t
 **Superseded below:** the right-hand agents rail, the "whole / half / custom" bar, and the call-agains "Додели на
 неодамна онлајн" block are gone (select-all-online + Сите does the same). The unassign contract, the lead rules and the
 engine sections below still hold.
+
+## By product — the last order's products + the product filter (owner 22.10.2026, `20261022120000` / `0100`)
+
+Owner: "последната нарачка да ја пишува и продуктите … и тоа како филтер, пример Urofix". Built on
+**`order_products`** (one row per order × catalogue product, kept from `order_items` by triggers + a 04:40 Skopje
+pass — see `elyon-products-catalogue` §9).
+
+- **What the last order held** — `assigner_list_members` returns `last_order_items` `[{name, qty, gift}]` for the
+  page rows only: the lines of `coalesce(trigger_order_id, last_sale_order_id)` = **the same order whose price and
+  date the "Последна нарачка" column shows** (the seller column is still the customer's last SALE — the two can
+  differ). Catalogue name where the line names a product (id or reviewed alias), lines of one name summed, purchases
+  first, gifts flagged (reviewed kind gift / product kind gift / priced 0 next to a priced line); delivery / loyalty /
+  note / flyer lines and synthetic names dropped; no line → the header `product_name` (qty null).
+  `SegmentMemberTable` shows it as the "Производи" column right after "Последна нарачка" (gifts grey, "подарок: …")
+  and as chips under "Последна нарачка" on the cards; the old static-list `product_name` is the fallback.
+- **The filter** — Lists tab bar "Производ: [▾] · Купил некогаш | Во последната нарачка · N клиенти во листите · ✕",
+  URL `?prod=a,b&pscope=last` (`parseProductFilter` in `AssignerPage.tsx`), picker `ProductMultiPick` /
+  `ProductFilterButton` (`src/components/products/ProductMultiPick.tsx`, shared with /orders: Cyrillic ⇄ Latin,
+  twins together, "Избери ги сите прикажани" for every variant, ≤ 50). **'ever'** = `assigner_product_buyers(ids)`:
+  the last-8 phones with a REAL order (confirmed / shipped / delivered / paid / returned, no disposition) holding one
+  as a purchase (`NOT gift_only`); **'last'** = the member's `trigger_order_id` holds one as a purchase. The filter
+  applies to `assigner_lists` (the counts, `by_department`, the DistributeBar pool — a list with no match is not
+  returned), every card's members (`GET /segments/:id?products=&product_scope=`) and `assigner_distribute`
+  (`product_ids` / `product_scope` in the body, lists only; the audit keeps them). Not on Лидови / Повторни повици.
+  The web shop is not in it (web orders are not CRM orders).
+- **`whole_assigned`** — `assigner_lists` returns the WHOLE list's assigned count (no department, no product):
+  what "Одземи ги сите" frees (`wholeListAssigned`), since `by_department` now follows the product filter.
+- **Менаџмент** joined the department keys of `assigner_lists` / `assigner_distribute` / `assigner_call_agains` the
+  same day (the api had sent `management` since `20260947001000` and the SQL answered "invalid department").
+- Checks: `verify-assigner.mjs` **P5** (Urofix: Σ departments = total = a recount of its buyers, 'last' = trigger
+  orders holding it, whole_assigned, the dry-run pool) and **M1** (`last_order_items` ⊇ the order's catalogue
+  purchases); tests in `AssignerPage.test.tsx` / `assigner.test.ts`. 22.10: 2.721 list members ever bought Urofix,
+  2.485 have it in their last order.
 
 ## Call-agains on /calls — one place for the agent (01.10.2026, `0711fb7`)
 

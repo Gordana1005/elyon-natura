@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   activeViewsByPhone, anyStatusDayOr, applyOps, baseOps, COUNTED_VIEWS, dayWindow, filterRecorder, isNarrowed,
-  LEAD_STATUSES, MEX_GROUP_KEYS, mexGroupOf, mexGroupsOr, NOT_DISPOSITION, orderSpec, parseOrdersListParams,
+  LEAD_STATUSES, MEX_GROUP_KEYS, mexGroupOf, mexGroupsOr, NOT_DISPOSITION, orderSelect, orderSpec, parseOrdersListParams,
   parsePhonesParam, parseSearch, phoneLast8, SALE_NOT_DISPOSITION, SALE_STATUSES, saleClockOr, searchOps, STATE_KEYS,
   stateCountParams, stateOps, stateViews, normalizeStates, viewCounts, viewOps, viewStatuses,
   type Op, type OrdersListParams,
@@ -46,10 +46,17 @@ function compile(term: string): Pred {
       return neg ? (r === null ? null : !r) : r;
     };
   }
-  const m = t.match(/^([a-z_]+)\.(not\.)?(eq|neq|gt|gte|lt|lte|is|in|like|ilike)\.(.*)$/s);
+  // a column, or `alias.column` of an embed (the second part never an operator word)
+  const m = t.match(/^([a-z_]+(?:\.(?!(?:not|eq|neq|gt|gte|lt|lte|is|in|like|ilike)\.)[a-z_]+)?)\.(not\.)?(eq|neq|gt|gte|lt|lte|is|in|like|ilike)\.(.*)$/s);
   if (!m) throw new Error("cannot parse " + t);
   const [, col, neg, op, val] = m;
   const list = op === "in" ? splitTop(val.replace(/^\(|\)$/g, "")) : [];
+  // `alias.col` filters an INNER embed: the row (the parent) passes when one of its embedded rows does
+  if (col.includes(".")) {
+    const [alias, inner] = col.split(".");
+    const one = compile(`${inner}.${neg ?? ""}${op}.${val}`);
+    return (row) => ((row[alias] as Row[] | undefined) ?? []).some((e) => one(e) === true);
+  }
   return (row) => {
     const v = row[col];
     let r: boolean | null;
@@ -122,7 +129,7 @@ describe("parseOrdersListParams", () => {
       view: "orders", statuses: ["confirmed", "paid"], dayFrom: "2026-09-22", dayTo: "2026-09-28",
       departments: ["altercpa", "social"], sellerId: "11111111-1111-4111-8111-111111111111",
       mexGroups: ["courier", "no_parcel"], sources: ["manual"], agent: { kind: "none" },
-      search: { kind: "phone", last8: "70123456" }, states: [],
+      search: { kind: "phone", last8: "70123456" }, states: [], productIds: [],
     });
     expect(isNarrowed(p)).toBe(true);
     expect(isNarrowed(params(""))).toBe(false);
@@ -317,6 +324,32 @@ describe("department · seller · MEX · source", () => {
     expect(mexGroupOf(13, "x")).toBe("rejected");
     expect(mexGroupOf(null, null)).toBe("no_parcel");
     expect(mexGroupOf(99, "x")).toBeNull();
+  });
+});
+
+describe("products — the orders holding one of them (owner 22.10.2026)", () => {
+  const P1 = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const P2 = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  it("reads products: distinct lower-case uuids; malformed or too many → 400", () => {
+    expect(params(`products=${P2.toUpperCase()},${P1},${P2}`).productIds).toEqual([P2, P1]);
+    expect(params("").productIds).toEqual([]);
+    expect(parseOrdersListParams(new URLSearchParams("products=urofix"))).toEqual({ ok: false, error: "Invalid products" });
+    const many = Array.from({ length: 51 }, (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`).join(",");
+    expect(parseOrdersListParams(new URLSearchParams(`products=${many}`))).toEqual({ ok: false, error: "Too many products" });
+    expect(isNarrowed(params(`products=${P1}`))).toBe(true);
+  });
+  it("filters the op embed — which every select of the list then carries", () => {
+    const p = params(`products=${P1},${P2}`);
+    expect(baseOps(p)).toEqual([{ m: "in", col: "op.product_id", v: [P1, P2] }]);
+    expect(orderSelect(p, "id")).toBe("id, op:order_products!inner()");
+    expect(orderSelect(params(""), "*, order_items(id)")).toBe("*, order_items(id)");
+    const ops = baseOps(p);
+    expect(passes(ops, { op: [{ product_id: "x" }, { product_id: P2 }] })).toBe(true);
+    expect(passes(ops, { op: [{ product_id: "x" }] })).toBe(false);
+    expect(passes(ops, { op: [] })).toBe(false);
+  });
+  it("the Insights drill's `product` (an exact header name) is not the product filter", () => {
+    expect(params("product=Urofix").productIds).toEqual([]);
   });
 });
 

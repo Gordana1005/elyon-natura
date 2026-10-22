@@ -39,7 +39,8 @@
 import { runSql } from './verify-insights-ties.mjs';
 
 const LEAD = `('altercpa', 'inbound_lead', 'opencart', 'opencart_abandoned')`;
-const DEPTS = ['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web', 'unknown'];
+const DEPTS = ['altercpa', 'elyon_crm', 'teleshop_out', 'teleshop_other', 'social', 'web', 'management', 'unknown'];
+const UROFIX = 'fae40061-d8ad-4025-9de0-3dea17daff71';
 const n = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : Number(v ?? 0) || 0);
 const parse = (v) => (typeof v === 'string' ? JSON.parse(v) : v);
 const lit = (s) => (s == null ? 'NULL' : `'${String(s).replace(/'/g, "''")}'`);
@@ -184,7 +185,7 @@ async function verifyLists() {
   for (const x of lists) {
     const ok = x.sum_dept === x.total && x.total === x.members && x.keys === DEPTS.length
       && JSON.stringify(x.got) === JSON.stringify(x.want);
-    if (!ok) { bad++; l1.tie(x.name, { total: x.members, sum: x.members, keys: 7, counts: x.want }, { total: x.total, sum: x.sum_dept, keys: x.keys, counts: x.got }); }
+    if (!ok) { bad++; l1.tie(x.name, { total: x.members, sum: x.members, keys: DEPTS.length, counts: x.want }, { total: x.total, sum: x.sum_dept, keys: x.keys, counts: x.got }); }
   }
   l1.tie('lists with a mismatch', 0, bad);
   const tot = parse(row.totals);
@@ -337,20 +338,106 @@ async function verifyDepartments() {
   if (st.watermark && ageMin > 30) b1.warn('refresh age', `${Math.round(ageMin)} min since the last run (cron every 10 min)`);
 }
 
+// ── P / M: the product filter and the last order's products (20261022120100) ────
+
+async function verifyProducts() {
+  const U = `ARRAY[${lit(UROFIX)}::uuid]`;
+  // the buyers written out again (not assigner_product_buyers): a real order holding it as a purchase
+  const BUYERS = `(SELECT DISTINCT right(regexp_replace(o.customer_phone, '[^0-9]', '', 'g'), 8) AS p8
+                     FROM public.order_products op JOIN public.orders o ON o.id = op.order_id
+                    WHERE op.product_id = ${lit(UROFIX)}::uuid AND NOT op.gift_only
+                      AND o.status IN ('confirmed', 'shipped', 'delivered', 'paid', 'returned')
+                      AND o.sale_source_detail IS DISTINCT FROM 'disposition')`;
+  const [r] = await timed('lists by product', `
+    WITH l AS MATERIALIZED (SELECT public.assigner_lists(NULL, ${U}, 'ever') AS j),
+    k AS MATERIALIZED (SELECT public.assigner_lists(NULL, ${U}, 'last') AS j),
+    a AS MATERIALIZED (SELECT public.assigner_lists(NULL) AS j),
+    e AS (SELECT x FROM l, jsonb_array_elements(l.j->'lists') x),
+    b AS MATERIALIZED ${BUYERS}
+    SELECT
+      (SELECT count(*) FROM e
+        WHERE (x->>'total')::int <> (SELECT sum((v->>'total')::int) FROM jsonb_each(x->'by_department') d(kk, v))) AS bad_sum,
+      (SELECT count(*) FROM e
+        WHERE (x->>'total')::int <> (SELECT count(*) FROM public.prediction_segment_members m
+                                      WHERE m.list_id = (x->>'id')::uuid
+                                        AND right(regexp_replace(m.customer_phone, '[^0-9]', '', 'g'), 8) IN (SELECT p8 FROM b))) AS bad_ever,
+      (SELECT (j->'totals'->>'total')::int FROM l) AS ever_total,
+      (SELECT (j->'totals'->>'total')::int FROM k) AS last_total,
+      (SELECT count(*) FROM public.prediction_segment_members m
+         JOIN public.prediction_segment_lists pl ON pl.id = m.list_id AND pl.is_active
+        WHERE EXISTS (SELECT 1 FROM public.order_products op
+                       WHERE op.order_id = m.trigger_order_id AND op.product_id = ${lit(UROFIX)}::uuid AND NOT op.gift_only)) AS last_want,
+      (SELECT count(*) FROM a, jsonb_array_elements(a.j->'lists') x
+        WHERE (x->>'whole_assigned')::int <> (SELECT count(*) FROM public.prediction_segment_members m
+                                               WHERE m.list_id = (x->>'id')::uuid AND m.assigned_agent_id IS NOT NULL)) AS bad_whole,
+      (SELECT j->'products' FROM l) AS echoed
+  `);
+  const p5 = check('P5', 'product filter (Urofix): Σ departments = total = a recount of its buyers');
+  p5.tie('lists whose Σ by_department ≠ total', 0, n(r.bad_sum));
+  p5.tie('lists whose total ≠ members with a Urofix purchase', 0, n(r.bad_ever));
+  p5.tie('"in the last order" total = members whose trigger order holds it', n(r.last_want), n(r.last_total));
+  p5.tie('whole_assigned = every assigned member of the list', 0, n(r.bad_whole));
+  p5.tie('products echoed', [UROFIX], parse(r.echoed));
+  p5.info('members who bought Urofix (ever / in the last order)', `${n(r.ever_total)} / ${n(r.last_total)}`);
+
+  const [ctx] = await runSql(`
+    SELECT (SELECT x->>'id' FROM jsonb_array_elements(public.assigner_lists(NULL, ${U}, 'ever')->'lists') x
+             WHERE (x->>'assignable')::boolean ORDER BY (x->>'distributable')::int DESC LIMIT 1) AS list,
+           (SELECT coalesce(jsonb_agg(z.user_id), '[]'::jsonb) FROM (
+              SELECT p.user_id FROM public.profiles p
+               WHERE p.is_active AND EXISTS (SELECT 1 FROM public.user_roles x WHERE x.user_id = p.user_id AND x.role = 'pending_agent')
+               ORDER BY p.full_name LIMIT 2) z) AS agents
+  `);
+  const agents = parse(ctx.agents);
+  if (ctx.list && agents.length) {
+    const L = `${lit(ctx.list)}::uuid`;
+    const [d] = await timed('dry run by product', `
+      SELECT public.assigner_distribute('list', ${L}, NULL, 'newest', NULL, 'total', ${uuidArr(agents)}, false, true, 'all', NULL, ${U}, 'ever') AS d,
+             (SELECT (x->>'distributable')::int FROM jsonb_array_elements(public.assigner_lists(NULL, ${U}, 'ever')->'lists') x WHERE x->>'id' = ${lit(ctx.list)}) AS want
+    `);
+    const dd = parse(d.d);
+    p5.tie("dry-run pool with the product = the list's distributable", n(d.want), n(dd.pool));
+    p5.tie('dry run wrote nothing', 0, n(dd.assigned));
+  } else {
+    p5.warn('dry run', 'no assignable list with Urofix buyers, or no pending agents');
+  }
+
+  const [m] = await timed('last order items', `
+    WITH lid AS (SELECT l.id FROM public.prediction_segment_lists l WHERE l.is_active AND NOT l.is_static
+                  ORDER BY (SELECT count(*) FROM public.prediction_segment_members m WHERE m.list_id = l.id) DESC LIMIT 1),
+    pg AS (SELECT x FROM lid, jsonb_array_elements(public.assigner_list_members(lid.id, NULL, 'all', 'all', 100, 0)->'members') x),
+    want AS (
+      SELECT pg.x->>'customer_phone' AS ph, p.name
+      FROM pg
+      JOIN public.order_products op ON op.order_id = coalesce((pg.x->>'trigger_order_id')::uuid, (pg.x->>'last_sale_order_id')::uuid)
+                                    AND NOT op.gift_only
+      JOIN public.products p ON p.id = op.product_id)
+    SELECT (SELECT count(*) FROM pg) AS rows,
+           (SELECT count(*) FROM pg WHERE jsonb_typeof(pg.x->'last_order_items') IS DISTINCT FROM 'array') AS no_items,
+           (SELECT count(*) FROM want w
+             WHERE NOT EXISTS (SELECT 1 FROM pg, jsonb_array_elements(pg.x->'last_order_items') i
+                                WHERE pg.x->>'customer_phone' = w.ph AND i->>'name' = w.name AND NOT (i->>'gift')::boolean)) AS missing
+  `);
+  const m1 = check('M1', 'last_order_items = the purchases of the "Последна нарачка" order (biggest list, 100 rows)');
+  m1.tie('catalogue purchases of the order missing from last_order_items', 0, n(m.missing));
+  m1.info('rows / rows with no items', `${n(m.rows)} / ${n(m.no_items)}`);
+}
+
 // ── main ──────────────────────────────────────────────────────────────────────
 
 async function main() {
   const json = process.argv.includes('--json');
   const [have] = await runSql(`
     SELECT to_regprocedure('public.assigner_board()') IS NOT NULL AS board,
-           to_regprocedure('public.assigner_lists(text[])') IS NOT NULL AS lists,
-           to_regprocedure('public.assigner_distribute(text,uuid,text[],text,integer,text,uuid[],boolean,boolean,text,text)') IS NOT NULL AS distribute,
+           to_regprocedure('public.assigner_lists(text[],uuid[],text)') IS NOT NULL AS lists,
+           to_regprocedure('public.assigner_list_members(uuid,text[],text,text,integer,integer,uuid[],text)') IS NOT NULL AS members,
+           to_regprocedure('public.assigner_distribute(text,uuid,text[],text,integer,text,uuid[],boolean,boolean,text,text,uuid[],text)') IS NOT NULL AS distribute,
            to_regprocedure('public.assigner_call_agains(text,text,text[],text,integer,integer)') IS NOT NULL AS call_agains,
            to_regclass('public.customer_departments') IS NOT NULL AS cache
   `);
   const missing = Object.entries(have).filter(([, v]) => !v).map(([k]) => k);
   if (missing.length) {
-    console.error(`verify-assigner: not applied yet (${missing.join(', ')}) — apply 20260942001950 … 1962 first`);
+    console.error(`verify-assigner: not applied yet (${missing.join(', ')}) — apply 20260942001950 … 1962 and 20261022120100 first`);
     process.exit(2);
   }
   await verifyBoard();
@@ -358,6 +445,7 @@ async function main() {
   await verifyDistribute();
   await verifyCallAgains();
   await verifyDepartments();
+  await verifyProducts();
 
   const fail = results.some((c) => c.status === 'FAIL');
   if (json) {

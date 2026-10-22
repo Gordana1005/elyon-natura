@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { apiErrorText } from '@/i18n/apiErrors';
 import { cn } from '@/lib/utils';
 import {
-  apiAssignerDistribute, type AssignerBoardAgent, type CallAgainSource, type DistributeBody,
+  apiAssignerDistribute, productFilterOn, type AssignerBoardAgent, type AssignerProductFilter, type CallAgainSource, type DistributeBody,
   type DistributeKind, type DistributeOrder, type DistributeResult, type DistributeSplit,
 } from '@/lib/assignerApi';
 import { planDistribution } from '@/lib/assigner/plan';
@@ -45,6 +45,8 @@ export interface DistributeBarProps {
   /** What is being shared, for the confirm dialog ("21–57 дена · …", "Пендинзи"). */
   whatLabel: string;
   departments: string[];
+  /** Lists only: the product filter (the customers who bought one of them). */
+  products?: AssignerProductFilter | null;
   /** The local pool estimate (unassigned, in the chosen departments); null = unknown. */
   pool: number | null;
   /** The estimate when "include already assigned" is on; null = unknown (the dry run tells). */
@@ -78,7 +80,7 @@ export interface DistributeBarProps {
  * someone else just took.
  */
 export function DistributeBar({
-  kind, listId, whatLabel, departments, pool, poolWithAssigned, agents, targets, onTargetsChange, source,
+  kind, listId, whatLabel, departments, products, pool, poolWithAssigned, agents, targets, onTargetsChange, source,
   order: orderProp, onOrderChange, defaultOrder = 'newest', allowRandom, warnOffline, onDone, f, className,
 }: DistributeBarProps) {
   const { t } = f;
@@ -109,7 +111,8 @@ export function DistributeBar({
     include_assigned: includeAssigned,
     dry_run: true,
     ...(kind === 'call_agains' ? { source: source ?? 'all' } : {}),
-  }), [kind, listId, departments, order, count, split, targets, includeAssigned, source]);
+    ...(kind === 'list' && productFilterOn(products) ? { product_ids: products.ids, product_scope: products.scope } : {}),
+  }), [kind, listId, departments, order, count, split, targets, includeAssigned, source, products]);
   const bodyKey = JSON.stringify(body);
   const debouncedKey = useDebounced(bodyKey, PREVIEW_DEBOUNCE_MS);
   const settled = debouncedKey === bodyKey;

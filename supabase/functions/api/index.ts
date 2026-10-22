@@ -6429,6 +6429,9 @@ async function handleRequest(req: Request): Promise<Response> {
       const olParsed = OL.parseOrdersListParams(url.searchParams);
       if (!olParsed.ok) return json({ error: olParsed.error }, 400);
       const ol = olParsed.value;
+      // The product filter reads order_products (service role only) — admins / managers, like the
+      // seller filter; an agent's list goes through RLS and never sends it.
+      if (ol.productIds.length && !isAdminOrManager) return json({ error: "Forbidden" }, 403);
       const status = url.searchParams.get("status");
       const search = url.searchParams.get("search");
       const agentId = url.searchParams.get("agent_id");
@@ -6703,7 +6706,7 @@ async function handleRequest(req: Request): Promise<Response> {
       const listOps = [...(query as ReturnType<typeof OL.filterRecorder>).ops, ...OL.baseOps(ol)];
       if (countsOnly) {
         const res = await Promise.all(OL.COUNTED_VIEWS.map(async (v) => {
-          const cq = OL.applyOps(client.from("orders").select("id", { count: "exact", head: true }), [...listOps, ...OL.viewOps(ol, v)]);
+          const cq = OL.applyOps(client.from("orders").select(OL.orderSelect(ol, "id"), { count: "exact", head: true }), [...listOps, ...OL.viewOps(ol, v)]);
           const { count: n, error: cErr } = await cq;
           if (cErr) console.error(`orders/view-counts ${v}:`, cErr.message);
           return [v, cErr ? null : (n ?? 0)] as const;
@@ -6713,7 +6716,7 @@ async function handleRequest(req: Request): Promise<Response> {
       if (stateCountsOnly) {
         const res = await Promise.all(OL.STATE_KEYS.map(async (k) => {
           const kp = OL.stateCountParams(ol, k);
-          const cq = OL.applyOps(client.from("orders").select("id", { count: "exact", head: true }), [...listOps, ...OL.viewOps(kp, "all")]);
+          const cq = OL.applyOps(client.from("orders").select(OL.orderSelect(ol, "id"), { count: "exact", head: true }), [...listOps, ...OL.viewOps(kp, "all")]);
           const { count: n, error: cErr } = await cq;
           if (cErr) console.error(`orders/state-counts ${k}:`, cErr.message);
           return [k, cErr ? null : (n ?? 0)] as const;
@@ -6721,7 +6724,7 @@ async function handleRequest(req: Request): Promise<Response> {
         return json({ counts: Object.fromEntries(res) });
       }
       let pageQuery: any = OL.applyOps(
-        client.from("orders").select("*, order_items(id, product_id, product_name, quantity, price_per_unit, total_price)",
+        client.from("orders").select(OL.orderSelect(ol, "*, order_items(id, product_id, product_name, quantity, price_per_unit, total_price)"),
           { count: isFiltered ? "exact" : "estimated" }),
         [...listOps, ...OL.viewOps(ol, ol.view)],
       );
@@ -18561,6 +18564,11 @@ async function handleRequest(req: Request): Promise<Response> {
       // ?departments=a,b — the buyer's department (the Assigner's chips, 20260942001963)
       const segDepts = ASG.parseDepartmentsParam(url.searchParams.get("departments"));
       if (!segDepts.ok) return json({ error: segDepts.error }, 400);
+      // ?products=a,b&product_scope=ever|last — the customers who bought one of them (20261022120100)
+      const segProds = ASG.parseProductIdsParam(url.searchParams.get("products"));
+      if (!segProds.ok) return json({ error: segProds.error }, 400);
+      const segScope = ASG.parseProductScope(url.searchParams.get("product_scope"));
+      if (!segScope.ok) return json({ error: segScope.error }, 400);
 
       const { data: list, error: listErr } = await adminClient
         .from("prediction_segment_lists")
@@ -18581,9 +18589,13 @@ async function handleRequest(req: Request): Promise<Response> {
           p_completed: completedFilter || "all",
           p_limit: limit,
           p_offset: (page - 1) * limit,
+          p_product_ids: segProds.productIds,
+          p_product_scope: segScope.scope,
         });
         if (!lmErr && lm) viaRpc = { members: (lm as any).members ?? [], total: Number((lm as any).total ?? 0) };
         else if (lmErr) console.error("assigner_list_members:", lmErr.message);
+        // the plain page below cannot filter by product — never answer a silently wider list
+        if (!viaRpc && segProds.productIds) return json({ error: lmErr ? sanitizeDbError(lmErr) : "members unavailable" }, 500);
       }
 
       let q = adminClient
@@ -18872,7 +18884,13 @@ async function handleRequest(req: Request): Promise<Response> {
       if (!showSegmentMembers) return json({ error: "members_restricted" }, 403);
       const dq = ASG.parseDepartmentsParam(url.searchParams.get("departments"));
       if (!dq.ok) return json({ error: dq.error }, 400);
-      const { data, error } = await adminClient.rpc("assigner_lists", { p_departments: dq.departments });
+      const pq = ASG.parseProductIdsParam(url.searchParams.get("products"));
+      if (!pq.ok) return json({ error: pq.error }, 400);
+      const sq = ASG.parseProductScope(url.searchParams.get("product_scope"));
+      if (!sq.ok) return json({ error: sq.error }, 400);
+      const { data, error } = await adminClient.rpc("assigner_lists", {
+        p_departments: dq.departments, p_product_ids: pq.productIds, p_product_scope: sq.scope,
+      });
       if (error) {
         const e = ASG.distributeRpcError(error);
         return json({ error: e ? e.error : sanitizeDbError(error) }, 400);
@@ -18882,7 +18900,8 @@ async function handleRequest(req: Request): Promise<Response> {
 
     // POST /api/assigner/distribute — deal a list / the lead pendings / the
     // call-agains to agents. Body: {kind, list_id?, departments?, order, count
-    // (null = all), split, agent_ids, include_assigned, dry_run, source?}.
+    // (null = all), split, agent_ids, include_assigned, dry_run, source?,
+    // product_ids?, product_scope? (lists only)}.
     // dry_run (the default) = the preview: the same selection, nothing written.
     // A real run writes only the assignment triple (FOR UPDATE SKIP LOCKED in
     // SQL), is audited (assigner.distribute), pings each agent who received

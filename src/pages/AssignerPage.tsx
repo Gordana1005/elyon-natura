@@ -8,7 +8,9 @@ import { useToast } from '@/hooks/use-toast';
 import { apiErrorText } from '@/i18n/apiErrors';
 import { cn } from '@/lib/utils';
 import { apiAssignSegmentMembers, apiGetAssignmentSummary, type AssignmentSummary } from '@/lib/api';
-import { ASSIGNER_DEPARTMENTS, type AssignerBoardAgent } from '@/lib/assignerApi';
+import { apiGetProducts } from '@/lib/api';
+import { ASSIGNER_DEPARTMENTS, type AssignerBoardAgent, type AssignerProductFilter } from '@/lib/assignerApi';
+import { MAX_PICKED_PRODUCTS, toFilterProducts } from '@/components/products/ProductMultiPick';
 import { agentHolds, agentLoad } from '@/lib/assigner/board';
 import { dealRoundRobin } from '@/lib/assigner/plan';
 import { OVERVIEW_COLOR_VARS } from '@/components/insights/overview/palette';
@@ -38,6 +40,14 @@ export function parseDepartments(raw: string | null): string[] {
   return ASSIGNER_DEPARTMENTS.filter((d) => set.has(d));
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** `?prod=a,b&pscope=last` → the product filter (owner 22.10.2026); anything unreadable is dropped. */
+export function parseProductFilter(rawIds: string | null, rawScope: string | null): AssignerProductFilter | null {
+  const ids = [...new Set((rawIds ?? '').split(',').map((s) => s.trim().toLowerCase()).filter((s) => UUID_RE.test(s)))]
+    .slice(0, MAX_PICKED_PRODUCTS);
+  return ids.length ? { ids, scope: rawScope === 'last' ? 'last' : 'ever' } : null;
+}
+
 /**
  * /assigner — "Распределувач" (plan Part B, 29.09.2026). A thin shell: the
  * department chips + live indicator, the KPI tiles, the live agent board (ALL
@@ -52,6 +62,7 @@ export default function AssignerPage() {
   const qc = useQueryClient();
   const [params, setParams] = useSearchParams();
   const departments = useMemo(() => parseDepartments(params.get('dept')), [params]);
+  const products = useMemo(() => parseProductFilter(params.get('prod'), params.get('pscope')), [params]);
   const tabParam = params.get('tab');
   const tab: TabKey = (TABS as readonly string[]).includes(tabParam ?? '') ? (tabParam as TabKey) : 'lists';
 
@@ -63,6 +74,12 @@ export default function AssignerPage() {
     }, { replace: true });
   }, [setParams]);
   const setDepartments = (d: string[]) => setParam('dept', d.length ? d.join(',') : null);
+  const setProducts = (p: AssignerProductFilter | null) => setParams((prev) => {
+    const next = new URLSearchParams(prev);
+    if (p?.ids.length) next.set('prod', p.ids.join(',')); else next.delete('prod');
+    if (p?.ids.length && p.scope === 'last') next.set('pscope', 'last'); else next.delete('pscope');
+    return next;
+  }, { replace: true });
   const setTab = (v: string) => setParam('tab', v === 'lists' ? null : v);
 
   const [targets, setTargets] = useState<string[]>([]);
@@ -74,7 +91,10 @@ export default function AssignerPage() {
   const now = useNow(1_000);
 
   const board = useQuery(boardQuery());
-  const lists = useQuery(listsQuery(departments));
+  const lists = useQuery(listsQuery(departments, products));
+  // the catalogue for the product filter (the same cache entry as /orders)
+  const { data: productsData } = useQuery<any[]>({ queryKey: ['products'], queryFn: apiGetProducts, staleTime: 300_000 });
+  const catalogue = useMemo(() => toFilterProducts(productsData), [productsData]);
   const pendings = useQuery(pendingsQuery(pendingsOrder, departments));
   const callAgainsHead = useQuery(callAgainsQuery(caFilters, departments, 1));
   const summary = useQuery<AssignmentSummary>({ queryKey: ASSIGNER_KEYS.summary, queryFn: apiGetAssignmentSummary, refetchInterval: 30_000 });
@@ -232,6 +252,9 @@ export default function AssignerPage() {
               error={lists.error}
               onRetry={() => void lists.refetch()}
               departments={departments}
+              products={products}
+              onProductsChange={setProducts}
+              catalogue={catalogue}
               agents={agents}
               targets={targets}
               onTargetsChange={setTargets}

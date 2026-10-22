@@ -145,6 +145,12 @@ export interface AssignerListCounts {
   done: number;
 }
 
+/** The Assigner's product filter (owner 22.10.2026): 'ever' = the customer bought one of them at any
+ *  time; 'last' = the "Последна нарачка" order holds one of them. */
+export type ProductScope = 'ever' | 'last';
+export interface AssignerProductFilter { ids: string[]; scope: ProductScope }
+export const productFilterOn = (p: AssignerProductFilter | null | undefined): p is AssignerProductFilter => !!p && p.ids.length > 0;
+
 export interface AssignerList extends AssignerListCounts {
   id: string;
   /** The ENGINE KEY — never renamed, never translated back. Display via listLabel(). */
@@ -156,8 +162,10 @@ export interface AssignerList extends AssignerListCounts {
   assignable: boolean;
   /** Not done (assigned or not). */
   open: number;
-  /** Every department + 'unknown', whatever the selection. */
+  /** Every department + 'unknown', whatever the selection (under the product filter when one is on). */
   by_department: Record<string, AssignerListCounts>;
+  /** Everything assigned in the WHOLE list — no department, no product: what "Одземи ги сите" frees. */
+  whole_assigned: number;
 }
 
 export interface AssignerLists {
@@ -192,6 +200,9 @@ export function normalizeLists(raw: unknown): AssignerLists {
       assignable: l.assignable !== false,
       open: l.open != null ? num(l.open) : Math.max(0, counts.total - counts.done),
       by_department: byDept,
+      whole_assigned: l.whole_assigned != null
+        ? num(l.whole_assigned)
+        : (Object.keys(byDept).length ? Object.values(byDept).reduce((s, c) => s + c.assigned, 0) : counts.assigned),
     };
   });
   const totals = r.totals
@@ -209,9 +220,17 @@ export function normalizeLists(raw: unknown): AssignerLists {
 }
 
 /** `departments` empty/undefined = every department. */
-export const apiGetAssignerLists = async (departments?: string[], signal?: AbortSignal): Promise<AssignerLists> => {
-  const qs = departments && departments.length ? `?departments=${encodeURIComponent(departments.join(','))}` : '';
-  return normalizeLists(await apiFetch(`assigner/lists${qs}`, { signal }));
+export const apiGetAssignerLists = async (
+  departments?: string[], signal?: AbortSignal, products?: AssignerProductFilter | null,
+): Promise<AssignerLists> => {
+  const sp = new URLSearchParams();
+  if (departments && departments.length) sp.set('departments', departments.join(','));
+  if (productFilterOn(products)) {
+    sp.set('products', products.ids.join(','));
+    sp.set('product_scope', products.scope);
+  }
+  const qs = sp.toString();
+  return normalizeLists(await apiFetch(`assigner/lists${qs ? `?${qs}` : ''}`, { signal }));
 };
 
 // ── POST /assigner/distribute ───────────────────────────────────────────────
@@ -234,6 +253,9 @@ export interface DistributeBody {
   include_assigned: boolean;
   dry_run: boolean;
   source?: CallAgainSource;
+  /** Lists only: the customers who bought one of these products. */
+  product_ids?: string[];
+  product_scope?: ProductScope;
 }
 
 export interface DistributeAgentCount { agent_id: string; full_name: string; count: number }

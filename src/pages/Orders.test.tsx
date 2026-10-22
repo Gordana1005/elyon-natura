@@ -33,6 +33,18 @@ vi.mock('@/components/CreateOrderModal', () => ({ CreateOrderModal: () => null }
 vi.mock('@/components/CustomerHistoryDialog', () => ({ CustomerHistoryDialog: () => null }));
 vi.mock('@/components/OrderCallsPanel', () => ({ OrderCallsPanel: () => null }));
 
+// the catalogue for the Производ filter: Urofix with a catalogue twin (the same name), three Neurofix variants
+const URO = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1';
+const URO_TWIN = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2';
+const PRODUCTS = vi.hoisted(() => [
+  { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1', name: 'Urofix', kind: 'product', brand_line: 'bio_natural', is_active: true },
+  { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2', name: 'Urofix ', kind: 'product', brand_line: 'bio_natural', is_active: false },
+  { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1', name: 'Neurofix', kind: 'product', brand_line: 'bio_natural', is_active: true },
+  { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2', name: 'Neurofix 1+1', kind: 'bundle', brand_line: 'bio_natural', is_active: true },
+  { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb3', name: 'NEUROFIX BIONATURAL 30/1', kind: 'product', brand_line: 'bio_natural', is_active: true },
+  { id: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc1', name: 'Простатол Комплекс', kind: 'product', brand_line: 'natura_therapy', is_active: true },
+]);
+
 const api = vi.hoisted(() => ({
   orders: vi.fn(),
   counts: vi.fn(),
@@ -47,7 +59,7 @@ vi.mock('@/lib/api', async (orig) => ({
   apiGetOrderBookings: (...a: unknown[]) => api.bookings(...a),
   apiGetOrderSellers: async () => ({ sellers: [{ id: '11111111-1111-4111-8111-111111111111', name: 'Александра Чима', active: true }] }),
   apiGetAgents: async () => [{ user_id: '22222222-2222-4222-8222-222222222222', full_name: 'Ивана Петровска' }],
-  apiGetProducts: async () => [],
+  apiGetProducts: async () => PRODUCTS,
   apiGetAppSettings: async () => ({ altercpa_push_enabled: false }),
   apiGetCpaAttributionDimensions: async () => ({ webmasters: [], offers: [], streams: [] }),
   apiGetAlterCpaWebmasters: async () => [],
@@ -257,6 +269,30 @@ describe('/orders — the filters live in the URL', { timeout: 30_000 }, () => {
     await waitFor(() => expect(param('st')).toBeNull());
     expect(param('dept')).toBeNull();
     expect(param('seller')).toBeNull();
+  });
+
+  it('Производ (owner 22.10.2026): Urofix — searched in Cyrillic, its twin along — to the URL and the api; "select all shown"; Исчисти', async () => {
+    renderAt();
+    await ready();
+    const panel = await openPanel();
+    const prod = within(panel.getByTestId('filter-product'));
+    const search = prod.getByRole('textbox', { name: t('productFilter.search') });
+    fireEvent.change(search, { target: { value: 'уро' } });
+    expect(prod.queryByText('Простатол Комплекс')).toBeNull();
+    fireEvent.click(prod.getAllByRole('checkbox', { name: /Urofix/ })[0]);
+    await waitFor(() => expect(param('prod')?.split(',').sort()).toEqual([URO, URO_TWIN]));
+    await waitFor(() => expect(lastOrdersCall().products?.split(',').sort()).toEqual([URO, URO_TWIN]));
+    // one token for the two twins; the badge counts the filter once
+    const tokens = within(screen.getByTestId('filter-tokens'));
+    expect(tokens.getAllByText(t('ordersList.product.chip', { name: 'Urofix' }))).toHaveLength(1);
+    expect(screen.getByTestId('filters-button')).toHaveTextContent('1');
+    // every Neurofix variant at once
+    fireEvent.change(search, { target: { value: 'neurofix' } });
+    fireEvent.click(prod.getByTestId('product-pick-all'));
+    await waitFor(() => expect(param('prod')?.split(',')).toHaveLength(5));
+    // "Исчисти филтри" clears it with the other panel filters
+    fireEvent.click(panel.getByRole('button', { name: t('ordersList.filters.clear') }));
+    await waitFor(() => expect(param('prod')).toBeNull());
   });
 
   it('Менаџмент is the last department (owner 02.10.2026) and goes to the URL and the api', async () => {

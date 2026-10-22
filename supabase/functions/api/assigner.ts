@@ -67,6 +67,39 @@ export function parseDepartmentsParam(raw: string | null | undefined): Ok<{ depa
   return normaliseDepartments(raw.split(","));
 }
 
+/** More products than this in one filter is a mistake, not a use case. */
+export const MAX_FILTER_PRODUCTS = 50;
+export const PRODUCT_SCOPES = ["ever", "last"] as const;
+export type ProductScope = typeof PRODUCT_SCOPES[number];
+
+/** A list of catalogue product ids (csv or array) → distinct lower-case uuids, or null for "every
+ *  customer" (missing / empty). Anything malformed is an error, never a silently wider list. */
+function normaliseProductIds(list: unknown[]): Ok<{ productIds: string[] | null }> | Err {
+  const out: string[] = [];
+  for (const raw of list) {
+    const v = String(raw ?? "").trim().toLowerCase();
+    if (!v) continue;
+    if (!UUID_RE.test(v)) return { ok: false, error: "invalid products" };
+    if (!out.includes(v)) out.push(v);
+  }
+  if (out.length > MAX_FILTER_PRODUCTS) return { ok: false, error: "too many products" };
+  return { ok: true, productIds: out.length ? out : null };
+}
+
+/** `?products=a,b` (the Assigner's product filter, 20261022120100). */
+export function parseProductIdsParam(raw: string | null | undefined): Ok<{ productIds: string[] | null }> | Err {
+  if (raw == null || raw.trim() === "") return { ok: true, productIds: null };
+  return normaliseProductIds(raw.split(","));
+}
+
+/** `?product_scope=` — 'ever' (bought it at any time, the default) | 'last' (in the "Последна нарачка" order). */
+export function parseProductScope(raw: string | null | undefined): Ok<{ scope: ProductScope }> | Err {
+  const v = String(raw ?? "").trim().toLowerCase();
+  if (!v) return { ok: true, scope: "ever" };
+  if (!(PRODUCT_SCOPES as readonly string[]).includes(v)) return { ok: false, error: "invalid product_scope" };
+  return { ok: true, scope: v as ProductScope };
+}
+
 /** `?order=` for a listing: one of the allowed values, else the default. */
 export function parseOrderParam<T extends string>(raw: string | null | undefined, allowed: readonly T[], fallback: T): T {
   const v = String(raw ?? "").trim().toLowerCase();
@@ -86,12 +119,15 @@ export interface DistributeArgs {
   include_assigned: boolean;
   dry_run: boolean;
   source: "all" | "order" | "prediction";
+  /** The product filter (lists only); null = every customer. */
+  product_ids: string[] | null;
+  product_scope: ProductScope;
 }
 
 /**
  * The request body → the RPC's arguments, or a 400.
  * Body: {kind, list_id?, departments?, order, count (null = all), split,
- *        agent_ids, include_assigned, dry_run, source?}
+ *        agent_ids, include_assigned, dry_run, source?, product_ids?, product_scope?}
  * `dry_run` defaults to TRUE — nothing is written unless the caller says
  * `dry_run: false`. `split` defaults to 'total', `order` to 'newest',
  * `source` to 'all'. Duplicate agent ids are dropped (first position kept).
@@ -152,6 +188,17 @@ export function parseDistributeBody(body: unknown): Ok<{ args: DistributeArgs }>
   const source = body.source == null ? "all" : String(body.source).trim();
   if (!["all", "order", "prediction"].includes(source)) return { ok: false, error: "invalid source" };
 
+  let productIds: string[] | null = null;
+  if (body.product_ids != null) {
+    if (!Array.isArray(body.product_ids)) return { ok: false, error: "product_ids must be an array" };
+    const p = normaliseProductIds(body.product_ids);
+    if (!p.ok) return p;
+    productIds = p.productIds;
+  }
+  if (productIds && kind !== "list") return { ok: false, error: "the product filter is for lists only" };
+  const scope = parseProductScope(body.product_scope == null ? null : String(body.product_scope));
+  if (!scope.ok) return scope;
+
   return {
     ok: true,
     args: {
@@ -165,6 +212,8 @@ export function parseDistributeBody(body: unknown): Ok<{ args: DistributeArgs }>
       include_assigned: body.include_assigned === true,
       dry_run: body.dry_run !== false,
       source: source as DistributeArgs["source"],
+      product_ids: productIds,
+      product_scope: scope.scope,
     },
   };
 }
@@ -183,6 +232,8 @@ export function distributeRpcArgs(a: DistributeArgs, actorName: string | null) {
     p_dry_run: a.dry_run,
     p_source: a.source,
     p_actor_name: actorName,
+    p_product_ids: a.product_ids,
+    p_product_scope: a.product_scope,
   };
 }
 
@@ -297,6 +348,7 @@ export function distributeAudit(a: DistributeArgs, raw: unknown) {
       count: a.count,
       split: a.split,
       source: a.kind === "call_agains" ? a.source : null,
+      ...(a.product_ids ? { product_ids: a.product_ids, product_scope: a.product_scope } : {}),
       include_assigned: a.include_assigned,
       agent_ids: a.agent_ids,
       pool: shaped.pool,
@@ -413,11 +465,16 @@ export interface ListRow {
   assigned: number;
   done: number;
   open: number;
+  /** Everything assigned in the WHOLE list (no department, no product): what "Одземи ги сите" frees. */
+  whole_assigned: number;
   by_department: Record<AssignerDepartment, DeptCounts>;
 }
 export interface ListsResponse {
   generated_at: string | null;
   departments: AssignerDepartment[] | null;
+  /** The product filter echoed (null = every customer). */
+  products: string[] | null;
+  product_scope: ProductScope | null;
   lists: ListRow[];
   totals: DeptCounts;
 }
@@ -427,7 +484,7 @@ const deptCounts = (v: unknown): DeptCounts => {
   return { total: num(o.total), distributable: num(o.distributable), assigned: num(o.assigned), done: num(o.done) };
 };
 
-/** assigner_lists() → the EXACT response contract (all seven department keys). */
+/** assigner_lists() → the EXACT response contract (all eight department keys). */
 export function shapeLists(raw: unknown): ListsResponse {
   const r = isObj(raw) ? raw : {};
   const lists = (Array.isArray(r.lists) ? r.lists : []).filter(isObj).map((l): ListRow => {
@@ -446,15 +503,20 @@ export function shapeLists(raw: unknown): ListsResponse {
       assigned: num(l.assigned),
       done: num(l.done),
       open: num(l.open),
+      whole_assigned: l.whole_assigned == null ? num(l.assigned) : num(l.whole_assigned),
       by_department: by,
     };
   });
   const depts = Array.isArray(r.departments)
     ? ASSIGNER_DEPARTMENTS.filter((k) => (r.departments as unknown[]).includes(k))
     : null;
+  const products = Array.isArray(r.products) ? r.products.map(String).filter((x) => UUID_RE.test(x)) : [];
+  const scope = r.product_scope === "last" || r.product_scope === "ever" ? r.product_scope : null;
   return {
     generated_at: str(r.generated_at),
     departments: depts && depts.length ? depts : null,
+    products: products.length ? products : null,
+    product_scope: products.length ? (scope ?? "ever") : null,
     lists,
     totals: deptCounts(r.totals),
   };

@@ -744,6 +744,18 @@
       "emptyDesc": "Këtu shfaqen lead-et dhe klientët nga listat që nuk u përgjigjën. Ndrysho filtrat për të parë edhe ato që janë te agjentët.",
       "waitingDays": "pret {{n}} ditë",
       "waitingToday": "që sot"
+    },
+    "products": {
+      "scopeLabel": "Kur e bleu",
+      "ever": "E ka blerë ndonjëherë",
+      "last": "Në porosinë e fundit",
+      "everHint": "Klienti e ka blerë ndonjëherë (porosi e konfirmuar, e dërguar, e paguar ose e kthyer; dhuratat nuk numërohen).",
+      "lastHint": "Produkti është në porosinë që shfaqet si „Porosia e fundit“.",
+      "matching": "{{n}} klientë në lista",
+      "clear": "Hiqe filtrin",
+      "hint": "Filtro klientët sipas produktit të blerë (p.sh. Urofix)",
+      "noneTitle": "Asnjë klient në lista nuk e ka blerë",
+      "noneDesc": "Provo „E ka blerë ndonjëherë“ ose një produkt tjetër."
     }
   },
   "promo": {
@@ -2800,6 +2812,12 @@
         "courierHint": "MEX 1 Në dorëzim · 4 E marrë · 10 Në tranzit",
         "problemHint": "MEX 3 Problematike · 9 Përpjekje për dorëzim · 13 E refuzuar — pakoja e refuzuar kthehet dhe bëhet „E kthyer“ kur MEX e regjistron (MEX 7)"
       }
+    },
+    "product": {
+      "label": "Produkti",
+      "all": "Të gjitha produktet",
+      "chip": "Produkti: {{name}}",
+      "hint": "Porositë që e përmbajnë produktin — edhe si dhuratë."
     }
   },
   "ordersPage": {
@@ -4721,7 +4739,10 @@
     "unassignTitle": "Shkëput këtë klient nga agjenti",
     "never": "kurrë",
     "totalOrders": "Gjithsej porosi",
-    "avgPerPkg": "Mes. / paketë"
+    "avgPerPkg": "Mes. / paketë",
+    "products": "Produktet",
+    "productsHint": "Çfarë përmban porosia e fundit",
+    "gift": "dhuratë"
   },
   "insights": {
     "returns": {
@@ -10725,5 +10746,18 @@
       "campaignsText": "Dërgimi do të bëhet përmes Brevo — i përgatitur, ende jo i aktivizuar. Segmentet më sipër janë baza: kujtesë për porosi, rikthim i blerësve, pikë besnikërie.",
       "footer": "Blerësit nga dyqani përditësohen çdo orë (e fundit: {{synced}})."
     }
+  },
+  "productFilter": {
+    "label": "Produkti",
+    "search": "Kërko produktin (Urofix…)",
+    "none": "të gjitha",
+    "many": "{{n}} produkte",
+    "picked": "Të zgjedhura: {{n}}",
+    "selectAllShown": "Zgjidhi të gjitha që shfaqen ({{n}})",
+    "tooMany": "Më së shumti {{max}} produkte",
+    "clear": "Pastro",
+    "empty": "Nuk ka produkt të tillë",
+    "inactive": "joaktiv",
+    "capped": "Shfaqen {{shown}} nga {{total}} — kërko për më shumë"
   }
 }

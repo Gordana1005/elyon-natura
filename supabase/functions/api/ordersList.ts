@@ -32,6 +32,13 @@
 //   search    a phone (≥ 8 digits, any spacing) matches by its LAST 8 digits;
 //             a MEX tracking id matches exactly; anything else is the old
 //             substring search over id / name / phone / product.
+//   products  csv of catalogue product ids (≤ 50, owner 22.10.2026: "одбереме
+//             Urofix и да ни ги покаже сите порачки кои содржат Urofix") → the
+//             orders holding one of them in their lines (order_products — the
+//             line's product, else a reviewed alias; gifts too), through the
+//             inner embed `op:order_products!inner()` that orderSelect() adds to
+//             every select of the list. NOT `product` — that is the Insights
+//             drill's exact orders.product_name.
 //
 // The filters come out as a list of builder calls (`Op`), which index.ts
 // replays onto a supabase-js query: the SAME ops feed the page, the per-chip
@@ -69,6 +76,10 @@ export const MEX_GROUPS = {
 } as const;
 export const MEX_GROUP_KEYS = ["at_mex", "courier", "delivered", "returned", "rejected", "no_parcel"] as const;
 export type MexGroupKey = (typeof MEX_GROUP_KEYS)[number];
+
+/** The product filter: at most this many products, and the select's inner embed it filters through. */
+export const MAX_PRODUCTS = 50;
+export const PRODUCT_EMBED = "op:order_products!inner()";
 
 /** The source_type values that exist in MK (import 338k · altercpa 10k · manual 9k). */
 export const LIST_SOURCE_TYPES = ["altercpa", "import", "manual"] as const;
@@ -156,6 +167,8 @@ export interface OrdersListParams {
   search: SearchSpec | null;
   /** The status filter (STATE_KEYS); [] = every status. Only with view all / none. */
   states: StateKey[];
+  /** Catalogue product ids (lower case, distinct); [] = every order. */
+  productIds: string[];
 }
 
 export type ParseResult = { ok: true; value: OrdersListParams } | { ok: false; error: string };
@@ -213,6 +226,15 @@ export function parseOrdersListParams(sp: URLSearchParams): ParseResult {
     else return { ok: false, error: "Invalid agent_id" };
   }
 
+  const productIds: string[] = [];
+  for (const raw of (sp.get("products") ?? "").split(",")) {
+    const v = raw.trim().toLowerCase();
+    if (!v) continue;
+    if (!isUuid(v)) return { ok: false, error: "Invalid products" };
+    if (!productIds.includes(v)) productIds.push(v);
+  }
+  if (productIds.length > MAX_PRODUCTS) return { ok: false, error: "Too many products" };
+
   const state = csv(sp.get("state"), STATE_KEYS);
   if (!state.ok) return { ok: false, error: `Invalid state: ${state.bad}` };
   // A status pick is its own status filter: next to a view chip it would silently narrow twice.
@@ -229,6 +251,7 @@ export function parseOrdersListParams(sp: URLSearchParams): ParseResult {
       agent,
       search: parseSearch(sp.get("search")),
       states: STATE_KEYS.filter((k) => state.values.includes(k)),
+      productIds,
     },
   };
 }
@@ -237,7 +260,8 @@ export function parseOrdersListParams(sp: URLSearchParams): ParseResult {
 export function isNarrowed(p: OrdersListParams): boolean {
   return Boolean(
     (p.view && p.view !== "all") || p.statuses?.length || p.dayFrom || p.dayTo || p.departments.length ||
-    p.sellerId || p.mexGroups.length || p.sources.length || p.agent || p.search || stateOps(p.states).length,
+    p.sellerId || p.mexGroups.length || p.sources.length || p.agent || p.search || stateOps(p.states).length ||
+    p.productIds.length,
   );
 }
 
@@ -383,7 +407,8 @@ export function dayWindow(p: Pick<OrdersListParams, "dayFrom" | "dayTo">): { fro
 }
 
 /** The filters that do NOT depend on the status chip: agent, source,
- *  department, seller, MEX group, search. */
+ *  department, seller, MEX group, search, products (the last one filters the
+ *  `op` embed — every select of the list must go through orderSelect()). */
 export function baseOps(p: OrdersListParams): Op[] {
   const ops: Op[] = [];
   if (p.agent?.kind === "id") ops.push({ m: "eq", col: "assigned_agent_id", v: p.agent.id });
@@ -396,7 +421,14 @@ export function baseOps(p: OrdersListParams): Op[] {
   const mex = mexGroupsOr(p.mexGroups);
   if (mex) ops.push({ m: "or", v: mex });
   ops.push(...searchOps(p.search));
+  if (p.productIds.length) ops.push({ m: "in", col: "op.product_id", v: p.productIds });
   return ops;
+}
+
+/** A select of the list: the product filter needs its inner embed in EVERY select it filters (the
+ *  page, the view counts, the state counts) — without it PostgREST has no `op` to filter. */
+export function orderSelect(p: Pick<OrdersListParams, "productIds">, cols: string): string {
+  return p.productIds.length ? `${cols}, ${PRODUCT_EMBED}` : cols;
 }
 
 /** mex=a,b → one PostgREST `or` expression; null when none / all six. */

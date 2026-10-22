@@ -744,6 +744,18 @@
       "emptyDesc": "Pending leads and list clients who did not answer appear here. Change the filters to see the ones already with agents.",
       "waitingDays": "waits {{n}} d",
       "waitingToday": "since today"
+    },
+    "products": {
+      "scopeLabel": "When it was bought",
+      "ever": "Ever bought",
+      "last": "In the last order",
+      "everHint": "The customer bought it at some point (a confirmed, shipped, paid or returned order; gifts do not count).",
+      "lastHint": "The product is in the order shown as \"Last order\".",
+      "matching": "{{n}} customers in the lists",
+      "clear": "Remove the filter",
+      "hint": "Filter the customers by a product they bought (e.g. Urofix)",
+      "noneTitle": "No customer in the lists bought it",
+      "noneDesc": "Try \"Ever bought\" or another product."
     }
   },
   "promo": {
@@ -2800,6 +2812,12 @@
         "courierHint": "MEX 1 Out for delivery · 4 Picked up · 10 In transit",
         "problemHint": "MEX 3 Problematic · 9 Delivery attempted · 13 Refused — a refused parcel travels back and becomes \"Returned\" once MEX books it (MEX 7)"
       }
+    },
+    "product": {
+      "label": "Product",
+      "all": "All products",
+      "chip": "Product: {{name}}",
+      "hint": "The orders that hold the product — gifts included."
     }
   },
   "ordersPage": {
@@ -4721,7 +4739,10 @@
     "unassignTitle": "Unassign this customer from the agent",
     "never": "never",
     "totalOrders": "Total orders",
-    "avgPerPkg": "Avg / pkg"
+    "avgPerPkg": "Avg / pkg",
+    "products": "Products",
+    "productsHint": "What the last order holds",
+    "gift": "gift"
   },
   "insights": {
     "returns": {
@@ -10725,5 +10746,18 @@
       "campaignsText": "Sending will go through Brevo — prepared, not switched on yet. The segments above are the basis: reorder reminders, win-back, loyalty points.",
       "footer": "The shop's customers refresh hourly (last: {{synced}})."
     }
+  },
+  "productFilter": {
+    "label": "Product",
+    "search": "Search a product (Urofix…)",
+    "none": "all",
+    "many": "{{n}} products",
+    "picked": "Picked: {{n}}",
+    "selectAllShown": "Pick all shown ({{n}})",
+    "tooMany": "At most {{max}} products",
+    "clear": "Clear",
+    "empty": "No such product",
+    "inactive": "inactive",
+    "capped": "Showing {{shown}} of {{total}} — search for more"
   }
 }

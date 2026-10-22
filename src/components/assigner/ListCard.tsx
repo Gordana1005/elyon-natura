@@ -12,7 +12,10 @@ import { useToast } from '@/hooks/use-toast';
 import { apiErrorText } from '@/i18n/apiErrors';
 import { cn } from '@/lib/utils';
 import { apiBulkUnassignSegment, apiGetSegment } from '@/lib/api';
-import { ASSIGNER_DEPARTMENTS, UNKNOWN_DEPARTMENT, type AssignerBoardAgent, type AssignerList } from '@/lib/assignerApi';
+import {
+  ASSIGNER_DEPARTMENTS, productFilterOn, UNKNOWN_DEPARTMENT,
+  type AssignerBoardAgent, type AssignerList, type AssignerProductFilter,
+} from '@/lib/assignerApi';
 import { listDescription } from '@/lib/assigner/listDescription';
 import { listLabel } from '@/components/insights/lists/listModel';
 import { BUCKET_TONE } from '@/components/insights/overview/palette';
@@ -47,17 +50,17 @@ export function listParts(l: Pick<AssignerList, 'total' | 'distributable' | 'don
   return { toCall, withAgents: Math.max(0, l.total - toCall - done), done };
 }
 
-/** Everything assigned in the WHOLE list, every department (what "Одземи ги сите" frees). */
-export const wholeListAssigned = (l: AssignerList) => {
-  const parts = Object.values(l.by_department ?? {});
-  return parts.length ? parts.reduce((s, c) => s + c.assigned, 0) : l.assigned;
-};
+/** Everything assigned in the WHOLE list — every department, every product (what "Одземи ги сите"
+ *  frees; the server's whole_assigned, since by_department follows the product filter). */
+export const wholeListAssigned = (l: AssignerList) => l.whole_assigned;
 
 export function ListCard({
-  list, departments, agents, targets, onTargetsChange, basket, f,
+  list, departments, products, agents, targets, onTargetsChange, basket, f,
 }: {
   list: AssignerList;
   departments: string[];
+  /** The product filter (null = every customer). */
+  products: AssignerProductFilter | null;
   agents: AssignerBoardAgent[];
   targets: string[];
   onTargetsChange: (ids: string[]) => void;
@@ -80,13 +83,15 @@ export function ListCard({
   const assignedAll = wholeListAssigned(list);
   const readOnly = !list.assignable;
 
+  const productsKey = productFilterOn(products) ? `${products.scope}:${products.ids.join(',')}` : '';
   const { data, isLoading } = useQuery<{ members: SegmentMember[]; total: number }>({
-    queryKey: ['segment', list.id, page, assignedFilter, completedFilter, departments.join(',')],
+    queryKey: ['segment', list.id, page, assignedFilter, completedFilter, departments.join(','), productsKey],
     queryFn: () => apiGetSegment(list.id, {
       page, limit: PAGE_SIZE,
       assigned: assignedFilter !== 'all' ? assignedFilter : undefined,
       completed: completedFilter !== 'all' ? completedFilter : undefined,
       departments,
+      ...(productFilterOn(products) ? { products: products.ids, productScope: products.scope } : {}),
     }),
     enabled: expanded,
   });
@@ -94,6 +99,8 @@ export function ListCard({
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
+  // a new product filter starts the card on its first page
+  useEffect(() => { setPage(1); }, [productsKey]);
   const allOnPageInBasket = members.length > 0 && members.every((m) => basket.isIn(list.id, m.customer_phone));
 
   const segText = (key: 'toCall' | 'withAgents' | 'done', n: number) =>
@@ -197,6 +204,7 @@ export function ListCard({
               listId={list.id}
               whatLabel={label}
               departments={departments}
+              products={products}
               pool={list.distributable}
               poolWithAssigned={Math.max(0, list.total - parts.done)}
               agents={agents}

@@ -176,6 +176,30 @@ choice is never overwritten), and touches no order, money or stock.
   — owners, audited; after each write the api runs `product_costs_rebuild(actor, false)` (profit follows) and the
   stock mirror. Managers and everyone else get no cost key and no recipe status.
 
+## 9. Which products an order holds — `order_products` (owner 22.10.2026, `20261022120000`)
+
+The filters by product (/orders → Филтри → Производ, the Assigner's product filter — `elyon-assigner`) read ONE
+table: `order_products(order_id, product_id, gift_only)`, PK (order, product), index (product, order), RLS on with
+no policy (service role; GET /orders uses it for admins / managers only — an agent sending `products` gets 403).
+- A row per catalogue product in the order's `order_items`: the line's `product_id`, else a REVIEWED alias
+  (`product_key` / `product_aliases`, source `collabbox` for a collabBox order else `crm` — Insights' own folding).
+  Delivery / loyalty / note / flyer lines and synthetic names (`is_synthetic_product_name`, the collabBox
+  "без ставки" placeholder) make no row. **Never filter on `orders.product_id` / `product_name`** — a header, the
+  first product only.
+- `gift_only` = every line of it is a gift: reviewed kind gift, product kind gift, or priced 0 while another line of
+  the order is priced (7.664 orders have only 0-priced lines — those stay purchases).
+- Kept by `order_products_sync(ids)` (one statement, writes only the difference): statement-level triggers on
+  `order_items` (INSERT / UPDATE / DELETE, transition tables; a failure is a WARNING, never a failed order write) +
+  cron `order-products-nightly` (02:40 / 03:40 UTC, gated to 04:40 Skopje, `order_products_sync(NULL)` ≈ 25 s — new
+  aliases, kinds, swallowed failures). `orders` itself is never written (no `updated_at`, no orders trigger).
+- /orders: `?prod=a,b` → api `products` (NOT `product` — the Insights drill's exact header name) →
+  `ordersList.ts` `baseOps` `op.product_id in (…)` + `orderSelect()` adds the inner embed `op:order_products!inner()`
+  to EVERY select of the list (page, view counts, state counts). 22.10: Urofix page + exact count 0,4 s, the biggest
+  product (СНАИЛ, 45k orders) 0,85 s. The collabBox bookings bar hides with a product filter (no CRM lines).
+- 22.10.2026: 698.653 rows on 360.876 orders (220.366 gift-only); Urofix 5.853 orders (5.852 bought).
+  Backfill / repair: `node scripts/backfill-order-products.mjs [--apply]`; proof `node scripts/verify-order-products.mjs`
+  (P1 = a fresh recount, P2 no orphans, P3 one product from its lines, P4 triggers / cron / RLS).
+
 ## Never
 
 - Write `kind` / `brand_line` / `vat_*` (or their `_set_*` columns) with a plain UPDATE or PATCH — use the
@@ -187,6 +211,7 @@ choice is never overwritten), and touches no order, money or stock.
 - Tag a web-catalogue product Bio Natural.
 - Change the classifier in one twin only (SQL `product_kind_by_name` / TS `productsCatalog.ts`).
 - Delete `products_description_backup_20261001` while a 28.09 rollback could still be needed.
+- Filter or count orders by product through `orders.product_id` / `product_name` — read `order_products`.
 
 ## Companion skills
 

@@ -24,6 +24,7 @@ describe('bookingsApply — where the collabBox bookings belong', () => {
     expect(bookingsApply(state('agent=none'), admin)).toBe(false);
     expect(bookingsApply(state('pmin=1000'), admin)).toBe(false);
     expect(bookingsApply(state('wm=3225'), admin)).toBe(false);
+    expect(bookingsApply(state('prod=aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'), admin)).toBe(false); // a booking has no CRM lines
     expect(bookingsApply(state(), { drill: true, isAgent: false })).toBe(false);
   });
   it('"my orders": an admin who switches it on means assigned to them; an agent always sees their own (the api scopes)', () => {

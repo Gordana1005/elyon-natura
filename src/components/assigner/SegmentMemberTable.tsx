@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
@@ -44,6 +45,50 @@ export interface SegmentMember {
   real_last_call_connection?: string | null;
   /** The buyer's department (the Assigner's lists by department); absent on older api builds. */
   department?: string | null;
+  /** What the "Последна нарачка" order holds (assigner_list_members, 20261022120100): purchases first,
+   *  then gifts; qty null = only the order's header name was known. Absent on older api builds. */
+  last_order_items?: LastOrderItem[] | null;
+}
+
+export interface LastOrderItem { name: string; qty: number | null; gift: boolean }
+
+/** "Urofix ×2 · Prostafix · подарок: Грепка" — the order's lines as one line of text. */
+export function lastOrderItemsText(t: TFunction, items: readonly LastOrderItem[] | null | undefined): string {
+  if (!items?.length) return '';
+  const one = (i: LastOrderItem) => `${i.name}${i.qty != null && i.qty > 1 ? ` ×${i.qty}` : ''}`;
+  const bought = items.filter((i) => !i.gift).map(one);
+  const gifts = items.filter((i) => i.gift).map(one);
+  return [...bought, ...(gifts.length ? [`${t('segTable.gift')}: ${gifts.join(', ')}`] : [])].join(' · ');
+}
+
+/** The products of the last order (owner 22.10.2026: "последната нарачка да ги пишува и продуктите"),
+ *  else the list's own product_name (the static lists), else a dash. */
+function LastOrderProducts({ m, chips }: { m: SegmentMember; chips?: boolean }) {
+  const { t } = useTranslation();
+  const items = m.last_order_items ?? [];
+  if (!items.length) return m.product_name ? <>{m.product_name}</> : <span className="text-muted-foreground/40">—</span>;
+  if (chips) {
+    return (
+      <span className="flex flex-wrap justify-end gap-1">
+        {items.map((i, k) => (
+          <span key={k} className={cn('rounded-md border px-1.5 py-px text-xs leading-5',
+            i.gift ? 'border-dashed font-normal text-muted-foreground' : 'bg-muted/50')}>
+            {i.gift && <span className="text-[10px] uppercase tracking-wide">{t('segTable.gift')} · </span>}
+            {i.name}{i.qty != null && i.qty > 1 && <span className="tabular-nums"> ×{i.qty}</span>}
+          </span>
+        ))}
+      </span>
+    );
+  }
+  const bought = items.filter((i) => !i.gift);
+  const gifts = items.filter((i) => i.gift);
+  const one = (i: LastOrderItem) => `${i.name}${i.qty != null && i.qty > 1 ? ` ×${i.qty}` : ''}`;
+  return (
+    <span className="line-clamp-2 break-words" title={lastOrderItemsText(t, items)}>
+      <span className="font-medium">{bought.map(one).join(' · ')}</span>
+      {gifts.length > 0 && <span className="text-muted-foreground">{bought.length ? ' · ' : ''}{t('segTable.gift')}: {gifts.map(one).join(', ')}</span>}
+    </span>
+  );
 }
 
 /** Newer of member-row stamp vs latest real call_logs row. Outcome falls back
@@ -93,9 +138,9 @@ export function SegmentMemberTable({
 }: Props) {
   const { t } = useTranslation();
   const pad = compact ? 'px-2 py-1.5' : 'px-3 py-2';
-  // Only show the Product column when this list actually carries products
-  // (e.g. the static "Cancelled Pendings" list). Rule-driven lists leave it null.
-  const showProduct = members.some(m => m.product_name);
+  // The products of each member's last order (assigner_list_members since 20261022120100); older api
+  // builds: only the static lists (e.g. "Cancelled Pendings") carry a product_name.
+  const showProduct = members.some(m => m.last_order_items?.length || m.product_name);
   // Only show the Reason column on the Trash List (members carry a trash reason).
   const showReason = members.some(m => m.trigger_trash_reason);
   const hasUnassign = !!onUnassignSingle;
@@ -116,10 +161,10 @@ export function SegmentMemberTable({
               )}
               <th className={cn(pad, 'text-left font-medium')}>{t('ordersPage.colCustomer')}</th>
               <th className={cn(pad, 'text-left font-medium')}>{t('search.phone')}</th>
-              {showProduct && <th className={cn(pad, 'text-left font-medium')}>{t('ordersPage.colProduct')}</th>}
               {showReason && <th className={cn(pad, 'text-left font-medium')}>{t('segTable.reason')}</th>}
               {showDept && <th className={cn(pad, 'text-left font-medium')}>{t('assigner.col.department')}</th>}
               <th className={cn(pad, 'text-right font-medium')}>{t('segTable.lastOrder')}</th>
+              {showProduct && <th className={cn(pad, 'text-left font-medium')} title={t('segTable.productsHint')}>{t('segTable.products')}</th>}
               <th className={cn(pad, 'text-right font-medium')}>{t('search.totalOrders')}</th>
               <th className={cn(pad, 'text-right font-medium')}>{t('clientProfile.metricAvgPkg')}</th>
               <th className={cn(pad, 'text-right font-medium')}>{t('segTable.totalSpend')}</th>
@@ -165,11 +210,6 @@ export function SegmentMemberTable({
                       <Phone className="h-3 w-3" />{m.customer_phone}
                     </a>
                   </td>
-                  {showProduct && (
-                    <td className={cn(pad, 'text-xs max-w-[200px] truncate')} title={m.product_name || ''}>
-                      {m.product_name || <span className="text-muted-foreground/40">—</span>}
-                    </td>
-                  )}
                   {showReason && (
                     <td className={cn(pad, 'text-xs')}>
                       {m.trigger_trash_reason ? (
@@ -186,6 +226,11 @@ export function SegmentMemberTable({
                     <div className="font-mono font-semibold">{formatMoney(m.trigger_price)}</div>
                     <div className="text-[10px] text-muted-foreground">{m.trigger_event_at ? formatDate(m.trigger_event_at, 'dd MMM yy') : ''}</div>
                   </td>
+                  {showProduct && (
+                    <td className={cn(pad, 'min-w-[160px] max-w-[280px] text-xs leading-tight')}>
+                      <LastOrderProducts m={m} />
+                    </td>
+                  )}
                   <td className={cn(pad, 'text-right tabular-nums text-xs')}>{m.paid_count}</td>
                   <td className={cn(pad, 'text-right text-xs leading-tight')}>
                     {m.avg_package_price != null ? (
@@ -262,7 +307,6 @@ export function SegmentMemberTable({
                   sub={<a href={`tel:${m.customer_phone}`} onClick={e => e.stopPropagation()} className="inline-flex min-h-6 items-center gap-1 text-primary hover:underline"><Phone className="h-3 w-3" />{m.customer_phone}</a>}
                 />
               </div>
-              {showProduct && <MobileCardField label={t('ordersPage.colProduct')} value={m.product_name || '—'} />}
               {showReason && (
                 <MobileCardField
                   label={t('segTable.reason')}
@@ -275,6 +319,7 @@ export function SegmentMemberTable({
                 label={t('segTable.lastOrder')}
                 value={<>{formatMoney(m.trigger_price)}{m.trigger_event_at ? <span className="text-muted-foreground font-normal"> · {formatDate(m.trigger_event_at, 'dd MMM yy')}</span> : null}</>}
               />
+              {showProduct && <MobileCardField label={t('segTable.products')} value={<LastOrderProducts m={m} chips />} />}
               {showDept && <MobileCardField label={t('assigner.col.department')} value={deptText(m.department)} />}
               <MobileCardField label={t('segTable.lastSeller')} value={m.last_seller || '—'} />
               <MobileCardField label={t('segTable.totalOrders')} value={m.paid_count} />

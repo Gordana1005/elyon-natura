@@ -8,7 +8,7 @@
  * MEX creates the parcel. GET /orders/bookings answers them for the list's
  * period / department / seller / search; the other filters describe something a
  * booking does not have (a parcel status, an intake source, an assignee, a CRM
- * price, CPA provenance, an Insights drill), so with one of them on the section
+ * price, CRM product lines, CPA provenance, an Insights drill), so with one of them on the section
  * is not shown — it would list rows the filter cannot have meant.
  */
 import type { OrderBookingsParams } from '@/lib/api';
@@ -38,6 +38,7 @@ export function bookingsApply(
   if (s.agent) return false;                                       // nor an assignee
   if (!ctx.isAgent && s.mine === true) return false;               // "my orders" = assigned to me
   if (s.priceMin != null || s.priceMax != null) return false;      // nor a CRM price
+  if (s.prods.length) return false;                                // nor CRM product lines
   if (s.wm || s.offer || s.stream) return false;                   // nor CPA provenance
   return true;
 }

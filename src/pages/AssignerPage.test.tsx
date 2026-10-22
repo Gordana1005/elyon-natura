@@ -35,6 +35,8 @@ const api = vi.hoisted(() => ({
   pendings: vi.fn(),
   callAgains: vi.fn(),
   summary: vi.fn(),
+  products: vi.fn(),
+  segment: vi.fn(),
 }));
 vi.mock('@/lib/assignerApi', async (orig) => ({
   ...(await orig<typeof import('@/lib/assignerApi')>()),
@@ -47,6 +49,8 @@ vi.mock('@/lib/api', async (orig) => ({
   apiGetUnassignedPending: (...a: unknown[]) => api.pendings(...a),
   apiGetCallAgains: (...a: unknown[]) => api.callAgains(...a),
   apiGetAssignmentSummary: (...a: unknown[]) => api.summary(...a),
+  apiGetProducts: (...a: unknown[]) => api.products(...a),
+  apiGetSegment: (...a: unknown[]) => api.segment(...a),
 }));
 
 beforeAll(async () => {
@@ -78,7 +82,9 @@ const board: AssignerBoard = {
 const dept = (total: number, distributable: number, assigned: number, done: number) => ({ total, distributable, assigned, done });
 const list = (over: Partial<AssignerList>): AssignerList => ({
   id: 'l', name: 'X', description: null, category: 'value', is_static: false, display_order: 10, assignable: true,
-  total: 0, distributable: 0, assigned: 0, done: 0, open: 0, by_department: {}, ...over,
+  total: 0, distributable: 0, assigned: 0, done: 0, open: 0, by_department: {},
+  // the whole list's assigned (what "Одземи ги сите" frees) = the fixture's assigned unless a test says otherwise
+  whole_assigned: over.assigned ?? 0, ...over,
 });
 const lists: AssignerLists = {
   generated_at: new Date().toISOString(),
@@ -122,6 +128,11 @@ function renderAt(url: string) {
   api.pendings.mockResolvedValue(pendings);
   api.callAgains.mockResolvedValue(callAgains);
   api.summary.mockResolvedValue(summary);
+  api.products.mockResolvedValue([
+    { id: URO, name: 'Urofix', kind: 'product', brand_line: 'bio_natural', is_active: true },
+    { id: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc1', name: 'Простатол Комплекс', kind: 'product', brand_line: 'natura_therapy', is_active: true },
+  ]);
+  api.segment.mockResolvedValue({ members: [member], total: 1, page: 1, limit: 50 });
   api.distribute.mockImplementation(async (body: DistributeBody) => ({
     kind: body.kind, dry_run: body.dry_run, pool: 3, selected: 3, assigned: 0,
     per_agent: body.agent_ids.map((id, i) => ({ agent_id: id, full_name: id, count: i === 0 ? 3 : 0 })),
@@ -135,6 +146,16 @@ function renderAt(url: string) {
     </QueryClientProvider>,
   );
 }
+
+const URO = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1';
+// a member as assigner_list_members answers it (20261022120100): what the "Последна нарачка" order held
+const member = {
+  list_id: 'l-21', customer_phone: '+38975262769', customer_name: 'Ѓорѓија Павловски', trigger_order_id: 'o-last',
+  trigger_event_at: '2026-08-25T10:00:00Z', trigger_price: 43.9, paid_count: 7, lifetime_value: 220.36, avg_package_price: 31.48,
+  assigned_agent_id: null, assigned_agent_name: null, last_call_at: null, last_call_outcome: null, is_completed: false,
+  department: 'management', last_seller: 'Teodora Krstevska',
+  last_order_items: [{ name: 'Urofix', qty: 2, gift: false }, { name: 'Простатол Комплекс', qty: 1, gift: false }, { name: 'Грепка', qty: 1, gift: true }],
+};
 
 const ENGLISH_LEFTOVERS = /Prediction Lists|\bactive\b|Unassign|matching|tick rows|\bwhole\b|\bhalf\b|\bcustom\b|Product|each to|\bAgent\b|Call Agains|Distribute|Received|Last paid|lifetime/;
 
@@ -167,12 +188,40 @@ describe('Распределувач', { timeout: 30_000 }, () => {
   it('the department chips filter through the URL and the api', async () => {
     renderAt('/assigner?dept=web');
     await screen.findByText('Ана Петровска', {}, { timeout: 10_000 });
-    await waitFor(() => expect(api.lists).toHaveBeenCalledWith(['web'], expect.anything()));
+    await waitFor(() => expect(api.lists).toHaveBeenCalledWith(['web'], expect.anything(), null));
     const group = screen.getByRole('group', { name: 'Оддели' });
     expect(within(group).getByRole('button', { name: /Веб-продавница/ })).toHaveAttribute('aria-pressed', 'true');
     expect(within(group).getByRole('button', { name: 'Сите' })).toHaveAttribute('aria-pressed', 'false');
     // Pendings in the chosen department only.
     expect(await screen.findByRole('tab', { name: 'Лидови (1)' })).toBeInTheDocument();
+  });
+
+  it('Производ (owner 22.10.2026): ?prod= filters the lists, every card and the distribution; the members show their last order', async () => {
+    renderAt(`/assigner?prod=${URO}`);
+    await screen.findByText('Ана Петровска', {}, { timeout: 10_000 });
+    await waitFor(() => expect(api.lists).toHaveBeenCalledWith([], expect.anything(), { ids: [URO], scope: 'ever' }));
+    const bar = within(screen.getByTestId('assigner-product-filter'));
+    await waitFor(() => expect(bar.getByTestId('product-filter-button')).toHaveTextContent('Urofix'));
+    expect(bar.getByText('169 клиенти во листите')).toBeInTheDocument();
+
+    // the scope: in the "Последна нарачка" order
+    fireEvent.click(bar.getByTestId('product-scope-last'));
+    await waitFor(() => expect(api.lists).toHaveBeenCalledWith([], expect.anything(), { ids: [URO], scope: 'last' }));
+
+    // a card asks its members with the same filter, and its distribution carries it
+    fireEvent.click(await screen.findByText('21–57 дена · над 1.599 ден · 1–3 нарачки'));
+    await waitFor(() => expect(api.segment).toHaveBeenCalledWith('l-21', expect.objectContaining({ products: [URO], productScope: 'last' })));
+    await waitFor(() => expect(document.body.textContent).toContain('Urofix ×2 · Простатол Комплекс'));
+    expect(document.body.textContent).toContain('подарок: Грепка');
+    fireEvent.click(screen.getByTitle(/^Бети Николова · /));
+    await waitFor(() => expect(api.distribute).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'list', list_id: 'l-21', product_ids: [URO], product_scope: 'last' }), expect.anything(),
+    ));
+
+    // ✕ removes the filter
+    fireEvent.click(bar.getByRole('button', { name: /Тргни го филтерот/ }));
+    await waitFor(() => expect(api.lists).toHaveBeenLastCalledWith([], expect.anything(), null));
+    expect(document.body.textContent ?? '').not.toMatch(ENGLISH_LEFTOVERS);
   });
 
   it('the DistributeBar previews with a dry run: "N → 1 агент: …"', async () => {
