@@ -93,6 +93,15 @@ target **explicitly** and verify it before running:
   `verify-insights-ties`, `verify-assigner`, and since 01.10 `verify-shifts` (S1–S6), `verify-teams`
   (T1–T5), `verify-address-routing` (R1–R7), since 02.10 `verify-stock-v2` (S1–S17; `--preview` while the
   switch is off) and `scripts/shops/verify-shops.mjs` (H1–H7) — all read-only, pinned to MK.
+- **Salesforce reads naturall (owner 24.10.2026: "Читање од naturall"; migration `20261024210000_sf_readonly_feed`,
+  applied 24.10.2026 19:25 UTC).** naturall is the writer of the MK courier outcomes in Salesforce; Salesforce only READS,
+  every 15 min, through PostgREST as role `sf_reader` (JWT in VAULT §1c; SELECT on `sf_change_log`, `sf_order_outcome_v`,
+  `sf_parcel_v` only, read-only, 30 s). The two views are the Salesforce contract (repo `elyoncoding/natura-salesforce`,
+  `contracts/mk-courier-outcome/`): their column names and values may change ONLY together with that contract — prove it with
+  `python scripts/sf-feed/verify-sf-feed-parity.py` (0 differences). `sf_change_log` is filled by statement-level triggers on
+  `orders` / `mex_parcels` (outcome columns, `IS DISTINCT FROM`, so `keep_updated_at` repairs are caught; a failure is a
+  WARNING, never a failed write). Kill switch: `REVOKE sf_reader FROM authenticator`. A bulk repair that rewrites an
+  outcome column of many orders sends them all to Salesforce: expected.
 
 ## Per-market rules (Macedonia ≠ Bulgaria) — these OVERRIDE the copied BG docs/skills
 `.grok/skills/` and `docs/` were copied from Bulgaria and still describe BG specifics in places.
