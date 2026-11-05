@@ -2572,6 +2572,29 @@ async function handleRequest(req: Request): Promise<Response> {
       return json({ success: true, id: lead.id, order_id: order?.id });
     }
 
+    // GET /api/voip/cid-map?exp=<epoch>&sig=<hex> — the PBX's 2-minute cron
+    // (elyon-cid-sync.sh) pulls every assigned extension's outbound caller-ID
+    // into astdb. Signed with the recordings key (REC_SHARED_SECRET, the same
+    // trust boundary as elyon-rec.php): sig = HMAC_SHA256(key, "cidmap|<exp>"),
+    // exp in the future. Returns only extension → caller-ID, never a secret.
+    if (req.method === "GET" && path === "voip/cid-map") {
+      const secret = Deno.env.get("REC_SHARED_SECRET") || "";
+      const exp = parseInt(url.searchParams.get("exp") || "0", 10);
+      const sig = url.searchParams.get("sig") || "";
+      if (!secret || !Number.isFinite(exp) || exp < Math.floor(Date.now() / 1000)) return json({ error: "unauthorized" }, 401);
+      const k = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+      const b = new Uint8Array(await crypto.subtle.sign("HMAC", k, new TextEncoder().encode(`cidmap|${exp}`)));
+      const expected = Array.from(b).map((x) => x.toString(16).padStart(2, "0")).join("");
+      if (expected.length !== sig.length || !timingSafeEqualHex(expected, sig)) return json({ error: "unauthorized" }, 401);
+      const { data: rows } = await adminClient
+        .from("telephony_extensions")
+        .select("extension, primary_caller_id")
+        .not("user_id", "is", null);
+      const map: Record<string, string> = {};
+      for (const r of rows || []) if (r.extension && r.primary_caller_id) map[r.extension] = r.primary_caller_id;
+      return json({ map, main: PBX_MAIN_CID });
+    }
+
     // PBX missed-call webhook (HMAC-signed). Logs an inbound call (caller + DID
     // + time) as a missed call so an agent can be assigned to call back.
     if (req.method === "POST" && path === "webhook/missed-call") {
@@ -4954,13 +4977,13 @@ async function handleRequest(req: Request): Promise<Response> {
       return json({
         extension: mine.extension,
         secret: mine.sip_secret,
-        ws_url: "wss://pbx.elyoncall.com/ws",
-        // Main green Dial uses primary (default the .100 local for everyone).
-        primary_caller_id: mine.primary_caller_id || "+35924234100",
-        // Topbar "Dial new number" uses secondary — an owned MOBILE by default so
-        // ad-hoc outreach shows a mobile, not the office line. Per-agent override
-        // wins when set; otherwise this global mobile default applies.
-        secondary_caller_id: mine.secondary_caller_id || "+359882040529",
+        ws_url: PBX_WS_URL,
+        // Main green Dial uses primary (default the main line 02 512 8888 for everyone).
+        primary_caller_id: mine.primary_caller_id || PBX_MAIN_CID,
+        // Topbar "Dial new number" uses secondary — the second published line by
+        // default (the Telekom trunk carries no mobile number). Per-agent override
+        // wins when set; otherwise this global default applies.
+        secondary_caller_id: mine.secondary_caller_id || PBX_SECOND_CID,
       });
     }
 
@@ -4974,7 +4997,7 @@ async function handleRequest(req: Request): Promise<Response> {
       const b = new Uint8Array(await crypto.subtle.sign("HMAC", k, new TextEncoder().encode(`${payload}|${exp}`)));
       return Array.from(b).map((x) => x.toString(16).padStart(2, "0")).join("");
     };
-    const REC_HOST = "https://pbx.elyoncall.com/elyon-rec.php";
+    const REC_HOST = `https://${PBX_HOST}/elyon-rec.php`;
 
     // True iff `file` is provably one of THIS user's own recordings — used to gate
     // the own-scoped agent path (can_hear_own_recordings) without ever exposing
@@ -5100,7 +5123,7 @@ async function handleRequest(req: Request): Promise<Response> {
     // superadmin live server + line + trunk + recording + call-quality visibility,
     // trends, and an incidents[] feed for the in-CRM alert banner.
     // ============================================================
-    const HEALTH_HOST = "https://pbx.elyoncall.com/elyon-health.php";
+    const HEALTH_HOST = `https://${PBX_HOST}/elyon-health.php`;
 
     // Pull the PBX's live health JSON (HMAC-signed; same scheme as recordings).
     const fetchPbxHealth = async (): Promise<any> => {
@@ -5325,35 +5348,18 @@ async function handleRequest(req: Request): Promise<Response> {
       return json({ total_minutes: Math.round(totalSeconds / 60), talk_minutes: Math.round(talkSeconds / 60), group: "day", series, cycle });
     }
 
-    // ===== Per-agent caller-ID (superadmin) — default +35924234100 for everyone;
+    // ===== Per-agent caller-ID (superadmin) — default +38925128888 for everyone;
     // admins can assign any owned DID to an agent. Stored in telephony_extensions;
-    // a 2-min PBX sync applies it (predial hook presents it, whitelisted).
-    // TODO(mk): these are the BULGARIAN A1 trunk's Sofia DIDs, inherited from the
-    // upstream system. Macedonian telephony is deferred (Phase 2) and there is no
-    // MK carrier yet, so they are left intact but MUST be replaced with real MK
-    // numbers before the softphone is enabled. They are not live config today —
-    // VITE_USE_REAL_VOIP is false.
+    // a 2-min PBX sync applies it (predial hook presents it, whitelisted) — the
+    // PBX pulls the map through GET /api/voip/cid-map (above, signed with the
+    // recordings key). The five numbers of the Makedonski Telekom SIP trunk
+    // (04.11.2026): the two historic A1 lines + three new Skopje numbers.
     const OWNED_DIDS: { value: string; label: string }[] = [
-      { value: "+35924234100", label: "02 423 4100 — Sofia (default)" },
-      { value: "+35924232487", label: "02 423 2487 — Sofia" },
-      { value: "+35924236423", label: "02 423 6423 — Sofia" },
-      { value: "+35924236975", label: "02 423 6975 — Sofia" },
-      { value: "+35924237082", label: "02 423 7082 — Sofia" },
-      { value: "+35924238192", label: "02 423 8192 — Sofia" },
-      { value: "+35924238345", label: "02 423 8345 — Sofia" },
-      { value: "+35924238863", label: "02 423 8863 — Sofia" },
-      { value: "+35924239172", label: "02 423 9172 — Sofia" },
-      { value: "+35924239675", label: "02 423 9675 — Sofia" },
-      { value: "+359882040529", label: "088 204 0529 — mobile" },
-      { value: "+359882240572", label: "088 224 0572 — mobile" },
-      { value: "+359882255198", label: "088 225 5198 — mobile" },
-      { value: "+359882257053", label: "088 225 7053 — mobile" },
-      { value: "+359882265270", label: "088 226 5270 — mobile" },
-      { value: "+359882447210", label: "088 244 7210 — mobile" },
-      { value: "+359882471250", label: "088 247 1250 — mobile" },
-      { value: "+359882522057", label: "088 252 2057 — mobile" },
-      { value: "+359882526629", label: "088 252 6629 — mobile" },
-      { value: "+359882646781", label: "088 264 6781 — mobile" },
+      { value: "+38925128888", label: "02 512 8888 — Скопје (главна)" },
+      { value: "+38926202515", label: "02 620 2515 — Скопје" },
+      { value: "+38923118813", label: "02 311 8813 — Скопје" },
+      { value: "+38923117207", label: "02 311 7207 — Скопје" },
+      { value: "+38923112179", label: "02 311 2179 — Скопје" },
     ];
 
     // GET /api/voip/agents — list agents with an assigned extension + their caller-ID + DID options.
@@ -22691,6 +22697,14 @@ function matchRecordingsToCalls(
   return out;
 }
 
+// Constant-time compare of two hex digests (same length required by the caller).
+function timingSafeEqualHex(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
 // HMAC-SHA256 verification for inbound webhooks.
 // The sender must include x-webhook-signature: <hex(HMAC_SHA256(rawBody, secret))>.
 // FAIL CLOSED: if WEBHOOK_SECRET is unset we REJECT every webhook rather than
@@ -22876,7 +22890,14 @@ const PROMO_OF_THE_DAY_DEFAULT = {
 // Admission Control still admits only 10 concurrent calls (11/13/18-call bursts
 // all yielded exactly 10, the rest rejected with RELEASE_BECAUSE_IN_ADMISSION_FAILED).
 // Raise it only when a re-test passes. Do not scatter this number again.
-const TRUNK_MAX_LINES_FALLBACK = 10;
+// The Telekom MK trunk: 50 concurrent sessions (in + out) per the carrier, 04.11.2026.
+// The live value comes from the PBX (pbx.lines.max = trunks.maxchans); this is the last resort.
+const TRUNK_MAX_LINES_FALLBACK = 50;
+// The Macedonian PBX — one place for the host and the trunk's numbers.
+const PBX_HOST = "pbx.naturall.mk";
+const PBX_WS_URL = `wss://${PBX_HOST}/ws`;
+const PBX_MAIN_CID = "+38925128888";   // 02 512 8888 — the main published line
+const PBX_SECOND_CID = "+38926202515"; // 02 620 2515 — the second line
 
 // A1 minutes bundle. Operator-tunable from Settings → Telephony
 // (app_settings.voip_minutes_bundle) because A1 changes it commercially, not on

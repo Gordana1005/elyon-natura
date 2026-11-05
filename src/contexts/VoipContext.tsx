@@ -261,7 +261,7 @@ export function VoipProvider({ children }: { children: ReactNode }) {
       dial_started_at: dialMs,
       connected_at: null,
       ended_at: null,
-      caller_id: callerId || callerIds?.primary || '+35924234100',
+      caller_id: callerId || callerIds?.primary || PBX_CONFIG.defaultCallerId,
     };
     setCall(newCall);
     setState('dialing');

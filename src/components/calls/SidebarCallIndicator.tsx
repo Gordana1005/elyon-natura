@@ -4,9 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import { useVoip, formatDuration } from '@/contexts/VoipContext';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { PBX_CONFIG } from '@/lib/voip/pbxConfig';
 
 // The default outbound caller-ID shown when the call object hasn't a specific one.
-const AGENT_DID_PLACEHOLDER = '+35924234100';
+const AGENT_DID_PLACEHOLDER = PBX_CONFIG.defaultCallerId;
 
 /**
  * Live-call indicator that lives INSIDE the sidebar (rendered by AppSidebar,

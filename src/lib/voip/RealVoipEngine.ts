@@ -143,14 +143,14 @@ export class RealVoipEngine {
         const namespace = ucp.namespace || PBX_CONFIG.wsNamespace || 'ws';
         wsUrl = `${protocol}//${ucp.host}:${port}/${namespace}`;
       } else {
-        wsUrl = (PBX_CONFIG as any).wsUrl || 'wss://pbx.elyoncall.com/ws';
+        wsUrl = PBX_CONFIG.wsUrl;
       }
     }
 
     console.log('[RealVoip] Using WebSocket URL:', wsUrl, 'as extension', this.creds.extension);
 
     this.userAgent = new UserAgent({
-      uri: UserAgent.makeURI(`sip:${this.creds.extension}@pbx.elyoncall.com`),
+      uri: UserAgent.makeURI(`sip:${this.creds.extension}@${PBX_CONFIG.sipDomain}`),
       transportOptions: {
         server: wsUrl,
         traceSip: true,
@@ -285,12 +285,12 @@ export class RealVoipEngine {
       throw err;
     }
 
-    const targetUri = UserAgent.makeURI(`sip:${phone}@pbx.elyoncall.com`)!;
+    const targetUri = UserAgent.makeURI(`sip:${phone}@${PBX_CONFIG.sipDomain}`)!;
 
     // Caller-ID: explicit arg (e.g. topbar secondary number) wins, else this
-    // agent's primary (.100). The PBX whitelists owned DIDs and falls back to
-    // .100 for anything else.
-    const cid = callerId || this.creds?.primaryCallerId || '+35924234100';
+    // agent's primary (the main line). The PBX whitelists owned DIDs and falls
+    // back to the main line for anything else.
+    const cid = callerId || this.creds?.primaryCallerId || PBX_CONFIG.defaultCallerId;
     console.log('[RealVoip] Creating Inviter to', targetUri, 'with caller ID', cid);
 
     const inviter = new Inviter(this.userAgent!, targetUri, {
@@ -301,7 +301,7 @@ export class RealVoipEngine {
         constraints: { audio: true, video: false },
       },
       extraHeaders: [
-        `P-Asserted-Identity: <sip:${cid}@pbx.elyoncall.com>`,
+        `P-Asserted-Identity: <sip:${cid}@${PBX_CONFIG.sipDomain}>`,
       ],
     });
 

@@ -10,13 +10,18 @@
 export const PBX_CONFIG = {
   // WebSocket connection defaults (the backend returns the authoritative ws_url;
   // these are only fallbacks if it's missing).
-  wsHost: 'pbx.elyoncall.com',
+  // The Macedonian PBX (Makedonski Telekom VPS, FreePBX 17) — see the memory
+  // "Telephony / SIP trunk — Telekom VPS" and docs/telephony/RUNBOOK.md.
+  wsHost: 'pbx.naturall.mk',
   wsPortSecure: '443',
   wsNamespace: 'ws',
-  wsUrl: 'wss://pbx.elyoncall.com/ws',
+  wsUrl: 'wss://pbx.naturall.mk/ws',
+  /** SIP domain of the agents' extensions (the PBX host). */
+  sipDomain: 'pbx.naturall.mk',
 
-  /** Fallback caller ID if the backend doesn't supply one (it normally does). */
-  defaultCallerId: '+35924234100',
+  /** Fallback caller ID if the backend doesn't supply one (it normally does):
+   *  the main published line 02 512 8888 on the Telekom trunk. */
+  defaultCallerId: '+38925128888',
 
   /** Master switch for real vs mock engine. */
   useRealVoip: import.meta.env.VITE_USE_REAL_VOIP === 'true',

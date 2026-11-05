@@ -83,7 +83,7 @@ export const apiGetRecordings = (): Promise<{ recordings: RecordingItem[] }> => 
 export const apiGetRecordingAudioUrl = (file: string): Promise<{ url: string }> =>
   apiFetch(`recordings/audio?file=${encodeURIComponent(file)}`);
 
-// Per-agent caller-ID (superadmin) — default +35924234100; assign any owned DID.
+// Per-agent caller-ID (superadmin) — default +38925128888 (02 512 8888); assign any owned Telekom DID.
 export interface VoipAgent { user_id: string; extension: string; primary_caller_id: string; full_name: string; email: string; }
 export interface VoipDid { value: string; label: string; }
 export const apiGetVoipAgents = (): Promise<{ agents: VoipAgent[]; dids: VoipDid[] }> => apiFetch('voip/agents');
