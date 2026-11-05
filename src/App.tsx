@@ -33,6 +33,7 @@ const HrPage = lazy(() => import("./pages/HrPage"));
 const WebPage = lazy(() => import("./pages/WebPage"));
 const CallScriptsPage = lazy(() => import("./pages/CallScriptsPage"));
 const CallHistoryPage = lazy(() => import("./pages/CallHistoryPage"));
+const AgentActivityPage = lazy(() => import("./pages/AgentActivityPage"));
 const WarehousePage = lazy(() => import("./pages/WarehousePage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const InboundLeadsPage = lazy(() => import("./pages/InboundLeadsPage"));
@@ -135,7 +136,8 @@ const App = () => (
                 <Route path="/import-orders" element={<Navigate to="/orders" replace />} />
                 {/* Performance + Agent Activity merged into Insights (2026-06). Keep old paths working. */}
                 <Route path="/performance" element={<Navigate to="/insights?tab=agents" replace />} />
-                <Route path="/agent-activity" element={<Navigate to="/insights?tab=call-activity" replace />} />
+                {/* Активност на агенти — its own page again (owner 05.11.2026); the Insights tab stays. */}
+                <Route path="/agent-activity" element={<ProtectedRoute moduleKey="agent_activity" moduleKeysAny={["call_activity"]}><AgentActivityPage /></ProtectedRoute>} />
                 <Route path="/shifts" element={<ProtectedRoute moduleKey="shifts" moduleKeysAny={["my_shifts"]}><ShiftsPage /></ProtectedRoute>} />
                 <Route path="/my-shifts" element={<Navigate to="/shifts" replace />} />
                 <Route path="/hr" element={<ProtectedRoute moduleKey="hr"><HrPage /></ProtectedRoute>} />

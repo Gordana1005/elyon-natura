@@ -136,6 +136,7 @@
     "mk": "Македонски"
   },
   "nav": {
+    "agentActivity": "Активност на агенти",
     "calls": "Повици",
     "callAgain": "Повторни повици",
     "missedCalls": "Пропуштени повици",
@@ -233,6 +234,7 @@
     "noCrm": "Нема CRM поени — нема испорачана пратка на Teleshop Out од 01.03.2026."
   },
   "titles": {
+    "agentActivity": "Активност на агенти",
     "myPerformance": "Мојот учинок",
     "leadDistributionEngine": "Распределба на лидови",
     "operationsCenter": "Оперативен центар",
@@ -10759,5 +10761,95 @@
     "empty": "Нема таков производ",
     "inactive": "неактивен",
     "capped": "Прикажани {{shown}} од {{total}} — пребарај за повеќе"
+  },
+  "agentFloor": {
+    "prevDay": "Претходен ден",
+    "nextDay": "Следен ден",
+    "today": "Денес",
+    "allAgents": "Сите агенти",
+    "live": "Во живо",
+    "updated": "Освежено {{time}}",
+    "failedLoad": "Не можев да ги вчитам податоците.",
+    "empty": "Нема активност за овој ден",
+    "emptyDesc": "Никој немал смена, повик, присуство или продажба на овој ден.",
+    "agents": "Агенти",
+    "filterAll": "Сите",
+    "noMatch": "Нема агент со тој статус.",
+    "status": {
+      "in_call": "Во разговор",
+      "online": "Онлајн",
+      "idle": "Неактивен",
+      "break": "На пауза",
+      "offline": "Офлајн"
+    },
+    "since": "{{duration}}",
+    "lane": {
+      "in": "Lead in",
+      "out": "Lead out",
+      "social": "Социјални"
+    },
+    "dept": {
+      "altercpa": "Affiliate In",
+      "elyon_crm": "Affiliate Out",
+      "teleshop_out": "Teleshop Out",
+      "teleshop_other": "Teleshop In",
+      "social": "Социјални мрежи",
+      "web": "Веб-продавница",
+      "management": "Менаџмент"
+    },
+    "shift": "Смена {{from}}–{{to}}",
+    "noShift": "Без смена",
+    "login": "Најава {{time}}",
+    "notLoggedIn": "Не се најавил",
+    "late": "Доцни {{min}} мин",
+    "lastSeen": "Последно виден {{time}}",
+    "onlineTime": "На CRM {{time}}",
+    "noPresence": "Нема податоци за присуство",
+    "presActive": "Активен",
+    "presIdle": "Неактивен",
+    "presBreak": "Пауза",
+    "online": "На CRM",
+    "calls": "Повици",
+    "talk": "Разговор",
+    "lastCall": "Последен повик",
+    "answeredRate": "{{rate}} % одговорени",
+    "avgTalk": "просек {{avg}}",
+    "inCallNow": "Моментално во разговор",
+    "sales": "Продажби",
+    "value": "Вредност",
+    "returned": "Вратени",
+    "workedCount": "обработени {{count}}",
+    "cancelledCount": "откажани {{count}}",
+    "returnedCount": "вратени {{count}}",
+    "scopedHint": "само вашите оддели",
+    "salesHint": "Продажбите и вредноста се од дневната табла (cohort): продажби на денот на продажба, вредност = COD од MEX или цена × 61,5.",
+    "kpi": {
+      "online": "Онлајн сега",
+      "onlineSub": "{{onShift}} на смена",
+      "activeDay": "Агенти со активност",
+      "inCall": "Во разговор",
+      "inCallSub": "пауза {{brk}} · неактивни {{idle}}",
+      "calls": "Повици",
+      "callsSub": "{{answered}} одговорени · {{rate}} %",
+      "talk": "Време на разговор",
+      "talkSub": "просек {{avg}} по одговорен",
+      "sales": "Продажби",
+      "salesSub": "обработени {{worked}} · вратени {{returned}}",
+      "value": "Вредност",
+      "valueSub": "од дневната табла"
+    },
+    "sheet": {
+      "summary": "Денот накратко",
+      "logout": "Одјава {{time}}",
+      "logins": "Најави",
+      "breaks": "Паузи",
+      "noCalls": "Нема повици на овој ден.",
+      "noBreaks": "Нема паузи.",
+      "noSales": "Нема продажби на овој ден.",
+      "ongoing": "во тек",
+      "ringTalk": "ѕвони {{ring}} · разговор {{talk}}",
+      "rangNoAnswer": "ѕвонело {{ring}} · без одговор",
+      "openOrders": "Отвори ги нарачките на денот"
+    }
   }
 }

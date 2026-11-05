@@ -60,7 +60,8 @@ export function KpiCard({
           </div>
           <div className="min-w-0">
             <p className="text-xs text-muted-foreground">{label}</p>
-            <p className="text-xl font-bold tabular-nums break-all">{value}</p>
+            {/* break-words, not break-all: "97.790 ден" may wrap at the space, never as "де / н" */}
+            <p className="text-xl font-bold tabular-nums break-words">{value}</p>
             {sub && <p className="text-[11px] text-muted-foreground">{sub}</p>}
           </div>
         </div>

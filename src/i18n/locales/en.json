@@ -136,6 +136,7 @@
     "mk": "Македонски"
   },
   "nav": {
+    "agentActivity": "Agent activity",
     "calls": "Calls",
     "callAgain": "Call Again",
     "missedCalls": "Missed Calls",
@@ -233,6 +234,7 @@
     "noCrm": "No CRM points — no delivered Teleshop Out parcel since 01.03.2026."
   },
   "titles": {
+    "agentActivity": "Agent activity",
     "myPerformance": "My Performance",
     "leadDistributionEngine": "Lead Distribution Engine",
     "operationsCenter": "Operations Center",
@@ -10759,5 +10761,95 @@
     "empty": "No such product",
     "inactive": "inactive",
     "capped": "Showing {{shown}} of {{total}} — search for more"
+  },
+  "agentFloor": {
+    "prevDay": "Previous day",
+    "nextDay": "Next day",
+    "today": "Today",
+    "allAgents": "All agents",
+    "live": "Live",
+    "updated": "Updated {{time}}",
+    "failedLoad": "Could not load the data.",
+    "empty": "No activity on this day",
+    "emptyDesc": "Nobody had a shift, a call, presence or a sale on this day.",
+    "agents": "Agents",
+    "filterAll": "All",
+    "noMatch": "No agent with that status.",
+    "status": {
+      "in_call": "In a call",
+      "online": "Online",
+      "idle": "Idle",
+      "break": "On break",
+      "offline": "Offline"
+    },
+    "since": "{{duration}}",
+    "lane": {
+      "in": "Lead in",
+      "out": "Lead out",
+      "social": "Social"
+    },
+    "dept": {
+      "altercpa": "Affiliate In",
+      "elyon_crm": "Affiliate Out",
+      "teleshop_out": "Teleshop Out",
+      "teleshop_other": "Teleshop In",
+      "social": "Social networks",
+      "web": "Web shop",
+      "management": "Management"
+    },
+    "shift": "Shift {{from}}–{{to}}",
+    "noShift": "No shift",
+    "login": "Login {{time}}",
+    "notLoggedIn": "Not logged in",
+    "late": "Late {{min}} min",
+    "lastSeen": "Last seen {{time}}",
+    "onlineTime": "On the CRM {{time}}",
+    "noPresence": "No presence data",
+    "presActive": "Active",
+    "presIdle": "Idle",
+    "presBreak": "Break",
+    "online": "On the CRM",
+    "calls": "Calls",
+    "talk": "Talk",
+    "lastCall": "Last call",
+    "answeredRate": "{{rate}} % answered",
+    "avgTalk": "avg {{avg}}",
+    "inCallNow": "In a call right now",
+    "sales": "Sales",
+    "value": "Value",
+    "returned": "Returned",
+    "workedCount": "worked {{count}}",
+    "cancelledCount": "cancelled {{count}}",
+    "returnedCount": "returned {{count}}",
+    "scopedHint": "your departments only",
+    "salesHint": "Sales and value come from the day board (the cohort): sales on their sale day, value = MEX COD or price × 61.5.",
+    "kpi": {
+      "online": "Online now",
+      "onlineSub": "{{onShift}} on shift",
+      "activeDay": "Agents with activity",
+      "inCall": "In a call",
+      "inCallSub": "break {{brk}} · idle {{idle}}",
+      "calls": "Calls",
+      "callsSub": "{{answered}} answered · {{rate}} %",
+      "talk": "Talk time",
+      "talkSub": "avg {{avg}} per answered call",
+      "sales": "Sales",
+      "salesSub": "worked {{worked}} · returned {{returned}}",
+      "value": "Value",
+      "valueSub": "from the day board"
+    },
+    "sheet": {
+      "summary": "The day at a glance",
+      "logout": "Logout {{time}}",
+      "logins": "Logins",
+      "breaks": "Breaks",
+      "noCalls": "No calls on this day.",
+      "noBreaks": "No breaks.",
+      "noSales": "No sales on this day.",
+      "ongoing": "ongoing",
+      "ringTalk": "ring {{ring}} · talk {{talk}}",
+      "rangNoAnswer": "rang {{ring}} · no answer",
+      "openOrders": "Open the day's orders"
+    }
   }
 }

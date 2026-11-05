@@ -1735,6 +1735,64 @@ export const apiGetAgentActivity = (params?: { date?: string; agent_id?: string 
   return apiFetch<AgentActivityResponse>(`agent-activity${qs ? `?${qs}` : ''}`);
 };
 
+// Активност на агенти (owner 05.11.2026) — one Skopje day per agent: the calls above,
+// plus presence (time on the CRM), logins, the live status and the day's sales from the
+// cohort board (leaderboard_day_v2). Money keys exist only for a money viewer
+// (`money` says which view answered): value_mkd on the row and per department.
+export type AgentLiveStatus = 'in_call' | 'break' | 'idle' | 'online' | 'offline';
+export interface AgentFloorSales {
+  sales: number;
+  worked: number;
+  booked: number;
+  cancelled: number;
+  trashed: number;
+  returned: number;
+  callbacks: number;
+  conversion: number | null;
+  rank: number | null;
+  /** MKD — absent for a viewer without money; a dept_admin's departments only (`scoped`). */
+  value_mkd?: number;
+  scoped?: boolean;
+  departments: Record<string, { sales: number; value_mkd?: number }>;
+}
+export interface AgentFloorRow extends AgentActivityRow {
+  is_manager: boolean;
+  team: { key: string | null; name: string | null; lane: string | null; kind: string | null } | null;
+  first_seen: string | null;
+  last_seen: string | null;
+  late_minutes: number | null;
+  presence: {
+    online_minutes: number;
+    active_minutes: number;
+    idle_minutes: number;
+    break_minutes: number;
+    first_seen_at: string | null;
+    last_seen_at: string | null;
+    last_state: string | null;
+    idle_streak_min: number | null;
+    idle_alerts: number;
+  } | null;
+  login: { first_login: string | null; last_logout: string | null; logins: number } | null;
+  live: { status: AgentLiveStatus; since: string | null } | null;
+  sales: AgentFloorSales;
+}
+export interface AgentFloorResponse {
+  date: string;
+  tz: string;
+  is_today: boolean;
+  generated_at: string;
+  money: 'margins' | 'revenue' | 'dept' | 'none';
+  board_at: string | null;
+  agents: AgentFloorRow[];
+}
+export const apiGetAgentFloor = (params?: { date?: string; agent_id?: string }) => {
+  const sp = new URLSearchParams();
+  if (params?.date) sp.set('date', params.date);
+  if (params?.agent_id) sp.set('agent_id', params.agent_id);
+  const qs = sp.toString();
+  return apiFetch<AgentFloorResponse>(`agent-floor${qs ? `?${qs}` : ''}`);
+};
+
 // Agent performance — per-agent sales/financial table (Insights → Agents tab).
 export interface AgentPerformanceRow {
   /** A real account's uuid, or `name:<operator>` for a historic name-only row. */

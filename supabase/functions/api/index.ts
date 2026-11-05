@@ -13057,13 +13057,14 @@ async function handleRequest(req: Request): Promise<Response> {
     // (ring + talk segments), their scheduled shift window, and breaks, all
     // positioned on a real clock axis. Managers/admins see every agent; a plain
     // agent sees only their own row. Purely read-only — no side effects.
-    if (req.method === "GET" && path === "agent-activity") {
-      if (!canViewModule("call_activity")) return json({ error: "Forbidden" }, 403);
+    // ── One Skopje day of calls / shifts / breaks per agent — shared by GET /agent-activity
+    //    (Insights → Активност на повици) and GET /agent-floor (the Активност на агенти page).
+    //    `singleAgentId` pins the result to one person (an agent sees only themself). ──
+    const buildAgentActivityDay = async (dateParam: string | null, singleAgentId: string | null) => {
       const TZ = "Europe/Skopje";
 
       // The target day (YYYY-MM-DD) on the Skopje calendar; default today. An
       // impossible date (2026-02-31) falls back to today too.
-      const dateParam = url.searchParams.get("date");
       const date = ST.isValidYmd(dateParam) ? dateParam : ST.skopjeTodayYmd();
 
       // Skopje-local [00:00, next 00:00) → UTC ISO bounds for the timestamptz filter.
@@ -13071,10 +13072,6 @@ async function handleRequest(req: Request): Promise<Response> {
       // hour late and cut its 25th hour, and started 29.03 an hour early.
       const fromIso = ST.skopjeMidnightIso(date);
       const toIso = ST.skopjeMidnightIso(ST.addDaysYmd(date, 1));
-
-      // Non-managers are pinned to their own row; managers may filter to one.
-      const agentFilterParam = url.searchParams.get("agent_id");
-      const singleAgentId = !isAdminOrManager ? user.id : (agentFilterParam || null);
 
       // ── Calls for the day (real calls always carry started_at) ──
       const aaPaginate = async (makeQuery: () => any, pageSize = 1000): Promise<any[]> => {
@@ -13099,7 +13096,7 @@ async function handleRequest(req: Request): Promise<Response> {
           return q;
         });
       } catch (e: any) {
-        return json({ error: sanitizeDbError(e) }, 400);
+        throw e; // the caller answers 400 with sanitizeDbError
       }
 
       // ── Shifts scheduled for the day (with their assigned agents) ──
@@ -13172,7 +13169,177 @@ async function handleRequest(req: Request): Promise<Response> {
         };
       }).sort((a, b) => a.full_name.localeCompare(b.full_name));
 
-      return json({ date, tz: TZ, agents });
+      return { date, tz: TZ, fromIso, toIso, agents };
+    };
+
+    if (req.method === "GET" && path === "agent-activity") {
+      if (!canViewModule("call_activity")) return json({ error: "Forbidden" }, 403);
+      // Non-managers are pinned to their own row; managers may filter to one.
+      const agentFilterParam = url.searchParams.get("agent_id");
+      const singleAgentId = !isAdminOrManager ? user.id : (agentFilterParam || null);
+      try {
+        const day = await buildAgentActivityDay(url.searchParams.get("date"), singleAgentId);
+        return json({ date: day.date, tz: day.tz, agents: day.agents });
+      } catch (e: any) {
+        return json({ error: sanitizeDbError(e) }, 400);
+      }
+    }
+
+    // ── GET /api/agent-floor?date=YYYY-MM-DD&agent_id= — Активност на агенти (owner 05.11.2026,
+    //    "како на BG"): everything an admin / manager needs about each agent on ONE Skopje day —
+    //    who is working right now, login and time on the CRM, calls + talk time, breaks, and the
+    //    day's sales. ONE calculation everywhere: the sales, their value and the presence minutes
+    //    are the cohort board's (leaderboard_day_v2 — the TV board / Табла), never a second count;
+    //    calls / shifts / breaks are buildAgentActivityDay (the same rows as the Insights tab).
+    //    Money follows the ACCESS LEVEL (02.10.2026): value_mkd + departments[].value_mkd only for
+    //    a margins / revenue viewer; a dept_admin gets the value of their departments only; anyone
+    //    else gets counts and time, no money key at all (the TV board shows counts to everyone).
+    if (req.method === "GET" && path === "agent-floor") {
+      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      if (!canViewModule("agent_activity") && !canViewModule("call_activity")) return json({ error: "Forbidden" }, 403);
+      const agentParam = url.searchParams.get("agent_id");
+      const singleAgentId = agentParam && UUID_RE.test(agentParam) ? agentParam : null;
+      try {
+        const day = await buildAgentActivityDay(url.searchParams.get("date"), singleAgentId);
+        const { date, fromIso, toIso } = day;
+        const isToday = date === ST.skopjeTodayYmd();
+        const nowMs = Date.now();
+        const dayStartMs = new Date(fromIso).getTime();
+
+        const [view, lbRes, shiftLoginRes, adminLoginRes] = await Promise.all([
+          moneyViewOf(user.id),
+          adminClient.rpc("leaderboard_day_v2", { p_day: date, p_department: null, p_team: null }),
+          adminClient.from("shift_login_logs").select("user_id, login_time, logout_time").eq("shift_date", date),
+          adminClient.from("admin_login_logs").select("user_id, login_time").gte("login_time", fromIso).lt("login_time", toIso),
+        ]);
+        if (lbRes.error) return json({ error: sanitizeDbError(lbRes.error) }, 400);
+        const lb: any = lbRes.data || {};
+        const lbRows: any[] = Array.isArray(lb.rows) ? lb.rows : [];
+        const lbBy: Record<string, any> = {};
+        for (const r of lbRows) if (r.user_id) lbBy[r.user_id] = r;
+
+        // The people on the page: anyone with a call or a shift today (the activity day) plus
+        // anyone the cohort board lists with a CRM login (a sale, a booking, presence) — a person
+        // with no login (AlterCPA-only) has no presence and no calls here.
+        const actBy: Record<string, any> = {};
+        for (const a of day.agents) actBy[a.user_id] = a;
+        const ids = new Set<string>([...Object.keys(actBy), ...Object.keys(lbBy)]);
+        if (singleAgentId) for (const id of [...ids]) if (id !== singleAgentId) ids.delete(id);
+        const idList = [...ids];
+
+        const { data: profs } = idList.length
+          ? await adminClient.from("profiles").select("user_id, full_name, last_seen_at, voip_state, voip_state_at").in("user_id", idList)
+          : { data: [] as any[] };
+        const profBy: Record<string, any> = {};
+        for (const p of profs || []) profBy[p.user_id] = p;
+
+        const loginBy: Record<string, { first_login: string | null; last_logout: string | null; logins: number }> = {};
+        const addLogin = (uid: string, at: string | null, out: string | null) => {
+          if (!uid || !at) return;
+          const cur = (loginBy[uid] ??= { first_login: null, last_logout: null, logins: 0 });
+          cur.logins++;
+          if (!cur.first_login || at < cur.first_login) cur.first_login = at;
+          if (out && (!cur.last_logout || out > cur.last_logout)) cur.last_logout = out;
+        };
+        for (const l of shiftLoginRes.data || []) addLogin(l.user_id, l.login_time, l.logout_time);
+        for (const l of adminLoginRes.data || []) addLogin(l.user_id, l.login_time, null);
+
+        // Same windows as GET /agents/online and the presence sweep.
+        const ONLINE_WINDOW_MS = 2 * 60 * 1000;
+        const CALL_STALE_MS = 3 * 60 * 1000;
+        const PRESENCE_WINDOW_MS = 3 * 60 * 1000;
+        const ms = (iso: string | null | undefined) => (iso ? new Date(iso).getTime() : 0);
+        const hmToMin = (hm: string) => { const [h, m] = String(hm).split(":").map(Number); return (h || 0) * 60 + (m || 0); };
+        const num = (x: any) => (x === null || x === undefined || x === "" || isNaN(Number(x)) ? 0 : Number(x));
+        const scope: string[] | null = view.kind === "dept" ? view.scope : null;
+        const showMoney = view.kind !== "none";
+
+        const agents = idList.map((uid) => {
+          const act = actBy[uid] || {
+            user_id: uid, full_name: null, shift_windows: [], breaks: [], calls: [],
+            totals: { calls: 0, answered: 0, answer_rate: 0, talk_seconds: 0, ring_seconds: 0, first_call: null, last_call: null },
+          };
+          const prof = profBy[uid] || {};
+          const row = lbBy[uid] || null;
+          const pres = row?.presence && (num(row.presence.online_min) > 0 || row.presence.first_seen || row.presence.state) ? row.presence : null;
+          const login = loginBy[uid] || null;
+
+          // First sign of life: the presence's first beat, a login row, or a call.
+          const firstSeen = [pres?.first_seen, pres?.first_login, login?.first_login, act.totals.first_call]
+            .filter(Boolean).sort()[0] || null;
+          const profSeen = prof.last_seen_at && ms(prof.last_seen_at) >= dayStartMs && ms(prof.last_seen_at) < dayStartMs + 86400000 ? prof.last_seen_at : null;
+          const lastSeen = [pres?.last_seen, profSeen, act.totals.last_call].filter(Boolean).sort().pop() || null;
+
+          // Late = first sign of life after the earliest shift start (Skopje clock).
+          let late_minutes: number | null = null;
+          const starts = (act.shift_windows || []).map((w: any) => hmToMin(w.start));
+          if (starts.length && firstSeen) {
+            late_minutes = Math.max(0, Math.round((ms(firstSeen) - (dayStartMs + Math.min(...starts) * 60000)) / 60000));
+          }
+
+          // Live status (today only).
+          let live: { status: string; since: string | null } | null = null;
+          if (isToday) {
+            const hbFresh = nowMs - ms(prof.last_seen_at) < ONLINE_WINDOW_MS;
+            const presFresh = !!pres && pres.state && pres.state !== "offline" && nowMs - ms(pres.last_seen) < PRESENCE_WINDOW_MS;
+            const online = hbFresh || presFresh;
+            const inCall = online && ["dialing", "in_call"].includes(prof.voip_state) && nowMs - ms(prof.voip_state_at) < CALL_STALE_MS;
+            const openBreak = (act.breaks || []).find((b: any) => b.start && !b.end);
+            let status = "offline";
+            let since: string | null = lastSeen;
+            if (inCall) { status = "in_call"; since = prof.voip_state_at; }
+            else if (openBreak) { status = "break"; since = openBreak.start; }
+            else if (online && pres?.state === "idle") {
+              status = "idle";
+              since = pres.idle_streak_min != null ? new Date(nowMs - num(pres.idle_streak_min) * 60000).toISOString() : (pres.last_active ?? null);
+            }
+            else if (online) { status = "online"; since = pres?.last_active || prof.last_seen_at || null; }
+            live = { status, since };
+          }
+
+          // The day's sales — the cohort board's row (counts for everyone, money by the view).
+          const depts: Record<string, any> = row?.departments && typeof row.departments === "object" ? row.departments : {};
+          const deptKeys = Object.keys(depts).filter((k) => !scope || scope.includes(k));
+          const sales: Record<string, unknown> = {
+            sales: num(row?.sales), worked: num(row?.worked), booked: num(row?.booked),
+            cancelled: num(row?.cancelled), trashed: num(row?.trashed), returned: num(row?.returned),
+            callbacks: num(row?.callbacks), conversion: row?.conversion ?? null, rank: row?.rank ?? null,
+            departments: Object.fromEntries(deptKeys.map((k) => [k, {
+              sales: num(depts[k]?.sales), ...(showMoney ? { value_mkd: num(depts[k]?.value_mkd) } : {}),
+            }])),
+          };
+          if (showMoney) {
+            sales.value_mkd = scope ? deptKeys.reduce((acc, k) => acc + num(depts[k]?.value_mkd), 0) : num(row?.value_mkd);
+            if (scope) sales.scoped = true;
+          }
+
+          return {
+            ...act,
+            full_name: prof.full_name || row?.name || act.full_name || "Unknown",
+            is_manager: !!row?.is_manager,
+            team: row ? { key: row.team_key ?? null, name: row.team_name ?? null, lane: row.team_lane ?? null, kind: row.team_kind ?? null } : null,
+            first_seen: firstSeen,
+            last_seen: lastSeen,
+            late_minutes,
+            presence: pres ? {
+              online_minutes: num(pres.online_min), active_minutes: num(pres.active_min),
+              idle_minutes: num(pres.idle_min), break_minutes: num(pres.break_min),
+              first_seen_at: pres.first_seen ?? null, last_seen_at: pres.last_seen ?? null,
+              last_state: pres.state ?? null, idle_streak_min: pres.idle_streak_min ?? null, idle_alerts: num(pres.idle_alerts),
+            } : null,
+            login,
+            live,
+            sales,
+          };
+        });
+
+        return json({
+          date, tz: day.tz, is_today: isToday, generated_at: new Date(nowMs).toISOString(),
+          money: view.kind, board_at: lb.generated_at ?? null, agents,
+        });
+      } catch (e: any) {
+        return json({ error: sanitizeDbError(e) }, 400);
+      }
     }
 
     if (req.method === "GET" && path === "call-history") {

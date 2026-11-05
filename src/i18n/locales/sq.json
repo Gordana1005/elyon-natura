@@ -136,6 +136,7 @@
     "mk": "Македонски"
   },
   "nav": {
+    "agentActivity": "Aktiviteti i agjentëve",
     "calls": "Thirrjet",
     "callAgain": "Thirr përsëri",
     "missedCalls": "Thirrjet e humbura",
@@ -233,6 +234,7 @@
     "noCrm": "Pa pikë CRM — asnjë dërgesë e dorëzuar Teleshop Out nga 01.03.2026."
   },
   "titles": {
+    "agentActivity": "Aktiviteti i agjentëve",
     "myPerformance": "Performanca ime",
     "leadDistributionEngine": "Motori i shpërndarjes së lead-eve",
     "operationsCenter": "Qendra e operacioneve",
@@ -10759,5 +10761,95 @@
     "empty": "Nuk ka produkt të tillë",
     "inactive": "joaktiv",
     "capped": "Shfaqen {{shown}} nga {{total}} — kërko për më shumë"
+  },
+  "agentFloor": {
+    "prevDay": "Dita e mëparshme",
+    "nextDay": "Dita tjetër",
+    "today": "Sot",
+    "allAgents": "Të gjithë agjentët",
+    "live": "Drejtpërdrejt",
+    "updated": "Rifreskuar {{time}}",
+    "failedLoad": "Nuk munda t'i ngarkoj të dhënat.",
+    "empty": "Nuk ka aktivitet për këtë ditë",
+    "emptyDesc": "Askush nuk pati turn, thirrje, prani apo shitje në këtë ditë.",
+    "agents": "Agjentët",
+    "filterAll": "Të gjithë",
+    "noMatch": "Asnjë agjent me atë status.",
+    "status": {
+      "in_call": "Në bisedë",
+      "online": "Online",
+      "idle": "Joaktiv",
+      "break": "Në pauzë",
+      "offline": "Offline"
+    },
+    "since": "{{duration}}",
+    "lane": {
+      "in": "Lead in",
+      "out": "Lead out",
+      "social": "Sociale"
+    },
+    "dept": {
+      "altercpa": "Affiliate In",
+      "elyon_crm": "Affiliate Out",
+      "teleshop_out": "Teleshop Out",
+      "teleshop_other": "Teleshop In",
+      "social": "Rrjetet sociale",
+      "web": "Dyqani online",
+      "management": "Menaxhmenti"
+    },
+    "shift": "Turni {{from}}–{{to}}",
+    "noShift": "Pa turn",
+    "login": "Hyrja {{time}}",
+    "notLoggedIn": "Nuk ka hyrë",
+    "late": "Vonesë {{min}} min",
+    "lastSeen": "Parë së fundi {{time}}",
+    "onlineTime": "Në CRM {{time}}",
+    "noPresence": "Nuk ka të dhëna pranie",
+    "presActive": "Aktiv",
+    "presIdle": "Joaktiv",
+    "presBreak": "Pauzë",
+    "online": "Në CRM",
+    "calls": "Thirrje",
+    "talk": "Bisedë",
+    "lastCall": "Thirrja e fundit",
+    "answeredRate": "{{rate}} % të përgjigjura",
+    "avgTalk": "mesatarja {{avg}}",
+    "inCallNow": "Aktualisht në bisedë",
+    "sales": "Shitje",
+    "value": "Vlera",
+    "returned": "Kthime",
+    "workedCount": "të përpunuara {{count}}",
+    "cancelledCount": "të anuluara {{count}}",
+    "returnedCount": "kthime {{count}}",
+    "scopedHint": "vetëm departamentet tuaja",
+    "salesHint": "Shitjet dhe vlera vijnë nga tabela ditore (kohorta): shitjet sipas ditës së shitjes, vlera = COD nga MEX ose çmimi × 61,5.",
+    "kpi": {
+      "online": "Online tani",
+      "onlineSub": "{{onShift}} në turn",
+      "activeDay": "Agjentë me aktivitet",
+      "inCall": "Në bisedë",
+      "inCallSub": "pauzë {{brk}} · joaktivë {{idle}}",
+      "calls": "Thirrje",
+      "callsSub": "{{answered}} të përgjigjura · {{rate}} %",
+      "talk": "Koha e bisedës",
+      "talkSub": "mesatarja {{avg}} për të përgjigjur",
+      "sales": "Shitje",
+      "salesSub": "të përpunuara {{worked}} · kthime {{returned}}",
+      "value": "Vlera",
+      "valueSub": "nga tabela ditore"
+    },
+    "sheet": {
+      "summary": "Dita shkurtimisht",
+      "logout": "Dalja {{time}}",
+      "logins": "Hyrje",
+      "breaks": "Pauza",
+      "noCalls": "Nuk ka thirrje këtë ditë.",
+      "noBreaks": "Nuk ka pauza.",
+      "noSales": "Nuk ka shitje këtë ditë.",
+      "ongoing": "në vazhdim",
+      "ringTalk": "zile {{ring}} · bisedë {{talk}}",
+      "rangNoAnswer": "zile {{ring}} · pa përgjigje",
+      "openOrders": "Hap porositë e ditës"
+    }
   }
 }

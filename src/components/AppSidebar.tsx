@@ -79,6 +79,9 @@ const sections: NavSection[] = [
       // Agents / Payout / Call Activity tabs. Its visibility is decided by
       // useInsightsAccess() in the filter below, NOT by these module keys.
       { titleKey: 'nav.insights', path: '/insights', icon: ChartLineUpIcon, moduleKey: 'insights', moduleKeysAny: ['performance', 'agent_activity'] },
+      // Активност на агенти (owner 05.11.2026): the floor on one day — live status, time on the
+      // CRM, calls, sales, the timeline. Admins + managers (module agent_activity / call_activity).
+      { titleKey: 'nav.agentActivity', path: '/agent-activity', icon: UsersThreeIcon, moduleKey: 'agent_activity', moduleKeysAny: ['call_activity'] },
       { titleKey: 'nav.operations', path: '/operations', icon: PulseIcon, moduleKey: 'operations' },
       // Продавници (owner 02.10.2026): owners + managers + admins — decided by useShopsAccess() below.
       { titleKey: 'nav.shops', path: '/shops', icon: StorefrontIcon, moduleKey: 'shops' },
