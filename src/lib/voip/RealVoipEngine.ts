@@ -154,6 +154,10 @@ export class RealVoipEngine {
       transportOptions: {
         server: wsUrl,
         traceSip: true,
+        // CRLF keep-alive every ~20 s (sip.js randomises 80–120 %). Without it the WebSocket
+        // carries nothing during a call (media is UDP) and the office NAT closed idle
+        // connections after 1–3 min — the PBX then ends the call (05.11.2026, MK go-live day).
+        keepAliveInterval: 20,
       },
       authorizationUsername: this.creds.extension,
       authorizationPassword: this.creds.secret,
