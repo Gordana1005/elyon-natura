@@ -24,10 +24,12 @@ export function SidebarCallIndicator({ collapsed }: { collapsed: boolean }) {
   const { state, call, cancelCall, hangup, isMuted, toggleMute } = useVoip();
   const navigate = useNavigate();
 
-  if (state === 'idle' || !call) return null;
+  // While an inbound call RINGS the IncomingCallPanel owns the screen; this card takes over once it is answered.
+  if (state === 'idle' || state === 'incoming' || !call) return null;
 
   const isDialing = state === 'dialing';
   const isWrapping = state === 'wrapping';
+  const inbound = call.direction === 'inbound';
   const goCalls = () => navigate('/calls');
   const stop = (e: React.MouseEvent) => e.stopPropagation();
 
@@ -72,7 +74,7 @@ export function SidebarCallIndicator({ collapsed }: { collapsed: boolean }) {
             isWrapping ? 'text-destructive' : 'text-[hsl(var(--success))]',
           )}>
             <span className={cn('h-2 w-2 rounded-full', isWrapping ? 'bg-destructive' : 'bg-[hsl(var(--success))] animate-pulse')} />
-            {isWrapping ? t('sidebarCall.callEnded') : isDialing ? t('sidebarCall.dialing') : t('sidebarCall.liveCall')}
+            {isWrapping ? t('sidebarCall.callEnded') : isDialing ? t('sidebarCall.dialing') : inbound ? t('sidebarCall.inboundCall') : t('sidebarCall.liveCall')}
           </span>
           <span className={cn('text-sm font-bold tabular-nums', isWrapping ? 'text-destructive' : 'text-card-foreground')}>
             {isDialing
@@ -85,7 +87,7 @@ export function SidebarCallIndicator({ collapsed }: { collapsed: boolean }) {
           <span className="truncate font-mono text-[13px] font-semibold tabular-nums text-card-foreground">{call.phone}</span>
         </div>
         <div className="truncate text-[10px] text-muted-foreground">
-          {t('sidebarCall.callAs')} <span className="font-mono">{call.caller_id || AGENT_DID_PLACEHOLDER}</span>
+          {inbound ? t('sidebarCall.calledOn') : t('sidebarCall.callAs')} <span className="font-mono">{call.caller_id || AGENT_DID_PLACEHOLDER}</span>
         </div>
       </div>
 

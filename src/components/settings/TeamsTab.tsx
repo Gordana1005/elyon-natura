@@ -9,8 +9,9 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  AlertTriangle, ArrowRightLeft, Crown, Link2, Loader2, Plus, RefreshCw, Search, Trash2, Unlink, UserPlus, Users,
+  AlertTriangle, ArrowRightLeft, Crown, Link2, Loader2, Plus, RefreshCw, Search, Trash2, Tv, Unlink, UserPlus, Users,
 } from 'lucide-react';
+import { PBX_CONFIG } from '@/lib/voip/pbxConfig';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -29,8 +30,9 @@ import { apiErrorText } from '@/i18n/apiErrors';
 import i18n from '@/i18n';
 import { cn } from '@/lib/utils';
 import {
-  apiAddSalesIdentity, apiApplyTeamLines, apiCreateSalesPerson, apiDeleteSalesMembership, apiGetSalesTeams, apiGetSalesUnmapped,
-  apiMoveSalesPerson, apiRemoveSalesIdentity, apiUpdateSalesPerson,
+  apiAddSalesIdentity, apiApplyTeamLines, apiCreateSalesPerson, apiDeleteSalesMembership, apiGetInboundRing, apiGetSalesTeams,
+  apiGetSalesUnmapped, apiMoveSalesPerson, apiRemoveSalesIdentity, apiSetInboundRingMode, apiUpdateSalesPerson,
+  type InboundRingMode, type InboundRingRow,
   type SalesIdentityInput, type SalesIdentityKind, type SalesMembership, type SalesPerson, type SalesTeam, type SalesTeamsOverview,
   type SalesUnmapped, type TeamLane,
 } from '@/lib/api';
@@ -100,6 +102,9 @@ export function TeamsTab() {
 
   const teamsQ = useQuery({ queryKey: ['sales-teams'], queryFn: apiGetSalesTeams });
   const unmappedQ = useQuery({ queryKey: ['sales-unmapped', days], queryFn: () => apiGetSalesUnmapped(days) });
+  // Teleshop In (05.11.2026): who rings on the TV numbers — per login, shown on the person and set in the drawer.
+  const ringQ = useQuery({ queryKey: ['inbound-ring'], queryFn: apiGetInboundRing, enabled: PBX_CONFIG.useRealVoip, refetchInterval: 30_000 });
+  const ringByUser = useMemo(() => new Map((ringQ.data?.rows ?? []).map((r) => [r.user_id, r] as const)), [ringQ.data]);
   const errorText = useErrorText();
 
   const data = teamsQ.data;
@@ -108,6 +113,7 @@ export function TeamsTab() {
     await Promise.all([
       qc.invalidateQueries({ queryKey: ['sales-teams'] }),
       qc.invalidateQueries({ queryKey: ['sales-unmapped'] }),
+      qc.invalidateQueries({ queryKey: ['inbound-ring'] }),
     ]);
   };
 
@@ -130,6 +136,11 @@ export function TeamsTab() {
             <Users className="h-4 w-4 text-primary" /> {t('settings.teams.title')}
           </h2>
           <p className="text-sm text-muted-foreground max-w-3xl">{t('settings.teams.desc')}</p>
+          {ringQ.data && (
+            <p className="mt-1 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Tv className="h-3.5 w-3.5" /> {t('settings.teams.tv.membersNow', { n: ringQ.data.members_now })}
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
@@ -193,6 +204,7 @@ export function TeamsTab() {
                         secondary={e.secondary}
                         today={today}
                         teamName={teamText}
+                        ring={e.person.user_id ? ringByUser.get(e.person.user_id) ?? null : null}
                         onOpen={() => setOpenId(e.person.id)}
                       />
                     </li>
@@ -221,6 +233,7 @@ export function TeamsTab() {
           person={openPerson}
           data={data}
           today={today}
+          ring={openPerson?.user_id ? ringByUser.get(openPerson.user_id) ?? null : null}
           onClose={() => setOpenId(null)}
           onChanged={reload}
         />
@@ -240,10 +253,10 @@ export function TeamsTab() {
 
 // ── one person in a team column ────────────────────────────────────────────
 function PersonRow({
-  person, membership, secondary, today, teamName, onOpen,
+  person, membership, secondary, today, teamName, ring, onOpen,
 }: {
   person: SalesPerson; membership: SalesMembership | null; secondary: boolean; today: string;
-  teamName: (key: string) => string; onOpen: () => void;
+  teamName: (key: string) => string; ring?: InboundRingRow | null; onOpen: () => void;
 }) {
   const { t } = useTranslation();
   const ids = altercpaIds(person);
@@ -264,6 +277,17 @@ function PersonRow({
           <Badge variant="outline" className="h-5 gap-1 px-1.5 text-[10px]"><Crown className="h-3 w-3" />{t('settings.teams.badge.manager')}</Badge>
         )}
         {membership?.lane && <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-normal">{laneLabel(t, membership.lane)}</Badge>}
+        {ring && ring.mode !== 'off' && (
+          <Badge
+            variant="outline"
+            className={cn('h-5 gap-1 px-1.5 text-[10px]', ring.effective ? 'border-[hsl(var(--success))]/50 text-[hsl(var(--success))]' : 'text-muted-foreground')}
+            title={`${t('settings.teams.tv.label')} · ${ring.effective ? t('settings.teams.tv.nowRinging') : t('settings.teams.tv.nowSilent')}`}
+          >
+            <Tv className="h-3 w-3" />
+            {ring.mode === 'always' ? t('settings.teams.tv.badgeAlways') : ring.manual_on ? t('settings.teams.tv.badgeManualOn') : t('settings.teams.tv.badgeManualOff')}
+            {ring.effective && ring.online && <span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--success))]" aria-hidden />}
+          </Badge>
+        )}
         {membership?.role === 'lead' && <Badge variant="outline" className="h-5 px-1.5 text-[10px]">{t('settings.teams.badge.lead')}</Badge>}
         {secondary && <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">{t('settings.teams.badge.secondary')}</Badge>}
         {!person.is_active && <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">{t('settings.teams.badge.inactive')}</Badge>}
@@ -292,9 +316,10 @@ function PersonRow({
 
 // ── the person drawer ──────────────────────────────────────────────────────
 function PersonDrawer({
-  person, data, today, onClose, onChanged,
+  person, data, today, ring, onClose, onChanged,
 }: {
-  person: SalesPerson | null; data: SalesTeamsOverview; today: string; onClose: () => void; onChanged: () => Promise<void>;
+  person: SalesPerson | null; data: SalesTeamsOverview; today: string; ring?: InboundRingRow | null;
+  onClose: () => void; onChanged: () => Promise<void>;
 }) {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -435,17 +460,43 @@ function PersonDrawer({
           <section className="space-y-2">
             <h4 className="text-sm font-semibold">{t('settings.teams.drawer.login')}</h4>
             {person.user_id ? (
-              <div className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm">
-                <span className="truncate">
-                  {person.login_name}{person.login_email && <span className="text-muted-foreground"> · {person.login_email}</span>}
-                </span>
-                <Button
-                  variant="ghost" size="sm" disabled={busy === 'unlink'}
-                  onClick={() => void run('unlink', () => apiUpdateSalesPerson(person.id, { user_id: null }), () => t('settings.teams.drawer.unlinked'))}
-                >
-                  <Unlink className="h-4 w-4 mr-1" /> {t('settings.teams.drawer.unlink')}
-                </Button>
-              </div>
+              <>
+                <div className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm">
+                  <span className="truncate">
+                    {person.login_name}{person.login_email && <span className="text-muted-foreground"> · {person.login_email}</span>}
+                  </span>
+                  <Button
+                    variant="ghost" size="sm" disabled={busy === 'unlink'}
+                    onClick={() => void run('unlink', () => apiUpdateSalesPerson(person.id, { user_id: null }), () => t('settings.teams.drawer.unlinked'))}
+                  >
+                    <Unlink className="h-4 w-4 mr-1" /> {t('settings.teams.drawer.unlink')}
+                  </Button>
+                </div>
+                {/* Teleshop In (05.11.2026): does this login ring on the TV numbers? The PBX applies it within 30 s. */}
+                {PBX_CONFIG.useRealVoip && (
+                  <div className="space-y-1.5 rounded-lg border px-3 py-2">
+                    <Label htmlFor="tp-tv" className="flex items-center gap-1.5"><Tv className="h-3.5 w-3.5" /> {t('settings.teams.tv.label')}</Label>
+                    <Select
+                      value={ring?.mode ?? 'off'}
+                      onValueChange={(v) => void run('tv', () => apiSetInboundRingMode(person.user_id!, v as InboundRingMode), () => t('settings.teams.tv.saved'))}
+                      disabled={busy === 'tv'}
+                    >
+                      <SelectTrigger id="tp-tv" className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="always">{t('settings.teams.tv.modeAlways')}</SelectItem>
+                        <SelectItem value="manual">{t('settings.teams.tv.modeManual')}</SelectItem>
+                        <SelectItem value="off">{t('settings.teams.tv.modeOff')}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[11px] text-muted-foreground">
+                      {ring?.extension
+                        ? `${t('telephony.extension')} ${ring.extension} · ${ring.effective ? t('settings.teams.tv.nowRinging') : t('settings.teams.tv.nowSilent')}`
+                        : t('settings.teams.tv.noExtension')}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">{t('settings.teams.tv.hint')}</p>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="flex gap-2">
                 <Select value={loginPick} onValueChange={setLoginPick}>

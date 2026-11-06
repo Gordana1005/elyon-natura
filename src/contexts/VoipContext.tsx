@@ -2,12 +2,15 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, Re
 import { apiErrorText } from '@/i18n/apiErrors';
 import i18n from '@/i18n';
 import { useAuth } from '@/contexts/AuthContext';
-import { apiLogCall, apiGetVoipCredentials, apiPresenceHeartbeat, type CancellationReason, type ConnectionState } from '@/lib/api';
+import { apiLogCall, apiGetVoipCredentials, apiGetCustomerHistory, apiPresenceHeartbeat, type CancellationReason, type ConnectionState } from '@/lib/api';
 import { setBusCallState } from '@/lib/voip/callStateBus';
 import { useToast } from '@/hooks/use-toast';
+import { useIncomingCallAlerts } from '@/hooks/useIncomingCallAlerts';
 import type { CallOutcome } from '@/components/OrderModal';
 import { PBX_CONFIG } from '@/lib/voip/pbxConfig';
-import { RealVoipEngine } from '@/lib/voip/RealVoipEngine';
+import { RealVoipEngine, type IncomingCallInfo } from '@/lib/voip/RealVoipEngine';
+import { TV_DIDS } from '@/lib/voip/inboundIdentity';
+import { pickLinkedContext } from '@/lib/voip/linkedContext';
 
 export interface EndCallExtras {
   /** Free-text reason from the picker (legacy — appended to notes). */
@@ -25,7 +28,8 @@ export interface EndCallExtras {
 // The duration tick is stopped, ended_at is snapshotted; only the picker UI
 // remains. This is the state the End button puts us into, so the seconds
 // don't keep counting while the agent decides Answered/Not Answered/etc.
-export type CallState = 'idle' | 'dialing' | 'in_call' | 'wrapping' | 'ending';
+// 'incoming' = an inbound Teleshop call (queue 700, 05.11.2026) is ringing this browser — Прими / Одбиј decide.
+export type CallState = 'idle' | 'dialing' | 'incoming' | 'in_call' | 'wrapping' | 'ending';
 
 export interface LinkedContext {
   type: 'order' | 'prediction_lead';
@@ -55,6 +59,10 @@ export interface ActiveCall {
   ended_at: number | null;
   /** The caller-ID actually presented for this call (what the customer sees). */
   caller_id?: string;
+  /** inbound = the Teleshop In queue rang the browser and the agent answered (05.11.2026); else outbound. */
+  direction?: 'outbound' | 'inbound';
+  /** The TV number's caller-ID name prefix on an inbound call (TV8888 / TV2515). */
+  did_label?: string | null;
 }
 
 /** Set briefly after a call ends so consumers (e.g. the queue auto-progress
@@ -105,6 +113,16 @@ interface VoipContextValue {
   clearPendingConfirm: () => void;
   lastFinished: LastFinishedCall | null;
   clearLastFinished: () => void;
+  /** The inbound Teleshop call ringing right now (state 'incoming'), with the TV number it came in on. */
+  incoming: IncomingCallInfo | null;
+  /** Прими — answer the ringing call; the panel then opens /calls?phone=<caller>. */
+  answerIncoming: () => Promise<void>;
+  /** Одбиј — decline it (486 Busy, the queue rings the others); nothing is logged. */
+  rejectIncoming: () => Promise<void>;
+  /** The browser would not play the ringtone yet (no user gesture) — the panel shows a hint. */
+  ringtoneBlocked: boolean;
+  /** Another CRM tab of this login holds the phone line (one registration per login); this tab will not ring. */
+  otherTab: boolean;
 }
 
 const VoipContext = createContext<VoipContextValue | undefined>(undefined);
@@ -124,6 +142,9 @@ export function VoipProvider({ children }: { children: ReactNode }) {
   const [lastFinished, setLastFinished] = useState<LastFinishedCall | null>(null);
   const [callerIds, setCallerIds] = useState<{ primary: string; secondary: string | null } | null>(null);
   const [isMuted, setIsMuted] = useState(false);
+  // The inbound call ringing right now (engine state 'incoming'); cleared the moment the state moves on.
+  const [incoming, setIncoming] = useState<IncomingCallInfo | null>(null);
+  const { ringtoneBlocked } = useIncomingCallAlerts(state === 'incoming' ? incoming : null, user?.id ?? null);
 
   const tickIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const answerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -160,6 +181,7 @@ export function VoipProvider({ children }: { children: ReactNode }) {
   if (realEngineRef.current) {
     realEngineRef.current.onStateChange = (newState) => setState(newState as CallState);
     realEngineRef.current.onCallChange = (newCall) => setCall(newCall as ActiveCall | null);
+    realEngineRef.current.onIncoming = (info) => setIncoming(info);
 
     // New callbacks for better visibility (registration + errors)
     realEngineRef.current.onRegistrationChange = (registered, error) => {
@@ -180,6 +202,7 @@ export function VoipProvider({ children }: { children: ReactNode }) {
         'callee-busy':        { title: i18n.t('voip.numberBusy'),        description: i18n.t('voip.numberBusyDesc') },
         'callee-unavailable': { title: i18n.t('voip.numberUnavailable'), description: i18n.t('voip.numberUnavailableDesc') },
         'call-rejected':      { title: i18n.t('voip.callFailed'),        description: apiErrorText(error), variant: 'destructive' },
+        'answer-failed':      { title: i18n.t('incomingCall.answerFailed'), description: apiErrorText(error), variant: 'destructive' },
       };
       const t = toasts[context];
       if (t) toast({ title: t.title, description: t.description, variant: t.variant });
@@ -208,12 +231,20 @@ export function VoipProvider({ children }: { children: ReactNode }) {
   // Proactive registration for real mode: fetch THIS agent's own SIP credentials
   // (extension + secret) from the backend, inject them, then register. No shared
   // secret is bundled; each logged-in agent registers as their own extension.
+  //
+  // ONE registering tab per login (05.11.2026): the PBX lines have max_contacts=1, so a second CRM tab's REGISTER
+  // replaces the first, whose transport stays up while it silently never rings again. The tab holding the Web
+  // Lock registers; the others wait (otherTab = true, a chip on /calls) and take over the moment it closes.
+  // A browser without Web Locks registers straight away, as before.
+  const [otherTab, setOtherTab] = useState(false);
   useEffect(() => {
     // External affiliates have no extension and would 403 on the hard wall —
     // skip the credential fetch so their console stays clean.
     if (!PBX_CONFIG.useRealVoip || !realEngineRef.current || !user || user.isExternalAffiliate) return;
     let cancelled = false;
-    (async () => {
+    let holding = false;
+    let release: (() => void) | null = null;
+    const register = async () => {
       try {
         const c = await apiGetVoipCredentials();
         if (cancelled || !realEngineRef.current) return;
@@ -230,8 +261,33 @@ export function VoipProvider({ children }: { children: ReactNode }) {
       } catch (err) {
         console.error('[VoipContext] VoIP credentials/registration failed:', err);
       }
-    })();
-    return () => { cancelled = true; };
+    };
+    const locks: any = typeof navigator !== 'undefined' ? (navigator as any).locks : null;
+    if (locks?.request) {
+      setOtherTab(true);
+      void locks.request('elyon-voip-register', () => new Promise<void>((resolve) => {
+        release = resolve;
+        if (cancelled) { resolve(); return; }
+        holding = true;
+        setOtherTab(false);
+        void register();
+      })).catch(() => { holding = true; setOtherTab(false); void register(); });
+    } else {
+      holding = true;
+      void register();
+    }
+    // Back in the foreground with the registration gone (a NAT reset, a laptop lid): register again.
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible' || !holding || cancelled) return;
+      const eng = realEngineRef.current;
+      if (eng && !eng.isRegistered) eng.ensureRegistered().catch(() => {});
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', onVisible);
+      release?.();
+    };
   }, [user]); // re-run on login change
 
   const startCall = useCallback((phone: string, linkedContext: LinkedContext | null = null, callerId?: string) => {
@@ -365,6 +421,9 @@ export function VoipProvider({ children }: { children: ReactNode }) {
           ended_at: new Date(endedMs).toISOString(),
           customer_phone: ending.phone,
           connection_state,
+          // an answered Teleshop In call is 'inbound' (05.11.2026); the softphone is source 'voip'
+          direction: ending.direction ?? 'outbound',
+          source: PBX_CONFIG.useRealVoip ? 'voip' : undefined,
           cancellation_reason: opts?.cancellation_reason,
           cancellation_reason_notes: opts?.cancellation_reason_notes,
         });
@@ -423,12 +482,62 @@ export function VoipProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (state === 'wrapping' && call && !autoNoAnswerRef.current) {
       autoNoAnswerRef.current = true;
+      if (call.direction === 'inbound' && call.connected_at == null) {
+        // An inbound ring that somehow reached 'wrapping' unanswered (the engine goes incoming → idle
+        // directly; this is the belt to those braces): drop it silently — a 'no_answer' here would be
+        // recorded against a customer who called US and reached nobody.
+        clearTimers();
+        setCall(null);
+        setState('idle');
+        if (PBX_CONFIG.useRealVoip && realEngineRef.current) realEngineRef.current.reset();
+        return;
+      }
       if (call.connected_at == null) void finalize('no_answer');
       else void finalize('answered', { silent: true, skipQueueSignal: true });
     } else if (state === 'idle') {
       autoNoAnswerRef.current = false;
     }
   }, [state, call, finalize]);
+
+  // The ring details live only while the state is 'incoming'.
+  useEffect(() => {
+    if (state !== 'incoming' && incoming) setIncoming(null);
+  }, [state, incoming]);
+
+  /** Прими: answer in the engine, then look the caller up and link the call to their open order (best-effort). */
+  const answerIncoming = useCallback(async () => {
+    const eng = realEngineRef.current;
+    const phone = incoming?.phone;
+    if (!PBX_CONFIG.useRealVoip || !eng || !incoming) return;
+    await eng.answerIncoming(); // throws on a refused microphone — the engine already toasted and freed the line
+    if (phone) {
+      apiGetCustomerHistory(phone)
+        .then((h) => { const ctx = pickLinkedContext(h?.orders ?? []); if (ctx) eng.setLinkedContext(ctx); })
+        .catch(() => { /* standalone call */ });
+    }
+  }, [incoming]);
+
+  /** Одбиј: 486 Busy — the queue keeps ringing the other free operators; nothing is logged. */
+  const rejectIncoming = useCallback(async () => {
+    if (PBX_CONFIG.useRealVoip && realEngineRef.current) await realEngineRef.current.rejectIncoming();
+    setIncoming(null);
+    setState((s) => (s === 'incoming' ? 'idle' : s));
+  }, []);
+
+  // DEV only (screenshots / manual checks): window.__elyonVoip.simulateIncoming('+38970123456', 'TV8888')
+  // rings the panel without the PBX; simulateIdle() clears it. Stripped from production builds.
+  useEffect(() => {
+    if (!import.meta.env.DEV || typeof window === 'undefined') return;
+    (window as any).__elyonVoip = {
+      simulateIncoming: (phone = '+38970123456', did_label = 'TV8888') => {
+        const did = TV_DIDS[did_label] ?? null;
+        setIncoming({ phone, did_label, did_number: did?.number ?? null, did_pretty: did?.pretty ?? null, received_at: Date.now() });
+        setState('incoming');
+      },
+      simulateIdle: () => { setIncoming(null); setState('idle'); },
+    };
+    return () => { delete (window as any).__elyonVoip; };
+  }, []);
 
   const cancelCall = useCallback(() => {
     // User aborts before/during the answer. Treated as no_answer.
@@ -560,6 +669,11 @@ export function VoipProvider({ children }: { children: ReactNode }) {
       clearPendingConfirm,
       lastFinished,
       clearLastFinished,
+      incoming,
+      answerIncoming,
+      rejectIncoming,
+      ringtoneBlocked,
+      otherTab,
     }}>
       {children}
     </VoipContext.Provider>

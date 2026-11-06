@@ -72,6 +72,8 @@ describe('i18n key usage', () => {
     for (const [lang, dict] of Object.entries({ en: EN, ...TRANSLATED })) {
       for (const k of Object.keys(dict)) {
         if (k.endsWith('_one') && !(k.replace(/_one$/, '_other') in dict)) issues.push(`${lang}:${k} missing _other`);
+        // the department key `teleshop_other` (Телешоп – Lead in) ends in _other by name, not by plural
+        if (k.endsWith('.dept.teleshop_other')) continue;
         if (k.endsWith('_other') && !(k.replace(/_other$/, '_one') in dict)) issues.push(`${lang}:${k} missing _one`);
       }
     }

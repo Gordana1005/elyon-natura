@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/i18n';
 import { useQuery } from '@tanstack/react-query';
-import { Search, Filter, ChevronLeft, ChevronRight, FileText, ShoppingCart, Clock, ChevronDown, ChevronUp, Play, Download, Loader2, Mic, CheckCheck } from 'lucide-react';
+import { Search, Filter, ChevronLeft, ChevronRight, FileText, ShoppingCart, Clock, ChevronDown, ChevronUp, Play, Download, Loader2, Mic, CheckCheck, PhoneIncoming, PhoneOutgoing } from 'lucide-react';
 import { SmartPagination } from '@/components/SmartPagination';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -398,7 +398,14 @@ export default function CallHistoryPage() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="font-mono text-xs">{log.customer_phone || '—'}</TableCell>
+                    <TableCell className="font-mono text-xs">
+                      <span className="inline-flex items-center gap-1.5" title={log.direction === 'inbound' ? t('callHist.direction.inbound') : t('callHist.direction.outbound')}>
+                        {log.direction === 'inbound'
+                          ? <PhoneIncoming className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--success))]" aria-label={t('callHist.direction.inbound')} />
+                          : <PhoneOutgoing className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" aria-label={t('callHist.direction.outbound')} />}
+                        {log.customer_phone || '—'}
+                      </span>
+                    </TableCell>
                     <TableCell className="text-sm">{log.agent_name}</TableCell>
                     <TableCell>
                       {(() => {
@@ -641,7 +648,14 @@ export default function CallHistoryPage() {
               <MobileCard key={log.id}>
                 <MobileCardHeader
                   title={log.customer_name || '—'}
-                  subtitle={log.customer_phone || '—'}
+                  subtitle={(
+                    <span className="inline-flex items-center gap-1.5">
+                      {log.direction === 'inbound'
+                        ? <PhoneIncoming className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--success))]" aria-label={t('callHist.direction.inbound')} />
+                        : <PhoneOutgoing className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" aria-label={t('callHist.direction.outbound')} />}
+                      {log.customer_phone || '—'}
+                    </span>
+                  )}
                   badge={(() => {
                     const r = rowResult(log);
                     return <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap', r.className)}>{r.label}</span>;

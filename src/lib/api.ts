@@ -90,6 +90,25 @@ export const apiGetVoipAgents = (): Promise<{ agents: VoipAgent[]; dids: VoipDid
 export const apiSetAgentCallerId = (userId: string, caller_id: string) =>
   apiFetch(`voip/agents/${userId}/caller-id`, { method: 'PUT', body: JSON.stringify({ caller_id }) });
 
+// ── Inbound Teleshop calls (05.11.2026) — who rings on PBX queue 700 "Teleshop In" (02 512 8888 / 02 620 2515).
+// always = rings whenever the line is free · manual = rings only while the person pressed "Примам ТВ повици" on
+// /calls · off = never. Admins / managers set the mode (Settings → Teams); the PBX applies it within 30 s.
+export type InboundRingMode = 'always' | 'manual' | 'off';
+export interface InboundRingRow {
+  user_id: string; full_name: string; email: string; is_active: boolean;
+  extension: string | null; mode: InboundRingMode; manual_on: boolean;
+  /** rings right now: a line + an active login + always / manual-on */
+  effective: boolean; online: boolean; in_call: boolean;
+  updated_at: string | null; updated_by: string | null;
+}
+export const apiGetInboundRing = (): Promise<{ rows: InboundRingRow[]; members_now: number }> => apiFetch('voip/inbound-ring');
+export const apiGetInboundRingMe = (): Promise<{ mode: InboundRingMode; manual_on: boolean; extension: string | null }> =>
+  apiFetch('voip/inbound-ring/me');
+export const apiSetInboundRingMode = (userId: string, mode: InboundRingMode): Promise<{ ok: true }> =>
+  apiFetch(`voip/inbound-ring/${encodeURIComponent(userId)}`, { method: 'PUT', body: JSON.stringify({ mode }) });
+export const apiSetInboundRingSelf = (on: boolean): Promise<{ ok: true; mode: InboundRingMode; manual_on: boolean }> =>
+  apiFetch('voip/inbound-ring/self', { method: 'POST', body: JSON.stringify({ on }) });
+
 // ── VOIP / Telephony Health (superadmin) ──
 // Live PBX/server status (disk, memory, lines in use vs the A1 trunk's channel
 // cap, trunk up/down, fail2ban attacks, recordings) merged with today's call/
@@ -1271,6 +1290,10 @@ export interface LogCallBody {
   ended_at?: string;
   customer_phone?: string;
   connection_state?: ConnectionState;
+  /** inbound = the Teleshop In queue rang the browser and the agent answered (05.11.2026); default outbound. */
+  direction?: 'outbound' | 'inbound';
+  /** 'voip' from the softphone; the handset outcome bar logs 'handset' through POST /calls/outcome. */
+  source?: 'handset' | 'voip';
   // Structured cancel reason
   cancellation_reason?: CancellationReason;
   cancellation_reason_notes?: string;

@@ -409,7 +409,9 @@
     "unmuteMic": "Aktivizo mikrofonin",
     "mute": "Pa zë",
     "unmute": "Me zë",
-    "end": "Mbyll"
+    "end": "Mbyll",
+    "inboundCall": "Bisedë hyrëse",
+    "calledOn": "Thirrur në"
   },
   "activeView": {
     "onCustomer": "{{name}} është te ky klient",
@@ -1375,7 +1377,11 @@
     "loadRecording": "Ngarko regjistrimin",
     "noRecordsDesc": "Historiku i thirrjeve do të shfaqet këtu ndërsa agjentët bëjnë thirrje.",
     "when": "Kur",
-    "productsCount": "Produkte ({{n}})"
+    "productsCount": "Produkte ({{n}})",
+    "direction": {
+      "inbound": "Hyrëse",
+      "outbound": "Dalëse"
+    }
   },
   "orderCalls": {
     "title": "Telefonatat",
@@ -4295,7 +4301,25 @@
         "bad_value": "Shkruaj një vlerë.",
         "bad_altercpa_id": "ID-ja AlterCPA është numër.",
         "bad_kind": "Lloj identiteti i panjohur.",
-        "bad_patch": "Asgjë e vlefshme për t'u ruajtur."
+        "bad_patch": "Asgjë e vlefshme për t'u ruajtur.",
+        "bad_mode": "Mënyrë e panjohur",
+        "not_manual": "Vetëm një person me mënyrën „Manualisht“ mund të ndizet vetë",
+        "no_login": "Personi nuk ka hyrje"
+      },
+      "tv": {
+        "label": "Pranon thirrje TV",
+        "hint": "Thirrjet në 02 512 8888 dhe 02 620 2515 bien në CRM te këta persona — te të gjithë të lirët njëherësh, 07–21.",
+        "modeAlways": "Gjithmonë",
+        "modeManual": "Manualisht (buton te Thirrjet)",
+        "modeOff": "Jo",
+        "noExtension": "Pa linjë telefonike — do të bjerë pas hyrjes së parë me telefoni.",
+        "nowRinging": "tani bie",
+        "nowSilent": "tani nuk bie",
+        "badgeAlways": "TV",
+        "badgeManualOn": "TV · ON",
+        "badgeManualOff": "TV · OFF",
+        "saved": "U ruajt",
+        "membersNow": "Thirrjet TV: {{n}} bien tani"
       }
     },
     "integrations": {
@@ -10851,5 +10875,31 @@
       "rangNoAnswer": "zile {{ring}} · pa përgjigje",
       "openOrders": "Hap porositë e ditës"
     }
+  },
+  "incomingCall": {
+    "title": "Po bie",
+    "unknownCaller": "Klient i panjohur",
+    "lastOrder": "Porosia e fundit",
+    "noHistory": "Pa porosi të mëparshme",
+    "accept": "Përgjigju",
+    "reject": "Refuzo",
+    "ringingFor": "{{s}} s",
+    "soundBlocked": "Kliko kudo në faqe që të dëgjohet zilja",
+    "notifTitle": "Thirrje hyrëse · {{did}}",
+    "notifBody": "{{phone}}",
+    "answerFailed": "Thirrja nuk mund të pranohej"
+  },
+  "inboundRing": {
+    "chipAlways": "Thirrjet TV: aktive",
+    "chipShort": "TV",
+    "chipAlwaysTitle": "Thirrjet e numrave TV bien te ti sa herë që linja është e lirë",
+    "toggleOn": "Pranoj thirrje TV: ON",
+    "toggleOff": "Pranoj thirrje TV: OFF",
+    "on": "TV: ON",
+    "off": "TV: OFF",
+    "toggleTitle": "Ndihmoj me thirrjet TV — ndez / fik (fiket vetë në 21:05)",
+    "appliesSoon": "Centrali e zbaton brenda 30 sekondash.",
+    "failed": "Ndryshimi dështoi",
+    "otherTab": "Telefoni është aktiv në një skedë tjetër"
   }
 }

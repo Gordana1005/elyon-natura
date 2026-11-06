@@ -37,6 +37,8 @@ import { trashReasonLabel } from '@/lib/trashReasons';
 import { noteMinFromMessage } from '@/lib/dispositionNote';
 import { useTranslation } from 'react-i18next';
 import { useVoip, type LinkedContext } from '@/contexts/VoipContext';
+import { pickLinkedContext } from '@/lib/voip/linkedContext';
+import { InboundRingToggle } from '@/components/calls/InboundRingToggle';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useActiveCallView } from '@/hooks/useActiveCallView';
@@ -52,20 +54,8 @@ import { predictionListLabel } from '@/lib/predictionListLabel';
 // order, not try to mutate a closed one (which throws "cannot move paid →
 // confirmed"). When there is no actionable order this returns null and the call
 // logs as standalone; the Confirmed → Create Order flow then opens a fresh order.
-function pickLinkedContext(orders: any[]): LinkedContext | null {
-  if (!orders || orders.length === 0) return null;
-  const priority = ['pending', 'take', 'call_again', 'confirmed'];
-  const actionable = orders.filter((o) => priority.includes(o.status));
-  if (actionable.length === 0) return null;
-  const sorted = [...actionable].sort((a, b) => {
-    const ai = priority.indexOf(a.status);
-    const bi = priority.indexOf(b.status);
-    if (ai !== bi) return ai - bi;
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-  });
-  const top = sorted[0];
-  return { type: 'order', id: top.id, display_id: top.display_id };
-}
+// (pickLinkedContext itself lives in src/lib/voip/linkedContext.ts since 05.11.2026 — the inbound answer
+// path links an answered Teleshop call the same way.)
 
 function orderToModalData(order: any): OrderModalData {
   const items = (order.order_items || []).map((i: any) => ({
@@ -1261,6 +1251,9 @@ export default function CallsPage() {
   // included — so they know which list they're working.
   const headerControls = (
     <div className="flex items-center gap-1.5">
+      {/* Teleshop In: "ТВ повици: активно" for the operators who always ring, the ВКЛ / ИСКЛ button for the
+          managers who help by hand (05.11.2026); nothing for everyone else */}
+      <InboundRingToggle compact={compactHeader} />
       {compactHeader ? (
         <>
           {/* Mobile: a single phone icon that opens a dial dialog (keeps the topbar uncluttered). */}

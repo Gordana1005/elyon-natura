@@ -168,3 +168,19 @@ read-only and HMAC-signed (same trust boundary as `elyon-rec.php`); never widen 
 beyond the fixed read-only commands listed there.
 
 This skill must be consulted before any change to the VPS, Asterisk, FreePBX, or the frontend VoIP layer. The infrastructure is deliberately hardened and pre-staged. Do not improvise.
+## Macedonia — inbound Teleshop calls ring the CRM (06.11.2026)
+
+The MK PBX (FreePBX 17 on pbx.naturall.mk, Telekom trunk `telekom-mk`) sends the TV numbers 02 512 8888 and
+02 620 2515 (and the test number 02 311 8813) to queue 700 "Teleshop In": `[elyon-tv-in]` in extensions_custom.conf
+(caller-ID name TV8888 / TV2515, 07:00-20:59 Europe/Skopje, `Queue(700,r,,,60,,,elyon-in-answer^s^1)`), everything
+else and every failure to `[elyon-missed-call]` (greeting + voicemail into Пропуштени повици). The queue
+(queues_custom.conf) is ringall, 60 s, `ringinuse=no`, joinempty strict; its members are DYNAMIC and come from the CRM
+every 30 s (`elyon-queue-sync.sh` -> `GET /api/voip/inbound-members`, HMAC `inbound|<exp>` with the recordings key):
+`inbound_ring_settings` per login, mode always | manual | off, set in Settings -> Teams "Прима ТВ повици" or by the
+person's own ВКЛ/ИСКЛ button on /calls (manual only; off by itself at 21:05). Never add queue members by hand.
+The browser engine (sip.js `delegate.onInvite`) rings the `IncomingCallPanel` on every page; a ring that ends without
+an answer goes `incoming -> idle` and logs NOTHING; an answered call is `call_logs.direction = 'inbound'`, recorded as
+`in-<HHMMSS>-<ext>-<caller>-to-<did>-<uniqueid>.wav` on the agent leg (`[elyon-in-answer]`, hook `elyon-cq`).
+`device_state_busy_at=1` on the agent lines makes a line In Use while on a call, so the queue skips it.
+Telekom must route the numbers inbound (the forwards to mobiles are removed at the cut-over); test on 02 311 8813 first.
+Memory: project_inbound_teleshop_queue_2026_11_06.md. Rollback: /root/pbx-setup/backup-inbound-<stamp>/.

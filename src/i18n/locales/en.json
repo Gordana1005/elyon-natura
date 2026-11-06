@@ -409,7 +409,9 @@
     "unmuteMic": "Unmute microphone",
     "mute": "Mute",
     "unmute": "Unmute",
-    "end": "End"
+    "end": "End",
+    "inboundCall": "Inbound call",
+    "calledOn": "Called on"
   },
   "activeView": {
     "onCustomer": "{{name}} is on this customer",
@@ -1375,7 +1377,11 @@
     "loadRecording": "Load recording",
     "noRecordsDesc": "Call history will appear here as agents make calls.",
     "when": "When",
-    "productsCount": "Products ({{n}})"
+    "productsCount": "Products ({{n}})",
+    "direction": {
+      "inbound": "Inbound",
+      "outbound": "Outbound"
+    }
   },
   "orderCalls": {
     "title": "Calls",
@@ -4295,7 +4301,25 @@
         "bad_value": "Enter a value.",
         "bad_altercpa_id": "An AlterCPA id is a number.",
         "bad_kind": "Unknown handle type.",
-        "bad_patch": "Nothing valid to save."
+        "bad_patch": "Nothing valid to save.",
+        "bad_mode": "Unknown mode",
+        "not_manual": "Only a person in “Manually” mode can switch themselves in",
+        "no_login": "The person has no login"
+      },
+      "tv": {
+        "label": "Takes TV calls",
+        "hint": "Calls to 02 512 8888 and 02 620 2515 ring in the CRM for these people — all free ones at once, 07–21.",
+        "modeAlways": "Always",
+        "modeManual": "Manually (button on Calls)",
+        "modeOff": "No",
+        "noExtension": "No telephony line yet — rings after the first telephony login.",
+        "nowRinging": "ringing now",
+        "nowSilent": "not ringing now",
+        "badgeAlways": "TV",
+        "badgeManualOn": "TV · ON",
+        "badgeManualOff": "TV · OFF",
+        "saved": "Saved",
+        "membersNow": "TV calls: {{n}} ringing now"
       }
     },
     "integrations": {
@@ -10851,5 +10875,31 @@
       "rangNoAnswer": "rang {{ring}} · no answer",
       "openOrders": "Open the day's orders"
     }
+  },
+  "incomingCall": {
+    "title": "Ringing",
+    "unknownCaller": "Unknown customer",
+    "lastOrder": "Last order",
+    "noHistory": "No previous orders",
+    "accept": "Answer",
+    "reject": "Decline",
+    "ringingFor": "{{s}} s",
+    "soundBlocked": "Click anywhere on the page to hear the ringing",
+    "notifTitle": "Incoming call · {{did}}",
+    "notifBody": "{{phone}}",
+    "answerFailed": "The call could not be answered"
+  },
+  "inboundRing": {
+    "chipAlways": "TV calls: active",
+    "chipShort": "TV",
+    "chipAlwaysTitle": "Calls to the TV numbers ring you whenever your line is free",
+    "toggleOn": "Taking TV calls: ON",
+    "toggleOff": "Taking TV calls: OFF",
+    "on": "TV: ON",
+    "off": "TV: OFF",
+    "toggleTitle": "Help with the TV calls — switch on / off (switches off by itself at 21:05)",
+    "appliesSoon": "The PBX applies it within 30 seconds.",
+    "failed": "The change failed",
+    "otherTab": "The phone is active in another tab"
   }
 }

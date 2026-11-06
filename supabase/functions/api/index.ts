@@ -17,6 +17,9 @@ import * as LB2 from "./leaderboardV2.ts";
 // codes, suggestions, the no-parcel switch (pure, unit-tested).
 import * as TA from "./teamsAdmin.ts";
 import * as TL from "./teamLines.ts";
+// Inbound Teleshop calls (05.11.2026): who rings on PBX queue 700 — the member pull the PBX signs, the ring modes
+// (always / manual / off) and the presence flags of Settings → Teams (pure, unit-tested in inboundRing.test.ts).
+import * as IR from "./inboundRing.ts";
 import * as IH from "./integrationsHealth.ts";
 // Insights foundation (migration 20260940000000): the sale cohort's windows,
 // owner gate, money-strip whitelist and the /orders cohort twins (pure,
@@ -477,6 +480,10 @@ const callLogSchema = z.object({
   ended_at: z.string().datetime().optional(),
   customer_phone: z.string().max(30).optional(),
   connection_state: z.enum(["answered", "no_answer", "busy", "failed", "voicemail"]).optional(),
+  // inbound = the Teleshop In queue rang the browser and the agent answered (05.11.2026); the softphone
+  // sends source 'voip' (the handset outcome bar writes 'handset' through POST /calls/outcome).
+  direction: z.enum(["outbound", "inbound"]).optional(),
+  source: z.enum(["handset", "voip"]).optional(),
   // Structured cancel reason — required by UI when outcome=cancelled but the
   // server validates the combination explicitly so we can return a helpful
   // 400 instead of a Zod error.
@@ -2595,6 +2602,34 @@ async function handleRequest(req: Request): Promise<Response> {
       return json({ map, main: PBX_MAIN_CID });
     }
 
+    // GET /api/voip/inbound-members?exp=<epoch>&sig=<hex> — the PBX's 30-second cron (elyon-queue-sync.sh) pulls
+    // who must be a member of queue 700 "Teleshop In" right now (05.11.2026): every assigned extension whose login
+    // is active and whose inbound_ring_settings row is effective — mode 'always', or 'manual' with the switch on
+    // (migration 20261106100000). Same trust boundary as voip/cid-map: sig = HMAC_SHA256(REC_SHARED_SECRET,
+    // "inbound|<exp>"), exp in the future. The CRM is the only source of truth for the queue's members.
+    if (req.method === "GET" && path === "voip/inbound-members") {
+      const secret = Deno.env.get("REC_SHARED_SECRET") || "";
+      const exp = parseInt(url.searchParams.get("exp") || "0", 10);
+      const sig = url.searchParams.get("sig") || "";
+      if (!secret || !Number.isFinite(exp) || exp < Math.floor(Date.now() / 1000)) return json({ error: "unauthorized" }, 401);
+      const k = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+      const b = new Uint8Array(await crypto.subtle.sign("HMAC", k, new TextEncoder().encode(IR.inboundMembersMessage(exp))));
+      const expected = Array.from(b).map((x) => x.toString(16).padStart(2, "0")).join("");
+      if (expected.length !== sig.length || !timingSafeEqualHex(expected, sig)) return json({ error: "unauthorized" }, 401);
+      const [{ data: exts }, { data: settings }, { data: profs }] = await Promise.all([
+        adminClient.from("telephony_extensions").select("extension, user_id").not("user_id", "is", null),
+        adminClient.from("inbound_ring_settings").select("user_id, mode, manual_on").neq("mode", "off"),
+        adminClient.from("profiles").select("user_id, last_seen_at").eq("is_active", true),
+      ]);
+      const active = new Set<string>((profs || []).map((p: any) => p.user_id));
+      const seen: Record<string, string | null> = {};
+      for (const p of profs || []) seen[p.user_id] = p.last_seen_at;
+      const nowMs = Date.now();
+      const members = IR.effectiveMembers((exts || []) as IR.ExtensionRow[], (settings || []) as IR.RingSetting[], active)
+        .map((m) => ({ ...m, online: IR.onlineAt(seen[m.user_id], nowMs) }));
+      return json({ queue: 700, members, ts: new Date(nowMs).toISOString() });
+    }
+
     // PBX missed-call webhook (HMAC-signed). Logs an inbound call (caller + DID
     // + time) as a missed call so an agent can be assigned to call back.
     if (req.method === "POST" && path === "webhook/missed-call") {
@@ -2715,7 +2750,10 @@ async function handleRequest(req: Request): Promise<Response> {
       const oneWay = (tx !== null && tx > 0 && rx === 0) || (loss !== null && loss >= 30);
       // Best-effort link to the call_logs row (same phone last-8, nearest time).
       let callLogId: string | null = null;
-      const last8 = String(b.dialed || "").replace(/\D/g, "").slice(-8);
+      // The customer's side: the dialled number for a dial, the CALLER for an answered Teleshop In call
+      // (the PBX hook posts direction + caller for an inbound leg, 05.11.2026).
+      const qParty = String(b.direction || "") === "inbound" ? (b.caller || b.dialed) : b.dialed;
+      const last8 = String(qParty || "").replace(/\D/g, "").slice(-8);
       if (last8) {
         const { data: cl } = await adminClient
           .from("call_logs").select("id,started_at,connected_at")
@@ -2771,7 +2809,9 @@ async function handleRequest(req: Request): Promise<Response> {
       const num = (v: any) => (v === null || v === undefined || v === "" || isNaN(Number(v)) ? null : Number(v));
       const ext = String(b.ext || b.extension || "").trim() || null;
       const file = String(b.file || "").trim() || null;
-      const dialedLast8 = String(b.dialed || "").replace(/\D/g, "").slice(-8) || null;
+      // The customer's side: the dialled number for a dial, the CALLER for an answered Teleshop In call (05.11.2026).
+      const rParty = String(b.direction || "") === "inbound" ? (b.caller || b.dialed) : b.dialed;
+      const dialedLast8 = String(rParty || "").replace(/\D/g, "").slice(-8) || null;
       const startEpoch = num(b.start_epoch ?? b.start);
       const endEpoch = num(b.end_epoch ?? b.end);
       const startedAt = startEpoch ? new Date(startEpoch * 1000).toISOString() : (b.started_at || null);
@@ -5014,7 +5054,8 @@ async function handleRequest(req: Request): Promise<Response> {
     const agentOwnsRecording = async (file: string, userId: string): Promise<boolean> => {
       if (!file) return false;
       const base = (file.split("/").pop() || "");
-      const extMatch = base.match(/^out-\d{6}-(\d+)-/);
+      // out-… = a dial (predial hook), in-… = an answered Teleshop In queue call (05.11.2026)
+      const extMatch = base.match(/^(?:out|in)-\d{6}-(\d+)-/);
       const ext = extMatch ? extMatch[1] : null;
       if (ext) {
         const { data: te } = await adminClient.from("telephony_extensions").select("user_id").eq("extension", ext).maybeSingle();
@@ -5404,6 +5445,98 @@ async function handleRequest(req: Request): Promise<Response> {
       if (!updated) return json({ error: "Agent has no telephony extension assigned" }, 404);
       await audit(adminClient, user.id, user.email, "voip.caller_id.set", { target_type: "user", target_id: targetUser, payload: { extension: updated.extension, caller_id: cid } });
       return json({ success: true });
+    }
+
+    // ===== Inbound Teleshop calls (05.11.2026) — who rings on PBX queue 700 "Teleshop In" (02 512 8888 / 02 620 2515).
+    // inbound_ring_settings (migration 20261106100000): mode always | manual | off per login + the manual switch.
+    // Admins / managers set the mode (Settings → Teams); a 'manual' person flips their own switch on /calls
+    // ("Примам ТВ повици"). The PBX pulls the effective members every 30 s (GET voip/inbound-members, pre-auth).
+    // Every write goes through inbound_ring_set() and lands in audit_log.
+
+    // GET /api/voip/inbound-ring — every assigned line with its mode, plus online / in-call right now.
+    if (req.method === "GET" && path === "voip/inbound-ring") {
+      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      const [{ data: exts }, { data: settings }, { data: profs }] = await Promise.all([
+        adminClient.from("telephony_extensions").select("extension, user_id").not("user_id", "is", null).order("extension"),
+        adminClient.from("inbound_ring_settings").select("user_id, mode, manual_on, updated_at, updated_by"),
+        adminClient.from("profiles").select("user_id, full_name, email, is_active, last_seen_at, voip_state, voip_state_at"),
+      ]);
+      const pmap: Record<string, any> = {};
+      for (const p of profs || []) pmap[p.user_id] = p;
+      const smap: Record<string, any> = {};
+      for (const s of settings || []) smap[s.user_id] = s;
+      const nowMs = Date.now();
+      const rowOf = (userId: string, extension: string | null) => {
+        const p = pmap[userId]; const s = smap[userId];
+        return {
+          user_id: userId,
+          full_name: p?.full_name || "—",
+          email: p?.email || "",
+          is_active: !!p?.is_active,
+          extension,
+          mode: (s?.mode ?? "off") as IR.InboundRingMode,
+          manual_on: !!s?.manual_on,
+          effective: !!extension && !!p?.is_active && IR.isEffective(s),
+          online: IR.onlineAt(p?.last_seen_at, nowMs),
+          in_call: IR.inCallAt(p?.voip_state, p?.voip_state_at, nowMs),
+          updated_at: s?.updated_at ?? null,
+          updated_by: s?.updated_by ?? null,
+        };
+      };
+      const rows: any[] = [];
+      const withLine = new Set<string>();
+      for (const e of exts || []) { withLine.add(e.user_id); rows.push(rowOf(e.user_id, String(e.extension))); }
+      // a setting on a login that has no line yet (rings after the first telephony login)
+      for (const s of settings || []) if (!withLine.has(s.user_id) && s.mode !== "off") rows.push(rowOf(s.user_id, null));
+      const members_now = rows.filter((r) => r.effective).length;
+      return json({ rows, members_now });
+    }
+
+    // GET /api/voip/inbound-ring/me — my own mode / switch (the /calls chip or button).
+    if (req.method === "GET" && path === "voip/inbound-ring/me") {
+      if (!hasInternalRole) return json({ error: "Forbidden" }, 403);
+      const [{ data: s }, { data: te }] = await Promise.all([
+        adminClient.from("inbound_ring_settings").select("mode, manual_on").eq("user_id", user.id).maybeSingle(),
+        adminClient.from("telephony_extensions").select("extension").eq("user_id", user.id).maybeSingle(),
+      ]);
+      return json({ mode: (s?.mode ?? "off") as IR.InboundRingMode, manual_on: !!s?.manual_on, extension: te?.extension ?? null });
+    }
+
+    // POST /api/voip/inbound-ring/self { on } — a 'manual' person switches themselves in / out.
+    if (req.method === "POST" && path === "voip/inbound-ring/self") {
+      if (!hasInternalRole) return json({ error: "Forbidden" }, 403);
+      let body: any; try { body = await req.json(); } catch { body = {}; }
+      const parsed = IR.parseSelfBody(body);
+      if (!parsed.ok) return json({ error: parsed.error }, IR.statusForCode(parsed.error));
+      const { data: s } = await adminClient.from("inbound_ring_settings").select("mode, manual_on").eq("user_id", user.id).maybeSingle();
+      const allowed = IR.selfToggleAllowed(s);
+      if (!allowed.ok) return json({ error: allowed.error }, IR.statusForCode(allowed.error));
+      const { data: r, error } = await adminClient.rpc("inbound_ring_set", { p_user_id: user.id, p_manual_on: parsed.on, p_actor: user.id });
+      if (error) return json({ error: sanitizeDbError(error) }, 400);
+      if (!r?.ok) return json({ error: r?.error || "failed" }, IR.statusForCode(r?.error));
+      await audit(adminClient, user.id, user.email, "voip.inbound_ring.self", {
+        target_type: "user", target_id: user.id, target_name: user.email, payload: { before: r.before, after: r.after },
+      });
+      return json({ ok: true, mode: r.after.mode, manual_on: r.after.manual_on });
+    }
+
+    // PUT /api/voip/inbound-ring/:userId { mode } — admins / managers set a login's mode.
+    if (req.method === "PUT" && segments.length === 3 && segments[0] === "voip" && segments[1] === "inbound-ring") {
+      if (!isAdminOrManager) return json({ error: "Forbidden" }, 403);
+      const target = segments[2];
+      if (!/^[0-9a-f-]{36}$/i.test(target)) return json({ error: "no_login" }, 404);
+      let body: any; try { body = await req.json(); } catch { body = {}; }
+      const mode = IR.parseMode(body?.mode);
+      if (!mode) return json({ error: "bad_mode" }, IR.statusForCode("bad_mode"));
+      const { data: prof } = await adminClient.from("profiles").select("full_name, email").eq("user_id", target).maybeSingle();
+      if (!prof) return json({ error: "no_login" }, 404);
+      const { data: r, error } = await adminClient.rpc("inbound_ring_set", { p_user_id: target, p_mode: mode, p_actor: user.id });
+      if (error) return json({ error: sanitizeDbError(error) }, 400);
+      if (!r?.ok) return json({ error: r?.error || "failed" }, IR.statusForCode(r?.error));
+      await audit(adminClient, user.id, user.email, "voip.inbound_ring.set", {
+        target_type: "user", target_id: target, target_name: prof.full_name || prof.email, payload: { before: r.before, after: r.after },
+      });
+      return json({ ok: true, after: r.after });
     }
 
     // GET /api/missed-calls — admin/manager: all; agent: calls assigned to them
@@ -7148,7 +7281,8 @@ async function handleRequest(req: Request): Promise<Response> {
     if (req.method === "POST" && path === "presence/heartbeat") {
       let hb: any = {};
       try { hb = await req.json(); } catch { /* legacy empty-body beats */ }
-      const VOIP_STATES = ["idle", "dialing", "in_call", "wrapping", "ending"];
+      // 'incoming' = the browser is ringing on an inbound Teleshop call (05.11.2026) — not yet a call
+      const VOIP_STATES = ["idle", "dialing", "incoming", "in_call", "wrapping", "ending"];
       const patch: Record<string, unknown> = { last_seen_at: new Date().toISOString() };
       if (typeof hb?.voip_state === "string" && VOIP_STATES.includes(hb.voip_state)) {
         patch.voip_state = hb.voip_state;
@@ -12736,6 +12870,7 @@ async function handleRequest(req: Request): Promise<Response> {
         context_type, context_id, outcome, notes,
         started_at, connected_at, ended_at,
         customer_phone, connection_state,
+        direction, source,
         cancellation_reason, cancellation_reason_notes, trash_reason, trash_reason_notes,
       } = body;
 
@@ -12862,6 +12997,7 @@ async function handleRequest(req: Request): Promise<Response> {
                 connected_at: connected_at ?? null,
                 ended_at: ended_at ?? null,
                 connection_state: connection_state ?? null,
+                direction: direction ?? "outbound",
                 notes: [hit.notes, loggedNotes].filter(Boolean).join("\n") || null,
               })
               .eq("id", hit.id).select().single();
@@ -12871,24 +13007,29 @@ async function handleRequest(req: Request): Promise<Response> {
       }
 
       if (!data) {
-        const { data: inserted, error } = await adminClient
-          .from("call_logs")
-          .insert({
-            agent_id: user.id,
-            context_type,
-            context_id: context_id ?? null,
-            outcome,
-            notes: loggedNotes,
-            started_at: started_at ?? null,
-            connected_at: connected_at ?? null,
-            ended_at: ended_at ?? null,
-            customer_phone: customer_phone ?? null,
-            connection_state: connection_state ?? null,
-          })
-          .select()
-          .single();
-        if (error) return json({ error: sanitizeDbError(error) }, 400);
-        data = inserted;
+        const row: Record<string, unknown> = {
+          agent_id: user.id,
+          context_type,
+          context_id: context_id ?? null,
+          outcome,
+          notes: loggedNotes,
+          started_at: started_at ?? null,
+          connected_at: connected_at ?? null,
+          ended_at: ended_at ?? null,
+          customer_phone: customer_phone ?? null,
+          connection_state: connection_state ?? null,
+          direction: direction ?? "outbound",
+          source: source ?? null,
+        };
+        let ins = await adminClient.from("call_logs").insert(row).select().single();
+        // The api may go live before migration 20261106100100 (call_logs.direction) / 20260943001700 (source):
+        // degrade to the legacy row, never fail the log.
+        if (ins.error && (ins.error.code === "PGRST204" || /\b(direction|source)\b/i.test(ins.error.message || ""))) {
+          const { direction: _d, source: _s, ...legacy } = row;
+          ins = await adminClient.from("call_logs").insert(legacy).select().single();
+        }
+        if (ins.error) return json({ error: sanitizeDbError(ins.error) }, 400);
+        data = ins.data;
       }
 
       // The agent just called this number — clear any open missed call for it so it

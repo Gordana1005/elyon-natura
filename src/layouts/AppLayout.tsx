@@ -9,6 +9,7 @@ import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { NotificationsDropdown } from '@/components/NotificationsDropdown';
 import { VoipIncidentBanner } from '@/components/VoipIncidentBanner';
+import { IncomingCallPanel } from '@/components/calls/IncomingCallPanel';
 import { PresenceHeaderButton } from '@/components/presence/PresenceHeaderButton';
 import { usePresenceTracking } from '@/hooks/usePresence';
 import { friendlyRoleLabel } from '@/lib/roles';
@@ -125,6 +126,8 @@ export function AppLayout({ children, title, headerActions }: AppLayoutProps) {
         </header>
         {/* Superadmin telephony alert strip (quiet unless something is wrong) */}
         <VoipIncidentBanner />
+        {/* An inbound Teleshop call ringing this browser — on every page (05.11.2026); nothing while idle */}
+        <IncomingCallPanel />
         {/* Content */}
         <main className="relative flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden bg-background p-3 sm:p-4 md:p-6">{children}</main>
       </div>

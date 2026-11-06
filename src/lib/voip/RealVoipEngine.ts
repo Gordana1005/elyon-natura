@@ -11,14 +11,30 @@ import {
   UserAgent,
   Registerer,
   Inviter,
+  Invitation,
   Session,
   TransportState,
   RegistererState,
   SessionState,
 } from 'sip.js';
 import { PBX_CONFIG } from './pbxConfig';
+import { parseInboundIdentity } from './inboundIdentity';
 
-export type RealCallState = 'idle' | 'dialing' | 'in_call' | 'wrapping' | 'ending';
+// 'incoming' = an inbound INVITE is ringing this line (queue 700 "Teleshop In", 05.11.2026) — not yet a call.
+export type RealCallState = 'idle' | 'dialing' | 'incoming' | 'in_call' | 'wrapping' | 'ending';
+
+/** What the UI gets the moment an inbound call rings (the caller + the TV number dialled). */
+export interface IncomingCallInfo {
+  phone: string;
+  did_label: string | null;
+  did_number: string | null;
+  did_pretty: string | null;
+  received_at: number;
+}
+
+/** sip.js Invitation duck-typed (the class is mocked in tests). */
+const isInvitation = (s: Session | null | undefined): s is Invitation =>
+  !!s && typeof (s as any).accept === 'function' && typeof (s as any).reject === 'function';
 
 /** Per-agent SIP credentials, fetched from /api/voip/credentials at login.
  *  Each agent registers as their OWN extension — no shared/bundled secret. */
@@ -43,6 +59,10 @@ export interface RealActiveCall {
   ended_at: number | null;
   /** The caller-ID actually presented for this call (what the customer sees). */
   caller_id: string;
+  /** inbound = the Teleshop In queue rang this line and the agent answered; outbound = a dial. */
+  direction: 'outbound' | 'inbound';
+  /** The TV number's caller-ID name prefix on an inbound call (TV8888 / TV2515), else null. */
+  did_label: string | null;
 }
 
 export class RealVoipEngine {
@@ -74,6 +94,11 @@ export class RealVoipEngine {
   public onCallChange?: (call: RealActiveCall | null) => void;
   public onRegistrationChange?: (registered: boolean, error?: string) => void;
   public onError?: (error: Error, context: string) => void;
+  /** An inbound call started ringing (state is 'incoming'; answerIncoming / rejectIncoming decide). */
+  public onIncoming?: (info: IncomingCallInfo) => void;
+
+  /** Set by dispose(): a late INVITE on a torn-down engine is declined, never ringed. */
+  private disposed = false;
 
   private _isRegistered: boolean = false;
 
@@ -121,6 +146,7 @@ export class RealVoipEngine {
    *  dropped/failed connection can actually recover. */
   private async _connectOnce(): Promise<void> {
     if (!this.creds) throw new Error('VoIP credentials not configured — call configure() first');
+    this.disposed = false;
 
     // A half-dead UserAgent (e.g. after a WebSocket close / code 1006) must be
     // disposed before we rebuild — otherwise registration stays wedged and every
@@ -161,6 +187,11 @@ export class RealVoipEngine {
       },
       authorizationUsername: this.creds.extension,
       authorizationPassword: this.creds.secret,
+      // Inbound: queue 700 "Teleshop In" rings this line (05.11.2026). Without a delegate sip.js answers every
+      // INVITE with 486 Busy — exactly what we still want while the engine is not idle (handleInvite decides).
+      delegate: {
+        onInvite: (invitation: Invitation) => this.handleInvite(invitation),
+      },
     });
 
     // Listen to transport state changes (correct 0.21 way)
@@ -353,6 +384,8 @@ export class RealVoipEngine {
       connected_at: null,
       ended_at: null,
       caller_id: cid,
+      direction: 'outbound',
+      did_label: null,
     };
 
     this.setState('dialing');
@@ -410,23 +443,152 @@ export class RealVoipEngine {
 
   async hangup(opts?: { suppressWrap?: boolean }): Promise<void> {
     if (opts?.suppressWrap) this._suppressWrap = true;
-    const session = this.currentSession;
-    if (session) {
-      try {
-        if (session.state === SessionState.Established) {
-          // Answered call — send BYE.
-          await session.bye();
-        } else if (session.state === SessionState.Initial || session.state === SessionState.Establishing) {
-          // Still ringing / not answered — CANCEL the INVITE. bye() is invalid
-          // here and would leave the call ringing on the carrier.
-          await (session as Inviter).cancel();
-        }
-      } catch (e) {
-        console.warn('[RealVoip] Error during hangup', e);
-      }
+    // A ring we have not answered: decline it (486) and go straight back to idle — never the outcome picker.
+    if (this.state === 'incoming') {
+      await this.rejectIncoming();
+      return;
     }
+    const session = this.currentSession;
+    if (session) await this.terminateSession(session);
 
     this.handleCallEnded();
+  }
+
+  /**
+   * End a SIP session whatever its kind and phase: an answered call gets BYE; an outbound INVITE still ringing
+   * gets CANCEL (bye() is invalid there and would leave the call ringing on the carrier); an inbound INVITE we
+   * have not answered gets 486 Busy. Errors are logged, never thrown — the UI state machine moves on regardless.
+   */
+  private async terminateSession(session: Session): Promise<void> {
+    try {
+      if (session.state === SessionState.Established) {
+        await session.bye();
+      } else if (session.state === SessionState.Initial || session.state === SessionState.Establishing) {
+        if (isInvitation(session)) await session.reject({ statusCode: 486 });
+        else await (session as Inviter).cancel();
+      }
+    } catch (e) {
+      console.warn('[RealVoip] Error ending the session', e);
+    }
+  }
+
+  // ── Inbound (queue 700 "Teleshop In", 05.11.2026) ──────────────────────────
+
+  /**
+   * An inbound INVITE from the PBX: the queue rings this line. Only an idle, live engine takes it — anything else
+   * answers 486 Busy, so the queue keeps ringing the other free members. The caller and the TV number come from
+   * the From header (parseInboundIdentity). Nothing is logged here: a ring that ends without an answer (CANCEL
+   * because another operator was first or the caller gave up, or our own decline) goes straight back to idle
+   * through handleIncomingGone — never through 'wrapping', so no outcome is ever recorded against the customer.
+   */
+  private handleInvite(invitation: Invitation): void {
+    if (this.disposed || this.state !== 'idle' || !this.userAgent) {
+      console.log('[RealVoip] Inbound INVITE declined — engine state', this.disposed ? 'disposed' : this.state);
+      invitation.reject({ statusCode: 486 }).catch(() => {});
+      return;
+    }
+    const remote: any = (invitation as any).remoteIdentity;
+    const id = parseInboundIdentity(remote?.uri?.user ?? '', remote?.displayName ?? '');
+    const now = Date.now();
+    console.log('[RealVoip] Inbound call from', id.phone, 'on', id.did_label ?? '?');
+
+    this.currentSession = invitation;
+    this._callEnded = false;
+    this._suppressWrap = false;
+    this.call = {
+      id: `in_${now}`,
+      phone: id.phone,
+      agent_id: 'current-user',
+      started_at: now,
+      duration_sec: 0,
+      notes: '',
+      linked_context: null,
+      dial_started_at: now,
+      connected_at: null,
+      ended_at: null,
+      caller_id: id.did_number ?? this.creds?.primaryCallerId ?? PBX_CONFIG.defaultCallerId,
+      direction: 'inbound',
+      did_label: id.did_label,
+    };
+
+    invitation.stateChange.addListener((state: SessionState) => {
+      if (this.currentSession !== invitation) return;
+      if (state === SessionState.Established) {
+        const connectMs = Date.now();
+        if (this.call) {
+          this.call.connected_at = connectMs;
+          this.call.started_at = connectMs;
+        }
+        this.attachRemoteMedia(invitation);
+        this.setMuted(this._muted);
+        this.setState('in_call');
+        // push connected_at to the UI at once — finalize() reads it to tell an answered call from a ring-out
+        if (this.call) this.setCall({ ...this.call });
+        this.startDurationTimer();
+        console.log('[RealVoip] Inbound call established');
+      } else if (state === SessionState.Terminated) {
+        if (this.state === 'incoming') this.handleIncomingGone();
+        else this.handleCallEnded();
+      }
+    });
+
+    this.setState('incoming');
+    this.setCall(this.call);
+    this.onIncoming?.({ phone: id.phone, did_label: id.did_label, did_number: id.did_number, did_pretty: id.did_pretty, received_at: now });
+  }
+
+  /** The ring ended without an answer (another operator took it, the caller hung up, or we declined): silent idle. */
+  private handleIncomingGone(): void {
+    this.stopDurationTimer();
+    this.detachRemoteMedia();
+    this.currentSession = null;
+    this.call = null;
+    this._callEnded = false;
+    this._suppressWrap = false;
+    this._muted = false;
+    this.setCall(null);
+    this.setState('idle');
+  }
+
+  /** Answer the ringing inbound call (the agent pressed Прими). Rejects when nothing is ringing. */
+  async answerIncoming(): Promise<void> {
+    const invitation = this.currentSession;
+    if (this.state !== 'incoming' || !isInvitation(invitation)) throw new Error('No incoming call');
+    try {
+      await invitation.accept({ sessionDescriptionHandlerOptions: { constraints: { audio: true, video: false } } });
+      // Attach the remote audio as soon as its track arrives (as the outbound path does).
+      try {
+        const pc: RTCPeerConnection | undefined = (invitation as any).sessionDescriptionHandler?.peerConnection;
+        pc?.addEventListener('track', () => this.attachRemoteMedia(invitation));
+      } catch { /* ignore */ }
+    } catch (err) {
+      // Typically the microphone was refused — tell the UI, free the line so the queue moves on.
+      console.error('[RealVoip] accept() failed:', err);
+      this.onError?.(err instanceof Error ? err : new Error(String(err)), 'answer-failed');
+      try { await invitation.reject({ statusCode: 480 }); } catch { /* already gone */ }
+      if (this.currentSession === invitation) this.handleIncomingGone();
+      throw err;
+    }
+  }
+
+  /** Decline the ringing inbound call (the agent pressed Одбиј): 486 Busy, the queue rings the others. */
+  async rejectIncoming(): Promise<void> {
+    const invitation = this.currentSession;
+    if (this.state !== 'incoming' || !isInvitation(invitation)) return;
+    try {
+      await invitation.reject({ statusCode: 486 });
+    } catch (e) {
+      console.warn('[RealVoip] reject() failed', e);
+    }
+    if (this.currentSession === invitation) this.handleIncomingGone();
+  }
+
+  /** The order / lead the call is about, found after the fact (an inbound call starts standalone). */
+  setLinkedContext(ctx: any | null): void {
+    if (this.call) {
+      this.call.linked_context = ctx;
+      this.setCall({ ...this.call });
+    }
   }
 
   /**
@@ -597,15 +759,7 @@ export class RealVoipEngine {
     // it in handleCallEnded). Fire-and-forget — never block reset.
     const lingering = this.currentSession;
     this.currentSession = null;
-    if (lingering) {
-      try {
-        if (lingering.state === SessionState.Established) {
-          lingering.bye().catch(() => {});
-        } else if (lingering.state === SessionState.Initial || lingering.state === SessionState.Establishing) {
-          (lingering as Inviter).cancel().catch(() => {});
-        }
-      } catch { /* ignore */ }
-    }
+    if (lingering) void this.terminateSession(lingering);
     this.call = null;
     this._callEnded = false;
     this._suppressWrap = false;
@@ -618,6 +772,7 @@ export class RealVoipEngine {
    */
   async dispose(): Promise<void> {
     console.log('[RealVoip] Disposing engine...');
+    this.disposed = true;
 
     if (this.registerer) {
       try {
@@ -628,12 +783,9 @@ export class RealVoipEngine {
       this.registerer = null;
     }
 
-    if (this.currentSession) {
-      try {
-        await this.currentSession.bye();
-      } catch (e) {}
-      this.currentSession = null;
-    }
+    const session = this.currentSession;
+    this.currentSession = null;
+    if (session) await this.terminateSession(session);
 
     if (this.userAgent) {
       this.userAgent.stop();

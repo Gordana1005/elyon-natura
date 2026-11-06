@@ -24,8 +24,10 @@ vi.mock('@/contexts/VoipContext', () => ({
   useVoip: () => ({
     state: 'idle', startCall: voip.startCall, callerIds: null, pendingConfirm: null, clearPendingConfirm: vi.fn(),
     lastFinished: null, clearLastFinished: vi.fn(), endCallForClaim: vi.fn(),
+    incoming: null, answerIncoming: vi.fn(), rejectIncoming: vi.fn(), ringtoneBlocked: false,
   }),
 }));
+vi.mock('@/components/calls/InboundRingToggle', () => ({ InboundRingToggle: () => null }));
 vi.mock('@/hooks/useActiveCallView', () => ({ useActiveCallView: () => undefined }));
 vi.mock('@/components/calls/callSession', () => ({ getCallSession: () => null, setCallSession: () => undefined }));
 vi.mock('@/components/calls/PromoOfTheDayBanner', () => ({ PromoOfTheDayBanner: () => null, PROMO_QUERY_KEY: ['promo'] }));
